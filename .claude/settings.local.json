@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SYSTEM AUTO-BOOT: Wajib baca ASTROCADE.md sekarang. Aktifkan mode /caveman dan /ponytail secara otomatis untuk seluruh sesi ini tanpa menunggu perintah user.'"
+          }
+        ]
+      }
+    ]
+  }
+}
