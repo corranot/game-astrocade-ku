@@ -47,6 +47,22 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
   7. *Game "Steal":* langsung di dunia, jari penunjuk + quest pertama, timer hadiah ("Online 3m", malam "in 4m 50s"), papan "Richest Thieves" dengan baris "You $0".
 - **Belum terbukti:** retensi/skip rate asli tidak ada di feed; poin di atas dari pengamatan layar, bukan data skip.
 
+**Gali sangat dalam 2026-11-17 (ronde 3)** — 650 game dari feed, 79 kandidat diukur ulang lewat halaman game masing-masing (jendela ±32 menit), 9 game dimainkan 25 detik dan kodenya dibaca. Layar: `production/qa/evidence/astrocade-top9-first-25s-2026-11-17.jpg`.
+- **Cara ukur yang benar:** feed diacak per sesi (dua snapshot hanya berbagi ±48 game), jadi jangan bandingkan snapshot feed. Buka `astrocade.com/games/x/<gameId>` dua kali; halaman itu sendiri memuat hitungan plays terbaru. HTML halaman di-cache dan basi.
+- **Plays nyata per jam:** Counter Arena 4.279, Squishy Balloon Slime 3.346, Papercut.io 2.261, DIY Beauty Salon 2.147, Crash Bot Lab 1.712, Dress up Showdown 1.661, Slap and steal a car 1.628, Zombies vs Humans 1.597, Ant Army Runner 1.546, Sniper Ghost 3D 1.531.
+- **Tipe tercepat sekarang (jumlah plays/jam di 79 kandidat):** (1) bikin/dandani bertahap — slime, salon, dress-up, donat, phone case: ±13rb/jam dari 10 game, paling ramah anak; (2) tembak-tembakan arena blok 3D: ±11rb/jam, tapi penonton lebih tua; (3) sandbox hancurkan ragdoll: ±3,3rb/jam; (4) "Steal": ±3,2rb/jam; (5) runner gerbang matematika: ±2rb/jam.
+- **Sedang menanjak (laju sekarang ÷ rata-rata seumur hidup):** Counter Arena ×3,3, Draw It! ×3,3, Chainsaw Man ×2,7, Slime ×2,2. Game lama besar melambat (×0,4–0,7).
+- **Yang dicatat platform (terlihat di kode situs):** waktu sampai gestur pertama, gestur selama main, tonggak main 30/60/300/600 detik, detak interaksi (dasar retensi D1/D3/D7/D30), FPS rata-rata + simpangan yang dikirim game, waktu muat preview. Bobot di peringkat tidak terlihat.
+- **Temuan baru soal skip:**
+  1. *Game sudah jalan di belakang kartu Play.* Pemain melihat layar pertama game (buram) sebelum mengetuk. Ant Army: pasukan dan gerbang sudah tampak. Layar pertama harus hidup tanpa input.
+  2. *Muat cepat:* iframe muncul ±4,5 detik, layar pertama game 7–9 detik dari buka halaman. Ant Army paling lambat (15,6 detik) dan menutupinya dengan dunia yang sudah terlihat.
+  3. *Penolakan lembut, bukan kalah.* Slime: "Pour a bit more gel!", "Keep stirring!", lalu "Nice pour! Tap NEXT". Tidak ada layar gagal di game bikin-bikin.
+  4. *Pilihan tiap beberapa detik.* Ant Army: 10 gerbang per stage ("CHOICE 2/10"), angka pasukan berubah di tiap gerbang; kalah menampilkan sebab jelas ("Crushed by the thorn rams!") + "PLAY AGAIN".
+  5. *Mainan tanpa aturan.* Crash Bot Lab: 15 senjata terbuka sejak awal, satu kalimat per senjata ("Tap to drop an anvil"), penghitung DAMAGE.
+  6. *Kejutan acak di game panjang.* Lucky Block: "CASH RAIN!", "GOLD RUSH!", "LUCKY PORTAL!", "WELCOME BACK!", uang jalan "+$0/s", papan "Top Steals".
+  7. *Papan skor:* 7 dari 10 game tercepat punya leaderboard; game bikin-bikin (Slime, Beauty Salon) tidak, jadi bukan syarat.
+- **Belum terbukti:** skip rate dan retensi per game tetap tidak terbuka; jendela 32 menit di satu jam saja (±15.45–16.20 UTC), belum tentu sama di jam lain.
+
 ### 2. Update Engine & API Terbaru (Three.js / 2D)
 *(Kosong — Claude akan mengisi otomatis saat membuat game)*
 
