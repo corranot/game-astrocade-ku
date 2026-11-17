@@ -1,0 +1,4 @@
+modes:
+  rigor: minimal
+  review_mode: solo
+  automation: guided
