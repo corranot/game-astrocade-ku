@@ -1,0 +1,53 @@
+name: Auto Sync Game Studios & Skills
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Otomatis jalan setiap hari jam 09:00 WIB
+  workflow_dispatch:    # Tombol manual jika ingin update kapan saja
+
+permissions:
+  contents: write
+
+jobs:
+  sync-everything:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Upstream Game Studios
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+        with:
+          upstream_sync_repo: Donchitos/Claude-Code-Game-Studios
+          upstream_sync_branch: main
+          target_sync_branch: main
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update Selected Skills Only
+        run: |
+          mkdir -p .claude/skills
+
+          git clone --depth 1 https://github.com /tmp/ponytail
+          for s in ponytail ponytail-audit ponytail-debt ponytail-gain ponytail-help ponytail-review; do
+            rm -rf ".claude/skills/$s"
+            cp -r "/tmp/ponytail/skills/$s" ".claude/skills/$s"
+          done
+
+          git clone --depth 1 https://github.com /tmp/caveman
+          for s in caveman ultracave megacave caveman-commit caveman-review caveman-help; do
+            rm -rf ".claude/skills/$s"
+            cp -r "/tmp/caveman/skills/$s" ".claude/skills/$s"
+          done
+
+          git clone --depth 1 https://github.com /tmp/leanrea
+          rm -rf .claude/skills/leanrea
+          cp -r /tmp/leanrea/leanrea .claude/skills/leanrea
+
+      - name: Commit and Push Updated Skills
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .claude/skills/
+          git diff --staged --quiet || (git commit -m "chore: auto-update 13 selected skills" && git push)
