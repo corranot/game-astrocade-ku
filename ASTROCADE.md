@@ -61,7 +61,8 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
   5. *Mainan tanpa aturan.* Crash Bot Lab: 15 senjata terbuka sejak awal, satu kalimat per senjata ("Tap to drop an anvil"), penghitung DAMAGE.
   6. *Kejutan acak di game panjang.* Lucky Block: "CASH RAIN!", "GOLD RUSH!", "LUCKY PORTAL!", "WELCOME BACK!", uang jalan "+$0/s", papan "Top Steals".
   7. *Papan skor:* 7 dari 10 game tercepat punya leaderboard; game bikin-bikin (Slime, Beauty Salon) tidak, jadi bukan syarat.
-- **Belum terbukti:** skip rate dan retensi per game tetap tidak terbuka; jendela 32 menit di satu jam saja (±15.45–16.20 UTC), belum tentu sama di jam lain.
+- **Ukur ulang 29 menit kemudian (±16.20–16.50 UTC):** total 79 kandidat turun dari ±47rb ke ±35rb plays/jam, jadi laju bergantung jam. Urutan: Woodturner Workshop 2.525, Counter Arena 2.245, Squishy Balloon Slime 1.653, Prank City 1.389, Poké Phone Case Shop 1.242, Papercut.io 1.140, DIY Beauty Salon 1.083. Lima dari tujuh teratas adalah game bikin bertahap atau sandbox usil; kesimpulan tipe tidak berubah.
+- **Belum terbukti:** skip rate dan retensi per game tetap tidak terbuka; dua jendela ±30 menit berurutan saja, belum tentu sama di jam lain.
 
 ### 2. Update Engine & API Terbaru (Three.js / 2D)
 *(Kosong — Claude akan mengisi otomatis saat membuat game)*
