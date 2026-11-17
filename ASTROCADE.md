@@ -23,7 +23,16 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 ## MEMORI PENGETAHUAN STUDIO (MULAI DARI KOSONG & TERUS BERTAMBAH)
 
 ### 1. Tren Backend Astrocade & Rahasia Game Viral
-*(Kosong — Claude akan mengisi otomatis setelah cek backend atau bedah game)*
+**Cek feed 2026-11-17** — 235 game unik dari 25 baris kategori feed publik (`POST astrocade-api-prod.com/v3/feed?filter=gallery`, sesi tamu). Kecepatan = total plays ÷ umur sejak rilis (rata-rata seumur hidup, bukan plays hari ini). Retensi tidak ada di feed.
+- **Kategori tercepat (median plays/hari):** Players' Choice ~20rb, Meme ~14rb, Toys ~10rb, Creative/Educational/Farm ~6rb. Paling lambat: Platformer ~340, Action ~650, Simulation ~750.
+- **Pola juara untuk anak-anak:**
+  1. *ASMR bikin-sendiri bertahap* (slime, kue, donat, ukir kayu, dandani boneka): tuang → aduk → warnai → hias. Slime studio 71rb/hari; Woodturner 43rb/hari dan Squishy Balloon Slime 37rb/hari di minggu pertama.
+  2. *"Steal a ..." + base + pet/mutasi* (egg, brainrot, lucky block, car): 16–56rb/hari, banyak tiruan tetap laku.
+  3. *Dress-up lalu duel/runway dinilai juri*: 20–24rb/hari.
+  4. *Sandbox usil/meme* (Prank City 62rb/hari, brainrot, "+1 ..." incremental).
+  5. *Runner gerbang matematika* (Ant Army 21rb/hari di hari ke-2) — cara masuk Educational tanpa terasa belajar.
+- **Sinyal lain:** like hanya 1–2,7% dari plays di semua kategori (bukan pembeda). Share tertinggi: Arcade, Platformer, Merge, Meme (3–4%). Judul = kata kerja + benda konkret ("Steal an Egg", "Giant Salami Saw").
+- **Hindari:** platformer/action generik; game bermerek (Barbie, Ben 10, Minecraft ada di feed tapi itu IP orang).
 
 ### 2. Update Engine & API Terbaru (Three.js / 2D)
 *(Kosong — Claude akan mengisi otomatis saat membuat game)*
