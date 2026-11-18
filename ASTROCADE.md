@@ -83,4 +83,11 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 *(Kosong — Claude akan mengisi otomatis saat membuat game)*
 
 ### 3. Catatan Optimasi Retensi, Bug & Performa
-*(Kosong — Claude akan mengisi otomatis setiap selesai review kode)*
+
+**Fizzy Bath Bomb Maker (draft Astrocade 2026-11-18)** — game id `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, sumber di `prototypes/fizzy-bath-bomb-maker/`, belum dipublikasikan.
+- **Format akun ini multi-berkas:** `index.html` memuat `./game.js` sebagai `type="module"`. Server uji lokal wajib mengirim `content-type: text/javascript`, kalau tidak modul menolak dimuat dan game tampak mati.
+- **Cara unggah hemat:** `begin_upload` (purpose `game_file`) per berkas, `curl -X PUT -T`, lalu `save_draft` dengan `file_upload_ids`. Jangan kirim isi berkas lewat `files`.
+- **Generator aset tidak butuh game:** `generate_image`/`generate_sound_effect`/`generate_music` jalan sebelum game dibuat; maksimal 8 sekaligus. Thumbnail baru bisa dibuat setelah draft tersimpan.
+- **Supaya mudah dikenali genre-nya:** judul memakai pola game sejenis yang laris ("... Maker: DIY ASMR"), deskripsi dibuka dengan kata kerja langkah-langkahnya (pour, color, stir, press, decorate) dan menyebut hadiah (surprise toy, collect). Cara kerja rekomendasi Astrocade tidak terlihat dari luar; ini mengikuti pola yang tampak di feed.
+- **Bug yang hanya tertangkap uji:** jumlah pecahan 6 × 1/6 tidak pernah genap 1; tombol HUD mati saat fitur diperkenalkan; simpanan lama tanpa kolom baru; uji yang bergantung pada keberuntungan. Selalu jalankan `node playtest.js` sebelum unggah.
+- **Git:** setelah PR di-squash, mulai branch dari `origin/main`, lalu gabungkan ujung branch lama dengan `git merge -s ours` (jangan `-X ours`: itu pernah menyelipkan baris lama ke berkas).
