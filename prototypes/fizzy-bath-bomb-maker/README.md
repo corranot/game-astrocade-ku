@@ -27,6 +27,18 @@ by itself before the first touch, the "MAKE ANOTHER" button waits 1.5 s so mashi
 there is a mute button. The album is saved per player (a late load is merged, never overwrites), and toys owned
 plus gold toys is the leaderboard score, shown as "Top Collectors" in the album. There is no fail state.
 
+## Languages and devices
+
+The game reads the player's device language (`navigator.languages`) and shows it when `strings` in
+`game_config.json` has that language: English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian. Any other
+device language falls back to English. Arabic is right-to-left: the HUD, the choice rows and the progress bar are
+mirrored. All player-facing text is in that string table; text wider than its space is drawn smaller. The album has
+a 🌐 button that steps through the languages, and the choice is saved. Toys, unlocks and locks use pictures and
+numbers instead of words. Translations were written without a native review.
+
+Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under 40 FPS
+for `lowFpsSeconds`, particles and background bubbles are halved.
+
 ## Files
 
 - `index.html`: one canvas, loads `game.js`.
@@ -45,6 +57,7 @@ instead of failure, a first screen that is alive before the first tap.
 ## Local preview
 
 Serve this folder and open `index.html?local`. That flag stubs the Astrocade host.
-`playtest.js` (kept outside this folder's upload set) runs ten checks in a phone-sized browser: the whole loop, tap-only
+`playtest.js` (kept outside this folder's upload set) runs eleven checks in a phone-sized browser: the whole loop, tap-only
 pouring, button mashing, mute, the prize rules, forced golden and double bombs, album completion and the gold set,
-play with no assets, edit mode, and 600 seeded random taps and drags. Add `&noassets` to preview the emoji fallback.
+play with no assets, edit mode, 600 seeded random taps and drags, and device-language detection for ten locales
+(set through the browser locale) with a screenshot set per language. Add `&noassets` to preview the emoji fallback.
