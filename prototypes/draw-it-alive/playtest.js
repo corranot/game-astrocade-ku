@@ -162,6 +162,30 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(snap && snap.t - snap.last >= 0.5 + 1.0, `it waited for the last picture to finish and a pause (${snap && (snap.t - snap.last).toFixed(2)} s after it started)`);
   ok(Date.now() - t0 >= (5 * 0.5 + 1.2) * 1000 - 300, `and not before every turn was over (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 
+  console.log('4g. a second run() resumes where the player was; a long line is kept whole; skipping a celebration does not fire its sounds at once');
+  page = await open();
+  const resumed = await page.evaluate(async () => {
+    window.lib.getUserGameState = async () => ({ state: { level: 3 } });
+    window.run('play'); await new Promise((r) => setTimeout(r, 300));
+    window.run('play'); await new Promise((r) => setTimeout(r, 300));
+    return window.__game.S.i;
+  });
+  ok(resumed === 3, 'after the host starts the game a second time the player is still on level 4 (got level ' + (resumed + 1) + ')');
+  page = await open();
+  const zig = []; for (let k = 0; k < 17; k++) zig.push(k % 2 ? [300, 702] : [420, 698]);
+  await drag(page, [[290, 700], ...zig, [430, 700]]); await settled(page);
+  const kept = await page.evaluate(() => { const g = window.__game, L = (p) => p.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - p[i][0], q[1] - p[i][1]), 0); return g.S.won >= 0 ? L(g.save.art[0]) / L(g.S.stroke) : -1; });
+  ok(kept > 0.9, 'a long winning line is stored whole for the wall (' + Math.round(kept * 100) + '% kept)');
+  page = await open();
+  await page.evaluate(() => window.__game.newLevel(2)); // level 3 still has a sound due at 2.0 s and does not end the chapter
+  await drag(page, await target(page)); await settled(page);
+  await page.evaluate(() => { window.__osc = 0; const o = AudioContext.prototype.createOscillator; AudioContext.prototype.createOscillator = function () { window.__osc++; return o.call(this); }; });
+  await page.waitForFunction(() => window.__game.S.won > 1.9, null, { timeout: 5000 });
+  const oscBefore = await page.evaluate(() => window.__osc);
+  await page.mouse.click(360, 400); await page.waitForTimeout(200);
+  const burst = await page.evaluate((b) => window.__osc - b, oscBefore);
+  ok(burst === 0, 'skipping the end of a celebration plays no leftover sounds (' + burst + ' played)');
+
   console.log('5. edit mode shows the live picture and ignores input');
   page = await open('&mode=edit');
   await drag(page, await target(page)); await page.waitForTimeout(900);

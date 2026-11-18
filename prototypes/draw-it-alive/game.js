@@ -233,7 +233,8 @@ function win(pen, from) {
   // keep the line and the stars for the wall and for later scenes; help never replaces the player's own picture
   const n = S.i % LEVELS.length;
   save.stars[n] = Math.max(save.stars[n] || 0, S.stars);
-  if (!S.assisted || !save.art[n]) save.art[n] = resample(line, 12).slice(0, 90).map((p) => [Math.round(p[0]), Math.round(p[1])]);
+  // up to 90 points whatever the length, so a long line is kept whole
+  if (!S.assisted || !save.art[n]) save.art[n] = resample(line, Math.max(12, pathLen(line) / 89)).slice(0, 90).map((p) => [Math.round(p[0]), Math.round(p[1])]);
   save.level = Math.max(save.level, S.i + 1);
   persist();
 }
@@ -258,7 +259,7 @@ function release(p) {
   if (pr.what === 'wall') return wallTap(p);
   if (pr.what === 'toWall' && onButton(WALLB, p)) return openWall();
   if (pr.what === 'mute' && onButton(MUTE, p)) { save.muted = !save.muted; muteTouched = true; beep(700, 0.08); persist(); return; }
-  if (pr.what === 'skip' && S.won > cfg.skipAfter) S.won = 99;
+  if (pr.what === 'skip' && S.won > cfg.skipAfter) { S.won = 99; S.cue = (S.lv.cues || []).length; S.starsShown = S.stars; } // skip the sounds still to come too
 }
 
 function bindInput() {
@@ -482,7 +483,7 @@ function run(m) {
     });
   } catch (e) { /* settings panel not offered here */ }
   cancelAnimationFrame(raf); hush(); pointerDown = false; touched = false; press = null;
-  newLevel(0);
+  newLevel(mode === 'play' ? save.level : 0); // a second start resumes where the player is; edit mode shows level 1
   if (mode === 'play') {
     bindInput();
     const read = (tries) => Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
