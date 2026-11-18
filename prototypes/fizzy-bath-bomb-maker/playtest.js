@@ -130,10 +130,10 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
   await bomb({ shots: 'e', only: ['7-prize'] });
   assert.deepStrictEqual(await game(() => ({ gold: window.__game.save.gold.length, isGold: window.__game.S.prizes[0].gold })), { gold: 1, isGold: true });
   await tap(621, 70); await p.waitForTimeout(300); await shot('e8-book-gold'); await tap(625, 1190); await again();
-  await p.evaluate(all => { const G = window.__game; G.save.owned = all.slice(0, 8); G.save.gold = []; G.save.dupes = 0; G.save.stars = 0; G.newBomb(); }, ALL);
+  await p.evaluate(all => { const G = window.__game; G.save.owned = all.slice(0, 15); G.save.gold = []; G.save.dupes = 0; G.save.stars = 0; G.newBomb(); }, ALL); // 15 of 16 owned: a duplicate is near certain (about 96% per bomb)
   let star = false;
   for (let i = 0; i < 6 && !star; i++) { await bomb({ shots: 'f', only: ['7-prize'] }); star = await game(() => window.__game.S.prizes.some(x => !x.isNew)); if (!star) await again(); }
-  assert(star, 'a duplicate turned up within six bombs'); assert(await game(() => window.__game.save.stars >= 1)); ok('star, album complete, gold set');
+  assert(star, 'a duplicate turned up within six bombs (chance of none: under one in a billion)'); assert(await game(() => window.__game.save.stars >= 1)); ok('star, album complete, gold set');
 
   console.log('8. no assets at all: emoji and synthesized sound');
   await open('&noassets'); await bomb({ shots: 'g', only: ['5-decorate', '7-prize'] }); await again(); ok('fallback path plays through');
