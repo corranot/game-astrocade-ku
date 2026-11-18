@@ -140,9 +140,13 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 - **Akun kita:** 44 game publik, 1,37 juta plays, median 5.143. Median per umur: 0–21 hari 253, 21–45 hari 17 ribu, 45–75 hari 32 ribu, 75 hari lebih 121 ribu. Sejak 2 Nov, 15 dari 17 game baru berhenti di 146–465 plays (dugaan: jatah uji platform); yang lolos hanya Reel & Hatch (31 ribu) dan Rub It Away (16 ribu dalam 4 hari). Teratas: Splash Master #1 215 ribu, #2 152 ribu (sekuel dapat 71%), Blueprint Builder 121 ribu, RUN! Pet Thief 113 ribu. Aksi/arcade umum gagal terus.
 - **Strategi yang disepakati:** sekuel dari pemenang sendiri dulu; satu kit, satu tema, rilis rapat; menangkan 10 detik pertama untuk 200–300 pemain uji; tinggalkan game yang gagal uji; tanpa karakter bermerek. Langkah berikut: bandingkan Rub It Away dan Reel & Hatch dengan 3 game yang gagal, lalu bangun Rub It Away #2.
 
-### 11. Analytics kreator: lolos vs gagal uji (tangkapan layar user, 2026-11-18; baru 2 game)
+### 11. Analytics kreator: lolos vs gagal uji (tangkapan layar user, 2026-11-18; 3 game)
 - Halaman `astrocade.com/create/analytics` (hanya user yang bisa buka; minta tangkapan layar) memajang: All Plays, **Significant Plays**, median durasi + distribusi dengan garis benchmark, Median FPS (Optimal 40+, Moderate 20–40, Poor 0–20), Time to First Interaction, Click-Through Rate, 0-Interaction Play Rate.
-- **Significant Play = sesi 30 detik atau lebih** (cocok persis di dua game: Rub It Away 80% = 100 − 7 − 13; Pet Smile Clinic 66% = 100 − 9 − 25).
-- **Rub It Away (lolos, 16,8 ribu):** significant 80%, median 1:35, P75 3:10, FPS Optimal, sentuhan pertama 2,1 d, CTR 51,3%, 0-interaksi 4%, 42% sesi di atas 2 menit. Harian: 1,3 ribu, 1,3 ribu, 3,5 ribu, lalu ±14 ribu (naik bertingkat). Lemah: share 0, hanya 12,5% sesi di atas 5 menit.
-- **Pet Smile Clinic (gagal, 212):** significant 66%, median 0:51, P75 1:26, FPS **Moderate**, sentuhan pertama 3,0 d, CTR 45,1%, 0-interaksi 6%, 13,5% sesi di atas 2 menit. Harian: 180 dalam satu hari, lalu 30, lalu 3: jatah uji ±200 plays sehari, lalu diputus.
-- **Target tiap game baru (dari yang lolos; belum terbukti sebagai ambang):** 80% sesi melewati 30 detik, median 1:30 ke atas, FPS 40+ di HP murah, sentuhan pertama 2 detik, CTR 50%. Beda terbesar ada di durasi dan FPS; CTR dan 0-interaksi hampir sama.
+- **Significant Play = sesi 30 detik atau lebih** (cocok persis di tiga game).
+- | Game | Significant | Median / P75 | FPS | Sentuhan pertama | CTR | 0-interaksi | Di atas 5 menit |
+  |---|---|---|---|---|---|---|---|
+  | Reel & Hatch (lolos, 31 ribu) | 86% | 1:58 / 5:03 | Optimal | 5,8 d | 35,9% | 9% | 25% |
+  | Rub It Away (lolos, 17 ribu) | 80% | 1:35 / 3:10 | Optimal | 2,1 d | 51,3% | 4% | 12,5% |
+  | Pet Smile Clinic (gagal, 212) | 66% | 0:51 / 1:26 | Moderate | 3,0 d | 45,1% | 6% | 1,5% |
+- **Yang memisahkan lolos dan gagal: porsi sesi di atas 30 detik, durasi, dan FPS.** CTR, sentuhan pertama, dan 0-interaksi bukan gerbang: Reel & Hatch lolos dengan nilai terburuk di ketiganya. Share 0 di ketiga game. Target game baru: 80% sesi melewati 30 detik, median 1:30 ke atas, FPS 40+ di HP murah (belum terbukti sebagai ambang resmi).
+- **Bentuk harian.** Gagal: ±180 plays sehari lalu diputus. Lolos: uji kecil dulu (Reel & Hatch ±250/hari selama beberapa hari), lalu melonjak. **Lonjakan tidak bertahan:** Reel & Hatch 6,5 ribu, 7,5 ribu, puncak 8,8 ribu, lalu 5 ribu, 1,5 ribu, ±300 per hari; hidup ±5 hari walau durasinya terbaik. Sebabnya belum diketahui. Akibatnya: sekuel dirilis saat game pendahulunya masih naik, bukan sesudah turun.
