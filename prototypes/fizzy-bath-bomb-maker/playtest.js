@@ -7,7 +7,8 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
 
 (async () => {
   const shots = process.argv[2];
-  const srv = http.createServer((q, r) => fs.readFile(path.join(__dirname, q.url.split('?')[0]), (e, d) => e ? (r.statusCode = 404, r.end()) : r.end(d))).listen(0);
+  const MIME = { '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json' }; // module scripts refuse to load without a JavaScript type
+  const srv = http.createServer((q, r) => { const f = q.url.split('?')[0]; fs.readFile(path.join(__dirname, f), (e, d) => { if (e) { r.statusCode = 404; return r.end(); } r.setHeader('content-type', MIME[path.extname(f)] || 'application/octet-stream'); r.end(d); }); }).listen(0);
   const url = q => `http://localhost:${srv.address().port}/index.html?local${q || ''}`;
   const b = await chromium.launch(), c = await b.newContext({ ...devices['Pixel 7'], deviceScaleFactor: 1 }), p = await c.newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => m.type() === 'error' && errs.push(m.text()));
