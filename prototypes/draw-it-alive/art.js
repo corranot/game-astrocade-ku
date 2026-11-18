@@ -126,3 +126,33 @@ export function upTo(p, k) {
 
 /** The point at share k (0..1) along p. */
 export const pointAt = (p, k) => { const s = upTo(p, k); return s[s.length - 1]; };
+
+// ---------- small decorations ----------
+/** Five-point star. */
+export function star(ctx, x, y, r, color, rot = 0) {
+  const p = []; for (let i = 0; i < 10; i++) { const a = rot - Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.5 : r; p.push([x + Math.cos(a) * q, y + Math.sin(a) * q]); }
+  shape(ctx, p, color);
+}
+
+/** Heart of half-width s. */
+export function heart(ctx, x, y, s, color) {
+  blob(ctx, x - s * 0.5, y - s * 0.3, s * 0.56, s * 0.56, color); blob(ctx, x + s * 0.5, y - s * 0.3, s * 0.56, s * 0.56, color);
+  shape(ctx, [[x - s * 0.98, y - s * 0.02], [x + s * 0.98, y - s * 0.02], [x, y + s * 1.05]], color);
+}
+
+/** Tuft of three grass blades standing on (x, y). */
+export function tuft(ctx, x, y, color) {
+  stick(ctx, [[x - 12, y], [x - 20, y - 22]], 9, color); stick(ctx, [[x, y], [x, y - 32]], 9, color); stick(ctx, [[x + 12, y], [x + 20, y - 22]], 9, color);
+}
+
+/** Small five-petal flower. */
+export function bloom(ctx, x, y, r, color) {
+  for (let i = 0; i < 5; i++) { const a = i / 5 * TAU - 0.3; blob(ctx, x + Math.cos(a) * r, y + Math.sin(a) * r, r * 0.8, r * 0.8, color); }
+  blob(ctx, x, y, r * 0.7, r * 0.7, WHITE);
+}
+
+/** Sparse soft dots over a flat background; call outside sticker(). */
+export function dots(ctx) {
+  ctx.fillStyle = 'rgba(255,255,255,0.26)';
+  for (let i = 0; i < 24; i++) { ctx.beginPath(); ctx.arc((i * 197 + 60) % 720, (i * 331 + 90) % 1280, 5 + (i % 3) * 3, 0, TAU); ctx.fill(); }
+}

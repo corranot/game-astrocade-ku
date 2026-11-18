@@ -12,5 +12,7 @@
   "celebrateSeconds": 3.2,
   "ghostFingerSeconds": 1.6,
   "confetti": 90,
-  "slowFrameMs": 22
+  "slowFrameMs": 22,
+  "threeStars": 0.75,
+  "twoStars": 0.5
 }
