@@ -66,6 +66,14 @@ function snail(ctx, mood, t, look, nod, turn) {
   });
 }
 
+/** True when a stored line is a closed shape big enough to be a shell. */
+function roundEnough(p) {
+  if (!p || p.length < 8) return false;
+  let w = 0, h = 0; const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]);
+  w = Math.max(...xs) - Math.min(...xs); h = Math.max(...ys) - Math.min(...ys);
+  return w > 80 && h > 80;
+}
+
 /** The shell used on level 5 when the player has not drawn one yet. */
 const DEFAULT_SHELL = circle(250, 705, 100);
 
@@ -129,7 +137,7 @@ export const LEVELS = [
       ctx.fillStyle = 'rgba(255,255,255,0.14)';
       for (const [x, y, r] of [[120, 1010, 60], [470, 1120, 80], [640, 960, 44]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.4, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 50, 850, MINT); tuft(ctx, 560, 850, MINT); tuft(ctx, 680, 850, MINT); });
-      sticker(() => { bloom(ctx, 110, 935, 15, SUNNY); bloom(ctx, 610, 1060, 18, ORANGE); bloom(ctx, 330, 1150, 16, SUNNY); });
+      sticker(() => { bloom(ctx, 110, 935, 15, SUNNY); bloom(ctx, 500, 1000, 18, ORANGE); bloom(ctx, 330, 1150, 16, SUNNY); });
       front(ctx, MINT, SUNNY);
     },
     live(ctx, S) {
@@ -210,7 +218,7 @@ export const LEVELS = [
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       for (const [x, y, r] of [[120, 980, 50], [520, 1090, 70], [300, 1190, 40]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.45, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 60, 860, GRASS); tuft(ctx, 650, 860, GRASS); tuft(ctx, 360, 860, GRASS); });
-      sticker(() => { bloom(ctx, 150, 1060, 16, SUNNY); bloom(ctx, 600, 960, 15, CORAL); });
+      sticker(() => { bloom(ctx, 240, 1000, 16, SUNNY); bloom(ctx, 600, 960, 15, CORAL); });
       front(ctx, GRASS, VIOLET);
     },
     live(ctx, S) {
@@ -267,7 +275,7 @@ export const LEVELS = [
         const road = [[150, 850], [280, 850], ...S.stroke, [585, 600]], k = ease((w - 0.4) / 2.2);
         p = pointAt(road, k); const q = pointAt(road, Math.min(1, k + 0.03)); rot = k < 1 ? Math.atan2(q[1] - p[1], q[0] - p[0]) : 0;
       }
-      const shell = S.art(1) || DEFAULT_SHELL, K = 0.62;
+      const shell = roundEnough(S.art(1)) ? S.art(1) : DEFAULT_SHELL, K = 0.62;
       let cx = 0, cy = 0; for (const q of shell) { cx += q[0] / shell.length; cy += q[1] / shell.length; }
       shadow(ctx, p[0], p[1] + 2, 100);
       ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(rot); ctx.scale(K, K); const was = borderScale(1 / K);
