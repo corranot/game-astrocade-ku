@@ -16,7 +16,7 @@ const http = require('http'), fs = require('fs'), path = require('path'), assert
   const tap = async (x, y) => { await p.mouse.move(X(x), Y(y)); await p.mouse.down(); await p.mouse.up(); await p.waitForTimeout(120); };
   const until = async (n, ms = 4000) => { await p.waitForFunction(k => +document.getElementById('game').dataset.step === k, n, { timeout: ms }); };
 
-  await p.waitForTimeout(600); await shot('0-first-screen');
+  await p.waitForTimeout(1500); await shot('0-first-screen');
   await p.mouse.move(X(360), Y(600)); await p.mouse.down(); await p.waitForTimeout(1500); await shot('1-pour'); await p.waitForTimeout(1600); await p.mouse.up();
   await until(1);
   for (const i of [0, 2, 2]) await tap(104 + i * 128, 960);
@@ -35,12 +35,37 @@ const http = require('http'), fs = require('fs'), path = require('path'), assert
   await tap(630, 70); await p.waitForTimeout(300); await shot('8-album'); await tap(360, 600);
   const t0 = Date.now(); await tap(360, 1150); await until(0, 1000);
   console.log('replay reset ms', Date.now() - t0);
+  // second bomb with golden and double forced on: new mold unlocked, max luck, toy can be poked
+  await p.goto(`http://localhost:${srv.address().port}/index.html?local&cfg=${encodeURIComponent('{"goldenChance":1,"twinChance":1}')}`);
+  await p.waitForFunction(() => document.getElementById('game').dataset.step === '0');
+  const bomb = async (n, mold) => {
+    await p.mouse.move(X(360), Y(600)); await p.mouse.down(); await p.waitForTimeout(3200); await p.mouse.up(); await until(1);
+    for (const i of [1, 1, 0]) await tap(104 + i * 128, 960);
+    await p.waitForTimeout(900); await tap(360, 1150); await until(2);
+    await p.mouse.move(X(480), Y(700)); await p.mouse.down();
+    for (let a = 0; a < 26; a += 0.3) await p.mouse.move(X(360 + Math.cos(a) * 120), Y(700 + Math.sin(a) * 50));
+    await p.mouse.up(); await until(3);
+    if (mold !== undefined) await tap(104 + mold * 128, 960);
+    await shot(n + '-mold-row');
+    for (let i = 0; i < 6; i++) await tap(360, 600);
+    await until(4);
+    for (let i = 0; i < 16; i++) await tap(300 + (i % 4) * 40, 520 + (i / 4 | 0) * 40);
+    await p.waitForTimeout(400); await shot(n + '-luck'); await tap(360, 1150); await until(5);
+    await p.mouse.move(X(360), Y(400)); await p.mouse.down(); await p.mouse.move(X(360), Y(700), { steps: 8 }); await p.mouse.up();
+    await p.waitForFunction(() => document.getElementById('game').dataset.toy !== '', null, { timeout: 8000 });
+    await p.waitForTimeout(1300); await tap(360, 560); await shot(n + '-reveal');
+    return p.evaluate(() => document.getElementById('game').dataset.toy);
+  };
+  await bomb('9a'); await tap(360, 1150); await until(0, 1000);
+  await bomb('9b', 1); await tap(360, 1150); await until(0, 1000);
+  const third = await bomb('9c', 0);
+  assert(third.includes('+'), 'third bomb holds two toys when twinChance is 1, got ' + third);
+  assert.strictEqual(await p.evaluate(() => document.getElementById('game').dataset.made), '3');
   // toy picker: rarity follows the weights, and every roll returns a toy
   const tiers = await p.evaluate(() => { const n = {}; for (let i = 0; i < 4000; i++) { const t = window.__pickToy(); n[t.r] = (n[t.r] || 0) + 1; } return n; });
   console.log('rarity over 4000 rolls', tiers);
   assert(tiers[0] > tiers[1] && tiers[1] > tiers[2] && tiers[2] > (tiers[3] || 0), 'rarity order');
   assert.deepStrictEqual(errs, [], 'page errors');
-  assert.strictEqual(await step(), 0);
   console.log('PLAYTEST PASS');
   await b.close(); srv.close();
 })().catch(e => { console.error('PLAYTEST FAIL', e.message); process.exit(1); });
