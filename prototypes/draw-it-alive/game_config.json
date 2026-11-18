@@ -6,7 +6,7 @@
   "minStrokeShare": 0.25,
   "liftGraceMs": 600,
   "liftReach": 80,
-  "easyLevels": 3,
+  "easyLevels": 5,
   "assistAfterEasy": 1,
   "assistAfter": 3,
   "celebrateSeconds": 3.2,
