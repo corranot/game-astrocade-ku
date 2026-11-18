@@ -26,6 +26,9 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
   /** Play one whole bomb up to the prize screen. o.mold picks a mold, o.colors the color slots, o.shots names screenshots. */
   const bomb = async (o = {}) => {
     const s = async n => { if (o.shots && (!o.only || o.only.includes(n))) await shot(o.shots + n); };
+    // a feature being introduced waits for one tap on it
+    const intro = await game(() => window.__game.S.intro);
+    if (intro === 'order') await tap(360, 375); else if (intro === 'shop') { await tap(621, 70); await tap(625, 1190); }
     await p.mouse.move(X(360), Y(700)); await p.mouse.down(); await p.waitForTimeout(1500); await s('1-pour'); await p.waitForTimeout(1700); await p.mouse.up(); await until(1);
     for (const i of o.colors || [0, 2, 1]) await tap(104 + i * 128, 985);
     await p.waitForTimeout(900); await s('2-color'); await tap(360, 1150); await until(2);
@@ -37,6 +40,7 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
     await tap(360, 690); await tap(360, 690); await s('4-press');
     for (let i = 0; i < 4; i++) await tap(360, 690);
     await until(4);
+    if ((await game(() => window.__game.S.intro)) === 'luck') await tap(56, 660);
     for (let i = 0; i < 16; i++) { if (i === 8) await tap(104 + 1 * 128, 985); await tap(300 + (i % 4) * 40, 612 + (i / 4 | 0) * 40, 60); }
     await p.waitForTimeout(400); await s('5-decorate'); await tap(360, 1150); await until(5);
     await s('6-ready');
@@ -47,14 +51,14 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
     await toyShown(); await p.waitForTimeout(1900); await tap(360, 470); await s('7-prize');
     return data('toy');
   };
-  const again = async () => { await tap(360, 1150); await until(0, 1500); };
+  const again = async () => { await tap(360, 1010); await tap(360, 1150); await until(0, 1500); }; // open the gift box if there is one, then replay
 
   console.log('1. whole loop, book, replay');
   await open(); await p.waitForTimeout(1500); await shot('0-first-screen');
   assert(+(await data('prog')) > 0, 'the jar pours by itself before the first touch');
   await bomb({ shots: 'a', colors: [0, 0, 0] });
   let st = await game(() => ({ coins: window.__game.save.coins, recipes: window.__game.save.recipes, earned: window.__game.S.earned }));
-  assert.deepStrictEqual(st.recipes, ['0-0']); assert.strictEqual(st.earned.met, true, 'the first order (pink ball) is filled'); assert.strictEqual(st.coins, 40, '10 base + 20 order + 10 new recipe');
+  assert.deepStrictEqual(st.recipes, ['0-0']); assert.strictEqual(st.earned.met, false, 'the first bomb has no customer'); assert.strictEqual(st.coins, 20, '10 base + 10 new recipe');
   await tap(621, 70); await p.waitForTimeout(300); await shot('a8-book-toys'); await tap(360, 80); await p.waitForTimeout(300); await shot('a9-book-recipes'); await tap(625, 1190);
   await again(); assert.strictEqual(await data('made'), '1'); ok('six steps, prize, coins, recipe, book, replay');
 
@@ -106,7 +110,7 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
   assert.strictEqual(r.starGolden, true); assert.strictEqual(r.starsLeft, 0); ok('3 stars buy a golden bomb');
   assert.deepStrictEqual(r.until, [3, 0, 5]); ok('locks count the bombs to go');
   assert.strictEqual(r.next5.at, 6); assert.strictEqual(r.next5.from, 5); assert.strictEqual(r.next40.kind, 'coins'); assert.strictEqual(r.next40.at, 42); assert.strictEqual(r.gift42.kind, 'coins'); assert.strictEqual(r.gift41, null); ok('the reward bar always has a next reward, even after the unlocks run out');
-  assert.strictEqual(r.firstGolden, false); assert.deepStrictEqual(r.firstOrder, { who: 0, mold: 0, color: 0 }); ok('the first bomb is never golden and its order is the easiest');
+  assert.strictEqual(r.firstGolden, false); assert.strictEqual(r.firstOrder, null); ok('the first bomb is never golden and has no customer');
   assert.deepStrictEqual(r.orders, ['1-2', '2-0', '2-1', '2-2']); ok('orders ask for open molds and colors, and only for recipes not made yet');
   assert(r.tiers[0] > r.tiers[1] && r.tiers[1] > r.tiers[2] && r.tiers[2] > r.tiers[3], 'rarity order ' + r.tiers);
   assert(r.lucky[0] < r.tiers[0] * 0.75, 'full luck lowers the common share ' + r.lucky); ok('rarity follows the weights, luck shifts it');
@@ -173,6 +177,7 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
   await open();
   st = await game(() => { const s = window.gameConfig.strings, en = Object.keys(s.en); return { langs: Object.keys(s), gaps: Object.entries(s).flatMap(([l, v]) => en.filter(k => !v[k] || !String(v[k]).trim()).map(k => l + '.' + k)), extra: Object.entries(s).flatMap(([l, v]) => Object.keys(v).filter(k => !en.includes(k)).map(k => l + '.' + k)) }; });
   assert.deepStrictEqual(st.langs, ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id']); assert.deepStrictEqual(st.gaps, []); assert.deepStrictEqual(st.extra, []); ok('every language has every string');
+  await game(() => { const G = window.__game; G.save.made = 1; G.save.seen = { order: true }; G.newBomb(); }); // the book appears after the first bomb
   await tap(621, 70); await tap(250, 1190); assert.strictEqual(await data('lang'), 'ar'); assert.strictEqual(await game(() => window.__game.save.lang), 'ar');
   await tap(95, 1190); assert.strictEqual(await game(() => window.__game.S.book), null, 'mirrored close button closes the book');
   await tap(99, 70); assert.strictEqual(await game(() => window.__game.S.book), 'toys', 'mirrored book chip opens the book');
@@ -194,6 +199,9 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
     'prize gold': () => { const G = window.__game; G.save.made = 30; G.save.stars = 1; G.save.owned = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '🦄', '🐬', '🦈', '🧸', '🦋', '🐉', '👑', '💎']; G.save.gold = ['💎']; G.S.step = 5; G.S.prizes = [{ toy: { e: '💎', n: 'Diamond', r: 3, id: 'toy_diamond' }, gold: true, isNew: true }]; G.S.earned = { coins: 70, met: true, newRecipe: false }; G.S.unlock = { kind: 'coins' }; G.S.note = G.T('albumDone') + ' 👑'; G.S.reveal = 5; },
     bubbles: () => { const G = window.__game; G.S.step = 5; G.S.col = 0; G.S.cols = [0]; G.S.ball.wet = true; G.S.fizz = 1; G.S.pop = { t: 6, next: 9, list: [{ x: 200, y: 600, vy: 0, w: 0 }, { x: 500, y: 760, vy: 0, w: 1 }] }; G.save.owned = ['🦆', '🐸', '🐟', '🐢']; G.toast('+12', '#c97a00'); },
     'book shop': () => { const G = window.__game; G.save.coins = 12345; G.save.skins = [0, 1]; G.save.skin = 1; G.S.book = 'shop'; },
+    'first bomb': () => { const G = window.__game; G.save.made = 0; G.save.coins = 0; G.newBomb(); G.S.acted = true; G.toast(G.T('keepPouring')); },
+    'order intro': () => { const G = window.__game; G.save.made = 1; G.save.seen = {}; G.newBomb(); },
+    'prize gift': () => { const G = window.__game; G.save.made = 1; G.save.owned = ['🦆']; G.S.step = 5; G.S.prizes = [{ toy: { e: '🦆', n: 'Ducky', r: 0, id: 'toy_ducky' }, gold: false, isNew: true }]; G.S.earned = { coins: 20, met: false, newRecipe: true }; G.S.order = null; G.S.unlock = { kind: 'mold', i: 1 }; G.S.gift = true; G.S.note = '🔓'; G.S.reveal = 5; },
     'book toys': () => { const G = window.__game; G.openBook('toys'); },
     'book recipes': () => { const G = window.__game; G.save.recipes = ['0-0', '1-2']; G.S.book = 'recipes'; },
   };
@@ -204,7 +212,7 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
       await p.evaluate(l => {
         const G = window.__game;
         window.lib.getTopNEntriesFromLeaderboard = async () => ({ entries: [{ username: 'LongCollectorName99', score: 32 }, { username: 'kid_two', score: 20 }, { username: 'x', score: 3 }] });
-        G.setLang(l); G.save.made = 3; G.newBomb();
+        G.setLang(l); G.save.made = 3; G.save.seen = { order: true, luck: true, shop: true }; G.newBomb();
       }, code);
       await p.evaluate(set); await p.waitForTimeout(260);
       const boxes = await game(() => window.__boxes);
@@ -216,11 +224,38 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
       }
       if (shots && (code === 'en' || ['pour', 'decorate done', 'prize', 'book recipes'].includes(name))) await p.screenshot({ path: path.join(shots, `layout-${code}-${name.replace(/ /g, '-')}.jpg`), type: 'jpeg', quality: 60 });
       assert.deepStrictEqual(bad, [], `${code} / ${name}`);
-      assert(boxes.length >= 5, `${code} / ${name}: only ${boxes.length} boxes recorded`);
+      assert(boxes.length >= 4, `${code} / ${name}: only ${boxes.length} boxes recorded`);
       checked++;
     }
   }
-  ok(`${checked} screens checked (15 screens x 7 languages)`);
+  ok(`${checked} screens checked (18 screens x 7 languages)`);
+
+  console.log('13. first minutes: short first bomb, spotlight help, features arrive one at a time');
+  await open(); await p.waitForTimeout(300);
+  let names = (await game(() => window.__boxes)).map(z => z.n.split(' ')[0]);
+  assert(!names.includes('coins') && !names.includes('reward') && !names.includes('book') && !names.includes('order') && names.includes('mute'), 'first screen shows no coins, reward bar, book or customer: ' + names);
+  assert.strictEqual(await game(() => window.__game.helpTarget().hand), 'hold', 'the spotlight starts on the jar'); await shot('n1-spotlight');
+  const t0 = Date.now();
+  await p.mouse.move(X(360), Y(700)); await p.mouse.down(); await until(1); await p.mouse.up();
+  await tap(104, 985); await p.waitForTimeout(700); await shot('n2-spot-button'); await tap(360, 1150); await until(2);
+  await p.mouse.move(X(480), Y(740)); await p.mouse.down(); for (let a = 0; a < 16 && (await data('step')) === '2'; a += 0.3) await p.mouse.move(X(360 + Math.cos(a) * 120), Y(740 + Math.sin(a) * 50)); await p.mouse.up(); await until(3);
+  for (let i = 0; i < 3; i++) await tap(360, 690); await until(4);
+  for (let i = 0; i < 3; i++) await tap(320 + i * 40, 672, 60); await p.waitForTimeout(300); await tap(360, 1150); await until(5);
+  await p.mouse.move(X(360), Y(520)); await p.mouse.down(); await p.mouse.move(X(360), Y(800), { steps: 6 }); await p.mouse.up(); await toyShown();
+  const secs = (Date.now() - t0) / 1000; console.log('  first toy after', secs.toFixed(1), 's of play'); assert(secs < 22, 'the first toy must arrive fast, took ' + secs);
+  await p.waitForTimeout(1900); await shot('n3-gift');
+  assert.strictEqual(await game(() => window.__game.S.gift), true); await tap(360, 1150); assert.strictEqual(await data('step'), '5', 'no replay button before the gift is opened');
+  await tap(360, 1010); assert.strictEqual(await game(() => window.__game.S.gift), false); await p.waitForTimeout(300); await shot('n4-gift-open'); await tap(360, 1150); await until(0, 1500);
+  names = (await game(() => window.__boxes)).map(z => z.n.split(' ')[0]);
+  assert(names.includes('coins') && names.includes('reward') && names.includes('book') && names.includes('order'), 'second bomb shows coins, reward bar, book and customer: ' + names);
+  assert.strictEqual(await game(() => window.__game.S.intro), 'order'); await shot('n5-order-intro');
+  await p.mouse.move(X(360), Y(700)); await p.mouse.down(); await p.waitForTimeout(900); await p.mouse.up();
+  assert.strictEqual(await data('prog'), '0.000', 'pouring waits while the customer is introduced');
+  await tap(360, 375); assert.deepStrictEqual(await game(() => ({ intro: window.__game.S.intro, seen: window.__game.save.seen.order })), { intro: null, seen: true });
+  assert.strictEqual(await game(() => window.__game.helpTarget()), null, 'no spotlight right after acting on the second bomb');
+  await p.waitForTimeout(4400); assert.strictEqual(await game(() => window.__game.helpTarget().hand), 'hold', 'idle for four seconds brings the ghost hand back'); await shot('n6-idle-help');
+  await game(() => { const G = window.__game; G.S.intro = 'order'; G.S.introT = 0; G.save.seen = {}; }); await p.waitForTimeout(6400);
+  assert.strictEqual(await game(() => window.__game.S.intro), null, 'an introduction never blocks for more than six seconds'); ok('first bomb, spotlight, gift box, introductions, idle help');
 
   assert.deepStrictEqual(errs, [], 'page errors');
   console.log('PLAYTEST PASS');

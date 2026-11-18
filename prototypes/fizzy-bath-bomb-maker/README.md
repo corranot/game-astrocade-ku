@@ -26,12 +26,32 @@ There is no fail state. Reasons to make another one:
 - **Luck meter.** Decorating fills it; a full meter triples the weight of the rare tiers.
 - Pouring and stirring get 40% faster from the fourth bomb.
 
+## First minutes
+
+- The first bomb is short (one color, three presses, three toppings, two seconds of fizz): the first toy arrives
+  after about ten seconds of play.
+- A spotlight dims the screen except the thing to touch, with a ghost hand showing the gesture on it. It shows
+  during the first bomb until the player acts on a step, and on any bomb after four idle seconds.
+- Features arrive one at a time. The first bomb has only the step bar and the mute button. Coins, the reward bar,
+  the book and the customer appear on the second bomb; the Luck meter on its decorate step; the shop when the
+  first bathtub is affordable. The customer, the Luck meter and the shop are each introduced by a spotlight that
+  waits for one tap (six seconds at most).
+- An unlock arrives as a gift box on the prize screen; the replay button appears once it is opened.
+
+## Look
+
+Toys, toppings, customers, the jar and the background are generated art in one glossy style. The bowl, spoon,
+mold, bathtub and the bomb are drawn on the canvas with gradients, highlights and table shadows; the bomb has
+shading and powder specks. Water has a moving surface and foam that builds as the bomb fizzes. Each step slides
+in, the prize opens with a white flash and the toy leaping up, and celebrations mix stars and hearts into the
+particles.
+
 ## Layout
 
 The 720 x 1280 screen is cut into fixed lanes: HUD, step bar, instruction, toast, customer order, play area
 (430-915), choice row, action button. Every UI element lives in one lane. The prize screen and the book are full
 panels of their own. In debug the game records the box of every element; `playtest.js` fails when two boxes
-overlap or one leaves the screen, on 15 screens in each of the seven languages.
+overlap or one leaves the screen, on 18 screens in each of the seven languages.
 
 ## Languages and devices
 
@@ -51,7 +71,7 @@ for `lowFpsSeconds`, particles and background bubbles are halved.
 - `game.js`: all game code. `run(mode)` is the entry point. `update` runs only in play mode;
   edit mode shows a live picture of step 1.
 - `game_config.json`: tunable numbers (step lengths, rarity weights) and the leaderboard declaration.
-- `asset_map.json`: art and sound made with Astrocade's generators. Ids `toy_<name>` (16 toys), `top_<name>` (5 toppings), `bg_bathroom`, `jar_powder`, `sfx_pour`, `sfx_drop`, `sfx_stir`,
+- `asset_map.json`: art and sound made with Astrocade's generators. Ids `toy_<name>` (16 toys), `top_<name>` (5 toppings), `cust_<name>` (8 customers), `bg_bathroom`, `jar_powder`, `sfx_pour`, `sfx_drop`, `sfx_stir`,
   `sfx_press`, `sfx_pop`, `sfx_splash`, `sfx_fizz`, `sfx_win`, `sfx_squeak`, `music`. A missing id falls back to
   emoji or synthesized sound.
 
@@ -63,8 +83,9 @@ instead of failure, a first screen that is alive before the first tap.
 ## Local preview
 
 Serve this folder and open `index.html?local`. That flag stubs the Astrocade host.
-`playtest.js` (kept outside this folder's upload set) runs twelve checks in a phone-sized browser: the whole loop,
+`playtest.js` (kept outside this folder's upload set) runs thirteen checks in a phone-sized browser: the whole loop,
 tap-only pouring, button mashing, mute, the rules (prizes, orders, recipes, rewards, shop), forced golden and double
 bombs with a bubble round, album completion and the gold set, play with no assets, edit mode, 600 seeded random taps
-and drags, device-language detection for ten locales, and the layout check. Add `&noassets` to preview the emoji
+and drags, device-language detection for ten locales, the layout check, and the first minutes (spotlight, short first bomb,
+gift box, introductions, idle help). Add `&noassets` to preview the emoji
 fallback.

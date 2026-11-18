@@ -293,6 +293,16 @@
   "bubbleGap": 0.4,
   "bubbleCoins": 2,
   "skinPrices": [0, 60, 120, 200, 350, 600],
+  "first": {
+    "dropsNeeded": 1,
+    "pressTaps": 3,
+    "toppingsNeeded": 3,
+    "fizzSeconds": 2,
+    "pourSeconds": 1.5,
+    "mixTurns": 1.5
+  },
+  "idleHelp": 4,
+  "introSeconds": 6,
   "persistent_storage_config": {
     "leaderboard": {
       "sort_ascending": false
