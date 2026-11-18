@@ -80,7 +80,16 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 - **Batas data:** komentar ditulis anak yang lebih besar, bukan semua pemain; bahasa komentar belum tentu sama dengan bahasa device (penutur Hindi sering memakai HP berbahasa Inggris). 7% komentar tanpa label (emoji atau terlalu pendek).
 - **Cara cek yang cepat:** buka halaman game dengan game-nya diblokir (`play.json`, `/context/`), tekan tombol Comments, gulir hanya di dalam lembar komentar; satu sesi tamu per pekerja (halaman paralel dalam satu sesi gagal). 30 game selesai ±5 menit.
 
+**Cek tema telur/steal/break 2026-11-18 (gali sangat dalam)** — 1.887 game dari 25 kategori, 160 kandidat diukur dua kali (jendela 28 menit, ±11.00–11.28 UTC), 9 game telur/beliung dimainkan ±25 detik.
+- **Cara cepat:** dari halaman tamu, panggil `POST /v3/feed` per kategori (`category`, `categoryPageSize=30`, token base64 `{category, offset, algorithm_metadata, gallery_id}`) dan `GET /v3/games?gameId=<id>` untuk hitungan plays terbaru, dengan header yang dipakai halaman itu sendiri. 160 game terbaca ±10 detik. Stempel waktu feed dalam detik. `contextCdnUrl` (`full.json.gz`) memuat kode dan config game mana pun.
+- **Pasar telur padat:** 41 game berjudul "egg"; median 1.000 plays/hari, hanya 7 di atas 10rb/hari. 30 game telur total ±9,6rb plays/jam; 15 game bikin/dandani bertahap ±22rb/jam; 8 game hancurkan/sandbox usil ±16,7rb/jam; 3 game gambar/mewarnai ±11rb/jam.
+- **"Break and Steal an Egg" sudah ada di Astrocade** (remix, 22 hari, 296rb plays, 406/jam dan melambat). Varian beliung lain 100–370/jam.
+- **Naik sekarang:** Space Survivor 7.586/jam, Smash Everything! 4.458, Morph Race 3.600, Color Quest 3.541, Lip Art Studio 2.734. Hampir semua game ×2 dari rata-ratanya di jam ini, jadi rasio di bawah ×1 berarti turun.
+- **Standar isi game telur teratas (dari config):** 8 bahasa termasuk Arab, hadiah harian dan online bertimer, uang offline, quest, achievement, Index pet, fusi, mutasi, leaderboard.
+- **Batas data:** satu jendela 28 menit; feed hanya memuat game pilihan platform; pengelompokan tipe dibuat dari judul dan deskripsi.
+
 ### 2. Update Engine & API Terbaru (Three.js / 2D)
+**Three.js di Astrocade (terbukti di prototipe 2026-11-18)** — versi terbaru 0.187.0 hanya ada sebagai modul ES: `await import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js')` dengan cadangan unpkg; game 3D lain di feed memuat jsdelivr/cdnjs/unpkg. Lampu sejak r155 perlu intensitas ±2 supaya warna cerah. Satu `InstancedMesh` per jenis benda (permen, konfeti) menjaga jumlah gambar ulang tetap kecil.
 **Platform Astrocade (terbukti 2026-11-18 lewat `get_game_dev_guide` dan unggah nyata)**
 - **Kanvas:** iframe persis 720×1280; game mendefinisikan `window.run = run`, host memanggil `run('play'|'edit')`. Mode edit: gambar hidup tanpa gameplay sudah diterima.
 - **Dilarang di iframe:** `localStorage`, cookie, `alert`, popup, jaringan selain CDN yang disetujui dan aset platform. Simpanan hanya lewat `lib.saveUserGameState`/`getUserGameState` (satu slot, selalu kirim state penuh).
@@ -106,6 +115,11 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 - Jangan menjanjikan "tanpa bug": laporkan uji yang lulus, bug yang ditemukan uji, dan apa yang hanya bisa dinilai user di HP (suara, rasa gerakan, terjemahan).
 - User tidak suka menunggu lama: riset backend maksimal ±30 halaman per cek, dan beri kabar singkat saat proses panjang.
 - Batas alat di sesi cloud: panggilan API Astrocade langsung dengan header tiruan ditolak (pakai browser biasa); `rm` dengan pola `*` ditolak (tulis bukti baru ke folder baru); push paksa ditolak.
+
+**Pinata Maker: Smash Party (prototipe 2026-11-18)** — sumber di `prototypes/pinata-maker/`, belum ada draft Astrocade; bukti layar di `production/qa/evidence/pinata-maker/`.
+- 3D sebagian: halaman, piñata, permen, tongkat di Three.js (`scene.js`); HUD kanvas 2D di atasnya dengan jalur tetap dan uji tumpang tindih yang sama (`game.js`, `playtest.js`, 11 uji).
+- Bug yang hanya tertangkap uji: benda yang dilepas ke scene (`scene.attach`) tidak ikut terhapus saat grup dibuang; isi kosong membuat fungsi acak memilih `undefined`; teks Arab di kanvas butuh `direction = 'rtl'`.
+- Perintah shell yang memuat `rm -rf` ditolak di sesi cloud: tulis ke folder baru dan pakai alat Edit/Write.
 
 **Fizzy Bath Bomb Maker (draft Astrocade 2026-11-18)** — game id `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, sumber di `prototypes/fizzy-bath-bomb-maker/`, belum dipublikasikan.
 - **Format akun ini multi-berkas:** `index.html` memuat `./game.js` sebagai `type="module"`. Server uji lokal wajib mengirim `content-type: text/javascript`, kalau tidak modul menolak dimuat dan game tampak mati.

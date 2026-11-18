@@ -1,0 +1,750 @@
+{
+  "toy_ball": {
+    "animation": null,
+    "aspect_ratio": [
+      787,
+      810
+    ],
+    "compression_suggestion": "original",
+    "description": "A single rainbow striped bouncy ball toy with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single rainbow striped bouncy ball toy with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9A3T924X5FW2D7FAS303J_b37220e1-a4ef-4f11-9793-98f4c8558cde_fa6a7d7b-8faf-473b-93ee-dcbfc4aeeed1.webp"
+  },
+  "toy_yoyo": {
+    "animation": null,
+    "aspect_ratio": [
+      674,
+      839
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute yo-yo toy in red and yellow with a smiling face and its string, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute yo-yo toy in red and yellow with a smiling face and its string, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9A5GHB0J2YH51YF1C8FDM_6da781ba-4fbe-4b26-88f4-bc3c77732f03_22eda051-4ab6-4165-af2e-9fb0c1c9f18a.webp"
+  },
+  "toy_car": {
+    "animation": null,
+    "aspect_ratio": [
+      976,
+      810
+    ],
+    "compression_suggestion": "original",
+    "description": "A single chunky little toy race car in bright blue with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single chunky little toy race car in bright blue with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9A6BJ0ATY12KAR6F701K8_c2bbde78-4a62-4248-9208-417427970825_7720b552-a7d7-4dcd-8ccd-76b7f8f4eab2.webp"
+  },
+  "toy_ducky": {
+    "animation": null,
+    "aspect_ratio": [
+      686,
+      1125
+    ],
+    "compression_suggestion": "original",
+    "description": "A single yellow rubber duck toy wearing a tiny party hat, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single yellow rubber duck toy wearing a tiny party hat, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9A819DKB788ZWFYA8XMTG_2708fde9-5e64-4e9f-959d-63732c7ed916_26ead922-f1ae-4a7c-b454-4b4d6a5fc63a.webp"
+  },
+  "toy_top": {
+    "animation": null,
+    "aspect_ratio": [
+      721,
+      1006
+    ],
+    "compression_suggestion": "original",
+    "description": "A single colorful spinning top toy with swirl pattern and a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single colorful spinning top toy with swirl pattern and a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9A94RKHE7ES95XW3SVXMA_06586072-a5f3-4118-89b4-a00657de4660_ff298518-3cb4-4194-8030-ef38ac77d498.webp"
+  },
+  "toy_whistle": {
+    "animation": null,
+    "aspect_ratio": [
+      566,
+      856
+    ],
+    "compression_suggestion": "original",
+    "description": "A single green party whistle blower toy with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single green party whistle blower toy with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9A9ZMM80TXRVP1GC0KVW8_cdbb7c40-e520-4792-9e76-73493280167f_d795a14c-cb7f-4205-99b2-dc81ef5c641d.webp"
+  },
+  "toy_teddy": {
+    "animation": null,
+    "aspect_ratio": [
+      836,
+      1149
+    ],
+    "compression_suggestion": "original",
+    "description": "A single small teddy bear plush toy with a pink bow, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single small teddy bear plush toy with a pink bow, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9AAWFQ4P3X8GBZAJ60EDE_e872e382-1560-47cb-9dc2-340971e5d9b6_daee6376-9d4d-4cf9-9f71-47e706130a78.webp"
+  },
+  "toy_robot": {
+    "animation": null,
+    "aspect_ratio": [
+      667,
+      947
+    ],
+    "compression_suggestion": "original",
+    "description": "A single small friendly toy robot in orange and teal with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single small friendly toy robot in orange and teal with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9AC00ZG2YERQCA8GK31XP_18d87ae5-25fc-4d9f-be98-05ed61d7dc0b_85931d23-1e4a-4ee6-9d31-7de8152e0628.webp"
+  },
+  "toy_kite": {
+    "animation": null,
+    "aspect_ratio": [
+      811,
+      1314
+    ],
+    "compression_suggestion": "original",
+    "description": "A single colorful diamond kite toy with a ribbon tail and a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single colorful diamond kite toy with a ribbon tail and a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9JY759EYGZ2VN4D728XJS_bb18c19a-1236-4079-9038-205b3dc8bc42_3e1002eb-499d-40f7-a0f4-c1d137e3ab52.webp"
+  },
+  "toy_dragon": {
+    "animation": null,
+    "aspect_ratio": [
+      853,
+      831
+    ],
+    "compression_suggestion": "original",
+    "description": "A single small purple baby dragon plush toy with tiny wings, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single small purple baby dragon plush toy with tiny wings, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9K1N08GGD7D1JG7M5VWTE_5a086404-bf40-4eff-ba77-37a09f52010d_5e0b0cfb-fe20-43f4-b451-0bb988925dbc.webp"
+  },
+  "toy_diamond": {
+    "animation": null,
+    "aspect_ratio": [
+      918,
+      817
+    ],
+    "compression_suggestion": "original",
+    "description": "A single giant sparkling blue diamond gem with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single giant sparkling blue diamond gem with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9K42G7N6PGFYADC6QBX0M_8cfe3223-cf02-4d10-8f64-eb3a768d992f_27459b18-b4c2-4de0-af14-88c9b9d8efcc.webp"
+  },
+  "toy_dino": {
+    "animation": null,
+    "aspect_ratio": [
+      685,
+      929
+    ],
+    "compression_suggestion": "original",
+    "description": "A single small green toy dinosaur with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single small green toy dinosaur with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9JXE0W042H9EWVRT6CAMC_564aa97e-ce9f-4c63-9a00-18b7bb0a6fd0_264dc740-0374-4658-aa13-f9e03425afd4.webp"
+  },
+  "toy_rocket": {
+    "animation": null,
+    "aspect_ratio": [
+      897,
+      1530
+    ],
+    "compression_suggestion": "original",
+    "description": "A single little red and white toy rocket with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single little red and white toy rocket with a smiling face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9JYY8NARG2CAQ5GX087HG_c77b6758-94f3-4455-9229-e36846a0796c_af1af6d5-adba-4ab4-bd29-eae0d51f9cf2.webp"
+  },
+  "toy_crown": {
+    "animation": null,
+    "aspect_ratio": [
+      859,
+      822
+    ],
+    "compression_suggestion": "original",
+    "description": "A single shiny golden crown with colorful gems and a cute face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single shiny golden crown with colorful gems and a cute face, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9K2F9636GR2MA69MVZF2F_f42b7b0d-3068-49cb-ad14-029aeffac648_7be1bbea-6660-4119-8f89-e757a5a21f49.webp"
+  },
+  "toy_unicorn": {
+    "animation": null,
+    "aspect_ratio": [
+      766,
+      1027
+    ],
+    "compression_suggestion": "original",
+    "description": "A single white unicorn plush toy with rainbow mane, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single white unicorn plush toy with rainbow mane, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9K07YMJKJ3YJWTJHNSQD7_9ae2d5c8-b530-4e11-b665-7333e92210cc_23801384-197a-4a0a-bdea-53ddbe762263.webp"
+  },
+  "toy_llama": {
+    "animation": null,
+    "aspect_ratio": [
+      709,
+      1334
+    ],
+    "compression_suggestion": "original",
+    "description": "A single rainbow piñata llama figurine with fringed paper stripes and gold sparkles, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single rainbow piñata llama figurine with fringed paper stripes and gold sparkles, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9K39GKV2N90S2MAXQ27QD_4e6dfaff-a111-4e89-9d0c-f6344a35b92c_5e9eabec-079d-46b7-8ee1-e4ff24b28990.webp"
+  },
+  "guest_bear": {
+    "animation": null,
+    "aspect_ratio": [
+      951,
+      1429
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute baby bear wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute baby bear wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9MCK079CSPQ1RH95SVF0A_e4d2a59b-6e18-48c2-84de-c8c50b03741a_72e34a70-a168-4f76-a5e3-f3c9fbd89cc1.webp"
+  },
+  "guest_fox": {
+    "animation": null,
+    "aspect_ratio": [
+      853,
+      1385
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute baby fox wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute baby fox wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9N0Y0A4HRYNE2JRMX0TH1_b9305172-e5f8-45ce-a261-c8835745fff3_534fc986-15a5-4b8a-b232-abdbc9e56ed3.webp"
+  },
+  "guest_bunny": {
+    "animation": null,
+    "aspect_ratio": [
+      817,
+      1406
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute baby bunny wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute baby bunny wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9MAZEQA2WFFFVT6WWWGGV_acbfd51c-6272-4db2-a628-8dccfb724770_e2ed0f42-80ea-4a05-9f8c-6ae5220dc7fc.webp"
+  },
+  "guest_cat": {
+    "animation": null,
+    "aspect_ratio": [
+      894,
+      1351
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute baby cat wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute baby cat wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9MBSW7D6Q5W3Q5M4P8ANS_4992535b-9620-46c3-99f3-7569c00cc1c4_d7e8d209-29cd-4738-b853-efa37241dfb6.webp"
+  },
+  "music": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "happy upbeat kids birthday party music with ukulele, marimba, claps and light latin fiesta rhythm, playful, loopable, no vocals",
+    "duration_secs": 55.9833125,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7Q9NZVDFKDPR4NXY86RFFQP_8a152aad-2751-4a4f-a982-9ee80a89f111_0902c39f-926f-420c-9e1d-c80db9b0d9d4.ogg",
+    "prompt": "happy upbeat kids birthday party music with ukulele, marimba, claps and light latin fiesta rhythm, playful, loopable, no vocals",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7Q9NZVDFKDPR4NXY86RFFQP_8a152aad-2751-4a4f-a982-9ee80a89f111_0902c39f-926f-420c-9e1d-c80db9b0d9d4.mp3"
+  },
+  "guest_frog": {
+    "animation": null,
+    "aspect_ratio": [
+      894,
+      1243
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute baby frog wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute baby frog wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9N1Q09NYCYDX50BCK97JG_4488b6f0-065e-4b8c-ad80-f731b356ada8_ff3de9dd-ff7a-450d-a744-18e67cb26b84.webp"
+  },
+  "stk_star": {
+    "animation": null,
+    "aspect_ratio": [
+      750,
+      723
+    ],
+    "compression_suggestion": "original",
+    "description": "A single yellow star sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single yellow star sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "ui",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9NJRE6ZXVFAGTRPBC37N1_5b632162-4355-4a25-88ea-28ea6321f2cc_cd498d3e-6b19-4620-877d-4f7da74a64d2.webp"
+  },
+  "stk_heart": {
+    "animation": null,
+    "aspect_ratio": [
+      733,
+      626
+    ],
+    "compression_suggestion": "original",
+    "description": "A single pink heart sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single pink heart sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "ui",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9NM0K1J0A43A998ARD09K_653ed6fe-b267-4c9b-b0a3-6ac582942dad_c173a4fb-c17e-4c43-844e-ad79c029882c.webp"
+  },
+  "guest_panda": {
+    "animation": null,
+    "aspect_ratio": [
+      811,
+      1100
+    ],
+    "compression_suggestion": "original",
+    "description": "A single cute baby panda wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single cute baby panda wearing a colorful party hat, full body, standing, front view, both arms raised cheering happily, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, centered, soft studio lighting, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9N05KF5ENNQVQDE7R0011_22fbe3d5-f49a-45cb-8c98-41c0762e03d9_a31a41e2-78bd-4406-bd78-1a30fbc9185b.webp"
+  },
+  "stk_flower": {
+    "animation": null,
+    "aspect_ratio": [
+      809,
+      819
+    ],
+    "compression_suggestion": "original",
+    "description": "A single purple daisy flower sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single purple daisy flower sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "ui",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9NMSFWSE7J9N6TZAC4AE1_e3ccea6c-1bb0-4bcc-b8ea-ec5b4fd06114_d2c9b529-755c-45c5-bc04-9561fc88de48.webp"
+  },
+  "stk_pompom": {
+    "animation": null,
+    "aspect_ratio": [
+      716,
+      689
+    ],
+    "compression_suggestion": "original",
+    "description": "A single fluffy rainbow pom-pom ball sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single fluffy rainbow pom-pom ball sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "ui",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9PC9N9Z6H5Y0TAWS292C0_69c32599-8e5e-4260-b83d-6b8d70941418_b2766801-52cd-441d-90b6-4924523dff2a.webp"
+  },
+  "stk_bow": {
+    "animation": null,
+    "aspect_ratio": [
+      780,
+      687
+    ],
+    "compression_suggestion": "original",
+    "description": "A single red ribbon bow sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single red ribbon bow sticker with a white outline, flat front view, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "ui",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9PD2H4NBM7X92A8ATDRTX_87bdcce3-1a04-4db3-96f5-0624a08de76f_824c99ff-032d-4927-8be8-749d3433cc8d.webp"
+  },
+  "candy_lolly": {
+    "animation": null,
+    "aspect_ratio": [
+      811,
+      1359
+    ],
+    "compression_suggestion": "original",
+    "description": "A single round swirl lollipop in pink and white on a stick, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single round swirl lollipop in pink and white on a stick, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9Q2EEQTHYJPBVKGXZZZG3_2075d9b2-2f7d-46c1-ad30-3be6c00d5865_aca3184f-17c9-42d8-86c3-46566402c568.webp"
+  },
+  "candy_wrap": {
+    "animation": null,
+    "aspect_ratio": [
+      967,
+      579
+    ],
+    "compression_suggestion": "original",
+    "description": "A single wrapped hard candy in shiny blue wrapper with twisted ends, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single wrapped hard candy in shiny blue wrapper with twisted ends, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9Q3XAGDA2BYT9FQ2VNQ88_e1101617-8928-4974-a4a1-07fd7ce29289_764ca141-da95-4577-b0c6-6545285bf960.webp"
+  },
+  "candy_coin": {
+    "animation": null,
+    "aspect_ratio": [
+      823,
+      829
+    ],
+    "compression_suggestion": "original",
+    "description": "A single gold foil chocolate coin with a star embossed, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single gold foil chocolate coin with a star embossed, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9Q5NCHT7S1NRVEPB1JK4P_de375949-a351-4861-b2bd-4aa3e213ca2c_b6e74d67-a487-4b6f-9182-5da673a0dfcb.webp"
+  },
+  "candy_gummy": {
+    "animation": null,
+    "aspect_ratio": [
+      607,
+      905
+    ],
+    "compression_suggestion": "original",
+    "description": "A single red gummy bear, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single red gummy bear, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9Q4X02CZFXVCEBY7BXJVT_c1dfc58e-e6aa-4722-9476-a482e0c200f3_91068754-2532-42f5-a3d0-c75d31de3314.webp"
+  },
+  "candy_bean": {
+    "animation": null,
+    "aspect_ratio": [
+      483,
+      753
+    ],
+    "compression_suggestion": "original",
+    "description": "A single pile of three colorful jelly beans, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single pile of three colorful jelly beans, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9QR0QYSZ7G63BSB8RZ31F_05b27bb9-9a00-4734-a0cf-b18a5b16c3e8_5cf28168-7edf-496d-9ad5-524f87e89271.webp"
+  },
+  "bat_hammer": {
+    "animation": null,
+    "aspect_ratio": [
+      881,
+      1180
+    ],
+    "compression_suggestion": "original",
+    "description": "A single inflatable squeaky toy hammer in red and yellow, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single inflatable squeaky toy hammer in red and yellow, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9QTQFCBN3EH4A8DATNW8D_06a32e88-51ee-413a-9469-58746e75dbd6_57b6c1d4-a160-4514-8460-a1b3f5bc0093.webp"
+  },
+  "bat_wand": {
+    "animation": null,
+    "aspect_ratio": [
+      688,
+      1149
+    ],
+    "compression_suggestion": "original",
+    "description": "A single magic wand with a golden star tip and sparkles, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single magic wand with a golden star tip and sparkles, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9QVMHX8AXA6SDWDH6B8YA_f96014f7-6641-4cb1-bc0c-e7131b77eb5e_ec0a5613-e0e1-40d0-9a93-9d75af9bdf68.webp"
+  },
+  "bat_wood": {
+    "animation": null,
+    "aspect_ratio": [
+      916,
+      1210
+    ],
+    "compression_suggestion": "original",
+    "description": "A single wooden toy baseball bat with colorful ribbon wrapped handle, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single wooden toy baseball bat with colorful ribbon wrapped handle, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9QS914RAMB3Z6CZ3NYB68_d61cd853-25aa-4a5a-92cf-b6d12a70f230_e48bfa6a-dc88-4b11-9e36-378d7db94fea.webp"
+  },
+  "bat_sword": {
+    "animation": null,
+    "aspect_ratio": [
+      756,
+      824
+    ],
+    "compression_suggestion": "original",
+    "description": "A single blue foam toy sword, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single blue foam toy sword, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9RC0YY3JQSC1971NDMAJV_640fe47d-cd89-4755-9ee3-fcae0e3336a3_06ba2189-0377-4c2b-8397-97b6409b4437.webp"
+  },
+  "bat_lolly": {
+    "animation": null,
+    "aspect_ratio": [
+      692,
+      1393
+    ],
+    "compression_suggestion": "original",
+    "description": "A single giant swirl lollipop on a long stick, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "A single giant swirl lollipop on a long stick, diagonal, glossy 3D kawaii toy style, bright saturated colors, centered, soft studio lighting, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7Q9RDPH9KBREB0TMJ9REMZ3_fda01019-b2cd-4f9b-a51f-604c9722670a_d82a83ae-2b49-4eeb-a0c5-ec938a5e7f56.webp"
+  },
+  "sfx_paper": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "crisp tissue paper being pressed and stuck on cardboard, short crinkly rustle, close mic, no music",
+    "duration_secs": 1.41,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9RF6X2NZ83TNW7J364Q9G_b8e5aed3-555c-4073-9a5a-644b127a06d0_ce0f3b34-61a4-4255-8df7-d33c88421167.ogg",
+    "prompt": "crisp tissue paper being pressed and stuck on cardboard, short crinkly rustle, close mic, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9RF6X2NZ83TNW7J364Q9G_b8e5aed3-555c-4073-9a5a-644b127a06d0_ce0f3b34-61a4-4255-8df7-d33c88421167.mp3"
+  },
+  "sfx_sticker": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "short cute pop sound of a sticker being stuck, bright and bubbly, no music",
+    "duration_secs": 1.22,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S1YZZT8F877A3D2Q6C92_9753b905-0149-405c-baee-a9f24c68cd3f_c4f69ef4-0064-44df-ac3e-2612dd906fe1.ogg",
+    "prompt": "short cute pop sound of a sticker being stuck, bright and bubbly, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S1YZZT8F877A3D2Q6C92_9753b905-0149-405c-baee-a9f24c68cd3f_c4f69ef4-0064-44df-ac3e-2612dd906fe1.mp3"
+  },
+  "sfx_candy": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "a handful of small wrapped candies dropping into a cardboard box, rattly and satisfying, no music",
+    "duration_secs": 1.83,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S2SRV5SRKRSHXWHYKXVJ_9085f91e-d7f5-4d6e-b5a9-69601264334d_b4cdb863-791e-4ede-aaff-ef1e5c3f4dfa.ogg",
+    "prompt": "a handful of small wrapped candies dropping into a cardboard box, rattly and satisfying, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S2SRV5SRKRSHXWHYKXVJ_9085f91e-d7f5-4d6e-b5a9-69601264334d_b4cdb863-791e-4ede-aaff-ef1e5c3f4dfa.mp3"
+  },
+  "sfx_hit": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "single soft thwack of a stick hitting a hollow cardboard piñata, punchy and satisfying, no music",
+    "duration_secs": 0.21,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S41TB3MSFX7F33KAKH3V_787596c5-7bbe-46c1-afb5-e23964dae716_4294d97f-a33f-4da8-a752-21a9f6d10d31.ogg",
+    "prompt": "single soft thwack of a stick hitting a hollow cardboard piñata, punchy and satisfying, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S41TB3MSFX7F33KAKH3V_787596c5-7bbe-46c1-afb5-e23964dae716_4294d97f-a33f-4da8-a752-21a9f6d10d31.mp3"
+  },
+  "sfx_crack": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "cardboard cracking and tearing with paper rip, short, no music",
+    "duration_secs": 1.2,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S4SDZJK7HJKF9C1SA9NV_b426dab4-476d-4ee3-a5fd-e598dfd17a4e_66c05366-b7d9-485b-abed-03c3b1b0f31f.ogg",
+    "prompt": "cardboard cracking and tearing with paper rip, short, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S4SDZJK7HJKF9C1SA9NV_b426dab4-476d-4ee3-a5fd-e598dfd17a4e_66c05366-b7d9-485b-abed-03c3b1b0f31f.mp3"
+  },
+  "sfx_burst": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "piñata bursting open with a big pop, paper tearing and party confetti blast, joyful, no music",
+    "duration_secs": 2.39,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9SSRKD7MTBRT97NKNECE5_271112c1-3aef-4018-a2ef-65399235779c_f2ab424b-f687-4109-91c3-3176da541c17.ogg",
+    "prompt": "piñata bursting open with a big pop, paper tearing and party confetti blast, joyful, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9SSRKD7MTBRT97NKNECE5_271112c1-3aef-4018-a2ef-65399235779c_f2ab424b-f687-4109-91c3-3176da541c17.mp3"
+  },
+  "sfx_rain": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "lots of wrapped candies raining down and bouncing on grass and a wooden floor, no music",
+    "duration_secs": 3.53,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9STKN7PNFK63EAZ0CW907_a49590c7-9d79-44f6-b57c-22ab33810c74_2a57fe26-b9dd-47e5-b2b2-4b24fc5c4a16.ogg",
+    "prompt": "lots of wrapped candies raining down and bouncing on grass and a wooden floor, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9STKN7PNFK63EAZ0CW907_a49590c7-9d79-44f6-b57c-22ab33810c74_2a57fe26-b9dd-47e5-b2b2-4b24fc5c4a16.mp3"
+  },
+  "sfx_cheer": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "small group of young children cheering yay and clapping at a birthday party, short, no music",
+    "duration_secs": 2.8,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9SVD9CPQMX3AN43MTK92D_d546d1ca-5177-4538-bf2f-c623eb01833a_5a04327d-fab3-4ea0-b56b-b63ca95446b4.ogg",
+    "prompt": "small group of young children cheering yay and clapping at a birthday party, short, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9SVD9CPQMX3AN43MTK92D_d546d1ca-5177-4538-bf2f-c623eb01833a_5a04327d-fab3-4ea0-b56b-b63ca95446b4.mp3"
+  },
+  "sfx_win": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "short happy magical reward jingle with sparkles, kids game win sound",
+    "duration_secs": 2.29,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9SW7ZKP7GZZFG13R26RPK_dc0685b7-de11-4ec2-80e6-ef1baa6347c1_41ff8da8-d9cb-4572-b217-3d1309456993.ogg",
+    "prompt": "short happy magical reward jingle with sparkles, kids game win sound",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9SW7ZKP7GZZFG13R26RPK_dc0685b7-de11-4ec2-80e6-ef1baa6347c1_41ff8da8-d9cb-4572-b217-3d1309456993.mp3"
+  },
+  "sfx_coin": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "single bright coin collect ding, short, arcade",
+    "duration_secs": 0.87,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9TDNK3VBJYWVRXCTA1JWR_ceddde75-d984-467e-bd85-99c0c03994c6_0207f0e2-453c-4a6a-be6e-6005dae7129d.ogg",
+    "prompt": "single bright coin collect ding, short, arcade",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9TDNK3VBJYWVRXCTA1JWR_ceddde75-d984-467e-bd85-99c0c03994c6_0207f0e2-453c-4a6a-be6e-6005dae7129d.mp3"
+  },
+  "sfx_pop": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "plastic toy capsule popping open with a cute boing, short, no music",
+    "duration_secs": 1.24,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9TEX2M1MD0QRZ3PXH6073_3b18bb41-8fc7-4df7-bf29-d506b87ab458_dc522829-1eaa-469d-8d5c-9fd61d4caaf5.ogg",
+    "prompt": "plastic toy capsule popping open with a cute boing, short, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9TEX2M1MD0QRZ3PXH6073_3b18bb41-8fc7-4df7-bf29-d506b87ab458_dc522829-1eaa-469d-8d5c-9fd61d4caaf5.mp3"
+  }
+}
