@@ -17,8 +17,7 @@
  * There is no fail state: a step that is not finished only asks for a bit more.
  *
  * Layout: the 720 x 1280 screen is cut into fixed lanes (LANE below). Every UI
- * element lives in one lane, so nothing can cover anything else; in debug the
- * game records the box of each element and the playtest fails on any overlap.
+ * element lives in one lane, so nothing can cover anything else.
  *
  * The game shows the player's device language when it has strings for it
  * (cfg.strings), else English. Tunable numbers and all player-facing text live
@@ -473,7 +472,7 @@ function reveal() {
 }
 
 /* ---------- drawing helpers ---------- */
-/** Record the box of a top-level UI element (debug only); the playtest fails when two boxes overlap. */
+/** Record the box of a top-level UI element (debug only). */
 function box(n, x, y, w, h) { if (DEBUG && !grouped) BOXES.push({ n, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) }); }
 /** One UI element made of several drawn parts: record its outer box once, not each part. */
 function group(n, x, y, w, h, drawParts) { box(n, x, y, w, h); grouped++; drawParts(); grouped--; }

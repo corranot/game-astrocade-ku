@@ -530,7 +530,7 @@ function updateConfetti(dt) {
 /** Swing of the hanging pinata, radians; 0 is straight down. */
 export const swingAngle = () => P ? P.theta : 0;
 /**
- * For the playtest: how many stickers the camera can actually see (nothing of the pinata, fringe included, in front of their middle),
+ * How many stickers the camera can actually see (nothing of the pinata, fringe included, in front of their middle),
  * and the screen box of the whole pinata.
  */
 export function seen() {

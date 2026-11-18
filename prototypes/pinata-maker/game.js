@@ -15,8 +15,7 @@
  * There is no fail state. A tap does the same as a drag.
  *
  * The yard is 3D (scene.js, Three.js); the HUD is a 2D canvas on top, cut into fixed lanes (LANE)
- * so nothing covers anything else. In debug the game records the box of every HUD element and the
- * playtest fails on any overlap.
+ * so nothing covers anything else.
  *
  * The game shows the player's device language when cfg.strings has it, else English.
  * Tunable numbers and all player-facing text live in game_config.json. Art and sound come from
@@ -484,7 +483,7 @@ function update(dt) {
 }
 
 /* ---------- drawing helpers ---------- */
-/** Record the box of a top-level HUD element (debug only); the playtest fails when two boxes overlap. */
+/** Record the box of a top-level HUD element (debug only). */
 function box(n, x, y, w, h) { if (DEBUG && !grouped) BOXES.push({ n, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) }); }
 /** One HUD element made of several drawn parts: record its outer box once, not each part. */
 function group(n, x, y, w, h, drawParts) { box(n, x, y, w, h); grouped++; drawParts(); grouped--; }
