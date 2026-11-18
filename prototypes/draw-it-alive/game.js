@@ -494,7 +494,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, haptics: { play() {}, start() {}, stop() {} } };
-  window.__game = { LEVELS, newLevel, get S() { return S; }, get target() { return target; }, get quality() { return quality; }, set quality(q) { quality = q; }, get save() { return save; }, set save(v) { save = v; }, applySave, get view() { return view; }, get wall() { return wall; }, MUTE, WALLB, CARD, cardAt, openWall, get cfg() { return cfg; }, get canvases() { return cardImgs.length + cardBacks.length; } };
+  window.__game = { LEVELS, newLevel, get backLayer() { return back; }, get S() { return S; }, get target() { return target; }, get quality() { return quality; }, set quality(q) { quality = q; }, get save() { return save; }, set save(v) { save = v; }, applySave, get view() { return view; }, get wall() { return wall; }, MUTE, WALLB, CARD, cardAt, openWall, get cfg() { return cfg; }, get canvases() { return cardImgs.length + cardBacks.length; } };
   const q = new URLSearchParams(location.search);
   fetch('game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = { ...c, ...JSON.parse(q.get('cfg') || '{}') }; run(q.get('mode') || 'play'); });
 }
