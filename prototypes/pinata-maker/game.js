@@ -25,7 +25,7 @@
 import * as scene from './scene.js';
 
 const W = 720, H = 1280, TAU = Math.PI * 2;
-const THREE_URLS = ['https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js', 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js', 'https://unpkg.com/three@0.187.0/build/three.module.js'];
+const THREE_URLS = ['https://cdn.jsdelivr.net/npm/three@0.187.0/+esm', 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js', 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js', 'https://unpkg.com/three@0.187.0/build/three.module.js'];
 // Lanes (centre y of each row of the HUD). The pinata lives between `order` and `row`.
 const LANE = { hud: 70, steps: 164, bar: 222, say: 280, toast: 346, order: 448, row: 985, btn: 1150 };
 const PLAY = { x: 130, y: 480, w: 460, h: 420 };
@@ -33,11 +33,12 @@ const PAPER = [0xff4fa3, 0xffc928, 0x2fb4ff, 0x3fd47a, 0x9b5cff];
 const css = n => '#' + n.toString(16).padStart(6, '0');
 const SHAPE_E = ['🦙', '🦄', '🦖', '⭐', '🍩', '🚀'];
 const STEP_E = ['🦙', '🎨', '⭐', '🍬', '💥'];
+const THEME_E = ['🌳', '🏖️', '⛄', '🍭'];
 const STICKERS = [['stk_star', '⭐'], ['stk_heart', '💗'], ['stk_flower', '🌸'], ['stk_pompom', '🧶'], ['stk_bow', '🎀']];
 const CANDY = [['candy_lolly', '🍭'], ['candy_wrap', '🍬'], ['candy_gummy', '🐻'], ['candy_coin', '🟡'], ['candy_bean', '🍡']];
 const BATS = [['bat_wood', '🏏'], ['bat_hammer', '🔨'], ['bat_wand', '✨'], ['bat_sword', '🗡️'], ['bat_lolly', '🍭']];
 const GUESTS = [['guest_bunny', '🐰'], ['guest_cat', '🐱'], ['guest_bear', '🐻'], ['guest_panda', '🐼'], ['guest_fox', '🦊'], ['guest_frog', '🐸']];
-const OPEN = { shape: 3, color: 4, sticker: 3, candy: 3, perk: 0 }; // how many of each are open from the start
+const OPEN = { shape: 3, color: 4, sticker: 3, candy: 3, perk: 0, theme: 1 }; // how many of each are open from the start
 const RARITY = ['#27a8ff', '#a352ff', '#ff7a00', '#f08a00'];
 const TOYS = [
   ['toy_ball', '🏀', 0], ['toy_yoyo', '🔴', 0], ['toy_car', '🚗', 0], ['toy_ducky', '🦆', 0], ['toy_top', '🌀', 0], ['toy_whistle', '🎺', 0],
@@ -113,22 +114,26 @@ const persist = () => { lib.saveUserGameState(save).catch(() => {}); };
 /** A guest asks for a shape in a colour (only things the player has unlocked). */
 function newOrder() {
   const shapes = [...Array(scene.SHAPE_COUNT).keys()].filter(i => isOpen('shape', i)), cols = PAPER.map((_, i) => i).filter(i => isOpen('color', i));
-  return { shape: shapes[R() * shapes.length | 0], color: cols[R() * cols.length | 0], guest: R() * GUESTS.length | 0 };
+  const fresh = rewardAt(save.made), o = { shape: shapes[R() * shapes.length | 0], color: cols[R() * cols.length | 0], guest: R() * GUESTS.length | 0 };
+  if (fresh && fresh.kind === 'shape') o.shape = fresh.i; if (fresh && fresh.kind === 'color') o.color = fresh.i;
+  return o;
 }
 const orderMet = () => !!S.order && S.shape === S.order.shape && scene.patchColors().includes(S.order.color);
 
 /** Start a pinata. o.free: a ready-made one, straight to smashing. */
 function newRound(o = {}) {
+  // the very first thing a new player does is smash a ready-made pinata: the payoff comes before the making
+  if (save.made === 0 && save.smashed === 0 && !o.free) o = { free: true, intro: true };
   const made = save.made, isFirst = made === 0 && !o.free;
   S = {
-    step: isFirst ? 1 : o.free ? 4 : 0, t: 0, stepT: 0, idle: 0, acted: false, free: !!o.free,
+    step: isFirst ? 1 : o.free ? 4 : 0, t: 0, stepT: 0, idle: 0, acted: false, free: !!o.free, opening: !!o.intro,
     shape: isFirst ? 0 : save.shape || 0, color: 0, sticker: 0, total: 1, stuck: 0, fill: 0, mix: [0, 0, 0, 0, 0],
     hp: 1, hpMax: 1, stage: 0, hoist: 0, pushT: 0, party: false, gold: false, goldStars: false, mega: false,
     order: null, intro: null, introT: 0, guests: [], F: [], parts: [], flash: 0, slowT: 0, done: 0, doneMsg: '',
     collectT: 0, got: 0, capReady: false, capT: 0, reveal: 0, prizes: null, earned: null, gift: null, giftOpen: false,
     panel: null, tab: 0, drag: null, autoStick: 0, burstAt: 0,
   };
-  if (!isFirst) {
+  if (!isFirst && !o.intro) {
     S.goldStars = save.stars >= cfg.starsForGolden; S.gold = S.goldStars || R() < cfg.goldenChance;
     S.mega = R() < cfg.megaChance; S.party = !o.free && (made + 1) % cfg.partyEvery === 0;
     if (!o.free && made >= 1) { S.order = newOrder(); if (!seen('order')) { S.intro = 'order'; S.introT = cfg.introSeconds; } }
@@ -137,21 +142,23 @@ function newRound(o = {}) {
   for (let i = pool.length - 1; i > 0; i--) { const j = R() * (i + 1) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
   S.guests = (S.order ? [S.order.guest] : []).concat(pool).slice(0, 4);
   if (o.free) { const shapes = [...Array(scene.SHAPE_COUNT).keys()].filter(i => isOpen('shape', i)); S.shape = shapes[R() * shapes.length | 0]; S.mix = S.mix.map((_, i) => isOpen('candy', i) ? 1 + (R() * 2 | 0) : 0); S.fill = cfg.fillTaps; }
+  if (o.intro) { S.shape = 0; S.mix = [2, 2, 1, 0, 0]; }
   if (ready3d) stage();
 }
 /** Put the round into the 3D yard. */
 function stage() {
   scene.clearCandy(); scene.hideCapsule(); scene.setBat(save.bat); scene.showBat(false);
+  const themes = THEME_E.map((_, i) => i).filter(i => isOpen('theme', i)); scene.setTheme(themes[(save.made + save.smashed) % themes.length]);
   scene.setGuests(S.guests.map(i => ({ id: GUESTS[i][0], emoji: GUESTS[i][1] })));
   S.total = scene.buildPinata(S.shape, [], PAPER);
   if (first()) S.total = scene.buildPinata(S.shape, Array.from({ length: S.total }, (_, i) => i < cfg.first.paperLeft ? -1 : (i % 2 ? 1 : 0)), PAPER);
   if (S.free || mode === 'edit') {
-    const cols = PAPER.map((_, i) => i).filter(i => isOpen('color', i)), a = cols[R() * cols.length | 0], b = cols[R() * cols.length | 0];
+    const cols = PAPER.map((_, i) => i).filter(i => isOpen('color', i)), a = S.opening ? 0 : cols[R() * cols.length | 0], b = S.opening ? 1 : cols[(cols.indexOf(a) + 1 + (R() * (cols.length - 1) | 0)) % cols.length];
     S.total = scene.buildPinata(S.shape, Array.from({ length: S.total }, (_, i) => i % 2 ? a : b), PAPER);
     scene.addFace(); S.autoStick = 4;
   }
   scene.setView('craft');
-  if (S.free) enterSmash();
+  if (S.free) { enterSmash(); if (S.opening) { scene.snapView(); S.hoist = 0.35; } }
 }
 function buildShape(i) { S.shape = i; S.total = scene.buildPinata(i, [], PAPER); }
 
@@ -168,7 +175,8 @@ function pickToy(minTier = 0, pool = TOYS) {
 function drawPrize() {
   const goldSet = albumDone(), have = goldSet ? save.gold : save.owned, missing = TOYS.filter(t => !have.includes(t.i));
   const pity = save.dupes >= cfg.pityDupes && missing.length > 0;
-  const toy = pity ? pickToy(0, missing) : pickToy(S.gold ? 1 : 0);
+  const rareMissing = missing.filter(t => t.tier >= 1);
+  const toy = S.gold && rareMissing.length ? pickToy(1, rareMissing) : (pity || S.gold) && missing.length ? pickToy(0, missing) : pickToy(S.gold ? 1 : 0);
   return { toy, gold: goldSet, isNew: !have.includes(toy.i) };
 }
 
@@ -227,7 +235,7 @@ function advance() {
   if (S.step === 4) enterSmash();
 }
 function enterSmash() {
-  S.step = 4; S.stepT = 0; S.hoist = 1.2; S.hpMax = S.hp = need('hitsNeeded') + (S.party ? 3 : 0); S.stage = 0;
+  S.step = 4; S.stepT = 0; S.hoist = 1.2; S.hpMax = S.hp = S.opening ? cfg.first.openingHits : need('hitsNeeded'); S.stage = 0;
   save.shape = S.shape;
   scene.setView('smash');
   if (S.gold) { scene.setGold(true); toast(T('golden'), '#e08a00'); fanfare(5); }
@@ -237,7 +245,7 @@ function pickShape(i) {
   if (!isOpen('shape', i)) return locked('shape', i);
   S.acted = true; buildShape(i); sfx('sfx_pop', () => beep(520, 0.08)); lib.haptics.play('tick');
 }
-function locked(kind, i) { toast('🔒 ' + pinatasUntil(kind, i), '#7a3cff'); beep(200, 0.1, 'square', 0.06); }
+function locked(kind, i) { toast('🔒 💥×' + pinatasUntil(kind, i), '#7a3cff'); beep(200, 0.1, 'square', 0.06); }
 function paint(p, nearest) {
   if (S.done > 0) return;
   const at = scene.paintAt(p.x, p.y, S.color, nearest);
@@ -259,7 +267,7 @@ function stick(p) {
 function addCandy(i) {
   if (!isOpen('candy', i)) return locked('candy', i);
   if (S.done > 0 || S.fill >= need('fillTaps')) return;
-  S.acted = true; S.idle = 0; S.fill++; S.mix[i]++;
+  S.acted = true; S.idle = 0; S.fill++; S.mix[i]++; S.lastCandy = i;
   scene.dropIn(i, cfg.candiesPerTap);
   sfx('sfx_candy', () => beep(rnd(300, 420), 0.09, 'square', 0.07), 0.7, rnd(0.9, 1.2)); lib.haptics.play('tap');
   if (S.fill >= need('fillTaps')) complete('d3');
@@ -273,16 +281,19 @@ function hitNow() {
   burst2d(at.x + 40, at.y, 10, '#ffffff', 420); S.parts.push({ x: at.x + 50, y: at.y, life: 0.28, max: 0.28, kind: 'pow' });
   sfx('sfx_hit', () => beep(150, 0.12, 'square', 0.16, -90), 0.9, [1, 0.8, 1.25, 1.1, 0.9][save.bat] * rnd(0.95, 1.08));
   lib.haptics.play(perfect ? 'thud' : 'tap');
-  if (perfect) toast(T('perfect'), '#ff7a00');
   const frac = S.hp / S.hpMax, types = S.mix.flatMap((n, i) => n ? [i] : []);
   if (!types.length) types.push(0); // an empty pinata still leaks and rains something
-  if (S.stage < 1 && frac <= 0.67) { S.stage = 1; scene.shed(2); scene.leak(types, 2); sfx('sfx_crack', () => beep(260, 0.15, 'sawtooth', 0.1, -150)); }
+  if (perfect) { toast(T('perfect'), '#ff7a00'); scene.leak(types, 2); }
+  S.stopT = perfect ? 0.11 : 0.06; // a held frame on impact makes the hit land
+  beep(perfect ? 95 : 120, 0.11, 'sine', 0.22, -50);
+  if (S.stage < 1 && frac <= 0.67) { S.stage = 1; scene.cheer(2); scene.shed(2); scene.leak(types, 2); sfx('sfx_crack', () => beep(260, 0.15, 'sawtooth', 0.1, -150)); }
   if (S.stage < 2 && frac <= 0.34) { S.stage = 2; scene.shed(3); scene.leak(types, 3); sfx('sfx_crack', () => beep(220, 0.18, 'sawtooth', 0.12, -150), 0.9, 0.85); }
   if (S.hp <= 0) burstNow();
 }
 function burstNow() {
   const types = [];
-  S.mix.forEach((n, i) => { for (let k = 0; k < n * cfg.rainPerTap * (S.mega ? 2 : 1); k++) types.push(i); });
+  S.mix.forEach((n, i) => { for (let k = 0; k < n * cfg.rainPerTap * (S.mega || S.party ? 2 : 1); k++) types.push(i); });
+  const open = S.mix.flatMap((n, i) => n ? [i] : []); for (let k = 0; k < cfg.batBonusCandy[save.bat] && open.length; k++) types.push(open[k % open.length]); // a better stick shakes out more candy
   if (!types.length) for (let k = 0; k < cfg.rainPerTap * 2; k++) types.push(0);
   for (let i = types.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [types[i], types[j]] = [types[j], types[i]]; }
   scene.burst(types, S.mega ? cfg.megaScale : 1); scene.showBat(false);
@@ -290,7 +301,7 @@ function burstNow() {
   sfx('sfx_burst', () => { beep(90, 0.5, 'sawtooth', 0.22, -50); fanfare(5); }, 1); sfx('sfx_rain', () => {}, 0.8); sfx('sfx_cheer', () => {}, 0.7);
   lib.haptics.play([{ intensity: 1, sharpness: 0.2 }, { intensity: 0.8, sharpness: 0.6, delay: 80 }, { intensity: 1, sharpness: 0.9, delay: 80 }]);
   if (S.mega) toast(T('mega'), '#ff2d8a');
-  S.step = 5; S.stepT = 0; S.idle = 0; S.acted = false; S.collectT = need('collectSeconds');
+  S.step = 5; S.stepT = 0; S.idle = 0; S.acted = false; S.collectT = S.opening ? cfg.first.collectSeconds : need('collectSeconds');
 }
 /** Coins for candy picked up at these screen points. */
 function grabbed(list) {
@@ -313,7 +324,7 @@ function reveal() {
   S.earned = { base: cfg.coinsPerPinata, order: met ? cfg.orderCoins : 0, candy: S.got, met };
   save.coins += S.earned.base + S.earned.order;
   if (S.free) save.smashed++; else { save.made++; S.gift = rewardAt(save.made); if (S.gift && S.gift.kind === 'coins') save.coins += cfg.giftCoins; }
-  S.giftOpen = !S.gift; S.step = 6; S.stepT = 0;
+  S.giftOpen = !S.gift; S.btnAt = cfg.revealButtonDelay; S.step = 6; S.stepT = 0;
   persist(); lib.addPlayerScoreToLeaderboard(save.candies).catch(() => {});
   sfx('sfx_win', () => fanfare(5), 0.9); lib.haptics.play('success'); scene.cheer(2);
 }
@@ -323,11 +334,11 @@ function reveal() {
 function helpTarget() {
   if (S.panel || S.done > 0 || S.step === 6 || !ready3d) return null;
   if (S.intro === 'order') return { x: 130, y: LANE.order - 56, w: 460, h: 112, hand: 'tap' };
-  const show = (first() && !S.acted && S.stepT > 0.6) || S.idle > cfg.idleHelp;
+  const show = ((first() || S.opening) && !S.acted && S.stepT > 0.6) || S.idle > cfg.idleHelp;
   if (!show) return null;
   const n = rowCount(), row = i => ({ x: slotX(i, n) - 62, y: LANE.row - 62, w: 124, h: 124, hand: 'tap' });
-  if (S.step === 0) return { x: 150, y: LANE.btn - 66, w: 420, h: 132, hand: 'tap' };
-  if (S.step === 1) return { ...PLAY, hand: 'rub' };
+  if (S.step === 0) return S.order && S.shape !== S.order.shape ? row(S.order.shape) : { x: 150, y: LANE.btn - 66, w: 420, h: 132, hand: 'tap' };
+  if (S.step === 1) return S.order && S.shape === S.order.shape && S.color !== S.order.color && !orderMet() ? row(S.order.color) : { ...PLAY, hand: 'rub' };
   if (S.step === 2) return S.stuck >= need('stickersNeeded') ? { x: 150, y: LANE.btn - 66, w: 420, h: 132, hand: 'tap' } : { ...PLAY, hand: 'tap' };
   if (S.step === 3) return row(0);
   if (S.step === 4) return S.hoist > 0 ? null : { x: 150, y: 430, w: 420, h: 400, hand: 'tap' };
@@ -343,8 +354,8 @@ function onDown(p) {
   if (!ready3d) return;
   if (S.panel) return panelTap(p);
   if (Math.hypot(p.x - mx(664), p.y - LANE.hud) < 52) { setMuted(!save.muted); persist(); return; }
-  if (save.made >= 1 && S.step < 4 && Math.hypot(p.x - mx(556), p.y - LANE.hud) < 52) { S.panel = 'book'; S.tab = 0; beep(600, 0.06); return; }
-  if (S.intro) { if (Math.abs(p.y - LANE.order) < 70) endIntro(); return; }
+  if (save.made >= 1 && S.step < 4 && Math.hypot(p.x - mx(556), p.y - LANE.hud) < 52) { S.panel = 'book'; S.tab = canBuy() ? 1 : 0; beep(600, 0.06); return; }
+  if (S.intro) endIntro(); // any tap ends the introduction and still does what it was aimed at
   if (S.step === 6) return prizeTap(p);
   const slot = slotAt(p, rowCount());
   if (S.step === 0) {
@@ -359,6 +370,7 @@ function onDown(p) {
     if (inPlay(p)) return stick(p);
   } else if (S.step === 3) {
     if (slot >= 0) return addCandy(slot);
+    if (inPlay(p)) return addCandy(S.lastCandy || 0);
   } else if (S.step === 4) {
     if (p.y > 300) return hitNow();
   } else if (S.step === 5) {
@@ -376,17 +388,30 @@ function onMove(p) {
   else if (S.drag.turn) { scene.turn(p.x - S.drag.x); S.drag.x = p.x; }
 }
 function onUp() { S.drag = null; }
+/** One bonus smash is banked for every pinata made, so smash-only is a treat and never a faster way to play. */
+const canSmash = () => perk(0) && save.smashed < save.made;
+function openGift() { if (S.giftOpen) return; S.giftOpen = true; S.btnAt = S.stepT + 0.6; fanfare(4); burst2d(360, LANE.row, 24, '#ffd21f'); lib.haptics.play('success'); }
+/** True when the player can afford a stick they do not own yet. */
+const canBuy = () => BATS.some((_, i) => !save.bats.includes(i) && save.coins >= cfg.batPrices[i]);
 function prizeTap(p) {
   if (S.stepT < 0.8) return;
-  if (!S.giftOpen) { if (Math.abs(p.y - LANE.row) < 90 && Math.abs(p.x - 360) < 120) { S.giftOpen = true; S.stepT = Math.max(S.stepT, cfg.revealButtonDelay - 0.5); fanfare(4); burst2d(360, LANE.row, 24, '#ffd21f'); lib.haptics.play('success'); } return; }
-  if (S.stepT < cfg.revealButtonDelay) return;
-  if (perk(0) && Math.hypot(p.x - mx(610), p.y - LANE.btn) < 62) { beep(700, 0.08); return newRound({ free: true }); }
-  if (Math.abs(p.x - (perk(0) ? mx(300) : 360)) < (perk(0) ? 200 : 210) && Math.abs(p.y - LANE.btn) < 72) { beep(660, 0.08); newRound(); }
+  if (!S.giftOpen) return openGift();
+  if (S.stepT < S.btnAt) return;
+  const smash = canSmash(), onGift = S.gift && Math.hypot(p.x - 360, p.y - LANE.row) < 90;
+  if (smash && (Math.hypot(p.x - mx(610), p.y - LANE.btn) < 62 || (onGift && S.gift.kind === 'perk'))) { beep(700, 0.08); return newRound({ free: true }); }
+  if (onGift || (Math.abs(p.x - (smash ? mx(300) : 360)) < (smash ? 200 : 210) && Math.abs(p.y - LANE.btn) < 72)) { beep(660, 0.08); newRound(); }
 }
 function panelTap(p) {
   if (Math.hypot(p.x - mx(600), p.y - 1190) < 64) { S.panel = null; beep(400, 0.06); return; }
   if (Math.hypot(p.x - mx(120), p.y - 1190) < 64) { const ls = Object.keys(cfg.strings); lang = ls[(ls.indexOf(lang) + 1) % ls.length]; save.lang = lang; persist(); beep(700, 0.06); return; }
-  if (Math.abs(p.y - 120) < 50) { S.tab = (mx(p.x) < 360) ? 0 : 1; beep(520, 0.05); return; }
+  if (Math.abs(p.y - 125) < 56) { S.tab = (mx(p.x) < 360) ? 0 : 1; beep(520, 0.05); return; }
+  if (S.tab === 0 && Math.abs(p.y - 1076) < 48 && Math.abs(p.x - 360) < 190) {
+    // coins always have something to buy: a golden pinata (a missing rare-or-better toy)
+    if (save.stars >= cfg.starsForGolden) beep(660, 0.08);
+    else if (save.coins >= cfg.goldenPrice) { save.coins -= cfg.goldenPrice; save.stars = cfg.starsForGolden; fanfare(5); lib.haptics.play('success'); burst2d(360, 1076, 30, '#ffd21f'); persist(); }
+    else { beep(200, 0.1, 'square', 0.06); S.shakeRow = { i: -1, t: 0.4 }; }
+    return;
+  }
   if (S.tab === 1) {
     const i = Math.floor((p.y - 200) / 180);
     if (i < 0 || i >= BATS.length || p.y > 1100) return;
@@ -420,6 +445,7 @@ function update(dt) {
     if (S.hoist > 0) { S.hoist -= dt; if (S.hoist <= 0) { scene.showBat(true); if (S.party) scene.pushSwing(cfg.partyPush); } }
     else if (S.party) { S.pushT -= dt; if (S.pushT <= 0 && Math.abs(scene.swingAngle()) < 0.08) { scene.pushSwing(cfg.partyPush * (Math.random() < 0.5 ? 1 : -1)); S.pushT = 1.5; } }
   }
+  if (S.step === 6 && !S.giftOpen && S.stepT > 3.2) openGift(); // a gift nobody taps opens itself
   if (S.step === 5) {
     S.collectT -= dt;
     // candy that is still there when the time is up (or after the last one is grabbed) is picked up for the player: nothing is lost
@@ -480,13 +506,17 @@ function star(x, y, r, col, rot = 0) {
   g.closePath(); g.fill();
 }
 function pill(x, y, w, h, line = '#5a1e86', fill = '#fff') { rr(x, y, w, h, h / 2); g.fillStyle = fill; g.fill(); g.lineWidth = 6; g.strokeStyle = line; g.stroke(); }
-function button(label, col, cx = 360, w = 420) {
+function button(label, col, cx = 360, w = 420, icon = 'next') {
   const y = LANE.btn, s = 1 + Math.sin(S.t * 5) * 0.025;
   group('button', cx - w / 2, y - 60, w, 120, () => {
     g.save(); g.translate(cx, y); g.scale(s, s);
     rr(-w / 2, -52, w, 116, 58); g.fillStyle = 'rgba(90,30,134,0.28)'; g.fill();
     rr(-w / 2, -60, w, 112, 56); g.fillStyle = col; g.fill(); g.lineWidth = 8; g.strokeStyle = '#fff'; g.stroke();
-    txt(label, 0, -4, 50, '#fff', 'rgba(0,0,0,0.25)', 8, w - 60);
+    const dir = rtl() ? -1 : 1, ix = -dir * (w / 2 - 62);
+    g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round';
+    if (icon === 'again') { g.beginPath(); g.arc(ix, -4, 22, 0.6, TAU - 0.5); g.stroke(); g.beginPath(); g.moveTo(ix + 30, -22); g.lineTo(ix + 14, -4); g.lineTo(ix + 36, 2); g.closePath(); g.fill(); }
+    else { g.beginPath(); g.moveTo(ix - dir * 16, -30); g.lineTo(ix + dir * 22, -4); g.lineTo(ix - dir * 16, 22); g.closePath(); g.fill(); }
+    txt(label, dir * 36, -4, 46, '#fff', 'rgba(0,0,0,0.25)', 8, w - 124);
     g.restore();
   });
 }
@@ -500,6 +530,7 @@ function rewardIcon(u, x, y, r) {
   else if (u.kind === 'sticker') pic(STICKERS[u.i][0], STICKERS[u.i][1], x, y, r * 1.7);
   else if (u.kind === 'candy') pic(CANDY[u.i][0], CANDY[u.i][1], x, y, r * 1.7);
   else if (u.kind === 'perk') emo('💥', x, y + 2, r * 1.5);
+  else if (u.kind === 'theme') emo(THEME_E[u.i], x, y + 2, r * 1.5);
   else coin(x, y, r * 0.8);
 }
 
@@ -507,7 +538,7 @@ function rewardIcon(u, x, y, r) {
 function drawHud() {
   const y = LANE.hud;
   roundBtn('mute', mx(664), y, 48, save.muted ? '#b9b3c6' : '#7a3cff', () => { emo(save.muted ? '🔇' : '🔊', mx(664), y + 3, 50); });
-  if (save.made < 1 && !S.free && S.step < 5) return; // the first pinata shows only the steps, until there are coins to count
+  if (save.made < 1 && save.smashed < 1 && S.step < 5) return; // the opening pinata shows only the steps, until there are coins to count
   group('coins', hx(24, 170), y - 40, 170, 80, () => {
     pill(hx(24, 170), y - 40, 170, 80); coin(mx(66), y, 26);
     g.font = '900 40px "Trebuchet MS", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(String(Math.min(save.coins, 99999)), mx(136), y + 2, 96);
@@ -515,21 +546,20 @@ function drawHud() {
   const nr = nextReward();
   group('reward', hx(210, 276), y - 40, 276, 80, () => {
     pill(hx(210, 276), y - 40, 276, 80);
-    const bx = hx(232, 150), fill = Math.max(0.06, nr.frac);
-    rr(bx, y - 14, 150, 28, 14); g.fillStyle = '#e9dcf7'; g.fill();
-    rr(rtl() ? bx + 150 * (1 - fill) : bx, y - 14, 150 * fill, 28, 14); g.fillStyle = '#ff5aa8'; g.fill();
-    g.font = '900 24px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(String(nr.left), mx(307), y + 1);
-    rewardIcon(nr.u, mx(438), y, 30);
+    // one chunk per pinata still to make, filled as they are made: no number to read
+    const total = Math.min(6, Math.max(nr.left, Math.round(nr.left / Math.max(0.01, 1 - nr.frac)))), done = total - Math.min(total, nr.left), cw = (150 - (total - 1) * 6) / total;
+    for (let i = 0; i < total; i++) { rr(hx(232 + i * (cw + 6), cw), y - 15, cw, 30, 10); g.fillStyle = i < done ? '#ff5aa8' : '#e9dcf7'; g.fill(); }
+    rewardIcon(nr.u, mx(438), y, nr.left === 1 ? 30 + Math.sin(S.t * 6) * 4 : 30);
   });
-  if (S.step < 4) roundBtn('book', mx(556), y, 48, '#ff8a00', () => { emo('🎁', mx(556), y + 2, 50); });
+  if (S.step < 4) { const buy = canBuy(), r = 48 + (buy ? Math.sin(S.t * 6) * 3 : 0); roundBtn('book', mx(556), y, 48, '#ff8a00', () => { emo('🧸', mx(556), y + 2, r); if (buy) coin(mx(556) + 32, y - 32, 17); }); }
 }
 function drawSteps() {
   const y = LANE.steps;
-  group('steps', 100, y - 42, 520, 84, () => {
+  if (!S.opening) group('steps', 100, y - 42, 520, 84, () => {
     for (let i = 0; i < 5; i++) {
       const x = mx(140 + i * 110), cur = i === Math.min(S.step, 4), done = i < S.step, r = cur ? 40 : 30;
       if (i < 4) { g.strokeStyle = done ? '#12c36b' : 'rgba(255,255,255,0.8)'; g.lineWidth = 10; g.beginPath(); g.moveTo(x + (rtl() ? -34 : 34), y); g.lineTo(x + (rtl() ? -76 : 76), y); g.stroke(); }
-      g.fillStyle = cur ? '#ff2d8a' : done ? '#12c36b' : '#ffffff'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.lineWidth = 5; g.strokeStyle = cur ? '#fff' : '#d9c9ee'; g.stroke();
+      g.fillStyle = cur ? '#ff2d8a' : done ? '#12c36b' : '#ffffff'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.lineWidth = 5; g.strokeStyle = cur ? '#fff' : '#5a2ca0'; g.stroke();
       if (done) txt('✓', x, y + 2, 34, '#fff', null); else emo(STEP_E[i], x, y + 3, cur ? 44 : 30);
     }
   });
@@ -569,13 +599,13 @@ function drawRow() {
       g.fillStyle = 'rgba(90,30,134,0.25)'; g.beginPath(); g.arc(x, y + 6, r, 0, TAU); g.fill();
       g.fillStyle = open ? '#fff' : '#d8d2e2'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
       g.lineWidth = on ? 9 : 5; g.strokeStyle = on ? '#ff2d8a' : '#5a1e86'; g.stroke();
-      g.save(); if (!open) g.globalAlpha = 0.35;
+      g.save(); if (!open) g.globalAlpha = 0.7;
       if (kind === 'shape') emo(SHAPE_E[i], x, y + 3, 58);
       else if (kind === 'color') { g.fillStyle = css(PAPER[i]); g.beginPath(); g.arc(x, y, r - 14, 0, TAU); g.fill(); }
       else if (kind === 'sticker') pic(STICKERS[i][0], STICKERS[i][1], x, y, 76);
       else pic(CANDY[i][0], CANDY[i][1], x, y, 76);
       g.restore();
-      if (!open) { emo('🔒', x - 18, y + 2, 36); g.font = '900 34px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(String(pinatasUntil(kind, i)), x + 22, y + 3); }
+      if (!open) { g.fillStyle = '#7a3cff'; g.beginPath(); g.arc(x + 36, y - 36, 21, 0, TAU); g.fill(); emo('🔒', x + 36, y - 35, 24); rr(x - 34, y + 22, 68, 32, 16); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#7a3cff'; g.stroke(); emo('💥', x - 15, y + 39, 22); g.font = '900 24px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(String(pinatasUntil(kind, i)), x + 14, y + 39); }
       else if (kind === 'candy' && S.mix[i]) { g.fillStyle = '#ff2d8a'; g.beginPath(); g.arc(x + 38, y - 38, 20, 0, TAU); g.fill(); g.font = '900 26px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText(String(S.mix[i]), x + 38, y - 37); }
     });
   }
@@ -606,7 +636,7 @@ function drawHelp() {
   if (!t) return;
   g.fillStyle = 'rgba(60,20,90,0.14)'; g.beginPath(); g.rect(0, 0, W, H); g.roundRect(t.x - 12, t.y - 12, t.w + 24, t.h + 24, 44); g.fill('evenodd');
   g.lineWidth = 8; g.strokeStyle = `rgba(255,255,255,${0.6 + Math.sin(S.t * 6) * 0.35})`; rr(t.x - 12, t.y - 12, t.w + 24, t.h + 24, 44); g.stroke();
-  ghostHand(t.hand, t.x + t.w / 2, t.y + t.h * (t.h > 200 ? 0.62 : 0.6) + 24, 104);
+  ghostHand(t.hand, t.x + t.w / 2, t.h > 200 ? t.y + t.h * 0.62 + 24 : t.y + t.h + 44, 104); // under a small target, so the hand never covers it
   if (!S.intro) { grouped++; txt(sayText(), 360, LANE.say, 54); grouped--; } // the instruction stays bright above the dimming
 }
 const sayText = () => T(S.step === 5 && S.capReady ? 's5b' : 's' + S.step);
@@ -614,34 +644,35 @@ const sayText = () => T(S.step === 5 && S.capReady ? 's5b' : 's' + S.step);
 /* ---------- prize screen ---------- */
 function drawPrizeScreen() {
   const pz = S.prizes[0], toy = pz.toy, k = clamp01(S.stepT / 0.45), sc = backOut(k), e = S.earned;
-  g.fillStyle = 'rgba(255,255,255,0.9)'; rr(40, 130, 640, 1110, 60); g.fill(); g.lineWidth = 8; g.strokeStyle = RARITY[toy.tier]; g.stroke();
+  const card = g.createLinearGradient(0, 130, 0, 1240); card.addColorStop(0, '#ffffff'); card.addColorStop(1, '#fff1b8');
+  g.fillStyle = card; rr(40, 130, 640, 1110, 60); g.fill(); g.lineWidth = 8; g.strokeStyle = RARITY[toy.tier]; g.stroke();
   box('card', 40, 130, 640, 1110);
   grouped++;
   // rays
-  g.save(); g.translate(360, 520); g.rotate(S.t * 0.5); g.globalAlpha = 0.22;
-  for (let i = 0; i < 12; i++) { g.rotate(TAU / 12); g.fillStyle = RARITY[toy.tier]; g.beginPath(); g.moveTo(0, 0); g.lineTo(-46, -330); g.lineTo(46, -330); g.fill(); }
+  g.save(); rr(44, 134, 632, 1102, 56); g.clip(); g.translate(360, 500); g.rotate(S.t * 0.5);
+  for (let i = 0; i < 12; i++) { g.rotate(TAU / 12); g.globalAlpha = i % 2 ? 0.34 : 0.16; g.fillStyle = RARITY[toy.tier]; g.beginPath(); g.moveTo(0, 0); g.lineTo(-52, -380); g.lineTo(52, -380); g.fill(); }
   g.restore();
   txt(pz.isNew ? T(albumDone() && save.owned.length === TOYS.length && !pz.gold ? 'albumDone' : 'newToy') : T('r' + toy.tier), 360, 215, 62, pz.isNew ? '#ff2d8a' : RARITY[toy.tier], '#fff', 12, 560);
-  pic(toy.id, toy.e, 360, 520 - (1 - k) * 200 + Math.sin(S.t * 3) * 10, 340, { sx: sc, sy: sc, gold: pz.gold });
-  pill(240, 722, 240, 56, RARITY[toy.tier], RARITY[toy.tier]); txt(T('r' + toy.tier), 360, 751, 32, '#fff', null, 0, 210);
+  pic(toy.id, toy.e, 360, 500 - (1 - k) * 200 + Math.sin(S.t * 3) * 10, 400, { sx: sc, sy: sc, gold: pz.gold });
+  pill(240, 742, 240, 56, RARITY[toy.tier], RARITY[toy.tier]); txt(T('r' + toy.tier), 360, 771, 32, '#fff', null, 0, 210);
   // earnings: coins for the pinata (+ order), candy grabbed, stars toward a golden pinata
-  const cells = [[() => coin(0, 0, 26), '+' + (e.base + e.order)], [() => pic(CANDY[0][0], CANDY[0][1], 0, 0, 62), '+' + e.candy]];
+  const cells = [[() => coin(0, 0, 30), '+' + (e.base + e.order + e.candy * cfg.coinsPerCandy)]]; // candy is coins, so one number
   if (!pz.isNew) cells.push([() => star(0, 0, 28, '#ffc928'), save.stars + '/' + cfg.starsForGolden]);
   cells.forEach(([icon, label], i) => {
-    const x = mx(360 + (i - (cells.length - 1) / 2) * 190), y = 850;
+    const x = mx(360 + (i - (cells.length - 1) / 2) * 220), y = 866;
     g.save(); g.translate(x - 44, y); icon(); g.restore();
     g.font = '900 44px "Trebuchet MS", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(label, x + 34, y + 2);
   });
-  if (e.met) { pic(GUESTS[S.order.guest][0], GUESTS[S.order.guest][1], mx(110), 850, 90); emo('💗', mx(150), 800, 40); }
+  if (e.met) { pic(GUESTS[S.order.guest][0], GUESTS[S.order.guest][1], mx(112), 866, 96); emo('💗', mx(152), 812, 40); }
   if (S.gift) {
     const y = LANE.row;
     if (!S.giftOpen) { const w = Math.sin(S.t * 9) * 0.1; emo('🎁', 360, y, 150, w); ghostHand('tap', 440, y + 30, 80); }
     else { g.fillStyle = '#fff6c9'; g.beginPath(); g.arc(360, y, 76, 0, TAU); g.fill(); g.lineWidth = 6; g.strokeStyle = '#ffb300'; g.stroke(); rewardIcon(S.gift, 360, y, 52); if (S.gift.kind === 'coins') txt('+' + cfg.giftCoins, 360, y + 62, 34, '#5a1e86', '#fff', 8); }
   } else if (save.stars >= cfg.starsForGolden) txt(T('nextGolden'), 360, LANE.row, 40, '#e08a00', '#fff', 10, 560);
   grouped--;
-  if (S.giftOpen && S.stepT >= cfg.revealButtonDelay) {
-    if (perk(0)) { button(T('again'), '#12c36b', mx(300), 380); roundBtn('smash', mx(610), LANE.btn, 58, '#ff7a00', () => emo('💥', mx(610), LANE.btn + 3, 66)); }
-    else button(T('again'), '#12c36b');
+  if (S.giftOpen && S.stepT >= S.btnAt) {
+    if (canSmash()) { button(T('again'), '#12c36b', mx(300), 380, 'again'); roundBtn('smash', mx(610), LANE.btn, 58, '#ff7a00', () => emo('💥', mx(610), LANE.btn + 3, 66)); }
+    else button(T(S.opening ? 'make' : 'again'), '#12c36b', 360, 420, S.opening ? 'next' : 'again');
   }
 }
 
@@ -649,12 +680,17 @@ function drawPrizeScreen() {
 function drawBook() {
   g.fillStyle = 'rgba(255,255,255,0.96)'; rr(24, 40, 672, 1216, 60); g.fill(); g.lineWidth = 8; g.strokeStyle = '#7a3cff'; g.stroke();
   box('card', 24, 40, 672, 1216); grouped++;
-  for (let i = 0; i < 2; i++) { const x = mx(200 + i * 320), on = S.tab === i; pill(x - 140, 80, 280, 80, '#7a3cff', on ? '#7a3cff' : '#fff'); txt(T(i ? 'sticks' : 'myToys'), x, 121, 34, on ? '#fff' : '#7a3cff', null, 0, 240); }
+  for (let i = 0; i < 2; i++) { const x = mx(200 + i * 320), on = S.tab === i, d = rtl() ? -1 : 1; pill(x - 145, 75, 290, 100, '#7a3cff', on ? '#7a3cff' : '#fff'); if (i) pic(BATS[save.bat][0], BATS[save.bat][1], x - d * 96, 125, 70); else emo('🧸', x - d * 96, 128, 56); txt(T(i ? 'sticks' : 'myToys'), x + d * 34, 126, 30, on ? '#fff' : '#7a3cff', null, 0, 170); }
   if (S.tab === 0) {
     const goldSet = albumDone(), have = goldSet ? save.gold : save.owned;
-    txt(have.length + ' / ' + TOYS.length, 360, 215, 44, goldSet ? '#e08a00' : '#5a1e86');
+    txt(have.length + ' / ' + TOYS.length, 360, 222, 44, goldSet ? '#e08a00' : '#5a1e86');
+    { const y = 1076, got = save.stars >= cfg.starsForGolden, can = save.coins >= cfg.goldenPrice, sh = S.shakeRow && S.shakeRow.i === -1 ? Math.sin(S.t * 60) * 8 : 0;
+      pill(180 + sh, y - 44, 360, 88, got ? '#12a454' : can ? '#e08a00' : '#b9b3c6', got ? '#e2ffe9' : can ? '#ffd21f' : '#e6e1ee');
+      star(mx(236) + sh, y, 30, '#ffb300'); emo(SHAPE_E[0], mx(236) + sh, y + 2, 30);
+      if (got) txt('✓', mx(400) + sh, y + 2, 60, '#12a454', null);
+      else { coin(mx(350) + sh, y, 26); g.font = '900 44px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = can ? '#5a1e86' : '#8d86a0'; g.fillText(String(cfg.goldenPrice), mx(436) + sh, y + 2); } }
     TOYS.forEach((t, i) => {
-      const x = mx(126 + (i % 4) * 156), y = 350 + (i / 4 | 0) * 190, got = have.includes(t.i);
+      const x = mx(126 + (i % 4) * 156), y = 356 + (i / 4 | 0) * 186, got = have.includes(t.i);
       rr(x - 68, y - 78, 136, 160, 28); g.fillStyle = got ? '#fff' : '#efe9f6'; g.fill(); g.lineWidth = 6; g.strokeStyle = RARITY[t.tier]; g.stroke();
       if (got) pic(t.id, t.e, x, y - 4, 112, { gold: goldSet });
       else if (goldSet) pic(t.id, t.e, x, y - 4, 112, { dim: true });
@@ -665,6 +701,7 @@ function drawBook() {
       const y = 290 + i * 180, own = save.bats.includes(i), on = save.bat === i, sh = S.shakeRow && S.shakeRow.i === i ? Math.sin(S.t * 60) * 8 : 0;
       rr(70 + sh, y - 76, 580, 152, 40); g.fillStyle = on ? '#e2ffe9' : '#fff'; g.fill(); g.lineWidth = 6; g.strokeStyle = on ? '#12a454' : '#7a3cff'; g.stroke();
       pic(b[0], b[1], mx(170) + sh, y, 124);
+      if (cfg.batBonusCandy[i]) { pic(CANDY[0][0], CANDY[0][1], mx(290) + sh, y, 56); g.font = '900 36px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText('+' + cfg.batBonusCandy[i], mx(346) + sh, y + 2); }
       if (on) txt('✓', mx(500) + sh, y + 2, 76, '#12a454', null);
       else if (own) { pill(mx(500) - 90 + sh, y - 40, 180, 80, '#7a3cff', '#fff'); emo('👆', mx(500) + sh, y + 2, 48); }
       else { const can = save.coins >= cfg.batPrices[i]; pill(mx(500) - 100 + sh, y - 40, 200, 80, can ? '#12a454' : '#b9b3c6', can ? '#12c36b' : '#e6e1ee'); coin(mx(500) - 54 + sh, y, 24); g.font = '900 40px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = can ? '#fff' : '#8d86a0'; g.fillText(String(cfg.batPrices[i]), mx(500) + 26 + sh, y + 2); }
@@ -714,7 +751,7 @@ function frame(now) {
   slow = dt > 1 / 40 ? slow + dt : Math.max(0, slow - dt);
   if (slow > cfg.lowFpsSeconds && quality === 1) { quality = 0.5; scene.setQuality(0.5); }
   if (mode === 'play') update(dt); else S.t += dt; // edit mode: a live picture, no gameplay
-  if (ready3d) { let k = 1; if (S.slowT > 0) { S.slowT -= dt; k = cfg.slowMoScale; } scene.update(dt * k, dt); }
+  if (ready3d) { let k = 1; if (S.slowT > 0) { S.slowT -= dt; k = cfg.slowMoScale; } if (S.stopT > 0) { S.stopT -= dt; k = 0; } scene.update(dt * k, dt); }
   draw();
   raf = requestAnimationFrame(frame);
 }

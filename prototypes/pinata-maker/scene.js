@@ -10,14 +10,15 @@ let T3, renderer, scene, camera, ray, quality = 1;
 let P = null;                      // the current pinata
 let swing, rope, table, blob, batPivot, capsule, guests = [], balloons = [];
 let candyMesh = [], candies = [], conf = null, confP = [];
-let view = { pos: [0, 3.3, 10.4], look: [0, 2.78, 0] }, cam = { pos: [0, 3.3, 10.4], look: [0, 2.78, 0] };
-let shake = 0, clock = 0, getImage = () => null, batKind = 0;
+let view = { pos: [0, 3.2, 10.4], look: [0, 2.62, 0] }, cam = { pos: [0, 3.2, 10.4], look: [0, 2.62, 0] };
+let shake = 0, punch = 0, clock = 0, getImage = () => null, batKind = 0;
+let decor = [], skirtTex = null, swoosh = null, shock = null, groundMat = null, lawnMat = null, sea = null, theme = 0, hills = [];
 const tmp = {};
 
-const CRAFT = { pos: [0, 3.3, 10.4], look: [0, 2.78, 0] }, SMASH = { pos: [0, 3.0, 11.2], look: [0, 2.75, 0] };
+const CRAFT = { pos: [0, 3.2, 10.4], look: [0, 2.62, 0] }, SMASH = { pos: [0, 3.0, 11.2], look: [0, 2.75, 0] };
 const TABLE_TOP = 1.0, ROPE = 3.6, BEAM_Y = 7.2;
-const CARD = 0xd2a66c, GOLD = 0xffc928;
-export const CANDY_COLORS = [[0xff5aa8, 0xff8a00, 0x9b5cff], [0x35b6ff, 0xff4d6d, 0x35d07f], [0xff3b3b, 0xffb300, 0x34c759], [0xffc928], [0xff5aa8, 0x35b6ff, 0xb6f03c]];
+const CARD = 0xf2c078, GOLD = 0xffc928;
+export const CANDY_COLORS = [[0xff5aa8, 0xff8a00, 0x9b5cff], [0x35b6ff, 0xff4d6d, 0x9b5cff], [0xff3b3b, 0xffb300, 0x35b6ff], [0xffc928], [0xff5aa8, 0x35b6ff, 0xff8a00]]; // no greens: they vanish on the lawn
 
 /*
  * Shapes. Each part is a box (size, bands stacked along y), a stack of cylinders (radii profile),
@@ -108,55 +109,78 @@ const M = (x, y, z, rx = 0, ry = 0, rz = 0, s = 1) => new T3.Matrix4().compose(V
 
 /* ---------- the yard ---------- */
 function buildYard() {
-  scene.background = canvasTex(8, 256, (g, w, h) => { const s = g.createLinearGradient(0, 0, 0, h); s.addColorStop(0, '#39b8ff'); s.addColorStop(0.6, '#a8e6ff'); s.addColorStop(1, '#e9fbff'); g.fillStyle = s; g.fillRect(0, 0, w, h); });
-  scene.add(new T3.HemisphereLight(0xffffff, 0x9be37a, 2.3));
-  const sun = new T3.DirectionalLight(0xfff4d6, 2.0); sun.position.set(3, 8, 6); scene.add(sun);
-  const ground = mesh(new T3.CircleGeometry(30, 40), lambert(0x7ddc55)); ground.rotation.x = -Math.PI / 2;
-  const lawn = mesh(new T3.CircleGeometry(4.2, 40), lambert(0x97ea68), [0, 0.01, 0.4]); lawn.rotation.x = -Math.PI / 2;
-  blob = mesh(new T3.CircleGeometry(1, 24), new T3.MeshBasicMaterial({ color: 0x1b5e20, transparent: true, opacity: 0.25, depthWrite: false }), [0, 0.03, 0]); blob.rotation.x = -Math.PI / 2;
-  // fence
-  for (let i = -9; i <= 9; i++) mesh(new T3.BoxGeometry(0.5, 1.5 + (i % 2 ? 0.12 : 0), 0.08), lambert(0xffffff), [i * 0.62, 0.75, -4.2]);
-  mesh(new T3.BoxGeometry(12, 0.14, 0.1), lambert(0xf1f1f1), [0, 1.0, -4.15]);
+  setTheme(0);
+  scene.add(new T3.HemisphereLight(0xffffff, 0xffe9c4, 2.6));
+  const sun = new T3.DirectionalLight(0xffffff, 2.0); sun.position.set(4, 8, 8); scene.add(sun);
+  groundMat = lambert(0x7ddc55); const ground = mesh(new T3.CircleGeometry(30, 40), groundMat); ground.rotation.x = -Math.PI / 2;
+  lawnMat = lambert(0x97ea68); const lawn = mesh(new T3.CircleGeometry(4.2, 40), lawnMat, [0, 0.01, 0.4]); lawn.rotation.x = -Math.PI / 2;
+  sea = mesh(new T3.PlaneGeometry(60, 5), new T3.MeshBasicMaterial({ color: 0x1fa8ff }), [0, 1.2, -12]); sea.visible = false;
+  shock = mesh(new T3.RingGeometry(0.8, 1, 32), new T3.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: T3.DoubleSide }), [0, 0, 0]); shock.visible = false;
+  blob = mesh(new T3.CircleGeometry(1, 24), new T3.MeshBasicMaterial({ color: 0x1d7a2a, transparent: true, opacity: 0.3, depthWrite: false }), [0, 0.03, 0]); blob.rotation.x = -Math.PI / 2;
+  // fence, bunting and presents: one vertex-coloured mesh instead of forty-seven
+  const bits = [];
+  for (let i = -9; i <= 9; i++) bits.push([new T3.BoxGeometry(0.5, 1.5 + (i % 2 ? 0.12 : 0), 0.08), M(i * 0.62, 0.75, -4.2), 0xffffff]);
+  bits.push([new T3.BoxGeometry(12, 0.14, 0.1), M(0, 1.0, -4.15), 0xf1f1f1]);
+  const flagCols = [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff, 0xff8a00];
+  for (let i = 0; i < 15; i++) { const x = -4.2 + i * 0.6, flag = new T3.ConeGeometry(0.24, 0.5, 3); flag.scale(1, 1, 0.15); bits.push([flag, M(x * 1.15, 5.5 - Math.cos(x / 4.2 * 1.5) * 0.55, -3.2, Math.PI), flagCols[i % 6]]); }
+  for (const [x, sz, c, r] of [[-1.9, 0.6, 0xff5aa8, 0xffffff], [-1.25, 0.42, 0x35b6ff, 0xffc928], [1.5, 0.52, 0x9b5cff, 0xffc928], [2.15, 0.7, 0x35d07f, 0xffffff]]) {
+    bits.push([new T3.BoxGeometry(sz, sz, sz), M(x, sz / 2, -3.4), c], [new T3.BoxGeometry(sz * 1.03, sz * 1.03, sz * 0.18), M(x, sz / 2, -3.4), r], [new T3.BoxGeometry(sz * 0.18, sz * 1.03, sz * 1.03), M(x, sz / 2, -3.4), r]);
+  }
+  decor = [mesh(merged(bits), new T3.MeshLambertMaterial({ vertexColors: true }))];
   // clouds
-  for (const [x, y, s] of [[-3.2, 7.2, 1], [3.6, 8.2, 1.3], [0.6, 9.2, 0.8]]) { const c = mesh(new T3.SphereGeometry(1, 12, 8), new T3.MeshBasicMaterial({ color: 0xffffff }), [x, y, -9]); c.scale.set(1.9 * s, 0.6 * s, 1); }
+  const white = new T3.MeshBasicMaterial({ color: 0xffffff });
+  for (const [x, y, s] of [[-4.6, 6.2, 0.7], [4.8, 7.0, 0.8]]) for (const [dx, dy, k] of [[0, 0, 1], [-0.9, -0.15, 0.7], [0.95, -0.12, 0.75]]) { const c = mesh(new T3.SphereGeometry(1, 12, 8), white, [x + dx * s, y + dy * s, -9]); c.scale.set(1.2 * s * k, 0.7 * s * k, 1); }
+  hills = [mesh(new T3.SphereGeometry(6, 24, 12), lambert(0x3fbf52), [-5, 0, -12]), mesh(new T3.SphereGeometry(6, 24, 12), lambert(0x2fae5a), [6, 0, -15])]; for (const h of hills) h.scale.y = 0.35;
   // beam and posts the pinata hangs from
   const wood = lambert(0xb9814a);
   mesh(new T3.BoxGeometry(8.4, 0.22, 0.22), wood, [0, BEAM_Y, 0]);
   mesh(new T3.BoxGeometry(0.24, BEAM_Y, 0.24), wood, [-4.1, BEAM_Y / 2, 0]); mesh(new T3.BoxGeometry(0.24, BEAM_Y, 0.24), wood, [4.1, BEAM_Y / 2, 0]);
-  // bunting
-  const flagCols = [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff, 0xff8a00];
-  for (let i = 0; i < 15; i++) {
-    const x = -4.2 + i * 0.6, f = mesh(new T3.ConeGeometry(0.24, 0.5, 3), lambert(flagCols[i % 6]), [x * 1.15, 5.5 - Math.cos(x / 4.2 * 1.5) * 0.55, -3.2]);
-    f.rotation.set(Math.PI, 0, 0); f.scale.z = 0.15;
-  }
   // balloons
   for (const [x, y, z, c] of [[-3.3, 3.6, -2.6, 0xff5aa8], [-2.8, 4.2, -3, 0xffc928], [-3.7, 4.5, -3.2, 0x35b6ff], [3.3, 3.8, -2.6, 0x9b5cff], [2.8, 4.5, -3, 0x35d07f], [3.8, 4.4, -3.2, 0xff8a00]]) {
     const b = mesh(new T3.SphereGeometry(0.42, 16, 12), lambert(c), [x, y, z]); b.scale.y = 1.2;
     mesh(new T3.CylinderGeometry(0.008, 0.008, 2.6), new T3.MeshBasicMaterial({ color: 0xffffff }), [0, -1.5, 0], b);
     balloons.push({ m: b, y, ph: x * 3 });
   }
-  // presents by the fence
-  for (const [x, s, c, r] of [[-1.9, 0.6, 0xff5aa8, 0xffffff], [-1.25, 0.42, 0x35b6ff, 0xffc928], [1.5, 0.52, 0x9b5cff, 0xffc928], [2.15, 0.7, 0x35d07f, 0xffffff]]) {
-    mesh(new T3.BoxGeometry(s, s, s), lambert(c), [x, s / 2, -3.4]); mesh(new T3.BoxGeometry(s * 1.03, s * 1.03, s * 0.18), lambert(r), [x, s / 2, -3.4]); mesh(new T3.BoxGeometry(s * 0.18, s * 1.03, s * 1.03), lambert(r), [x, s / 2, -3.4]);
-  }
   // craft table
   table = new T3.Group(); scene.add(table);
-  mesh(new T3.BoxGeometry(3.4, 0.16, 1.9), lambert(0xf6c28b), [0, TABLE_TOP - 0.08, 0], table);
+  mesh(new T3.BoxGeometry(3.4, 0.16, 1.9), lambert(0x35b6ff), [0, TABLE_TOP - 0.08, 0], table);
+  mesh(new T3.BoxGeometry(3.42, 0.5, 0.04), lambert(0x2f9bff), [0, TABLE_TOP - 0.33, 0.96], table);
+  for (let i = 0; i < 7; i++) { const sc = mesh(new T3.CircleGeometry(0.245, 16, Math.PI, Math.PI), new T3.MeshBasicMaterial({ color: 0xffffff }), [-1.47 + i * 0.49, TABLE_TOP - 0.58, 0.985], table); sc.scale.y = 0.7; }
   for (const [x, z] of [[-1.5, -0.8], [1.5, -0.8], [-1.5, 0.8], [1.5, 0.8]]) mesh(new T3.BoxGeometry(0.16, TABLE_TOP - 0.16, 0.16), lambert(0xd89a5b), [x, (TABLE_TOP - 0.16) / 2, z], table);
   // rope and the swinging pivot
   swing = new T3.Group(); swing.position.set(0, BEAM_Y, 0); scene.add(swing);
   rope = mesh(new T3.CylinderGeometry(0.025, 0.025, 1), lambert(0xf2e2c4), [0, -0.5, 0], swing);
 }
 
+/* ---------- party themes ---------- */
+const THEMES = [
+  { sky: ['#1e9bff', '#4fc3ff', '#a6e6ff'], ground: 0x58cc48, lawn: 0x8fe45c, sea: false },  // garden
+  { sky: ['#2aa9ff', '#8fe0ff', '#dff8ff'], ground: 0xffd774, lawn: 0xffe59a, sea: true },   // beach
+  { sky: ['#5cc4ff', '#bfeaff', '#ffffff'], ground: 0xeaf7ff, lawn: 0xffffff, sea: false },  // snow
+  { sky: ['#6fc6ff', '#ffc9ec', '#fff0fa'], ground: 0xff9fd0, lawn: 0xffc2e3, sea: false },  // candy land
+];
+export const THEME_COUNT = THEMES.length;
+/** Dress the yard for party theme i (0 garden, 1 beach, 2 snow, 3 candy land). */
+export function setTheme(i) {
+  theme = i; const t = THEMES[i] || THEMES[0];
+  if (scene.background && scene.background.dispose) scene.background.dispose();
+  scene.background = canvasTex(8, 256, (g, w, h) => { const s = g.createLinearGradient(0, 0, 0, h); s.addColorStop(0, t.sky[0]); s.addColorStop(0.6, t.sky[1]); s.addColorStop(1, t.sky[2]); g.fillStyle = s; g.fillRect(0, 0, w, h); });
+  if (groundMat) { groundMat.color.setHex(t.ground); lawnMat.color.setHex(t.lawn); sea.visible = t.sea; for (const h of hills) h.visible = i === 0; }
+}
+
 /* ---------- guests ---------- */
+const guestTexes = {};
+/** The texture of guest `id`, uploaded once and kept (the emoji stand-in is replaced when the picture has loaded). */
+function guestTex(id, emoji) { const t = guestTexes[id]; if (t && (t.userData.real || !getImage(id))) return t; if (t) t.dispose(); return guestTexes[id] = picTex(id, emoji); }
 /** Put the party guests in the yard. list: [{id, emoji}] in the order left-near, right-near, left-far, right-far. */
 export function setGuests(list) {
-  for (const g of guests) { scene.remove(g.s); g.s.material.map.dispose(); g.s.material.dispose(); }
-  const spots = [[-1.62, 1.0], [1.62, 1.0], [-1.95, -0.9], [1.95, -0.9]];
+  for (const g of guests) { scene.remove(g.s); scene.remove(g.sh); g.sh.geometry.dispose(); g.s.material.dispose(); }
+  const spots = [[-1.62, 1.0], [1.62, 1.0], [-1.95, -0.9], [1.95, -0.9]], craft = [[-1.9, 0.2, 0.62], [1.9, 0.2, 0.62], [-1.35, -1.5, 0.75], [1.35, -1.5, 0.75]]; // craft: x, z, and the height of the stool they stand on
   guests = list.slice(0, 4).map((it, i) => {
-    const s = new T3.Sprite(new T3.SpriteMaterial({ map: picTex(it.id, it.emoji) })); s.center.set(0.5, 0);
+    const s = new T3.Sprite(new T3.SpriteMaterial({ map: guestTex(it.id, it.emoji) })); s.center.set(0.5, 0);
     s.position.set(spots[i][0], 0, spots[i][1]); scene.add(s);
-    return { s, id: it.id, emoji: it.emoji, jump: 0, ph: i * 1.7, size: i < 2 ? 1.25 : 1.35 };
+    const sh = mesh(new T3.CircleGeometry(0.42, 16), blob.material, [0, 0.02, 0]); sh.rotation.x = -Math.PI / 2; sh.scale.y = 0.5;
+    return { s, id: it.id, emoji: it.emoji, jump: 0, ph: i * 1.7, size: i < 2 ? 1.25 : 1.35, smash: spots[i], craft: craft[i], rush: 0, sh };
   });
 }
 /** Guests jump. power 1 is a small hop, 3 a party. */
@@ -165,6 +189,31 @@ export function cheer(power = 1) { for (const g of guests) g.jump = Math.max(g.j
 /* ---------- pinata ---------- */
 let fringeTex = null;
 function patchMaterial() { return lambert(CARD, { map: fringeTex }); }
+/** A paper fringe for a box band: four flared strips hanging from just under its top edge, as one geometry. */
+function boxSkirt(w, d, top, len, flare) {
+  const pos = [], nor = [], uv = [], out = Math.sin(flare) * len, down = Math.cos(flare) * len;
+  const side = (ax, az, bx, bz, nx, nz, width) => {
+    const rep = Math.max(1, Math.round(width / 0.45));
+    const quad = [[ax, top, az, 0, 1], [bx, top, bz, rep, 1], [bx + nx * out, top - down, bz + nz * out, rep, 0], [ax, top, az, 0, 1], [bx + nx * out, top - down, bz + nz * out, rep, 0], [ax + nx * out, top - down, az + nz * out, 0, 0]];
+    for (const q of quad) { pos.push(q[0], q[1], q[2]); nor.push(nx, 0.3, nz); uv.push(q[3], q[4]); }
+  };
+  const x = w / 2, z = d / 2;
+  side(-x, z, x, z, 0, 1, w); side(x, -z, -x, -z, 0, -1, w); side(x, z, x, -z, 1, 0, d); side(-x, -z, -x, z, -1, 0, d);
+  const g = new T3.BufferGeometry();
+  g.setAttribute('position', new T3.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T3.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new T3.Float32BufferAttribute(uv, 2));
+  return g;
+}
+/** A paper fringe for a round band: an open, flared ring. */
+function roundSkirt(rTop, rBottom, len) {
+  const g = new T3.CylinderGeometry(rTop, rBottom, len, 20, 1, true), uv = g.attributes.uv, rep = Math.max(3, Math.round(rTop * 6.28 / 0.45));
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * rep);
+  return g;
+}
+/** Hang fringe `geo` on a patch. It shows only once the patch has paper on it. */
+function addSkirt(pt, geo, y = 0) {
+  const mat = new T3.MeshLambertMaterial({ map: skirtTex, alphaTest: 0.5, side: T3.DoubleSide });
+  pt.skirt = new T3.Mesh(geo, mat); pt.skirt.position.y = y; pt.skirt.visible = false; pt.m.add(pt.skirt);
+}
 function addPatch(geo, p, rot) {
   const m = mesh(geo, patchMaterial(), p, P.body); if (rot) m.rotation.set(rot[0], rot[1], rot[2]);
   const patch = { m, color: -1, home: m.position.clone(), homeQ: m.quaternion.clone(), pop: 0, off: false, v: V(), w: V(), life: 0 };
@@ -175,7 +224,7 @@ function addPatch(geo, p, rot) {
  * @returns {number} how many patches it has
  */
 export function buildPinata(shape, colors = [], palette) {
-  if (P) { for (const pt of P.patches) if (pt.off) { scene.remove(pt.m); pt.m.geometry.dispose(); pt.m.material.dispose(); } // paper that fell off lives in the yard, not in the group
+  if (P) { for (const pt of P.patches) if (pt.off) { scene.remove(pt.m); pt.m.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); } // paper that fell off lives in the yard, not in the group
     swing.remove(P.group); P.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); if (o.material.dispose) o.material.dispose(); } }); }
   const def = SHAPES[shape];
   P = { def, shape, group: new T3.Group(), body: new T3.Group(), patches: [], extras: [], eyes: null, palette, yaw: def.yaw === undefined ? -0.55 : def.yaw, yawT: 0, squash: 0, theta: 0, omega: 0, hang: 0, gold: false, burst: false, stickers: 0, appear: 0 };
@@ -183,10 +232,10 @@ export function buildPinata(shape, colors = [], palette) {
   for (const part of def.parts) {
     if (part.k === 'box') {
       const n = part.bands, bh = part.s[1] / n, holder = new T3.Group(); holder.position.set(part.p[0], part.p[1], part.p[2]); if (part.r) holder.rotation.set(part.r[0], part.r[1], part.r[2]); P.body.add(holder);
-      for (let i = 0; i < n; i++) { const flare = 1 + (i % 2 ? 0 : 0.035); const pt = addPatch(new T3.BoxGeometry(part.s[0] * flare, bh * 0.98, part.s[2] * flare), [0, -part.s[1] / 2 + bh * (i + 0.5), 0]); holder.add(pt.m); }
+      for (let i = 0; i < n; i++) { const pt = addPatch(new T3.BoxGeometry(part.s[0], bh * 0.98, part.s[2]), [0, -part.s[1] / 2 + bh * (i + 0.5), 0]); holder.add(pt.m); addSkirt(pt, boxSkirt(part.s[0], part.s[2], bh * 0.2, Math.min(0.3, bh * 0.85), 0.32)); }
     } else if (part.k === 'cyl') {
-      for (let i = 0; i < part.prof.length - 1; i++) { const [y0, r0] = part.prof[i], [y1, r1] = part.prof[i + 1]; addPatch(new T3.CylinderGeometry(r1, r0, (y1 - y0) * 0.98, 20), [part.p[0], part.p[1] + (y0 + y1) / 2, part.p[2]]); }
-    } else if (part.k === 'cone') addPatch(new T3.ConeGeometry(part.r, part.h, 14), part.p, part.rot);
+      for (let i = 0; i < part.prof.length - 1; i++) { const [y0, r0] = part.prof[i], [y1, r1] = part.prof[i + 1]; const h = y1 - y0, pt = addPatch(new T3.CylinderGeometry(r1, r0, h * 0.98, 20), [part.p[0], part.p[1] + (y0 + y1) / 2, part.p[2]]); addSkirt(pt, roundSkirt((r0 + r1) / 2 + 0.01, r0 + 0.07, h * 0.6), -h * 0.2); }
+    } else if (part.k === 'cone') { const pt = addPatch(new T3.ConeGeometry(part.r, part.h, 14), part.p, part.rot); addSkirt(pt, roundSkirt(part.r * 0.72, part.r * 1.12, part.h * 0.3), -part.h * 0.36); }
     else if (part.k === 'arc') { const geo = new T3.TorusGeometry(part.R, part.tube, 10, 8, TAU / 6 * 0.97); addPatch(geo, part.p, [0, 0, part.a]); }
   }
   for (const e of def.extra || []) { const m = mesh(new T3.ConeGeometry(e.r, e.h, 12), lambert(e.c), e.p, P.body); if (e.rot) m.rotation.set(e.rot[0], e.rot[1], e.rot[2]); P.extras.push(m); }
@@ -196,7 +245,9 @@ export function buildPinata(shape, colors = [], palette) {
   return P.patches.length;
 }
 function setPatch(pt, color, pop = true) {
-  pt.color = color; pt.m.material.color.setHex(P.gold ? GOLD : P.palette[color]); if (pop) pt.pop = 1;
+  const hex = P.gold ? GOLD : P.palette[color];
+  pt.color = color; pt.m.material.color.setHex(hex); if (pop) pt.pop = 1;
+  if (pt.skirt) { pt.skirt.material.color.setHex(hex); pt.skirt.visible = true; }
 }
 export const patchCount = () => P ? P.patches.length : 0;
 export const coveredCount = () => P ? P.patches.filter(p => p.color >= 0).length : 0;
@@ -271,9 +322,11 @@ export function dropIn(type, n) {
   for (let i = 0; i < n; i++) spawnCandy(type, top.x + (Math.random() - 0.5) * 0.5, top.y + 1.5 + i * 0.28, top.z + 0.25, 0, -1, 0, { into: top.y, scale: 0.8 });
 }
 /** Turn every paper golden (the golden pinata). */
-export function setGold(on) { if (!P) return; P.gold = on; for (const pt of P.patches) if (pt.color >= 0) pt.m.material.color.setHex(on ? GOLD : P.palette[pt.color]); if (on) chips(P.group.getWorldPosition(V()), 40, [GOLD, 0xfff3b0], 3); }
+export function setGold(on) { if (!P) return; P.gold = on; for (const pt of P.patches) if (pt.color >= 0) { const hex = on ? GOLD : P.palette[pt.color]; pt.m.material.color.setHex(hex); if (pt.skirt) pt.skirt.material.color.setHex(hex); } if (on) chips(P.group.getWorldPosition(V()), 40, [GOLD, 0xfff3b0], 3); }
 
 /* ---------- views ---------- */
+/** Jump straight to the current view, with no camera glide and no hoist (the opening pinata is already hanging). */
+export function snapView() { cam.pos = view.pos.slice(); cam.look = view.look.slice(); if (P) { P.hang = P.hangT; layoutPinata(0); } }
 /** 'craft': on the table, close up. 'smash': hanging from the beam, the whole yard in view. */
 export function setView(name) { view = name === 'smash' ? SMASH : CRAFT; if (P) P.hangT = name === 'smash' ? 1 : 0; }
 function layoutPinata(dt) {
@@ -294,8 +347,8 @@ function layoutPinata(dt) {
 /** Build stick `kind` (0 bat, 1 squeaky hammer, 2 wand, 3 foam sword, 4 giant lollipop). */
 export function setBat(kind) {
   batKind = kind;
-  if (batPivot) scene.remove(batPivot);
-  batPivot = new T3.Group(); batPivot.position.set(1.75, 2.0, 1.5); scene.add(batPivot); batPivot.userData = { t: 1 };
+  if (batPivot) { batPivot.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); scene.remove(batPivot); }
+  batPivot = new T3.Group(); batPivot.position.set(1.3, 2.0, 1.5); scene.add(batPivot); batPivot.userData = { t: 1 };
   const b = new T3.Group(); batPivot.add(b);
   const cyl = (r0, r1, h, c, y) => mesh(new T3.CylinderGeometry(r1, r0, h, 12), lambert(c), [0, y, 0], b);
   if (kind === 0) { cyl(0.05, 0.11, 1.5, 0xe2a35c, 0.75); cyl(0.06, 0.06, 0.3, 0xff5aa8, 0.15); }
@@ -304,6 +357,7 @@ export function setBat(kind) {
   else if (kind === 3) { mesh(new T3.BoxGeometry(0.2, 1.3, 0.07), lambert(0x35b6ff), [0, 0.95, 0], b); mesh(new T3.BoxGeometry(0.5, 0.09, 0.1), lambert(0xffc928), [0, 0.3, 0], b); cyl(0.05, 0.05, 0.3, 0x9b5cff, 0.13); }
   else { cyl(0.035, 0.035, 1.2, 0xffffff, 0.6); const d = mesh(new T3.CylinderGeometry(0.36, 0.36, 0.1, 20), lambert(0xff5aa8), [0, 1.42, 0], b); d.rotation.x = Math.PI / 2; mesh(new T3.TorusGeometry(0.2, 0.05, 6, 16), lambert(0xffffff), [0, 1.42, 0.06], b); }
   batPivot.visible = false;
+  if (!swoosh) { swoosh = mesh(new T3.RingGeometry(0.85, 1.55, 16, 1, 1.07, 1.75), new T3.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: T3.DoubleSide }), [1.3, 2.0, 1.5]); swoosh.rotation.x = 0.25; }
 }
 /**
  * One hit: the stick swings, the pinata rocks, paper chips fly.
@@ -316,7 +370,10 @@ export function hit(power = 1) {
   const at = P.group.getWorldPosition(V()); at.x += 0.7; at.z += 0.5;
   const cols = P.patches.filter(p => !p.off && p.color >= 0).map(p => P.gold ? GOLD : P.palette[p.color]);
   chips(at, 8 * power, cols.length ? cols : [CARD], 2.4);
-  shake = Math.max(shake, 0.07 * power);
+  shake = Math.max(shake, 0.07 * power); punch = 1;
+  // each hit leaves a mark: two patches get knocked out of line and stay that way
+  const live = P.patches.filter(p => !p.off);
+  for (let i = 0; i < 2 && live.length; i++) { const pt = live[Math.random() * live.length | 0]; pt.m.position.x += (Math.random() - 0.5) * 0.1; pt.m.position.z += (Math.random() - 0.5) * 0.1; pt.m.rotation.z += (Math.random() - 0.5) * 0.28; pt.m.rotation.x += (Math.random() - 0.5) * 0.2; pt.pop = 0.6; }
 }
 /** Paper patches fall off as the pinata breaks: `n` of them drop to the ground. */
 export function shed(n) {
@@ -340,12 +397,14 @@ export function leak(types, n) { const c = P.group.getWorldPosition(V()); for (l
 export function burst(types, scale = 1) {
   if (!P || P.burst) return;
   const c = P.group.getWorldPosition(V());
-  for (const pt of P.patches) if (!pt.off) flyOff(pt, 3.4);
+  for (const pt of P.patches) { if (!pt.off) flyOff(pt, 3.4); pt.life = Math.min(pt.life, 1.1); } // paper is gone before the grabbing starts
   for (const e of P.extras) e.visible = false; if (P.eyes) P.eyes.visible = false;
   P.burst = true; rope.visible = false; blob.visible = false;
   types.forEach((t, i) => spawnCandy(t, c.x + (Math.random() - 0.5) * 1.2, c.y + (Math.random() - 0.5) * 0.9, c.z + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 6.5, 2 + Math.random() * 5.5, 0.4 + Math.random() * 3.2, { scale, delay: i * 0.012 }));
   const all = [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff, 0xff8a00, 0xffffff];
-  chips(c, 90, all, 6.5); chips(V(c.x, c.y + 1, c.z), 40, all, 3);
+  chips(c, 130, all, 6.5); chips(V(c.x, c.y + 1, c.z), 50, all, 3);
+  shock.visible = true; shock.position.copy(c); shock.scale.setScalar(0.3); shock.material.opacity = 0.9; shock.lookAt(camera.position);
+  for (const g of guests) g.rush = 1;
   capsule.g.visible = true; capsule.g.position.copy(c); capsule.v.set(0.2, 4.2, 1.2); capsule.rest = false; capsule.open = 0; capsule.top.position.set(0, 0, 0); capsule.top.rotation.set(0, 0, 0);
   shake = 0.4; cheer(3);
 }
@@ -360,14 +419,15 @@ function buildCandy() {
     merged([[C(0.14, 0.14, 0.04, 16), M(0, 0, 0, Math.PI / 2), wt]]),                                                                                    // chocolate coin
     merged([[S(0.1), new T3.Matrix4().makeScale(1.5, 0.85, 0.85), wt]]),                                                                                  // jelly bean
   ];
-  const cap = quality < 1 ? 14 : 26;
+  const cap = 44;
   candyMesh = geos.map(geo => { const im = new T3.InstancedMesh(geo, new T3.MeshLambertMaterial({ vertexColors: true }), cap); im.count = 0; im.frustumCulled = false; scene.add(im); return im; });
 }
 function spawnCandy(type, x, y, z, vx, vy, vz, o = {}) {
-  const im = candyMesh[type]; if (candies.filter(c => c.type === type).length >= im.instanceMatrix.count) return;
+  const im = candyMesh[type]; let same = 0; for (const c of candies) if (c.type === type) same++;
+  if (same >= im.instanceMatrix.count * (quality < 1 ? 0.5 : 1)) return;
   const cols = CANDY_COLORS[type];
   candies.push({ type, p: V(x, y, z), v: V(vx, vy, vz), r: new T3.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6), w: V((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
-    col: new T3.Color(cols[Math.random() * cols.length | 0]), into: o.into, scale: o.scale || 1, delay: o.delay || 0, rest: false, grow: o.into === undefined ? 0 : 1 });
+    col: new T3.Color(cols[Math.random() * cols.length | 0]), into: o.into, scale: (o.scale || 1) * (o.into === undefined ? 1.35 : 1), delay: o.delay || 0, rest: false, grow: o.into === undefined ? 0 : 1 });
 }
 function updateCandy(dt) {
   const counts = [0, 0, 0, 0, 0], m4 = tmp.m4 || (tmp.m4 = new T3.Matrix4()), q = tmp.q || (tmp.q = new T3.Quaternion()), s = tmp.s || (tmp.s = V());
@@ -391,7 +451,7 @@ function updateCandy(dt) {
     const im = candyMesh[c.type], n = counts[c.type]++;
     m4.compose(c.p, q.setFromEuler(c.r), s.setScalar(c.scale * c.grow)); im.setMatrixAt(n, m4); im.setColorAt(n, c.col);
   }
-  candyMesh.forEach((im, t) => { im.count = counts[t]; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; });
+  candyMesh.forEach((im, t) => { if (!counts[t] && !im.count) return; im.count = counts[t]; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; });
 }
 /** How many candies are lying in the yard (not the ones falling into the pinata). */
 export const candyLeft = () => candies.filter(c => c.into === undefined).length;
@@ -415,10 +475,11 @@ export function clearCandy() { candies = []; }
 /* ---------- capsule ---------- */
 function buildCapsule() {
   const g = new T3.Group(); scene.add(g); g.visible = false;
-  const half = (c, flip) => { const m = mesh(new T3.SphereGeometry(0.34, 18, 10, 0, TAU, 0, Math.PI / 2), lambert(c, { side: T3.DoubleSide }), null, g); if (flip) m.rotation.x = Math.PI; return m; };
-  const top = half(0xff3b7f, false), bottom = half(0xffffff, true);
+  const half = (c, flip) => { const m = mesh(new T3.SphereGeometry(0.5, 20, 10, 0, TAU, 0, Math.PI / 2), lambert(c, { side: T3.DoubleSide }), null, g); if (flip) m.rotation.x = Math.PI; return m; };
+  const top = half(0xff3b7f, false), bottom = half(0xffc928, true);
+  mesh(new T3.TorusGeometry(0.5, 0.045, 8, 24), lambert(0x7a3cff), null, bottom).rotation.x = Math.PI / 2;
   const mark = new T3.Sprite(new T3.SpriteMaterial({ map: canvasTex(64, 64, (k) => { k.font = '900 54px Arial'; k.textAlign = 'center'; k.textBaseline = 'middle'; k.lineWidth = 8; k.strokeStyle = '#fff'; k.strokeText('?', 32, 34); k.fillStyle = '#ff2d8a'; k.fillText('?', 32, 34); }), depthTest: false }));
-  mark.scale.setScalar(0.42); mark.position.set(0, 0.02, 0.36); g.add(mark);
+  mark.scale.setScalar(0.62); mark.position.set(0, 0.02, 0.52); g.add(mark);
   capsule = { g, top, bottom, mark, v: V(), rest: false, open: 0 };
 }
 /** Screen position of the capsule, or null while it is hidden. */
@@ -429,22 +490,22 @@ function updateCapsule(dt) {
   const c = capsule; if (!c.g.visible) return;
   if (!c.rest) {
     c.v.y -= 15 * dt; c.g.position.addScaledVector(c.v, dt); c.g.rotation.z += dt * 5;
-    c.g.position.z = Math.min(c.g.position.z, 1.6); if (c.g.position.y < 0.36) { c.g.position.y = 0.36; if (Math.abs(c.v.y) < 1.4) { c.rest = true; c.g.rotation.z = 0; } else { c.v.y *= -0.5; c.v.x *= 0.6; c.v.z *= 0.6; } }
-  } else if (!c.open) { c.g.position.y = 0.36 + Math.abs(Math.sin(clock * 5)) * 0.22; c.g.rotation.z = Math.sin(clock * 5) * 0.12; }
+    c.g.position.z = Math.min(c.g.position.z, 1.6); if (c.g.position.y < 0.52) { c.g.position.y = 0.52; if (Math.abs(c.v.y) < 1.4) { c.rest = true; c.g.rotation.z = 0; } else { c.v.y *= -0.5; c.v.x *= 0.6; c.v.z *= 0.6; } }
+  } else if (!c.open) { c.g.position.y = 0.52 + Math.abs(Math.sin(clock * 5)) * 0.22; c.g.rotation.z = Math.sin(clock * 5) * 0.12; }
   if (c.open) { c.open += dt; c.top.position.y += dt * 2.2; c.top.rotation.z += dt * 5; c.top.position.x += dt * 1.2; if (c.open > 1.2) c.g.visible = false; }
 }
 export function hideCapsule() { capsule.g.visible = false; capsule.mark.visible = true; }
 
 /* ---------- confetti ---------- */
 function buildConfetti() {
-  const cap = quality < 1 ? 90 : 190;
+  const cap = 260;
   conf = new T3.InstancedMesh(new T3.PlaneGeometry(0.09, 0.15), new T3.MeshBasicMaterial({ side: T3.DoubleSide }), cap); conf.count = 0; conf.frustumCulled = false; scene.add(conf);
 }
 /** Paper chips: n pieces from point `at`, in the given colours. */
 export function chips(at, n, cols, speed = 2.5) {
   n = Math.ceil(n * quality);
   for (let i = 0; i < n; i++) {
-    if (confP.length >= conf.instanceMatrix.count) confP.shift();
+    if (confP.length >= conf.instanceMatrix.count * (quality < 1 ? 0.5 : 1)) confP.shift();
     const a = Math.random() * TAU, u = Math.random();
     confP.push({ p: at.clone(), v: V(Math.cos(a) * speed * u, speed * (0.4 + Math.random()), Math.sin(a) * speed * u * 0.7 + speed * 0.2), r: new T3.Euler(Math.random() * 6, Math.random() * 6, 0), w: 4 + Math.random() * 8, life: 1.6 + Math.random() * 1.6, col: new T3.Color(cols[Math.random() * cols.length | 0]) });
   }
@@ -457,6 +518,7 @@ function updateConfetti(dt) {
     if (c.p.y < 0.03) { c.p.y = 0.03; c.v.set(0, 0, 0); c.w = 0; c.r.x = Math.PI / 2; }
   }
   for (const c of confP) { m4.compose(c.p, q.setFromEuler(c.r), s.setScalar(Math.min(1, c.life * 3))); conf.setMatrixAt(n, m4); conf.setColorAt(n, c.col); n++; }
+  if (!n && !conf.count) return;
   conf.count = n; conf.instanceMatrix.needsUpdate = true; if (conf.instanceColor) conf.instanceColor.needsUpdate = true;
 }
 
@@ -493,6 +555,7 @@ export function update(dt, idle = dt) {
         if (pt.m.position.y < 0.08) { pt.m.position.y = 0.08; pt.v.set(0, 0, 0); pt.w.set(0, 0, 0); }
         pt.m.scale.setScalar(Math.max(0.001, Math.min(1, pt.life * 2))); pt.m.visible = pt.life > 0;
       } else if (pt.pop > 0) { pt.pop = Math.max(0, pt.pop - dt * 5); pt.m.scale.setScalar(1 + Math.sin(pt.pop * Math.PI) * 0.28); }
+      if (pt.skirt && pt.skirt.visible) pt.skirt.scale.set(1 + P.squash * 0.12, 1 + Math.sin(clock * 3 + pt.home.y * 4) * 0.04 - P.squash * 0.25, 1 + P.squash * 0.12);
     }
     P.group.traverse(o => { if (o.userData.pop > 0) { o.userData.pop = Math.max(0, o.userData.pop - dt * 4); const t = 1 - o.userData.pop; o.scale.setScalar(t < 1 ? 1 + Math.sin(t * Math.PI) * 0.5 * (1 - t) + (t - 1) * (1 - t) : 1); if (o.userData.pop === 0) o.scale.setScalar(1); } });
   }
@@ -501,12 +564,16 @@ export function update(dt, idle = dt) {
     const u = batPivot.userData; u.t = Math.min(1, u.t + dt * 5.5);
     const sw = u.t < 0.35 ? u.t / 0.35 : 1 - (u.t - 0.35) / 0.65;
     batPivot.rotation.set(0.25, 0, -0.5 + sw * 1.75 + Math.sin(clock * 2.2) * 0.04);
-  }
+    swoosh.visible = u.t < 0.5; swoosh.material.opacity = Math.max(0, 0.55 * (1 - u.t / 0.5));
+  } else if (swoosh) swoosh.visible = false;
   for (const g of guests) {
-    if (!g.s.material.map.userData.real && getImage(g.id)) { g.s.material.map.dispose(); g.s.material.map = picTex(g.id, g.emoji); }
+    if (!g.s.material.map.userData.real && getImage(g.id)) g.s.material.map = guestTex(g.id, g.emoji);
     g.jump = Math.max(0, g.jump - idle * 1.1);
     const im = g.s.material.map.image, asp = im && im.width ? im.width / im.height : 1, bob = 1 + Math.sin(clock * 3 + g.ph) * 0.025;
-    g.s.position.y = Math.abs(Math.sin(g.jump * 9)) * g.jump * 1.4;
+    const k = P ? P.hang : 0, rush = Math.sin(Math.min(1, g.rush) * Math.PI) * 0.28; g.rush = Math.max(0, g.rush - idle * 0.9); // a short step toward the candy, never over it
+    g.s.position.x = (g.craft[0] + (g.smash[0] - g.craft[0]) * k) * (1 - rush); g.s.position.z = g.craft[1] + (g.smash[1] - g.craft[1]) * k;
+    g.s.position.y = g.craft[2] * (1 - k) + Math.abs(Math.sin(g.jump * 9)) * g.jump * 1.4;
+    g.sh.position.set(g.s.position.x, 0.02, g.s.position.z); g.sh.visible = k > 0.6;
     g.s.scale.set(g.size * asp / bob, g.size * bob, 1);
   }
   for (const b of balloons) { b.m.position.y = b.y + Math.sin(clock * 0.9 + b.ph) * 0.12; b.m.rotation.z = Math.sin(clock * 0.7 + b.ph) * 0.06; }
@@ -514,13 +581,15 @@ export function update(dt, idle = dt) {
   // camera
   const e = Math.min(1, idle * 2.6);
   for (let i = 0; i < 3; i++) { cam.pos[i] += (view.pos[i] - cam.pos[i]) * e; cam.look[i] += (view.look[i] - cam.look[i]) * e; }
-  shake = Math.max(0, shake - idle * 1.6);
+  shake = Math.max(0, shake - idle * 1.6); punch = Math.max(0, punch - idle * 7);
+  if (shock.visible) { shock.scale.multiplyScalar(1 + dt * 9); shock.material.opacity -= dt * 2.2; if (shock.material.opacity <= 0) shock.visible = false; }
+  if (camera.fov !== 38 - punch * 1.5) { camera.fov = 38 - punch * 1.5; camera.updateProjectionMatrix(); }
   camera.position.set(cam.pos[0] + (Math.random() - 0.5) * shake, cam.pos[1] + (Math.random() - 0.5) * shake, cam.pos[2]);
   camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
 }
 export function render() { renderer.render(scene, camera); }
 /** Halve confetti and candy when the device is slow. */
-export function setQuality(q) { quality = q; }
+export function setQuality(q) { quality = q; if (renderer) renderer.setPixelRatio(q < 1 ? 0.75 : 1); for (const d of decor) d.visible = q >= 1; }
 /** Slow confetti falling from the sky, so the first screen moves before any touch. */
 export function ambient() { chips(V((Math.random() - 0.5) * 5, 6.5, (Math.random() - 0.5) * 2), 1, [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff], 0.4); }
 
@@ -544,6 +613,19 @@ export function initScene(three, canvas, o) {
     }
   });
   fringeTex.wrapS = fringeTex.wrapT = T3.RepeatWrapping;
-  buildYard(); buildCandy(); buildCapsule(); buildConfetti(); setBat(0);
+  skirtTex = canvasTex(64, 64, (g) => {
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, 64, 10);                       // shade under the band above
+    g.globalCompositeOperation = 'destination-out';
+    for (let x = 0; x < 64; x += 8) { g.beginPath(); g.moveTo(x + 4, 46); g.lineTo(x + 8.4, 64); g.lineTo(x - 0.4, 64); g.closePath(); g.fill(); g.fillRect(x + 3.4, 22, 1.2, 26); } // small teeth and slits
+    g.globalCompositeOperation = 'source-over';
+  });
+  skirtTex.wrapS = T3.RepeatWrapping;
+  buildYard(); setTheme(theme); buildCandy(); buildCapsule(); buildConfetti(); setBat(0);
   candies = []; confP = []; guests = []; P = null;
+  // compile every material now, so the first candy drop and the burst do not stall on a weak phone
+  const white = new T3.Color(0xffffff); for (const im of candyMesh.concat(conf)) { im.setColorAt(0, white); im.count = 1; }
+  capsule.g.visible = true; shock.visible = true; sea.visible = true;
+  camera.position.set(0, 3, 11); camera.lookAt(0, 2.7, 0); renderer.compile(scene, camera);
+  for (const im of candyMesh.concat(conf)) im.count = 0; capsule.g.visible = false; shock.visible = false; sea.visible = THEMES[theme].sea;
 }
