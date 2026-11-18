@@ -45,6 +45,18 @@ numbers instead of words. Translations were written without a native review.
 Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under 40 FPS
 for `lowFpsSeconds`, particles and background bubbles are halved.
 
+## Languages and devices
+
+The game reads the player's device language (`navigator.languages`) and shows it when `strings` in
+`game_config.json` has that language: English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian. Any other
+device language falls back to English. Arabic is right-to-left: the HUD, the choice rows and the progress bar are
+mirrored. All player-facing text is in that string table; text wider than its space is drawn smaller. The album has
+a 🌐 button that steps through the languages, and the choice is saved. Toys, unlocks and locks use pictures and
+numbers instead of words. Translations were written without a native review.
+
+Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under 40 FPS
+for `lowFpsSeconds`, particles and background bubbles are halved.
+
 ## Files
 
 - `index.html`: one canvas, loads `game.js`.
