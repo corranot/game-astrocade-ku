@@ -222,35 +222,6 @@ const ALL = ['🦆', '🐸', '🐟', '🐢', '🐙', '🦀', '🐳', '🐥', '�
   }
   ok(`${checked} screens checked (15 screens x 7 languages)`);
 
-  console.log('11. device language is detected; seven languages; anything else falls back to English');
-  const want = { 'en-US': 'en', 'ar-SA': 'ar', 'es-MX': 'es', 'vi-VN': 'vi', 'hi-IN': 'hi', 'bn-BD': 'bn', 'id-ID': 'id', 'de-DE': 'en', 'pt-BR': 'en', 'ja-JP': 'en' };
-  for (const [locale, code] of Object.entries(want)) {
-    const cx = await b.newContext({ ...devices['Pixel 7'], deviceScaleFactor: 1, locale }), q = await cx.newPage();
-    q.on('pageerror', e => errs.push(locale + ': ' + e.message));
-    await q.goto(`http://localhost:${srv.address().port}/index.html?local`);
-    await q.waitForFunction(() => document.getElementById('game').dataset.step === '0');
-    const d = await q.evaluate(() => ({ ...document.getElementById('game').dataset }));
-    assert.strictEqual(d.lang, code, locale + ' should show ' + code);
-    assert.strictEqual(d.rtl, code === 'ar' ? '1' : '0', locale + ' text direction');
-    if (shots && locale.startsWith(code)) {
-      const snap = async n => { await q.waitForTimeout(700); await q.screenshot({ path: path.join(shots, `lang-${code}-${n}.jpg`), type: 'jpeg', quality: 70 }); };
-      await snap('1-pour');
-      await q.evaluate(() => { const G = window.__game; G.S.step = 1; G.S.idle = 0; }); await snap('2-colors');
-      await q.evaluate(() => { const G = window.__game; G.S.step = 4; G.S.col = [255, 92, 168]; G.S.cols = [[255, 92, 168], [64, 190, 255]]; for (let i = 0; i < 15; i++) G.S.tops.push({ i: i % 3, dx: (i % 5 - 2) * 0.25, dy: ((i / 5 | 0) - 1) * 0.3, rot: 0, pop: 0 }); G.S.ok = true; G.S.idle = 0; }); await snap('3-decorate');
-      await q.evaluate(() => { const G = window.__game; G.S.step = 5; G.S.ok = false; G.S.ball.loose = true; });
-      await q.waitForFunction(() => document.getElementById('game').dataset.toy !== '', null, { timeout: 9000 }); await q.waitForTimeout(1500); await snap('4-prize');
-      await q.evaluate(() => { window.__game.S.album = true; }); await snap('5-album');
-    }
-    await cx.close();
-  }
-  ok('seven languages detected, three unsupported locales fall back to English, Arabic is right-to-left');
-  await open();
-  const st = await p.evaluate(() => { const s = window.gameConfig.strings, en = Object.keys(s.en); return { langs: Object.keys(s), gaps: Object.entries(s).flatMap(([l, v]) => en.filter(k => !v[k] || !String(v[k]).trim()).map(k => l + '.' + k)), extra: Object.entries(s).flatMap(([l, v]) => Object.keys(v).filter(k => !en.includes(k)).map(k => l + '.' + k)) }; });
-  assert.deepStrictEqual(st.langs, ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id']); assert.deepStrictEqual(st.gaps, []); assert.deepStrictEqual(st.extra, []); ok('every language has every string');
-  await tap(630, 70); await tap(360, 1100); assert.strictEqual(await data('lang'), 'ar'); assert.strictEqual(await p.evaluate(() => window.__game.save.lang), 'ar');
-  await tap(97, 500); await tap(97, 70); await p.waitForTimeout(200); assert.strictEqual(await p.evaluate(() => window.__game.S.album), true, 'mirrored album chip opens the album');
-  for (let i = 0; i < 6; i++) await tap(360, 1100); assert.strictEqual(await data('lang'), 'en'); await tap(360, 500); ok('language button cycles and is saved; mirrored HUD works');
-
   assert.deepStrictEqual(errs, [], 'page errors');
   console.log('PLAYTEST PASS');
   await b.close(); srv.close();

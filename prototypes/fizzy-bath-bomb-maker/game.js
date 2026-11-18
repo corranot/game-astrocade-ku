@@ -690,9 +690,6 @@ function drawControls() {
     const rowed = S.step === 1 || S.step === 3 || S.step === 4, kind = ['hold', 'tap', 'stir', 'tap', 'tap', S.ball.wet ? 'tap' : 'drag'][S.step];
     if (rowed) coach(kind, 250, LANE.btn - 62, 220, 124); else coach(kind, 210, 948, 300, 258);
   }
-  // Language is detected from the device; this button lets the player step through the others.
-  g.fillStyle = '#eef7ff'; rr(160, LANG_BTN.y - 42, 400, 84, 42); g.fill(); g.lineWidth = 6; g.strokeStyle = '#27a8ff'; g.stroke();
-  txt('🌐 ' + T('name'), 360, LANG_BTN.y + 2, 40, '#1877c9', null, 12, 340);
 }
 function drawPrizeScreen() {
   const k = Math.min(1, S.reveal * 1.8), top = Math.max(...S.prizes.map(p => p.toy.r)), two = S.prizes.length > 1;
