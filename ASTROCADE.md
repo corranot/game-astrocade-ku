@@ -115,7 +115,7 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 
 ### 8. Cara kerja bareng user
 - Alur: user minta rekomendasi → daftar berprioritas → "kerjakan semuanya bertahap" → kerjakan semua, kabari per tahap. User mencoba di artifact dan di draft Astrocade; publish menunggu kata user.
-- Artifact: satu berkas HTML, aset data URI (gambar diperkecil 384 px), `lib` tiruan dengan `localStorage`, `fetch` data URI ditangani sendiri.
+- **User mengetes di artifact, bukan lewat berkas kiriman** (aturan user 2026-11-18). Buat halamannya dengan `node tools/single-file.js <folder game> <keluaran.html> [modul berurutan]` (menggabung modul, `lib` tiruan dengan simpanan di browser), lalu terbitkan dengan alat Artifact; berkas yang sama diterbitkan ulang ke URL yang sama. Game beraset: aset jadi data URI (gambar diperkecil 384 px), `fetch` data URI ditangani sendiri.
 - Jangan menjanjikan "tanpa bug" atau "audit bersih" tanpa syarat di bagian 5. Riset backend ±30 halaman per cek kecuali diminta gali dalam.
 - Sesi cloud: perintah shell yang menggabung `git` dengan heredoc besar, atau memuat `rm -rf`, bisa ditolak; tulis skrip suntingan ke berkas di scratchpad lalu jalankan, bukti baru ke folder baru. Push paksa ditolak. Hook berhenti meminta commit + push; repo menggabung PR otomatis dalam hitungan detik.
 - Git setelah PR di-squash: lihat aturan 0.7.
@@ -123,7 +123,7 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 ### 9. Game yang sudah dibuat
 - **Pinata Maker: Smash Party** — draft Astrocade `01M7QHXBYRP167NRSCKP8M33V7` (belum publish, belum ada thumbnail; draft sudah versi bersih); sumber `prototypes/pinata-maker/` (`game.js`, `scene.js`, `playtest.js` 13 uji, `soak.js`, `look.js`); bukti `production/qa/evidence/pinata-maker/`. User menyatakan aman setelah perbaikan dekorasi (2026-11-18).
 - **Fizzy Bath Bomb Maker: DIY ASMR** — publik `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, 160 plays di hari pertama; draft sudah versi bersih (playtest 13/13), update dikirim 2026-11-18 dan menunggu tinjauan; pemain masih disajikan versi lama `01M7PW01…` sampai lolos. Sumber `prototypes/fizzy-bath-bomb-maker/`. Belum mendapat audit bagian 5 penuh.
-- **Draw It Alive** (gambar bagian yang hilang; coretan pemain sendiri yang jadi bagian dan dianimasikan) — potongan 3 dari 20 level di `prototypes/draw-it-alive/` (`art.js` kit gaya stiker bertepi putih, `levels.js`, `game.js`, `playtest.js`); bukti `production/qa/evidence/draw-it-alive/`. Tanpa menu, tanpa kata, tanpa berkas gambar. Rencana: rilis 20 level, bab 5 level, 40 level lewat update. Menunggu user mencoba di HP (2026-11-18). Versi satu berkas untuk dicoba di HP: `node tools/single-file.js prototypes/draw-it-alive <keluaran.html>`.
+- **Draw It Alive** (gambar bagian yang hilang; coretan pemain sendiri yang jadi bagian dan dianimasikan) — potongan 3 dari 20 level di `prototypes/draw-it-alive/` (`art.js` kit gaya stiker bertepi putih, `levels.js`, `game.js`, `playtest.js`); bukti `production/qa/evidence/draw-it-alive/`. Tanpa menu, tanpa kata, tanpa berkas gambar. Rencana: rilis 20 level, bab 5 level, 40 level lewat update. Menunggu user mencoba di HP (2026-11-18). Artifact uji: `https://claude.ai/artifact/KMkQSAiiX4NGiAp3ScPx94`.
 
 ### 10. Kreator teratas, Players' Choice, dan akun kita (2026-11-18)
 - **Traffic terbaru (astrotopper):** mingguan CashFlowGames #1 (+2,3 juta), CrazyHaribo #2 (+1,4 juta); bulanan CrazyHaribo #1 (+6,8 juta), CashFlowGames #4 (+4,4 juta). Seumur hidup mereka hanya #28 dan #23 (teratas erika 46 juta).
