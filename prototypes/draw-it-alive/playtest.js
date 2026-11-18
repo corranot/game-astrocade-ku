@@ -46,7 +46,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
     s = await state(page);
     ok(s.won >= 0 && !s.assisted && s.strokeLen > 3, `level ${n + 1} solved by the player's own line` + (s.won < 0 ? ' ' + JSON.stringify(s) : ''));
     await page.waitForTimeout(450); await shot(page, `L${n + 1}-payoff-early`);
-    await page.waitForTimeout(1500); await shot(page, `L${n + 1}-payoff-late`);
+    await page.waitForTimeout(1200); await shot(page, `L${n + 1}-payoff-late`);
   }
   await page.waitForFunction(() => window.__game.S.i === 3, null, { timeout: 8000 });
   ok(true, 'the next level starts by itself after each payoff');
@@ -61,6 +61,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await page.waitForTimeout(250); await shot(page, 'L1-miss');
   await drag(page, [[120, 300], [300, 320], [500, 300], [620, 340]]); await settled(page);
   s = await state(page); ok(s.won >= 0 && s.assisted, 'second miss: the part is completed and the payoff plays');
+  ok(await page.evaluate(() => window.__game.S.stars) === 1, 'a helped level earns 1 star');
 
   console.log('4. a finger that lifts and comes back near the line carries on');
   page = await open();
@@ -68,6 +69,17 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await drag(page, t.slice(0, half)); await page.waitForTimeout(150);
   await drag(page, t.slice(half - 1)); await settled(page);
   s = await state(page); ok(s.won >= 0 && s.misses === 0, 'two touches joined into one line');
+
+  console.log('4b. stars follow how well the line matches; the sound button toggles and is not a stroke');
+  page = await open();
+  await drag(page, await target(page)); await settled(page);
+  let st = await page.evaluate(() => window.__game.S.stars); ok(st === 3, 'a line right on the part earns 3 stars (got ' + st + ')');
+  await page.waitForFunction(() => window.__game.S.i === 1 && window.__game.S.won < 0, null, { timeout: 8000 });
+  const m = await page.evaluate(() => window.__game.MUTE);
+  await page.mouse.click(m.x + m.s / 2, m.y + m.s / 2); await page.waitForTimeout(120);
+  s = await state(page); const muted = await page.evaluate(() => window.__game.save.muted);
+  ok(muted === true && !s.pen && s.misses === 0, 'a tap on the sound button mutes and starts no line');
+  await shot(page, 'L2-muted');
 
   console.log('5. edit mode shows the live picture and ignores input');
   page = await open('&mode=edit');
