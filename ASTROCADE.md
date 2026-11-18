@@ -15,12 +15,12 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
    - **Visual & HUD Standar Emas:** Warna cerah tajam (DILARANG tema gelap/neon/pudar), teks UI/HUD sangat besar dan terbaca di layar kecil, notifikasi di tengah layar sejajar pandangan mata (*eye-level*), tata letak simetris/proporsional, serta *guideline* penunjuk arah dinamis yang mengikuti karakter.
    - **Tech Stack Adaptif:** Jika **3D**, otomatis cek versi **Three.js terbaru** (`npm view three version` / CDN terbaru) dan gunakan karakter **R15** (FK/IK, ekspresi wajah, animasi *idle*, VFX). Jika **2D**, gunakan HTML5 Canvas atau PixiJS super ringan. Simpan tiap proyek di folder terpisah (`prototypes/nama-proyek/`) dan bantu dorong ke **Astrocade MCP**.
    - **Auto-Deteksi Device (WAJIB):** Game mengenali sendiri HP, tablet, dan desktop tanpa menu pengaturan. Kontrol sentuh atau mouse/keyboard dipilih otomatis (`lib.shouldUseTouchControls()`), tata letak tetap pas di kanvas potret 720×1280, tombol minimal 96 px, dan efek berat (partikel, bayangan) dikurangi sendiri saat FPS turun di HP kentang.
-   - **Auto-Deteksi Bahasa (WAJIB):** Game membaca bahasa device pemain (`navigator.languages`) dan langsung tampil dalam bahasa itu, supaya anak paham tanpa bantuan. Bahasa wajib, urut dari yang terbanyak di komentar Astrocade: **Inggris (`en`), Arab (`ar`), Spanyol (`es`), Indonesia (`id`), Vietnam (`vi`)**. Bahasa di luar daftar jatuh ke Inggris. Aturan turunannya:
+   - **Auto-Deteksi Bahasa (WAJIB):** Game membaca bahasa device pemain (`navigator.languages`) dan langsung tampil dalam bahasa itu, supaya anak paham tanpa bantuan. Maksimal 10 bahasa, urut dari yang terbanyak di komentar Astrocade: **Inggris (`en`), Arab (`ar`), Spanyol (`es`), Vietnam (`vi`), Hindi (`hi`), Bengali (`bn`), Indonesia (`id`), Turki (`tr`), Prancis (`fr`), Urdu (`ur`)**. Bahasa device di luar 10 itu otomatis jatuh ke Inggris. Aturan turunannya:
      - Semua teks pemain ada di satu tabel string per bahasa (data, bukan di dalam kode); dilarang menulis teks langsung di fungsi gambar.
-     - Arab ditulis kanan-ke-kiri: teks rata kanan dan urutan baris tombol dibalik; angka dan ikon tidak dibalik.
+     - Arab dan Urdu ditulis kanan-ke-kiri: teks rata kanan dan urutan baris tombol dibalik; angka dan ikon tidak dibalik. Hindi, Bengali, Arab, dan Urdu memakai aksara sendiri, jadi cek hurufnya tampil (bukan kotak kosong) di HP sungguhan.
      - Utamakan ikon dan gambar daripada kata; kalimat perintah maksimal 3–4 kata di tiap bahasa, dan ukuran huruf mengecil otomatis kalau terjemahan lebih panjang.
      - Sediakan tombol 🌐 kecil untuk ganti bahasa manual; pilihan disimpan per pemain.
-     - Sebelum rilis, ambil tangkapan layar tiap layar di kelima bahasa ke `production/qa/evidence/`; teks terpotong atau kotak kosong (font tidak ada) berarti belum lulus.
+     - Sebelum rilis, ambil tangkapan layar tiap layar di kesepuluh bahasa ke `production/qa/evidence/`; teks terpotong atau kotak kosong (font tidak ada) berarti belum lulus.
      - Perbarui daftar bahasa tiap kali cek komentar Astrocade diulang.
 4. **Upgrade Otak Mandiri (Self-Evolving):**
    - Setiap selesai riset tren, membedah game kreator lain, mengecek API Three.js terbaru, atau memperbaiki bug performa, ringkas pelajaran tersebut ke bagian bawah file ini (jaga total file maksimal 150 baris).
@@ -72,10 +72,11 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 - **Ukur ulang 29 menit kemudian (±16.20–16.50 UTC):** total 79 kandidat turun dari ±47rb ke ±35rb plays/jam, jadi laju bergantung jam. Urutan: Woodturner Workshop 2.525, Counter Arena 2.245, Squishy Balloon Slime 1.653, Prank City 1.389, Poké Phone Case Shop 1.242, Papercut.io 1.140, DIY Beauty Salon 1.083. Lima dari tujuh teratas adalah game bikin bertahap atau sandbox usil; kesimpulan tipe tidak berubah.
 - **Belum terbukti:** skip rate dan retensi per game tetap tidak terbuka; dua jendela ±30 menit berurutan saja, belum tentu sama di jam lain.
 
-**Cek bahasa penonton 2026-11-18** — 187 komentar teratas dari 10 game paling ramai komentarnya (halaman game publik, tombol Comments; tiap komentar membawa label `language` dari platform).
-- **Label bahasa platform:** Inggris 134 (72%), Arab 26 (14%), Spanyol 12 (6%), Indonesia 5, Vietnam 4, Azerbaijan 2, Hindi 2, Turki 1, Portugis 1.
-- **Dipakai sebagai daftar bahasa wajib:** `en`, `ar`, `es`, `id`, `vi`. Kandidat berikutnya kalau sampel diperbesar: Hindi, Turki, Portugis.
-- **Batas data:** sampel kecil dan hanya komentar urutan "top", yang condong ke bahasa mayoritas. Pengumpulan lambat (±15 komentar per halaman game), jadi jangan lebih dari ±25 game per cek.
+**Cek bahasa penonton 2026-11-18 (gali dalam)** — 3.630 komentar dari 30 game (20 paling ramai komentar + 10 game umur ≤8 hari), ±120 per game. Tiap komentar membawa label `language` dari platform; label itu cocok 98% dengan pendeteksi bahasa terpisah pada 298 komentar panjang.
+- **Porsi dari 3.361 komentar berlabel:** Inggris 57%, Arab 24%, Spanyol 5,6%, Vietnam 2,8%, Hindi 2,7%, Bengali 2,3%, Indonesia 1,6%, Turki 0,8%, Prancis 0,7%, Urdu 0,6%. Di bawahnya: Portugis 0,4%, Tagalog, Rusia, Italia (masing-masing ≤0,2%).
+- **Stabil dari semua sudut:** Inggris dan Arab muncul di 30 dari 30 game; urutan sama untuk rata-rata per game, komentar 14 hari terakhir, dan game baru. Posisi 8–10 (Turki, Prancis, Urdu) hanya 20–27 komentar, jadi bisa bertukar dengan Portugis kalau dicek ulang.
+- **Batas data:** komentar ditulis anak yang lebih besar, bukan semua pemain; bahasa komentar belum tentu sama dengan bahasa device (penutur Hindi sering memakai HP berbahasa Inggris). 7% komentar tanpa label (emoji atau terlalu pendek).
+- **Cara cek yang cepat:** buka halaman game dengan game-nya diblokir (`play.json`, `/context/`), tekan tombol Comments, gulir hanya di dalam lembar komentar; satu sesi tamu per pekerja (halaman paralel dalam satu sesi gagal). 30 game selesai ±5 menit.
 
 ### 2. Update Engine & API Terbaru (Three.js / 2D)
 *(Kosong — Claude akan mengisi otomatis saat membuat game)*
