@@ -10,13 +10,14 @@ let T3, renderer, scene, camera, ray, quality = 1;
 let P = null;                      // the current pinata
 let swing, rope, table, blob, batPivot, capsule, guests = [], balloons = [];
 let candyMesh = [], candies = [], conf = null, confP = [];
-let view = { pos: [0, 3.2, 10.4], look: [0, 2.62, 0] }, cam = { pos: [0, 3.2, 10.4], look: [0, 2.62, 0] };
+let view = { pos: [0, 3.0, 12], look: [0, 2.56, 0] }, cam = { pos: [0, 3.0, 12], look: [0, 2.56, 0] };
 let shake = 0, punch = 0, clock = 0, getImage = () => null, batKind = 0;
 let decor = [], skirtTex = null, swoosh = null, shock = null, groundMat = null, lawnMat = null, sea = null, theme = 0, hills = [];
 const tmp = {};
 
-const CRAFT = { pos: [0, 3.2, 10.4], look: [0, 2.62, 0] }, SMASH = { pos: [0, 3.0, 11.2], look: [0, 2.75, 0] };
+const CRAFT = { pos: [0, 3.0, 12], look: [0, 2.56, 0] }, SMASH = { pos: [0, 3.0, 11.2], look: [0, 2.75, 0] };
 const TABLE_TOP = 1.0, ROPE = 3.6, BEAM_Y = 7.2;
+const FIT_HEIGHT = 2.35; // the tallest a pinata may stand on the craft table, so its head stays under the order and its feet above the choices
 const CARD = 0xf2c078, GOLD = 0xffc928;
 export const CANDY_COLORS = [[0xff5aa8, 0xff8a00, 0x9b5cff], [0x35b6ff, 0xff4d6d, 0x9b5cff], [0xff3b3b, 0xffb300, 0x35b6ff], [0xffc928], [0xff5aa8, 0x35b6ff, 0xff8a00]]; // no greens: they vanish on the lawn
 
@@ -28,7 +29,7 @@ export const CANDY_COLORS = [[0xff5aa8, 0xff8a00, 0x9b5cff], [0x35b6ff, 0xff4d6d
 const box = (p, s, bands = 1, r) => ({ k: 'box', p, s, bands, r });
 const SHAPES = [
   { // burro
-    foot: 1.1, hatch: [0, 0.45, 0], eyes: [[0.98, 1.27, 0.27], [0.98, 1.27, -0.27]], eyeN: [0, 0, 1],
+    foot: 1.1, top: 1.8, hatch: [0, 0.45, 0], eyes: [[0.98, 1.27, 0.27], [0.98, 1.27, -0.27]], eyeN: [0, 0, 1],
     parts: [box([0, 0, 0], [1.5, 0.8, 0.75], 3), box([0.6, 0.72, 0], [0.42, 0.66, 0.5], 2), box([0.84, 1.22, 0], [0.74, 0.46, 0.52], 2),
       box([0.6, 1.62, 0.17], [0.14, 0.36, 0.1]), box([0.6, 1.62, -0.17], [0.14, 0.36, 0.1]),
       box([0.55, -0.75, 0.22], [0.26, 0.7, 0.26], 2), box([0.55, -0.75, -0.22], [0.26, 0.7, 0.26], 2),
@@ -36,7 +37,7 @@ const SHAPES = [
       box([-0.84, 0.05, 0], [0.16, 0.5, 0.16], 1, [0, 0, -0.35])],
   },
   { // unicorn: the burro plus a mane and a golden horn
-    foot: 1.1, hatch: [0, 0.45, 0], eyes: [[0.98, 1.27, 0.27], [0.98, 1.27, -0.27]], eyeN: [0, 0, 1],
+    foot: 1.1, top: 1.95, hatch: [0, 0.45, 0], eyes: [[0.98, 1.27, 0.27], [0.98, 1.27, -0.27]], eyeN: [0, 0, 1],
     parts: [box([0, 0, 0], [1.5, 0.8, 0.75], 3), box([0.6, 0.72, 0], [0.42, 0.66, 0.5], 2), box([0.84, 1.22, 0], [0.74, 0.46, 0.52], 2),
       box([0.6, 1.62, 0.17], [0.14, 0.36, 0.1]), box([0.6, 1.62, -0.17], [0.14, 0.36, 0.1]),
       box([0.55, -0.75, 0.22], [0.26, 0.7, 0.26], 2), box([0.55, -0.75, -0.22], [0.26, 0.7, 0.26], 2),
@@ -46,7 +47,7 @@ const SHAPES = [
     extra: [{ k: 'cone', p: [1.02, 1.68, 0], r: 0.09, h: 0.5, c: GOLD, rot: [0, 0, -0.35] }],
   },
   { // dino
-    foot: 1.0, hatch: [0, 0.45, 0], eyes: [[0.86, 1.48, 0.26], [0.86, 1.48, -0.26]], eyeN: [0, 0, 1],
+    foot: 1.0, top: 1.65, hatch: [0, 0.45, 0], eyes: [[0.86, 1.48, 0.26], [0.86, 1.48, -0.26]], eyeN: [0, 0, 1],
     parts: [box([0, 0, 0], [1.3, 0.8, 0.8], 3), box([0.55, 0.8, 0], [0.4, 0.82, 0.46], 3), box([0.76, 1.42, 0], [0.66, 0.42, 0.5], 2),
       box([-0.86, 0.05, 0], [0.46, 0.5, 0.5]), box([-1.24, -0.03, 0], [0.38, 0.36, 0.36]), box([-1.54, -0.1, 0], [0.28, 0.22, 0.22]),
       box([0.42, -0.7, 0.25], [0.32, 0.6, 0.3]), box([0.42, -0.7, -0.25], [0.32, 0.6, 0.3]),
@@ -55,16 +56,16 @@ const SHAPES = [
       .concat([{ k: 'cone', p: [0.55, 1.33, 0], r: 0.1, h: 0.24, c: 0xffffff, rot: [0, 0, 0.5] }]),
   },
   { // star: a ball with five cones
-    foot: 1.42, hatch: [0, 0.7, 0], eyes: [[-0.22, 0.12, 0.72], [0.22, 0.12, 0.72]], eyeN: [0, 0, 1], yaw: -0.15, smile: [0, -0.16, 0.73],
+    foot: 1.42, top: 1.42, hatch: [0, 0.7, 0], eyes: [[-0.22, 0.12, 0.72], [0.22, 0.12, 0.72]], eyeN: [0, 0, 1], yaw: -0.15, smile: [0, -0.16, 0.73],
     parts: [{ k: 'cyl', p: [0, 0, 0], prof: [[-0.72, 0.2], [-0.36, 0.63], [0, 0.74], [0.36, 0.63], [0.72, 0.2]] }]
       .concat([0, 1, 2, 3, 4].map(i => { const a = Math.PI / 2 + i * TAU / 5; return { k: 'cone', p: [Math.cos(a) * 1.02, Math.sin(a) * 1.02, 0], r: 0.32, h: 0.8, rot: [0, 0, a - Math.PI / 2] }; })),
   },
   { // donut: a ring made of six arcs
-    foot: 1.1, hatch: [0, 1.0, 0], eyes: [[-0.2, 0.8, 0.33], [0.2, 0.8, 0.33]], eyeN: [0, 0, 1], yaw: -0.2, smile: [0, 0.58, 0.35],
+    foot: 1.1, top: 1.1, hatch: [0, 1.0, 0], eyes: [[-0.2, 0.8, 0.33], [0.2, 0.8, 0.33]], eyeN: [0, 0, 1], yaw: -0.2, smile: [0, 0.58, 0.35],
     parts: [0, 1, 2, 3, 4, 5].map(i => ({ k: 'arc', p: [0, 0, 0], R: 0.74, tube: 0.36, a: i * TAU / 6 })),
   },
   { // rocket
-    foot: 1.15, hatch: [0, 0.8, 0], eyes: [[-0.17, 0.3, 0.47], [0.17, 0.3, 0.47]], eyeN: [0, 0, 1], yaw: -0.2, smile: [0, 0.08, 0.5],
+    foot: 1.15, top: 1.5, hatch: [0, 0.8, 0], eyes: [[-0.17, 0.3, 0.47], [0.17, 0.3, 0.47]], eyeN: [0, 0, 1], yaw: -0.2, smile: [0, 0.08, 0.5],
     parts: [{ k: 'cyl', p: [0, 0, 0], prof: [[-0.8, 0.44], [-0.4, 0.5], [0, 0.5], [0.4, 0.5], [0.8, 0.44]] },
       { k: 'cone', p: [0, 1.15, 0], r: 0.44, h: 0.7 },
       box([0.56, -0.8, 0], [0.34, 0.6, 0.1], 1, [0, 0, 0.3]), box([-0.56, -0.8, 0], [0.34, 0.6, 0.1], 1, [0, 0, -0.3]), box([0, -0.8, 0.52], [0.1, 0.6, 0.3], 1, [0.3, 0, 0])],
@@ -143,8 +144,8 @@ function buildYard() {
   }
   // craft table
   table = new T3.Group(); scene.add(table);
-  mesh(new T3.BoxGeometry(3.4, 0.16, 1.9), lambert(0x35b6ff), [0, TABLE_TOP - 0.08, 0], table);
-  mesh(new T3.BoxGeometry(3.42, 0.5, 0.04), lambert(0x2f9bff), [0, TABLE_TOP - 0.33, 0.96], table);
+  mesh(new T3.BoxGeometry(3.4, 0.16, 1.9), lambert(0xfff4dc), [0, TABLE_TOP - 0.08, 0], table);
+  mesh(new T3.BoxGeometry(3.42, 0.5, 0.04), lambert(0xff8a00), [0, TABLE_TOP - 0.33, 0.96], table);
   for (let i = 0; i < 7; i++) { const sc = mesh(new T3.CircleGeometry(0.245, 16, Math.PI, Math.PI), new T3.MeshBasicMaterial({ color: 0xffffff }), [-1.47 + i * 0.49, TABLE_TOP - 0.58, 0.985], table); sc.scale.y = 0.7; }
   for (const [x, z] of [[-1.5, -0.8], [1.5, -0.8], [-1.5, 0.8], [1.5, 0.8]]) mesh(new T3.BoxGeometry(0.16, TABLE_TOP - 0.16, 0.16), lambert(0xd89a5b), [x, (TABLE_TOP - 0.16) / 2, z], table);
   // rope and the swinging pivot
@@ -175,7 +176,8 @@ function guestTex(id, emoji) { const t = guestTexes[id]; if (t && (t.userData.re
 /** Put the party guests in the yard. list: [{id, emoji}] in the order left-near, right-near, left-far, right-far. */
 export function setGuests(list) {
   for (const g of guests) { scene.remove(g.s); scene.remove(g.sh); g.sh.geometry.dispose(); g.s.material.dispose(); }
-  const spots = [[-1.62, 1.0], [1.62, 1.0], [-1.95, -0.9], [1.95, -0.9]], craft = [[-1.9, 0.2, 0.62], [1.9, 0.2, 0.62], [-1.35, -1.5, 0.75], [1.35, -1.5, 0.75]]; // craft: x, z, and the height of the stool they stand on
+  // smash: two in the front corners, two by the fence between them
+  const spots = [[-1.62, 1.0], [1.62, 1.0], [-0.95, -2.2], [0.95, -2.2]], craft = [[-2.05, -0.3, 0.6], [2.05, -0.3, 0.6], [-3.6, -0.9, 0], [3.6, -0.9, 0]]; // craft: x, z, and the height of the stool they stand on (the back two wait off stage)
   guests = list.slice(0, 4).map((it, i) => {
     const s = new T3.Sprite(new T3.SpriteMaterial({ map: guestTex(it.id, it.emoji) })); s.center.set(0.5, 0);
     s.position.set(spots[i][0], 0, spots[i][1]); scene.add(s);
@@ -227,7 +229,7 @@ export function buildPinata(shape, colors = [], palette) {
   if (P) { for (const pt of P.patches) if (pt.off) { scene.remove(pt.m); pt.m.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); } // paper that fell off lives in the yard, not in the group
     swing.remove(P.group); P.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); if (o.material.dispose) o.material.dispose(); } }); }
   const def = SHAPES[shape];
-  P = { def, shape, group: new T3.Group(), body: new T3.Group(), patches: [], extras: [], eyes: null, palette, yaw: def.yaw === undefined ? -0.55 : def.yaw, yawT: 0, squash: 0, theta: 0, omega: 0, hang: 0, gold: false, burst: false, stickers: 0, appear: 0 };
+  P = { def, shape, fit: Math.min(1, FIT_HEIGHT / (def.foot + def.top)), group: new T3.Group(), body: new T3.Group(), patches: [], extras: [], eyes: null, palette, yaw: def.yaw === undefined ? -0.55 : def.yaw, yawT: 0, squash: 0, theta: 0, omega: 0, hang: 0, gold: false, burst: false, stickers: 0, stuck: [], appear: 0 };
   P.yawT = P.yaw; P.group.add(P.body); swing.add(P.group);
   for (const part of def.parts) {
     if (part.k === 'box') {
@@ -300,20 +302,22 @@ export function stickerAt(px, py, id, emoji) {
   let target, point, normal;
   if (hit) { target = hit.object; point = target.worldToLocal(hit.point.clone()); normal = hit.face.normal.clone(); }
   else {
-    // a spot on the side facing the camera of a random patch
-    for (let i = 0; i < 12 && !target; i++) {
-      const pt = live[Math.random() * live.length | 0], c = project(pt.m.getWorldPosition(V()));
-      setRay(c.x + (Math.random() - 0.5) * 30, c.y + (Math.random() - 0.5) * 30);
+    // the finger missed (a tap beside the pinata, or in the hole of the donut): look around it in widening rings for the nearest paper
+    const mid = project(P.group.getWorldPosition(V())), far = px < 0 || py < 0;
+    for (let i = 0; i < 40 && !target; i++) {
+      const r = far ? Math.random() * 150 : 16 + i * 9, a = Math.random() * TAU;
+      setRay((far ? mid.x : px) + Math.cos(a) * r, (far ? mid.y : py) + Math.sin(a) * r);
       const h = ray.intersectObjects(live.map(p => p.m), false)[0];
       if (h) { target = h.object; point = target.worldToLocal(h.point.clone()); normal = h.face.normal.clone(); }
     }
     if (!target) return null;
   }
-  const tex = stickerTex[id] && stickerTex[id].userData.real ? stickerTex[id] : (stickerTex[id] = picTex(id, emoji));
-  const s = new T3.Mesh(new T3.PlaneGeometry(0.34, 0.34), new T3.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: T3.DoubleSide }));
-  s.position.copy(point).addScaledVector(normal, 0.015 + P.stickers * 0.0015);
-  s.quaternion.setFromUnitVectors(V(0, 0, 1), normal.normalize()); s.rotateZ((Math.random() - 0.5) * 0.7);
-  s.userData.pop = 1; s.scale.setScalar(0.01); target.add(s); P.stickers++;
+  let tex = stickerTex[id];
+  if (!tex || (!tex.userData.real && getImage(id))) { if (tex) tex.dispose(); tex = stickerTex[id] = picTex(id, emoji); }
+  const s = new T3.Mesh(new T3.PlaneGeometry(0.44, 0.44), new T3.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: T3.DoubleSide }));
+  normal.normalize(); s.position.copy(point).addScaledVector(normal, 0.13 + P.stickers * 0.002); // beyond the widest flare of the fringe, or the paper strips cover it
+  s.quaternion.setFromUnitVectors(V(0, 0, 1), normal); s.rotateZ((Math.random() - 0.5) * 0.7); s.renderOrder = 2;
+  s.userData.pop = 1; s.scale.setScalar(0.01); target.add(s); P.stickers++; P.stuck.push(s);
   return project(s.getWorldPosition(V()));
 }
 /** Candy falling into the pinata through its top (a visual only). */
@@ -333,7 +337,7 @@ function layoutPinata(dt) {
   if (!P) return;
   if (P.hangT === undefined) P.hangT = 0;
   P.hang += (P.hangT - P.hang) * Math.min(1, dt * 3.2); if (dt === 0) P.hang = P.hangT;
-  const k = P.hang, restY = TABLE_TOP + P.def.foot, hangY = BEAM_Y - ROPE - 0.9;
+  const k = P.hang, restY = TABLE_TOP + P.def.foot * P.fit, hangY = BEAM_Y - ROPE - 0.9;
   const y = restY + (hangY - restY) * k;
   P.group.position.set(0, y - BEAM_Y, 0);
   const topY = y + (P.def.hatch[1] + 0.3);
@@ -346,7 +350,7 @@ function layoutPinata(dt) {
 /* ---------- stick ---------- */
 /** Build stick `kind` (0 bat, 1 squeaky hammer, 2 wand, 3 foam sword, 4 giant lollipop). */
 export function setBat(kind) {
-  batKind = kind;
+  batKind = kind; const shown = !!batPivot && batPivot.visible;
   if (batPivot) { batPivot.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); scene.remove(batPivot); }
   batPivot = new T3.Group(); batPivot.position.set(1.3, 2.0, 1.5); scene.add(batPivot); batPivot.userData = { t: 1 };
   const b = new T3.Group(); batPivot.add(b);
@@ -356,7 +360,7 @@ export function setBat(kind) {
   else if (kind === 2) { cyl(0.035, 0.035, 1.3, 0x9b5cff, 0.65); const s = mesh(new T3.OctahedronGeometry(0.24), lambert(GOLD), [0, 1.42, 0], b); s.scale.z = 0.5; }
   else if (kind === 3) { mesh(new T3.BoxGeometry(0.2, 1.3, 0.07), lambert(0x35b6ff), [0, 0.95, 0], b); mesh(new T3.BoxGeometry(0.5, 0.09, 0.1), lambert(0xffc928), [0, 0.3, 0], b); cyl(0.05, 0.05, 0.3, 0x9b5cff, 0.13); }
   else { cyl(0.035, 0.035, 1.2, 0xffffff, 0.6); const d = mesh(new T3.CylinderGeometry(0.36, 0.36, 0.1, 20), lambert(0xff5aa8), [0, 1.42, 0], b); d.rotation.x = Math.PI / 2; mesh(new T3.TorusGeometry(0.2, 0.05, 6, 16), lambert(0xffffff), [0, 1.42, 0.06], b); }
-  batPivot.visible = false;
+  batPivot.visible = shown;
   if (!swoosh) { swoosh = mesh(new T3.RingGeometry(0.85, 1.55, 16, 1, 1.07, 1.75), new T3.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: T3.DoubleSide }), [1.3, 2.0, 1.5]); swoosh.rotation.x = 0.25; }
 }
 /**
@@ -404,7 +408,7 @@ export function burst(types, scale = 1) {
   const all = [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff, 0xff8a00, 0xffffff];
   chips(c, 130, all, 6.5); chips(V(c.x, c.y + 1, c.z), 50, all, 3);
   shock.visible = true; shock.position.copy(c); shock.scale.setScalar(0.3); shock.material.opacity = 0.9; shock.lookAt(camera.position);
-  for (const g of guests) g.rush = 1;
+  guests.forEach((g, i) => { if (i >= 2) g.rush = 1; }); // only the two at the back step in; the front two would cover the candy
   capsule.g.visible = true; capsule.g.position.copy(c); capsule.v.set(0.2, 4.2, 1.2); capsule.rest = false; capsule.open = 0; capsule.top.position.set(0, 0, 0); capsule.top.rotation.set(0, 0, 0);
   shake = 0.4; cheer(3);
 }
@@ -441,7 +445,7 @@ function updateCandy(dt) {
       if (c.into !== undefined) { if (c.p.y < c.into) { candies.splice(i, 1); if (P) P.squash = Math.max(P.squash, 0.5); continue; } }
       else {
         if (c.p.y < 0.13 * c.scale) { c.p.y = 0.13 * c.scale; if (Math.abs(c.v.y) < 1.2) { c.v.set(0, 0, 0); c.rest = true; } else { c.v.y *= -0.42; c.v.x *= 0.7; c.v.z *= 0.7; c.w.multiplyScalar(0.6); } }
-        if (Math.abs(c.p.x) > 1.75) { c.p.x = Math.sign(c.p.x) * 1.75; c.v.x *= -0.5; }
+        if (Math.abs(c.p.x) > 1.2) { c.p.x = Math.sign(c.p.x) * 1.2; c.v.x *= -0.5; } // candy lands between the guests, never behind them
         if (c.p.z > 2.3) { c.p.z = 2.3; c.v.z *= -0.5; } if (c.p.z < -1.4) { c.p.z = -1.4; c.v.z *= -0.5; }
       }
     }
@@ -525,6 +529,24 @@ function updateConfetti(dt) {
 /* ---------- frame ---------- */
 /** Swing of the hanging pinata, radians; 0 is straight down. */
 export const swingAngle = () => P ? P.theta : 0;
+/**
+ * For the playtest: how many stickers the camera can actually see (nothing of the pinata, fringe included, in front of their middle),
+ * and the screen box of the whole pinata.
+ */
+export function seen() {
+  const solid = []; P.group.traverse(o => { if (o.isMesh && !P.stuck.includes(o) && o.visible) solid.push(o); });
+  let visible = 0, top = 1e9, bottom = -1e9, left = 1e9, right = -1e9;
+  for (const s of P.stuck) {
+    const at = s.getWorldPosition(V()), dir = at.clone().sub(camera.position), dist = dir.length();
+    ray.set(camera.position, dir.normalize());
+    const hit = ray.intersectObjects(solid, false)[0];
+    if (!hit || hit.distance > dist - 0.01) visible++;
+  }
+  const box = new T3.Box3();
+  for (const pt of P.patches) { if (pt.off) continue; box.setFromObject(pt.m, true); // true: measure the real corners, not a loose box around a tilted part
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) { const q = project(V(x, y, z)); top = Math.min(top, q.y); bottom = Math.max(bottom, q.y); left = Math.min(left, q.x); right = Math.max(right, q.x); } }
+  return { stickers: P.stuck.length, visible, top, bottom, left, right };
+}
 /** Screen position of the middle of the pinata. */
 export function pinataAt() { return P ? project(P.group.getWorldPosition(V())) : { x: W / 2, y: H / 2, z: 0 }; }
 /** Push the pinata into a wide swing (the party round). */
@@ -546,7 +568,7 @@ export function update(dt, idle = dt) {
     layoutPinata(dt);
     P.yaw += (P.yawT - P.yaw) * Math.min(1, dt * 10); if (k < 0.5 && !P.drag) P.yawT += (((P.def.yaw === undefined ? -0.55 : P.def.yaw)) - P.yawT) * dt * 0.5;
     P.squash = Math.max(0, P.squash - dt * 5); P.appear = Math.max(0, P.appear - dt * 3.5);
-    const sq = Math.sin(P.squash * Math.PI) * 0.16, ap = 1 - P.appear * P.appear * 0.6;
+    const sq = Math.sin(P.squash * Math.PI) * 0.16, ap = (1 - P.appear * P.appear * 0.6) * (P.fit + (1 - P.fit) * k); // table size while making, full size once it hangs
     P.group.rotation.y = P.yaw + Math.sin(clock * 1.3) * 0.05 * (1 - k);
     P.group.scale.set((1 + sq) * ap, (1 - sq) * ap, (1 + sq) * ap);
     for (const pt of P.patches) {
@@ -588,8 +610,10 @@ export function update(dt, idle = dt) {
   camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
 }
 export function render() { renderer.render(scene, camera); }
+/** Counts for the long-session check: GPU objects alive, draw calls of the last frame, objects in the yard. */
+export const stats = () => ({ geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, calls: renderer.info.render.calls, children: scene.children.length });
 /** Halve confetti and candy when the device is slow. */
-export function setQuality(q) { quality = q; if (renderer) renderer.setPixelRatio(q < 1 ? 0.75 : 1); for (const d of decor) d.visible = q >= 1; }
+export function setQuality(q) { quality = q; if (renderer) renderer.setPixelRatio(q < 1 ? 0.75 : 1); }
 /** Slow confetti falling from the sky, so the first screen moves before any touch. */
 export function ambient() { chips(V((Math.random() - 0.5) * 5, 6.5, (Math.random() - 0.5) * 2), 1, [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff], 0.4); }
 
@@ -600,7 +624,7 @@ export function ambient() { chips(V((Math.random() - 0.5) * 5, 6.5, (Math.random
  * @param {{quality:number, image:(id:string)=>HTMLImageElement|null}} o
  */
 export function initScene(three, canvas, o) {
-  T3 = three; quality = o.quality; getImage = o.image;
+  T3 = three; quality = o.quality; getImage = o.image; swoosh = null; balloons = []; batPivot = null;
   renderer = new T3.WebGLRenderer({ canvas, antialias: quality >= 1, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
   scene = new T3.Scene(); camera = new T3.PerspectiveCamera(38, W / H, 0.1, 80); ray = new T3.Raycaster();
