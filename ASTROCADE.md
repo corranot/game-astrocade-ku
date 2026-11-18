@@ -58,7 +58,6 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 - **Judul:** kata kerja + benda konkret ("Steal an Egg", "Giant Salami Saw"); game bikin memakai "... Maker: DIY ASMR". Deskripsi dibuka dengan kata kerja langkahnya dan menyebut hadiah.
 - **Hindari:** platformer/action generik; game bermerek atau tiruan game orang (Roblox, Barbie, Minecraft): ambil genrenya saja.
 - **Bahasa penonton (3.361 komentar berlabel):** Inggris 57%, Arab 24%, Spanyol 5,6%, Vietnam 2,8%, Hindi 2,7%, Bengali 2,3%, Indonesia 1,6%. Inggris dan Arab ada di 30 dari 30 game. Batas: komentar ditulis anak yang lebih besar.
-- **Belum pernah terbukti:** skip rate dan retensi per game tidak terbuka; semua kesimpulan dari plays dan pengamatan layar.
 
 ### 2. Kenapa game teratas tidak di-skip (pengamatan layar, bukan data skip)
 - Feed geser seperti video pendek; **game sudah jalan di belakang kartu Play**, jadi layar pertama harus hidup tanpa input.
@@ -141,8 +140,7 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 - **Strategi yang disepakati:** sekuel dari pemenang sendiri dulu; satu kit, satu tema, rilis rapat; menangkan 10 detik pertama untuk 200–300 pemain uji; tinggalkan game yang gagal uji; tanpa karakter bermerek. Langkah berikut: bandingkan Rub It Away dan Reel & Hatch dengan 3 game yang gagal, lalu bangun Rub It Away #2.
 
 ### 11. Analytics kreator: lolos vs gagal uji (tangkapan layar user, 2026-11-18; 3 game)
-- Halaman `astrocade.com/create/analytics` (hanya user yang bisa buka; minta tangkapan layar) memajang: All Plays, **Significant Plays**, median durasi + distribusi dengan garis benchmark, Median FPS (Optimal 40+, Moderate 20–40, Poor 0–20), Time to First Interaction, Click-Through Rate, 0-Interaction Play Rate.
-- **Significant Play = sesi 30 detik atau lebih** (cocok persis di tiga game).
+- Halaman `astrocade.com/create/analytics` (hanya user yang bisa buka; minta tangkapan layar) memajang: All Plays, **Significant Plays**, median durasi + distribusi dengan garis benchmark, Median FPS (Optimal 40+, Moderate 20–40, Poor 0–20), Time to First Interaction, Click-Through Rate, 0-Interaction Play Rate. **Significant Play = sesi 30 detik atau lebih** (cocok persis di tiga game).
 - | Game | Significant | Median / P75 | FPS | Sentuhan pertama | CTR | 0-interaksi | Di atas 5 menit |
   |---|---|---|---|---|---|---|---|
   | Reel & Hatch (lolos, 31 ribu) | 86% | 1:58 / 5:03 | Optimal | 5,8 d | 35,9% | 9% | 25% |
