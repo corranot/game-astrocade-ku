@@ -7,22 +7,28 @@
 export const WHITE = '#FFFFFF', NAVY = '#1F2A6B', SKY = '#3EC5FF', MINT = '#3DDC97', SUNNY = '#FFD23F',
   CORAL = '#FF4D5E', ORANGE = '#FF8A1F', VIOLET = '#7A4DFF', BLUSH = '#FF9EC4', PEN = '#FF2E93', GRASS = '#25B877';
 export const BORDER = 10;
+let bk = 1; // border scale: a scaled drawing calls borderScale(1 / scale) so its borders stay 10 px on screen
+/** Keep borders the same width on screen while drawing at another scale; returns the previous value. */
+export function borderScale(k) { const was = bk; bk = k; return was; }
 const TAU = Math.PI * 2;
 let fill = true; // false while sticker() lays the white borders
 
 /** Run draw twice: white borders, then colours. */
+/** True while sticker() is on its colour pass (use it to draw shine only once). */
+export const colourPass = () => fill;
+
 export function sticker(draw) { fill = false; draw(); fill = true; draw(); }
 
 /** Ellipse. */
 export function blob(ctx, x, y, rx, ry, color, rot = 0) {
-  const b = fill ? 0 : BORDER;
+  const b = fill ? 0 : BORDER * bk;
   ctx.beginPath(); ctx.ellipse(x, y, Math.max(0.1, rx + b), Math.max(0.1, ry + b), rot, 0, TAU);
   ctx.fillStyle = fill ? color : WHITE; ctx.fill();
 }
 
 /** Rounded rectangle (arcTo, because roundRect is missing on older phones). */
 export function box(ctx, x, y, w, h, r, color) {
-  const b = fill ? 0 : BORDER; x -= b; y -= b; w += 2 * b; h += 2 * b; r = Math.min(r + b, w / 2, h / 2);
+  const b = fill ? 0 : BORDER * bk; x -= b; y -= b; w += 2 * b; h += 2 * b; r = Math.min(r + b, w / 2, h / 2);
   ctx.beginPath(); ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath(); ctx.fillStyle = fill ? color : WHITE; ctx.fill();
@@ -34,14 +40,14 @@ const trace = (ctx, pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
 export function stick(ctx, pts, w, color) {
   if (!pts || pts.length < 2) return;
   ctx.lineCap = ctx.lineJoin = 'round'; trace(ctx, pts);
-  ctx.strokeStyle = fill ? color : WHITE; ctx.lineWidth = w + (fill ? 0 : BORDER * 2); ctx.stroke();
+  ctx.strokeStyle = fill ? color : WHITE; ctx.lineWidth = w + (fill ? 0 : BORDER * bk * 2); ctx.stroke();
 }
 
 /** Filled closed polygon through pts. */
 export function shape(ctx, pts, color) {
   if (!pts || pts.length < 3) return;
   trace(ctx, pts); ctx.closePath(); ctx.lineJoin = 'round';
-  if (fill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.fillStyle = ctx.strokeStyle = WHITE; ctx.lineWidth = BORDER * 2; ctx.fill(); ctx.stroke(); }
+  if (fill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.fillStyle = ctx.strokeStyle = WHITE; ctx.lineWidth = BORDER * bk * 2; ctx.fill(); ctx.stroke(); }
 }
 
 /** Soft ground shadow; call outside sticker(). */
@@ -57,12 +63,15 @@ export function face(ctx, x, y, s, mood, t, look) {
   if (!fill) return;
   let ox = 0, oy = 0;
   if (look) { const d = Math.hypot(look[0] - x, look[1] - y) || 1; ox = (look[0] - x) / d * s * 0.07; oy = (look[1] - y) / d * s * 0.07; }
-  const blink = (t % 3.7) < 0.12, r = s * 0.13;
+  const blink = (t % 3.7) < 0.12, r = s * 0.18;
   ctx.fillStyle = ctx.strokeStyle = NAVY; ctx.lineCap = 'round';
   for (const side of [-1, 1]) {
     const ex = x + side * s * 0.36 + ox, ey = y + oy;
     if (mood === 'happy') { ctx.lineWidth = r * 0.8; ctx.beginPath(); ctx.arc(ex, ey + r * 0.5, r, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
-    else { ctx.beginPath(); ctx.ellipse(ex, ey, r, blink ? r * 0.15 : r * 1.15, 0, 0, TAU); ctx.fill(); }
+    else {
+      ctx.beginPath(); ctx.ellipse(ex, ey, r, blink ? r * 0.15 : r * 1.15, 0, 0, TAU); ctx.fill();
+      if (!blink) { ctx.fillStyle = WHITE; ctx.beginPath(); ctx.arc(ex - r * 0.35, ey - r * 0.45, r * 0.38, 0, TAU); ctx.fill(); ctx.fillStyle = NAVY; }
+    }
   }
   const my = y + s * 0.42; ctx.lineWidth = s * 0.09;
   ctx.beginPath();
@@ -71,7 +80,7 @@ export function face(ctx, x, y, s, mood, t, look) {
   else if (mood === 'sad') { ctx.moveTo(x - s * 0.2, my + s * 0.06); ctx.lineTo(x + s * 0.2, my - s * 0.06); }
   else ctx.arc(x, my + s * 0.22, s * 0.24, Math.PI * 1.2, Math.PI * 1.8);
   ctx.stroke();
-  if (mood === 'happy') { ctx.fillStyle = BLUSH; for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + side * s * 0.62, y + s * 0.24, s * 0.15, s * 0.1, 0, 0, TAU); ctx.fill(); } }
+  if (mood !== 'sad') { ctx.globalAlpha = mood === 'happy' ? 1 : 0.6; ctx.fillStyle = BLUSH; for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + side * s * 0.62, y + s * 0.24, s * 0.15, s * 0.1, 0, 0, TAU); ctx.fill(); }  ctx.globalAlpha = 1; }
 }
 
 // ---------- path maths (a path is an array of [x, y]) ----------
@@ -155,4 +164,24 @@ export function bloom(ctx, x, y, r, color) {
 export function dots(ctx) {
   ctx.fillStyle = 'rgba(255,255,255,0.26)';
   for (let i = 0; i < 24; i++) { ctx.beginPath(); ctx.arc((i * 197 + 60) % 720, (i * 331 + 90) % 1280, 5 + (i % 3) * 3, 0, TAU); ctx.fill(); }
+}
+
+/** Path p moved sideways by d (positive to the left of travel), for bands along a line. */
+export function offsetPath(p, d) {
+  return p.map((q, i) => {
+    const a = p[Math.max(0, i - 1)], b = p[Math.min(p.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    return [q[0] + dy / L * d, q[1] - dx / L * d];
+  });
+}
+
+/** Spiral of n turns inside radius r, as a path from the rim inward. */
+export function spiral(cx, cy, r, turns = 2) {
+  const out = []; for (let i = 0; i <= 40; i++) { const a = i / 40 * TAU * turns, q = r * (1 - i / 44); out.push([cx + Math.cos(a) * q, cy + Math.sin(a) * q]); } return out;
+}
+
+/** Big grass and flowers along the bottom edge, in front of everything in the back layer. */
+export function front(ctx, grass, flower) {
+  ctx.save(); ctx.translate(0, 1240); ctx.scale(1.8, 1.8); const was = borderScale(1 / 1.8);
+  sticker(() => { tuft(ctx, 30, 22, grass); tuft(ctx, 200, 22, grass); tuft(ctx, 370, 22, grass); bloom(ctx, 112, 4, 13, flower); bloom(ctx, 292, 8, 12, ORANGE); });
+  borderScale(was); ctx.restore();
 }
