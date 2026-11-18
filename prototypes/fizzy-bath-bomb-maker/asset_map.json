@@ -1,1 +1,420 @@
-{}
+{
+  "sfx_pour": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "soft ASMR sound of fine powder pouring steadily into a bowl, gentle sandy hiss, close mic, no music",
+    "duration_secs": 3,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVBB5ZYSFTXYKQX1JMDJ8_f2e83eb2-186f-4a17-826a-05bf064fcd08_78a809cd-d86c-4a78-8896-b6c49c370e71.ogg",
+    "prompt": "soft ASMR sound of fine powder pouring steadily into a bowl, gentle sandy hiss, close mic, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVBB5ZYSFTXYKQX1JMDJ8_f2e83eb2-186f-4a17-826a-05bf064fcd08_78a809cd-d86c-4a78-8896-b6c49c370e71.mp3"
+  },
+  "sfx_fizz": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "satisfying ASMR bath bomb fizzing in water, dense effervescent bubbling and crackling fizz, close mic, no music",
+    "duration_secs": 1.57,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVCV60SCHNYFE1D87A4FR_b1747da4-52ea-4613-bd86-ac8eb5cefe47_5648df2e-41a2-47c2-b18e-0688e4f76776.ogg",
+    "prompt": "satisfying ASMR bath bomb fizzing in water, dense effervescent bubbling and crackling fizz, close mic, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVCV60SCHNYFE1D87A4FR_b1747da4-52ea-4613-bd86-ac8eb5cefe47_5648df2e-41a2-47c2-b18e-0688e4f76776.mp3"
+  },
+  "sfx_stir": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "ASMR spoon stirring thick wet powder paste in a ceramic bowl, soft squishy scraping, steady, no music",
+    "duration_secs": 2.86,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVDVP1826Y5T4YP1BXADZ_d0868408-5a96-4108-8631-8ba25d5ce89e_6f0d4402-16ad-4b69-b065-a0a8bf6ea505.ogg",
+    "prompt": "ASMR spoon stirring thick wet powder paste in a ceramic bowl, soft squishy scraping, steady, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVDVP1826Y5T4YP1BXADZ_d0868408-5a96-4108-8631-8ba25d5ce89e_6f0d4402-16ad-4b69-b065-a0a8bf6ea505.mp3"
+  },
+  "sfx_splash": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "a ball dropping into a bathtub, single clean cartoon water splash with a plop",
+    "duration_secs": 0.93,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVFF6M1BV9DS39MBHYK6F_a3ab8d33-4952-45d3-b8ab-0746dd3fa6f7_de133310-0d30-46d2-be7f-b67fd4a2f7d3.ogg",
+    "prompt": "a ball dropping into a bathtub, single clean cartoon water splash with a plop",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVFF6M1BV9DS39MBHYK6F_a3ab8d33-4952-45d3-b8ab-0746dd3fa6f7_de133310-0d30-46d2-be7f-b67fd4a2f7d3.mp3"
+  },
+  "sfx_drop": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "one short cute water droplet plop, bright and bubbly, cartoon game sound",
+    "duration_secs": 0.66,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVHDP8R27JK8FH32175B9_dbe0fd24-2459-4e22-b337-7b99664fa890_0d979d9d-158d-4161-a8b4-ca32d592d207.ogg",
+    "prompt": "one short cute water droplet plop, bright and bubbly, cartoon game sound",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVHDP8R27JK8FH32175B9_dbe0fd24-2459-4e22-b337-7b99664fa890_0d979d9d-158d-4161-a8b4-ca32d592d207.mp3"
+  },
+  "sfx_press": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "one short soft squishy thump, pressing damp powder into a mold, satisfying pat",
+    "duration_secs": 1.62,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVJE3VHFZ3DPBX2APG3WJ_53d90cf1-16c8-48b6-acd8-8ae27c264241_64e1196a-c6f9-4c29-b020-f99a6dbbddb2.ogg",
+    "prompt": "one short soft squishy thump, pressing damp powder into a mold, satisfying pat",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVJE3VHFZ3DPBX2APG3WJ_53d90cf1-16c8-48b6-acd8-8ae27c264241_64e1196a-c6f9-4c29-b020-f99a6dbbddb2.mp3"
+  },
+  "sfx_pop": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "short happy sparkle chime with a pop, step complete reward sound for a kids game",
+    "duration_secs": 0.96,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVKNDP35MRSQHV5CP84KH_c0e3547d-53a5-4b13-9b0b-076f96664811_dfd5364d-bb59-4c93-939c-0672e9f49f70.ogg",
+    "prompt": "short happy sparkle chime with a pop, step complete reward sound for a kids game",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVKNDP35MRSQHV5CP84KH_c0e3547d-53a5-4b13-9b0b-076f96664811_dfd5364d-bb59-4c93-939c-0672e9f49f70.mp3"
+  },
+  "sfx_win": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "magical surprise reveal fanfare, rising sparkly chimes ending in a bright ta-da, kids game prize sound",
+    "duration_secs": 2.41,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVMM3YFJJ6G1APMFABMRK_fd914c40-fb14-4dce-a0e5-d3d3d486b6f4_ca4d85ff-aa7e-47ff-95ea-6e56d56bb733.ogg",
+    "prompt": "magical surprise reveal fanfare, rising sparkly chimes ending in a bright ta-da, kids game prize sound",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVMM3YFJJ6G1APMFABMRK_fd914c40-fb14-4dce-a0e5-d3d3d486b6f4_ca4d85ff-aa7e-47ff-95ea-6e56d56bb733.mp3"
+  },
+  "sfx_squeak": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "one short rubber duck toy squeak, cute and funny",
+    "duration_secs": 1.97,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVP2636GZQ96MVQAC4P4Z_593b6286-b6cd-4384-8712-d6c0ea754b12_8ad0a3ad-7840-4da0-8f45-9f04ecccf65b.ogg",
+    "prompt": "one short rubber duck toy squeak, cute and funny",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7PEVP2636GZQ96MVQAC4P4Z_593b6286-b6cd-4384-8712-d6c0ea754b12_8ad0a3ad-7840-4da0-8f45-9f04ecccf65b.mp3"
+  },
+  "music": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "gentle happy kids spa tune, soft marimba, glockenspiel and light ukulele, bubbly and relaxing, medium tempo",
+    "duration_secs": 26.679708333333334,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7PEVQES71S8PRDRXBTYAH23_ab638132-cffa-4f5b-b639-f597bbf1fd74_50d41488-211b-4391-8f7d-f474db62396b.ogg",
+    "prompt": "gentle happy kids spa tune, soft marimba, glockenspiel and light ukulele, bubbly and relaxing, medium tempo",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7PEVQES71S8PRDRXBTYAH23_ab638132-cffa-4f5b-b639-f597bbf1fd74_50d41488-211b-4391-8f7d-f474db62396b.mp3"
+  },
+  "toy_ducky": {
+    "animation": null,
+    "aspect_ratio": [
+      731,
+      882
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky yellow rubber duck bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky yellow rubber duck bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEVXYWFA38XCR2YRYQPVZD_71e1d815-770a-4cd5-9ebc-377b63ed279b_24888cf8-df65-4317-a577-adf6141ca4d0.webp"
+  },
+  "toy_froggy": {
+    "animation": null,
+    "aspect_ratio": [
+      755,
+      851
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky green frog bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky green frog bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEVZ83656KYSE3H39M5PWD_e8e7ad81-c0cf-4e31-b936-efe42acd073b_b60a8037-0223-4ff9-a8f2-a3cfc23e7b3e.webp"
+  },
+  "toy_fishy": {
+    "animation": null,
+    "aspect_ratio": [
+      898,
+      782
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky orange fish bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky orange fish bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEW060Z3QS7WP362KJG01N_c8d81d29-7d91-4950-9213-90f10f22b4ee_c1d7cbe0-7a5c-4b6c-8f93-84f4ae91263d.webp"
+  },
+  "toy_turtle": {
+    "animation": null,
+    "aspect_ratio": [
+      862,
+      746
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky green sea turtle bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky green sea turtle bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEW1ABDY93RQY2ZTWYB0AX_72bf06ec-1eb4-43f1-a095-e022b5b3b2df_03a0409b-e380-4c9e-b77f-ea4a1f2cf4d2.webp"
+  },
+  "toy_octo": {
+    "animation": null,
+    "aspect_ratio": [
+      909,
+      860
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky purple octopus bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky purple octopus bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEW2DTBMQVC6P05MME58WW_8ce8bef1-85db-4257-990b-cfd3e4e385bb_b04e9fe2-0921-4d1f-97d0-e454f4ae1e67.webp"
+  },
+  "toy_crabby": {
+    "animation": null,
+    "aspect_ratio": [
+      914,
+      625
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky red crab bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky red crab bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEW42GMWCTJXHJT123952Q_db52b76f-59b4-46a8-bcc0-03c870bc2691_b6ebaf15-254a-491d-a0ee-345dee50cf3f.webp"
+  },
+  "toy_whale": {
+    "animation": null,
+    "aspect_ratio": [
+      1001,
+      925
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky blue whale bath toy with a little water spout, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky blue whale bath toy with a little water spout, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEW4TWB494WR7N5X1B07CA_493505a7-0e46-4fc1-89ac-1cd7da7e75c7_314e3fe2-2a87-4318-ab59-faf2fc777bc5.webp"
+  },
+  "toy_chick": {
+    "animation": null,
+    "aspect_ratio": [
+      731,
+      881
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky yellow baby chick bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky yellow baby chick bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEW5N4GS19WJQPEW18Y8VH_4c4e2cba-51c1-4fdc-8067-d6728d900422_74fccd20-4265-47c9-9ff3-aa3b69910a1f.webp"
+  },
+  "toy_unicorn": {
+    "animation": null,
+    "aspect_ratio": [
+      730,
+      914
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky white unicorn bath toy with a rainbow mane and golden horn, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky white unicorn bath toy with a rainbow mane and golden horn, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEXV1A4A2J2CYC5C8X9WHM_762bc479-6384-4fa7-acb0-c56c44f99071_4762836b-f45b-453d-b270-013e158758a5.webp"
+  },
+  "toy_dolphin": {
+    "animation": null,
+    "aspect_ratio": [
+      898,
+      760
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky blue dolphin bath toy jumping, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky blue dolphin bath toy jumping, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEXW1PQNE1MMZK6WG5K8D7_9d58f63a-8dee-47d5-b239-50ec72751c6c_8714cb1b-bf3f-4f08-8763-2c5159a39f76.webp"
+  },
+  "toy_sharky": {
+    "animation": null,
+    "aspect_ratio": [
+      909,
+      844
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky friendly smiling shark bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky friendly smiling shark bath toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, side view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEXWX2XE77YBER2AAEJ7FT_bf84308f-6f07-4c79-bd53-e3ffd069ddba_bea9e20b-fb4d-4f4d-9a7a-eacda545248a.webp"
+  },
+  "toy_teddy": {
+    "animation": null,
+    "aspect_ratio": [
+      789,
+      1059
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky brown teddy bear toy with a pink bow, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky brown teddy bear toy with a pink bow, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEXXNKGKY90XWYM6V674FF_93bb90b0-1620-4a5b-ac89-b494d002a119_24a203bd-ab82-43a1-9bd0-413223f7994a.webp"
+  },
+  "toy_butterfly": {
+    "animation": null,
+    "aspect_ratio": [
+      929,
+      818
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky pink and purple butterfly toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view, wings open",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky pink and purple butterfly toy, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front view, wings open",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEXYDZFM3HJ74SXYGEKTWF_c8a6833b-0625-4b8a-9a47-8f486640ffc1_d3b2ade1-3ab3-4271-b8d0-6de81cf9d63d.webp"
+  },
+  "toy_dragon": {
+    "animation": null,
+    "aspect_ratio": [
+      872,
+      897
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky baby dragon toy, teal with orange wings, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky baby dragon toy, teal with orange wings, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single object centered, front three-quarter view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEXZ6TTDM1DA4YEK2V168T_20e74b83-ddf7-4faf-8cfa-6d5e1facc7ab_46d5e526-ea50-4e69-a8cf-64634e311252.webp"
+  },
+  "toy_crown": {
+    "animation": null,
+    "aspect_ratio": [
+      789,
+      902
+    ],
+    "compression_suggestion": "original",
+    "description": "shiny golden royal crown toy with colorful gems, glossy 3D kawaii toy style, bright saturated colors, sparkles, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "shiny golden royal crown toy with colorful gems, glossy 3D kawaii toy style, bright saturated colors, sparkles, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEY02BS8AG6SGXSW14F2J7_207b269f-e301-42d6-9aec-a05c2b7aa21d_14e8772b-1a2b-4287-a936-966a88f900f5.webp"
+  },
+  "toy_diamond": {
+    "animation": null,
+    "aspect_ratio": [
+      980,
+      792
+    ],
+    "compression_suggestion": "original",
+    "description": "giant sparkling rainbow diamond gem toy with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, sparkles, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "giant sparkling rainbow diamond gem toy with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, sparkles, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEY0T2HCR1G212MWPRNCGG_7ae5794f-0443-4cbe-88f4-80a61db9c367_98ef9ca8-ab9c-40bf-9a57-ffe3afa1d0f3.webp"
+  },
+  "bg_bathroom": {
+    "animation": null,
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "description": "bright cheerful kids bathroom craft table background, portrait orientation, pastel pink and sky blue tiles, soft bubbles floating, sunny window light, plain empty table surface in the lower half, no characters, no text, glossy 3D kawaii style, soft and uncluttered",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "bright cheerful kids bathroom craft table background, portrait orientation, pastel pink and sky blue tiles, soft bubbles floating, sunny window light, plain empty table surface in the lower half, no characters, no text, glossy 3D kawaii style, soft and uncluttered",
+    "subtype": "background",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEZP52K4P6Z4EFW66W8WA7_aba918cc-1f48-421b-92f1-3613617b8d4f_9558c974-6fcd-4700-aec9-5c68ef47dfad.webp"
+  },
+  "jar_powder": {
+    "animation": null,
+    "aspect_ratio": [
+      613,
+      918
+    ],
+    "compression_suggestion": "original",
+    "description": "cute glass jar full of white sparkly bath powder, upright, yellow lid, pink label with a star, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute glass jar full of white sparkly bath powder, upright, yellow lid, pink label with a star, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEZQPXYDHBC619DS826GRH_56c78e1b-21d3-4a1f-aacb-3e3c6857d594_4cfe16ab-a64c-46aa-972a-bc3989eddba0.webp"
+  }
+}

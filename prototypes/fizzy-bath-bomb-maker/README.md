@@ -29,7 +29,7 @@ player, and the number of toys owned is the leaderboard score. There is no fail 
 - `game.js`: all game code. `run(mode)` is the entry point. `update` runs only in play mode;
   edit mode shows a live picture of step 1.
 - `game_config.json`: tunable numbers (step lengths, rarity weights) and the leaderboard declaration.
-- `asset_map.json`: optional art and sound. Ids `toy_<name>` (16 toys), `sfx_pour`, `sfx_drop`, `sfx_stir`,
+- `asset_map.json`: art and sound made with Astrocade's generators. Ids `toy_<name>` (16 toys), `bg_bathroom`, `jar_powder`, `sfx_pour`, `sfx_drop`, `sfx_stir`,
   `sfx_press`, `sfx_pop`, `sfx_splash`, `sfx_fizz`, `sfx_win`, `sfx_squeak`, `music`. A missing id falls back to
   emoji or synthesized sound.
 
