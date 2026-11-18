@@ -21,5 +21,8 @@
   "morphSeconds": 0.4,
   "wallSeconds": 10,
   "cardRestSeconds": 4.5,
-  "wallEndPause": 1.2
+  "wallEndPause": 1.2,
+  "jarDrops": 6,
+  "boxAutoOpen": 3,
+  "boxShowSeconds": 2.6
 }
