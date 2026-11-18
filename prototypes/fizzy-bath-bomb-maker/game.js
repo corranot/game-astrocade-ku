@@ -8,20 +8,13 @@
  * topping or charm; decorating fills a Luck meter that raises rare-toy odds; a
  * duplicate toy pays a star, and stars buy a golden bomb (rare toy guaranteed).
  * There is no fail state: a step that is not finished only asks for a bit more.
- * Tunable numbers live in game_config.json. Art and sound come from asset_map.json
+ * The game shows the player's device language when it has strings for it (cfg.strings), else English.
+ * Tunable numbers and all player-facing text live in game_config.json. Art and sound come from asset_map.json
  * when an asset exists; otherwise the game draws emoji and synthesizes sound.
  */
 const W = 720, H = 1280, TAU = Math.PI * 2;
 const BOWL = { x: 360, y: 660 }, ROW_Y = 960, BTN_Y = 1150, BALL = { x: 360, y: 560, r: 180 }, WATER_Y = 800;
-const MUTE = { x: 478, y: 70 };
-const STEPS = [
-  { say: 'Hold to pour!', done: 'Nice pour!' },
-  { say: 'Tap a color!', done: 'So pretty!' },
-  { say: 'Stir it up!', done: 'All mixed!' },
-  { say: 'Tap to press!', done: 'Perfect!' },
-  { say: 'Decorate it!', done: 'Gorgeous!' },
-  { say: 'Drop it in the bath!', done: '' },
-];
+const MUTE = { x: 478, y: 70 }, LANG_BTN = { y: 1100 };
 const COLORS = [
   { n: 'Pink', c: [255, 92, 168] }, { n: 'Yellow', c: [255, 200, 0] }, { n: 'Blue', c: [64, 190, 255] },
   { n: 'Purple', c: [160, 110, 255] }, { n: 'Green', c: [70, 215, 120] },
@@ -32,7 +25,7 @@ const TOPS = [
 ];
 const MOLDS = ['Ball', 'Heart', 'Star', 'Donut', 'Flower'];
 const PERKS = ['Twin charm', 'Golden charm']; // each doubles the chance of a double toy / a golden bomb
-const RARITY = [{ n: 'COMMON', c: '#27a8ff' }, { n: 'RARE', c: '#a352ff' }, { n: 'EPIC', c: '#ff7a00' }, { n: 'LEGENDARY', c: '#f08a00' }];
+const RARITY = [{ c: '#27a8ff' }, { c: '#a352ff' }, { c: '#ff7a00' }, { c: '#f08a00' }];
 const TOYS = [
   ['🦆', 'Ducky', 0], ['🐸', 'Froggy', 0], ['🐟', 'Fishy', 0], ['🐢', 'Turtle', 0], ['🐙', 'Octo', 0], ['🦀', 'Crabby', 0],
   ['🐳', 'Whale', 0], ['🐥', 'Chick', 0], ['🦄', 'Unicorn', 1], ['🐬', 'Dolphin', 1], ['🦈', 'Sharky', 1], ['🧸', 'Teddy', 1],
@@ -44,22 +37,32 @@ const DEBUG = location.search.includes('local');
 
 let cv, g, cfg, mode, S, raf = 0, last = 0, bound = false, touched = false, board = null;
 let ac = null, master = null;
-let save = { owned: [], gold: [], made: 0, stars: 0, dupes: 0, muted: false };
+let save = { owned: [], gold: [], made: 0, stars: 0, dupes: 0, muted: false, lang: null };
+let lang = 'en', quality = 1, slow = 0;
 const IMG = {}, GOLD = {}, BUF = {}, LOOPS = {};
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 const backOut = t => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
-const slotX = i => 104 + i * 128;
-const slotAt = p => Math.abs(p.y - ROW_Y) < 75 ? Math.round((p.x - 104) / 128) : -1;
+/** Player-facing text for key `k` in the current language; English when the language lacks it. All text lives in cfg.strings. */
+const T = k => (cfg.strings[lang] && cfg.strings[lang][k]) || cfg.strings.en[k] || k;
+/** The first device language the game has strings for, else English. */
+function detectLang() {
+  for (const l of navigator.languages || [navigator.language || 'en']) { const base = String(l).toLowerCase().split('-')[0]; if (cfg.strings[base]) return base; }
+  return 'en';
+}
+const rtl = () => cfg.rtl.includes(lang);
+/** Mirror an x position for right-to-left languages, so rows and the HUD read from the right. */
+const mx = x => rtl() ? W - x : x;
+const slotX = i => mx(104 + i * 128);
+const slotAt = p => Math.abs(p.y - ROW_Y) < 75 ? Math.round((mx(p.x) - 104) / 128) : -1;
 const inBtn = p => Math.abs(p.x - 360) < 200 && Math.abs(p.y - BTN_Y) < 75;
 const fillRule = kind => kind === 3 ? 'evenodd' : 'nonzero';
 const albumDone = () => save.owned.length >= TOYS.length;
 /** Bombs still to make before a mold, color, topping or charm opens. 0 means it is open. */
 const bombsUntil = (kind, i) => Math.max(0, ...cfg.unlocks.filter(u => u.kind === kind && u.i === i).map(u => u.at - save.made));
 const isOpen = (kind, i) => bombsUntil(kind, i) === 0;
-const unlockName = u => u.kind === 'mold' ? MOLDS[u.i] + ' mold' : u.kind === 'color' ? COLORS[u.i].n + ' color' : u.kind === 'top' ? TOPS[u.i].n + ' topping' : PERKS[u.i];
 const perk = i => cfg.unlocks.some(u => u.kind === 'perk' && u.i === i) && isOpen('perk', i) ? 2 : 1;
 const luck = () => Math.min(1, S.tops.length / cfg.luckToppings);
 
@@ -68,7 +71,7 @@ function mergeSave(a, b) {
   const union = (x, y) => [...new Set([...(x || []), ...(y || [])])];
   return {
     owned: union(a.owned, b.owned), gold: union(a.gold, b.gold), made: Math.max(a.made || 0, b.made || 0),
-    stars: Math.max(a.stars || 0, b.stars || 0), dupes: Math.max(a.dupes || 0, b.dupes || 0), muted: !!(a.muted || b.muted),
+    stars: Math.max(a.stars || 0, b.stars || 0), dupes: Math.max(a.dupes || 0, b.dupes || 0), muted: !!(a.muted || b.muted), lang: a.lang || b.lang || null,
   };
 }
 const persist = () => { lib.saveUserGameState(save).catch(() => {}); };
@@ -162,6 +165,7 @@ function setMuted(m) { save.muted = m; if (master) master.gain.value = m ? 0 : 1
 /* ---------- feedback ---------- */
 const toast = (txt, c = '#ff2d8a') => { S.F = [{ txt, c, life: 1.3 }]; };
 function burst(x, y, n, col, speed = 320, grav = 700, r = 9) {
+  n = Math.ceil(n * quality);
   for (let i = 0; i < n; i++) {
     const a = rnd(0, TAU), v = rnd(0.3, 1) * speed;
     S.P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.4, g: grav, r: rnd(0.5, 1) * r, c: col || rgb(COLORS[i % 5].c), life: rnd(0.5, 1), max: 1 });
@@ -171,7 +175,7 @@ const fanfare = n => [523, 659, 784, 1047, 1319].slice(0, n).forEach((f, i) => s
 function complete() {
   S.ok = true; S.okT = 0;
   const gold = S.step === 3 && S.golden;
-  toast(gold ? 'GOLDEN BOMB!' : STEPS[S.step].done, gold ? '#ffb800' : '#ff2d8a');
+  toast(gold ? T('goldenBomb') : T('d' + S.step), gold ? '#ffb800' : '#ff2d8a');
   burst(360, 520, gold ? 90 : 40, gold ? '#ffd000' : null, 520);
   sfx('sfx_pop', () => fanfare(gold ? 5 : 3));
   lib.haptics.play('success');
@@ -181,16 +185,20 @@ function advance() {
   S.step++; S.prog = 0; S.ok = false; S.okT = 0; S.idle = 0;
   beep(880, 0.1, 'triangle', 0.1, 300);
 }
-function locked(kind, i) { const n = bombsUntil(kind, i); toast(`${n} more bomb${n > 1 ? 's' : ''}!`, '#7a3cff'); beep(200, 0.1, 'square', 0.06); }
+function locked(kind, i) { toast('🔒 ' + bombsUntil(kind, i), '#7a3cff'); beep(200, 0.1, 'square', 0.06); }
 
 /* ---------- input ---------- */
 function onDown(p) {
   if (ac && ac.state === 'suspended') ac.resume();
   if (!touched) { touched = true; if (S.step === 0) S.prog = 0; hum('music', true, 0.3); }
   S.ptr = { ...p, down: true }; S.idle = 0;
-  if (S.album) { S.album = false; return; }
-  if (p.y < 130 && Math.abs(p.x - MUTE.x) < 52) { setMuted(!save.muted); persist(); beep(700, 0.06); return; }
-  if (p.y < 130 && p.x > 540) { openAlbum(); return; }
+  if (S.album) {
+    if (Math.abs(p.y - LANG_BTN.y) < 55 && Math.abs(p.x - 360) < 210) { const all = Object.keys(cfg.strings); lang = save.lang = all[(all.indexOf(lang) + 1) % all.length]; persist(); beep(700, 0.06); }
+    else S.album = false;
+    return;
+  }
+  if (p.y < 130 && Math.abs(p.x - mx(MUTE.x)) < 52) { setMuted(!save.muted); persist(); beep(700, 0.06); return; }
+  if (p.y < 130 && Math.abs(p.x - mx(623)) < 90) { openAlbum(); return; }
   if (S.prizes) {
     if (S.reveal > cfg.revealButtonDelay && inBtn(p)) { newBomb(); beep(660, 0.12, 'triangle', 0.12, 400); }
     else if (S.reveal > 0.3) { S.poke = 1; burst(360, 560, 12, 'rgba(120,210,255,0.9)', 300, 500, 10); sfx('sfx_squeak', () => beep(900, 0.12, 'square', 0.08, 500)); lib.haptics.play('tap'); }
@@ -201,7 +209,7 @@ function onDown(p) {
   if (S.step === 0 && !S.ok) S.pourT = cfg.tapPourSeconds; // a quick tap pours too: small kids tap, they do not hold
   else if (S.step === 1 && slot >= 0 && slot < COLORS.length) {
     if (!isOpen('color', slot)) return locked('color', slot);
-    if (S.drops + S.falling.length >= cfg.maxDrops) return toast('Bowl is full!', '#7a3cff');
+    if (S.drops + S.falling.length >= cfg.maxDrops) return toast(T('bowlFull'), '#7a3cff');
     S.falling.push({ x: 360, y: 300, vy: 0, i: slot }); beep(500 + slot * 60, 0.07);
   } else if (S.step === 3 && !S.ok) {
     if (slot >= 0 && slot < MOLDS.length) { if (!isOpen('mold', slot)) return locked('mold', slot); S.mold = slot; beep(600 + slot * 70, 0.06); return; }
@@ -231,8 +239,8 @@ function onMove(p) {
 function onUp() {
   if (!S.ptr.down) return;
   S.ptr.down = false; S.lastStamp = null; hum('sfx_stir', false);
-  if (S.step === 0 && !S.ok && S.prog > 0) toast('Keep pouring!', '#7a3cff');
-  if (S.step === 2 && !S.ok && S.prog > 0) toast('Keep stirring!', '#7a3cff');
+  if (S.step === 0 && !S.ok && S.prog > 0) toast(T('keepPouring'), '#7a3cff');
+  if (S.step === 2 && !S.ok && S.prog > 0) toast(T('keepStirring'), '#7a3cff');
   if (S.step === 5 && S.ball.held) { S.ball.held = false; S.ball.loose = true; }
 }
 function stamp(p) {
@@ -245,7 +253,7 @@ function stamp(p) {
   if (S.tops.length > cfg.maxToppings) S.tops.shift();
   burst(p.x, p.y, 5, '#fff', 160, 300, 5); sfx('sfx_drop', () => beep(rnd(700, 1100), 0.05, 'triangle', 0.08), 0.5); lib.haptics.play('tick');
   if (!S.ok && S.tops.length >= cfg.toppingsNeeded) complete();
-  else if (before < 1 && luck() >= 1) { toast('MAX LUCK!', '#22b455'); burst(360, 280, 40, '#35d07f', 420); fanfare(4); }
+  else if (before < 1 && luck() >= 1) { toast(T('maxLuck'), '#22b455'); burst(360, 280, 40, '#35d07f', 420); fanfare(4); }
 }
 function openAlbum() {
   S.album = true; beep(700, 0.06);
@@ -275,7 +283,7 @@ function update(dt) {
     const flowing = pouring && S.jar > 1.2;
     if (flowing) {
       if (touched) S.prog = Math.min(1, S.prog + dt / cfg.pourSeconds);
-      for (let i = 0; i < 4; i++) S.P.push({ x: 384 + rnd(-10, 10), y: 450, vx: rnd(-40, 40), vy: rnd(250, 380), g: 900, r: rnd(4, 9), c: '#ffffff', life: 0.42, max: 0.42 });
+      for (let i = 0; i < 4 * quality; i++) S.P.push({ x: 384 + rnd(-10, 10), y: 450, vx: rnd(-40, 40), vy: rnd(250, 380), g: 900, r: rnd(4, 9), c: '#ffffff', life: 0.42, max: 0.42 });
       if (S.prog >= 1) complete();
     }
     if (!hum('sfx_pour', flowing && touched) && flowing && touched && (S.tick += dt) > 0.07) { S.tick = 0; beep(rnd(500, 900), 0.04, 'sine', 0.05); }
@@ -288,7 +296,7 @@ function update(dt) {
     S.col = k.c; S.cols = [...S.cols.filter(c => c !== k.c), k.c].slice(-3); S.drops++;
     S.spots.push({ x: rnd(-150, 150), y: rnd(-18, 18), c: k.c });
     burst(360, BOWL.y, 16, rgb(k.c), 300, 800, 10); sfx('sfx_drop', () => beep(400, 0.12, 'sine', 0.12, -200)); lib.haptics.play('tap');
-    if (S.drops <= cfg.dropsNeeded) toast(`${k.n}! ${S.drops}/${cfg.dropsNeeded}`, rgb(k.c));
+    if (S.drops <= cfg.dropsNeeded) toast(`${S.drops}/${cfg.dropsNeeded}`, rgb(k.c));
     if (!S.ok && S.step === 1 && S.drops >= cfg.dropsNeeded) complete();
     return false;
   });
@@ -307,7 +315,7 @@ function updateBath(dt) {
     b.y += (900 + Math.sin(S.t * 5) * 8 - b.y) * Math.min(1, dt * 6);
     S.fizz = Math.min(1, S.fizz + dt / cfg.fizzSeconds);
     b.r = 110 * (1 - S.fizz * 0.8); S.shake = Math.max(S.shake, 3);
-    for (let i = 0; i < 3; i++) S.P.push({ x: b.x + rnd(-b.r, b.r), y: b.y, vx: rnd(-60, 60), vy: rnd(-260, -120), g: -200, r: rnd(5, 16), c: Math.random() < 0.5 ? 'rgba(255,255,255,0.85)' : rgb(S.golden ? [255, 208, 0] : S.col, 0.8), life: rnd(0.4, 0.9), max: 0.9 });
+    for (let i = 0; i < 3 * quality; i++) S.P.push({ x: b.x + rnd(-b.r, b.r), y: b.y, vx: rnd(-60, 60), vy: rnd(-260, -120), g: -200, r: rnd(5, 16), c: Math.random() < 0.5 ? 'rgba(255,255,255,0.85)' : rgb(S.golden ? [255, 208, 0] : S.col, 0.8), life: rnd(0.4, 0.9), max: 0.9 });
     if (!hum('sfx_fizz', true) && (S.tick += dt) > 0.06) { S.tick = 0; beep(rnd(1200, 2600), 0.03, 'sine', 0.04); }
     if (S.fizz >= 1) reveal();
     return;
@@ -336,7 +344,7 @@ function reveal() {
   }
   save.made++;
   S.unlock = cfg.unlocks.find(u => u.at === save.made) || null;
-  S.note = !wasDone && albumDone() ? 'ALBUM COMPLETE! 👑' : S.unlock ? 'NEW: ' + unlockName(S.unlock) + '!' : save.stars >= cfg.starsForGolden ? 'NEXT: GOLDEN BOMB!' : '';
+  S.note = !wasDone && albumDone() ? T('albumDone') + ' 👑' : S.unlock ? '🔓' : save.stars >= cfg.starsForGolden ? T('nextGolden') : '';
   S.reveal = 0; S.shake = 18;
   stopLoops(); lib.haptics.play('success');
   burst(360, 600, S.note ? 140 : 90, null, 760, 800, 12);
@@ -347,8 +355,12 @@ function reveal() {
 
 /* ---------- drawing ---------- */
 function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
-function txt(s, x, y, size, fill = '#5a1e86', stroke = '#fff', sw = 12) {
-  g.font = `900 ${size}px "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif`;
+/** Centred text. A string wider than maxW is drawn smaller, so a long translation never runs off the screen. */
+function txt(s, x, y, size, fill = '#5a1e86', stroke = '#fff', sw = 12, maxW = 660) {
+  const font = px => `900 ${px}px "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif`;
+  g.font = font(size);
+  const wide = g.measureText(s).width;
+  if (wide > maxW) g.font = font(size * maxW / wide);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
   if (stroke) { g.lineWidth = sw; g.strokeStyle = stroke; g.strokeText(s, x, y); }
   g.fillStyle = fill; g.fillText(s, x, y);
@@ -398,7 +410,7 @@ function button(label, col) {
   g.fillStyle = 'rgba(90,30,134,0.35)'; rr(-190, -55, 380, 130, 60); g.fill();
   g.fillStyle = col; rr(-190, -65, 380, 130, 60); g.fill();
   g.fillStyle = 'rgba(255,255,255,0.3)'; rr(-170, -55, 340, 46, 30); g.fill();
-  txt(label, 0, 2, label.length > 8 ? 44 : 58, '#fff', '#5a1e86', 10); g.restore();
+  txt(label, 0, 2, 58, '#fff', '#5a1e86', 10, 330); g.restore();
 }
 function bombBall(x, y, r) {
   const cols = S.cols.length ? S.cols : [S.col], gr = g.createLinearGradient(x - r, y - r, x + r, y + r);
@@ -491,29 +503,31 @@ function drawScene() {
 }
 function drawHud() {
   for (let i = 0; i < 6; i++) {
-    const x = 46 + i * 62, cur = i === S.step;
+    const x = mx(46 + i * 62), cur = i === S.step;
     g.fillStyle = i < S.step ? '#35d07f' : cur ? '#ff2d8a' : '#fff';
     g.beginPath(); g.arc(x, 70, cur ? 30 : 24, 0, TAU); g.fill();
     g.lineWidth = 6; g.strokeStyle = '#5a1e86'; g.stroke();
     txt(i < S.step ? '✓' : String(i + 1), x, 72, cur ? 36 : 28, i <= S.step ? '#fff' : '#5a1e86', null);
   }
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(MUTE.x, MUTE.y, 44, 0, TAU); g.fill(); g.lineWidth = 6; g.strokeStyle = '#5a1e86'; g.stroke();
-  emo(save.muted ? '🔇' : '🔊', MUTE.x, MUTE.y + 3, 46);
-  g.fillStyle = '#fff'; rr(540, 28, 166, 84, 42); g.fill(); g.lineWidth = 6; g.strokeStyle = '#5a1e86'; g.stroke();
-  emo(albumDone() ? '👑' : '🎁', 582, 72, 42);
-  txt(`${albumDone() ? save.gold.length : save.owned.length}/${TOYS.length}`, 652, 72, 34, '#5a1e86', null);
-  if (!S.prizes) txt(STEPS[S.step].say, 360, 200, 62);
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(mx(MUTE.x), MUTE.y, 44, 0, TAU); g.fill(); g.lineWidth = 6; g.strokeStyle = '#5a1e86'; g.stroke();
+  emo(save.muted ? '🔇' : '🔊', mx(MUTE.x), MUTE.y + 3, 46);
+  const chip = mx(623) - 83;
+  g.fillStyle = '#fff'; rr(chip, 28, 166, 84, 42); g.fill(); g.lineWidth = 6; g.strokeStyle = '#5a1e86'; g.stroke();
+  emo(albumDone() ? '👑' : '🎁', chip + 42, 72, 42);
+  txt(`${albumDone() ? save.gold.length : save.owned.length}/${TOYS.length}`, chip + 112, 72, 34, '#5a1e86', null);
+  if (!S.prizes) txt(T('s' + S.step), 360, 200, 62);
   if (!S.prizes && (S.step > 0 || S.prog > 0)) {
     const isLuck = S.step === 4;
     const p = S.step === 1 ? S.drops / cfg.dropsNeeded : isLuck ? luck() : S.step === 5 ? S.fizz : S.prog;
     g.fillStyle = '#fff'; rr(160, 250, 400, 34, 17); g.fill();
-    g.fillStyle = isLuck && p >= 1 ? '#ffc400' : '#35d07f'; rr(160, 250, 400 * Math.min(1, p), 34, 17); g.fill();
+    const fillW = 400 * Math.min(1, p);
+    g.fillStyle = isLuck && p >= 1 ? '#ffc400' : '#35d07f'; rr(rtl() ? 560 - fillW : 160, 250, fillW, 34, 17); g.fill();
     g.lineWidth = 6; g.strokeStyle = '#5a1e86'; rr(160, 250, 400, 34, 17); g.stroke();
     // Luck needs no words: a clover on the left, and the rarest toy growing on the right as the bar fills.
-    if (isLuck) { emo('🍀', 118, 268, 64); pic('toy_diamond', '💎', 612, 266, 60 + p * 30 + (p >= 1 ? Math.sin(S.t * 8) * 6 : 0)); }
+    if (isLuck) { emo('🍀', mx(118), 268, 64); pic('toy_diamond', '💎', mx(612), 266, 60 + p * 30 + (p >= 1 ? Math.sin(S.t * 8) * 6 : 0)); }
   }
-  if (S.ok && S.step === 1) button('NEXT', '#35d07f');
-  if (S.ok && S.step === 4) button('DROP IT!', '#ff2d8a');
+  if (S.ok && S.step === 1) button(T('next'), '#35d07f');
+  if (S.ok && S.step === 4) button(T('dropIt'), '#ff2d8a');
   for (const f of S.F) {
     const k = Math.min(1, (1.3 - f.life) * 6);
     g.save(); g.globalAlpha = Math.min(1, f.life * 3); g.translate(360, 390 - (1.3 - f.life) * 30); g.scale(backOut(k), backOut(k));
@@ -541,39 +555,52 @@ function drawReveal() {
   g.restore();
   const size = (two ? 190 : 260) * Math.max(0.01, backOut(k));
   S.prizes.forEach((p, i) => pic(p.toy.id, p.toy.e, 360 + (two ? (i ? 140 : -140) : 0), 900 - 340 * backOut(k) + Math.sin(S.t * 4 + i) * 8, size, { sx: 1 + S.poke * 0.25, sy: 1 - S.poke * 0.3, gold: p.gold }));
-  txt((gold ? 'GOLDEN ' : '') + best.n, 360, 300, gold ? 52 : 60, gold ? '#f08a00' : best.c, '#fff', 14);
+  txt((gold ? T('gold') + ' · ' : '') + T('r' + top), 360, 300, gold ? 52 : 60, gold ? '#f08a00' : best.c, '#fff', 14);
   if (S.reveal > 0.5) {
-    txt(S.prizes.map(p => p.toy.n).join(' + ') + '!', 360, 790, two ? 58 : 84);
     // A duplicate is never a loss: it pays a star toward a golden bomb.
-    txt(two ? 'DOUBLE TOY!' : anyNew ? 'NEW TOY!' : '+1 ⭐', 360, 866, 52, anyNew || two ? '#ff2d8a' : '#ff9d00');
-    txt(`${albumDone() ? '👑 ' + save.gold.length : '🎁 ' + save.owned.length}/${TOYS.length}` + (save.stars || dupes ? `   ⭐ ${save.stars}/${cfg.starsForGolden}` : ''), 360, 936, 46);
-    if (S.note) txt(S.note, 360, 1010, 50, '#22b455', '#fff', 14);
+    txt(two ? T('doubleToy') : anyNew ? T('newToy') : '+1 ⭐', 360, 800, 70, anyNew || two ? '#ff2d8a' : '#ff9d00');
+    txt(`${albumDone() ? '👑 ' + save.gold.length : '🎁 ' + save.owned.length}/${TOYS.length}` + (save.stars || dupes ? `   ⭐ ${save.stars}/${cfg.starsForGolden}` : ''), 360, 885, 48);
+    // An unlock is shown as a picture (open padlock + the new thing), so it needs no translation.
+    if (S.note) txt(S.note, S.unlock ? mx(300) : 360, 968, S.unlock ? 64 : 50, '#22b455', '#fff', 14);
+    if (S.unlock) drawUnlock(S.unlock, mx(410), 968);
   }
-  if (S.reveal > cfg.revealButtonDelay) button('MAKE ANOTHER', '#35d07f');
+  if (S.reveal > cfg.revealButtonDelay) button(T('again'), '#35d07f');
+}
+/** What a bomb unlocked, as a picture instead of words. */
+function drawUnlock(u, x, y) {
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 50, 0, TAU); g.fill(); g.lineWidth = 6; g.strokeStyle = '#22b455'; g.stroke();
+  if (u.kind === 'mold') { shapePath(u.i, x, y + (u.i === 1 ? 4 : 0), 28); g.fillStyle = '#ff2d8a'; g.fill(fillRule(u.i)); }
+  else if (u.kind === 'color') { g.fillStyle = rgb(COLORS[u.i].c); g.beginPath(); g.arc(x, y, 34, 0, TAU); g.fill(); }
+  else if (u.kind === 'top') pic(TOPS[u.i].id, TOPS[u.i].e, x, y, 58);
+  else emo(u.i ? '✨' : '🍀', x, y + 3, 56);
 }
 function drawAlbum() {
   g.fillStyle = 'rgba(90,30,134,0.6)'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#fff'; rr(50, 170, 620, 960, 50); g.fill();
-  txt(`MY TOYS ${save.owned.length}/${TOYS.length}`, 360, 240, 56, '#5a1e86', null);
+  g.fillStyle = '#fff'; rr(50, 150, 620, 1010, 50); g.fill();
+  txt(`${T('myToys')} ${save.owned.length}/${TOYS.length}`, 360, 218, 54, '#5a1e86', null, 12, 560);
   TOYS.forEach((t, i) => {
-    const x = 140 + (i % 4) * 147, y = 360 + (i / 4 | 0) * 142, has = save.owned.includes(t.e), gold = save.gold.includes(t.e);
+    const x = mx(140 + (i % 4) * 147), y = 330 + (i / 4 | 0) * 138, has = save.owned.includes(t.e), gold = save.gold.includes(t.e);
     g.fillStyle = gold ? '#ffe680' : has ? '#fff3c4' : '#ece6f2'; rr(x - 62, y - 62, 124, 124, 26); g.fill();
     g.lineWidth = gold ? 10 : 6; g.strokeStyle = gold ? '#ffb800' : has ? RARITY[t.r].c : '#cfc4dc'; g.stroke();
     if (has) pic(t.id, t.e, x, y + 4, 86, { gold }); else txt('?', x, y + 4, 64, '#b9aacb', null);
   });
-  txt(albumDone() ? `👑 GOLD ${save.gold.length}/${TOYS.length}` : `⭐ ${save.stars}/${cfg.starsForGolden}  =  golden bomb`, 360, 900, 40, '#ff9d00', null);
+  txt(albumDone() ? `👑 ${T('gold')} ${save.gold.length}/${TOYS.length}` : `⭐ ${save.stars}/${cfg.starsForGolden} = ${T('goldenBomb')}`, 360, 860, 38, '#ff9d00', null, 12, 560);
   if (board && board.length) {
-    txt('TOP COLLECTORS', 360, 965, 36, '#5a1e86', null);
-    board.forEach((e, i) => txt(`${i + 1}. ${String(e.username).slice(0, 14)}  ${e.score}`, 360, 1012 + i * 38, 32, '#7a3cff', null));
+    txt(T('top'), 360, 915, 34, '#5a1e86', null, 12, 560);
+    board.forEach((e, i) => txt(`${i + 1}. ${String(e.username).slice(0, 14)}  ${e.score}`, 360, 955 + i * 35, 30, '#7a3cff', null));
   }
+  // Language is detected from the device; this button lets the player step through the others.
+  g.fillStyle = '#eef7ff'; rr(160, LANG_BTN.y - 42, 400, 84, 42); g.fill(); g.lineWidth = 6; g.strokeStyle = '#27a8ff'; g.stroke();
+  txt('🌐 ' + T('name'), 360, LANG_BTN.y + 2, 40, '#1877c9', null, 12, 340);
 }
 function draw() {
+  g.direction = rtl() ? 'rtl' : 'ltr';
   const bg = g.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#ffe36e'); bg.addColorStop(0.55, '#ffb3d9'); bg.addColorStop(1, '#8fe0ff');
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
   if (ready('bg_bathroom')) { const im = IMG.bg_bathroom, k = Math.max(W / im.naturalWidth, H / im.naturalHeight); g.drawImage(im, (W - im.naturalWidth * k) / 2, (H - im.naturalHeight * k) / 2, im.naturalWidth * k, im.naturalHeight * k); g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(0, 0, W, H); } // washed out so the HUD and choices stay readable
   g.fillStyle = 'rgba(255,255,255,0.35)';
-  for (let i = 0; i < 14; i++) { g.beginPath(); g.arc((i * 173) % W, (i * 311 + S.t * 30) % H, 14 + (i % 3) * 8, 0, TAU); g.fill(); }
+  for (let i = 0; i < 14 * quality; i++) { g.beginPath(); g.arc((i * 173) % W, (i * 311 + S.t * 30) % H, 14 + (i % 3) * 8, 0, TAU); g.fill(); }
   g.save(); g.translate(rnd(-1, 1) * S.shake, rnd(-1, 1) * S.shake);
   drawScene();
   for (const p of S.P) { g.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * 2)); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.fill(); }
@@ -581,10 +608,14 @@ function draw() {
   if (S.prizes) drawReveal();
   drawHud();
   if (S.album) drawAlbum();
-  if (DEBUG) Object.assign(cv.dataset, { step: S.step, toy: S.prizes ? S.prizes.map(p => p.toy.n).join('+') : '', made: save.made, muted: save.muted ? 1 : 0, prog: S.prog.toFixed(3) });
+  if (DEBUG) Object.assign(cv.dataset, { step: S.step, toy: S.prizes ? S.prizes.map(p => p.toy.n).join('+') : '', made: save.made, muted: save.muted ? 1 : 0, prog: S.prog.toFixed(3), lang, rtl: rtl() ? 1 : 0, quality });
 }
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.11); last = now;
+  // Auto-detect a slow device: under 40 FPS for cfg.lowFpsSeconds halves particles and background bubbles.
+  // shortcut: quality never climbs back in a session; add a recovery timer if a brief stall proves too costly.
+  slow = dt > 1 / 40 ? slow + dt : Math.max(0, slow - dt);
+  if (slow > cfg.lowFpsSeconds) quality = 0.5;
   if (mode === 'play') update(dt); else S.t += dt; // edit mode: a live picture, no gameplay
   draw();
   raf = requestAnimationFrame(frame);
@@ -612,13 +643,14 @@ function run(m) {
       'Duplicates before a sure new toy': slider('pityDupes', 1, 10, 1),
     },
   });
+  lang = save.lang || detectLang();
   loadImages();
   cancelAnimationFrame(raf); newBomb();
   if (mode === 'play') {
     initAudio(); bindInput();
     lib.getUserGameState().then(r => {
       if (!(r && r.state && Array.isArray(r.state.owned))) return;
-      save = mergeSave(save, r.state); setMuted(save.muted);
+      save = mergeSave(save, r.state); setMuted(save.muted); lang = save.lang || detectLang();
       if (!touched) newBomb(); // pick up the molds this player has already unlocked
     }).catch(() => {});
   }
@@ -630,7 +662,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getAsset: id => window.__assets[id], getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
-  window.__game = { pickToy, drawPrize, mergeSave, newBomb, bombsUntil, get S() { return S; }, get save() { return save; }, set save(v) { save = v; } };
+  window.__game = { pickToy, drawPrize, mergeSave, newBomb, bombsUntil, detectLang, get S() { return S; }, get save() { return save; }, set save(v) { save = v; } };
   const q = new URLSearchParams(location.search);
   Promise.all(['game_config.json', 'asset_map.json'].map(f => fetch(f).then(r => r.json()))).then(([c, assets]) => {
     window.__assets = q.has('noassets') ? {} : assets;
