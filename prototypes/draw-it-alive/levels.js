@@ -11,7 +11,8 @@
  *   live(ctx, S)  everything that moves; drawn every frame
  * S = { t, won (-1, or seconds since solved), mood, look, stroke (the player's line once solved),
  *       part(ctx, width, color) draws that line as the missing part,
- *       once(key, fn) runs fn a single time, burst(x, y, n) throws confetti }
+ *       once(key, fn) runs fn a single time, burst(x, y, n) throws confetti,
+ *       art(i) the line the player drew for level i earlier, or null }
  */
 import { sticker, blob, box, stick, shape, shadow, face, heart, tuft, bloom, dots, curve, circle, upTo, pointAt, pathLen,
   WHITE, MINT, SUNNY, CORAL, ORANGE, VIOLET, SKY, GRASS } from './art.js';
@@ -35,6 +36,17 @@ function chick(ctx, x0, y0, color, dir, mood, t, look, lean = 0) {
     face(ctx, x + dir * 12, y - 66, 34, mood, t, look);
   });
   ctx.restore();
+}
+
+/** A snail facing right with the middle of its foot on the origin. Its shell centre is at (-30, -145). */
+function snail(ctx, mood, t, look, nod, turn) {
+  sticker(() => {
+    stick(ctx, [[130 + turn, -182 + nod], [116 + turn, -240 + nod]], 12, CORAL); stick(ctx, [[166 + turn, -182 + nod], [184 + turn, -238 + nod]], 12, CORAL);
+    blob(ctx, 116 + turn, -244 + nod, 15, 15, CORAL); blob(ctx, 184 + turn, -242 + nod, 15, 15, CORAL);
+    stick(ctx, [[-180, -28], [80, -28], [135, -70], [146 + turn, -135 + nod]], 56, CORAL);
+    blob(ctx, 148 + turn, -150 + nod, 48, 44, CORAL);
+    face(ctx, 154 + turn, -156 + nod, 36, mood, t, look);
+  });
 }
 
 export const LEVELS = [
@@ -111,14 +123,8 @@ export const LEVELS = [
         const shown = upTo(turns, ease((w - 0.2) / 0.8)); ctx.moveTo(shown[0][0], shown[0][1]); for (const p of shown) ctx.lineTo(p[0], p[1]); ctx.stroke();
         ctx.restore();
       }
-      const nod = w < 0 ? Math.sin(S.t * 2) * 6 : hop(w, 6, 5), turn = S.mood === 'draw' ? -14 : 0;
-      sticker(() => {
-        stick(ctx, [[x + 160 + turn, 668 + nod], [x + 146 + turn, 610 + nod]], 12, CORAL); stick(ctx, [[x + 196 + turn, 668 + nod], [x + 214 + turn, 612 + nod]], 12, CORAL);
-        blob(ctx, x + 146 + turn, 606 + nod, 15, 15, CORAL); blob(ctx, x + 214 + turn, 608 + nod, 15, 15, CORAL);
-        stick(ctx, [[x - 150, 822], [x + 110, 822], [x + 165, 780], [x + 176 + turn, 715 + nod]], 56, CORAL);
-        blob(ctx, x + 178 + turn, 700 + nod, 48, 44, CORAL);
-        face(ctx, x + 184 + turn, 694 + nod, 36, S.mood, S.t, S.look);
-      });
+      const nod = w < 0 ? Math.sin(S.t * 2) * 6 : hop(w, 6, 5), turn = S.mood === 'draw' ? -14 : 0, ox = x + 30;
+      ctx.save(); ctx.translate(ox, 850); snail(ctx, S.mood, S.t, S.look && [S.look[0] - ox, S.look[1] - 850], nod, turn); ctx.restore();
     },
   },
   // 3 -------- water for the flower: a curve that joins two things
@@ -166,6 +172,74 @@ export const LEVELS = [
         box(ctx, 100, 470, 160, 140, 28, VIOLET);
         face(ctx, 180, 532, 40, S.mood, S.t, S.look);
       });
+      ctx.restore();
+    },
+  },
+  // 4 -------- a rainbow over the chicks: one big arc
+  {
+    bg: SKY, target: curve([[130, 660], [190, 470], [360, 390], [530, 470], [590, 660]]), notes: [523, 659, 784, 988],
+    cues: [[0.9, 1500, 0.07, 'sine', 300], [1.05, 1700, 0.07, 'sine', 300], [1.6, 1319, 0.4, 'triangle', 0]],
+    back(ctx) {
+      dots(ctx);
+      sticker(() => box(ctx, -40, 860, 800, 500, 0, MINT));
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      for (const [x, y, r] of [[120, 980, 50], [520, 1090, 70], [300, 1190, 40]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.45, 0, 0, 7); ctx.fill(); }
+      sticker(() => { tuft(ctx, 60, 860, GRASS); tuft(ctx, 650, 860, GRASS); tuft(ctx, 360, 860, GRASS); });
+      sticker(() => { bloom(ctx, 150, 1060, 16, SUNNY); bloom(ctx, 600, 960, 15, CORAL); });
+    },
+    live(ctx, S) {
+      const w = S.won, clear = w >= 0 ? ease(w / 1.2) : 0;
+      // the sun comes out as the cloud drifts off
+      if (clear > 0) sticker(() => blob(ctx, 110, 330 + (1 - clear) * 120, 62 * clear, 62 * clear, SUNNY));
+      if (w >= 0) {
+        // the player's line, three colours wide
+        sticker(() => stick(ctx, S.stroke, 54, CORAL));
+        ctx.lineCap = ctx.lineJoin = 'round';
+        for (const [wd, c] of [[36, SUNNY], [18, VIOLET]]) { ctx.strokeStyle = c; ctx.lineWidth = wd; ctx.beginPath(); ctx.moveTo(S.stroke[0][0], S.stroke[0][1]); for (const p of S.stroke) ctx.lineTo(p[0], p[1]); ctx.stroke(); }
+      }
+      const cx = 330 + clear * 520;
+      if (clear < 1) {
+        ctx.fillStyle = '#1FA2E6';
+        for (let i = 0; i < 9; i++) { const y = (S.t * 520 + i * 97) % 440, x = cx - 150 + i * 38; ctx.globalAlpha = 1 - clear; ctx.fillRect(x, 330 + y, 8, 30); }
+        ctx.globalAlpha = 1;
+      }
+      sticker(() => { blob(ctx, cx - 70, 290, 90, 50, WHITE); blob(ctx, cx + 30, 262, 96, 66, WHITE); blob(ctx, cx + 120, 296, 70, 44, WHITE); face(ctx, cx + 20, 280, 44, w >= 0 ? 'happy' : 'sad', S.t, null); });
+      const j = w > 0.9 ? hop(w - 0.9, 7, 30) : 0, shiver = w < 0 ? Math.sin(S.t * 30) * 2 : 0;
+      chick(ctx, 250 + shiver, 860 - j, SUNNY, 1, S.mood, S.t, S.look);
+      chick(ctx, 480 - shiver, 860 - (w > 1.05 ? hop(w - 1.05, 7, 30) : 0), VIOLET, -1, w >= 0 ? 'happy' : 'wait', S.t + 1.3, S.look);
+    },
+  },
+  // 5 -------- a ramp for the snail, who wears the shell the player drew: one sloping line
+  {
+    bg: MINT, target: [[300, 846], [470, 600]], notes: [392, 523, 659, 784, 1047],
+    cues: [[0.5, 260, 1.6, 'sine', 500], [2.5, 1319, 0.12, 'triangle', 0], [2.65, 1568, 0.3, 'triangle', 0]],
+    back(ctx) {
+      dots(ctx);
+      sticker(() => blob(ctx, 130, 300, 62, 62, SUNNY));
+      sticker(() => box(ctx, -40, 850, 800, 500, 0, GRASS));
+      sticker(() => box(ctx, 470, 600, 330, 300, 30, '#8A6BFF'));
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      for (const [x, y, r] of [[560, 720, 40], [660, 800, 30], [150, 1010, 60], [450, 1140, 70]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.5, 0, 0, 7); ctx.fill(); }
+      sticker(() => { tuft(ctx, 40, 850, MINT); tuft(ctx, 250, 850, MINT); tuft(ctx, 690, 600, MINT); });
+      sticker(() => { bloom(ctx, 90, 950, 15, SUNNY); bloom(ctx, 330, 1080, 17, ORANGE); });
+    },
+    live(ctx, S) {
+      const w = S.won;
+      sticker(() => S.part(ctx, 26, ORANGE));
+      // the strawberry on the rock, eaten at the end
+      const left = w > 2.5 ? 1 - ease((w - 2.5) / 0.4) : 1, bobble = Math.sin(S.t * 3) * 3;
+      if (left > 0.02) sticker(() => { blob(ctx, 620, 560 + bobble, 34 * left, 40 * left, CORAL); shape(ctx, [[604, 524 + bobble], [620, 506 + bobble], [636, 524 + bobble]].map((p) => [620 + (p[0] - 620) * left, p[1]]), GRASS); });
+      // the snail crawls to the ramp, up the player's line and on to the berry
+      let p = [150, 850], rot = 0;
+      if (w >= 0) {
+        const road = [[150, 850], [280, 850], ...S.stroke, [560, 600]], k = ease((w - 0.4) / 2.2);
+        p = pointAt(road, k); const q = pointAt(road, Math.min(1, k + 0.03)); rot = k < 1 ? Math.atan2(q[1] - p[1], q[0] - p[0]) : 0;
+      }
+      const shell = S.art(1) || circle(250, 705, 100);
+      shadow(ctx, p[0], p[1] + 2, 90);
+      ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(rot); ctx.scale(0.55, 0.55);
+      ctx.save(); ctx.translate(-280, -850); sticker(() => shape(ctx, shell, VIOLET)); ctx.restore();
+      snail(ctx, S.mood, S.t, null, w < 0 ? Math.sin(S.t * 2) * 6 : hop(w, 6, 5), S.mood === 'draw' ? -14 : 0);
       ctx.restore();
     },
   },

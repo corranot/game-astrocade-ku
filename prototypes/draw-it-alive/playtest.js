@@ -37,7 +37,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await page.waitForTimeout(700); await shot(page, 'L1-start');
 
   console.log('2. every level: a wobbly line along the missing part wins, and the scene plays out');
-  for (let n = 0; n < 3; n++) {
+  for (let n = 0; n < 5; n++) {
     await page.waitForFunction((n) => window.__game.S.i === n && window.__game.S.won < 0, n, { timeout: 8000 });
     if (n) { await page.waitForTimeout(500); await shot(page, `L${n + 1}-start`); }
     const pts = wobble(await target(page));
@@ -48,8 +48,20 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
     await page.waitForTimeout(450); await shot(page, `L${n + 1}-payoff-early`);
     await page.waitForTimeout(1200); await shot(page, `L${n + 1}-payoff-late`);
   }
-  await page.waitForFunction(() => window.__game.S.i === 3, null, { timeout: 8000 });
   ok(true, 'the next level starts by itself after each payoff');
+  ok(await page.evaluate(() => !!window.__game.S.art(1)), 'level 5 shows the snail in the shell the player drew on level 2');
+  console.log('2b. the chapter ends on the wall of the player\'s own pictures');
+  await page.waitForFunction(() => window.__game.view === 'wall', null, { timeout: 8000 });
+  const w = await page.evaluate(() => ({ cards: window.__game.wall.cards.filter((c) => c.s.stroke).length, arts: Object.keys(window.__game.save.art).length }));
+  ok(w.cards === 5 && w.arts === 5, 'all five pictures hang on the wall with the stored lines');
+  await page.waitForTimeout(1500); await shot(page, 'wall');
+  const c0 = await page.evaluate(() => { const g = window.__game, p = g.cardAt(2); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+  await page.mouse.click(c0[0], c0[1]); await page.waitForTimeout(100);
+  ok(await page.evaluate(() => window.__game.wall.cards[2].pop > 0), 'a tap on a card replays it');
+  const nx = await page.evaluate(() => { const g = window.__game, p = g.cardAt(5); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+  await page.mouse.click(nx[0], nx[1]); await page.waitForTimeout(150);
+  s = await state(page); ok(await page.evaluate(() => window.__game.view) === 'play' && s.i === 5 && s.won < 0, 'the arrow goes on to the next level');
+  await page.waitForTimeout(400); await shot(page, 'after-wall');
   ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
 
   console.log('3. a dab is ignored; a wrong line is a soft miss; the second miss on an early level is finished for the player');
