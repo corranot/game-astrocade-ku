@@ -1,0 +1,16 @@
+{
+  "tolerance": 70,
+  "passCoverage": 0.7,
+  "passPrecision": 0.7,
+  "precisionReach": 1.4,
+  "minStrokeShare": 0.25,
+  "liftGraceMs": 600,
+  "liftReach": 80,
+  "easyLevels": 3,
+  "assistAfterEasy": 1,
+  "assistAfter": 3,
+  "celebrateSeconds": 3.2,
+  "ghostFingerSeconds": 1.6,
+  "confetti": 90,
+  "slowFrameMs": 22
+}
