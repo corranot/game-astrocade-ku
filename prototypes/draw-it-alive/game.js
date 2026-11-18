@@ -11,16 +11,19 @@
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame.
  * Tunable numbers live in game_config.json.
  */
-import { sticker, stick, shape, star, box, resample, chaikin, pathLen, dist, upTo, pointAt, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
+import { sticker, stick, shape, star, box, dots, resample, chaikin, pathLen, dist, upTo, pointAt, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
 import { LEVELS } from './levels.js';
 
 const W = 720, H = 1280, STEP = 8;
 const DEBUG = location.search.includes('local');
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, WHITE];
 const MUTE = { x: 24, y: 1160, s: 96 }; // sound button, bottom left
+const WALLB = { x: 600, y: 1160, s: 96 }; // button to the wall, bottom right
+const CARD = { k: 0.4, w: 288, h: 320, top: 280 }; // a wall card shows the scene at 0.4, cropped from y = 280
 
 let cv, g, cfg, mode, raf = 0, last = 0;
-let save = { level: 0, stars: {}, muted: false }, saveRead = false;
+let save = { level: 0, stars: {}, art: {}, muted: false }, saveRead = false;
+let view = 'play', wall = null; // 'play' is a level; 'wall' is the player's own finished pictures
 let S = null, target = [], targetLen = 0, back = null, bits = [];
 let pointerDown = false, touched = false, bound = false;
 let ac = null, lastTick = 0;
@@ -40,24 +43,84 @@ function startAudio() {
 }
 
 // ---------- level ----------
+/** State of one scene: the level being played, or a card on the wall. */
+function scene(lv, i) {
+  const s = {
+    i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, stroke: null, misses: 0,
+    faded: null, flash: 0, sadFor: 0, assisted: false, stars: 0, starsShown: 0, freeze: 0, cue: 0, did: {}, quiet: false,
+    once(key, fn) { if (!s.did[key]) { s.did[key] = true; fn(); } },
+    burst(x, y, n) { if (!s.quiet) confetti(x, y, n); },
+    art(n) { return save.art[n] || null; },
+    part(ctx, width, color) {
+      if (!s.stroke) return;
+      const pop = s.won < 0.3 ? 1 + Math.sin(s.won / 0.3 * Math.PI) * 0.25 : 1, c = s.won < 0.15 ? PEN : color;
+      if (lv.closed) shape(ctx, s.stroke, c); else stick(ctx, s.stroke, width * pop, c);
+    },
+  };
+  return s;
+}
+
 /** Start level i: build its hidden path and its back layer. */
 function newLevel(i) {
   const lv = LEVELS[i % LEVELS.length];
+  view = 'play'; wall = null;
   target = resample(lv.target, STEP); targetLen = pathLen(target);
-  S = {
-    i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, stroke: null, misses: 0,
-    faded: null, flash: 0, sadFor: 0, assisted: false, stars: 0, starsShown: 0, freeze: 0, cue: 0, did: {},
-    once(key, fn) { if (!S.did[key]) { S.did[key] = true; fn(); } },
-    burst(x, y, n) { confetti(x, y, n); },
-    part(ctx, width, color) {
-      if (!S.stroke) return;
-      const pop = S.won < 0.3 ? 1 + Math.sin(S.won / 0.3 * Math.PI) * 0.25 : 1, c = S.won < 0.15 ? PEN : color;
-      if (lv.closed) shape(ctx, S.stroke, c); else stick(ctx, S.stroke, width * pop, c);
-    },
-  };
+  S = scene(lv, i);
   bits = [];
   back = back || document.createElement('canvas'); back.width = W; back.height = H;
   const b = back.getContext('2d'); b.fillStyle = lv.bg; b.fillRect(0, 0, W, H); lv.back(b);
+}
+
+// ---------- the wall: every picture the player finished, alive, with the player's own lines ----------
+const cardAt = (n) => ({ x: 48 + (n % 2) * 336, y: 190 + Math.floor(n / 2) * 350 });
+const allDrawn = () => LEVELS.every((_, n) => save.art[n]);
+
+function openWall() {
+  view = 'wall'; bits = []; pointerDown = false;
+  wall = {
+    t: 0, next: S ? S.i + 1 : 0,
+    cards: LEVELS.map((lv, n) => {
+      const s = scene(lv, n); s.quiet = true; s.mood = 'happy'; s.stroke = save.art[n] || null;
+      const c = document.createElement('canvas'); c.width = Math.round(W * CARD.k); c.height = Math.round(H * CARD.k);
+      const b = c.getContext('2d'); b.scale(CARD.k, CARD.k); b.fillStyle = lv.bg; b.fillRect(0, 0, W, H); lv.back(b);
+      return { s, back: c, t0: -n * 0.8, pop: 0 };
+    }),
+  };
+  [659, 784, 988, 1319].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'triangle', 0.09), i * 110));
+}
+
+function wallTap(p) {
+  const nx = cardAt(LEVELS.length);
+  if (Math.hypot(p[0] - nx.x - CARD.w / 2, p[1] - nx.y - CARD.h / 2) < 130) { beep(880, 0.1, 'triangle'); lib.haptics.play('tap'); return newLevel(wall.next); }
+  wall.cards.forEach((c, n) => {
+    const { x, y } = cardAt(n);
+    if (!c.s.stroke || p[0] < x || p[0] > x + CARD.w || p[1] < y || p[1] > y + CARD.h) return;
+    c.t0 = wall.t; c.pop = 1; lib.haptics.play('tap');
+    c.s.lv.notes.forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.09), i * 90));
+  });
+}
+
+function drawWall() {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = VIOLET; g.fillRect(0, 0, W, H); dots(g);
+  wall.cards.forEach((c, n) => {
+    const { x, y } = cardAt(n), pop = 1 + c.pop * 0.1, s = c.s;
+    s.t = wall.t; s.won = s.stroke ? (wall.t - c.t0) % 7 : -1;
+    g.save(); g.translate(x + CARD.w / 2, y + CARD.h / 2); g.rotate((n % 2 ? 1 : -1) * 0.025); g.scale(pop, pop); g.translate(-CARD.w / 2, -CARD.h / 2);
+    box(g, -12, 0, CARD.w + 24, CARD.h + 24, 34, 'rgba(31,42,107,0.25)');
+    box(g, -12, -12, CARD.w + 24, CARD.h + 24, 34, WHITE);
+    box(g, 0, 0, CARD.w, CARD.h, 24, s.lv.bg); g.clip(); // the rounded card stays the current path, so it can clip
+    g.drawImage(c.back, 0, -CARD.top * CARD.k);
+    if (s.stroke) { g.scale(CARD.k, CARD.k); g.translate(0, -CARD.top); s.lv.live(g, s); }
+    else { g.fillStyle = 'rgba(31,42,107,0.45)'; g.fillRect(0, 0, CARD.w, CARD.h); }
+    g.restore();
+    for (let j = 0; j < 3; j++) sticker(() => star(g, x + 38 + j * 38, y + 8, 15, j < (save.stars[n] || 0) ? SUNNY : '#C9B6FF'));
+  });
+  // the way on: a big arrow where the next card would be
+  const nx = cardAt(LEVELS.length), cx = nx.x + CARD.w / 2, cy = nx.y + CARD.h / 2, r = 104 + Math.sin(wall.t * 5) * 7;
+  g.fillStyle = 'rgba(31,42,107,0.25)'; g.beginPath(); g.arc(cx, cy + 8, r, 0, 7); g.fill();
+  g.fillStyle = WHITE; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
+  g.fillStyle = PEN; g.beginPath(); g.moveTo(cx - 34, cy - 52); g.lineTo(cx + 54, cy); g.lineTo(cx - 34, cy + 52); g.closePath(); g.fill();
 }
 
 const easy = () => S.i < cfg.easyLevels;
@@ -105,8 +168,12 @@ function win(pen, quality) {
   for (const p of resample(line, low ? 48 : 24)) bits.push({ x: p[0], y: p[1], vx: (Math.random() - 0.5) * 120, vy: -120 - Math.random() * 160, g: -60, c: WHITE, s: 9, life: 0.5 + Math.random() * 0.5 });
   S.lv.notes.forEach((f, i) => setTimeout(() => beep(f, 0.22, 'triangle', 0.1), i * 90));
   lib.haptics.play('success');
+  // keep the line and the stars for the wall and for later scenes
+  const n = S.i % LEVELS.length;
+  save.stars[n] = Math.max(save.stars[n] || 0, S.stars);
+  save.art[n] = resample(line, 12).slice(0, 90).map((p) => [Math.round(p[0]), Math.round(p[1])]);
   if (mode === 'play' && saveRead) {
-    save.level = Math.max(save.level, S.i + 1); save.stars[S.i] = Math.max(save.stars[S.i] || 0, S.stars);
+    save.level = Math.max(save.level, S.i + 1);
     lib.saveUserGameState(save).catch(() => {});
   }
 }
@@ -119,6 +186,8 @@ function bindInput() {
     if (mode !== 'play' || !e.isPrimary) return;
     e.preventDefault(); startAudio(); touched = true;
     const p = point(e);
+    if (view === 'wall') return wallTap(p);
+    if (wallShown() && Math.hypot(p[0] - WALLB.x - WALLB.s / 2, p[1] - WALLB.y - WALLB.s / 2) <= WALLB.s / 2) return openWall();
     if (muteShown() && p[0] >= MUTE.x && p[0] <= MUTE.x + MUTE.s && p[1] >= MUTE.y && p[1] <= MUTE.y + MUTE.s) {
       save.muted = !save.muted; beep(700, 0.08); if (saveRead) lib.saveUserGameState(save).catch(() => {});
       return;
@@ -147,7 +216,11 @@ function bindInput() {
 /** The sound button shows once the first level is behind the player. */
 const muteShown = () => mode === 'play' && (S.i > 0 || save.level > 0);
 
+/** The wall button shows once every picture of the chapter is drawn. */
+const wallShown = () => mode === 'play' && S.won < 0 && allDrawn();
+
 function update(dt) {
+  if (view === 'wall') { wall.t += dt; for (const c of wall.cards) c.pop = Math.max(0, c.pop - dt * 3); return; }
   if (S.freeze > 0) { S.freeze -= dt; return; } // a short hold on the hit
   S.t += dt;
   if (S.pen && S.liftAt && performance.now() - S.liftAt > cfg.liftGraceMs) judge();
@@ -159,7 +232,7 @@ function update(dt) {
     const cues = S.lv.cues || [];
     while (S.cue < cues.length && S.won >= cues[S.cue][0]) { const c = cues[S.cue++]; beep(c[1], c[2], c[3], 0.07, c[4]); }
     while (S.starsShown < S.stars && S.won >= 0.5 + S.starsShown * 0.25) { beep(880 + S.starsShown * 220, 0.14, 'triangle', 0.09); lib.haptics.play('tap'); S.starsShown++; }
-    if (S.won > cfg.celebrateSeconds) return newLevel(S.i + 1);
+    if (S.won > cfg.celebrateSeconds) return (S.i + 1) % LEVELS.length === 0 ? openWall() : newLevel(S.i + 1); // a chapter ends on the wall
   }
   for (const b of bits) { b.life -= dt; b.vy += b.g * dt; b.x += b.vx * dt; b.y += b.vy * dt; }
   bits = bits.filter((b) => b.life > 0 && b.y < H + 40);
@@ -222,7 +295,19 @@ function drawMute() {
   g.stroke();
 }
 
+/** Button to the wall: a little framed picture. */
+function drawWallButton() {
+  if (!wallShown()) return;
+  const { x, y, s } = WALLB;
+  g.fillStyle = 'rgba(31,42,107,0.22)'; g.beginPath(); g.arc(x + s / 2, y + s / 2 + 5, s / 2, 0, 7); g.fill();
+  g.fillStyle = WHITE; g.beginPath(); g.arc(x + s / 2, y + s / 2, s / 2, 0, 7); g.fill();
+  box(g, x + 24, y + 28, 48, 40, 8, VIOLET);
+  g.fillStyle = SUNNY; g.beginPath(); g.arc(x + 58, y + 42, 7, 0, 7); g.fill();
+  g.fillStyle = MINT; g.beginPath(); g.moveTo(x + 28, y + 64); g.lineTo(x + 44, y + 46); g.lineTo(x + 60, y + 64); g.closePath(); g.fill();
+}
+
 function draw() {
+  if (view === 'wall') return drawWall();
   const punch = S.won >= 0 && S.won < 0.3 ? 1 + Math.sin(S.won / 0.3 * Math.PI) * 0.035 : 1;
   g.setTransform(punch, 0, 0, punch, W / 2 * (1 - punch), H / 2 * (1 - punch));
   g.drawImage(back, 0, 0);
@@ -233,7 +318,7 @@ function draw() {
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.fillRect(b.x - b.s / 2, b.y - b.s / 2, b.s, b.s * (b.g < 0 ? 1 : 0.6)); }
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
-  drawStars(); drawPips(); drawMute();
+  drawStars(); drawPips(); drawMute(); drawWallButton();
 }
 
 /** When frames stay slow, halve the confetti. */
@@ -277,6 +362,7 @@ function run(m) {
       saveRead = true; // only write the save once the player's own save has been read
       const st = r && r.state; if (!st) return;
       if (st.stars && typeof st.stars === 'object') save.stars = { ...st.stars };
+      if (st.art && typeof st.art === 'object') for (const [n, pts] of Object.entries(st.art)) if (Array.isArray(pts) && pts.length > 1 && !save.art[n]) save.art[n] = pts;
       save.muted = !!st.muted;
       if (Number.isInteger(st.level) && st.level > 0) { save.level = st.level; if (!touched) newLevel(st.level); }
     }).catch(() => { setTimeout(() => lib.getUserGameState().then(() => { saveRead = true; }).catch(() => {}), 4000); });
@@ -289,7 +375,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, haptics: { play() {}, start() {}, stop() {} } };
-  window.__game = { LEVELS, newLevel, get S() { return S; }, get target() { return target; }, get low() { return low; }, get save() { return save; }, MUTE, get cfg() { return cfg; } };
+  window.__game = { LEVELS, newLevel, get S() { return S; }, get target() { return target; }, get low() { return low; }, get save() { return save; }, get view() { return view; }, get wall() { return wall; }, MUTE, WALLB, CARD, cardAt, openWall, get cfg() { return cfg; } };
   const q = new URLSearchParams(location.search);
   fetch('game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = { ...c, ...JSON.parse(q.get('cfg') || '{}') }; run(q.get('mode') || 'play'); });
 }
