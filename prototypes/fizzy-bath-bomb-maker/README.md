@@ -5,35 +5,41 @@ A step-by-step maker game for kids, built for Astrocade (portrait, 720 × 1280, 
 
 ## How it plays
 
-1. Hold to pour powder into the bowl.
-2. Tap color bottles to add drops (colors mix).
-3. Stir in circles.
-4. Tap to press the mix into a ball.
-5. Pick a topping and tap or drag on the ball to decorate it.
-6. Drop the ball in the bath. It fizzes away (tap to fizz faster) and a surprise toy pops out.
+1. Hold (or tap) to pour powder into the bowl.
+2. Tap color bottles to add drops; the bomb keeps its last three colors as stripes.
+3. Stir: any movement in the bowl counts.
+4. Pick a mold, then tap to press.
+5. Pick a topping and tap or drag on the bomb to decorate it.
+6. Drop the bomb in the bath. It fizzes away and a surprise toy pops out.
 
-Reasons to make another one:
+There is no fail state. Reasons to make another one:
 
-- Each finished bomb can unlock a mold (heart, star, donut, flower), color, topping or charm (`unlocks` in the
-  config). A locked choice shows a padlock and the number of bombs to go.
-- Decorating fills a Luck meter; a full meter triples the weight of rare, epic and legendary toys.
-- A duplicate toy pays a star. Three stars buy a golden bomb (rare or better guaranteed). After three duplicates
-  in a row the next toy is drawn only from the missing ones.
-- From the third bomb on, a bomb can hold two toys.
-- A full album (16/16) switches to a gold set of the same toys.
+- **Orders.** A customer asks for a shape in a color. A bomb of that shape that contains that color pays 20 extra
+  coins. Orders prefer recipes the player has not made yet.
+- **Recipe book.** Every mold x color made is a page (25 recipes). A new recipe pays 10 coins.
+- **Toy album.** 16 toys in four rarities. A duplicate pays a star; three stars buy a golden bomb (rare or better);
+  three duplicates in a row guarantee a missing toy. A full album switches to a gold set of the same toys.
+- **Reward bar.** The HUD always shows the next unlock (mold, color, topping, charm) and how close it is; after the
+  last unlock it counts toward a coin gift every third bomb.
+- **Shop.** Coins buy bathtubs. The newest four toys float in the bath.
+- **Bubble round.** Every third bomb ends with eight seconds of bubble popping for coins.
+- **Luck meter.** Decorating fills it; a full meter triples the weight of the rare tiers.
+- Pouring and stirring get 40% faster from the fourth bomb.
 
-Made for small kids: a quick tap pours as well as a hold, any movement in the bowl stirs, the first screen pours
-by itself before the first touch, the "MAKE ANOTHER" button waits 1.5 s so mashing cannot skip the prize, and
-there is a mute button. The album is saved per player (a late load is merged, never overwrites), and toys owned
-plus gold toys is the leaderboard score, shown as "Top Collectors" in the album. There is no fail state.
+## Layout
+
+The 720 x 1280 screen is cut into fixed lanes: HUD, step bar, instruction, toast, customer order, play area
+(430-915), choice row, action button. Every UI element lives in one lane. The prize screen and the book are full
+panels of their own. In debug the game records the box of every element; `playtest.js` fails when two boxes
+overlap or one leaves the screen, on 15 screens in each of the seven languages.
 
 ## Languages and devices
 
 The game reads the player's device language (`navigator.languages`) and shows it when `strings` in
 `game_config.json` has that language: English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian. Any other
 device language falls back to English. Arabic is right-to-left: the HUD, the choice rows and the progress bar are
-mirrored. All player-facing text is in that string table; text wider than its space is drawn smaller. The album has
-a 🌐 button that steps through the languages, and the choice is saved. Toys, unlocks and locks use pictures and
+mirrored. All player-facing text is in that string table; text wider than its space is drawn smaller. The book has
+a 🌐 button (in the book) that steps through the languages, and the choice is saved. Toys, unlocks and locks use pictures and
 numbers instead of words. Translations were written without a native review.
 
 Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under 40 FPS
@@ -57,7 +63,8 @@ instead of failure, a first screen that is alive before the first tap.
 ## Local preview
 
 Serve this folder and open `index.html?local`. That flag stubs the Astrocade host.
-`playtest.js` (kept outside this folder's upload set) runs eleven checks in a phone-sized browser: the whole loop, tap-only
-pouring, button mashing, mute, the prize rules, forced golden and double bombs, album completion and the gold set,
-play with no assets, edit mode, 600 seeded random taps and drags, and device-language detection for ten locales
-(set through the browser locale) with a screenshot set per language. Add `&noassets` to preview the emoji fallback.
+`playtest.js` (kept outside this folder's upload set) runs twelve checks in a phone-sized browser: the whole loop,
+tap-only pouring, button mashing, mute, the rules (prizes, orders, recipes, rewards, shop), forced golden and double
+bombs with a bubble round, album completion and the gold set, play with no assets, edit mode, 600 seeded random taps
+and drags, device-language detection for ten locales, and the layout check. Add `&noassets` to preview the emoji
+fallback.

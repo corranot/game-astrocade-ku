@@ -62,6 +62,8 @@
       "r1": "RARE",
       "r2": "EPIC",
       "r3": "LEGENDARY",
+      "recipes": "RECIPES",
+      "pop": "Pop the bubbles!",
       "name": "English"
     },
     "ar": {
@@ -95,6 +97,8 @@
       "r1": "نادر",
       "r2": "ملحمي",
       "r3": "أسطوري",
+      "recipes": "الوصفات",
+      "pop": "فرقع الفقاعات!",
       "name": "العربية"
     },
     "es": {
@@ -128,6 +132,8 @@
       "r1": "RARO",
       "r2": "ÉPICO",
       "r3": "LEGENDARIO",
+      "recipes": "RECETAS",
+      "pop": "¡Explota las burbujas!",
       "name": "Español"
     },
     "vi": {
@@ -161,6 +167,8 @@
       "r1": "HIẾM",
       "r2": "CỰC HIẾM",
       "r3": "HUYỀN THOẠI",
+      "recipes": "CÔNG THỨC",
+      "pop": "Chọc vỡ bong bóng!",
       "name": "Tiếng Việt"
     },
     "hi": {
@@ -194,6 +202,8 @@
       "r1": "दुर्लभ",
       "r2": "एपिक",
       "r3": "लेजेंडरी",
+      "recipes": "रेसिपी",
+      "pop": "बुलबुले फोड़ो!",
       "name": "हिन्दी"
     },
     "bn": {
@@ -227,6 +237,8 @@
       "r1": "বিরল",
       "r2": "এপিক",
       "r3": "লেজেন্ডারি",
+      "recipes": "রেসিপি",
+      "pop": "বুদবুদ ফাটাও!",
       "name": "বাংলা"
     },
     "id": {
@@ -260,6 +272,8 @@
       "r1": "LANGKA",
       "r2": "EPIK",
       "r3": "LEGENDARIS",
+      "recipes": "RESEP",
+      "pop": "Pecahkan gelembung!",
       "name": "Bahasa Indonesia"
     }
   },
@@ -267,6 +281,18 @@
     "ar"
   ],
   "lowFpsSeconds": 2,
+  "coinsPerBomb": 10,
+  "orderCoins": 20,
+  "recipeCoins": 10,
+  "giftEvery": 3,
+  "giftCoins": 40,
+  "fastAfter": 3,
+  "fastFactor": 0.6,
+  "bubbleEvery": 3,
+  "bubbleSeconds": 8,
+  "bubbleGap": 0.4,
+  "bubbleCoins": 2,
+  "skinPrices": [0, 60, 120, 200, 350, 600],
   "persistent_storage_config": {
     "leaderboard": {
       "sort_ascending": false
