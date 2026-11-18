@@ -647,14 +647,14 @@
     "animation": null,
     "aspect_ratio": null,
     "compression_suggestion": "original",
-    "description": "single soft thwack of a stick hitting a hollow cardboard piñata, punchy and satisfying, no music",
-    "duration_secs": 0.21,
+    "description": "one loud punchy whack of a wooden stick hitting a hollow cardboard box, deep thump with a short papery rattle tail, starts instantly with no silence, close mic, no music, no voices",
+    "duration_secs": 0.57,
     "loop": false,
-    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S41TB3MSFX7F33KAKH3V_787596c5-7bbe-46c1-afb5-e23964dae716_4294d97f-a33f-4da8-a752-21a9f6d10d31.ogg",
-    "prompt": "single soft thwack of a stick hitting a hollow cardboard piñata, punchy and satisfying, no music",
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7QERTCARZ7Z2ED7WJ4SWEP0_899b9288-3ce3-4467-a930-517ae0a306e4_2c19d6b0-6f33-43ee-8395-89572c4cf62b.ogg",
+    "prompt": "one loud punchy whack of a wooden stick hitting a hollow cardboard box, deep thump with a short papery rattle tail, starts instantly with no silence, close mic, no music, no voices",
     "subtype": "effect",
     "type": "audio",
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7Q9S41TB3MSFX7F33KAKH3V_787596c5-7bbe-46c1-afb5-e23964dae716_4294d97f-a33f-4da8-a752-21a9f6d10d31.mp3"
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7QERTCARZ7Z2ED7WJ4SWEP0_899b9288-3ce3-4467-a930-517ae0a306e4_2c19d6b0-6f33-43ee-8395-89572c4cf62b.mp3"
   },
   "sfx_crack": {
     "animation": null,

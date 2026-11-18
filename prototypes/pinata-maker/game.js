@@ -48,12 +48,17 @@ const TOYS = [
 ].map(([id, e, tier], i) => ({ id, e, tier, i }));
 const IMAGE_IDS = [...TOYS.map(t => t.id), ...STICKERS.map(s => s[0]), ...CANDY.map(s => s[0]), ...BATS.map(s => s[0]), ...GUESTS.map(s => s[0])];
 const SOUND_IDS = ['sfx_paper', 'sfx_sticker', 'sfx_candy', 'sfx_hit', 'sfx_crack', 'sfx_burst', 'sfx_rain', 'sfx_cheer', 'sfx_win', 'sfx_coin', 'sfx_pop', 'music'];
+// Per-sound start offset (seconds of silence before the sound) and gain, measured with ffmpeg on the generated files.
+// A tap sound that starts 0.1 s late feels like lag, so the silence is skipped.
+const SOUND_FIX = { sfx_paper: { skip: 0.1, gain: 1.4 }, sfx_crack: { skip: 0.1 }, sfx_candy: { skip: 0.07 }, sfx_coin: { gain: 3.2 }, sfx_rain: { gain: 1.8 }, sfx_hit: { skip: 0.1 } };
 const DEBUG = location.search.includes('local');
 
 let cv, gl, g, cfg, mode, S, raf = 0, last = 0, bound = false, touched = false, ready3d = false, loadFail = false;
+let loaded = false, loading3d = false, tries3d = 0;
 let ac = null, master = null, lang = 'en', quality = 1, slow = 0, grouped = 0, R = Math.random, coinSound = 0;
-let save = { owned: [], gold: [], bats: [0], bat: 0, made: 0, smashed: 0, stars: 0, dupes: 0, coins: 0, candies: 0, shape: 0, muted: false, lang: null, seen: {} };
-const IMG = {}, GOLD = {}, BUF = {}, LOOPS = {}, BOXES = [];
+let save = { owned: [], gold: [], bats: [0], bat: 0, made: 0, smashed: 0, stars: 0, dupes: 0, coins: 0, candies: 0, shape: 0, day: 0, streak: 0, muted: false, lang: null, seen: {} };
+let board = null;
+const IMG = {}, GOLD = {}, BUF = {}, LOOPS = {}, BOXES = [], TXT = new Map(), EMO = new Map();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const backOut = t => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
@@ -101,14 +106,28 @@ function rewardAt(made) {
 /** A save from the server laid over the defaults, so an old save without a new field still works. */
 function mergeSave(a, b) {
   const out = { ...a, ...b };
-  for (const k of ['owned', 'gold', 'bats']) if (!Array.isArray(out[k])) out[k] = a[k];
+  for (const k of ['owned', 'gold', 'bats']) out[k] = Array.isArray(out[k]) ? [...new Set(out[k])].filter(Number.isInteger) : a[k];
   if (!out.bats.includes(0)) out.bats.unshift(0);
   if (!out.bats.includes(out.bat)) out.bat = 0;
   out.seen = { ...(a.seen || {}), ...(b.seen || {}) };
-  for (const k of ['made', 'smashed', 'stars', 'dupes', 'coins', 'candies', 'shape']) out[k] = Number.isFinite(+out[k]) ? +out[k] : 0;
+  for (const k of ['made', 'smashed', 'stars', 'dupes', 'coins', 'candies', 'shape', 'day', 'streak']) out[k] = Number.isFinite(+out[k]) ? +out[k] : 0;
   return out;
 }
-const persist = () => { lib.saveUserGameState(save).catch(() => {}); };
+/** Write the save. Until the player's own save has been read, nothing is written: a default save must never replace real progress. */
+const persist = () => { if (loaded) lib.saveUserGameState(save).catch(() => {}); };
+
+/* ---------- daily gift ---------- */
+/** A day as a number (20261118), `offset` days from now, in the player's own time zone. */
+const dayKey = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+/**
+ * The first pinata of a day pays a gift that grows with the streak of days played (up to cfg.dailyMaxStreak).
+ * @returns {number} coins paid now; 0 when today's gift was already taken
+ */
+function claimDaily(today = dayKey(), yesterday = dayKey(-1)) {
+  if (today <= save.day) return 0; // the same day, or a clock that was set back
+  save.streak = save.day === yesterday ? Math.min(cfg.dailyMaxStreak, save.streak + 1) : 1; save.day = today;
+  const coins = cfg.dailyCoins * save.streak; save.coins += coins; return coins;
+}
 
 /* ---------- round ---------- */
 /** A guest asks for a shape in a colour (only things the player has unlocked). */
@@ -143,6 +162,7 @@ function newRound(o = {}) {
   S.guests = (S.order ? [S.order.guest] : []).concat(pool).slice(0, 4);
   if (o.free) { const shapes = [...Array(scene.SHAPE_COUNT).keys()].filter(i => isOpen('shape', i)); S.shape = shapes[R() * shapes.length | 0]; S.mix = S.mix.map((_, i) => isOpen('candy', i) ? 1 + (R() * 2 | 0) : 0); S.fill = cfg.fillTaps; }
   if (o.intro) { S.shape = 0; S.mix = [2, 2, 1, 0, 0]; }
+  coinSound = 0; // the throttle compares against this round's clock
   if (ready3d) stage();
 }
 /** Put the round into the 3D yard. */
@@ -201,10 +221,11 @@ function beep(f, d = 0.08, type = 'sine', v = 0.12, slide = 0) {
 }
 function voice(id, vol, loop, rate = 1) {
   const src = ac.createBufferSource(), a = ac.createGain();
-  src.buffer = BUF[id]; a.gain.value = vol; src.playbackRate.value = rate;
+  const fix = SOUND_FIX[id] || {};
+  src.buffer = BUF[id]; a.gain.value = vol * (fix.gain || 1); src.playbackRate.value = rate;
   // shortcut: decoding leaves a few ms of silence at both ends, so loops skip 40 ms each side; re-export as wav if a seam is still audible
   if (loop) { src.loop = true; src.loopStart = 0.04; src.loopEnd = Math.max(0.1, BUF[id].duration - 0.04); }
-  src.connect(a).connect(master); src.start();
+  src.connect(a).connect(master); src.start(0, loop ? 0 : fix.skip || 0);
   return src;
 }
 /** Play a recorded sound if it is loaded, else the synthesized fallback. */
@@ -318,11 +339,12 @@ function openCapsule() {
 /** The toy is out: book it, pay the coins, pick the gift. */
 function reveal() {
   const pz = S.prizes[0], list = pz.gold ? save.gold : save.owned;
+  pz.isNew = !list.includes(pz.toy.i); // the save may have loaded since the pinata burst
   if (pz.isNew) { list.push(pz.toy.i); save.dupes = 0; } else { save.stars++; save.dupes++; }
   if (S.goldStars) save.stars = Math.max(0, save.stars - cfg.starsForGolden);
   const met = orderMet();
   S.earned = { base: cfg.coinsPerPinata, order: met ? cfg.orderCoins : 0, candy: S.got, met };
-  save.coins += S.earned.base + S.earned.order;
+  save.coins += S.earned.base + S.earned.order; S.earned.daily = claimDaily();
   if (S.free) save.smashed++; else { save.made++; S.gift = rewardAt(save.made); if (S.gift && S.gift.kind === 'coins') save.coins += cfg.giftCoins; }
   S.giftOpen = !S.gift; S.btnAt = cfg.revealButtonDelay; S.step = 6; S.stepT = 0;
   persist(); lib.addPlayerScoreToLeaderboard(save.candies).catch(() => {});
@@ -349,12 +371,13 @@ function endIntro() { save.seen[S.intro] = 1; S.intro = null; S.idle = 0; persis
 
 /* ---------- input ---------- */
 function onDown(p) {
+  if (mode !== 'play') return;
   if (!touched) { touched = true; if (ac) { ac.resume(); hum('music', true, 0.28); } }
   S.idle = 0;
-  if (!ready3d) return;
+  if (!ready3d) { if (loadFail) load3d(); return; }
   if (S.panel) return panelTap(p);
-  if (Math.hypot(p.x - mx(664), p.y - LANE.hud) < 52) { setMuted(!save.muted); persist(); return; }
-  if (save.made >= 1 && S.step < 4 && Math.hypot(p.x - mx(556), p.y - LANE.hud) < 52) { S.panel = 'book'; S.tab = canBuy() ? 1 : 0; beep(600, 0.06); return; }
+  if (S.step !== 6 && Math.hypot(p.x - mx(664), p.y - LANE.hud) < 52) { setMuted(!save.muted); persist(); return; }
+  if (bookShown() && Math.hypot(p.x - mx(556), p.y - LANE.hud) < 52) { S.panel = 'book'; S.tab = canBuy() ? 1 : 0; beep(600, 0.06); return; }
   if (S.intro) endIntro(); // any tap ends the introduction and still does what it was aimed at
   if (S.step === 6) return prizeTap(p);
   const slot = slotAt(p, rowCount());
@@ -381,7 +404,7 @@ function onDown(p) {
   if (S.step < 4 && inPlay(p)) S.drag = { x: p.x, turn: true };
 }
 function onMove(p) {
-  if (!S.drag || !ready3d) return;
+  if (mode !== 'play' || !S.drag || !ready3d) return;
   S.idle = 0;
   if (S.drag.paint) paint(p, false);
   else if (S.drag.grab && S.step === 5) grabbed(scene.collectAt(p.x, p.y, cfg.collectRadius));
@@ -390,7 +413,9 @@ function onMove(p) {
 function onUp() { S.drag = null; }
 /** One bonus smash is banked for every pinata made, so smash-only is a treat and never a faster way to play. */
 const canSmash = () => perk(0) && save.smashed < save.made;
-function openGift() { if (S.giftOpen) return; S.giftOpen = true; S.btnAt = S.stepT + 0.6; fanfare(4); burst2d(360, LANE.row, 24, '#ffd21f'); lib.haptics.play('success'); }
+function openGift() { if (S.giftOpen) return; S.giftOpen = true; S.btnAt = S.stepT + 0.4; fanfare(4); burst2d(360, LANE.row, 24, '#ffd21f'); lib.haptics.play('success'); }
+/** The album button is there from the second pinata on, while making (one rule for drawing it and for tapping it). */
+const bookShown = () => save.made >= 1 && S.step < 4 && !(S.done > 0 && S.step === 3);
 /** True when the player can afford a stick they do not own yet. */
 const canBuy = () => BATS.some((_, i) => !save.bats.includes(i) && save.coins >= cfg.batPrices[i]);
 function prizeTap(p) {
@@ -401,10 +426,12 @@ function prizeTap(p) {
   if (smash && (Math.hypot(p.x - mx(610), p.y - LANE.btn) < 62 || (onGift && S.gift.kind === 'perk'))) { beep(700, 0.08); return newRound({ free: true }); }
   if (onGift || (Math.abs(p.x - (smash ? mx(300) : 360)) < (smash ? 200 : 210) && Math.abs(p.y - LANE.btn) < 72)) { beep(660, 0.08); newRound(); }
 }
+/** Fetch the top candy collectors for the third tab of the book. */
+function loadBoard() { board = board || { entries: [], userRank: null }; lib.getTopNEntriesFromLeaderboard(8).then(r => { board = { entries: (r && r.entries) || [], userRank: r ? r.userRank : null }; }).catch(() => { board = { entries: [], userRank: null }; }); }
 function panelTap(p) {
   if (Math.hypot(p.x - mx(600), p.y - 1190) < 64) { S.panel = null; beep(400, 0.06); return; }
   if (Math.hypot(p.x - mx(120), p.y - 1190) < 64) { const ls = Object.keys(cfg.strings); lang = ls[(ls.indexOf(lang) + 1) % ls.length]; save.lang = lang; persist(); beep(700, 0.06); return; }
-  if (Math.abs(p.y - 125) < 56) { S.tab = (mx(p.x) < 360) ? 0 : 1; beep(520, 0.05); return; }
+  if (Math.abs(p.y - 125) < 56) { S.tab = Math.max(0, Math.min(2, Math.floor(mx(p.x) / 240))); if (S.tab === 2) loadBoard(); beep(520, 0.05); return; }
   if (S.tab === 0 && Math.abs(p.y - 1076) < 48 && Math.abs(p.x - 360) < 190) {
     // coins always have something to buy: a golden pinata (a missing rare-or-better toy)
     if (save.stars >= cfg.starsForGolden) beep(660, 0.08);
@@ -464,17 +491,34 @@ function group(n, x, y, w, h, drawParts) { box(n, x, y, w, h); grouped++; drawPa
 function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
 /** Centred text. A string wider than maxW is drawn smaller, so a long translation never runs off its space. */
 function txt(s, x, y, size, fill = '#5a1e86', stroke = '#fff', sw = 12, maxW = 660) {
-  const font = px => `900 ${px}px "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif`;
-  g.font = font(size);
-  let wide = g.measureText(s).width;
-  if (wide > maxW) { size *= maxW / wide; g.font = font(size); wide = maxW; }
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-  g.direction = rtl() ? 'rtl' : 'ltr'; // so the "!" of an Arabic sentence lands at its left end
-  if (stroke) { g.lineWidth = sw; g.strokeStyle = stroke; g.strokeText(s, x, y); }
-  g.fillStyle = fill; g.fillText(s, x, y); g.direction = 'ltr';
-  box('text ' + s, x - wide / 2, y - size * 0.55, wide, size * 1.1);
+  // Stroked text is slow to rasterise, so each distinct string is drawn once to its own small canvas and copied after that.
+  const key = s + '|' + size + '|' + fill + '|' + stroke + '|' + sw + '|' + maxW + '|' + lang;
+  let c = TXT.get(key);
+  if (!c) {
+    const font = px => `900 ${px}px "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif`;
+    g.font = font(size);
+    let wide = g.measureText(s).width;
+    if (wide > maxW) { size *= maxW / wide; wide = maxW; }
+    const cvs = document.createElement('canvas'), k = cvs.getContext('2d'), pad = (stroke ? sw : 0) + 6;
+    cvs.width = Math.ceil(wide + pad * 2); cvs.height = Math.ceil(size * 1.5 + pad * 2);
+    k.font = font(size); k.textAlign = 'center'; k.textBaseline = 'middle'; k.lineJoin = 'round';
+    k.direction = rtl() ? 'rtl' : 'ltr'; // so the "!" of an Arabic sentence lands at its left end
+    if (stroke) { k.lineWidth = sw; k.strokeStyle = stroke; k.strokeText(s, cvs.width / 2, cvs.height / 2); }
+    k.fillStyle = fill; k.fillText(s, cvs.width / 2, cvs.height / 2);
+    if (TXT.size > 90) TXT.clear();
+    TXT.set(key, c = { cvs, wide, size });
+  }
+  g.drawImage(c.cvs, x - c.cvs.width / 2, y - c.cvs.height / 2);
+  if (DEBUG) box('text ' + s, x - c.wide / 2, y - c.size * 0.55, c.wide, c.size * 1.1);
 }
-function emo(s, x, y, size, rot = 0) { g.save(); g.translate(x, y); g.rotate(rot); g.font = `${size}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#000'; g.fillText(s, 0, 0); g.restore(); }
+/** An emoji, drawn once per size step to a sprite and scaled from there (colour emoji are slow to draw as text). */
+function emo(s, x, y, size, rot = 0) {
+  const q = Math.ceil(size / 24) * 24, key = s + q;
+  let c = EMO.get(key);
+  if (!c) { c = document.createElement('canvas'); c.width = c.height = Math.ceil(q * 1.5); const k = c.getContext('2d'); k.font = `${q}px sans-serif`; k.textAlign = 'center'; k.textBaseline = 'middle'; k.fillStyle = '#000'; k.fillText(s, c.width / 2, c.height / 2); if (EMO.size > 120) EMO.clear(); EMO.set(key, c); }
+  const d = c.width * size / q;
+  if (rot) { g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(c, -d / 2, -d / 2, d, d); g.restore(); } else g.drawImage(c, x - d / 2, y - d / 2, d, d);
+}
 const ready = id => IMG[id] && IMG[id].complete && IMG[id].naturalWidth > 0;
 /** A gold-tinted copy of image `id`, made once on an offscreen canvas. */
 function goldCopy(id) {
@@ -516,7 +560,7 @@ function button(label, col, cx = 360, w = 420, icon = 'next') {
     g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round';
     if (icon === 'again') { g.beginPath(); g.arc(ix, -4, 22, 0.6, TAU - 0.5); g.stroke(); g.beginPath(); g.moveTo(ix + 30, -22); g.lineTo(ix + 14, -4); g.lineTo(ix + 36, 2); g.closePath(); g.fill(); }
     else { g.beginPath(); g.moveTo(ix - dir * 16, -30); g.lineTo(ix + dir * 22, -4); g.lineTo(ix - dir * 16, 22); g.closePath(); g.fill(); }
-    txt(label, dir * 36, -4, 46, '#fff', 'rgba(0,0,0,0.25)', 8, w - 124);
+    txt(label, dir * 44, -4, 46, '#fff', 'rgba(0,0,0,0.25)', 8, w - 156);
     g.restore();
   });
 }
@@ -551,7 +595,7 @@ function drawHud() {
     for (let i = 0; i < total; i++) { rr(hx(232 + i * (cw + 6), cw), y - 15, cw, 30, 10); g.fillStyle = i < done ? '#ff5aa8' : '#e9dcf7'; g.fill(); }
     rewardIcon(nr.u, mx(438), y, nr.left === 1 ? 30 + Math.sin(S.t * 6) * 4 : 30);
   });
-  if (S.step < 4) { const buy = canBuy(), r = 48 + (buy ? Math.sin(S.t * 6) * 3 : 0); roundBtn('book', mx(556), y, 48, '#ff8a00', () => { emo('🧸', mx(556), y + 2, r); if (buy) coin(mx(556) + 32, y - 32, 17); }); }
+  if (bookShown()) { const buy = canBuy(), r = 48 + (buy ? Math.sin(S.t * 6) * 3 : 0); roundBtn('book', mx(556), y, 48, '#ff8a00', () => { emo('🧸', mx(556), y + 2, r); if (buy) coin(mx(556) + 32, y - 32, 17); }); }
 }
 function drawSteps() {
   const y = LANE.steps;
@@ -658,8 +702,9 @@ function drawPrizeScreen() {
   // earnings: coins for the pinata (+ order), candy grabbed, stars toward a golden pinata
   const cells = [[() => coin(0, 0, 30), '+' + (e.base + e.order + e.candy * cfg.coinsPerCandy)]]; // candy is coins, so one number
   if (!pz.isNew) cells.push([() => star(0, 0, 28, '#ffc928'), save.stars + '/' + cfg.starsForGolden]);
+  if (e.daily) cells.push([() => { emo('📅', 0, 2, 58); g.font = '900 22px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ff2d8a'; g.fillText(String(save.streak), 0, 12); }, '+' + e.daily]);
   cells.forEach(([icon, label], i) => {
-    const x = mx(360 + (i - (cells.length - 1) / 2) * 220), y = 866;
+    const x = mx(360 + (i - (cells.length - 1) / 2) * (cells.length > 2 ? 190 : 220) + (e.met ? 30 : 0)), y = 866;
     g.save(); g.translate(x - 44, y); icon(); g.restore();
     g.font = '900 44px "Trebuchet MS", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(label, x + 34, y + 2);
   });
@@ -680,8 +725,21 @@ function drawPrizeScreen() {
 function drawBook() {
   g.fillStyle = 'rgba(255,255,255,0.96)'; rr(24, 40, 672, 1216, 60); g.fill(); g.lineWidth = 8; g.strokeStyle = '#7a3cff'; g.stroke();
   box('card', 24, 40, 672, 1216); grouped++;
-  for (let i = 0; i < 2; i++) { const x = mx(200 + i * 320), on = S.tab === i, d = rtl() ? -1 : 1; pill(x - 145, 75, 290, 100, '#7a3cff', on ? '#7a3cff' : '#fff'); if (i) pic(BATS[save.bat][0], BATS[save.bat][1], x - d * 96, 125, 70); else emo('🧸', x - d * 96, 128, 56); txt(T(i ? 'sticks' : 'myToys'), x + d * 34, 126, 30, on ? '#fff' : '#7a3cff', null, 0, 170); }
-  if (S.tab === 0) {
+  for (let i = 0; i < 3; i++) { const x = mx(136 + i * 224), on = S.tab === i; pill(x - 100, 75, 200, 100, '#7a3cff', on ? '#7a3cff' : '#fff'); if (i === 1) pic(BATS[save.bat][0], BATS[save.bat][1], x, 125, 78); else emo(i ? '🏆' : '🧸', x, 128, 66); }
+  if (S.tab === 2) {
+    // top collectors: rank, name, candy grabbed; the player's own total underneath
+    const list = board ? board.entries.slice(0, 8) : [];
+    list.forEach((en, i) => {
+      const y = 262 + i * 96;
+      rr(70, y - 42, 580, 84, 30); g.fillStyle = i < 3 ? ['#fff3b0', '#eef1f6', '#ffe1c4'][i] : '#fff'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#7a3cff'; g.stroke();
+      g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.font = '900 40px Arial'; g.textAlign = 'center'; g.fillText(String(i + 1), mx(120), y + 2);
+      g.font = '900 34px "Trebuchet MS", Arial, sans-serif'; g.textAlign = rtl() ? 'right' : 'left'; g.fillText(String(en.username || '?').slice(0, 14), mx(165), y + 2, 290);
+      pic(CANDY[0][0], CANDY[0][1], mx(500), y, 52); g.font = '900 34px Arial'; g.textAlign = 'center'; g.fillText(String(en.score), mx(580), y + 2, 110);
+    });
+    if (!list.length) emo('🏆', 360, 520, 220);
+    pill(180, 1032, 360, 88, '#ff2d8a', '#fff'); pic(CANDY[0][0], CANDY[0][1], mx(250), 1076, 62);
+    g.font = '900 46px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#5a1e86'; g.fillText(String(save.candies), mx(390), 1078, 200);
+  } else if (S.tab === 0) {
     const goldSet = albumDone(), have = goldSet ? save.gold : save.owned;
     txt(have.length + ' / ' + TOYS.length, 360, 222, 44, goldSet ? '#e08a00' : '#5a1e86');
     { const y = 1076, got = save.stars >= cfg.starsForGolden, can = save.coins >= cfg.goldenPrice, sh = S.shakeRow && S.shakeRow.i === -1 ? Math.sin(S.t * 60) * 8 : 0;
@@ -762,10 +820,28 @@ function loadImages() {
 /** Load Three.js from the first CDN that answers, then build the yard. */
 async function load3d() {
   let three = null;
-  for (const url of THREE_URLS) { try { three = await import(url); break; } catch (e) { three = null; } }
-  if (!three) { loadFail = true; return; }
-  scene.initScene(three, gl, { quality, image: id => ready(id) ? IMG[id] : null });
-  ready3d = true; stage();
+  if (loading3d || ready3d) return;
+  loading3d = true; loadFail = false;
+  // a browser may remember a failed module fetch, so every retry asks under a new query string
+  for (const url of THREE_URLS) { try { three = await import(tries3d ? url + '?retry=' + tries3d : url); break; } catch (e) { three = null; } }
+  tries3d++;
+  try {
+    if (!three) throw new Error('3D library did not load');
+    scene.initScene(three, gl, { quality, image: id => ready(id) ? IMG[id] : null });
+    ready3d = true; stage();
+  } catch (e) { loadFail = true; setTimeout(load3d, 4000); } // try again by itself; a tap tries at once
+  loading3d = false;
+}
+
+/** Read the player's save. A failed read is tried again (2 s apart, then every 10 s); the game stays playable but writes nothing until one succeeds. */
+function loadSave(tries) {
+  lib.getUserGameState().then(r => {
+    if (r && r.state && Array.isArray(r.state.owned)) {
+      save = mergeSave(save, r.state); setMuted(save.muted); lang = save.lang || detectLang();
+      if (!touched) newRound(); // pick up what this player has already unlocked
+    }
+    loaded = true;
+  }).catch(() => { setTimeout(() => loadSave(tries + 1), tries < 5 ? 2000 : 10000); });
 }
 
 /** Entry point. The host calls this on start and on every reload. */
@@ -790,17 +866,13 @@ function run(m) {
   });
   lang = save.lang || detectLang();
   loadImages();
-  cancelAnimationFrame(raf); newRound();
-  if (ready3d) stage(); else load3d();
+  cancelAnimationFrame(raf); newRound(); // stages the round itself when the yard is ready
+  if (!ready3d) load3d();
   if (mode === 'play') {
     initAudio(); bindInput();
-    lib.getUserGameState().then(r => {
-      if (!(r && r.state && Array.isArray(r.state.owned))) return;
-      save = mergeSave(save, r.state); setMuted(save.muted); lang = save.lang || detectLang();
-      if (!touched) newRound(); // pick up what this player has already unlocked
-    }).catch(() => {});
+    loadSave(0);
   }
-  if (DEBUG) window.__game = { get S() { return S; }, get save() { return save; }, set save(v) { save = mergeSave(save, v); }, scene, cfg, newRound, seed(n) { let a = n >>> 0; R = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }, pickToy, drawPrize, nextReward, rewardAt, isOpen, perk, TOYS, hitNow, reveal, advance, enterSmash, helpTarget, orderMet, mergeSave, detectLang, setLang(l) { lang = l; } };
+  if (DEBUG) window.__game = { get S() { return S; }, get save() { return save; }, set save(v) { save = mergeSave(save, v); }, scene, cfg, newRound, seed(n) { let a = n >>> 0; R = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }, pickToy, drawPrize, nextReward, rewardAt, isOpen, perk, TOYS, hitNow, reveal, advance, enterSmash, helpTarget, orderMet, mergeSave, detectLang, setLang(l) { lang = l; }, claimDaily, canSmash, loadBoard, bookShown, get loaded() { return loaded; }, get ready3d() { return ready3d; } };
   last = performance.now(); raf = requestAnimationFrame(frame);
 }
 window.run = run;
@@ -814,8 +886,8 @@ if (DEBUG && !window.lib) (async () => {
   window.lib = {
     getAsset: id => assets[id], log: () => {}, showGameParameters: () => {}, shouldUseTouchControls: () => true,
     saveUserGameState: async s => { slot = JSON.parse(JSON.stringify(s)); window.__saved = slot; return { success: true }; },
-    getUserGameState: async () => ({ state: slot }), deleteUserGameState: async () => { slot = null; return { success: true }; },
-    addPlayerScoreToLeaderboard: async () => ({ entries: [], userRank: null }), getTopNEntriesFromLeaderboard: async () => ({ entries: [], userRank: null }),
+    getUserGameState: async () => { if (window.__saveFails > 0) { window.__saveFails--; throw new Error('save service down'); } return { state: slot }; }, deleteUserGameState: async () => { slot = null; return { success: true }; },
+    addPlayerScoreToLeaderboard: async () => ({ entries: [], userRank: null }), getTopNEntriesFromLeaderboard: async () => ({ entries: [['Luna', 940], ['محمد', 815], ['Diego', 702], ['Ánh', 655], ['आरव', 590]].map(([username, score]) => ({ username, score, profilePicture: null })), userRank: null }),
     haptics: { supported: false, play: () => { hap.n++; window.__haptics = hap.n; }, start: () => {}, stop: () => {} },
   };
   window.gameConfig = config; run(q.includes('edit') ? 'edit' : 'play');

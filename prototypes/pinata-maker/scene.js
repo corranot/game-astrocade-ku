@@ -309,7 +309,8 @@ export function stickerAt(px, py, id, emoji) {
     }
     if (!target) return null;
   }
-  const tex = stickerTex[id] && stickerTex[id].userData.real ? stickerTex[id] : (stickerTex[id] = picTex(id, emoji));
+  let tex = stickerTex[id];
+  if (!tex || (!tex.userData.real && getImage(id))) { if (tex) tex.dispose(); tex = stickerTex[id] = picTex(id, emoji); }
   const s = new T3.Mesh(new T3.PlaneGeometry(0.34, 0.34), new T3.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: T3.DoubleSide }));
   s.position.copy(point).addScaledVector(normal, 0.015 + P.stickers * 0.0015);
   s.quaternion.setFromUnitVectors(V(0, 0, 1), normal.normalize()); s.rotateZ((Math.random() - 0.5) * 0.7);
@@ -346,7 +347,7 @@ function layoutPinata(dt) {
 /* ---------- stick ---------- */
 /** Build stick `kind` (0 bat, 1 squeaky hammer, 2 wand, 3 foam sword, 4 giant lollipop). */
 export function setBat(kind) {
-  batKind = kind;
+  batKind = kind; const shown = !!batPivot && batPivot.visible;
   if (batPivot) { batPivot.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); scene.remove(batPivot); }
   batPivot = new T3.Group(); batPivot.position.set(1.3, 2.0, 1.5); scene.add(batPivot); batPivot.userData = { t: 1 };
   const b = new T3.Group(); batPivot.add(b);
@@ -356,7 +357,7 @@ export function setBat(kind) {
   else if (kind === 2) { cyl(0.035, 0.035, 1.3, 0x9b5cff, 0.65); const s = mesh(new T3.OctahedronGeometry(0.24), lambert(GOLD), [0, 1.42, 0], b); s.scale.z = 0.5; }
   else if (kind === 3) { mesh(new T3.BoxGeometry(0.2, 1.3, 0.07), lambert(0x35b6ff), [0, 0.95, 0], b); mesh(new T3.BoxGeometry(0.5, 0.09, 0.1), lambert(0xffc928), [0, 0.3, 0], b); cyl(0.05, 0.05, 0.3, 0x9b5cff, 0.13); }
   else { cyl(0.035, 0.035, 1.2, 0xffffff, 0.6); const d = mesh(new T3.CylinderGeometry(0.36, 0.36, 0.1, 20), lambert(0xff5aa8), [0, 1.42, 0], b); d.rotation.x = Math.PI / 2; mesh(new T3.TorusGeometry(0.2, 0.05, 6, 16), lambert(0xffffff), [0, 1.42, 0.06], b); }
-  batPivot.visible = false;
+  batPivot.visible = shown;
   if (!swoosh) { swoosh = mesh(new T3.RingGeometry(0.85, 1.55, 16, 1, 1.07, 1.75), new T3.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: T3.DoubleSide }), [1.3, 2.0, 1.5]); swoosh.rotation.x = 0.25; }
 }
 /**
@@ -404,7 +405,7 @@ export function burst(types, scale = 1) {
   const all = [0xff5aa8, 0xffc928, 0x35b6ff, 0x35d07f, 0x9b5cff, 0xff8a00, 0xffffff];
   chips(c, 130, all, 6.5); chips(V(c.x, c.y + 1, c.z), 50, all, 3);
   shock.visible = true; shock.position.copy(c); shock.scale.setScalar(0.3); shock.material.opacity = 0.9; shock.lookAt(camera.position);
-  for (const g of guests) g.rush = 1;
+  guests.forEach((g, i) => { if (i >= 2) g.rush = 1; }); // only the two at the back step in; the front two would cover the candy
   capsule.g.visible = true; capsule.g.position.copy(c); capsule.v.set(0.2, 4.2, 1.2); capsule.rest = false; capsule.open = 0; capsule.top.position.set(0, 0, 0); capsule.top.rotation.set(0, 0, 0);
   shake = 0.4; cheer(3);
 }
@@ -441,7 +442,7 @@ function updateCandy(dt) {
       if (c.into !== undefined) { if (c.p.y < c.into) { candies.splice(i, 1); if (P) P.squash = Math.max(P.squash, 0.5); continue; } }
       else {
         if (c.p.y < 0.13 * c.scale) { c.p.y = 0.13 * c.scale; if (Math.abs(c.v.y) < 1.2) { c.v.set(0, 0, 0); c.rest = true; } else { c.v.y *= -0.42; c.v.x *= 0.7; c.v.z *= 0.7; c.w.multiplyScalar(0.6); } }
-        if (Math.abs(c.p.x) > 1.75) { c.p.x = Math.sign(c.p.x) * 1.75; c.v.x *= -0.5; }
+        if (Math.abs(c.p.x) > 1.2) { c.p.x = Math.sign(c.p.x) * 1.2; c.v.x *= -0.5; } // candy lands between the guests, never behind them
         if (c.p.z > 2.3) { c.p.z = 2.3; c.v.z *= -0.5; } if (c.p.z < -1.4) { c.p.z = -1.4; c.v.z *= -0.5; }
       }
     }
@@ -588,6 +589,8 @@ export function update(dt, idle = dt) {
   camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
 }
 export function render() { renderer.render(scene, camera); }
+/** Counts for the long-session check: GPU objects alive, draw calls of the last frame, objects in the yard. */
+export const stats = () => ({ geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, calls: renderer.info.render.calls, children: scene.children.length });
 /** Halve confetti and candy when the device is slow. */
 export function setQuality(q) { quality = q; if (renderer) renderer.setPixelRatio(q < 1 ? 0.75 : 1); for (const d of decor) d.visible = q >= 1; }
 /** Slow confetti falling from the sky, so the first screen moves before any touch. */
@@ -600,7 +603,7 @@ export function ambient() { chips(V((Math.random() - 0.5) * 5, 6.5, (Math.random
  * @param {{quality:number, image:(id:string)=>HTMLImageElement|null}} o
  */
 export function initScene(three, canvas, o) {
-  T3 = three; quality = o.quality; getImage = o.image;
+  T3 = three; quality = o.quality; getImage = o.image; swoosh = null; balloons = []; batPivot = null;
   renderer = new T3.WebGLRenderer({ canvas, antialias: quality >= 1, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
   scene = new T3.Scene(); camera = new T3.PerspectiveCamera(38, W / H, 0.1, 80); ray = new T3.Raycaster();
