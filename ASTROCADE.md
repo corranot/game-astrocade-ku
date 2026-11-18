@@ -27,116 +27,96 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 4. **Upgrade Otak Mandiri (Self-Evolving):**
    - Setiap selesai riset tren, membedah game kreator lain, mengecek API Three.js terbaru, atau memperbaiki bug performa, ringkas pelajaran tersebut ke bagian bawah file ini (jaga total file maksimal 150 baris).
    - Langsung jalankan `git add ASTROCADE.md && git commit -m "chore: upgrade otak ASTROCADE.md" && git push` agar memori tersimpan permanen.
+   - Saat menambah pelajaran, ringkas ulang bagian yang sudah usang; jangan hanya menumpuk di bawah. Kesalahan baru masuk ke bagian 0.
+5. **Audit Sebelum Bilang Selesai (WAJIB):** Sebelum melapor "selesai", "aman", atau mengunggah draft, baca bagian 0 (kesalahan yang pernah terjadi) dan jalankan bagian 5 (audit berurutan) di memori di bawah. Uji yang lulus bukan bukti tampilan benar: tiap layar dilihat ukuran penuh.
 
 ---
 
-## MEMORI PENGETAHUAN STUDIO (MULAI DARI KOSONG & TERUS BERTAMBAH)
+## MEMORI PENGETAHUAN STUDIO (DIRINGKAS ULANG 2026-11-18; TERUS BERTAMBAH)
 
-### 1. Tren Backend Astrocade & Rahasia Game Viral
-**Cek feed 2026-11-17** — 235 game unik dari 25 baris kategori feed publik (`POST astrocade-api-prod.com/v3/feed?filter=gallery`, sesi tamu). Kecepatan = total plays ÷ umur sejak rilis (rata-rata seumur hidup, bukan plays hari ini). Retensi tidak ada di feed.
-- **Kategori tercepat (median plays/hari):** Players' Choice ~20rb, Meme ~14rb, Toys ~10rb, Creative/Educational/Farm ~6rb. Paling lambat: Platformer ~340, Action ~650, Simulation ~750.
-- **Pola juara untuk anak-anak:**
-  1. *ASMR bikin-sendiri bertahap* (slime, kue, donat, ukir kayu, dandani boneka): tuang → aduk → warnai → hias. Slime studio 71rb/hari; Woodturner 43rb/hari dan Squishy Balloon Slime 37rb/hari di minggu pertama.
-  2. *"Steal a ..." + base + pet/mutasi* (egg, brainrot, lucky block, car): 16–56rb/hari, banyak tiruan tetap laku.
-  3. *Dress-up lalu duel/runway dinilai juri*: 20–24rb/hari.
-  4. *Sandbox usil/meme* (Prank City 62rb/hari, brainrot, "+1 ..." incremental).
-  5. *Runner gerbang matematika* (Ant Army 21rb/hari di hari ke-2) — cara masuk Educational tanpa terasa belajar.
-- **Sinyal lain:** like hanya 1–2,7% dari plays di semua kategori (bukan pembeda). Share tertinggi: Arcade, Platformer, Merge, Meme (3–4%). Judul = kata kerja + benda konkret ("Steal an Egg", "Giant Salami Saw").
-- **Hindari:** platformer/action generik; game bermerek (Barbie, Ben 10, Minecraft ada di feed tapi itu IP orang).
+### 0. Kesalahan yang sudah pernah terjadi (baca ini dulu, jangan diulang)
+Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu aturannya.
+1. **Bilang "audit bersih" padahal layarnya salah.** Tangkapan layar hanya dilihat kecil berjajar; user yang menemukan stiker tertutup jumbai, kepala piñata tertutup kotak pesanan, tamu menutupi piñata. *Aturan:* buka tiap layar ukuran penuh 720×1280 satu per satu, untuk tiap varian (semua bentuk, semua langkah), sebelum bilang selesai. Sebutkan layar mana yang dilihat.
+2. **Uji lulus tidak berarti tampilan benar.** Uji tata letak hanya memeriksa kotak HUD. *Aturan:* benda utama (3D atau kanvas) punya ujinya sendiri: terlihat dari kamera, tidak tertutup, muat di jalurnya (`scene.seen()` di `prototypes/pinata-maker/`).
+3. **Mengubah tampilan tanpa melihat ulang layar yang terdampak.** Jumbai ditambah, layar dekorasi tidak dilihat lagi. *Aturan:* setelah perubahan visual apa pun, lihat ulang semua layar yang memakai benda itu.
+4. **Menerapkan saran penilai (agen) tanpa mengecek akibatnya.** Kamera digeser membuat kepala tertutup; "sembunyikan dekor di HP lambat" membuat halaman kosong. *Aturan:* tiap saran dicek di layar setelah diterapkan; saran adalah usul, bukan kebenaran.
+5. **Suntingan lewat skrip merusak satu baris** (komentar disisipkan di tengah baris menelan kode), lalu `try/catch` yang mencoba ulang diam-diam menelan errornya. *Aturan:* setelah suntingan skrip jalankan `node --check` dan satu putaran main; jangan bungkus kode game sendiri dengan penangkap error yang diam.
+6. **Uji bergantung waktu tunggu, bukan keadaan** (tombol hadiah). *Aturan:* uji menunggu keadaan game, bukan milidetik.
+7. **Merge tanpa bertanya.** Hook repo meminta izin untuk merge. *Aturan:* tanya dulu. Pengecualian yang sudah diizinkan user: merge `main` ke branch kerja tanpa perubahan berkas (`git merge -s ours origin/main`) untuk membereskan konflik riwayat setelah PR di-squash, asal dicek dulu `git diff --quiet <ujung lama> origin/main`, lalu dilaporkan.
+8. **Lama diam saat bekerja.** *Aturan:* satu kalimat kabar tiap ganti tahap.
+9. **Istilah user yang tidak dikenal** ("daemon (panca) indera lengkap", "para top pakar super jenius"). Tidak ada alat atau panel seperti itu. Maksudnya: periksa seperti pemain sungguhan dan kerjakan sebaik mungkin. Katakan terus terang, lalu jalankan audit penuh di bagian 5.
 
-**Gali dalam 2026-11-17 (lanjutan)** — 4 snapshot feed selang 13–20 menit + 9 game teratas dijalankan di browser HP tiruan. Layar pertama tiap game: `production/qa/evidence/astrocade-top9-first-screens-2026-11-17.png`.
-- **Plays nyata per jam (jendela 13–20 menit, kasar; penghitung game besar di-update per batch):** Gym Masters ~8rb, Woodturner Workshop ~8rb, Poké Phone Case Shop ~6,6rb, Dress up Showdown ~3,2rb, Lasagna Cooking Sim ~3rb, Ant Army Runner ~2,8rb. Game umur ≤7 hari mendominasi.
-- **Cara skip di Astrocade:** feed geser seperti video pendek ("Swipe outside game or tap arrow for next game"). Pemain melihat thumbnail + tombol Play, lalu layar pertama game. Layar pertama itulah yang menentukan.
-- **Kenapa 9 game teratas tidak di-skip (terlihat di layar):**
-  1. *Tujuan + hadiah tampil sebelum main.* Woodturner: pesanan pelanggan, bentuk target, "💰 70", satu tombol hijau.
-  2. *Satu kalimat perintah yang menyebut aksinya.* "Carve the log to match the dashed outline", "Drag flour... into the mixing bowl", "Tap THROW near someone".
-  3. *Penghitung progres selalu terlihat.* "Step 1 of 10", "Ingredients 2/7", misi "1/17", "Choice 1/10", tab Carve→Sand→Paint.
-  4. *Umpan balik tiap aksi.* Toast "Milk added! (2/7)", serpihan kayu, angka pasukan naik di gerbang +25.
-  5. *Satu tombol besar di tengah bawah.* Hampir semua tetap punya layar Play 1 ketukan — bukan nol menu, tapi tidak pernah lebih dari 1 ketukan.
-  6. *Layar loading dipakai mengajar.* "Tip: drag the bottles onto the bowl", "Punch the bros when they are dizzy!".
-  7. *Game "Steal":* langsung di dunia, jari penunjuk + quest pertama, timer hadiah ("Online 3m", malam "in 4m 50s"), papan "Richest Thieves" dengan baris "You $0".
-- **Belum terbukti:** retensi/skip rate asli tidak ada di feed; poin di atas dari pengamatan layar, bukan data skip.
+### 1. Pasar Astrocade (data 2026-11-17 dan 18; ukur ulang sebelum memilih game baru)
+- **Tipe tercepat (plays/jam nyata, 160 game, 18 Nov 11.00 UTC):** bikin/dandani bertahap ±22rb dari 15 game (paling ramah anak); hancurkan/sandbox usil ±16,7rb dari 8; runner berubah bentuk/pasukan ±12rb dari 6; gambar/mewarnai ±11rb dari 3 (rata-rata per game tertinggi); telur/steal ±9,6rb dari 30 (padat: 41 game "egg", median 1.000 plays/hari).
+- **Median kategori (plays/hari seumur hidup):** Players' Choice ~20rb, Meme ~14rb, Toys ~10rb, Creative/Educational/Farm ~6rb; Platformer ~340, Action ~650, Simulation ~750.
+- **Game umur ≤7 hari mendominasi;** game besar lama melambat (×0,4–0,7 dari rata-ratanya). Laju bergantung jam: total bisa turun 25% dalam 30 menit.
+- **Contoh teratas:** Slime studio 71rb/hari, Prank City 62rb/hari, Woodturner 43rb/hari, Squishy Balloon Slime 37rb/hari, Dress-up duel 20–24rb/hari, Ant Army Runner 21rb/hari di hari ke-2.
+- **Standar isi game Steal teratas:** 8 bahasa, hadiah harian dan online bertimer, uang offline, quest, achievement, Index pet, fusi, mutasi, leaderboard. Game bikin bertahap teratas tidak memakainya.
+- **Judul:** kata kerja + benda konkret ("Steal an Egg", "Giant Salami Saw"); game bikin memakai "... Maker: DIY ASMR". Deskripsi dibuka dengan kata kerja langkahnya dan menyebut hadiah.
+- **Hindari:** platformer/action generik; game bermerek atau tiruan game orang (Roblox, Barbie, Minecraft): ambil genrenya saja.
+- **Bahasa penonton (3.361 komentar berlabel):** Inggris 57%, Arab 24%, Spanyol 5,6%, Vietnam 2,8%, Hindi 2,7%, Bengali 2,3%, Indonesia 1,6%. Inggris dan Arab ada di 30 dari 30 game. Batas: komentar ditulis anak yang lebih besar.
+- **Belum pernah terbukti:** skip rate dan retensi per game tidak terbuka; semua kesimpulan dari plays dan pengamatan layar.
 
-**Gali sangat dalam 2026-11-17 (ronde 3)** — 650 game dari feed, 79 kandidat diukur ulang lewat halaman game masing-masing (jendela ±32 menit), 9 game dimainkan 25 detik dan kodenya dibaca. Layar: `production/qa/evidence/astrocade-top9-first-25s-2026-11-17.jpg`.
-- **Cara ukur yang benar:** feed diacak per sesi (dua snapshot hanya berbagi ±48 game), jadi jangan bandingkan snapshot feed. Buka `astrocade.com/games/x/<gameId>` dua kali; halaman itu sendiri memuat hitungan plays terbaru. HTML halaman di-cache dan basi.
-- **Plays nyata per jam:** Counter Arena 4.279, Squishy Balloon Slime 3.346, Papercut.io 2.261, DIY Beauty Salon 2.147, Crash Bot Lab 1.712, Dress up Showdown 1.661, Slap and steal a car 1.628, Zombies vs Humans 1.597, Ant Army Runner 1.546, Sniper Ghost 3D 1.531.
-- **Tipe tercepat sekarang (jumlah plays/jam di 79 kandidat):** (1) bikin/dandani bertahap — slime, salon, dress-up, donat, phone case: ±13rb/jam dari 10 game, paling ramah anak; (2) tembak-tembakan arena blok 3D: ±11rb/jam, tapi penonton lebih tua; (3) sandbox hancurkan ragdoll: ±3,3rb/jam; (4) "Steal": ±3,2rb/jam; (5) runner gerbang matematika: ±2rb/jam.
-- **Sedang menanjak (laju sekarang ÷ rata-rata seumur hidup):** Counter Arena ×3,3, Draw It! ×3,3, Chainsaw Man ×2,7, Slime ×2,2. Game lama besar melambat (×0,4–0,7).
-- **Yang dicatat platform (terlihat di kode situs):** waktu sampai gestur pertama, gestur selama main, tonggak main 30/60/300/600 detik, detak interaksi (dasar retensi D1/D3/D7/D30), FPS rata-rata + simpangan yang dikirim game, waktu muat preview. Bobot di peringkat tidak terlihat.
-- **Temuan baru soal skip:**
-  1. *Game sudah jalan di belakang kartu Play.* Pemain melihat layar pertama game (buram) sebelum mengetuk. Ant Army: pasukan dan gerbang sudah tampak. Layar pertama harus hidup tanpa input.
-  2. *Muat cepat:* iframe muncul ±4,5 detik, layar pertama game 7–9 detik dari buka halaman. Ant Army paling lambat (15,6 detik) dan menutupinya dengan dunia yang sudah terlihat.
-  3. *Penolakan lembut, bukan kalah.* Slime: "Pour a bit more gel!", "Keep stirring!", lalu "Nice pour! Tap NEXT". Tidak ada layar gagal di game bikin-bikin.
-  4. *Pilihan tiap beberapa detik.* Ant Army: 10 gerbang per stage ("CHOICE 2/10"), angka pasukan berubah di tiap gerbang; kalah menampilkan sebab jelas ("Crushed by the thorn rams!") + "PLAY AGAIN".
-  5. *Mainan tanpa aturan.* Crash Bot Lab: 15 senjata terbuka sejak awal, satu kalimat per senjata ("Tap to drop an anvil"), penghitung DAMAGE.
-  6. *Kejutan acak di game panjang.* Lucky Block: "CASH RAIN!", "GOLD RUSH!", "LUCKY PORTAL!", "WELCOME BACK!", uang jalan "+$0/s", papan "Top Steals".
-  7. *Papan skor:* 7 dari 10 game tercepat punya leaderboard; game bikin-bikin (Slime, Beauty Salon) tidak, jadi bukan syarat.
-- **Ukur ulang 29 menit kemudian (±16.20–16.50 UTC):** total 79 kandidat turun dari ±47rb ke ±35rb plays/jam, jadi laju bergantung jam. Urutan: Woodturner Workshop 2.525, Counter Arena 2.245, Squishy Balloon Slime 1.653, Prank City 1.389, Poké Phone Case Shop 1.242, Papercut.io 1.140, DIY Beauty Salon 1.083. Lima dari tujuh teratas adalah game bikin bertahap atau sandbox usil; kesimpulan tipe tidak berubah.
-- **Belum terbukti:** skip rate dan retensi per game tetap tidak terbuka; dua jendela ±30 menit berurutan saja, belum tentu sama di jam lain.
+### 2. Kenapa game teratas tidak di-skip (pengamatan layar, bukan data skip)
+- Feed geser seperti video pendek; **game sudah jalan di belakang kartu Play**, jadi layar pertama harus hidup tanpa input.
+- Tujuan + hadiah tampil sebelum main; satu kalimat perintah yang menyebut aksinya; penghitung progres selalu terlihat; umpan balik tiap aksi; satu tombol besar di tengah bawah; layar loading dipakai mengajar.
+- Penolakan lembut, bukan kalah ("Keep stirring!"); pilihan tiap beberapa detik; kejutan acak di game panjang ("CASH RAIN!").
+- Muat: iframe ±4,5 detik, layar pertama 7–9 detik dari buka halaman.
+- Platform mencatat: waktu sampai gestur pertama, gestur selama main, tonggak 30/60/300/600 detik, FPS yang dikirim game, waktu muat. Bobotnya tidak terlihat.
 
-**Cek bahasa penonton 2026-11-18 (gali dalam)** — 3.630 komentar dari 30 game (20 paling ramai komentar + 10 game umur ≤8 hari), ±120 per game. Tiap komentar membawa label `language` dari platform; label itu cocok 98% dengan pendeteksi bahasa terpisah pada 298 komentar panjang.
-- **Porsi dari 3.361 komentar berlabel:** Inggris 57%, Arab 24%, Spanyol 5,6%, Vietnam 2,8%, Hindi 2,7%, Bengali 2,3%, Indonesia 1,6%, Turki 0,8%, Prancis 0,7%, Urdu 0,6%. Di bawahnya: Portugis 0,4%, Tagalog, Rusia, Italia (masing-masing ≤0,2%).
-- **Stabil dari semua sudut:** Inggris dan Arab muncul di 30 dari 30 game; urutan sama untuk rata-rata per game, komentar 14 hari terakhir, dan game baru. Posisi 8–10 (Turki, Prancis, Urdu) hanya 20–27 komentar, jadi bisa bertukar dengan Portugis kalau dicek ulang.
-- **Batas data:** komentar ditulis anak yang lebih besar, bukan semua pemain; bahasa komentar belum tentu sama dengan bahasa device (penutur Hindi sering memakai HP berbahasa Inggris). 7% komentar tanpa label (emoji atau terlalu pendek).
-- **Cara cek yang cepat:** buka halaman game dengan game-nya diblokir (`play.json`, `/context/`), tekan tombol Comments, gulir hanya di dalam lembar komentar; satu sesi tamu per pekerja (halaman paralel dalam satu sesi gagal). 30 game selesai ±5 menit.
+### 3. Cara mengukur (cepat, dari halaman tamu di browser biasa)
+- Daftar game: `POST astrocade-api-prod.com/v3/feed?filter=gallery` per kategori (`category`, `categoryPageSize=30`, token base64 `{category, offset, algorithm_metadata, gallery_id}`), header dari permintaan halaman itu sendiri. 25 kategori, ±1.900 game. Stempel waktu dalam detik.
+- Plays terbaru: `GET /v3/games?gameId=<id>`; baca dua kali selang ±30 menit. Jangan bandingkan snapshot feed (diacak per sesi). 160 game ±10 detik.
+- Bedah game: `contextCdnUrl` (`full.json.gz`) memuat kode, `game_config.json`, dan dokumen desain game mana pun. Ambil ilmunya, bukan isinya.
+- Bahasa: buka halaman game dengan game diblokir (`play.json`, `/context/`), tekan Comments, baca label `language`; satu sesi tamu per pekerja.
+- Panggilan API langsung dengan header tiruan ditolak; pakai `page.evaluate(fetch)` dari halaman.
 
-**Cek tema telur/steal/break 2026-11-18 (gali sangat dalam)** — 1.887 game dari 25 kategori, 160 kandidat diukur dua kali (jendela 28 menit, ±11.00–11.28 UTC), 9 game telur/beliung dimainkan ±25 detik.
-- **Cara cepat:** dari halaman tamu, panggil `POST /v3/feed` per kategori (`category`, `categoryPageSize=30`, token base64 `{category, offset, algorithm_metadata, gallery_id}`) dan `GET /v3/games?gameId=<id>` untuk hitungan plays terbaru, dengan header yang dipakai halaman itu sendiri. 160 game terbaca ±10 detik. Stempel waktu feed dalam detik. `contextCdnUrl` (`full.json.gz`) memuat kode dan config game mana pun.
-- **Pasar telur padat:** 41 game berjudul "egg"; median 1.000 plays/hari, hanya 7 di atas 10rb/hari. 30 game telur total ±9,6rb plays/jam; 15 game bikin/dandani bertahap ±22rb/jam; 8 game hancurkan/sandbox usil ±16,7rb/jam; 3 game gambar/mewarnai ±11rb/jam.
-- **"Break and Steal an Egg" sudah ada di Astrocade** (remix, 22 hari, 296rb plays, 406/jam dan melambat). Varian beliung lain 100–370/jam.
-- **Naik sekarang:** Space Survivor 7.586/jam, Smash Everything! 4.458, Morph Race 3.600, Color Quest 3.541, Lip Art Studio 2.734. Hampir semua game ×2 dari rata-ratanya di jam ini, jadi rasio di bawah ×1 berarti turun.
-- **Standar isi game telur teratas (dari config):** 8 bahasa termasuk Arab, hadiah harian dan online bertimer, uang offline, quest, achievement, Index pet, fusi, mutasi, leaderboard.
-- **Batas data:** satu jendela 28 menit; feed hanya memuat game pilihan platform; pengelompokan tipe dibuat dari judul dan deskripsi.
+### 4. Platform Astrocade dan Three.js (terbukti lewat unggah nyata)
+- Iframe persis 720×1280; `window.run = run`; host memanggil `run('play'|'edit')`, bisa lebih dari sekali. Mode edit: gambar hidup tanpa gameplay dan tanpa input.
+- Dilarang: `localStorage`, cookie, `alert`, popup, jaringan selain CDN (jsDelivr, unpkg, cdnjs) dan aset platform. Simpanan hanya `lib.saveUserGameState`/`getUserGameState` (satu slot, state penuh). Getar hanya `lib.haptics`. `lib.showGameParameters` wajib kalau config punya angka; leaderboard di `persistent_storage_config`.
+- Akun ini multi-berkas: `index.html` memuat `./game.js` sebagai modul; server uji lokal wajib mengirim `content-type: text/javascript`.
+- Unggah: `create_game` tanpa berkas, lalu `begin_upload` (purpose `game_file`) + `curl -X PUT -T` + `save_draft` dengan `file_upload_ids`; semua berkas sumber harus ikut tiap simpan (`game_config.json` dan `asset_map.json` boleh ditinggal). Draft pribadi; publish menunggu kata user dan thumbnail GIF buatan user.
+- Generator aset jalan sebelum game dibuat, 8 sekaligus; serahkan ke satu subagen supaya konteks utama hemat. Gaya konsisten kalau semua prompt memakai kalimat yang sama ("glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes").
+- Three.js terbaru (0.187.0) hanya modul ES. Terkecil: `await import('https://cdn.jsdelivr.net/npm/three@0.187.0/+esm')` (satu berkas ±157 KB terkompres), cadangan `build/three.module.js` di jsDelivr dan unpkg; tiap percobaan ulang pakai query baru. Lampu sejak r155 perlu intensitas ±2. Cahaya pantul krem, bukan hijau (kuning jadi zaitun).
+- Performa 3D: satu `InstancedMesh` per jenis benda; dekor statis digabung jadi satu mesh berwarna per titik; `renderer.compile` di awal; HP lambat (di bawah 40 FPS selama 3 detik) turun ke resolusi ×0,75 dan setengah partikel, dekor tetap tampil. Teks dan emoji HUD digambar sekali ke kanvas kecil lalu disalin.
+- Suara: Web Audio (`fetch` + `decodeAudioData`), bunyi setelah sentuhan pertama, jeda saat `document.hidden`. Ukur dengan `ffmpeg -af volumedetect,silencedetect`: suara generator sering punya 0,07–0,1 detik hening di awal (lompati dengan `src.start(0, skip)`) dan volume puncak sangat berbeda (samakan).
+- Emoji koin 🪙 tidak ada di HP lama (gambar sendiri). Teks Arab di kanvas butuh `direction = 'rtl'`.
 
-### 2. Update Engine & API Terbaru (Three.js / 2D)
-**Three.js di Astrocade (terbukti di prototipe 2026-11-18)** — versi terbaru 0.187.0 hanya ada sebagai modul ES: `await import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js')` dengan cadangan unpkg; game 3D lain di feed memuat jsdelivr/cdnjs/unpkg. Lampu sejak r155 perlu intensitas ±2 supaya warna cerah. Satu `InstancedMesh` per jenis benda (permen, konfeti) menjaga jumlah gambar ulang tetap kecil.
-**Platform Astrocade (terbukti 2026-11-18 lewat `get_game_dev_guide` dan unggah nyata)**
-- **Kanvas:** iframe persis 720×1280; game mendefinisikan `window.run = run`, host memanggil `run('play'|'edit')`. Mode edit: gambar hidup tanpa gameplay sudah diterima.
-- **Dilarang di iframe:** `localStorage`, cookie, `alert`, popup, jaringan selain CDN yang disetujui dan aset platform. Simpanan hanya lewat `lib.saveUserGameState`/`getUserGameState` (satu slot, selalu kirim state penuh).
-- **Suara:** `fetch(url aset)` + `decodeAudioData` jalan (CDN aset mengirim `access-control-allow-origin: *`). Web Audio lebih baik daripada `<audio>`: loop mulus dan volume bisa diatur. Suara baru boleh bunyi setelah sentuhan pertama; jeda saat `document.hidden`.
-- **Wajib ada:** `lib.showGameParameters` kalau config punya angka; leaderboard dideklarasikan di `persistent_storage_config`; getar hanya lewat `lib.haptics`.
-- **Gambar:** emoji koin 🪙 tidak ada di HP lama, jadi gambar koin sendiri di kanvas. Gambar generator konsisten kalau semua prompt memakai kalimat gaya yang sama ("glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes").
+### 5. Audit wajib sebelum bilang selesai dan sebelum unggah (urut)
+1. `node playtest.js <folder bukti>`: alur penuh, ketuk saja, ketuk beruntun, aturan hadiah, tanpa aset, mode edit, 600 input acak ber-seed, bahasa HP, tumpang tindih HUD di semua layar × 7 bahasa, menit pertama, keamanan, dan "yang dilihat pemain".
+2. `node soak.js 14`: belasan putaran dalam satu halaman; gagal kalau ada error, simpanan rusak, umpan balik hilang di putaran lanjut, atau objek GPU terus bertambah.
+3. Grep aturan platform (penyimpanan, `alert`, URL jaringan), `node --check`, kunci config dan string yang dipakai tapi tidak ada.
+4. Satu subagen membaca kode dari nol mencari bug (bukan gaya). Di Pinata ia menemukan 10 bug yang lolos semua uji.
+5. Lihat tiap layar ukuran penuh, tiap varian (aturan 0.1): `node prototypes/pinata-maker/look.js <folder game> <folder keluar>` merender tiap bentuk × tiap langkah pada 720×1280; buka gambarnya satu per satu, jangan dijajar kecil. Baru setelah itu versi artifact, lalu draft.
+6. Laporkan: uji yang lulus, bug yang ditemukan, dan yang hanya bisa dinilai user di HP (suara sebenarnya, rasa sentuhan, FPS, terjemahan).
 
-### 3. Catatan Optimasi Retensi, Bug & Performa
+### 6. Kelas bug yang harus dicek di tiap game
+- Simpanan ditulis sebelum simpanan pemain selesai dibaca (progres tertimpa kosong): tahan tulis sampai baca berhasil; baca gagal diulang.
+- Pustaka CDN gagal dimuat membuat layar mati: coba ulang sendiri dan pada tiap ketukan.
+- Penghitung waktu tingkat modul tidak direset tiap putaran (bunyi hilang di putaran kedua).
+- Tombol digambar dengan satu syarat, bisa diketuk dengan syarat lain: pakai satu fungsi untuk keduanya. Jangan ada tombol tak terlihat yang masih aktif.
+- `run()` kedua: input di mode edit, panggung ganda, benda dari scene lama.
+- Benda yang dilepas dari grup (`scene.attach`) tidak ikut terhapus; tekstur dan geometri yang dibuat tiap putaran harus dibuang atau dipakai ulang.
+- Daftar kosong ke pemilih acak menghasilkan `undefined`; pecahan 6 × 1/6 tidak pernah genap 1; simpanan lama tanpa kolom baru; mainan tersimpan dobel kalau simpanan datang terlambat.
+- Ketukan yang meleset harus tetap berefek (kertas atau stiker terdekat; lubang donat).
+- Hari kalender dihitung dengan `setDate`, bukan "24 jam lalu"; jam yang dimundurkan tidak membayar hadiah dua kali.
 
-**Resep bangun game bertahap (hasil Fizzy Bath Bomb Maker, pakai ulang untuk game berikutnya)**
-1. *Jalur tata letak tetap.* Bagi layar jadi jalur (HUD, bar langkah, perintah, pesan, pesanan, area main, baris pilihan, tombol aksi); tiap elemen hanya di jalurnya. Layar hadiah dan menu jadi panel penuh.
-2. *Uji anti-tumpang-tindih.* Di mode debug game mencatat kotak tiap elemen; uji gagal kalau dua kotak bersinggungan atau keluar layar, di semua layar × semua bahasa.
-3. *FTUE.* Putaran pertama dipendekkan (hadiah pertama ±10 detik); sorotan + tangan bayangan di benda yang harus disentuh; fitur muncul satu per satu dan masing-masing minta satu ketukan (batas 6 detik); bantuan muncul lagi setelah 4 detik diam.
-4. *Alasan main lama.* Pesanan pelanggan berbayar koin, buku resep kombinasi, album koleksi + set emas, bar hadiah berikutnya di HUD, toko sebagai tempat belanja koin, mini-game tiap putaran ke-3, tempo makin cepat. Dobel tidak boleh terasa rugi (beri bintang).
-5. *Ramah anak kecil.* Ketuk harus berefek sama seperti tahan; tidak ada layar kalah; tombol ulang ditunda 1,5 detik supaya tidak terpencet; ikon dan angka menggantikan kata.
-6. *Visual.* Satu gaya untuk semua gambar; benda kanvas diberi gradasi, kilau, dan bayangan meja; benda utama punya volume; air bergerak; hadiah dibuka dengan kilatan; langkah meluncur masuk; chip HUD berwarna per fungsi.
-7. *Uji wajib sebelum unggah* (`playtest.js`): alur penuh, ketuk saja, ketuk beruntun, aturan hadiah, layar tanpa aset, mode edit, 600 input acak ber-seed, tiap bahasa lewat locale browser, tumpang tindih, FTUE. Uji tidak boleh bergantung pada keberuntungan.
+### 7. Resep game bikin bertahap (Fizzy Bath Bomb, Pinata Maker)
+- **Hadiah dulu, baru membuat:** pemain baru langsung memegang hasil jadi (3 ketukan, hadiah pertama dalam ±2 detik), lalu "buat sendiri". Putaran membuat pertama dipendekkan.
+- **Jalur tata letak tetap:** HUD, bar langkah, progres, perintah, pesan, pesanan, area main, baris pilihan, tombol aksi. Benda utama diskalakan supaya muat di area main untuk tiap varian. Layar hadiah dan menu jadi panel penuh yang tidak tembus pandang.
+- **Bantuan:** sorotan + tangan bayangan di benda yang harus disentuh (termasuk bentuk dan warna yang diminta pesanan); muncul lagi setelah 4 detik diam; perkenalan fitur tidak boleh menelan ketukan.
+- **Ramah anak:** ketuk sama dengan tahan; tanpa layar kalah; yang tidak sempat diambil terkumpul sendiri; hadiah terbuka sendiri setelah 3 detik; tombol punya ikon; benda terkunci tetap terlihat dengan lencana gembok; ikon dan angka menggantikan kata; 7 bahasa.
+- **Alasan main lama:** pesanan berbayar koin (meminta benda yang baru terbuka), album + set emas, bar hadiah berikutnya berupa potongan, toko yang memberi manfaat nyata, putaran khusus tiap ke-3, hadiah harian, tema baru. Koin selalu punya tujuan; mode pintas tidak boleh lebih untung dari alur utama; dobel memberi bintang.
+- **Rasa:** jeda sekejap saat kena, bekas yang menetap, gerak lambat di puncak, getar, kamera menyentak; permen dan konfeti banyak tapi tidak di belakang karakter; warna benda tidak sama dengan latarnya.
 
-**Cara kerja bareng user (pola yang berulang di sesi 2026-11-17/18)**
-- Alurnya: user minta rekomendasi → jawab dengan daftar berprioritas dan urutan kerja → user bilang "kerjakan semuanya bertahap" → kerjakan semua, laporkan per tahap.
-- Game diuji dulu di artifact (satu berkas HTML, aset ditanam sebagai data URI, `lib` tiruan dengan `localStorage`); baru setelah user puas dibuat di Astrocade. Publish selalu menunggu kata user.
-- User sering menyebut "para pakar": jawab dengan penilaian sendiri dari data dan tangkapan layar, dan katakan terus terang bahwa itu bukan panel pakar.
-- Jangan menjanjikan "tanpa bug": laporkan uji yang lulus, bug yang ditemukan uji, dan apa yang hanya bisa dinilai user di HP (suara, rasa gerakan, terjemahan).
-- User tidak suka menunggu lama: riset backend maksimal ±30 halaman per cek, dan beri kabar singkat saat proses panjang.
-- Batas alat di sesi cloud: panggilan API Astrocade langsung dengan header tiruan ditolak (pakai browser biasa); `rm` dengan pola `*` ditolak (tulis bukti baru ke folder baru); push paksa ditolak.
+### 8. Cara kerja bareng user
+- Alur: user minta rekomendasi → daftar berprioritas → "kerjakan semuanya bertahap" → kerjakan semua, kabari per tahap. User mencoba di artifact dan di draft Astrocade; publish menunggu kata user.
+- Artifact: satu berkas HTML, aset data URI (gambar diperkecil 384 px), `lib` tiruan dengan `localStorage`, `fetch` data URI ditangani sendiri.
+- Jangan menjanjikan "tanpa bug" atau "audit bersih" tanpa syarat di bagian 5. Riset backend ±30 halaman per cek kecuali diminta gali dalam.
+- Penilaian "pakar": yang ada adalah agen peran (game-designer, ux-designer, art-director, performance-analyst) dan satu pencari bug. Berguna, tapi tetap AI: sebutkan begitu.
+- Sesi cloud: perintah shell yang menggabung `git` dengan heredoc besar, atau memuat `rm -rf`, bisa ditolak; tulis skrip suntingan ke berkas di scratchpad lalu jalankan, bukti baru ke folder baru. Push paksa ditolak. Hook berhenti meminta commit + push; repo menggabung PR otomatis dalam hitungan detik.
+- Git setelah PR di-squash: lihat aturan 0.7.
 
-**Pinata Maker: Smash Party (draft Astrocade 2026-11-18)** — game id `01M7QHXBYRP167NRSCKP8M33V7`, sumber di `prototypes/pinata-maker/`, belum dipublikasikan, belum ada thumbnail; bukti layar di `production/qa/evidence/pinata-maker/`. Draft belum pernah dibuka di akun pemilik, jadi bundel platform belum terbukti jalan.
-- **Audit sebelum unggah (wajib diulang untuk game berikutnya):** `playtest.js` (12 uji), `soak.js` (14 putaran dalam satu halaman: error, simpanan, objek GPU yang terus bertambah), pemeriksaan aturan platform dengan grep, dan satu agen pembaca kode dari nol. Agen itu menemukan 10 bug yang lolos dari semua uji.
-- **Bug kelas baru yang harus dicek di tiap game:** simpanan tidak boleh ditulis sebelum simpanan pemain selesai dibaca (kalau baca gagal, ulangi; jangan timpa); pustaka CDN gagal dimuat harus dicoba ulang dengan query baru; penghitung waktu tingkat modul harus direset tiap putaran; tombol yang digambar dan tombol yang bisa diketuk harus memakai satu aturan yang sama; `run()` bisa dipanggil dua kali.
-- **Periksa tiap layar dalam ukuran penuh (720×1280), satu per satu.** Lembar kecil berjajar menyembunyikan masalah: user menemukan stiker tertutup jumbai, kepala piñata tertutup kotak pesanan, dan tamu menutupi piñata, padahal 12 uji lulus. Uji tata letak hanya memeriksa HUD; benda 3D butuh ujinya sendiri (`scene.seen()`: stiker terlihat dari kamera, kotak layar piñata di antara pesanan dan baris pilihan, untuk keenam bentuk).
-- **Jangan bungkus kode game sendiri dengan try/catch yang mencoba ulang diam-diam:** itu menelan salah ketik dan game tampak jalan padahal rusak.
-- **Suara diukur, bukan didengar:** `ffmpeg -af volumedetect,silencedetect` per berkas. Suara generator sering punya 0,07–0,1 detik hening di awal (terasa seperti lag) dan volume puncak yang jauh berbeda; lompati heningnya dengan `src.start(0, skip)` dan samakan volumenya.
-- 3D sebagian: halaman, piñata, permen, tongkat di Three.js (`scene.js`); HUD kanvas 2D di atasnya dengan jalur tetap dan uji tumpang tindih yang sama (`game.js`, `playtest.js`, 11 uji).
-- Bug yang hanya tertangkap uji: benda yang dilepas ke scene (`scene.attach`) tidak ikut terhapus saat grup dibuang; isi kosong membuat fungsi acak memilih `undefined`; teks Arab di kanvas butuh `direction = 'rtl'`.
-- Perintah shell yang memuat `rm -rf` ditolak di sesi cloud: tulis ke folder baru dan pakai alat Edit/Write.
-- **Pelajaran putaran kedua (penilaian empat agen peran: desain, UX, seni, performa; semuanya AI, bukan pakar manusia):**
-  1. *Hadiah dulu, baru membuat.* Pemain baru langsung memukul piñata jadi (3 ketukan); pecah pertama 1,6 detik setelah ketukan pertama di mesin uji.
-  2. *Three.js terkecil:* `https://cdn.jsdelivr.net/npm/three@0.187.0/+esm` satu berkas ±157 KB terkompres; `three.module.min.js` menarik inti 211 KB yang tidak dikecilkan.
-  3. *Cadangan HP lambat harus menurunkan yang mahal:* resolusi kanvas 3D ×0,75 dan dekor disembunyikan, bukan hanya partikel. Panggil `renderer.compile` di awal supaya momen pecah tidak tersendat.
-  4. *Ekonomi:* mode pintas tidak boleh lebih untung dari alur utama (satu bonus pukul per piñata yang dibuat); koin selalu punya tujuan (piñata emas 200 koin); pesanan meminta benda yang baru terbuka.
-  5. *UX anak:* tangan bantuan menunjuk benda yang diminta pesanan, bukan tombol lanjut; hadiah terbuka sendiri setelah 3 detik; benda terkunci tetap terlihat dengan lencana gembok; tombol punya ikon.
-  6. *Seni:* cahaya pantul hijau membuat kuning jadi zaitun (pakai krem); jangan ada panel putih tembus pandang; permen tidak boleh hijau di rumput; beri bayangan pada semua yang berdiri.
-
-**Fizzy Bath Bomb Maker (draft Astrocade 2026-11-18)** — game id `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, sumber di `prototypes/fizzy-bath-bomb-maker/`, belum dipublikasikan.
-- **Format akun ini multi-berkas:** `index.html` memuat `./game.js` sebagai `type="module"`. Server uji lokal wajib mengirim `content-type: text/javascript`, kalau tidak modul menolak dimuat dan game tampak mati.
-- **Cara unggah hemat:** `begin_upload` (purpose `game_file`) per berkas, `curl -X PUT -T`, lalu `save_draft` dengan `file_upload_ids`. Jangan kirim isi berkas lewat `files`.
-- **Generator aset tidak butuh game:** `generate_image`/`generate_sound_effect`/`generate_music` jalan sebelum game dibuat; maksimal 8 sekaligus. Thumbnail baru bisa dibuat setelah draft tersimpan.
-- **Supaya mudah dikenali genre-nya:** judul memakai pola game sejenis yang laris ("... Maker: DIY ASMR"), deskripsi dibuka dengan kata kerja langkah-langkahnya (pour, color, stir, press, decorate) dan menyebut hadiah (surprise toy, collect). Cara kerja rekomendasi Astrocade tidak terlihat dari luar; ini mengikuti pola yang tampak di feed.
-- **Bug yang hanya tertangkap uji:** jumlah pecahan 6 × 1/6 tidak pernah genap 1; tombol HUD mati saat fitur diperkenalkan; simpanan lama tanpa kolom baru; uji yang bergantung pada keberuntungan. Selalu jalankan `node playtest.js` sebelum unggah.
-- **Git:** setelah PR di-squash, mulai branch dari `origin/main`, lalu gabungkan ujung branch lama dengan `git merge -s ours` (jangan `-X ours`: itu pernah menyelipkan baris lama ke berkas).
+### 9. Game yang sudah dibuat
+- **Pinata Maker: Smash Party** — draft Astrocade `01M7QHXBYRP167NRSCKP8M33V7` (belum publish, belum ada thumbnail); sumber `prototypes/pinata-maker/` (`game.js`, `scene.js`, `playtest.js` 13 uji, `soak.js`, `look.js`); bukti `production/qa/evidence/pinata-maker/`. User sudah mencoba di artifact dan Astrocade dan menyatakan aman setelah perbaikan dekorasi (2026-11-18).
+- **Fizzy Bath Bomb Maker** — draft Astrocade `01M7PTJ29PVDBSQ2H2Z9FF7SD1` (belum publish); sumber `prototypes/fizzy-bath-bomb-maker/`. Belum mendapat audit bagian 5 (dibuat sebelum aturan itu ada).
