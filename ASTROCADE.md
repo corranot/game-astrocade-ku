@@ -81,9 +81,31 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 - **Cara cek yang cepat:** buka halaman game dengan game-nya diblokir (`play.json`, `/context/`), tekan tombol Comments, gulir hanya di dalam lembar komentar; satu sesi tamu per pekerja (halaman paralel dalam satu sesi gagal). 30 game selesai ±5 menit.
 
 ### 2. Update Engine & API Terbaru (Three.js / 2D)
-*(Kosong — Claude akan mengisi otomatis saat membuat game)*
+**Platform Astrocade (terbukti 2026-11-18 lewat `get_game_dev_guide` dan unggah nyata)**
+- **Kanvas:** iframe persis 720×1280; game mendefinisikan `window.run = run`, host memanggil `run('play'|'edit')`. Mode edit: gambar hidup tanpa gameplay sudah diterima.
+- **Dilarang di iframe:** `localStorage`, cookie, `alert`, popup, jaringan selain CDN yang disetujui dan aset platform. Simpanan hanya lewat `lib.saveUserGameState`/`getUserGameState` (satu slot, selalu kirim state penuh).
+- **Suara:** `fetch(url aset)` + `decodeAudioData` jalan (CDN aset mengirim `access-control-allow-origin: *`). Web Audio lebih baik daripada `<audio>`: loop mulus dan volume bisa diatur. Suara baru boleh bunyi setelah sentuhan pertama; jeda saat `document.hidden`.
+- **Wajib ada:** `lib.showGameParameters` kalau config punya angka; leaderboard dideklarasikan di `persistent_storage_config`; getar hanya lewat `lib.haptics`.
+- **Gambar:** emoji koin 🪙 tidak ada di HP lama, jadi gambar koin sendiri di kanvas. Gambar generator konsisten kalau semua prompt memakai kalimat gaya yang sama ("glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes").
 
 ### 3. Catatan Optimasi Retensi, Bug & Performa
+
+**Resep bangun game bertahap (hasil Fizzy Bath Bomb Maker, pakai ulang untuk game berikutnya)**
+1. *Jalur tata letak tetap.* Bagi layar jadi jalur (HUD, bar langkah, perintah, pesan, pesanan, area main, baris pilihan, tombol aksi); tiap elemen hanya di jalurnya. Layar hadiah dan menu jadi panel penuh.
+2. *Uji anti-tumpang-tindih.* Di mode debug game mencatat kotak tiap elemen; uji gagal kalau dua kotak bersinggungan atau keluar layar, di semua layar × semua bahasa.
+3. *FTUE.* Putaran pertama dipendekkan (hadiah pertama ±10 detik); sorotan + tangan bayangan di benda yang harus disentuh; fitur muncul satu per satu dan masing-masing minta satu ketukan (batas 6 detik); bantuan muncul lagi setelah 4 detik diam.
+4. *Alasan main lama.* Pesanan pelanggan berbayar koin, buku resep kombinasi, album koleksi + set emas, bar hadiah berikutnya di HUD, toko sebagai tempat belanja koin, mini-game tiap putaran ke-3, tempo makin cepat. Dobel tidak boleh terasa rugi (beri bintang).
+5. *Ramah anak kecil.* Ketuk harus berefek sama seperti tahan; tidak ada layar kalah; tombol ulang ditunda 1,5 detik supaya tidak terpencet; ikon dan angka menggantikan kata.
+6. *Visual.* Satu gaya untuk semua gambar; benda kanvas diberi gradasi, kilau, dan bayangan meja; benda utama punya volume; air bergerak; hadiah dibuka dengan kilatan; langkah meluncur masuk; chip HUD berwarna per fungsi.
+7. *Uji wajib sebelum unggah* (`playtest.js`): alur penuh, ketuk saja, ketuk beruntun, aturan hadiah, layar tanpa aset, mode edit, 600 input acak ber-seed, tiap bahasa lewat locale browser, tumpang tindih, FTUE. Uji tidak boleh bergantung pada keberuntungan.
+
+**Cara kerja bareng user (pola yang berulang di sesi 2026-11-17/18)**
+- Alurnya: user minta rekomendasi → jawab dengan daftar berprioritas dan urutan kerja → user bilang "kerjakan semuanya bertahap" → kerjakan semua, laporkan per tahap.
+- Game diuji dulu di artifact (satu berkas HTML, aset ditanam sebagai data URI, `lib` tiruan dengan `localStorage`); baru setelah user puas dibuat di Astrocade. Publish selalu menunggu kata user.
+- User sering menyebut "para pakar": jawab dengan penilaian sendiri dari data dan tangkapan layar, dan katakan terus terang bahwa itu bukan panel pakar.
+- Jangan menjanjikan "tanpa bug": laporkan uji yang lulus, bug yang ditemukan uji, dan apa yang hanya bisa dinilai user di HP (suara, rasa gerakan, terjemahan).
+- User tidak suka menunggu lama: riset backend maksimal ±30 halaman per cek, dan beri kabar singkat saat proses panjang.
+- Batas alat di sesi cloud: panggilan API Astrocade langsung dengan header tiruan ditolak (pakai browser biasa); `rm` dengan pola `*` ditolak (tulis bukti baru ke folder baru); push paksa ditolak.
 
 **Fizzy Bath Bomb Maker (draft Astrocade 2026-11-18)** — game id `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, sumber di `prototypes/fizzy-bath-bomb-maker/`, belum dipublikasikan.
 - **Format akun ini multi-berkas:** `index.html` memuat `./game.js` sebagai `type="module"`. Server uji lokal wajib mengirim `content-type: text/javascript`, kalau tidak modul menolak dimuat dan game tampak mati.
