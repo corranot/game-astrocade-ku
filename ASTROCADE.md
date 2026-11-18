@@ -53,8 +53,6 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 - **Tipe tercepat (plays/jam nyata, 160 game, 18 Nov 11.00 UTC):** bikin/dandani bertahap ±22rb dari 15 game (paling ramah anak); hancurkan/sandbox usil ±16,7rb dari 8; runner berubah bentuk/pasukan ±12rb dari 6; gambar/mewarnai ±11rb dari 3 (rata-rata per game tertinggi); telur/steal ±9,6rb dari 30 (padat: 41 game "egg", median 1.000 plays/hari).
 - **Median kategori (plays/hari seumur hidup):** Players' Choice ~20rb, Meme ~14rb, Toys ~10rb, Creative/Educational/Farm ~6rb; Platformer ~340, Action ~650, Simulation ~750.
 - **Game umur ≤7 hari mendominasi;** game besar lama melambat (×0,4–0,7 dari rata-ratanya). Laju bergantung jam: total bisa turun 25% dalam 30 menit.
-- **Contoh teratas:** Slime studio 71rb/hari, Prank City 62rb/hari, Woodturner 43rb/hari, Squishy Balloon Slime 37rb/hari, Dress-up duel 20–24rb/hari, Ant Army Runner 21rb/hari di hari ke-2.
-- **Standar isi game Steal teratas:** 8 bahasa, hadiah harian dan online bertimer, uang offline, quest, achievement, Index pet, fusi, mutasi, leaderboard. Game bikin bertahap teratas tidak memakainya.
 - **Judul:** kata kerja + benda konkret ("Steal an Egg", "Giant Salami Saw"); game bikin memakai "... Maker: DIY ASMR". Deskripsi dibuka dengan kata kerja langkahnya dan menyebut hadiah.
 - **Hindari:** platformer/action generik; game bermerek atau tiruan game orang (Roblox, Barbie, Minecraft): ambil genrenya saja.
 - **Bahasa penonton (3.361 komentar berlabel):** Inggris 57%, Arab 24%, Spanyol 5,6%, Vietnam 2,8%, Hindi 2,7%, Bengali 2,3%, Indonesia 1,6%. Inggris dan Arab ada di 30 dari 30 game. Batas: komentar ditulis anak yang lebih besar.
@@ -64,11 +62,9 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 - Tujuan + hadiah tampil sebelum main; satu kalimat perintah yang menyebut aksinya; penghitung progres selalu terlihat; umpan balik tiap aksi; satu tombol besar di tengah bawah; layar loading dipakai mengajar.
 - Penolakan lembut, bukan kalah ("Keep stirring!"); pilihan tiap beberapa detik; kejutan acak di game panjang ("CASH RAIN!").
 - Muat: iframe ±4,5 detik, layar pertama 7–9 detik dari buka halaman.
-- Platform mencatat: waktu sampai gestur pertama, gestur selama main, tonggak 30/60/300/600 detik, FPS yang dikirim game, waktu muat. Bobotnya tidak terlihat.
 
 ### 3. Cara mengukur (cepat, dari halaman tamu di browser biasa)
 - Daftar game: `POST astrocade-api-prod.com/v3/feed?filter=gallery` per kategori (`category`, `categoryPageSize=30`, token base64 `{category, offset, algorithm_metadata, gallery_id}`), header dari permintaan halaman itu sendiri. 25 kategori, ±1.900 game. Stempel waktu dalam detik. Tanpa `&category=<nama>` di query, server diam-diam mengembalikan feed awal. `seed` lebih besar dari 2^53: simpan sebagai teks.
-- Tiap game di feed membawa `ownerTotalPlays`, `ownerFollowerCount`, `likeCount`, `shares`, `commentsCount`.
 - **Peringkat kreator dan game harian/mingguan/bulanan:** `astrotopper.vercel.app` (pihak ketiga, 517 kreator). Kreator: `/?window=weekly|monthly`; game: `/?view=games&window=weekly&q=<nama kreator>`. Cek ini dulu sebelum menyimpulkan siapa yang ramai.
 - **Cek backend rutin (manual, saat user bilang "cek backend"):** `node tools/market-check.js` menyimpan satu cek ke `production/market/<waktu>/` (game dan kreator tercepat minggu ini, semua flag halaman, Players' Choice, Discover More) dan mencetak laporan dibanding cek sebelumnya: game BARU/MUDA, flag yang berubah (tanda algoritma diubah). Lalu simpan hasil `list_my_games` sebagai `my-games.json` (`{at, games:[{game_id,title,plays}]}`) di folder itu dan jalankan `--report` untuk laju plays per game. Tutup laporan dengan satu baris: tipe apa yang layak dibuat sekarang (ngebut dan belum padat).
 - **Akun sendiri:** `list_my_games` (MCP) memberi total plays tiap game; tanggal buat terbaca dari 10 huruf pertama `game_id` (ULID).
@@ -139,12 +135,16 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 - **Akun kita:** 44 game publik, 1,37 juta plays, median 5.143. Median per umur: 0–21 hari 253, 21–45 hari 17 ribu, 45–75 hari 32 ribu, 75 hari lebih 121 ribu. Sejak 2 Nov, 15 dari 17 game baru berhenti di 146–465 plays (dugaan: jatah uji platform); yang lolos hanya Reel & Hatch (31 ribu) dan Rub It Away (16 ribu dalam 4 hari). Teratas: Splash Master #1 215 ribu, #2 152 ribu (sekuel dapat 71%), Blueprint Builder 121 ribu, RUN! Pet Thief 113 ribu. Aksi/arcade umum gagal terus.
 - **Strategi yang disepakati:** sekuel dari pemenang sendiri dulu; satu kit, satu tema, rilis rapat; menangkan 10 detik pertama untuk 200–300 pemain uji; tinggalkan game yang gagal uji; tanpa karakter bermerek. Langkah berikut: bandingkan Rub It Away dan Reel & Hatch dengan 3 game yang gagal, lalu bangun Rub It Away #2.
 
-### 11. Analytics kreator: lolos vs gagal uji (tangkapan layar user, 2026-11-18; 3 game)
-- Halaman `astrocade.com/create/analytics` (hanya user yang bisa buka; minta tangkapan layar) memajang: All Plays, **Significant Plays**, median durasi + distribusi dengan garis benchmark, Median FPS (Optimal 40+, Moderate 20–40, Poor 0–20), Time to First Interaction, Click-Through Rate, 0-Interaction Play Rate. **Significant Play = sesi 30 detik atau lebih** (cocok persis di tiga game).
-- | Game | Significant | Median / P75 | FPS | Sentuhan pertama | CTR | 0-interaksi | Di atas 5 menit |
+### 11. Analytics kreator: lolos vs gagal uji (tangkapan layar user, 2026-11-18; 5 game)
+- Halaman `astrocade.com/create/analytics` (hanya user yang bisa buka; minta tangkapan layar) memajang: All Plays, **Significant Plays**, median durasi + distribusi dengan garis benchmark, Median FPS (Optimal 40+, Moderate 20–40, Poor 0–20), Time to First Interaction, Click-Through Rate, 0-Interaction Play Rate. **Significant Play = sesi 30 detik atau lebih** (cocok persis di lima game).
+- | Game | Plays | Significant | Median / P75 | FPS | Sentuhan pertama | CTR | 0-interaksi |
   |---|---|---|---|---|---|---|---|
-  | Reel & Hatch (lolos, 31 ribu) | 86% | 1:58 / 5:03 | Optimal | 5,8 d | 35,9% | 9% | 25% |
-  | Rub It Away (lolos, 17 ribu) | 80% | 1:35 / 3:10 | Optimal | 2,1 d | 51,3% | 4% | 12,5% |
-  | Pet Smile Clinic (gagal, 212) | 66% | 0:51 / 1:26 | Moderate | 3,0 d | 45,1% | 6% | 1,5% |
-- **Yang memisahkan lolos dan gagal: porsi sesi di atas 30 detik, durasi, dan FPS.** CTR, sentuhan pertama, dan 0-interaksi bukan gerbang: Reel & Hatch lolos dengan nilai terburuk di ketiganya. Share 0 di ketiga game. Target game baru: 80% sesi melewati 30 detik, median 1:30 ke atas, FPS 40+ di HP murah (belum terbukti sebagai ambang resmi).
-- **Bentuk harian.** Gagal: ±180 plays sehari lalu diputus. Lolos: uji kecil dulu (Reel & Hatch ±250/hari selama beberapa hari), lalu melonjak. **Lonjakan tidak bertahan:** Reel & Hatch 6,5 ribu, 7,5 ribu, puncak 8,8 ribu, lalu 5 ribu, 1,5 ribu, ±300 per hari; hidup ±5 hari walau durasinya terbaik. Sebabnya belum diketahui. Akibatnya: sekuel dirilis saat game pendahulunya masih naik, bukan sesudah turun.
+  | Paint Peekaboo | 98,6 ribu | 88% | 1:59 / 4:04 | Optimal | 6,2 d | 43,6% | 9% |
+  | Reel & Hatch | 31 ribu | 86% | 1:58 / 5:03 | Optimal | 5,8 d | 35,9% | 9% |
+  | Rub It Away | 17 ribu | 80% | 1:35 / 3:10 | Optimal | 2,1 d | 51,3% | 4% |
+  | Grab and Park | 17 ribu | 81% | 1:12 / 2:36 | Optimal | 3,1 d | 56,9% | 6% |
+  | Pet Smile Clinic (gagal) | 212 | 66% | 0:51 / 1:26 | Moderate | 3,0 d | 45,1% | 6% |
+- **Gerbang lolos: significant 80% ke atas dan FPS Optimal.** CTR, sentuhan pertama, dan 0-interaksi bukan gerbang (CTR tertinggi justru di game lolos terkecil). Makin tinggi significant, makin besar total plays. Share 0 di kelima game (pasar: median 6,7 per 1.000 plays); sebabnya belum diketahui.
+- **Uji hari pertama (±200–450 plays):** significant 89% dinaikkan besoknya (Paint Peekaboo), 75% dibiarkan mati (Grab and Park), 66% diputus (Pet Smile Clinic). Ambang kira-kira 80% (dugaan dari tiga game).
+- **Semua game lolos akhirnya turun:** Reel & Hatch hidup ±5 hari (puncak 8,8 ribu/hari), Paint Peekaboo ±2 minggu dengan gelombang kedua (puncak 11,5 ribu/hari). Sekuel dirilis saat pendahulunya masih naik.
+- **Update bisa memberi uji kedua:** Grab and Park mati dua minggu, user memperbaruinya ±8 Nov, lalu naik ke 2,7 ribu/hari dan significant jadi 81%. Baru satu kasus. Uji gratis berikutnya: update Fizzy Bath Bomb (hanya komentar) yang sedang ditinjau; lihat apakah plays-nya bergerak setelah lolos tinjauan.
