@@ -229,6 +229,24 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   assert(Math.abs(st.a.y + st.a.h / 2 - 985) < 5 && st.a.w < 200, 'help points at the ordered shape'); assert(Math.abs(st.b.y + st.b.h / 2 - 985) < 5 && st.b.w < 200, 'then at the ordered colour');
   ok('first minutes');
 
+  console.log('13. what the player sees: every shape fits its lane, stickers are not hidden, guests stand clear');
+  await open('', { save: fresh({ made: 12, smashed: 3, seen: { order: 1 } }) });
+  for (let shape = 0; shape < 6; shape++) {
+    await game(s => { const G = window.__game; G.newRound(); G.S.intro = null; G.S.acted = true; G.S.shape = s; G.S.total = G.scene.buildPinata(s, [], [0xff4fa3, 0xffc928, 0x2fb4ff, 0x3fd47a, 0x9b5cff]); let k = 0; while (G.scene.paintAt(-1, -1, k++ % 2, true)); G.S.step = 2; G.S.done = 0; G.scene.addFace(); }, shape);
+    await p.waitForTimeout(900);
+    for (const [x, y] of [[300, 640], [420, 640], [360, 720], [300, 780], [430, 760], [360, 600]]) await tap(x, y, 110);
+    await p.waitForTimeout(500);
+    const see = await game(() => window.__game.scene.seen()), boxes = await game(() => window.__boxes);
+    const order = boxes.find(q => q.n === 'order'), row = boxes.find(q => q.n === 'slot0');
+    assert.strictEqual(see.stickers, 6, `shape ${shape}: six taps place six stickers`);
+    assert(see.visible >= 5, `shape ${shape}: stickers must be seen, not buried under the paper fringe (${see.visible} of ${see.stickers} visible)`);
+    assert(see.top >= order.y + order.h - 6, `shape ${shape}: the head stays below the order (top ${see.top.toFixed(0)}, order ends ${order.y + order.h})`);
+    assert(see.bottom <= row.y + 4, `shape ${shape}: the feet stay above the choices (bottom ${see.bottom.toFixed(0)}, row starts ${row.y})`);
+    assert(see.left >= 30 && see.right <= 690, `shape ${shape}: the pinata stays on screen sideways (${see.left.toFixed(0)}..${see.right.toFixed(0)})`);
+    await shot('see-' + shape);
+  }
+  ok('six shapes fit, stickers visible');
+
   console.log('12. safety: failed save read, failed 3D load, hidden buttons, edit after play');
   // a save read that fails twice: nothing is written meanwhile, then the real progress arrives
   if (c) await c.close();

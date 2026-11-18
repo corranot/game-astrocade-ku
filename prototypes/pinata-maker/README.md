@@ -56,8 +56,7 @@ The album has a globe button that steps through the languages; the choice is sav
 Translations were written without a native review.
 
 Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under
-40 FPS for `lowFpsSeconds`, the 3D canvas renders at three-quarter resolution, the fence, bunting and presents are
-hidden, and confetti and candy are halved.
+40 FPS for `lowFpsSeconds`, the 3D canvas renders at three-quarter resolution and confetti and candy are halved.
 
 ## Files
 

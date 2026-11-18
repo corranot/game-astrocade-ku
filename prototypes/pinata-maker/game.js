@@ -592,7 +592,7 @@ function drawHud() {
     pill(hx(210, 276), y - 40, 276, 80);
     // one chunk per pinata still to make, filled as they are made: no number to read
     const total = Math.min(6, Math.max(nr.left, Math.round(nr.left / Math.max(0.01, 1 - nr.frac)))), done = total - Math.min(total, nr.left), cw = (150 - (total - 1) * 6) / total;
-    for (let i = 0; i < total; i++) { rr(hx(232 + i * (cw + 6), cw), y - 15, cw, 30, 10); g.fillStyle = i < done ? '#ff5aa8' : '#e9dcf7'; g.fill(); }
+    for (let i = 0; i < total; i++) { rr(hx(232 + i * (cw + 6), cw), y - 15, cw, 30, 10); g.fillStyle = i < done ? '#ff5aa8' : '#fff'; g.fill(); g.lineWidth = 4; g.strokeStyle = i < done ? '#d6297f' : '#b9a3e0'; g.stroke(); }
     rewardIcon(nr.u, mx(438), y, nr.left === 1 ? 30 + Math.sin(S.t * 6) * 4 : 30);
   });
   if (bookShown()) { const buy = canBuy(), r = 48 + (buy ? Math.sin(S.t * 6) * 3 : 0); roundBtn('book', mx(556), y, 48, '#ff8a00', () => { emo('🧸', mx(556), y + 2, r); if (buy) coin(mx(556) + 32, y - 32, 17); }); }
@@ -828,9 +828,10 @@ async function load3d() {
   try {
     if (!three) throw new Error('3D library did not load');
     scene.initScene(three, gl, { quality, image: id => ready(id) ? IMG[id] : null });
-    ready3d = true; stage();
-  } catch (e) { loadFail = true; setTimeout(load3d, 4000); } // try again by itself; a tap tries at once
+    ready3d = true;
+  } catch (e) { loadFail = true; lib.log('3D start failed: ' + (e && e.stack || e)); if (DEBUG) window.__loadErr = String(e && e.stack || e); setTimeout(load3d, 4000); } // try again by itself; a tap tries at once
   loading3d = false;
+  if (ready3d) stage(); // outside the try: a mistake in the game's own code must show as an error, not as a quiet retry
 }
 
 /** Read the player's save. A failed read is tried again (2 s apart, then every 10 s); the game stays playable but writes nothing until one succeeds. */
