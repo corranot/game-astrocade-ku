@@ -28,7 +28,7 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
    - Setiap selesai riset tren, membedah game kreator lain, mengecek API Three.js terbaru, atau memperbaiki bug performa, ringkas pelajaran tersebut ke bagian bawah file ini (jaga total file maksimal 150 baris).
    - Langsung jalankan `git add ASTROCADE.md && git commit -m "chore: upgrade otak ASTROCADE.md" && git push` agar memori tersimpan permanen.
    - Saat menambah pelajaran, ringkas ulang bagian yang sudah usang; jangan hanya menumpuk di bawah. Kesalahan baru masuk ke bagian 0.
-5. **Audit Sebelum Bilang Selesai (WAJIB):** Sebelum melapor "selesai", "aman", atau mengunggah draft, baca bagian 0 (kesalahan yang pernah terjadi) dan jalankan bagian 5 (audit berurutan) di memori di bawah. Uji yang lulus bukan bukti tampilan benar: tiap layar dilihat ukuran penuh.
+5. **Audit Sebelum Bilang Selesai (WAJIB, aturan user 2026-11-18: "tidak boleh ada bug apa pun di game secara keseluruhan"):** tiap kali sebelum melapor "selesai", menerbitkan artifact, atau mengunggah draft, jalankan seluruh bagian 5 di bawah, bukan hanya bagian yang baru diubah, termasuk satu subagen pencari bug yang membaca kode dari nol dan `tools/check-artifact.js` untuk halaman artifact. Bug yang ditemukan diperbaiki dan diberi uji yang terbukti gagal tanpa perbaikannya. Laporan selalu memisahkan yang terbukti (uji, layar yang dilihat) dari yang belum bisa dibuktikan di sini (HP sungguhan, suara, rasa sentuhan); jangan pernah menulis "tanpa bug". Baca juga bagian 0 (kesalahan yang pernah terjadi). Uji yang lulus bukan bukti tampilan benar: tiap layar dilihat ukuran penuh.
 
 ---
 
