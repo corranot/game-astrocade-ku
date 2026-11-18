@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Pinata Maker: Smash Party</title>
+<style>
+html,body{margin:0;height:100%;background:#39b8ff;overflow:hidden}
+#stage{position:absolute;inset:0;margin:auto;width:min(100vw,56.25vh);height:min(100vh,177.78vw)}
+canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+#gl{z-index:1}#game{z-index:2}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl" width="720" height="1280"></canvas><canvas id="game" width="720" height="1280"></canvas></div>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
