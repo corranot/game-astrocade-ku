@@ -16,8 +16,10 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}/index.html?local`;
   const browser = await chromium.launch();
+  let current = null; // one game page at a time: pages left open keep running and slow the frame-time checks
   const open = async (extra = '') => {
-    const page = await (await browser.newContext({ viewport: { width: 720, height: 1280 } })).newPage();
+    if (current) await current.context().close();
+    const page = current = await (await browser.newContext({ viewport: { width: 720, height: 1280 } })).newPage();
     page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e)));
     await page.goto(base + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3);
     return page;
@@ -121,6 +123,31 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(await page.evaluate(() => window.__game.canvases) === 10, 'opening the wall again reuses its canvases');
   await page.mouse.move(360, 640); await page.mouse.down(); await page.mouse.move(360, 900, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(100);
   ok(await page.evaluate(() => window.__game.view) === 'wall', 'a long swipe on the wall is not a tap');
+
+  console.log('4e. the corner buttons sit on plain ground on every level, clear of the part to draw');
+  page = await open();
+  for (let i = 0; i < 5; i++) {
+    const r = await page.evaluate((i) => {
+      const g = window.__game; g.save.level = 5; for (let n = 0; n < 5; n++) g.save.art[n] = g.save.art[n] || [[100, 600], [300, 620], [500, 600]]; g.newLevel(i);
+      const back = g.backLayer.getContext('2d'), res = {};
+      for (const [name, b] of [['sound', g.MUTE], ['wall', g.WALLB]]) {
+        const cx = b.x + b.s / 2, cy = b.y + b.s / 2;
+        let gap = Infinity; for (const q of g.target) gap = Math.min(gap, Math.hypot(q[0] - cx, q[1] - cy) - b.s / 2 - g.cfg.tolerance);
+        // the scenery under the button and a margin around it must be one flat colour
+        // faint ground spots are allowed; a flower or a tuft is not
+        const d = back.getImageData(b.x - 14, b.y - 14, b.s + 28, b.s + 28).data, count = new Map();
+        for (let k = 0; k < d.length; k += 16) { const c = d[k] + ',' + d[k + 1] + ',' + d[k + 2]; count.set(c, (count.get(c) || 0) + 1); }
+        const base = [...count.entries()].sort((x, y) => y[1] - x[1])[0][0].split(',').map(Number);
+        let other = 0, all = 0;
+        for (let k = 0; k < d.length; k += 16) { all++; if (Math.abs(d[k] - base[0]) + Math.abs(d[k + 1] - base[1]) + Math.abs(d[k + 2] - base[2]) > 90) other++; }
+        res[name] = { gap: Math.round(gap), colours: Math.round(other / all * 100) };
+      }
+      return res;
+    }, i);
+    ok(r.sound.gap > 60 && r.wall.gap > 60, `level ${i + 1}: buttons are clear of the part (${r.sound.gap} px, ${r.wall.gap} px beyond the judging reach)`);
+    ok(r.sound.colours <= 1 && r.wall.colours <= 1, `level ${i + 1}: no scenery under the buttons (${r.sound.colours}% and ${r.wall.colours}% of the area differs from the ground)`);
+    await page.waitForTimeout(300); await shot(page, `L${i + 1}-buttons`);
+  }
 
   console.log('5. edit mode shows the live picture and ignores input');
   page = await open('&mode=edit');
