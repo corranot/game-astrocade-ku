@@ -416,5 +416,85 @@
     "subtype": "object",
     "type": "image",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEZQPXYDHBC619DS826GRH_56c78e1b-21d3-4a1f-aacb-3e3c6857d594_4cfe16ab-a64c-46aa-972a-bc3989eddba0.webp"
+  },
+  "top_sparkle": {
+    "animation": null,
+    "aspect_ratio": [
+      762,
+      741
+    ],
+    "compression_suggestion": "original",
+    "description": "one chunky golden four-point sparkle star decoration, glossy 3D kawaii toy style, bright saturated yellow, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "one chunky golden four-point sparkle star decoration, glossy 3D kawaii toy style, bright saturated yellow, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PFNKDM84QBEZ3Y0CC1FWWP_1a37311f-ab9f-4e43-b81b-109fc95196f0_0a437fc6-712d-4881-aa12-122684785758.webp"
+  },
+  "top_star": {
+    "animation": null,
+    "aspect_ratio": [
+      870,
+      826
+    ],
+    "compression_suggestion": "original",
+    "description": "one chunky orange five-point star candy decoration with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "one chunky orange five-point star candy decoration with a cute smiling face, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PFNM6THM3ZFV6WFYCJ2851_fb82bc83-81bb-4e10-9ff6-a61d152d27b3_4aa2e47a-5027-4439-999f-81a369b94a79.webp"
+  },
+  "top_heart": {
+    "animation": null,
+    "aspect_ratio": [
+      853,
+      723
+    ],
+    "compression_suggestion": "original",
+    "description": "one chunky hot pink heart candy decoration, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "one chunky hot pink heart candy decoration, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PFNMYH02NCTSKNE58ZZAWK_c20a98d2-c3e1-4652-8c2e-4bb7904e942c_de616af6-e0b3-4b43-8fc0-cf8801552c0d.webp"
+  },
+  "top_flower": {
+    "animation": null,
+    "aspect_ratio": [
+      808,
+      763
+    ],
+    "compression_suggestion": "original",
+    "description": "one chunky pink cherry blossom flower decoration with a yellow center, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, top view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "one chunky pink cherry blossom flower decoration with a yellow center, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, top view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PFNNQCWK3K0B8KXDP9RABB_d3514638-f334-4cd8-bd9e-08df532df32c_798c98e1-c668-463f-8957-27d7e6548c07.webp"
+  },
+  "top_candy": {
+    "animation": null,
+    "aspect_ratio": [
+      870,
+      460
+    ],
+    "compression_suggestion": "original",
+    "description": "one chunky wrapped candy sweet with rainbow stripes, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "one chunky wrapped candy sweet with rainbow stripes, glossy 3D kawaii toy style, bright saturated colors, soft highlights, single object centered, front view",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PFNPHKZQHW5EXSJQQJ1F4D_3ce3951d-5c0b-4a68-b2a2-2961527461d4_cd0a6da4-8afb-4acf-a121-639bd74e7e93.webp"
   }
 }

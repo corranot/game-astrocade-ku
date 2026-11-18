@@ -19,8 +19,17 @@
     { "at": 4, "kind": "color", "i": 3 },
     { "at": 5, "kind": "top", "i": 4 },
     { "at": 6, "kind": "mold", "i": 3 },
-    { "at": 7, "kind": "color", "i": 4 }
+    { "at": 7, "kind": "color", "i": 4 },
+    { "at": 8, "kind": "mold", "i": 4 },
+    { "at": 10, "kind": "perk", "i": 0 },
+    { "at": 13, "kind": "perk", "i": 1 }
   ],
+  "tapPourSeconds": 0.5,
+  "maxDrops": 8,
+  "maxToppings": 60,
+  "revealButtonDelay": 1.5,
+  "starsForGolden": 3,
+  "pityDupes": 3,
   "persistent_storage_config": {
     "leaderboard": {
       "sort_ascending": false
