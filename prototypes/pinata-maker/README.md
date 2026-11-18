@@ -28,6 +28,8 @@ Reasons to make another one:
 - **Surprises.** Golden pinata, mega candy rain.
 - **Party themes.** Beach, snow and candy land unlock at pinatas 12, 14 and 16 and rotate.
 - **Smash only.** After two pinatas, each pinata made banks one bonus smash of a ready-made pinata.
+- **Daily gift.** The first pinata of a day pays 10 coins times the streak of days played (up to 7).
+- **Top collectors.** The third tab of the album lists the players who grabbed the most candy.
 
 ## First minutes
 
@@ -54,8 +56,7 @@ The album has a globe button that steps through the languages; the choice is sav
 Translations were written without a native review.
 
 Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under
-40 FPS for `lowFpsSeconds`, the 3D canvas renders at three-quarter resolution, the fence, bunting and presents are
-hidden, and confetti and candy are halved.
+40 FPS for `lowFpsSeconds`, the 3D canvas renders at three-quarter resolution and confetti and candy are halved.
 
 ## Files
 
@@ -74,11 +75,22 @@ no pinata game was in the 1,887 games sampled.
 ## Local preview
 
 Serve this folder and open `index.html?local` (`&noassets` for the emoji fallback, `&edit` for edit mode).
-`playtest.js` (not part of the upload) runs eleven checks in a phone-sized browser: whole loop, order and smash-only,
+`playtest.js` (not part of the upload) runs twelve checks in a phone-sized browser: whole loop, order and smash-only,
 button mashing, toy and unlock rules, golden + mega + party, no assets, edit mode, 600 seeded random inputs,
-device language for ten locales, the layout check, and the first minutes.
+device language for ten locales, the layout check, the first minutes, and safety (failed save read, failed 3D load,
+hidden buttons, edit after play).
+
+`soak.js` plays fourteen pinatas in one page (with bonus smashes, the shop and the golden pinata) and fails on a page
+error, a broken save, a silent candy grab, or GPU objects that keep growing.
+
+## Safety
+
+- The save is never written before the player's own save has been read; a failed read is retried.
+- If the 3D library does not load, the loading screen stays alive and retries by itself and on every tap.
+- Sounds skip their measured leading silence (`SOUND_FIX` in `game.js`), so a tap is heard at once.
+- HUD text and emoji are drawn once to small sprites and copied each frame.
 
 ## Known limits
 
-- The HUD is redrawn in full every frame (stroked text and emoji); cache the text as sprites if a phone profile shows it matters.
 - Sound, hit feel and frame rate were never checked on a real phone.
+- Translations were written without a native review.
