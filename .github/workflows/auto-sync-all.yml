@@ -12,33 +12,22 @@ jobs:
   sync-everything:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo Anda
+      # 1. Tekan tombol "Sync Fork" resmi milik GitHub lewat API
+      - name: Official GitHub Sync Fork
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          gh api repos/corranot/game-astrocade-ku/merge-upstream -f branch=main || true
+
+      # 2. Ambil kode terbaru yang sudah tersinkron
+      - name: Checkout Repo
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.SYNC_TOKEN }}
           ref: main
 
-      - name: Tarik File Terbaru Game Studios (Bebas Blokir Workflow)
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@://github.com"
-          git remote add upstream https://github.com
-          git fetch upstream main --depth=1
-
-          # Simpan sementara file pribadi Anda agar tidak tertimpa
-          mkdir -p /tmp/backup_pribadi
-          cp -r ASTROCADE.md project.local.yaml .claude/settings.local.json .claude/skills prototypes /tmp/backup_pribadi/ 2>/dev/null || true
-          cp -r .github/workflows /tmp/backup_workflows
-
-          # Timpa semua file lain dengan versi terbaru dari repo asli
-          git checkout upstream/main -- .
-
-          # Kembalikan folder workflows & seluruh file pribadi Anda
-          rm -rf .github/workflows
-          mkdir -p .github
-          cp -r /tmp/backup_workflows .github/workflows
-          cp -r /tmp/backup_pribadi/* . 2>/dev/null || true
-
-      - name: Update 13 Skill Pilihan (Ponytail, Caveman, Leanrea)
+      # 3. Update otomatis 13 Skill Pilihan (Ponytail, Caveman, Leanrea)
+      - name: Update 13 Selected Skills
         run: |
           mkdir -p .claude/skills
 
@@ -58,7 +47,10 @@ jobs:
           rm -rf .claude/skills/leanrea
           cp -r /tmp/leanrea/leanrea .claude/skills/leanrea
 
-      - name: Simpan Otomatis ke GitHub
+      # 4. Simpan otomatis ke GitHub jika ada perubahan versi baru
+      - name: Commit and Push
         run: |
-          git add -A
-          git diff --staged --quiet || (git commit -m "chore: auto-sync game studios & 13 skills" && git push origin main)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@://github.com"
+          git add .claude/skills/
+          git diff --staged --quiet || (git commit -m "chore: auto-update 13 selected skills" && git push origin main)
