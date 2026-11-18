@@ -16,17 +16,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
-      - name: Tarik Update Game Studios (Tanpa Sentuh Folder Workflows)
+      - name: Tarik File Terbaru Game Studios (Bebas Blokir Workflow)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
           git remote add upstream https://github.com
-          git fetch upstream main
-          git merge upstream/main --no-commit --no-ff -X ours || true
-          git reset HEAD .github/workflows/ 2>/dev/null || true
-          git checkout -- .github/workflows/ 2>/dev/null || true
+          git fetch upstream main --depth=1
+
+          # Simpan sementara file pribadi Anda agar tidak tertimpa
+          mkdir -p /tmp/backup_pribadi
+          cp -r ASTROCADE.md project.local.yaml .claude/settings.local.json .claude/skills prototypes /tmp/backup_pribadi/ 2>/dev/null || true
+          cp -r .github/workflows /tmp/backup_workflows
+
+          # Timpa semua file lain dengan versi terbaru dari repo asli
+          git checkout upstream/main -- .
+
+          # Kembalikan folder workflows & seluruh file pribadi Anda
+          rm -rf .github/workflows
+          mkdir -p .github
+          cp -r /tmp/backup_workflows .github/workflows
+          cp -r /tmp/backup_pribadi/* . 2>/dev/null || true
 
       - name: Update 13 Skill Pilihan (Ponytail, Caveman, Leanrea)
         run: |
@@ -50,5 +60,5 @@ jobs:
 
       - name: Simpan Otomatis ke GitHub
         run: |
-          git add .
+          git add -A
           git diff --staged --quiet || (git commit -m "chore: auto-sync game studios & 13 skills" && git push origin main)
