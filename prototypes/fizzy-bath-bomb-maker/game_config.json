@@ -1,0 +1,12 @@
+{
+  "pourSeconds": 2.5,
+  "dropsNeeded": 3,
+  "mixTurns": 3,
+  "pressTaps": 6,
+  "toppingsNeeded": 5,
+  "fizzSeconds": 4,
+  "tapFizzBoost": 0.06,
+  "hintDelay": 2.5,
+  "rarityWeights": [60, 28, 10, 2],
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
