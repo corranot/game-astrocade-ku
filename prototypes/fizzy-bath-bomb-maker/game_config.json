@@ -8,5 +8,22 @@
   "tapFizzBoost": 0.06,
   "hintDelay": 2.5,
   "rarityWeights": [60, 28, 10, 2],
-  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+  "luckToppings": 15,
+  "luckBoost": 2,
+  "goldenChance": 0.12,
+  "twinChance": 0.1,
+  "unlocks": [
+    { "at": 1, "kind": "mold", "i": 1 },
+    { "at": 2, "kind": "top", "i": 3 },
+    { "at": 3, "kind": "mold", "i": 2 },
+    { "at": 4, "kind": "color", "i": 3 },
+    { "at": 5, "kind": "top", "i": 4 },
+    { "at": 6, "kind": "mold", "i": 3 },
+    { "at": 7, "kind": "color", "i": 4 }
+  ],
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  }
 }
