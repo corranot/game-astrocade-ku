@@ -392,14 +392,14 @@
       1536
     ],
     "compression_suggestion": "original",
-    "description": "bright cheerful kids bathroom craft table background, portrait orientation, pastel pink and sky blue tiles, soft bubbles floating, sunny window light, plain empty table surface in the lower half, no characters, no text, glossy 3D kawaii style, soft and uncluttered",
+    "description": "soft dreamy kids bathroom background for a mobile game, portrait orientation, upper two thirds a softly blurred wall of pastel pink and sky blue tiles with a sunny round window and a few floating soap bubbles, lower third a clean empty light wooden counter top seen from the front, absolutely no objects on the counter, no characters, no text, glossy 3D kawaii style, bright saturated cheerful colors, gentle depth of field",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "prompt": "bright cheerful kids bathroom craft table background, portrait orientation, pastel pink and sky blue tiles, soft bubbles floating, sunny window light, plain empty table surface in the lower half, no characters, no text, glossy 3D kawaii style, soft and uncluttered",
+    "prompt": "soft dreamy kids bathroom background for a mobile game, portrait orientation, upper two thirds a softly blurred wall of pastel pink and sky blue tiles with a sunny round window and a few floating soap bubbles, lower third a clean empty light wooden counter top seen from the front, absolutely no objects on the counter, no characters, no text, glossy 3D kawaii style, bright saturated cheerful colors, gentle depth of field",
     "subtype": "background",
     "type": "image",
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PEZP52K4P6Z4EFW66W8WA7_aba918cc-1f48-421b-92f1-3613617b8d4f_9558c974-6fcd-4700-aec9-5c68ef47dfad.webp"
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PRSCZPQXC87HMNZXSRRE6G_4cd5d979-1276-4ba7-90bf-945152292d22_fa39ba8d-4061-4e03-9b4c-0de8e2936345.webp"
   },
   "jar_powder": {
     "animation": null,
@@ -496,5 +496,133 @@
     "subtype": "object",
     "type": "image",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PFNPHKZQHW5EXSJQQJ1F4D_3ce3951d-5c0b-4a68-b2a2-2961527461d4_cd0a6da4-8afb-4acf-a121-639bd74e7e93.webp"
+  },
+  "cust_cat": {
+    "animation": null,
+    "aspect_ratio": [
+      838,
+      951
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky orange kitten character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky orange kitten character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQT9QARJDS05T9WXWZ1TSP_1b344b9d-0af9-4681-a327-aa0593901d2f_b0099352-f3e4-4bec-acad-755ae89885d9.webp"
+  },
+  "cust_dog": {
+    "animation": null,
+    "aspect_ratio": [
+      994,
+      892
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky brown puppy character head and shoulders, happy open smile, floppy ears, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky brown puppy character head and shoulders, happy open smile, floppy ears, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTAR6Z4WE6KW5890R5EVY_a0486bd3-a275-4491-834e-0f283176ec62_2dbff135-fed5-44a5-866c-af65561eaa4d.webp"
+  },
+  "cust_bunny": {
+    "animation": null,
+    "aspect_ratio": [
+      853,
+      1393
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky white bunny character head and shoulders, happy open smile, long ears, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky white bunny character head and shoulders, happy open smile, long ears, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTBS5PFCTBEG6PWCQWCJ3_2d0d8da9-5b82-4d86-9060-0aa59d2d4ecf_3f45dcd4-f1f5-45b2-a0e3-5c2e90f15168.webp"
+  },
+  "cust_bear": {
+    "animation": null,
+    "aspect_ratio": [
+      872,
+      932
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky honey-brown bear cub character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky honey-brown bear cub character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTCXV2VM5AJW1JSJ8VZ1X_dff2751c-e1b4-4d91-bc11-da9644b9ad18_2bef8e88-2463-4d8a-8f14-3ac294300772.webp"
+  },
+  "cust_panda": {
+    "animation": null,
+    "aspect_ratio": [
+      870,
+      935
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky panda character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky panda character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTE0GWX1TAHE9AXMRE9J6_70ba295d-8ade-4bc3-a900-0f1e06a79908_9e596b5f-0d45-4277-b603-dc6f726903df.webp"
+  },
+  "cust_fox": {
+    "animation": null,
+    "aspect_ratio": [
+      844,
+      891
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky orange fox character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky orange fox character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTF578HZXMZY059C5PBRM_47dcf12f-52e0-4944-807e-6c6a94510907_05ad6c30-23e1-4dcd-96f0-863e06ff8c50.webp"
+  },
+  "cust_frog": {
+    "animation": null,
+    "aspect_ratio": [
+      850,
+      920
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky green frog character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky green frog character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTGA4ZCQEXMJHKPGRJP96_e5f8348c-6ef1-4426-bf19-7b73a215506d_5a714c6f-dc34-4e02-87bf-664b99f04a0c.webp"
+  },
+  "cust_monkey": {
+    "animation": null,
+    "aspect_ratio": [
+      986,
+      990
+    ],
+    "compression_suggestion": "original",
+    "description": "cute chunky brown monkey character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "cute chunky brown monkey character head and shoulders, happy open smile, glossy 3D kawaii toy style, bright saturated colors, big sparkly eyes, soft highlights, single character centered, front view",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7PQTH7FWBKBHXWWNSWFQ98Z_f32a0d25-7295-4361-8105-8d50d537c023_24f61bfb-7c22-4d10-bf71-4744bbf52a32.webp"
   }
 }

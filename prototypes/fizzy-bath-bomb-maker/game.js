@@ -11,6 +11,9 @@
  *  - a reward bar in the HUD always shows the next unlock and how close it is;
  *  - coins buy bathtubs in the shop, and every third bomb ends with a bubble-popping bonus round;
  *  - decorating fills a Luck meter; duplicate toys pay stars toward a golden bomb.
+ * First minutes: the first bomb is a short one; the HUD chips, the customer, the Luck meter and the
+ * shop appear one at a time, each introduced by a spotlight that waits for one tap; a ghost hand shows
+ * the gesture on the real object during the first bomb and whenever the player is idle.
  * There is no fail state: a step that is not finished only asks for a bit more.
  *
  * Layout: the 720 x 1280 screen is cut into fixed lanes (LANE below). Every UI
@@ -29,7 +32,7 @@ const BOWL = { x: 360, y: 720 }, BALL = { x: 360, y: 672, r: 180 }, WATER_Y = 69
 const COLORS = [[255, 92, 168], [255, 200, 0], [64, 190, 255], [160, 110, 255], [70, 215, 120]];
 const TOPS = [{ e: '✨', id: 'top_sparkle' }, { e: '⭐', id: 'top_star' }, { e: '💗', id: 'top_heart' }, { e: '🌸', id: 'top_flower' }, { e: '🍬', id: 'top_candy' }];
 const MOLDS = 5; // ball, heart, star, donut, flower
-const CUSTOMERS = ['🐱', '🐶', '🐰', '🐻', '🐼', '🦊', '🐸', '🐵'];
+const CUSTOMERS = [['🐱', 'cat'], ['🐶', 'dog'], ['🐰', 'bunny'], ['🐻', 'bear'], ['🐼', 'panda'], ['🦊', 'fox'], ['🐸', 'frog'], ['🐵', 'monkey']].map(([e, n]) => ({ e, id: 'cust_' + n }));
 // Bathtubs sold in the shop for coins (prices in cfg.skinPrices). The first one is free.
 const SKINS = [['#ffffff', '#cfe6ff'], ['#ffd0e6', '#ff8fc4'], ['#c9f7e2', '#5fd6a0'], ['#e3d6ff', '#a98bff'], ['#ffe9a3', '#ffb800'], ['#ffd0e6', '#7a3cff']];
 const RARITY = ['#27a8ff', '#a352ff', '#ff7a00', '#f08a00'];
@@ -38,13 +41,13 @@ const TOYS = [
   ['🐳', 'Whale', 0], ['🐥', 'Chick', 0], ['🦄', 'Unicorn', 1], ['🐬', 'Dolphin', 1], ['🦈', 'Sharky', 1], ['🧸', 'Teddy', 1],
   ['🦋', 'Butterfly', 1], ['🐉', 'Dragon', 2], ['👑', 'Crown', 2], ['💎', 'Diamond', 3],
 ].map(([e, n, r]) => ({ e, n, r, id: 'toy_' + n.toLowerCase() }));
-const IMAGE_IDS = [...TOYS.map(t => t.id), ...TOPS.map(t => t.id), 'bg_bathroom', 'jar_powder'];
+const IMAGE_IDS = [...TOYS.map(t => t.id), ...TOPS.map(t => t.id), ...CUSTOMERS.map(c => c.id), 'bg_bathroom', 'jar_powder'];
 const SOUND_IDS = ['sfx_pour', 'sfx_drop', 'sfx_stir', 'sfx_press', 'sfx_pop', 'sfx_splash', 'sfx_fizz', 'sfx_win', 'sfx_squeak', 'music'];
 const DEBUG = location.search.includes('local');
 
 let cv, g, cfg, mode, S, raf = 0, last = 0, bound = false, touched = false, board = null;
 let ac = null, master = null, lang = 'en', quality = 1, slow = 0, grouped = 0;
-let save = { owned: [], gold: [], recipes: [], skins: [0], skin: 0, made: 0, stars: 0, dupes: 0, coins: 0, muted: false, lang: null };
+let save = { owned: [], gold: [], recipes: [], skins: [0], skin: 0, made: 0, stars: 0, dupes: 0, coins: 0, muted: false, lang: null, seen: {} };
 const IMG = {}, GOLD = {}, BUF = {}, LOOPS = {}, BOXES = [];
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -75,6 +78,10 @@ const luck = () => Math.min(1, S.tops.length / cfg.luckToppings);
 /** Later bombs pour and stir faster, so the loop does not drag once the player knows it. */
 const pace = () => save.made >= cfg.fastAfter ? cfg.fastFactor : 1;
 const recipeKey = (mold, color) => mold + '-' + color;
+/** True once feature `k` has been introduced to this player. A save from before introductions existed has no `seen` at all. */
+const seen = k => !!(save.seen && save.seen[k]);
+/** A step length. The very first bomb uses the shorter cfg.first values, so the first toy arrives in about 15 seconds. */
+const need = k => save.made === 0 && cfg.first[k] !== undefined ? cfg.first[k] : cfg[k];
 /** The reward the HUD bar is filling toward: the next unlock, or a coin gift every cfg.giftEvery bombs once unlocks run out. */
 function nextReward(made = save.made) {
   const ats = cfg.unlocks.map(u => u.at).sort((a, b) => a - b), lastAt = ats[ats.length - 1] || 0;
@@ -90,22 +97,22 @@ const rewardAt = made => cfg.unlocks.find(u => u.at === made) || (made > Math.ma
 function mergeSave(a, b) {
   const union = (x, y) => [...new Set([...(x || []), ...(y || [])])], max = k => Math.max(a[k] || 0, b[k] || 0);
   return {
-    owned: union(a.owned, b.owned), gold: union(a.gold, b.gold), recipes: union(a.recipes, b.recipes), skins: union([0], union(a.skins, b.skins)), skin: a.skin || b.skin || 0,
+    owned: union(a.owned, b.owned), gold: union(a.gold, b.gold), recipes: union(a.recipes, b.recipes), skins: union([0], union(a.skins, b.skins)), skin: a.skin || b.skin || 0, seen: { ...(b.seen || {}), ...(a.seen || {}) },
     made: max('made'), stars: max('stars'), dupes: max('dupes'), coins: max('coins'), muted: !!(a.muted || b.muted), lang: a.lang || b.lang || null,
   };
 }
 const persist = () => { lib.saveUserGameState(save).catch(() => {}); };
 
-/** A customer's order: a mold and a color among the open ones, preferring a recipe not made yet. The very first order is the easiest. */
+/** A customer's order: a mold and a color among the open ones, preferring a recipe not made yet. The first bomb has no customer: orders arrive from the second. */
 function newOrder(random = Math.random) {
-  if (!save.made) return { who: 0, mold: 0, color: 0 };
+  if (!save.made) return null;
   const all = [];
   for (let m = 0; m < MOLDS; m++) for (let c = 0; c < COLORS.length; c++) if (isOpen('mold', m) && isOpen('color', c)) all.push({ mold: m, color: c });
   const fresh = all.filter(o => !save.recipes.includes(recipeKey(o.mold, o.color))), pool = fresh.length ? fresh : all;
   return { who: random() * CUSTOMERS.length | 0, ...pool[random() * pool.length | 0] };
 }
 /** True when the bomb being made has the ordered shape and contains the ordered color. */
-const orderMet = () => S.mold === S.order.mold && S.cols.includes(S.order.color);
+const orderMet = () => !!S.order && S.mold === S.order.mold && S.cols.includes(S.order.color);
 
 /** Start a fresh bath bomb. Progress in `save` is kept. Enough stars buy a golden bomb. */
 function newBomb() {
@@ -117,14 +124,17 @@ function newBomb() {
     else golden = Math.random() < cfg.goldenChance * perk(1);
   }
   stopLoops();
+  // A feature seen for the first time is introduced alone: the game waits for one tap on it.
+  const intro = save.made === 1 && !seen('order') ? 'order' : save.made >= 2 && !seen('shop') && SKINS.some((_, i) => !save.skins.includes(i) && save.coins >= cfg.skinPrices[i]) ? 'shop' : null;
   S = {
-    step: 0, prog: 0, ok: false, okT: 0, t: 0, shake: 0,
+    step: 0, prog: 0, ok: false, okT: 0, t: 0, shake: 0, idle: 0, acted: false, intro: null, introT: 0, gift: false, pulse: 0, enter: 0,
     col: -1, cols: [], drops: 0, spots: [], falling: [], tops: [], top: 0, mold, golden, order: newOrder(),
     jar: 0, pourT: 0, tick: 0, swirl: 0, squash: 0, lastStamp: null, poke: 0,
     ball: { x: 360, y: 520, vy: 0, r: 78, held: false, loose: false, wet: false },
     fizz: 0, pop: null, popDone: false, popCoins: 0, prizes: null, earned: null, unlock: null, note: '', reveal: 0, book: null,
     ptr: { x: 0, y: 0, down: false }, P: [], F: [],
   };
+  S.intro = intro;
 }
 /** The bomb's main paint (the last color dropped), white before any color. */
 const paint = () => S.col < 0 ? [255, 255, 255] : COLORS[S.col];
@@ -201,12 +211,12 @@ function burst(x, y, n, col, speed = 320, grav = 700, r = 9) {
   n = Math.ceil(n * quality);
   for (let i = 0; i < n; i++) {
     const a = rnd(0, TAU), v = rnd(0.3, 1) * speed;
-    S.P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.4, g: grav, r: rnd(0.5, 1) * r, c: col || rgb(COLORS[i % 5]), life: rnd(0.5, 1), max: 1 });
+    S.P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.4, g: grav, r: rnd(0.5, 1) * r, c: col || rgb(COLORS[i % 5]), life: rnd(0.5, 1), max: 1, s: col ? 0 : i % 3, a: rnd(0, TAU) });
   }
 }
 const fanfare = n => [523, 659, 784, 1047, 1319].slice(0, n).forEach((f, i) => setTimeout(() => beep(f, 0.16, 'triangle', 0.14), i * 85));
 function complete() {
-  S.ok = true; S.okT = 0;
+  S.ok = true; S.okT = 0; S.acted = false; S.idle = 0;
   const gold = S.step === 3 && S.golden;
   toast(gold ? T('goldenBomb') : T('d' + S.step), gold ? '#ffb800' : '#ff2d8a');
   burst(360, 660, gold ? 90 : 40, gold ? '#ffd000' : null, 520);
@@ -215,8 +225,32 @@ function complete() {
 }
 function advance() {
   hum('sfx_pour', false); hum('sfx_stir', false);
-  S.step++; S.prog = 0; S.ok = false; S.okT = 0;
+  S.step++; S.prog = 0; S.ok = false; S.okT = 0; S.acted = false; S.idle = 0; S.enter = 0;
+  if (S.step === 4 && save.made >= 1 && !seen('luck')) { S.intro = 'luck'; S.introT = 0; }
   beep(880, 0.1, 'triangle', 0.1, 300);
+}
+/**
+ * Where help is needed right now, as a box plus the gesture to show there; null when none is.
+ * Help shows for a feature being introduced, during the first bomb until the player acts on a step,
+ * and on any bomb after cfg.idleHelp seconds without a touch.
+ */
+function helpTarget() {
+  if (S.book || S.prizes) return null;
+  if (S.intro === 'order') return { x: 130, y: LANE.order - 46, w: 460, h: 92, hand: 'tap' };
+  if (S.intro === 'luck') return { x: mx(56) - 34, y: 438, w: 68, h: 462, hand: 'tap' };
+  if (S.intro === 'shop') return { x: hx(536, 170), y: 28, w: 170, h: 84, hand: 'tap' };
+  if (S.pop || !((save.made === 0 && !S.acted) || S.idle > cfg.idleHelp)) return null;
+  if (S.ok) return S.step === 1 || S.step === 4 ? { x: 170, y: LANE.btn - 65, w: 380, h: 130, hand: 'tap' } : null;
+  return [
+    { x: 120, y: 440, w: 480, h: 462, hand: 'hold' }, { x: slotX(0) - 70, y: LANE.row - 70, w: 140, h: 140, hand: 'tap' },
+    { x: 110, y: 640, w: 500, h: 270, hand: 'stir' }, { x: 200, y: 440, w: 320, h: 420, hand: 'tap' },
+    { x: 150, y: 462, w: 420, h: 424, hand: 'tap' }, S.ball.wet ? { x: 60, y: 640, w: 600, h: 270, hand: 'tap' } : { x: 60, y: 432, w: 600, h: 478, hand: 'drag' },
+  ][S.step];
+}
+function endIntro(tapped) {
+  const t = helpTarget(), what = S.intro;
+  save.seen = { ...(save.seen || {}), [what]: true }; S.intro = null; S.idle = 0; persist();
+  if (tapped) { burst(t.x + t.w / 2, t.y + t.h / 2, 30, null, 420); fanfare(3); lib.haptics.play('success'); if (what === 'shop') openBook('shop'); }
 }
 function locked(kind, i) { toast('🔒 ' + bombsUntil(kind, i), '#7a3cff'); beep(200, 0.1, 'square', 0.06); }
 
@@ -224,18 +258,22 @@ function locked(kind, i) { toast('🔒 ' + bombsUntil(kind, i), '#7a3cff'); beep
 function onDown(p) {
   if (ac && ac.state === 'suspended') ac.resume();
   if (!touched) { touched = true; if (S.step === 0) S.prog = 0; hum('music', true, 0.3); }
-  S.ptr = { ...p, down: true };
+  S.ptr = { ...p, down: true }; S.idle = 0;
   if (S.book) return bookTap(p);
   if (p.y < 125) {
     if (Math.abs(p.x - mx(478)) < 50) { setMuted(!save.muted); persist(); beep(700, 0.06); return; }
-    if (Math.abs(p.x - mx(621)) < 90) { openBook('toys'); return; }
+    if (!S.intro && save.made >= 1 && Math.abs(p.x - mx(621)) < 90) { openBook('toys'); return; }
   }
+  // While a feature is being introduced only that feature (and the mute button above) answers.
+  if (S.intro) { const t = helpTarget(); if (p.x > t.x - 24 && p.x < t.x + t.w + 24 && p.y > t.y - 24 && p.y < t.y + t.h + 24) endIntro(true); return; }
   if (S.prizes) {
+    if (S.gift) { if (S.reveal > 0.8 && Math.abs(p.y - 1010) < 70 && Math.abs(p.x - 360) < 180) { S.gift = false; burst(360, 1010, 50, null, 520); fanfare(4); lib.haptics.play('success'); } return; }
     if (S.reveal > cfg.revealButtonDelay && inBtn(p)) { newBomb(); beep(660, 0.12, 'triangle', 0.12, 400); }
     else if (S.reveal > 0.3) { S.poke = 1; burst(360, 470, 12, 'rgba(120,210,255,0.9)', 300, 500, 10); sfx('sfx_squeak', () => beep(900, 0.12, 'square', 0.08, 500)); lib.haptics.play('tap'); }
     return;
   }
   if (S.ok && (S.step === 1 || S.step === 4) && inBtn(p)) { advance(); return; }
+  S.acted = true;
   const slot = slotAt(p);
   if (S.step === 0 && !S.ok) S.pourT = cfg.tapPourSeconds; // a quick tap pours too: small kids tap, they do not hold
   else if (S.step === 1 && slot >= 0 && slot < COLORS.length) {
@@ -244,7 +282,7 @@ function onDown(p) {
     S.falling.push({ x: 360, y: 445, vy: 0, i: slot }); beep(500 + slot * 60, 0.07);
   } else if (S.step === 3 && !S.ok) {
     if (slot >= 0 && slot < MOLDS) { if (!isOpen('mold', slot)) return locked('mold', slot); S.mold = slot; beep(600 + slot * 70, 0.06); return; }
-    S.prog += 1 / cfg.pressTaps; S.squash = 1; S.shake = 8;
+    S.prog += 1 / need('pressTaps'); S.squash = 1; S.shake = 8;
     burst(360, PRESS_Y - 40, 10, rgb(paint()), 260, 500, 7);
     sfx('sfx_press', () => beep(180 + S.prog * 200, 0.1, 'square', 0.1)); lib.haptics.play('tap');
     if (S.prog > 0.999) { S.prog = 1; complete(); } // six taps of 1/6 sum to just under 1
@@ -260,11 +298,11 @@ function onDown(p) {
 function onMove(p) {
   if (!S.ptr.down) return;
   const dist = Math.hypot(p.x - S.ptr.x, p.y - S.ptr.y);
-  S.ptr.x = p.x; S.ptr.y = p.y;
-  if (S.book || S.prizes) return;
+  S.ptr.x = p.x; S.ptr.y = p.y; S.idle = 0;
+  if (S.book || S.prizes || S.intro) return;
   if (S.step === 2 && !S.ok && Math.hypot(p.x - BOWL.x, p.y - BOWL.y) < 420) {
     // Any movement near the bowl stirs: circles and back-and-forth scrubbing both count.
-    S.swirl += dist / 120; S.prog = Math.min(1, S.prog + dist / (TAU * 120 * cfg.mixTurns * pace()));
+    S.swirl += dist / 120; S.prog = Math.min(1, S.prog + dist / (TAU * 120 * need('mixTurns') * pace()));
     if (!hum('sfx_stir', true) && (S.tick += dist) > 90) { S.tick = 0; beep(300 + S.prog * 300, 0.05, 'sine', 0.06); }
     if (S.prog >= 1) complete();
   } else if (S.step === 4) stamp(p);
@@ -272,7 +310,7 @@ function onMove(p) {
 function onUp() {
   if (!S.ptr.down) return;
   S.ptr.down = false; S.lastStamp = null; hum('sfx_stir', false);
-  if (S.book || S.prizes) return;
+  if (S.book || S.prizes || S.intro) return;
   if (S.step === 0 && !S.ok && S.prog > 0) toast(T('keepPouring'), '#7a3cff');
   if (S.step === 2 && !S.ok && S.prog > 0) toast(T('keepStirring'), '#7a3cff');
   if (S.step === 5 && S.ball.held) { S.ball.held = false; S.ball.loose = true; }
@@ -283,10 +321,11 @@ function stamp(p) {
   if (S.lastStamp && Math.hypot(p.x - S.lastStamp.x, p.y - S.lastStamp.y) < 46) return;
   S.lastStamp = { x: p.x, y: p.y };
   const before = luck();
+  S.pulse = 1;
   S.tops.push({ i: S.top, dx: (p.x - BALL.x) / BALL.r, dy: (p.y - BALL.y) / BALL.r, rot: rnd(-0.5, 0.5), pop: 1 });
   if (S.tops.length > cfg.maxToppings) S.tops.shift();
   burst(p.x, p.y, 5, '#fff', 160, 300, 5); sfx('sfx_drop', () => beep(rnd(700, 1100), 0.05, 'triangle', 0.08), 0.5); lib.haptics.play('tick');
-  if (!S.ok && S.tops.length >= cfg.toppingsNeeded) complete();
+  if (!S.ok && S.tops.length >= need('toppingsNeeded')) complete();
   else if (before < 1 && luck() >= 1) { toast(T('maxLuck'), '#22b455'); burst(360, 660, 40, '#35d07f', 420); fanfare(4); }
 }
 function openBook(tab) {
@@ -324,18 +363,20 @@ function bindInput() {
 
 /* ---------- update ---------- */
 function update(dt) {
-  S.t += dt; S.shake *= Math.pow(0.001, dt); S.squash *= Math.pow(0.0005, dt); S.poke *= Math.pow(0.002, dt);
+  S.t += dt; S.idle += dt; S.pulse *= Math.pow(0.0005, dt); S.enter = Math.min(1, S.enter + dt / 0.4); S.shake *= Math.pow(0.001, dt);
+  if (S.intro && (S.introT += dt) > cfg.introSeconds) endIntro(false); // never leave a child stuck on an introduction
+  S.squash *= Math.pow(0.0005, dt); S.poke *= Math.pow(0.002, dt);
   if (S.ok) { S.okT += dt; if (S.okT > 0.9 && [0, 2, 3].includes(S.step)) advance(); }
   if (S.step === 0) {
     // Before the first touch the jar pours by itself in a loop, so the game looks alive behind the Play card.
     const cycle = (S.t % 3) / 3, demo = !touched && cycle < 0.6;
     if (!touched) S.prog = Math.min(cycle, 0.6);
     S.pourT = Math.max(0, S.pourT - dt);
-    const pouring = (S.ptr.down || S.pourT > 0 || demo) && !S.ok && !S.book;
+    const pouring = (S.ptr.down || S.pourT > 0 || demo) && !S.ok && !S.book && !S.intro;
     S.jar += ((pouring ? 2.2 : 0) - S.jar) * Math.min(1, dt * 14);
     const flowing = pouring && S.jar > 1.2;
     if (flowing) {
-      if (touched) S.prog = Math.min(1, S.prog + dt / (cfg.pourSeconds * pace()));
+      if (touched) S.prog = Math.min(1, S.prog + dt / (need('pourSeconds') * pace()));
       for (let i = 0; i < 4 * quality; i++) S.P.push({ x: 367 + rnd(-10, 10), y: 622, vx: rnd(-40, 40), vy: rnd(250, 380), g: 900, r: rnd(4, 9), c: '#ffffff', life: 0.3, max: 0.3 });
       if (S.prog >= 1) complete();
     }
@@ -348,8 +389,8 @@ function update(dt) {
     S.col = d.i; S.cols = [...S.cols.filter(c => c !== d.i), d.i].slice(-3); S.drops++;
     S.spots.push({ x: rnd(-150, 150), y: rnd(-18, 18), c: COLORS[d.i] });
     burst(360, BOWL.y, 16, rgb(COLORS[d.i]), 300, 800, 10); sfx('sfx_drop', () => beep(400, 0.12, 'sine', 0.12, -200)); lib.haptics.play('tap');
-    if (S.drops <= cfg.dropsNeeded) toast(`${S.drops}/${cfg.dropsNeeded}`, rgb(COLORS[d.i]));
-    if (!S.ok && S.step === 1 && S.drops >= cfg.dropsNeeded) complete();
+    if (S.drops <= need('dropsNeeded')) toast(`${S.drops}/${need('dropsNeeded')}`, rgb(COLORS[d.i]));
+    if (!S.ok && S.step === 1 && S.drops >= need('dropsNeeded')) complete();
     return false;
   });
   for (const t of S.tops) t.pop *= Math.pow(0.001, dt);
@@ -366,7 +407,7 @@ function updateBath(dt) {
   if (S.pop) return updatePop(dt);
   if (b.wet) {
     b.y += (800 + Math.sin(S.t * 5) * 8 - b.y) * Math.min(1, dt * 6);
-    S.fizz = Math.min(1, S.fizz + dt / cfg.fizzSeconds);
+    S.fizz = Math.min(1, S.fizz + dt / need('fizzSeconds'));
     b.r = 78 * (1 - S.fizz * 0.8); S.shake = Math.max(S.shake, 3);
     for (let i = 0; i < 3 * quality; i++) S.P.push({ x: b.x + rnd(-b.r, b.r), y: b.y, vx: rnd(-60, 60), vy: rnd(-240, -110), g: -200, r: rnd(5, 15), c: Math.random() < 0.5 ? 'rgba(255,255,255,0.85)' : rgb(S.golden ? [255, 208, 0] : paint(), 0.8), life: rnd(0.3, 0.7), max: 0.7 });
     if (!hum('sfx_fizz', true) && (S.tick += dt) > 0.06) { S.tick = 0; beep(rnd(1200, 2600), 0.03, 'sine', 0.04); }
@@ -406,7 +447,8 @@ function reveal() {
   const wasDone = albumDone();
   S.prizes = [drawPrize()];
   if (save.made >= 2 && Math.random() < cfg.twinChance * perk(0)) {
-    const second = drawPrize();
+    let second = drawPrize();
+    for (let i = 0; i < 8 && second.toy === S.prizes[0].toy; i++) second = drawPrize(); // a double is two different toys
     if (second.toy !== S.prizes[0].toy) S.prizes.push(second);
   }
   for (const p of S.prizes) {
@@ -420,6 +462,7 @@ function reveal() {
   const coins = cfg.coinsPerBomb + (met ? cfg.orderCoins : 0) + (newRecipe ? cfg.recipeCoins : 0) + (S.unlock && S.unlock.kind === 'coins' ? cfg.giftCoins : 0) + S.popCoins;
   save.coins += coins;
   S.earned = { coins, met, newRecipe };
+  S.gift = !!S.unlock; // an unlock arrives as a gift box the player taps open
   S.note = !wasDone && albumDone() ? T('albumDone') + ' 👑' : S.unlock ? '🔓' : save.stars >= cfg.starsForGolden ? T('nextGolden') : '';
   S.reveal = 0; S.shake = 18;
   stopLoops(); lib.haptics.play('success');
@@ -467,6 +510,17 @@ function pic(id, fallback, x, y, size, o = {}) {
   } else { emo(fallback, 0, 0, size); if (o.gold) emo('✨', size * 0.4, -size * 0.4, size * 0.4); }
   g.restore();
 }
+/** Particles: plain dots for powder and bubbles, stars and hearts mixed in for celebrations. */
+function drawParticles() {
+  for (const p of S.P) {
+    g.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * 2)); g.fillStyle = p.c;
+    if (p.s) { g.save(); g.translate(p.x, p.y); g.rotate(p.a + p.life * 4); shapePath(p.s, 0, 0, p.r * 1.5); g.fill(); g.restore(); }
+    else { g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.fill(); }
+  }
+  g.globalAlpha = 1;
+}
+/** A soft shadow on the table under an object, so it sits in the scene instead of floating. */
+function shadow(x, y, rx, ry = rx * 0.16) { g.fillStyle = 'rgba(90,30,134,0.18)'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); }
 /** A drawn coin, so the currency looks the same on every device (the coin emoji is missing on older phones). */
 function coin(x, y, r) {
   g.fillStyle = '#e09a00'; g.beginPath(); g.arc(x, y + r * 0.08, r, 0, TAU); g.fill();
@@ -509,7 +563,11 @@ function button(label, col) {
   });
 }
 /** A white pill with a dark outline: the base of every HUD chip. */
-function pill(x, y, w, h, line = '#5a1e86', fill = '#fff') { g.fillStyle = fill; rr(x, y, w, h, h / 2); g.fill(); g.lineWidth = 6; g.strokeStyle = line; g.stroke(); }
+function pill(x, y, w, h, line = '#5a1e86', fill = '#fff') {
+  g.fillStyle = 'rgba(90,30,134,0.2)'; rr(x, y + 6, w, h, h / 2); g.fill();
+  g.fillStyle = fill; rr(x, y, w, h, h / 2); g.fill(); g.lineWidth = 6; g.strokeStyle = line; g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.55)'; rr(x + h * 0.3, y + 7, w - h * 0.6, h * 0.22, h * 0.11); g.fill();
+}
 function bombBall(x, y, r) {
   const cols = S.cols.length ? S.cols.map(i => COLORS[i]) : [paint()], gr = g.createLinearGradient(x - r, y - r, x + r, y + r);
   cols.forEach((c, i) => { gr.addColorStop(i / cols.length, rgb(c)); gr.addColorStop((i + 0.999) / cols.length, rgb(mix(c, [255, 255, 255], 0.25))); });
@@ -518,6 +576,12 @@ function bombBall(x, y, r) {
   g.fillStyle = gr; g.fill(fillRule(S.mold)); // fill after stroke so the flower's inner petal lines stay hidden
   const shine = g.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.05, x - r * 0.35, y - r * 0.4, r * 0.9);
   shine.addColorStop(0, 'rgba(255,255,255,0.55)'); shine.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = shine; g.fill(fillRule(S.mold));
+  // Volume and powder: a darker far side and a scatter of fixed specks, both clipped to the shape.
+  const shade = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.4, x, y, r * 1.25);
+  shade.addColorStop(0, 'rgba(90,30,134,0)'); shade.addColorStop(1, 'rgba(90,30,134,0.32)'); g.fillStyle = shade; g.fill(fillRule(S.mold));
+  g.save(); g.clip(fillRule(S.mold));
+  for (let i = 0; i < 34; i++) { const a = i * 2.399, d = Math.sqrt((i + 0.5) / 34) * r; g.fillStyle = i % 2 ? 'rgba(255,255,255,0.3)' : 'rgba(90,30,134,0.12)'; g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, r * (0.018 + (i % 3) * 0.008), 0, TAU); g.fill(); }
+  g.restore();
   for (const t of S.tops) pic(TOPS[t.i].id, TOPS[t.i].e, x + t.dx * r, y + t.dy * r, r * 0.3 * (1 + t.pop * 0.8), { rot: t.rot });
   if (S.golden) for (let i = 0; i < 4; i++) emo('✨', x + Math.cos(S.t * 2 + i * 1.57) * r * 0.95, y + Math.sin(S.t * 2 + i * 1.57) * r * 0.95, r * 0.28);
 }
@@ -526,7 +590,9 @@ function moldHalf(top, y) {
   g.save(); g.beginPath(); g.rect(0, top ? y - 400 : y, W, 400); g.clip();
   shapePath(S.mold, 360, y, 138); g.lineJoin = 'round';
   g.lineWidth = 12; g.strokeStyle = '#5c74e6'; g.stroke();
-  g.fillStyle = '#9fb4ff'; g.fill('nonzero'); g.restore();
+  const mg = g.createLinearGradient(220, y - 140, 500, y + 140); mg.addColorStop(0, '#c4d2ff'); mg.addColorStop(1, '#7f97f5');
+  g.fillStyle = mg; g.fill('nonzero');
+  g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.ellipse(300, top ? y - 70 : y + 40, 22, 46, 0.5, 0, TAU); g.fill(); g.restore();
   g.lineWidth = 10; g.strokeStyle = '#5c74e6'; g.beginPath(); g.moveTo(200, y); g.lineTo(520, y); g.stroke();
 }
 /** The choice row lane: five round buttons. `face(i, x)` draws what is inside button i; a locked one shows how many bombs to go. */
@@ -541,19 +607,30 @@ function choiceRow(n, selected, kind, face) {
     }
   });
 }
-/** An animated finger that shows the gesture of the current step, in its own lane so it never covers the thing to touch. */
+/** An animated finger showing one gesture (hold, tap, stir, drag) centred at cx, cy. */
+function ghostHand(kind, cx, cy, size) {
+  const t = S.t; let fx = cx, fy = cy + 8;
+  g.strokeStyle = '#ff2d8a'; g.lineWidth = 8; g.lineCap = 'round';
+  if (kind === 'hold') { const k = (t % 1.4) / 1.4; g.globalAlpha = 1 - k; g.beginPath(); g.arc(cx, cy - 26, 20 + k * 46, 0, TAU); g.stroke(); g.globalAlpha = 1; fy += Math.min(1, k * 4) * 6; }
+  else if (kind === 'stir') { g.globalAlpha = 0.5; g.beginPath(); g.ellipse(cx, cy - 20, 70, 34, 0, 0, TAU); g.stroke(); g.globalAlpha = 1; fx = cx + Math.cos(t * 4) * 70; fy = cy + 18 + Math.sin(t * 4) * 34; }
+  else if (kind === 'drag') { const k = (t % 1.2) / 1.2; fy = cy - 50 + k * 100; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(cx - 70, cy - 40); g.lineTo(cx - 70, cy + 40); g.lineTo(cx - 88, cy + 20); g.moveTo(cx - 70, cy + 40); g.lineTo(cx - 52, cy + 20); g.stroke(); g.globalAlpha = 1; }
+  else { const k = (t % 0.7) / 0.7; g.globalAlpha = 1 - k; g.beginPath(); g.arc(cx, cy - 26, 14 + k * 34, 0, TAU); g.stroke(); g.globalAlpha = 1; fy += Math.sin(k * Math.PI) * -14; }
+  emo('👆', fx, fy, size);
+}
+/** The gesture coach in its own lane, so on later bombs the hint never covers the thing to touch. */
 function coach(kind, x, y, w, h) {
-  group('coach', x, y, w, h, () => {
-    g.fillStyle = 'rgba(255,255,255,0.7)'; rr(x, y, w, h, 40); g.fill();
-    const cx = x + w / 2, cy = y + h / 2, t = S.t;
-    let fx = cx, fy = cy + 8;
-    g.strokeStyle = '#ff2d8a'; g.lineWidth = 8; g.lineCap = 'round';
-    if (kind === 'hold') { const k = (t % 1.4) / 1.4; g.globalAlpha = 1 - k; g.beginPath(); g.arc(cx, cy - 26, 20 + k * 46, 0, TAU); g.stroke(); g.globalAlpha = 1; fy += Math.min(1, k * 4) * 6; }
-    else if (kind === 'stir') { g.globalAlpha = 0.5; g.beginPath(); g.ellipse(cx, cy - 20, 70, 34, 0, 0, TAU); g.stroke(); g.globalAlpha = 1; fx = cx + Math.cos(t * 4) * 70; fy = cy + 18 + Math.sin(t * 4) * 34; }
-    else if (kind === 'drag') { const k = (t % 1.2) / 1.2; fy = cy - 50 + k * 100; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(cx - 70, cy - 40); g.lineTo(cx - 70, cy + 40); g.lineTo(cx - 88, cy + 20); g.moveTo(cx - 70, cy + 40); g.lineTo(cx - 52, cy + 20); g.stroke(); g.globalAlpha = 1; }
-    else { const k = (t % 0.7) / 0.7; g.globalAlpha = 1 - k; g.beginPath(); g.arc(cx, cy - 26, 14 + k * 34, 0, TAU); g.stroke(); g.globalAlpha = 1; fy += Math.sin(k * Math.PI) * -14; }
-    emo('👆', fx, fy, Math.min(96, h * 0.72));
-  });
+  group('coach', x, y, w, h, () => { g.fillStyle = 'rgba(255,255,255,0.7)'; rr(x, y, w, h, 40); g.fill(); ghostHand(kind, x + w / 2, y + h / 2, Math.min(96, h * 0.72)); });
+}
+/** Spotlight: dim the screen except the thing to touch, and show the gesture right on it. An overlay by design, so it records no box. */
+function drawHelp() {
+  const t = helpTarget();
+  if (!t) return;
+  g.fillStyle = 'rgba(60,20,90,0.5)'; g.beginPath(); g.rect(0, 0, W, H); g.roundRect(t.x - 12, t.y - 12, t.w + 24, t.h + 24, 44); g.fill('evenodd');
+  g.lineWidth = 8; g.strokeStyle = `rgba(255,255,255,${0.6 + Math.sin(S.t * 6) * 0.35})`; rr(t.x - 12, t.y - 12, t.w + 24, t.h + 24, 44); g.stroke();
+  let cx = t.x + t.w / 2, cy = t.y + t.h / 2;
+  if (t.hand === 'hold') { cx = 270; cy = 590; } else if (t.hand === 'drag') { cx = S.ball.x + 90; cy = 600; } else if (t.w < 120) cy = t.y + t.h * 0.6;
+  ghostHand(t.hand, cx, cy + 30, 104);
+  grouped++; txt(T(S.pop ? 'pop' : 's' + S.step), 360, LANE.say, 54); grouped--; // the instruction stays bright above the dimming
 }
 /** What a bomb unlocked or the HUD bar is filling toward, as a picture instead of words. */
 function rewardIcon(u, x, y, r) {
@@ -566,25 +643,25 @@ function rewardIcon(u, x, y, r) {
 
 /* ---------- lanes ---------- */
 function drawHud() {
-  group('coins', hx(16, 160), 28, 160, 84, () => {
-    const x = hx(16, 160); pill(x, 28, 160, 84); coin(x + 44, 70, 26); txt(String(save.coins), x + 108, 72, 36, '#5a1e86', null, 12, 84);
+  if (save.coins > 0 || save.made > 0) group('coins', hx(16, 160), 28, 160, 84, () => {
+    const x = hx(16, 160); pill(x, 28, 160, 84, '#e09a00', '#fff3c4'); coin(x + 44, 70, 26); txt(String(save.coins), x + 108, 72, 36, '#5a1e86', null, 12, 84);
   });
-  group('reward bar', hx(190, 230), 28, 230, 84, () => {
+  if (save.made >= 1) group('reward bar', hx(190, 230), 28, 230, 84, () => {
     const x = hx(190, 230), nx = nextReward(), p = (save.made - nx.from) / (nx.at - nx.from), bw = 124 * Math.max(0.04, Math.min(1, p));
-    pill(x, 28, 230, 84);
+    pill(x, 28, 230, 84, '#22b455', '#effff4');
     g.fillStyle = '#ece6f2'; rr(x + 18, 58, 124, 24, 12); g.fill();
     g.fillStyle = '#35d07f'; rr(rtl() ? x + 18 + 124 - bw : x + 18, 58, bw, 24, 12); g.fill();
     g.fillStyle = '#fff7d6'; g.beginPath(); g.arc(x + 186, 70, 32, 0, TAU); g.fill(); g.lineWidth = 5; g.strokeStyle = '#ffb800'; g.stroke();
     rewardIcon(nx, x + 186, 70, 24);
   });
   group('mute', mx(478) - 42, 28, 84, 84, () => { g.fillStyle = '#fff'; g.beginPath(); g.arc(mx(478), 70, 42, 0, TAU); g.fill(); g.lineWidth = 6; g.strokeStyle = '#5a1e86'; g.stroke(); emo(save.muted ? '🔇' : '🔊', mx(478), 73, 44); });
-  group('book chip', hx(536, 170), 28, 170, 84, () => {
-    const x = hx(536, 170); pill(x, 28, 170, 84); emo(albumDone() ? '👑' : '🎁', x + 44, 72, 42);
+  if (save.made >= 1) group('book chip', hx(536, 170), 28, 170, 84, () => {
+    const x = hx(536, 170); pill(x, 28, 170, 84, '#7a3cff', '#f3ecff'); emo(albumDone() ? '👑' : '🎁', x + 44, 72, 42);
     txt(`${albumDone() ? save.gold.length : save.owned.length}/${TOYS.length}`, x + 114, 72, 34, '#5a1e86', null, 12, 96);
   });
   // Step bar: six segments; the current one fills with the progress of the step.
   group('step bar', 40, LANE.steps - 14, 640, 28, () => {
-    const p = S.step === 1 ? S.drops / cfg.dropsNeeded : S.step === 4 ? S.tops.length / cfg.toppingsNeeded : S.pop ? S.pop.t / cfg.bubbleSeconds : S.step === 5 ? S.fizz : S.prog;
+    const p = S.step === 1 ? S.drops / need('dropsNeeded') : S.step === 4 ? S.tops.length / need('toppingsNeeded') : S.pop ? S.pop.t / cfg.bubbleSeconds : S.step === 5 ? S.fizz : S.prog;
     for (let i = 0; i < 6; i++) {
       const x = hx(40 + i * 108, 100), f = i < S.step || S.prizes ? 1 : i === S.step ? Math.min(1, p) : 0;
       g.fillStyle = '#fff'; rr(x, LANE.steps - 14, 100, 28, 14); g.fill();
@@ -595,9 +672,12 @@ function drawHud() {
 }
 /** The customer lane: who is asking, the bomb they want (shape in color), and the coins it pays. A tick shows when the bomb matches. */
 function drawOrder(y) {
-  group('order', 130, y - 46, 460, 92, () => {
+  if (S.order) group('order', 130, y - 46, 460, 92, () => {
     pill(130, y - 46, 460, 92, '#ff8fc4', '#fff6fb');
-    emo(CUSTOMERS[S.order.who], mx(196), y + 3, 62);
+    // The customer bobs while waiting and bounces with hearts once the bomb matches the order.
+    const who = CUSTOMERS[S.order.who], glad = S.cols.length > 0 && orderMet() && S.step >= 3;
+    pic(who.id, who.e, mx(196), y - 2 - Math.abs(Math.sin(S.t * (glad ? 7 : 2.5))) * (glad ? 10 : 4), 76);
+    if (glad) emo('💗', mx(160), y - 30 - (S.t * 30) % 14, 26);
     g.fillStyle = '#ff8fc4'; g.beginPath(); g.moveTo(mx(246), y); g.lineTo(mx(270), y - 12); g.lineTo(mx(270), y + 12); g.fill();
     recipeIcon(S.order.mold, S.order.color, mx(326), y, 28);
     if (S.cols.length && orderMet() && (S.step > 3 || S.prizes || (S.step === 3 && !S.ok))) { g.fillStyle = '#22b455'; g.beginPath(); g.arc(mx(358), y - 24, 18, 0, TAU); g.fill(); txt('✓', mx(358), y - 22, 24, '#fff', null); }
@@ -608,12 +688,15 @@ function drawScene() {
   if (S.step <= 2) {
     box('scene', 110, 432, 500, 470);
     const { x, y } = BOWL;
-    g.fillStyle = '#ff5fa8'; g.beginPath(); g.moveTo(x - 240, y);
+    shadow(x, y + 172, 210);
+    const body = g.createLinearGradient(x - 240, y, x + 240, y + 170); body.addColorStop(0, '#ff8cc6'); body.addColorStop(0.55, '#ff5fa8'); body.addColorStop(1, '#e23f8c');
+    g.fillStyle = body; g.beginPath(); g.moveTo(x - 240, y);
     g.bezierCurveTo(x - 230, y + 128, x - 165, y + 170, x - 115, y + 170); g.lineTo(x + 115, y + 170);
     g.bezierCurveTo(x + 165, y + 170, x + 230, y + 128, x + 240, y); g.fill();
     g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(x - 145, y + 78, 24, 52, 0.4, 0, TAU); g.fill();
     g.fillStyle = '#ffe3f1'; g.beginPath(); g.ellipse(x, y, 240, 52, 0, 0, TAU); g.fill();
-    g.lineWidth = 10; g.strokeStyle = '#ff5fa8'; g.stroke();
+    g.lineWidth = 12; g.strokeStyle = '#ff5fa8'; g.stroke();
+    g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.ellipse(x, y - 3, 236, 50, 0, Math.PI * 1.05, Math.PI * 1.6); g.stroke();
     const fill = S.step === 0 ? S.prog : 1;
     if (fill > 0.02) {
       const even = S.step === 2 ? S.prog : 0;
@@ -632,20 +715,26 @@ function drawScene() {
   } else if (S.step === 2) {
     // The spoon rests in the bowl until it is grabbed, so the tool is visible before the first touch.
     const grab = S.ptr.down && !S.book, sx = grab ? S.ptr.x : BOWL.x + 90, sy = grab ? Math.min(S.ptr.y, 880) : BOWL.y + 10;
-    g.lineCap = 'round'; g.lineWidth = 22; g.strokeStyle = '#ffd000';
+    g.lineCap = 'round'; g.lineWidth = 24; g.strokeStyle = '#e8a800';
     g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + 64, sy - 170); g.stroke();
-    g.fillStyle = '#ffd000'; g.beginPath(); g.ellipse(sx, sy, 38, 26, 0.3, 0, TAU); g.fill();
+    g.lineWidth = 16; g.strokeStyle = '#ffd638'; g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + 64, sy - 170); g.stroke();
+    g.lineWidth = 5; g.strokeStyle = 'rgba(255,255,255,0.75)'; g.beginPath(); g.moveTo(sx + 10, sy - 40); g.lineTo(sx + 56, sy - 160); g.stroke();
+    g.fillStyle = '#e8a800'; g.beginPath(); g.ellipse(sx, sy + 3, 40, 28, 0.3, 0, TAU); g.fill();
+    g.fillStyle = '#ffd638'; g.beginPath(); g.ellipse(sx, sy, 38, 26, 0.3, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.6)'; g.beginPath(); g.ellipse(sx - 10, sy - 8, 14, 8, 0.3, 0, TAU); g.fill();
   } else if (S.step === 3) {
     box('scene', 200, 440, 320, 420);
+    shadow(360, PRESS_Y + 150, 150);
     const open = S.ok ? Math.min(1, S.okT * 2) * 60 : 0, gap = 100 * (1 - S.prog), cy = PRESS_Y + S.squash * 12;
     if (S.ok) bombBall(360, cy - 20, 128 * Math.min(1, backOut(Math.min(1, S.okT * 2))));
     else { g.fillStyle = rgb(paint()); rr(262, cy - gap - 16, 196, gap + 32, 36); g.fill(); moldHalf(false, cy); moldHalf(true, cy - gap - S.squash * 16); }
     if (S.ok && open < 60) { g.globalAlpha = 1 - open / 60; moldHalf(false, cy + open); moldHalf(true, cy - open); g.globalAlpha = 1; }
   } else if (S.step === 4) {
     box('scene', 160, 468, 400, 410);
-    bombBall(BALL.x, BALL.y, BALL.r);
+    shadow(BALL.x, BALL.y + BALL.r * 1.06, BALL.r * 0.8);
+    bombBall(BALL.x, BALL.y, BALL.r * (1 + S.pulse * 0.05));
     // Luck meter beside the bomb: a clover at the bottom, the rarest toy on top, filling upward as toppings go on.
-    group('luck', mx(56) - 34, 438, 68, 462, () => {
+    if (save.made >= 1) group('luck', mx(56) - 34, 438, 68, 462, () => {
       const p = luck(), x = mx(56);
       g.fillStyle = '#fff'; rr(x - 17, 500, 34, 340, 17); g.fill();
       g.fillStyle = p >= 1 ? '#ffc400' : '#35d07f'; rr(x - 17, 840 - 340 * p, 34, Math.max(34, 340 * p), 17); g.fill();
@@ -656,7 +745,9 @@ function drawScene() {
     box('scene', 60, 440, 600, 468);
     const water = mix([110, 215, 255], S.golden ? [255, 208, 0] : paint(), S.fizz * 0.75);
     if (!S.ball.wet) bombBall(S.ball.x, S.ball.y, S.ball.r);
-    tub(60, 650, 600, 255, save.skin, water);
+    // In the last stretch of the fizz a glow builds under the bomb: the prize is coming.
+    tub(60, 650, 600, 255, save.skin, water, S.fizz);
+    if (S.fizz > 0.6 && !S.pop) { const q = (S.fizz - 0.6) / 0.4, gl = g.createRadialGradient(S.ball.x, 800, 10, S.ball.x, 800, 60 + q * 220); gl.addColorStop(0, `rgba(255,255,255,${0.9 * q})`); gl.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gl; g.fillRect(60, 560, 600, 360); }
     // The player's newest toys float in their bath, so the collection is part of the scene.
     save.owned.slice(-4).forEach((e, i) => { const t = TOYS.find(o => o.e === e); pic(t.id, t.e, [140, 235, 485, 580][i], WATER_Y + 26 + Math.sin(S.t * 2.5 + i * 2) * 6, 64); });
     if (S.ball.wet && !S.pop) bombBall(S.ball.x, S.ball.y, S.ball.r);
@@ -667,13 +758,23 @@ function drawScene() {
   }
 }
 /** A bathtub in shop style `skin`, filled with water of color `water`. */
-function tub(x, y, w, h, skin, water) {
+function tub(x, y, w, h, skin, water, foam = 0) {
   const [body, trim] = SKINS[skin], k = w / 600;
-  g.fillStyle = body; rr(x, y, w, h, 60 * k); g.fill(); g.lineWidth = Math.max(3, 8 * k); g.strokeStyle = trim; g.stroke();
+  const tg = g.createLinearGradient(x, y, x, y + h); tg.addColorStop(0, body); tg.addColorStop(1, rgb(mix([255, 255, 255], [200, 190, 230], 0.5)));
+  g.fillStyle = 'rgba(90,30,134,0.16)'; rr(x + 10 * k, y + 14 * k, w - 20 * k, h, 60 * k); g.fill();
+  g.fillStyle = tg; rr(x, y, w, h, 60 * k); g.fill(); g.lineWidth = Math.max(3, 8 * k); g.strokeStyle = trim; g.stroke();
   if (skin === 5) { const gr = g.createLinearGradient(x, y, x + w, y); COLORS.forEach((c, i) => gr.addColorStop(i / 4, rgb(c))); g.strokeStyle = gr; g.stroke(); }
-  g.fillStyle = rgb(water); rr(x + 22 * k, y + 40 * k, w - 44 * k, h - 62 * k, 42 * k); g.fill();
-  g.fillStyle = 'rgba(255,255,255,0.45)';
-  for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(x + (80 + i * 110) * k + Math.sin(S.t * 2 + i) * 12 * k, y + 46 * k, 44 * k, 9 * k, 0, 0, TAU); g.fill(); }
+  const wx = x + 22 * k, wy = y + 40 * k, ww = w - 44 * k, wh = h - 62 * k;
+  g.save(); rr(wx, wy, ww, wh, 42 * k); g.clip();
+  g.fillStyle = rgb(water); g.beginPath(); g.moveTo(wx, wy + wh);
+  for (let i = 0; i <= 24; i++) g.lineTo(wx + ww * i / 24, wy + (7 + Math.sin(S.t * 2.4 + i * 0.9) * 5) * k);
+  g.lineTo(wx + ww, wy + wh); g.fill();
+  g.fillStyle = rgb(mix(water, [255, 255, 255], 0.35)); g.beginPath(); g.moveTo(wx, wy + wh * 0.5);
+  for (let i = 0; i <= 24; i++) g.lineTo(wx + ww * i / 24, wy + wh * 0.5 + Math.sin(S.t * 1.7 + i * 0.7) * 6 * k);
+  g.lineTo(wx + ww, wy + wh); g.lineTo(wx, wy + wh); g.globalAlpha = 0.35; g.fill(); g.globalAlpha = 1;
+  g.fillStyle = 'rgba(255,255,255,0.9)';
+  for (let i = 0; i < 6 + foam * 22; i++) { g.beginPath(); g.arc(wx + ((i * 97) % 100) / 100 * ww, wy + (8 + Math.sin(S.t * 2.4 + i) * 4) * k, (8 + (i % 4) * 4 + foam * 6) * k, 0, TAU); g.fill(); }
+  g.restore();
 }
 /** Everything below the play area: the choice row and, under it, either the action button or the gesture coach. */
 function drawControls() {
@@ -686,7 +787,7 @@ function drawControls() {
   if (S.step === 4) choiceRow(TOPS.length, S.top, 'top', (i, x) => pic(TOPS[i].id, TOPS[i].e, x, LANE.row + 2, 60));
   if (S.ok && S.step === 1) button(T('next'), '#35d07f');
   else if (S.ok && S.step === 4) button(T('dropIt'), '#ff2d8a');
-  else if (!S.ok) {
+  else if (!S.ok && !helpTarget()) {
     const rowed = S.step === 1 || S.step === 3 || S.step === 4, kind = ['hold', 'tap', 'stir', 'tap', 'tap', S.ball.wet ? 'tap' : 'drag'][S.step];
     if (rowed) coach(kind, 250, LANE.btn - 62, 220, 124); else coach(kind, 210, 948, 300, 258);
   }
@@ -702,8 +803,10 @@ function drawPrizeScreen() {
   txt((gold ? T('gold') + ' · ' : '') + T('r' + top), 360, 215, 58, tint, '#fff', 14);
   box('prize toys', 90, 300, 540, 340);
   const size = (two ? 200 : 280) * Math.max(0.01, backOut(k));
-  S.prizes.forEach((p, i) => pic(p.toy.id, p.toy.e, 360 + (two ? (i ? 140 : -140) : 0), 470 + Math.sin(S.t * 4 + i) * 8, size, { sx: 1 + S.poke * 0.25, sy: 1 - S.poke * 0.3, gold: p.gold }));
-  for (const p of S.P) { g.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * 2)); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.fill(); }
+  const leap = (1 - backOut(k)) * 300, halo = g.createRadialGradient(360, 470, 20, 360, 470, 260);
+  halo.addColorStop(0, 'rgba(255,255,255,0.95)'); halo.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = halo; g.fillRect(60, 200, 600, 540);
+  S.prizes.forEach((p, i) => pic(p.toy.id, p.toy.e, 360 + (two ? (i ? 140 : -140) : 0), 470 + leap + Math.sin(S.t * 4 + i) * 8, size, { sx: 1 + S.poke * 0.25, sy: 1 - S.poke * 0.3, gold: p.gold }));
+  drawParticles();
   g.globalAlpha = 1;
   if (S.reveal > 0.5) {
     // A duplicate is never a loss: it pays a star toward a golden bomb.
@@ -720,11 +823,13 @@ function drawPrizeScreen() {
     });
     drawOrder(905);
     if (S.note) {
-      if (S.unlock) group('unlock', 250, 968, 220, 84, () => { pill(250, 968, 220, 84, '#22b455', '#effff4'); emo('🔓', mx(310), 1012, 46); rewardIcon(S.unlock, mx(410), 1010, 30); });
+      if (S.gift) group('gift', 250, 962, 220, 96, () => { pill(250, 968, 220, 84, '#ff2d8a', '#fff0f7'); emo('🎁', 330, 1012, 62, Math.sin(S.t * 9) * 0.08); emo('👆', 420, 1024 + Math.sin(S.t * 6) * 6, 50); });
+      else if (S.unlock) group('unlock', 250, 968, 220, 84, () => { pill(250, 968, 220, 84, '#22b455', '#effff4'); emo('🔓', mx(310), 1012, 46); rewardIcon(S.unlock, mx(410), 1010, 30); });
       else txt(S.note, 360, 1010, 46, '#22b455', '#fff', 14);
     }
   }
-  if (S.reveal > cfg.revealButtonDelay) button(T('again'), '#35d07f');
+  if (S.reveal > cfg.revealButtonDelay && !S.gift) button(T('again'), '#35d07f');
+  if (S.reveal < 0.4) { g.fillStyle = `rgba(255,255,255,${1 - S.reveal / 0.4})`; g.fillRect(0, 0, W, H); } // the flash the toy bursts out of
 }
 /** The book: a full screen with two tabs (toy album, recipe book), the language button and a close button. */
 function drawBook() {
@@ -782,11 +887,11 @@ function draw() {
   const bg = g.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#ffe36e'); bg.addColorStop(0.55, '#ffb3d9'); bg.addColorStop(1, '#8fe0ff');
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  if (ready('bg_bathroom')) { const im = IMG.bg_bathroom, k = Math.max(W / im.naturalWidth, H / im.naturalHeight); g.drawImage(im, (W - im.naturalWidth * k) / 2, (H - im.naturalHeight * k) / 2, im.naturalWidth * k, im.naturalHeight * k); g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(0, 0, W, H); } // washed out so the game reads first
+  if (ready('bg_bathroom')) { const im = IMG.bg_bathroom, k = Math.max(W / im.naturalWidth, H / im.naturalHeight); g.drawImage(im, (W - im.naturalWidth * k) / 2, (H - im.naturalHeight * k) / 2, im.naturalWidth * k, im.naturalHeight * k); g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, W, H); } // a light veil so the game reads first
   drawControls();
-  g.save(); g.translate(rnd(-1, 1) * S.shake, rnd(-1, 1) * S.shake);
+  g.save(); g.translate(rnd(-1, 1) * S.shake + (1 - backOut(S.enter)) * (rtl() ? -W : W), rnd(-1, 1) * S.shake);
   drawScene();
-  for (const p of S.P) { g.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * 2)); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.fill(); }
+  drawParticles();
   g.globalAlpha = 1; g.restore();
   drawHud();
   txt(T(S.pop ? 'pop' : 's' + S.step), 360, LANE.say, 54);
@@ -798,6 +903,7 @@ function draw() {
     g.font = '900 56px "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif';
     const wide = Math.min(600, g.measureText(f.txt).width); box('toast', 360 - wide / 2, LANE.toast - 32, wide, 64);
   }
+  drawHelp();
   debugOut();
 }
 function debugOut() {
@@ -859,7 +965,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getAsset: id => window.__assets[id], getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
-  window.__game = { pickToy, drawPrize, mergeSave, newBomb, newOrder, nextReward, rewardAt, bombsUntil, detectLang, toast, T, openBook, shopTap, setLang(l) { lang = save.lang = l; }, get S() { return S; }, get save() { return save; }, set save(v) { save = v; } };
+  window.__game = { pickToy, drawPrize, mergeSave, newBomb, newOrder, nextReward, rewardAt, bombsUntil, detectLang, toast, T, openBook, shopTap, helpTarget, setLang(l) { lang = save.lang = l; }, get S() { return S; }, get save() { return save; }, set save(v) { save = v; } };
   const q = new URLSearchParams(location.search);
   Promise.all(['game_config.json', 'asset_map.json'].map(f => fetch(f).then(r => r.json()))).then(([c, assets]) => {
     window.__assets = q.has('noassets') ? {} : assets;
