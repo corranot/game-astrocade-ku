@@ -20,5 +20,6 @@
   "ghostIdle": 6,
   "morphSeconds": 0.4,
   "wallSeconds": 10,
-  "cardRestSeconds": 4.5
+  "cardRestSeconds": 4.5,
+  "wallEndPause": 1.2
 }

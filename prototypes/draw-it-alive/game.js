@@ -7,7 +7,8 @@
  * waits. A stroke is compared with the level's hidden path when the finger lifts. A miss never ends
  * anything: the line fades, the hand shows the way again, and after a few misses the player's line slides
  * into place by itself. Stars: 3 for a first try, 2 with retries, 1 when helped. The next level starts by
- * itself; a tap skips the end of a celebration. A chapter ends on the wall of the player's own pictures.
+ * itself; a tap skips the end of a celebration. A chapter ends on the wall of the player's own pictures, which
+ * plays each picture once in turn and then carries on to the next level.
  *
  * The 720 x 1280 scene is drawn by code (art.js). What never moves is drawn once per level into a
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame. The wall shows
@@ -113,7 +114,7 @@ function cardScene(ctx, c, won) {
 function openWall() {
   hush(); view = 'wall'; bits = []; pointerDown = false; press = null;
   if (!wallBack) { wallBack = document.createElement('canvas'); wallBack.width = W; wallBack.height = H; const b = wallBack.getContext('2d'); b.fillStyle = VIOLET; b.fillRect(0, 0, W, H); dots(b); }
-  wall = { t: 0, quiet: 0, next: S ? (S.won < 0 ? S.i : S.i + 1) : 0, turn: -1, cards: [] };
+  wall = { t: 0, rest: 0, next: S ? (S.won < 0 ? S.i : S.i + 1) : 0, turn: -1, started: new Set(), cards: [] };
   LEVELS.forEach((lv, n) => {
     if (!cardBacks[n]) { // the backgrounds never change, so they are drawn once per game
       const c = cardBacks[n] = document.createElement('canvas'); c.width = Math.round(W * CARD.k); c.height = Math.round(H * CARD.k);
@@ -132,10 +133,9 @@ function openWall() {
 }
 
 /** Play card n's scene from the start. */
-function playCard(n) { const c = wall.cards[n]; c.t0 = wall.t; c.pop = 1; wall.turn = n; }
+function playCard(n) { const c = wall.cards[n]; c.t0 = wall.t; c.pop = 1; wall.turn = n; wall.started.add(n); }
 
 function wallTap(p) {
-  wall.quiet = 0;
   const nx = cardAt(LEVELS.length);
   if (Math.hypot(p[0] - nx.x - CARD.w / 2, p[1] - nx.y - CARD.h / 2) < 130) { beep(880, 0.1, 'triangle'); buzz('tap'); return newLevel(wall.next); }
   wall.cards.forEach((c, n) => {
@@ -146,14 +146,20 @@ function wallTap(p) {
 }
 
 function updateWall(dt) {
-  wall.t += dt; wall.quiet += dt;
+  wall.t += dt;
   for (const c of wall.cards) c.pop = Math.max(0, c.pop - dt * 3);
-  if (wall.quiet > cfg.wallSeconds) return newLevel(wall.next); // nobody is tapping: carry on
-  // one card at a time plays its scene; the others show their finished picture
+  // one card at a time plays its scene, each once, in turn; the others show their finished picture
   const playing = wall.cards.some((c) => wall.t - c.t0 < cfg.cardRestSeconds);
-  if (!playing && quality < 2) {
-    for (let k = 1; k <= wall.cards.length; k++) { const n = (wall.turn + k) % wall.cards.length; if (wall.cards[n].s.stroke) { playCard(n); wall.cards[n].pop = 0; break; } }
+  if (playing) { wall.rest = 0; return; }
+  if (quality < 2) {
+    for (let k = 1; k <= wall.cards.length; k++) {
+      const n = (wall.turn + k) % wall.cards.length;
+      if (wall.cards[n].s.stroke && !wall.started.has(n)) { playCard(n); wall.cards[n].pop = 0; return; }
+    }
   }
+  // every picture has played: carry on after a short pause (longer when the wall is kept still on a slow phone)
+  wall.rest += dt;
+  if (wall.rest > (quality < 2 ? cfg.wallEndPause : cfg.wallSeconds)) newLevel(wall.next);
 }
 
 function drawWall() {

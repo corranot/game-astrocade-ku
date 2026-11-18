@@ -149,6 +149,19 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
     await page.waitForTimeout(300); await shot(page, `L${i + 1}-buttons`);
   }
 
+  console.log('4f. the wall carries on only after every picture has played in turn');
+  page = await open('&cfg=' + encodeURIComponent(JSON.stringify({ cardRestSeconds: 0.5 })));
+  await page.evaluate(() => { const g = window.__game; for (let n = 0; n < 5; n++) g.save.art[n] = [[100, 600], [300, 620], [500, 600]]; g.openWall(); });
+  const t0 = Date.now(); let snap = null;
+  while (Date.now() - t0 < 15000) {
+    const v = await page.evaluate(() => { const g = window.__game; return g.view === 'wall' ? { started: g.wall.started.size, t: g.wall.t, last: Math.max(...g.wall.cards.map((c) => c.t0)) } : null; });
+    if (!v) break; snap = v; await page.waitForTimeout(80);
+  }
+  const left = await page.evaluate(() => window.__game.view);
+  ok(left === 'play' && snap && snap.started === 5, `the wall moved on after all ${snap && snap.started} pictures played`);
+  ok(snap && snap.t - snap.last >= 0.5 + 1.0, `it waited for the last picture to finish and a pause (${snap && (snap.t - snap.last).toFixed(2)} s after it started)`);
+  ok(Date.now() - t0 >= (5 * 0.5 + 1.2) * 1000 - 300, `and not before every turn was over (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+
   console.log('5. edit mode shows the live picture and ignores input');
   page = await open('&mode=edit');
   await drag(page, await target(page)); await page.waitForTimeout(900);
