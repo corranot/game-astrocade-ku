@@ -10,7 +10,8 @@ The yard, the pinata, the candy and the stick are 3D (Three.js 0.187.0); the HUD
 2. Stick paper: drag or tap on the pinata. A tap next to it covers the nearest bare patch.
 3. Decorate: the pinata gets its eyes, then tap to stick stickers.
 4. Fill: tap candy. What goes in is what rains out.
-5. Smash: tap to hit. The pinata dents, cracks (paper falls, candy leaks) and bursts in slow motion.
+5. Smash: tap to hit. Each hit holds for a frame, knocks paper out of line and makes the fringe flutter; the pinata
+   cracks (paper falls, candy leaks) and bursts in slow motion with a shockwave.
 6. Grab the candy (each is a coin), then open the surprise capsule for a toy.
 
 There is no fail state. Candy not grabbed in time is picked up for the player, and the capsule opens by itself.
@@ -21,14 +22,18 @@ Reasons to make another one:
 - **Toy album.** 16 toys in four rarities. A duplicate pays a star; three stars make the next pinata golden
   (rare or better); three duplicates in a row guarantee a missing toy. A full album switches to a gold set.
 - **Reward bar.** The HUD always shows the next unlock and how close it is; after the last one, a coin gift every third pinata.
-- **Stick shop.** Coins buy four more sticks (squeaky hammer, wand, foam sword, giant lollipop).
-- **Party round.** Every third pinata swings; a hit in the middle counts double.
+- **Stick shop.** Coins buy four more sticks (squeaky hammer, wand, foam sword, giant lollipop); each shakes out more candy.
+- **Golden pinata for coins.** 200 coins in the album make the next pinata golden (a missing rare-or-better toy), so coins always have a use.
+- **Party round.** Every third pinata swings; a hit in the middle counts double and leaks candy, and the rain is doubled.
 - **Surprises.** Golden pinata, mega candy rain.
-- **Smash only.** After two pinatas, a button on the prize screen gives a ready-made pinata to smash.
+- **Party themes.** Beach, snow and candy land unlock at pinatas 12, 14 and 16 and rotate.
+- **Smash only.** After two pinatas, each pinata made banks one bonus smash of a ready-made pinata.
 
 ## First minutes
 
-- No menu. The first pinata starts at the paper step, already mostly covered: four patches, two stickers,
+- No menu. A new player starts with a ready-made pinata already hanging: three taps and it bursts, candy rains and
+  the first toy arrives. Only then comes "make your own".
+- The first pinata to make starts at the paper step, already mostly covered: four patches, two stickers,
   three candy taps, five hits. The yard moves (confetti, guests, balloons) before the first touch.
 - A spotlight with a ghost hand shows the gesture on the real thing until the player acts, and again after four idle seconds.
 - The first pinata shows only the step bar and the sound button. Coins, the reward bar, the album button and
@@ -49,7 +54,8 @@ The album has a globe button that steps through the languages; the choice is sav
 Translations were written without a native review.
 
 Input is pointer events, so touch and mouse both work without a setting. When the frame rate stays under
-40 FPS for `lowFpsSeconds`, confetti and candy are halved.
+40 FPS for `lowFpsSeconds`, the 3D canvas renders at three-quarter resolution, the fence, bunting and presents are
+hidden, and confetti and candy are halved.
 
 ## Files
 
@@ -71,3 +77,8 @@ Serve this folder and open `index.html?local` (`&noassets` for the emoji fallbac
 `playtest.js` (not part of the upload) runs eleven checks in a phone-sized browser: whole loop, order and smash-only,
 button mashing, toy and unlock rules, golden + mega + party, no assets, edit mode, 600 seeded random inputs,
 device language for ten locales, the layout check, and the first minutes.
+
+## Known limits
+
+- The HUD is redrawn in full every frame (stroked text and emoji); cache the text as sprites if a phone profile shows it matters.
+- Sound, hit feel and frame rate were never checked on a real phone.

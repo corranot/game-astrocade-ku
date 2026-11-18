@@ -120,6 +120,13 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 - 3D sebagian: halaman, piñata, permen, tongkat di Three.js (`scene.js`); HUD kanvas 2D di atasnya dengan jalur tetap dan uji tumpang tindih yang sama (`game.js`, `playtest.js`, 11 uji).
 - Bug yang hanya tertangkap uji: benda yang dilepas ke scene (`scene.attach`) tidak ikut terhapus saat grup dibuang; isi kosong membuat fungsi acak memilih `undefined`; teks Arab di kanvas butuh `direction = 'rtl'`.
 - Perintah shell yang memuat `rm -rf` ditolak di sesi cloud: tulis ke folder baru dan pakai alat Edit/Write.
+- **Pelajaran putaran kedua (penilaian empat agen peran: desain, UX, seni, performa; semuanya AI, bukan pakar manusia):**
+  1. *Hadiah dulu, baru membuat.* Pemain baru langsung memukul piñata jadi (3 ketukan); pecah pertama 1,6 detik setelah ketukan pertama di mesin uji.
+  2. *Three.js terkecil:* `https://cdn.jsdelivr.net/npm/three@0.187.0/+esm` satu berkas ±157 KB terkompres; `three.module.min.js` menarik inti 211 KB yang tidak dikecilkan.
+  3. *Cadangan HP lambat harus menurunkan yang mahal:* resolusi kanvas 3D ×0,75 dan dekor disembunyikan, bukan hanya partikel. Panggil `renderer.compile` di awal supaya momen pecah tidak tersendat.
+  4. *Ekonomi:* mode pintas tidak boleh lebih untung dari alur utama (satu bonus pukul per piñata yang dibuat); koin selalu punya tujuan (piñata emas 200 koin); pesanan meminta benda yang baru terbuka.
+  5. *UX anak:* tangan bantuan menunjuk benda yang diminta pesanan, bukan tombol lanjut; hadiah terbuka sendiri setelah 3 detik; benda terkunci tetap terlihat dengan lencana gembok; tombol punya ikon.
+  6. *Seni:* cahaya pantul hijau membuat kuning jadi zaitun (pakai krem); jangan ada panel putih tembus pandang; permen tidak boleh hijau di rumput; beri bayangan pada semua yang berdiri.
 
 **Fizzy Bath Bomb Maker (draft Astrocade 2026-11-18)** — game id `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, sumber di `prototypes/fizzy-bath-bomb-maker/`, belum dipublikasikan.
 - **Format akun ini multi-berkas:** `index.html` memuat `./game.js` sebagai `type="module"`. Server uji lokal wajib mengirim `content-type: text/javascript`, kalau tidak modul menolak dimuat dan game tampak mati.

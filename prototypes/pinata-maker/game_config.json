@@ -4,7 +4,7 @@
   "maxStickers": 16,
   "fillTaps": 5,
   "candiesPerTap": 3,
-  "rainPerTap": 5,
+  "rainPerTap": 7,
   "collectSeconds": 6,
   "collectRadius": 95,
   "coinsPerCandy": 1,
@@ -19,7 +19,7 @@
   "megaChance": 0.12,
   "megaScale": 1.7,
   "starsForGolden": 3,
-  "pityDupes": 3,
+  "pityDupes": 2,
   "partyEvery": 3,
   "partyPush": 0.75,
   "perfectZone": 0.07,
@@ -27,7 +27,9 @@
   "slowMoScale": 0.2,
   "lowFpsSeconds": 3,
   "batPrices": [0, 60, 140, 240, 360],
-  "first": { "hitsNeeded": 5, "stickersNeeded": 2, "fillTaps": 3, "paperLeft": 4, "collectSeconds": 4 },
+  "batBonusCandy": [0, 2, 4, 6, 8],
+  "goldenPrice": 200,
+  "first": { "openingHits": 3, "hitsNeeded": 5, "stickersNeeded": 2, "fillTaps": 3, "paperLeft": 4, "collectSeconds": 4 },
   "unlocks": [
     { "at": 1, "kind": "sticker", "i": 3 },
     { "at": 2, "kind": "perk", "i": 0 },
@@ -37,19 +39,23 @@
     { "at": 6, "kind": "shape", "i": 4 },
     { "at": 7, "kind": "sticker", "i": 4 },
     { "at": 8, "kind": "candy", "i": 4 },
-    { "at": 10, "kind": "shape", "i": 5 }
+    { "at": 9, "kind": "coins" },
+    { "at": 10, "kind": "shape", "i": 5 },
+    { "at": 12, "kind": "theme", "i": 1 },
+    { "at": 14, "kind": "theme", "i": 2 },
+    { "at": 16, "kind": "theme", "i": 3 }
   ],
   "giftEvery": 3,
   "giftCoins": 30,
   "rtl": ["ar"],
   "strings": {
-    "en": { "s0": "Pick a shape!", "s1": "Stick the paper!", "s2": "Decorate it!", "s3": "Fill it with candy!", "s4": "Tap to smash!", "s5": "Grab the candy!", "s5b": "Open the surprise!", "d1": "All covered!", "d2": "So pretty!", "d3": "It's full!", "perfect": "PERFECT!", "golden": "GOLDEN PIÑATA!", "mega": "MEGA CANDY RAIN!", "party": "PARTY TIME!", "next": "NEXT", "again": "MAKE ANOTHER", "newToy": "NEW TOY!", "albumDone": "ALBUM COMPLETE!", "nextGolden": "NEXT: GOLDEN PIÑATA!", "myToys": "MY TOYS", "sticks": "STICKS", "r0": "COMMON", "r1": "RARE", "r2": "EPIC", "r3": "LEGENDARY", "loading": "Getting the party ready…", "tip": "Tap, tap, tap to smash!", "name": "English" },
-    "ar": { "s0": "اختر شكلاً!", "s1": "ألصق الورق!", "s2": "زيّنها!", "s3": "املأها بالحلوى!", "s4": "اضغط لتكسرها!", "s5": "اجمع الحلوى!", "s5b": "افتح المفاجأة!", "d1": "اكتملت!", "d2": "جميلة جداً!", "d3": "امتلأت!", "perfect": "ممتاز!", "golden": "بنياتا ذهبية!", "mega": "مطر حلوى عملاق!", "party": "وقت الحفلة!", "next": "التالي", "again": "اصنع واحدة أخرى", "newToy": "لعبة جديدة!", "albumDone": "اكتمل الألبوم!", "nextGolden": "التالية: بنياتا ذهبية!", "myToys": "ألعابي", "sticks": "العصي", "r0": "عادية", "r1": "نادرة", "r2": "ملحمية", "r3": "أسطورية", "loading": "نجهّز الحفلة…", "tip": "اضغط، اضغط، اضغط لتكسرها!", "name": "العربية" },
-    "es": { "s0": "¡Elige una forma!", "s1": "¡Pega el papel!", "s2": "¡Decórala!", "s3": "¡Llénala de dulces!", "s4": "¡Toca para romper!", "s5": "¡Atrapa los dulces!", "s5b": "¡Abre la sorpresa!", "d1": "¡Toda cubierta!", "d2": "¡Qué bonita!", "d3": "¡Está llena!", "perfect": "¡PERFECTO!", "golden": "¡PIÑATA DORADA!", "mega": "¡MEGA LLUVIA DE DULCES!", "party": "¡HORA DE FIESTA!", "next": "SIGUIENTE", "again": "HACER OTRA", "newToy": "¡JUGUETE NUEVO!", "albumDone": "¡ÁLBUM COMPLETO!", "nextGolden": "SIGUIENTE: ¡PIÑATA DORADA!", "myToys": "MIS JUGUETES", "sticks": "PALOS", "r0": "COMÚN", "r1": "RARO", "r2": "ÉPICO", "r3": "LEGENDARIO", "loading": "Preparando la fiesta…", "tip": "¡Toca, toca, toca para romper!", "name": "Español" },
-    "vi": { "s0": "Chọn một hình!", "s1": "Dán giấy lên!", "s2": "Trang trí nào!", "s3": "Bỏ kẹo vào!", "s4": "Chạm để đập!", "s5": "Nhặt kẹo nào!", "s5b": "Mở quà bất ngờ!", "d1": "Dán xong rồi!", "d2": "Đẹp quá!", "d3": "Đầy rồi!", "perfect": "TUYỆT VỜI!", "golden": "PIÑATA VÀNG!", "mega": "MƯA KẸO KHỔNG LỒ!", "party": "TIỆC TÙNG THÔI!", "next": "TIẾP", "again": "LÀM CÁI NỮA", "newToy": "ĐỒ CHƠI MỚI!", "albumDone": "ĐỦ BỘ SƯU TẬP!", "nextGolden": "TIẾP THEO: PIÑATA VÀNG!", "myToys": "ĐỒ CHƠI CỦA TÔI", "sticks": "GẬY", "r0": "THƯỜNG", "r1": "HIẾM", "r2": "SIÊU HIẾM", "r3": "HUYỀN THOẠI", "loading": "Đang chuẩn bị bữa tiệc…", "tip": "Chạm, chạm, chạm để đập!", "name": "Tiếng Việt" },
-    "hi": { "s0": "एक आकार चुनो!", "s1": "कागज़ चिपकाओ!", "s2": "इसे सजाओ!", "s3": "टॉफ़ी भरो!", "s4": "तोड़ने के लिए टैप करो!", "s5": "टॉफ़ी बटोरो!", "s5b": "सरप्राइज़ खोलो!", "d1": "पूरा ढक गया!", "d2": "बहुत सुंदर!", "d3": "भर गया!", "perfect": "शानदार!", "golden": "सुनहरा पिन्याटा!", "mega": "टॉफ़ी की महा बारिश!", "party": "पार्टी टाइम!", "next": "आगे", "again": "एक और बनाओ", "newToy": "नया खिलौना!", "albumDone": "एल्बम पूरा!", "nextGolden": "अगला: सुनहरा पिन्याटा!", "myToys": "मेरे खिलौने", "sticks": "डंडे", "r0": "साधारण", "r1": "दुर्लभ", "r2": "महान", "r3": "पौराणिक", "loading": "पार्टी तैयार हो रही है…", "tip": "टैप, टैप, टैप करके तोड़ो!", "name": "हिन्दी" },
-    "bn": { "s0": "একটা আকার বেছে নাও!", "s1": "কাগজ লাগাও!", "s2": "সাজিয়ে দাও!", "s3": "ক্যান্ডি ভরো!", "s4": "ভাঙতে ট্যাপ করো!", "s5": "ক্যান্ডি কুড়াও!", "s5b": "সারপ্রাইজ খোলো!", "d1": "পুরো ঢাকা!", "d2": "কী সুন্দর!", "d3": "ভরে গেছে!", "perfect": "দারুণ!", "golden": "সোনালি পিনিয়াটা!", "mega": "ক্যান্ডির মহা বৃষ্টি!", "party": "পার্টি টাইম!", "next": "পরেরটা", "again": "আরেকটা বানাও", "newToy": "নতুন খেলনা!", "albumDone": "অ্যালবাম সম্পূর্ণ!", "nextGolden": "পরেরটা: সোনালি পিনিয়াটা!", "myToys": "আমার খেলনা", "sticks": "লাঠি", "r0": "সাধারণ", "r1": "বিরল", "r2": "দুর্দান্ত", "r3": "কিংবদন্তি", "loading": "পার্টি তৈরি হচ্ছে…", "tip": "ট্যাপ, ট্যাপ, ট্যাপ করে ভাঙো!", "name": "বাংলা" },
-    "id": { "s0": "Pilih bentuknya!", "s1": "Tempel kertasnya!", "s2": "Hias yuk!", "s3": "Isi dengan permen!", "s4": "Ketuk untuk pukul!", "s5": "Ambil permennya!", "s5b": "Buka kejutannya!", "d1": "Sudah tertutup!", "d2": "Cantik sekali!", "d3": "Sudah penuh!", "perfect": "SEMPURNA!", "golden": "PIÑATA EMAS!", "mega": "HUJAN PERMEN RAKSASA!", "party": "WAKTUNYA PESTA!", "next": "LANJUT", "again": "BUAT LAGI", "newToy": "MAINAN BARU!", "albumDone": "ALBUM LENGKAP!", "nextGolden": "BERIKUTNYA: PIÑATA EMAS!", "myToys": "MAINANKU", "sticks": "TONGKAT", "r0": "BIASA", "r1": "LANGKA", "r2": "EPIK", "r3": "LEGENDARIS", "loading": "Menyiapkan pesta…", "tip": "Ketuk, ketuk, ketuk untuk pukul!", "name": "Indonesia" }
+    "en": { "make": "MAKE YOUR OWN!", "s0": "Pick a shape!", "s1": "Stick the paper!", "s2": "Decorate it!", "s3": "Fill it with candy!", "s4": "Tap to smash!", "s5": "Grab the candy!", "s5b": "Open the surprise!", "d1": "All covered!", "d2": "So pretty!", "d3": "It's full!", "perfect": "PERFECT!", "golden": "GOLDEN PIÑATA!", "mega": "MEGA CANDY RAIN!", "party": "PARTY TIME!", "next": "NEXT", "again": "MAKE ANOTHER", "newToy": "NEW TOY!", "albumDone": "ALBUM COMPLETE!", "nextGolden": "NEXT: GOLDEN PIÑATA!", "myToys": "MY TOYS", "sticks": "STICKS", "r0": "COMMON", "r1": "RARE", "r2": "EPIC", "r3": "LEGENDARY", "loading": "Getting the party ready…", "tip": "Tap, tap, tap to smash!", "name": "English" },
+    "ar": { "make": "اصنع واحدة!", "s0": "اختر شكلاً!", "s1": "ألصق الورق!", "s2": "زيّنها!", "s3": "املأها بالحلوى!", "s4": "اضغط لتكسرها!", "s5": "اجمع الحلوى!", "s5b": "افتح المفاجأة!", "d1": "اكتملت!", "d2": "جميلة جداً!", "d3": "امتلأت!", "perfect": "ممتاز!", "golden": "بنياتا ذهبية!", "mega": "مطر حلوى عملاق!", "party": "وقت الحفلة!", "next": "التالي", "again": "اصنع واحدة أخرى", "newToy": "لعبة جديدة!", "albumDone": "اكتمل الألبوم!", "nextGolden": "التالية: بنياتا ذهبية!", "myToys": "ألعابي", "sticks": "العصي", "r0": "عادية", "r1": "نادرة", "r2": "ملحمية", "r3": "أسطورية", "loading": "نجهّز الحفلة…", "tip": "اضغط، اضغط، اضغط لتكسرها!", "name": "العربية" },
+    "es": { "make": "¡HAZ LA TUYA!", "s0": "¡Elige una forma!", "s1": "¡Pega el papel!", "s2": "¡Decórala!", "s3": "¡Llénala de dulces!", "s4": "¡Toca para romper!", "s5": "¡Atrapa los dulces!", "s5b": "¡Abre la sorpresa!", "d1": "¡Toda cubierta!", "d2": "¡Qué bonita!", "d3": "¡Está llena!", "perfect": "¡PERFECTO!", "golden": "¡PIÑATA DORADA!", "mega": "¡MEGA LLUVIA DE DULCES!", "party": "¡HORA DE FIESTA!", "next": "SIGUIENTE", "again": "HACER OTRA", "newToy": "¡JUGUETE NUEVO!", "albumDone": "¡ÁLBUM COMPLETO!", "nextGolden": "SIGUIENTE: ¡PIÑATA DORADA!", "myToys": "MIS JUGUETES", "sticks": "PALOS", "r0": "COMÚN", "r1": "RARO", "r2": "ÉPICO", "r3": "LEGENDARIO", "loading": "Preparando la fiesta…", "tip": "¡Toca, toca, toca para romper!", "name": "Español" },
+    "vi": { "make": "TỰ LÀM NÀO!", "s0": "Chọn một hình!", "s1": "Dán giấy lên!", "s2": "Trang trí nào!", "s3": "Bỏ kẹo vào!", "s4": "Chạm để đập!", "s5": "Nhặt kẹo nào!", "s5b": "Mở quà bất ngờ!", "d1": "Dán xong rồi!", "d2": "Đẹp quá!", "d3": "Đầy rồi!", "perfect": "TUYỆT VỜI!", "golden": "PIÑATA VÀNG!", "mega": "MƯA KẸO KHỔNG LỒ!", "party": "TIỆC TÙNG THÔI!", "next": "TIẾP", "again": "LÀM CÁI NỮA", "newToy": "ĐỒ CHƠI MỚI!", "albumDone": "ĐỦ BỘ SƯU TẬP!", "nextGolden": "TIẾP THEO: PIÑATA VÀNG!", "myToys": "ĐỒ CHƠI CỦA TÔI", "sticks": "GẬY", "r0": "THƯỜNG", "r1": "HIẾM", "r2": "SIÊU HIẾM", "r3": "HUYỀN THOẠI", "loading": "Đang chuẩn bị bữa tiệc…", "tip": "Chạm, chạm, chạm để đập!", "name": "Tiếng Việt" },
+    "hi": { "make": "अपना बनाओ!", "s0": "एक आकार चुनो!", "s1": "कागज़ चिपकाओ!", "s2": "इसे सजाओ!", "s3": "टॉफ़ी भरो!", "s4": "तोड़ने के लिए टैप करो!", "s5": "टॉफ़ी बटोरो!", "s5b": "सरप्राइज़ खोलो!", "d1": "पूरा ढक गया!", "d2": "बहुत सुंदर!", "d3": "भर गया!", "perfect": "शानदार!", "golden": "सुनहरा पिन्याटा!", "mega": "टॉफ़ी की महा बारिश!", "party": "पार्टी टाइम!", "next": "आगे", "again": "एक और बनाओ", "newToy": "नया खिलौना!", "albumDone": "एल्बम पूरा!", "nextGolden": "अगला: सुनहरा पिन्याटा!", "myToys": "मेरे खिलौने", "sticks": "डंडे", "r0": "साधारण", "r1": "दुर्लभ", "r2": "महान", "r3": "पौराणिक", "loading": "पार्टी तैयार हो रही है…", "tip": "टैप, टैप, टैप करके तोड़ो!", "name": "हिन्दी" },
+    "bn": { "make": "নিজে বানাও!", "s0": "একটা আকার বেছে নাও!", "s1": "কাগজ লাগাও!", "s2": "সাজিয়ে দাও!", "s3": "ক্যান্ডি ভরো!", "s4": "ভাঙতে ট্যাপ করো!", "s5": "ক্যান্ডি কুড়াও!", "s5b": "সারপ্রাইজ খোলো!", "d1": "পুরো ঢাকা!", "d2": "কী সুন্দর!", "d3": "ভরে গেছে!", "perfect": "দারুণ!", "golden": "সোনালি পিনিয়াটা!", "mega": "ক্যান্ডির মহা বৃষ্টি!", "party": "পার্টি টাইম!", "next": "পরেরটা", "again": "আরেকটা বানাও", "newToy": "নতুন খেলনা!", "albumDone": "অ্যালবাম সম্পূর্ণ!", "nextGolden": "পরেরটা: সোনালি পিনিয়াটা!", "myToys": "আমার খেলনা", "sticks": "লাঠি", "r0": "সাধারণ", "r1": "বিরল", "r2": "দুর্দান্ত", "r3": "কিংবদন্তি", "loading": "পার্টি তৈরি হচ্ছে…", "tip": "ট্যাপ, ট্যাপ, ট্যাপ করে ভাঙো!", "name": "বাংলা" },
+    "id": { "make": "BUAT SENDIRI!", "s0": "Pilih bentuknya!", "s1": "Tempel kertasnya!", "s2": "Hias yuk!", "s3": "Isi dengan permen!", "s4": "Ketuk untuk pukul!", "s5": "Ambil permennya!", "s5b": "Buka kejutannya!", "d1": "Sudah tertutup!", "d2": "Cantik sekali!", "d3": "Sudah penuh!", "perfect": "SEMPURNA!", "golden": "PIÑATA EMAS!", "mega": "HUJAN PERMEN RAKSASA!", "party": "WAKTUNYA PESTA!", "next": "LANJUT", "again": "BUAT LAGI", "newToy": "MAINAN BARU!", "albumDone": "ALBUM LENGKAP!", "nextGolden": "BERIKUTNYA: PIÑATA EMAS!", "myToys": "MAINANKU", "sticks": "TONGKAT", "r0": "BIASA", "r1": "LANGKA", "r2": "EPIK", "r3": "LEGENDARIS", "loading": "Menyiapkan pesta…", "tip": "Ketuk, ketuk, ketuk untuk pukul!", "name": "Indonesia" }
   },
   "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
 }

@@ -58,19 +58,29 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
     await until(6); await p.waitForTimeout(1900); await s('6-prize');
     return data('toy');
   };
+  /** A new player's opening: smash the ready-made pinata, let the candy and capsule collect themselves, then press the button. */
+  const opening = async () => {
+    await p.waitForTimeout(700); let hits = 0;
+    while ((await data('step')) === '4' && hits < 20) { await tap(360, 700, 220); hits++; }
+    await p.waitForFunction(() => document.getElementById('game').dataset.step === '6', null, { timeout: 25000 }); await p.waitForTimeout(1900);
+    await tap(360, 1150, 500); await until(1, 3000); return hits;
+  };
   const again = async () => { await tap(360, 985, 500); await tap(300, 1150, 500); await until(await game(() => window.__game.save.made === 0 ? 1 : 0), 3000); }; // open the gift box if there is one, then replay
 
   console.log('1. whole loop, gift, replay');
   await open(); await p.waitForTimeout(1200); await shot('a0-first-screen');
-  assert.strictEqual(await data('step'), '1', 'the first pinata starts at the paper step, with no menu');
-  assert(+(await data('prog')) > 0.5, 'the first pinata arrives mostly covered');
+  assert.strictEqual(await data('step'), '4', 'a new player starts with a pinata to smash, with no menu');
   const a1 = await p.screenshot(); await p.waitForTimeout(500); const a2 = await p.screenshot();
   assert(!a1.equals(a2), 'the first screen moves before any touch');
+  assert.strictEqual(await opening(), 3, 'the opening pinata bursts after three hits');
+  let st = await game(() => window.__game.save); assert.strictEqual(st.made, 0); assert.strictEqual(st.smashed, 1); assert.strictEqual(st.owned.length, 1, 'the opening gives the first toy');
+  const before = st.coins; await p.waitForTimeout(700); await shot('a0-first-make');
+  assert(+(await data('prog')) > 0.5, 'the first pinata to make arrives mostly covered');
   const toy1 = await pinata({ shots: 'a' });
-  let st = await game(() => ({ save: window.__game.save, earned: window.__game.S.earned, gift: window.__game.S.gift }));
-  assert.strictEqual(st.save.made, 1); assert.strictEqual(st.save.owned.length, 1); assert(toy1.startsWith('toy_'));
+  st = await game(() => ({ save: window.__game.save, earned: window.__game.S.earned, gift: window.__game.S.gift }));
+  assert.strictEqual(st.save.made, 1); assert(st.save.owned.length + st.save.stars === 2, 'a second toy, or a star for a duplicate'); assert(toy1.startsWith('toy_'));
   assert.strictEqual(st.earned.met, false, 'the first pinata has no order'); assert(st.earned.candy > 0, 'candy was grabbed');
-  assert.strictEqual(st.save.coins, 10 + st.earned.candy, '10 for the pinata + 1 per candy'); assert.deepStrictEqual(st.gift, { at: 1, kind: 'sticker', i: 3 });
+  assert.strictEqual(st.save.coins, before + 10 + st.earned.candy, '10 for the pinata + 1 per candy'); assert.deepStrictEqual(st.gift, { at: 1, kind: 'sticker', i: 3 });
   await again(); assert.strictEqual(await data('step'), '0', 'the second pinata starts with the shape step'); ok('five steps, prize, coins, gift, replay');
 
   console.log('2. second pinata: order, HUD, book and shop');
@@ -85,9 +95,9 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   await tap(610, 1150, 600); await until(4, 3000); await p.waitForTimeout(1600); await shot('c0-smash-only');
   for (let i = 0; i < 50 && (await data('step')) === '4'; i++) await tap(360, 700, 200);
   await until(5); await p.waitForFunction(() => document.getElementById('game').dataset.step === '6', null, { timeout: 25000 }); // no touch at all: candy and capsule collect themselves
-  st = await game(() => window.__game.save); assert.strictEqual(st.made, 2, 'smash-only does not count as a made pinata'); assert.strictEqual(st.smashed, 1);
+  st = await game(() => window.__game.save); assert.strictEqual(st.made, 2, 'smash-only does not count as a made pinata'); assert.strictEqual(st.smashed, 2, 'the opening and one bonus smash');
   await p.waitForTimeout(1800); await tap(300, 1150, 500); await until(0, 3000);
-  await tap(556, 70, 400); await shot('c1-book-toys'); await tap(520, 120, 300); await shot('c2-book-sticks');
+  await tap(556, 70, 400); await tap(200, 125, 300); await shot('c1-book-toys'); await tap(520, 125, 300); await shot('c2-book-sticks');
   const coins = (await game(() => window.__game.save)).coins;
   await tap(360, 290 + 180, 300); st = await game(() => window.__game.save);
   if (coins >= 60) { assert.deepStrictEqual(st.bats, [0, 1]); assert.strictEqual(st.bat, 1); assert.strictEqual(st.coins, coins - 60); } else assert.deepStrictEqual(st.bats, [0]);
@@ -115,15 +125,15 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
     G.save = { owned: G.TOYS.filter(t => t.i !== 15).map(t => t.i), dupes: 3 }; out.pity = G.drawPrize();
     G.save = { dupes: 0 }; G.S.gold = true; out.goldMin = Math.min(...Array.from({ length: 300 }, () => G.drawPrize().toy.tier)); G.S.gold = false;
     G.save = { owned: G.TOYS.map(t => t.i), gold: [] }; out.goldSet = G.drawPrize();
-    out.next0 = G.nextReward(0); out.next20 = G.nextReward(20); out.gift12 = G.rewardAt(12); out.gift13 = G.rewardAt(13); out.gift3 = G.rewardAt(3);
+    out.next0 = G.nextReward(0); out.next20 = G.nextReward(20); out.gift12 = G.rewardAt(12); out.gift17 = G.rewardAt(17); out.gift19 = G.rewardAt(19); out.gift9 = G.rewardAt(9); out.gift3 = G.rewardAt(3);
     out.open = [G.isOpen('shape', 2), G.isOpen('shape', 3), G.isOpen('color', 4), G.isOpen('candy', 2)];
     out.old = G.mergeSave({ owned: [], gold: [], bats: [0], bat: 0, made: 0, coins: 0, seen: {} }, { owned: [1, 2], made: '3', bat: 4 });
     return out;
   });
   assert(rules.tiers[0] > rules.tiers[1] && rules.tiers[1] > rules.tiers[2] && rules.tiers[2] > rules.tiers[3] && rules.tiers[3] > 0, 'rarer tiers come up less often: ' + rules.tiers);
-  assert.strictEqual(rules.minTier, 1); assert.strictEqual(rules.pity.toy.i, 15, 'after three duplicates the toy is a missing one'); assert.strictEqual(rules.pity.isNew, true);
+  assert.strictEqual(rules.minTier, 1); assert.strictEqual(rules.pity.toy.i, 15, 'after two duplicates the toy is a missing one'); assert.strictEqual(rules.pity.isNew, true);
   assert(rules.goldMin >= 1, 'a golden pinata gives rare or better'); assert.strictEqual(rules.goldSet.gold, true, 'a full album switches to the gold set'); assert.strictEqual(rules.goldSet.isNew, true);
-  assert.strictEqual(rules.next0.left, 1); assert.strictEqual(rules.next20.u.kind, 'coins'); assert.strictEqual(rules.gift13.kind, 'coins'); assert.strictEqual(rules.gift12, null); assert.strictEqual(rules.gift3.kind, 'shape');
+  assert.strictEqual(rules.next0.left, 1); assert.strictEqual(rules.next20.u.kind, 'coins'); assert.strictEqual(rules.gift19.kind, 'coins'); assert.strictEqual(rules.gift17, null); assert.strictEqual(rules.gift12.kind, 'theme'); assert.strictEqual(rules.gift9.kind, 'coins'); assert.strictEqual(rules.gift3.kind, 'shape');
   assert.deepStrictEqual(rules.open, [true, true, false, true].map((v, i) => i === 1 ? false : v).map((v, i) => i === 1 ? false : v)); // fresh save: 3 shapes, 4 colours, 3 candies open
   assert.strictEqual(rules.old.made, 3); assert.strictEqual(rules.old.bat, 0, 'a stick the save does not own is not equipped'); assert.deepStrictEqual(rules.old.bats, [0]); ok('toy and unlock rules');
 
@@ -135,10 +145,10 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   await game(() => { window.__game.S.mega = true; });
   await pinata({ shots: 'd' });
   st = await game(() => ({ save: window.__game.save, tier: window.__game.S.prizes[0].toy.tier, hpMax: window.__game.S.hpMax }));
-  assert(st.tier >= 1); assert.strictEqual(st.save.stars <= 1, true, 'the golden pinata spends the stars'); assert.strictEqual(st.hpMax, 12, 'a party pinata takes three more hits'); ok('golden + mega + party');
+  assert(st.tier >= 1); assert.strictEqual(st.save.stars <= 1, true, 'the golden pinata spends the stars'); assert.strictEqual(st.hpMax, 9, 'a party pinata takes the same hits and rains double'); ok('golden + mega + party');
 
   console.log('6. no assets: emoji and synthesized sound');
-  await open('&noassets'); await pinata({ shots: 'e' }); ok('whole loop without asset_map.json');
+  await open('&noassets'); await opening(); await pinata({ shots: 'e' }); ok('whole loop without asset_map.json');
 
   console.log('7. edit mode: a live picture, no gameplay');
   await open('&edit'); await p.waitForTimeout(800); await tap(360, 700); await tap(360, 1150); await shot('f-edit');
@@ -191,20 +201,28 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   }
   ok(checked + ' screens');
 
-  console.log('11. first minutes: short first pinata, spotlight, idle help');
-  await open();
-  st = await game(() => ({ help: window.__game.helpTarget(), first: window.__game.cfg.first }));
+  console.log('11. first minutes: smash first, short first pinata, spotlight, idle help');
+  await open(); await p.waitForTimeout(900);
+  st = await game(() => ({ help: window.__game.helpTarget(), step: window.__game.S.step }));
+  assert(st.help && st.help.hand === 'tap' && st.step === 4, 'a ghost hand taps the hanging pinata before the first touch');
+  const t0 = Date.now(); let hits = 0; while ((await data('step')) === '4' && hits < 20) { await tap(360, 700, 150); hits++; }
+  assert.strictEqual(hits, 3);
+  console.log('      first burst ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s after the first tap (slow software rendering included)');
+  await p.waitForFunction(() => document.getElementById('game').dataset.step === '6', null, { timeout: 25000 }); await p.waitForTimeout(1900); await tap(360, 1150, 500); await until(1, 3000);
   await p.waitForTimeout(900); st = await game(() => ({ help: window.__game.helpTarget(), left: window.__game.S.total - window.__game.scene.coveredCount() }));
-  assert(st.help && st.help.hand === 'rub', 'a ghost hand shows the gesture on the pinata before the first touch'); assert.strictEqual(st.left, 4, 'only four patches are left to cover on the first pinata');
+  assert(st.help && st.help.hand === 'rub', 'a ghost hand shows the rubbing gesture on the first pinata to make'); assert.strictEqual(st.left, 4, 'only four patches are left to cover');
   await tap(360, 700, 300); assert.strictEqual(await game(() => window.__game.helpTarget()), null, 'the spotlight leaves once the player acts');
   await game(() => { window.__game.S.idle = 4.5; }); assert((await game(() => window.__game.helpTarget())) !== null, 'help returns after four idle seconds');
-  const t0 = Date.now(); await game(() => { window.__game.S.idle = 0; });
+  await game(() => { window.__game.S.idle = 0; });
   for (let i = 0; i < 50 && (await data('step')) === '1'; i++) await tap(360, 700, 80);
   await until(2); for (let i = 0; i < 2; i++) await tap(330 + i * 60, 640, 100); await tap(360, 1150, 200); await until(3);
-  for (let i = 0; i < 3; i++) await tap(104, 985, 150);
-  await until(4); await p.waitForTimeout(1300); let hits = 0; while ((await data('step')) === '4' && hits < 20) { await tap(360, 700, 150); hits++; }
-  assert.strictEqual(hits, 5, 'the first pinata bursts after five hits');
-  console.log('      first burst after ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s of play (slow software rendering included)');
+  for (let i = 0; i < 3; i++) await tap(360, 700, 150); // tapping the pinata fills it too
+  await until(4); await p.waitForTimeout(1300); hits = 0; while ((await data('step')) === '4' && hits < 20) { await tap(360, 700, 150); hits++; }
+  assert.strictEqual(hits, 5, 'the first made pinata bursts after five hits');
+  // the order's shape and colour are what the hand points at
+  await open('', { save: fresh({ made: 3, smashed: 1, seen: { order: 1 } }) });
+  st = await game(() => { const G = window.__game; G.S.order.shape = 2; G.S.order.color = 3; G.S.idle = 5; const a = G.helpTarget(); G.S.shape = 2; G.S.step = 1; G.S.idle = 5; const b = G.helpTarget(); return { a, b }; });
+  assert(Math.abs(st.a.y + st.a.h / 2 - 985) < 5 && st.a.w < 200, 'help points at the ordered shape'); assert(Math.abs(st.b.y + st.b.h / 2 - 985) < 5 && st.b.w < 200, 'then at the ordered colour');
   ok('first minutes');
 
   await b.close(); srv.close();
