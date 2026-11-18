@@ -18,13 +18,15 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Tarik Update dari Game Studios Asli
+      - name: Tarik Update Game Studios (Tanpa Sentuh Folder Workflows)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@://github.com"
           git remote add upstream https://github.com
           git fetch upstream main
-          git merge upstream/main --no-edit -X ours || true
+          git merge upstream/main --no-commit --no-ff -X ours || true
+          git reset HEAD .github/workflows/ 2>/dev/null || true
+          git checkout -- .github/workflows/ 2>/dev/null || true
 
       - name: Update 13 Skill Pilihan (Ponytail, Caveman, Leanrea)
         run: |
@@ -49,5 +51,4 @@ jobs:
       - name: Simpan Otomatis ke GitHub
         run: |
           git add .
-          git diff --staged --quiet || git commit -m "chore: auto-sync game studios & 13 skills"
-          git push origin main
+          git diff --staged --quiet || (git commit -m "chore: auto-sync game studios & 13 skills" && git push origin main)
