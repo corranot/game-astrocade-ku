@@ -288,10 +288,11 @@ function txt(s, x, y, size, fill = '#5a1e86', stroke = '#fff', sw = 12) {
 function emo(s, x, y, size, rot = 0) {
   g.save(); g.translate(x, y); g.rotate(rot); g.font = `${size}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s, 0, 0); g.restore();
 }
+const ready = id => IMG[id] && IMG[id].complete && IMG[id].naturalWidth > 0;
 /** Draw an image asset centred at x,y, or the emoji fallback when the asset is missing. */
 function pic(id, fallback, x, y, size, sx = 1, sy = 1) {
   const im = IMG[id];
-  if (!(im && im.complete && im.naturalWidth)) { g.save(); g.translate(x, y); g.scale(sx, sy); emo(fallback, 0, 0, size); g.restore(); return; }
+  if (!ready(id)) { g.save(); g.translate(x, y); g.scale(sx, sy); emo(fallback, 0, 0, size); g.restore(); return; }
   const k = size * 1.15 / Math.max(im.naturalWidth, im.naturalHeight);
   g.save(); g.translate(x, y); g.scale(sx * k, sy * k); g.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight / 2); g.restore();
 }
@@ -359,6 +360,7 @@ function drawScene() {
   if (S.step <= 2) drawBowl();
   if (S.step === 0) {
     g.save(); g.translate(290, 380 + Math.sin(S.t * 3) * 6); g.rotate(S.jar);
+    if (ready('jar_powder')) { const jh = 180 * IMG.jar_powder.naturalHeight / IMG.jar_powder.naturalWidth; g.drawImage(IMG.jar_powder, -90, -jh / 2, 180, jh); g.restore(); return; }
     g.fillStyle = '#38c6ff'; rr(-75, -100, 150, 200, 30); g.fill();
     g.fillStyle = '#fff'; rr(-55, -40, 110, 100, 18); g.fill(); emo('✨', 0, 12, 64);
     g.fillStyle = '#ffd000'; rr(-60, -128, 120, 34, 12); g.fill(); g.restore();
@@ -465,6 +467,7 @@ function draw() {
   const bg = g.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#ffe36e'); bg.addColorStop(0.55, '#ffb3d9'); bg.addColorStop(1, '#8fe0ff');
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  if (ready('bg_bathroom')) { const im = IMG.bg_bathroom, k = Math.max(W / im.naturalWidth, H / im.naturalHeight); g.drawImage(im, (W - im.naturalWidth * k) / 2, (H - im.naturalHeight * k) / 2, im.naturalWidth * k, im.naturalHeight * k); g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(0, 0, W, H); } // washed out so the HUD and choices stay readable
   g.fillStyle = 'rgba(255,255,255,0.35)';
   for (let i = 0; i < 14; i++) { g.beginPath(); g.arc((i * 173) % W, (i * 311 + S.t * 30) % H, 14 + (i % 3) * 8, 0, TAU); g.fill(); }
   g.save(); g.translate(rnd(-1, 1) * S.shake, rnd(-1, 1) * S.shake);
@@ -484,7 +487,7 @@ function frame(now) {
 }
 /** Cache every image and sound that asset_map.json provides. Missing ones fall back to emoji and synth. */
 function loadAssets() {
-  for (const t of TOYS) { const a = lib.getAsset(t.id); if (a && !IMG[t.id]) { IMG[t.id] = new Image(); IMG[t.id].src = a.url; } }
+  for (const id of [...TOYS.map(t => t.id), 'bg_bathroom', 'jar_powder']) { const a = lib.getAsset(id); if (a && !IMG[id]) { IMG[id] = new Image(); IMG[id].src = a.url; } }
   for (const id of SOUND_IDS) { const a = lib.getAsset(id); if (a && !SND[id]) { SND[id] = new Audio(a.url); SND[id].preload = 'auto'; SND[id].volume = id === 'music' ? 0.35 : 0.8; } }
 }
 
@@ -522,7 +525,9 @@ window.run = run;
 // Local preview outside Astrocade: open index.html?local to stub the host.
 if (location.search.includes('local')) {
   const none = async () => ({});
-  window.lib = { showGameParameters() {}, log() {}, getAsset() {}, getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
+  window.lib = { showGameParameters() {}, log() {}, getAsset: id => window.__assets[id], getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
   window.__pickToy = pickToy;
-  fetch('game_config.json').then(r => r.json()).then(c => { window.gameConfig = { ...c, ...JSON.parse(new URLSearchParams(location.search).get('cfg') || '{}') }; run(new URLSearchParams(location.search).get('mode') || 'play'); });
+  Promise.all(['game_config.json', 'asset_map.json'].map(f => fetch(f).then(r => r.json()))).then(([c, assets]) => {
+    window.__assets = assets;
+    window.gameConfig = { ...c, ...JSON.parse(new URLSearchParams(location.search).get('cfg') || '{}') }; run(new URLSearchParams(location.search).get('mode') || 'play'); });
 }
