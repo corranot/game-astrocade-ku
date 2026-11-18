@@ -23,6 +23,7 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
      - Contoh jadi: `prototypes/fizzy-bath-bomb-maker/` (tabel `strings` di `game_config.json`, fungsi `T`, `detectLang`, `mx` di `game.js`; uji bahasa lewat locale browser di `playtest.js`).
      - Sebelum rilis, ambil tangkapan layar tiap layar di ketujuh bahasa ke `production/qa/evidence/`; teks terpotong atau kotak kosong (font tidak ada) berarti belum lulus.
      - Perbarui daftar bahasa tiap kali cek komentar Astrocade diulang.
+   - **Thumbnail Urusan User (sejak 2026-11-18):** Jangan membuat atau memasang thumbnail (`generate_thumbnail`, `set_thumbnail`). User membuat sendiri thumbnail GIF untuk tiap game. Cukup ingatkan bahwa `publish_game` menolak game tanpa thumbnail.
 4. **Upgrade Otak Mandiri (Self-Evolving):**
    - Setiap selesai riset tren, membedah game kreator lain, mengecek API Three.js terbaru, atau memperbaiki bug performa, ringkas pelajaran tersebut ke bagian bawah file ini (jaga total file maksimal 150 baris).
    - Langsung jalankan `git add ASTROCADE.md && git commit -m "chore: upgrade otak ASTROCADE.md" && git push` agar memori tersimpan permanen.
