@@ -77,6 +77,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
 
   console.log('4. a finger that lifts and comes back near the line carries on');
   page = await open();
+  await page.evaluate(() => window.__game.newLevel(2));
   const t = await target(page), half = Math.ceil(t.length / 2);
   await drag(page, t.slice(0, half)); await page.waitForTimeout(150);
   await drag(page, t.slice(half - 1)); await settled(page);
@@ -93,6 +94,34 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(muted === true && !s.pen && s.misses === 0, 'a tap on the sound button mutes and starts no line');
   await shot(page, 'L2-muted');
 
+  console.log('4c. save safety: a late save never removes progress; bad stored lines are dropped; help never replaces a drawing');
+  page = await open();
+  const merged = await page.evaluate(() => {
+    const g = window.__game; g.save.stars = { 0: 3 }; g.save.art = {};
+    g.applySave({ stars: { 0: 1, 1: 2, 2: 'x', 3: 9 }, art: { 0: [[1, 2], [3, 4]], 1: [[1, 'x'], [2, 3]], 2: 'no' }, muted: false, level: 0 });
+    return { stars: g.save.stars, art: Object.keys(g.save.art) };
+  });
+  ok(merged.stars[0] === 3 && merged.stars[1] === 2 && !merged.stars[2] && merged.stars[3] === 3, 'stars are merged by best and kept within 0-3: ' + JSON.stringify(merged.stars));
+  ok(merged.art.join() === '0', 'only well-formed stored lines are kept: ' + merged.art.join());
+  const before = await page.evaluate(() => { window.__game.save.art[0] = [[290, 700], [360, 690], [430, 700]]; return JSON.stringify(window.__game.save.art[0]); });
+  for (let k = 0; k < 2; k++) { await drag(page, [[120, 300], [300, 320], [500, 300], [620, 340]]); await settled(page); }
+  s = await state(page);
+  ok(s.assisted && await page.evaluate(() => JSON.stringify(window.__game.save.art[0])) === before, 'a helped win keeps the line the player drew before');
+  await page.waitForTimeout(150); await shot(page, 'L1-helped');
+
+  console.log('4d. the wall from the middle of a level comes back to that level; the wall does not pile up canvases');
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; for (let n = 0; n < 5; n++) g.save.art[n] = [[100, 600], [300, 620], [500, 600]]; g.newLevel(3); });
+  const wb = await page.evaluate(() => window.__game.WALLB);
+  await page.mouse.click(wb.x + wb.s / 2, wb.y + wb.s / 2); await page.waitForTimeout(150);
+  ok(await page.evaluate(() => window.__game.view === 'wall' && window.__game.wall.next === 3), 'the wall button opens the wall and its arrow returns to the unfinished level');
+  const nx2 = await page.evaluate(() => { const g = window.__game, p = g.cardAt(5); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+  await page.mouse.click(nx2[0], nx2[1]); await page.waitForTimeout(150);
+  for (let k = 0; k < 3; k++) { await page.evaluate(() => window.__game.openWall()); await page.waitForTimeout(100); }
+  ok(await page.evaluate(() => window.__game.canvases) === 10, 'opening the wall again reuses its canvases');
+  await page.mouse.move(360, 640); await page.mouse.down(); await page.mouse.move(360, 900, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(100);
+  ok(await page.evaluate(() => window.__game.view) === 'wall', 'a long swipe on the wall is not a tap');
+
   console.log('5. edit mode shows the live picture and ignores input');
   page = await open('&mode=edit');
   await drag(page, await target(page)); await page.waitForTimeout(900);
@@ -106,6 +135,11 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   times.sort((a, b) => a - b); const med = times[75], p95 = times[142];
   console.log(`  frame time median ${med.toFixed(1)} ms, 95th ${p95.toFixed(1)} ms (during the payoff with confetti)`);
   ok(med <= 22, 'median frame time at 4x slowdown is 22 ms or less');
+  await page.evaluate(() => { const g = window.__game; for (let n = 0; n < 5; n++) g.save.art[n] = g.save.art[n] || [[100, 600], [300, 620], [500, 600]]; g.openWall(); });
+  const wt = await page.evaluate(() => new Promise((done) => { const d = []; let last = performance.now(); const tick = (now) => { d.push(now - last); last = now; d.length < 150 ? requestAnimationFrame(tick) : done(d); }; requestAnimationFrame(tick); }));
+  wt.sort((a, b) => a - b);
+  console.log(`  wall frame time median ${wt[75].toFixed(1)} ms, 95th ${wt[142].toFixed(1)} ms`);
+  ok(wt[75] <= 22, 'the wall runs at a median of 22 ms or less at 4x slowdown');
 
   await browser.close(); server.close();
   console.log(failed ? `PLAYTEST FAIL (${failed})` : 'PLAYTEST PASS'); process.exit(failed ? 1 : 0);

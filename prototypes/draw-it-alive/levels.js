@@ -14,28 +14,45 @@
  *       once(key, fn) runs fn a single time, burst(x, y, n) throws confetti,
  *       art(i) the line the player drew for level i earlier, or null }
  */
-import { sticker, blob, box, stick, shape, shadow, face, heart, tuft, bloom, dots, curve, circle, upTo, pointAt, pathLen,
+import { sticker, blob, box, stick, shape, shadow, face, heart, tuft, bloom, dots, front, curve, circle, spiral, offsetPath, resample, borderScale, upTo, pointAt, pathLen,
   WHITE, MINT, SUNNY, CORAL, ORANGE, VIOLET, SKY, GRASS } from './art.js';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const ease = (k) => 1 - Math.pow(1 - clamp01(k), 3);
 const hop = (s, speed, height) => Math.abs(Math.sin(s * speed)) * height;
 
+/** Plank marks across a bridge or ramp line. */
+function planks(ctx, line) {
+  if (!line) return;
+  ctx.strokeStyle = '#D9690A'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  const pts = resample(line, 28);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = pts[i - 1], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, p = pts[i];
+    ctx.beginPath(); ctx.moveTo(p[0] + dy / L * 9, p[1] - dx / L * 9); ctx.lineTo(p[0] - dy / L * 9, p[1] + dx / L * 9); ctx.stroke();
+  }
+}
+
+/** Belly and wing shades for each body colour. */
+const TONES = { [SUNNY]: ['#FFF0B3', '#F2A91F'], [VIOLET]: ['#B49BFF', '#5A2FE0'] };
+
 /** A round chick standing with its feet on (x0, y0); dir is 1 facing right, -1 facing left; lean tips it forward. */
 function chick(ctx, x0, y0, color, dir, mood, t, look, lean = 0) {
   const K = 1.3, x = 0, y = 0;
   if (look) look = [(look[0] - x0) / K, (look[1] - y0) / K];
-  ctx.save(); ctx.translate(x0, y0); ctx.scale(K, K);
+  const [belly, wing] = TONES[color] || [WHITE, color];
+  ctx.save(); ctx.translate(x0, y0); ctx.scale(K, K); const was = borderScale(1 / K);
   shadow(ctx, x, y + 4, 46);
   ctx.rotate(lean);
   sticker(() => {
     stick(ctx, [[x - 16, y - 12], [x - 16, y - 2]], 10, ORANGE); stick(ctx, [[x + 16, y - 12], [x + 16, y - 2]], 10, ORANGE);
+    stick(ctx, [[x - 4, y - 96], [x - 12, y - 112]], 7, color); stick(ctx, [[x + 4, y - 97], [x + 6, y - 116]], 7, color);
     blob(ctx, x, y - 54, 50, 46, color);
+    blob(ctx, x + dir * 4, y - 36, 30, 20, belly);
     shape(ctx, [[x + dir * 44, y - 62], [x + dir * 74, y - 50], [x + dir * 44, y - 40]], ORANGE);
-    blob(ctx, x - dir * 30, y - 46, 16, 22, color, dir * 0.5);
+    blob(ctx, x - dir * 30, y - 46, 16, 22, wing, dir * 0.5);
     face(ctx, x + dir * 12, y - 66, 34, mood, t, look);
   });
-  ctx.restore();
+  borderScale(was); ctx.restore();
 }
 
 /** A snail facing right with the middle of its foot on the origin. Its shell centre is at (-30, -145). */
@@ -48,6 +65,9 @@ function snail(ctx, mood, t, look, nod, turn) {
     face(ctx, 154 + turn, -156 + nod, 36, mood, t, look);
   });
 }
+
+/** The shell used on level 5 when the player has not drawn one yet. */
+const DEFAULT_SHELL = circle(250, 705, 100);
 
 export const LEVELS = [
   // 1 -------- a bridge for the chick: one short, level line
@@ -63,6 +83,7 @@ export const LEVELS = [
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       for (const [x, y, r] of [[90, 820, 34], [210, 960, 22], [140, 1130, 40], [520, 880, 26], [640, 1010, 38], [560, 1170, 24]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.7, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 40, 700, GRASS); tuft(ctx, 262, 700, GRASS); tuft(ctx, 468, 700, GRASS); tuft(ctx, 700, 700, GRASS); });
+      front(ctx, GRASS, CORAL);
     },
     live(ctx, S) {
       const w = S.won;
@@ -75,6 +96,7 @@ export const LEVELS = [
         ctx.restore();
       }
       sticker(() => S.part(ctx, 26, ORANGE));
+      planks(ctx, S.stroke);
       const cheer = w > 1.5 ? hop(w - 1.5, 8, 22) : 0;
       chick(ctx, 622, 700 - cheer, VIOLET, -1, w >= 0 ? 'happy' : 'wait', S.t + 1.3, null, w < 0 ? Math.sin(S.t * 1.7) * 0.04 : 0);
       let x = 170, y = 700 - (w < 0 ? hop(S.t, 2.2, 6) : 0), lean = S.mood === 'draw' ? 0.12 : 0;
@@ -102,11 +124,13 @@ export const LEVELS = [
       dots(ctx);
       sticker(() => blob(ctx, 610, 430, 62, 62, SUNNY));
       sticker(() => { blob(ctx, 140, 380, 64, 30, WHITE); blob(ctx, 196, 362, 50, 36, WHITE); });
+      ctx.fillStyle = '#35CC8B'; ctx.beginPath(); ctx.ellipse(560, 870, 260, 110, 0, 0, 7); ctx.fill();
       sticker(() => box(ctx, -40, 850, 800, 500, 0, GRASS));
       ctx.fillStyle = 'rgba(255,255,255,0.14)';
       for (const [x, y, r] of [[120, 1010, 60], [470, 1120, 80], [640, 960, 44]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.4, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 50, 850, MINT); tuft(ctx, 560, 850, MINT); tuft(ctx, 680, 850, MINT); });
       sticker(() => { bloom(ctx, 110, 935, 15, SUNNY); bloom(ctx, 610, 1060, 18, ORANGE); bloom(ctx, 330, 1150, 16, SUNNY); });
+      front(ctx, MINT, SUNNY);
     },
     live(ctx, S) {
       const w = S.won, dx = w >= 0 ? ease((w - 0.5) / 2.2) * 190 : 0, x = 250 + dx;
@@ -117,8 +141,7 @@ export const LEVELS = [
         ctx.save(); ctx.translate(x, 705); ctx.rotate(bob); ctx.translate(-250, -705);
         sticker(() => S.part(ctx, 24, VIOLET));
         // the spiral grows inside the shell the player drew
-        const turns = [];
-        for (let i = 0; i <= 40; i++) { const a = i / 40 * Math.PI * 4, r = 62 * (1 - i / 44); turns.push([250 + Math.cos(a) * r, 705 + Math.sin(a) * r]); }
+        const turns = spiral(250, 705, 62);
         ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = '#C9B6FF'; ctx.lineWidth = 12; ctx.beginPath();
         const shown = upTo(turns, ease((w - 0.2) / 0.8)); ctx.moveTo(shown[0][0], shown[0][1]); for (const p of shown) ctx.lineTo(p[0], p[1]); ctx.stroke();
         ctx.restore();
@@ -140,13 +163,14 @@ export const LEVELS = [
       sticker(() => { tuft(ctx, 330, 1010, GRASS); tuft(ctx, 690, 1010, GRASS); tuft(ctx, 20, 1010, GRASS); });
       sticker(() => { box(ctx, 478, 900, 140, 112, 20, CORAL); box(ctx, 462, 880, 172, 40, 16, '#E63E52'); });
       sticker(() => { box(ctx, 150, 640, 60, 372, 10, ORANGE); box(ctx, 70, 612, 220, 44, 16, ORANGE); });
+      front(ctx, GRASS, CORAL);
     },
     live(ctx, S) {
       const w = S.won, grow = ease((w - 0.7) / 1.3), tip = w >= 0 ? 0.1 : Math.sin(S.t * 1.6) * 0.03 + (S.mood === 'draw' ? 0.06 : 0);
       // the water is the player's line; drops run along it, and it runs dry once the flower is up
       const dry = w >= 0 ? ease((w - 2.1) / 0.6) : 0, wet = w >= 0 && dry < 1 ? upTo(S.stroke.slice().reverse(), 1 - dry).reverse() : null;
       if (wet && wet.length > 1) {
-        sticker(() => stick(ctx, wet, 18, SKY));
+        sticker(() => stick(ctx, wet, 26, SKY));
         const len = pathLen(wet);
         sticker(() => { for (let i = 0; i < 4; i++) { const p = pointAt(wet, (w * 200 / Math.max(60, len) + i / 4) % 1); blob(ctx, p[0], p[1], 7, 7, WHITE); } });
       }
@@ -181,26 +205,31 @@ export const LEVELS = [
     cues: [[0.9, 1500, 0.07, 'sine', 300], [1.05, 1700, 0.07, 'sine', 300], [1.6, 1319, 0.4, 'triangle', 0]],
     back(ctx) {
       dots(ctx);
+      ctx.fillStyle = '#35CC8B'; ctx.beginPath(); ctx.ellipse(130, 880, 250, 100, 0, 0, 7); ctx.fill();
       sticker(() => box(ctx, -40, 860, 800, 500, 0, MINT));
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       for (const [x, y, r] of [[120, 980, 50], [520, 1090, 70], [300, 1190, 40]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.45, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 60, 860, GRASS); tuft(ctx, 650, 860, GRASS); tuft(ctx, 360, 860, GRASS); });
       sticker(() => { bloom(ctx, 150, 1060, 16, SUNNY); bloom(ctx, 600, 960, 15, CORAL); });
+      front(ctx, GRASS, VIOLET);
     },
     live(ctx, S) {
       const w = S.won, clear = w >= 0 ? ease(w / 1.2) : 0;
       // the sun comes out as the cloud drifts off
       if (clear > 0) sticker(() => blob(ctx, 110, 330 + (1 - clear) * 120, 62 * clear, 62 * clear, SUNNY));
       if (w >= 0) {
-        // the player's line, three colours wide
-        sticker(() => stick(ctx, S.stroke, 54, CORAL));
-        ctx.lineCap = ctx.lineJoin = 'round';
-        for (const [wd, c] of [[36, SUNNY], [18, VIOLET]]) { ctx.strokeStyle = c; ctx.lineWidth = wd; ctx.beginPath(); ctx.moveTo(S.stroke[0][0], S.stroke[0][1]); for (const p of S.stroke) ctx.lineTo(p[0], p[1]); ctx.stroke(); }
+        // the player's line, five bands wide
+        sticker(() => stick(ctx, S.stroke, 56, CORAL));
+        ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = 12;
+        for (const [d, c] of [[-11, ORANGE], [0, SUNNY], [11, MINT], [22, VIOLET]]) {
+          const band = d ? offsetPath(S.stroke, d) : S.stroke;
+          ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(band[0][0], band[0][1]); for (const p of band) ctx.lineTo(p[0], p[1]); ctx.stroke();
+        }
       }
       const cx = 330 + clear * 520;
       if (clear < 1) {
-        ctx.fillStyle = '#1FA2E6';
-        for (let i = 0; i < 9; i++) { const y = (S.t * 520 + i * 97) % 440, x = cx - 150 + i * 38; ctx.globalAlpha = 1 - clear; ctx.fillRect(x, 330 + y, 8, 30); }
+        ctx.fillStyle = '#1FA2E6'; ctx.globalAlpha = 1 - clear;
+        for (let i = 0; i < 9; i++) { const y = (S.t * 520 + i * 97) % 440, x = cx - 150 + i * 38; ctx.beginPath(); ctx.ellipse(x, 345 + y, 6, 13, 0, 0, 7); ctx.fill(); }
         ctx.globalAlpha = 1;
       }
       sticker(() => { blob(ctx, cx - 70, 290, 90, 50, WHITE); blob(ctx, cx + 30, 262, 96, 66, WHITE); blob(ctx, cx + 120, 296, 70, 44, WHITE); face(ctx, cx + 20, 280, 44, w >= 0 ? 'happy' : 'sad', S.t, null); });
@@ -216,31 +245,37 @@ export const LEVELS = [
     back(ctx) {
       dots(ctx);
       sticker(() => blob(ctx, 130, 300, 62, 62, SUNNY));
+      ctx.fillStyle = '#35CC8B'; ctx.beginPath(); ctx.ellipse(220, 870, 240, 90, 0, 0, 7); ctx.fill();
       sticker(() => box(ctx, -40, 850, 800, 500, 0, GRASS));
-      sticker(() => box(ctx, 470, 600, 330, 300, 30, '#8A6BFF'));
+      sticker(() => box(ctx, 470, 600, 330, 300, 30, SKY));
       ctx.fillStyle = 'rgba(255,255,255,0.16)';
       for (const [x, y, r] of [[560, 720, 40], [660, 800, 30], [150, 1010, 60], [450, 1140, 70]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.5, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 40, 850, MINT); tuft(ctx, 250, 850, MINT); tuft(ctx, 690, 600, MINT); });
       sticker(() => { bloom(ctx, 90, 950, 15, SUNNY); bloom(ctx, 330, 1080, 17, ORANGE); });
+      front(ctx, MINT, CORAL);
     },
     live(ctx, S) {
       const w = S.won;
       sticker(() => S.part(ctx, 26, ORANGE));
+      planks(ctx, S.stroke);
       // the strawberry on the rock, eaten at the end
       const left = w > 2.5 ? 1 - ease((w - 2.5) / 0.4) : 1, bobble = Math.sin(S.t * 3) * 3;
-      if (left > 0.02) sticker(() => { blob(ctx, 620, 560 + bobble, 34 * left, 40 * left, CORAL); shape(ctx, [[604, 524 + bobble], [620, 506 + bobble], [636, 524 + bobble]].map((p) => [620 + (p[0] - 620) * left, p[1]]), GRASS); });
+      if (left > 0.02) sticker(() => { blob(ctx, 672, 560 + bobble, 34 * left, 40 * left, CORAL); shape(ctx, [[656, 524 + bobble], [672, 506 + bobble], [688, 524 + bobble]].map((p) => [672 + (p[0] - 672) * left, p[1]]), GRASS); });
       // the snail crawls to the ramp, up the player's line and on to the berry
       let p = [150, 850], rot = 0;
       if (w >= 0) {
-        const road = [[150, 850], [280, 850], ...S.stroke, [560, 600]], k = ease((w - 0.4) / 2.2);
+        const road = [[150, 850], [280, 850], ...S.stroke, [585, 600]], k = ease((w - 0.4) / 2.2);
         p = pointAt(road, k); const q = pointAt(road, Math.min(1, k + 0.03)); rot = k < 1 ? Math.atan2(q[1] - p[1], q[0] - p[0]) : 0;
       }
-      const shell = S.art(1) || circle(250, 705, 100);
-      shadow(ctx, p[0], p[1] + 2, 90);
-      ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(rot); ctx.scale(0.55, 0.55);
-      ctx.save(); ctx.translate(-280, -850); sticker(() => shape(ctx, shell, VIOLET)); ctx.restore();
+      const shell = S.art(1) || DEFAULT_SHELL, K = 0.62;
+      let cx = 0, cy = 0; for (const q of shell) { cx += q[0] / shell.length; cy += q[1] / shell.length; }
+      shadow(ctx, p[0], p[1] + 2, 100);
+      ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(rot); ctx.scale(K, K); const was = borderScale(1 / K);
+      ctx.save(); ctx.translate(-280, -850); sticker(() => shape(ctx, shell, VIOLET));
+      ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = '#C9B6FF'; ctx.lineWidth = 12; const sp = spiral(cx, cy, 58);
+      ctx.beginPath(); ctx.moveTo(sp[0][0], sp[0][1]); for (const q of sp) ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.restore();
       snail(ctx, S.mood, S.t, null, w < 0 ? Math.sin(S.t * 2) * 6 : hop(w, 6, 5), S.mood === 'draw' ? -14 : 0);
-      ctx.restore();
+      borderScale(was); ctx.restore();
     },
   },
 ];
