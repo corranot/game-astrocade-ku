@@ -27,6 +27,8 @@ const server = http.createServer((q, s) => {
   await page.waitForTimeout(1500);
   check(await g(() => __game.S.points > 0), 'autopilot breaks something before any touch');
   await page.screenshot({ path: path.join(out, `01-start-${lang}.png`) });
+  check(await g(() => __game.S.time === 0), 'attract mode (no touch yet) does not run the clock');
+  await g(() => { __game.S.touched = true; __game.S.idle = 99; }); // a child who touched once then let go: autopilot plays on and the round counts
 
   // play on autopilot; note when things happen
   const seen = { stage3: false, domino: false };
@@ -41,7 +43,7 @@ const server = http.createServer((q, s) => {
   const end = await g(() => ({ fin: __game.S.finished, stage: __game.S.stage, time: __game.S.time, coins: __game.S.coins, best: __game.S.bestCombo }));
   check(end.fin, 'the city is flattened and the round finishes');
   check(end.stage >= 5, 'Bonbon grows to stage 5+ in one round (got ' + end.stage + ')');
-  check(end.time > 75 && end.time < 300, 'autopilot round (the shortest path; a child wanders) takes 75-300 game s: ' + end.time.toFixed(0) + ' s');
+  check(end.time > 60 && end.time < 300, 'autopilot round from the first touch (the shortest path; a child wanders) takes 60-300 game s: ' + end.time.toFixed(0) + ' s');
   check(seen.domino, 'at least one domino chain happens');
   await page.waitForTimeout(2500);
   check(await g(() => !document.querySelector('#result').hidden), 'result screen shows');

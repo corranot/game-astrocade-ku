@@ -12,7 +12,7 @@ game (GDD and storyboard: artifact "Toy City Stomp", decisions K1–K6 all taken
 
 ## In this slice
 
-- One city (Block Town, 78 buildings, ~5,500 blocks), growth stages 1–8, combo, dominoes, Tail Spin skill at
+- One city (Block Town, 6×6 lots, ~110 buildings), growth stages 1–8, combo, dominoes, Tail Spin skill at
   stage 3, cars, trees, residents with balloons, see-through cut when a building hides Bonbon, result screen with
   stars and an instant PLAY AGAIN, 7 languages with RTL for Arabic, sound made in code, save of coins and best time.
 - Not yet: toy army and wanted stars, the Wind-Up Robot boss, the shop and its 10 moves, missions, other cities,
@@ -37,6 +37,9 @@ Artifact page: `node ../../tools/artifact-modules.js . <page.html>`, then publis
 
 ## Status and findings
 
-In progress. Autopilot round (playtest): stage 3 at ~17 s, first domino chain, city flat in
-~121 game seconds at stage 7; replay resets in ~50 ms. Frame rate not measured on a real phone yet (the test
-browser renders on the CPU).
+In progress (v2, after a side-by-side with Kaiju City: low camera with a sea horizon, island world, candy Bonbon,
+glossy HUD). Autopilot round from the first touch (playtest): first domino chain at ~26 s, city flat in ~73 game
+seconds at stage 7 (the autopilot takes the shortest path; a child wanders, so a real round is longer: not yet
+measured); replay resets in under 100 ms. Before the first touch the game plays itself (attract mode) and saves
+nothing. Frame rate not measured on a real phone yet (the test browser renders on the CPU). Known cost left: the
+whole block buffer uploads each frame while blocks fly.

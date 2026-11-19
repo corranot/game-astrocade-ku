@@ -71,7 +71,10 @@ function dustMaterial() {
       void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSize * uScale / max(0.1, -mv.z); vA = aAlpha; vSpin = aSpin; }`,
     fragmentShader: `uniform sampler2D uTex; uniform vec3 uColor; varying float vA; varying float vSpin;
       void main() { vec2 p = gl_PointCoord - 0.5; float c = cos(vSpin), s = sin(vSpin); p = vec2(c * p.x - s * p.y, s * p.x + c * p.y) + 0.5;
-        vec4 t = texture2D(uTex, p); float shade = 0.82 + 0.18 * (1.0 - gl_PointCoord.y); gl_FragColor = vec4(uColor * shade, t.a * vA); if (gl_FragColor.a < 0.01) discard; }`,
+        vec4 t = texture2D(uTex, p); float shade = 0.82 + 0.18 * (1.0 - gl_PointCoord.y); gl_FragColor = vec4(uColor * shade, t.a * vA); if (gl_FragColor.a < 0.01) discard;
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
   });
 }
 
@@ -138,7 +141,10 @@ export function createCity(scene, cfg, rng, quality) {
       vec3 c = mix(shallow, deep, smoothstep(${(span * 0.8).toFixed(1)}, ${(span * 1.4).toFixed(1)}, r));
       float sp = sin(vW.x * 0.9 + uT * 2.0) * sin(vW.z * 0.8 - uT * 1.6); c += smoothstep(0.92, 1.0, sp) * 0.35;
       float foam = smoothstep(${(span * 0.86).toFixed(1)}, ${(span * 0.8).toFixed(1)}, r); c = mix(c, vec3(1.0), foam * 0.6);
-      c = mix(c, uFog, smoothstep(140.0, 380.0, r)); gl_FragColor = vec4(c, 1.0); }`,
+      c = mix(c, uFog, smoothstep(140.0, 380.0, r)); gl_FragColor = vec4(c, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+      }`,
   }));
   const sea = new THREE.Mesh(keep(new THREE.PlaneGeometry(900, 900, 90, 90)), seaMat);
   sea.rotation.x = -Math.PI / 2; sea.position.y = -1.2; group.add(sea);
@@ -159,7 +165,7 @@ export function createCity(scene, cfg, rng, quality) {
     vx: new Float32Array(MAXV), vy: new Float32Array(MAXV), vz: new Float32Array(MAXV),
     q: new Float32Array(MAXV * 4), w: new Float32Array(MAXV * 3), s: new Float32Array(MAXV),
     state: new Uint8Array(MAXV), // 0 standing, 1 flying, 2 rubble, 3 gone, 4 shrinking away
-    b: new Int32Array(MAXV),
+    b: new Int32Array(MAXV), slot: new Int32Array(MAXV), // slot: this block's place in the rubble queue
   };
   let count = 0;
   const blockMat = keep(blockMaterial());
@@ -302,7 +308,7 @@ export function createCity(scene, cfg, rng, quality) {
   let dustNext = 0;
   const pool = (n, geo, mat) => {
     const m = new THREE.InstancedMesh(keep(geo), keep(mat), n); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false;
-    for (let i = 0; i < n; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0));
+    for (let i = 0; i < n; i++) { m.setMatrixAt(i, mtx.makeScale(0, 0, 0)); m.setColorAt(i, col.setHex(0xffffff)); } // colour buffer now, so no recompile mid-game
     group.add(m); return { m, items: Array.from({ length: n }, () => ({ life: 0 })), next: 0 };
   };
   const confetti = pool(quality.confetti, new THREE.BoxGeometry(0.35, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: 0xffffff }));
@@ -395,7 +401,7 @@ export function createCity(scene, cfg, rng, quality) {
   const near = new THREE.Vector3();
   /** Bites blocks within radius r of point p off building b, flung along dir. When that spot is already empty
    *  (a hollow shell bitten before), it bites around the nearest standing block instead. Returns blocks removed. */
-  function bite(b, p, r, dir, power = 1) {
+  function bite(b, p, r, dir, power = 1, chain = 0) {
     if (b.state !== 'intact') return 0;
     let n = biteAt(b, p, r, dir, power);
     if (!n) {
@@ -405,7 +411,7 @@ export function createCity(scene, cfg, rng, quality) {
     }
     b.alive -= n;
     if (n) { puff(p.x, p.y, p.z, 1.1); puff(p.x, Math.max(0.6, p.y - 1), p.z, 0.9); }
-    if (b.alive / b.total < cfg.collapseAt) collapse(b, dir, 0);
+    if (b.alive / b.total < cfg.collapseAt) collapse(b, dir, chain);
     return n;
   }
 
@@ -467,7 +473,7 @@ export function createCity(scene, cfg, rng, quality) {
         fall.set(T.fx, 0, T.fz);
         for (const o of hits) {
           if (o.k <= b.k) collapse(o, fall, T.chain + 1); // same size or smaller: knocked down
-          else bite(o, near.set(o.cx - T.fx * o.w / 2, Math.min(o.h - 1, b.h * 0.5), o.cz - T.fz * o.d / 2), 2.5 + b.k * 0.5, fall, 1.4); // bigger: dented
+          else bite(o, near.set(o.cx - T.fx * o.w / 2, Math.min(o.h - 1, b.h * 0.5), o.cz - T.fz * o.d / 2), 2.5 + b.k * 0.5, fall, 1.4, T.chain + 1); // bigger: dented
         }
       }
     }
@@ -487,7 +493,8 @@ export function createCity(scene, cfg, rng, quality) {
         if (vox.py[i] < HALF) {
           vox.py[i] = HALF; vox.vy[i] *= -0.28; vox.vx[i] *= 0.55; vox.vz[i] *= 0.55; vox.w[w0] *= 0.5; vox.w[w0 + 1] *= 0.5; vox.w[w0 + 2] *= 0.5;
           if (Math.abs(vox.vy[i]) < 1.2 && vox.vx[i] * vox.vx[i] + vox.vz[i] * vox.vz[i] < 1) {
-            vox.state[i] = 2; rubbleCount++; rubbleQueue[rqTail] = i; rqTail = (rqTail + 1) % MAXV;
+            vox.state[i] = 2; rubbleCount++; vox.slot[i] = rqTail; rubbleQueue[rqTail] = i; rqTail = (rqTail + 1) % MAXV;
+            if (rqTail === rqHead) rqHead = (rqHead + 1) % MAXV; // ring full: forget the oldest entry
             eul.setFromQuaternion(quat, 'YXZ'); quat.setFromEuler(eul.set(0, eul.y, 0)); // lie flat, keep the yaw
           }
         }
@@ -505,8 +512,8 @@ export function createCity(scene, cfg, rng, quality) {
     }
     // tidy away the oldest rubble while there is more than the device can keep
     while (rubbleCount > rubbleCap && rqHead !== rqTail) {
-      const i = rubbleQueue[rqHead]; rqHead = (rqHead + 1) % MAXV;
-      if (vox.state[i] === 2) { vox.state[i] = 4; rubbleCount--; }
+      const at = rqHead, i = rubbleQueue[at]; rqHead = (rqHead + 1) % MAXV;
+      if (vox.state[i] === 2 && vox.slot[i] === at) { vox.state[i] = 4; rubbleCount--; } // stale entries (kicked, landed again) are skipped
     }
     if (dirty) blocks.instanceMatrix.needsUpdate = true;
   }

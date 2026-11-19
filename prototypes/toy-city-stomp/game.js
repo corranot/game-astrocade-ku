@@ -92,7 +92,7 @@ function startGame(mode) {
   const cores = navigator.hardwareConcurrency || 4, memory = navigator.deviceMemory || 4;
   let tier = isTouch ? (cores >= 8 && memory >= 6 ? 2 : 1) : 3;
   if (params.has('tier')) tier = THREE.MathUtils.clamp(Math.round(+params.get('tier')) || 0, 0, 3);
-  const quality = tiers[tier];
+  let quality = tiers[tier];
 
   // ---------- renderer, sky, light, reflections
   const canvas = document.createElement('canvas'); canvas.id = 'scene'; root.appendChild(canvas);
@@ -107,7 +107,7 @@ function startGame(mode) {
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: { uTop: { value: new THREE.Color(0x3f9dff) }, uMid: { value: new THREE.Color(0x8fd2ff) }, uBot: { value: new THREE.Color(HORIZON) } },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uBot; varying vec3 vP; void main(){ float h = vP.y; vec3 c = mix(uBot, uMid, smoothstep(0.0, 0.18, h)); c = mix(c, uTop, smoothstep(0.18, 0.75, h)); gl_FragColor = vec4(c, 1.0); }',
+    fragmentShader: 'uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uBot; varying vec3 vP; void main(){ float h = vP.y; vec3 c = mix(uBot, uMid, smoothstep(0.0, 0.18, h)); c = mix(c, uTop, smoothstep(0.18, 0.75, h)); gl_FragColor = vec4(c, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 32, 16), skyMat);
   scene.add(sky);
@@ -115,12 +115,12 @@ function startGame(mode) {
   let envTex = null;
   {
     const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
-    envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), skyMat));
+    const envSky = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), skyMat); envScene.add(envSky);
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     panel.position.set(4, 6, 3); panel.lookAt(0, 0, 0); envScene.add(panel);
     const p2 = panel.clone(); p2.position.set(-6, 3, -2); p2.lookAt(0, 0, 0); p2.scale.setScalar(0.6); envScene.add(p2);
     envTex = pm.fromScene(envScene, 0.02).texture; scene.environment = envTex;
-    panel.geometry.dispose(); panel.material.dispose(); pm.dispose();
+    panel.geometry.dispose(); panel.material.dispose(); envSky.geometry.dispose(); pm.dispose();
   }
   const camera = new THREE.PerspectiveCamera(50, W / H, 0.5, 900);
   scene.add(new THREE.HemisphereLight(0xeaf6ff, 0xffd9a8, 1.25));
@@ -260,6 +260,7 @@ function startGame(mode) {
   const STICK = 70;
   function wake() { Sound.unlock(); if (S) { S.touched = true; S.idle = 0; $('hint').hidden = true; } }
   const onDown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.target.closest && e.target.closest('button, .result, .langs')) return;
     if (input.id !== null) return; // a second finger does not steer
     input.id = e.pointerId; input.sx = e.clientX; input.sy = e.clientY; input.dx = input.dy = 0;
@@ -284,6 +285,7 @@ function startGame(mode) {
   canvas.addEventListener('pointerdown', onDown); hud.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey); window.addEventListener('blur', onBlur);
+  root.addEventListener('contextmenu', (e) => e.preventDefault());
 
   $('mute').onclick = (e) => { e.currentTarget.blur(); Sound.setMuted(!Sound.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊'; };
   $('lang').onclick = (e) => {
@@ -409,11 +411,11 @@ function startGame(mode) {
     bon.face('win', 99); S.yaw = Math.atan2(camera.position.x - S.x, camera.position.z - S.z); Sound.win(); buzz('success');
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
     const sec = Math.round(S.time), stars = starsFor(sec, cfg.starsTimeSec);
-    const isBest = save.best === null || sec < save.best;
+    const counts = S.touched; // the attract mode (nobody touched yet) shows the result but saves nothing
+    const isBest = counts && (save.best === null || sec < save.best);
     if (isBest) save.best = sec;
-    save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); persist();
+    if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); persist(); Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(S.points)).catch(() => {}); }
     updateHud();
-    Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(S.points)).catch(() => {});
     const r = $('result');
     const mmss = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
     r.innerHTML = `<div class="card">
@@ -456,7 +458,7 @@ function startGame(mode) {
     qualityT = 0;
     const med = [...frameTimes].sort((a, b) => a - b)[frameTimes.length >> 1];
     if (med > 1 / 42 && tier > 0) {
-      tier--; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tiers[tier].dpr)); resize();
+      tier--; quality = tiers[tier]; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tiers[tier].dpr)); resize();
       if (tier < 2) city.meshes.blocks.castShadow = false;
       if (tier === 0) { sun.castShadow = false; renderer.shadowMap.enabled = false; }
       frameTimes.length = 0;
@@ -484,7 +486,7 @@ function startGame(mode) {
     if (S.hitstopT > 0) { S.hitstopT -= raw; dt *= 0.15; }
     if (S.slowT > 0) { S.slowT -= raw; dt *= FX.slowmoScale; }
     if (mode === 'play' && !S.finished) {
-      S.time += raw;
+      if (S.touched) S.time += raw;
       steer(dt); contact(dt);
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
       S.skillCd = Math.max(0, S.skillCd - raw);
@@ -517,16 +519,19 @@ function startGame(mode) {
   if (mode === 'play') {
     // coins earned before a slow load are added on top of the loaded ones, never overwritten
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
+      if (!alive) return;
       const st = r && r.state;
+      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang;
       if (st) {
-        const earned = save.coins, best = save.best;
         Object.assign(save, st);
         save.coins = (st.coins || 0) + earned;
         if (best !== null) save.best = save.best === null ? best : Math.min(best, save.best);
+        save.bestCombo = Math.max(combo, st.bestCombo || 0);
+        if (picked) save.lang = picked;
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
       saveLoaded = true; hudCache.coins = null; updateHud();
-      if (S.finished) persist();
+      if (earned > 0 || picked) persist();
     }).catch(() => { saveLoaded = true; });
   }
   raf = requestAnimationFrame(frame);
