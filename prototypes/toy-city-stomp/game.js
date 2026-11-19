@@ -1,5 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Toy City Stomp — 3D monster destruction game for kids (look test slice).
+// Genre: 3D giant-monster city smash for kids (ages 6-12), one-finger control.
+// Toy City Stomp: Giant Monster Smash.
 // Bonbon, a giant gummy dino, walks through a toy-block city on an island with one finger: whatever it bumps
 // breaks. Blocks fly off, small houses pancake, towers topple like dominoes, cars squash flat and pop back, toy
 // residents float away on balloons. Points fill the grow bar; Bonbon grows 8 stages and can then break bigger
@@ -611,7 +612,7 @@ function startGame(mode) {
 
   function finish() {
     army.clearAll();
-    S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true;
+    S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true; $('skill').hidden = true;
     bon.face('win', 99); S.yaw = Math.atan2(camera.position.x - S.x, camera.position.z - S.z); Sound.win(); buzz('success');
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
     const sec = Math.round(S.time), stars = starsFor(sec, cfg.starsTimeSec);
@@ -625,11 +626,11 @@ function startGame(mode) {
     r.innerHTML = `<div class="card">
       <h2 dir="auto">${T('flat')}</h2>
       <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('')}</div>
-      <dl><dt>${T('time')}</dt><dd>${mmss}</dd><dt>${T('bestCombo')}</dt><dd>×${comboMult(S.bestCombo, CB)}</dd><dt><span class="coin-ico"></span></dt><dd>+${S.coins}</dd></dl>
+      <dl><dt>${T('time')}</dt><dd dir="ltr">${mmss}</dd><dt>${T('bestCombo')}</dt><dd dir="ltr">×${comboMult(S.bestCombo, CB)}</dd><dt><span class="coin-ico"></span></dt><dd dir="ltr">+${S.coins}</dd></dl>
       ${isBest ? `<div class="best">${T('best')}</div>` : ''}
     </div>
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
-    <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">NEW!</span>' : ''}</button></div>`;
+    <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button></div>`;
     setTimeout(() => { if (!S.finished) return; r.hidden = false; r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
   }
 
