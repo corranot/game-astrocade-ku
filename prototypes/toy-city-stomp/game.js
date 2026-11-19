@@ -1,11 +1,12 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Toy City Stomp — 3D monster destruction game for kids (look test slice).
+// Genre: 3D giant-monster city smash for kids (ages 6-12), one-finger control.
+// Toy City Stomp: Giant Monster Smash.
 // Bonbon, a giant gummy dino, walks through a toy-block city on an island with one finger: whatever it bumps
 // breaks. Blocks fly off, small houses pancake, towers topple like dominoes, cars squash flat and pop back, toy
 // residents float away on balloons. Points fill the grow bar; Bonbon grows 8 stages and can then break bigger
 // buildings. Flatten the whole city for stars and coins.
 // Modules: bonbon.js (the monster), city.js (island, blocks, cars, props, particles).
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js';
+/* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 import { createCity } from './city.js';
 import { createBonbon } from './bonbon.js';
 import { createArmy } from './army.js';
@@ -53,21 +54,51 @@ const Sound = (() => {
     s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.setValueAtTime(cutoff, t); f.frequency.exponentialRampToValueAtTime(cutoff * 0.25, t + dur);
     env(g, t, 0.004, vol, dur); s.connect(f).connect(g).connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
   }
+  // recorded sounds and music from the game's assets (Astrocade); without them the synthesised ones play
+  const buffers = {}; let loading = false, music = null, musicGain = null;
+  async function loadAssets() {
+    if (loading || !ctx) return; loading = true;
+    const one = async (id) => {
+      try {
+        const a = typeof lib !== 'undefined' && lib.getAsset && lib.getAsset(id);
+        if (!a || !a.url) return;
+        const res = await fetch(a.url); buffers[id] = await ctx.decodeAudioData(await res.arrayBuffer());
+      } catch (e) { /* this sound stays synthesised */ }
+    };
+    // the short effects together first, then the bigger music file
+    await Promise.all(['sfx_stomp', 'sfx_crumble', 'sfx_roar', 'sfx_coin', 'sfx_squash', 'sfx_glass', 'sfx_win'].map(one));
+    await one('music_main'); startMusic();
+  }
+  function play(id, vol = 0.5, rate = 1) {
+    if (!ctx || muted || !buffers[id]) return !!buffers[id] && !muted;
+    const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buffers[id]; s.playbackRate.value = rate; g.gain.value = vol;
+    s.connect(g).connect(master); s.start(); return true;
+  }
+  function startMusic() {
+    if (!ctx || music || !buffers.music_main) return;
+    musicGain = ctx.createGain(); musicGain.gain.value = muted ? 0 : 0.3; musicGain.connect(master);
+    music = ctx.createBufferSource(); music.buffer = buffers.music_main; music.loop = true; music.connect(musicGain); music.start();
+  }
   return {
-    unlock() { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
-    setMuted(m) { muted = m; }, get muted() { return muted; },
+    unlock() { if (ensure()) { if (ctx.state === 'suspended') ctx.resume(); loadAssets(); } },
+    setMuted(m) { muted = m; if (musicGain) musicGain.gain.value = m ? 0 : 0.3; }, get muted() { return muted; },
+    /** Music goes a little faster when the toy army is out in force or the boss fights. */
+    musicRate(r) { if (music) music.playbackRate.value = r; },
+    pause(p) { if (ctx) (p ? ctx.suspend() : ctx.resume()).catch(() => {}); },
+    get loaded() { return Object.keys(buffers); },
+    stopMusic() { try { if (music) music.stop(); } catch (e) { /* already stopped */ } music = null; },
     bite(size) { crash(0.18 + size * 0.04, 2200 - size * 200, 0.35); tone('triangle', 220 - size * 20, 90, 0.12, 0.25); },
-    collapse(k) { crash(0.5 + k * 0.15, 1400 - k * 150, 0.6); tone('sine', 120 - k * 12, 40, 0.5 + k * 0.1, 0.5); },
+    collapse(k) { if (!play('sfx_crumble', 0.35 + k * 0.08, 1.15 - k * 0.07)) crash(0.5 + k * 0.15, 1400 - k * 150, 0.6); tone('sine', 120 - k * 12, 40, 0.5 + k * 0.1, 0.5); },
     land() { crash(0.9, 900, 0.8); tone('sine', 70, 30, 0.9, 0.7); },
-    squash() { tone('square', 520, 180, 0.12, 0.18); tone('sine', 300, 600, 0.15, 0.2, 0.1); },
+    squash() { if (!play('sfx_squash', 0.5)) { tone('square', 520, 180, 0.12, 0.18); tone('sine', 300, 600, 0.15, 0.2, 0.1); } },
     boing() { tone('sine', 180, 420, 0.25, 0.35); },
-    coin(n) { tone('square', 988 + n * 40, 988 + n * 40, 0.06, 0.08); tone('square', 1318 + n * 40, 1318 + n * 40, 0.1, 0.08, 0.06); },
+    coin(n) { if (play('sfx_coin', 0.3, 1 + n * 0.04)) return; tone('square', 988 + n * 40, 988 + n * 40, 0.06, 0.08); tone('square', 1318 + n * 40, 1318 + n * 40, 0.1, 0.08, 0.06); },
     combo(n) { const k = Math.pow(2, Math.min(n, 12) / 12); tone('triangle', 440 * k, 660 * k, 0.12, 0.2); },
-    roar(stage) { const f = 260 - stage * 18; tone('sawtooth', f, f * 0.55, 0.9, 0.25); tone('square', f * 0.5, f * 0.3, 0.9, 0.15); crash(0.8, 600, 0.3); },
-    step(stage) { tone('sine', 90 - stage * 6, 45, 0.12, 0.12 + stage * 0.02); },
-    win() { [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.25, 0.25, i * 0.12)); },
+    roar(stage) { if (play('sfx_roar', 0.6, 1.25 - stage * 0.06)) return; const f = 260 - stage * 18; tone('sawtooth', f, f * 0.55, 0.9, 0.25); tone('square', f * 0.5, f * 0.3, 0.9, 0.15); crash(0.8, 600, 0.3); },
+    step(stage) { if (!play('sfx_stomp', 0.18 + stage * 0.03, 1.2 - stage * 0.05)) tone('sine', 90 - stage * 6, 45, 0.12, 0.12 + stage * 0.02); },
+    win() { if (play('sfx_win', 0.55)) return; [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.25, 0.25, i * 0.12)); },
     pop() { tone('sine', 700, 1200, 0.08, 0.15); },
-    glass(n) { for (let i = 0; i < Math.min(4, 1 + (n >> 2)); i++) tone('triangle', 2400 + Math.random() * 1600, 3200 + Math.random() * 1200, 0.09, 0.07, i * 0.035); },
+    glass(n) { if (play('sfx_glass', 0.3, 0.9 + Math.random() * 0.3)) return; for (let i = 0; i < Math.min(4, 1 + (n >> 2)); i++) tone('triangle', 2400 + Math.random() * 1600, 3200 + Math.random() * 1200, 0.09, 0.07, i * 0.035); },
     creak() { tone('sawtooth', 140, 90, 0.45, 0.08); },
     jingle(vol = 0.08) { [784, 659, 784, 880, 784, 659, 523].forEach((f, i) => tone('triangle', f, f, 0.14, vol, i * 0.16)); },
     rainbow() { [523, 659, 784, 1046, 1318].forEach((f, i) => tone('sine', f, f * 1.01, 0.3, 0.2, i * 0.07)); },
@@ -77,6 +108,8 @@ const Sound = (() => {
 // ---------------------------------------------------------------- the game
 let app = null;
 function run(mode) {
+  // the host may call run() before Three.js has arrived from the CDN: start as soon as it is there
+  if (!window.THREE) { window.addEventListener('three-ready', () => run(mode), { once: true }); return; }
   if (app) app.destroy();
   app = startGame(mode === 'edit' ? 'edit' : 'play');
   window.__game = app.debug;
@@ -581,7 +614,7 @@ function startGame(mode) {
 
   function finish() {
     army.clearAll();
-    S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true;
+    S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true; $('skill').hidden = true;
     bon.face('win', 99); S.yaw = Math.atan2(camera.position.x - S.x, camera.position.z - S.z); Sound.win(); buzz('success');
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
     const sec = Math.round(S.time), stars = starsFor(sec, cfg.starsTimeSec);
@@ -595,11 +628,11 @@ function startGame(mode) {
     r.innerHTML = `<div class="card">
       <h2 dir="auto">${T('flat')}</h2>
       <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('')}</div>
-      <dl><dt>${T('time')}</dt><dd>${mmss}</dd><dt>${T('bestCombo')}</dt><dd>×${comboMult(S.bestCombo, CB)}</dd><dt><span class="coin-ico"></span></dt><dd>+${S.coins}</dd></dl>
+      <dl><dt>${T('time')}</dt><dd dir="ltr">${mmss}</dd><dt>${T('bestCombo')}</dt><dd dir="ltr">×${comboMult(S.bestCombo, CB)}</dd><dt><span class="coin-ico"></span></dt><dd dir="ltr">+${S.coins}</dd></dl>
       ${isBest ? `<div class="best">${T('best')}</div>` : ''}
     </div>
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
-    <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">NEW!</span>' : ''}</button></div>`;
+    <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button></div>`;
     setTimeout(() => { if (!S.finished) return; r.hidden = false; r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
   }
 
@@ -673,6 +706,7 @@ function startGame(mode) {
       steer(dt); if (!S.jump) contact(dt);
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
       S.skillCd = Math.max(0, S.skillCd - raw); if (missions.update(raw)) updateHud();
+      Sound.musicRate(army.boss.alive || army.stars >= 3 ? 1.08 : 1);
       if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0) bon.setRainbow(false); }
       S.jingleT -= raw; // an ice-cream truck nearby plays its tune now and then: a clue, never explained
       if (S.jingleT <= 0) { S.jingleT = 4; const t = city.iceTrucks().find((c) => Math.hypot(c.x - S.x, c.z - S.z) < 30 * Math.sqrt(S.scale)); if (t) Sound.jingle(); }
@@ -696,6 +730,8 @@ function startGame(mode) {
   }
 
   // ---------- start
+  const onVis = () => Sound.pause(document.hidden);
+  document.addEventListener('visibilitychange', onVis);
   const onResize = () => resize();
   window.addEventListener('resize', onResize);
   newRound();
@@ -742,13 +778,13 @@ function startGame(mode) {
     destroy() {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
-      window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
       city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envTex.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
       get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
-      setLang(l) { lang = l; setDir(); }, T, newRound, finish, useSkill, input, renderer, camera,
+      setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },
   };
@@ -761,5 +797,8 @@ if (typeof location !== 'undefined' && new URLSearchParams(location.search).has(
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none,
     shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} } };
-  fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });
+  Promise.all([fetch('./game_config.json').then((r) => r.json()), fetch('./asset_map.json').then((r) => r.json()).catch(() => ({}))]).then(([c, assets]) => {
+    window.lib.getAsset = (id) => assets[id];
+    window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play');
+  });
 }

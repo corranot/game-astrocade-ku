@@ -116,6 +116,8 @@ body{display:flex;align-items:center;justify-content:center}
 </head>
 <body>
 <div id="app"></div>
+<script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" } }</script>
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
 <script type="module" src="./game.js"></script>
 </body>
 </html>
