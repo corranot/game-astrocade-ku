@@ -52,7 +52,7 @@ async function capture(dir) {
   home.on('response', async (r) => {
     try {
       if (/exp-vardata/.test(r.url())) for (const [k, v] of Object.entries(JSON.parse(await r.text()))) flags[k] = v.payload === undefined ? v.value : { value: v.value, payload: v.payload };
-      if (/v3\/feed/.test(r.url())) {
+      if (/v[34]\/feed/.test(r.url())) {
         const j = JSON.parse(await r.text());
         const add = (cat, games) => { rows[cat] = (rows[cat] || []).concat(games.map((g) => ({ id: g.gameId, title: g.title, by: g.username, plays: g.plays, published: g.firstPublishedTimestamp, likes: g.likeCount, shares: g.shares }))); };
         if (j.games) add(j.category, j.games);
