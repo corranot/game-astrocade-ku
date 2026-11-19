@@ -159,6 +159,16 @@ body{display:flex;align-items:center;justify-content:center}
 .mcard.bought{animation:card .5s cubic-bezier(.3,1.6,.5,1)}
 .shop .again{margin-top:calc(var(--u)*6px)}
 [hidden]{display:none !important}
+/* result: compact so card, city map and buttons fit a phone even with a two-line title and the top 3; scrolls if not */
+.result{gap:calc(var(--u)*30px);justify-content:safe center;overflow-y:auto;padding:calc(var(--u)*24px) 0}
+.result .card{padding:calc(var(--u)*20px) calc(var(--u)*40px)}
+.result h2{font-size:calc(var(--u)*52px)}
+.result .stars{font-size:calc(var(--u)*76px);line-height:1.05}
+.result .smash b{font-size:calc(var(--u)*80px)}
+.result .again{font-size:calc(var(--u)*48px) !important;padding:calc(var(--u)*20px) calc(var(--u)*64px)}
+.result .endbtns{gap:calc(var(--u)*18px)}
+.result .board{font-size:calc(var(--u)*24px);margin-top:calc(var(--u)*8px)}
+.result .board li{padding:0}
 </style>
 </head>
 <body>
