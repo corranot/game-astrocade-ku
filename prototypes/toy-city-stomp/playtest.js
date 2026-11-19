@@ -169,7 +169,7 @@ const server = http.createServer((q, s) => {
   {
     const r = await g(() => { const s = __game.save; s.unlocked = 1; s.theme = 0; __game.newRound(); const S = __game.S; S.touched = true; __game.finish();
       return { un: s.unlocked, th: s.theme }; });
-    await page.waitForTimeout(1900);
+    await page.waitForFunction(() => !document.querySelector('#result').hidden, null, { timeout: 15000 }); // shown (and wired) after a short pause
     const m = await g(() => { const cities = [...document.querySelectorAll('#map .city')]; const pick = cities[0]; pick.click();
       return { n: cities.length, locked: cities.filter((c) => c.disabled).length, picked: __game.save.theme, name: document.querySelector('#cityName').textContent }; });
     const next = await g(() => { __game.save.theme = 1; document.querySelector('#again').click(); return { theme: __game.S.theme, sky: __game.skyTop }; });
