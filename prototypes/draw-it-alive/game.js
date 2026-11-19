@@ -251,8 +251,19 @@ function updateWall(dt) {
 }
 
 /** The card the player tapped, large in the middle with its stars: a picture to show someone. */
+let bigImg = null, bigFor = -1, handAt = null;
 function drawBig() {
-  const c = wall.cards[wall.big], a = wall.t - wall.bigAt, grow = ease(a / 0.3), from = cardAt(wall.big);
+  const c = wall.cards[wall.big], a = wall.t - wall.bigAt, from = cardAt(wall.big);
+  if (quality >= 2) { // slow phone: the finished picture, drawn large once, then only copied
+    if (!bigImg) { bigImg = document.createElement('canvas'); bigImg.width = Math.ceil((CARD.w + 2 * CARD.pad) * 2.1); bigImg.height = Math.ceil((CARD.h + 2 * CARD.pad) * 2.1); }
+    if (bigFor !== wall.big) { const b = bigImg.getContext('2d'); b.setTransform(2.1, 0, 0, 2.1, 0, 0); b.clearRect(0, 0, bigImg.width, bigImg.height); b.drawImage(c.img, 0, 0); bigFor = wall.big; }
+    g.globalAlpha = 0.75; g.fillStyle = VIOLET; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+    g.drawImage(bigImg, Math.round(W / 2 - bigImg.width / 2), Math.round(590 - bigImg.height / 2));
+    for (let j = 0; j < 3; j++) sticker(() => star(g, W / 2 + (j - 1) * 110, 1010, 44, j < (save.stars[c.s.i] || 0) ? ORANGE : '#D9CCFF', (j - 1) * 0.18));
+    return;
+  }
+  bigFor = -1;
+  const grow = ease(a / 0.3);
   const k = 1 + grow * 1.1, cx = from.x + CARD.w / 2 + (W / 2 - from.x - CARD.w / 2) * grow, cy = from.y + CARD.h / 2 + (590 - from.y - CARD.h / 2) * grow;
   g.globalAlpha = 0.75 * grow; g.fillStyle = VIOLET; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
   g.save(); g.translate(cx, cy); g.scale(k, k); g.translate(-CARD.w / 2, -CARD.h / 2); frameCard(g, c, a); g.restore();
@@ -264,7 +275,7 @@ function drawWall() {
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.drawImage(wallBack, 0, 0);
   wall.cards.forEach((c, n) => {
-    const { x, y } = cardAt(n), live = wall.t - c.t0 < cfg.cardRestSeconds;
+    const { x, y } = cardAt(n), live = wall.t - c.t0 < cfg.cardRestSeconds && wall.big !== n; // the big copy plays instead
     if (live) { // the card that is playing lifts up straight and a little larger
       const pop = 1.04 + c.pop * 0.06;
       g.save(); g.translate(x + CARD.w / 2, y + CARD.h / 2 - 8); g.scale(pop, pop); g.translate(-CARD.w / 2, -CARD.h / 2);
@@ -279,7 +290,7 @@ function drawWall() {
   const nx = cardAt(CHAPTER), cx = nx.x + CARD.w / 2, cy = nx.y + CARD.h / 2, r = 104 + Math.sin(wall.t * 5) * 7, peek = cardBacks[wall.next % LEVELS.length];
   g.fillStyle = 'rgba(31,42,107,0.25)'; g.beginPath(); g.arc(cx, cy + 8, r + 10, 0, 7); g.fill();
   g.fillStyle = WHITE; g.beginPath(); g.arc(cx, cy, r + 10, 0, 7); g.fill();
-  g.save(); g.beginPath(); g.arc(cx, cy, r - 4, 0, 7); g.clip(); g.drawImage(peek, cx - peek.width / 2, cy - peek.height * 0.55); g.restore();
+  g.save(); g.beginPath(); g.arc(cx, cy, r - 4, 0, 7); g.clip(); if (Math.floor(wall.next / LEVELS.length) % 2) { g.translate(2 * cx, 0); g.scale(-1, 1); } g.drawImage(peek, cx - peek.width / 2, cy - peek.height * 0.55); g.restore(); // a mirrored round peeks mirrored
   const locked = wall.unlocked < 0, open = locked ? 0 : ease((wall.t - wall.unlocked) / 0.5);
   if (!locked || !wall.opens) {
     g.fillStyle = WHITE; g.beginPath(); g.arc(cx, cy, 62, 0, 7); g.fill();
@@ -295,7 +306,7 @@ function drawWall() {
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
   if (wall.big >= 0) drawBig();
-  if (wall.opens && wall.unlocked >= 0 && wall.next > 0 && wall.next < LEVELS.length) banner(T('open').replace('{n}', chapterOf(wall.next) + 1), W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
+  if (wall.opens && wall.unlocked >= 0 && wall.next % LEVELS.length > 0) banner(T('open').replace('{n}', chapterOf(wall.next) + 1), W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
 }
 
 // ---------- judging ----------
@@ -402,7 +413,7 @@ function release(p) {
     if (p[0] > LANGB.x && p[0] < LANGB.x + LANGB.w && p[1] > LANGB.y && p[1] < LANGB.y + LANGB.h) { const all = Object.keys(cfg.strings); lang = save.lang = all[(all.indexOf(lang) + 1) % all.length]; persist(); beep(760, 0.07); return; }
     if (onButton(BACK, p)) { beep(700, 0.08); view = 'play'; book = null; S.idle = 0; } return; }
   if (pr.what === 'mute' && onButton(MUTE, p)) { save.muted = !save.muted; muteTouched = true; beep(700, 0.08); persist(); return; }
-  if (pr.what === 'skip' && S.won > cfg.skipAfter) { S.won = 99; S.cue = (S.lv.cues || []).length; S.starsShown = S.stars; } // skip the sounds still to come too
+  if (pr.what === 'skip' && S.won > cfg.skipAfter + (S.daily ? 1 : 0)) { S.won = 99; S.cue = (S.lv.cues || []).length; S.starsShown = S.stars; } // skip the sounds still to come too
 }
 
 function bindInput() {
@@ -445,6 +456,8 @@ function bindInput() {
 
 // ---------- frame ----------
 /** The sound button shows once the first level is behind the player. */
+/** The jar shows once the first level is behind the player, and while drops fly to it. */
+const jarShown_ = () => mode === 'play' && view === 'play' && (S.i > 0 || save.level > 0 || flyers.length > 0);
 const muteShown = () => mode === 'play' && view === 'play' && (S.i > 0 || (save.level > 0 && S.won < 0)); // not popping in mid-celebration on level 1
 
 /** The newest chapter, up to the current one, whose pictures are all drawn; -1 when there is none yet. */
@@ -530,8 +543,8 @@ function drawBox() {
 }
 
 /** Book: four panels of one set each, two by two; a panel holds three rows of two. */
-const panelAt = (s) => ({ x: 30 + (s % 2) * 340, y: 200 + Math.floor(s / 2) * 450, w: 320, h: 420 });
-const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + 85 + (j % 2) * 150, y: p.y + 95 + Math.floor(j / 2) * 125 }; };
+const panelAt = (s) => ({ x: 34 + (s % 2) * 346, y: 200 + Math.floor(s / 2) * 450, w: 306, h: 420 });
+const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 74 : -74), y: p.y + 95 + Math.floor(j / 2) * 125 }; };
 
 function openBook() { hush(); S.pen = null; S.liftAt = 0; view = 'book'; press = null; pointerDown = false; book = { t: 0 }; beep(880, 0.1, 'triangle'); }
 
@@ -541,9 +554,9 @@ function drawBook() {
   for (let s0 = 0; s0 < STICKERS.length; s0 += SET) {
     const P = panelAt(s0 / SET), top = P.y, gold = setDone(s0);
     box(g, P.x, top + 10, P.w, P.h, 36, 'rgba(31,42,107,0.22)');
-    if (gold) box(g, P.x - 10, top - 10, P.w + 20, P.h + 20, 44, ORANGE); // a finished set gets a gold frame
+    if (gold) box(g, P.x - 8, top - 8, P.w + 16, P.h + 16, 42, ORANGE); // a finished set gets a gold frame
     box(g, P.x, top, P.w, P.h, 36, '#FFE3EF');
-    if (gold) for (const x of [P.x + 30, P.x + P.w - 30]) sticker(() => star(g, x, top + 14, 26, SUNNY, Math.sin(book.t * 3) * 0.3));
+    if (gold) for (const x of [P.x + 34, P.x + P.w - 34]) sticker(() => star(g, x, top + 18, 22, SUNNY, Math.sin(book.t * 3) * 0.3));
     for (let id = s0; id < s0 + SET; id++) {
       const { x, y } = slotAt(id);
       if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 50);
@@ -629,7 +642,7 @@ function drawGuide() {
   g.save(); g.globalAlpha = 1 - ring; g.lineWidth = 6; g.strokeStyle = WHITE; g.beginPath(); g.arc(sx, sy, r + ring * 40, 0, 7); g.stroke(); g.restore();
   g.fillStyle = WHITE; g.beginPath(); g.arc(sx, sy, r + 8, 0, 7); g.fill();
   g.fillStyle = PEN; g.beginPath(); g.arc(sx, sy, r, 0, 7); g.fill();
-  if (ghost) hand(tip[0], tip[1]);
+  if (ghost) { if (S.flip) handAt = [W - tip[0], tip[1]]; else hand(tip[0], tip[1]); } // drawn after the mirror, so it is never a left hand
 }
 
 /** Progress pips at the top: one per level, the current one larger. */
@@ -692,6 +705,7 @@ function draw() {
   if (S.flip) { // the scene and its guide in the level's frame
     g.save(); g.translate(W, 0); g.scale(-1, 1); const look = S.look; if (look) S.look = [W - look[0], look[1]];
     S.lv.live(g, S); drawGuide(); S.look = look; g.restore();
+    if (handAt) { hand(handAt[0], handAt[1]); handAt = null; }
   } else { S.lv.live(g, S); drawGuide(); }
   if (S.faded) { const k = S.faded.age / 0.45; g.save(); g.globalAlpha = 1 - k; g.translate(Math.sin(k * 30) * 6, 0); sticker(() => stick(g, S.faded.pts, 22, PEN)); g.restore(); }
   if (S.pen) sticker(() => stick(g, S.pen, 22, PEN));
@@ -703,7 +717,7 @@ function draw() {
 
 /** The paint jar: drops of every colour piled up to how full it is; it glows when a box is due. */
 function drawJar() {
-  if (!muteShown() && view !== 'box') return;
+  if (!jarShown_() && view !== 'box') return;
   const { x, y, s } = JAR, cx = x + s / 2, glow = save.drops >= cfg.jarDrops && save.stickers.length < STICKERS.length;
   g.fillStyle = 'rgba(31,42,107,0.22)'; g.beginPath(); g.arc(cx, y + s / 2 + 5, s / 2, 0, 7); g.fill();
   g.fillStyle = WHITE; g.beginPath(); g.arc(cx, y + s / 2, s / 2, 0, 7); g.fill();
