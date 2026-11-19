@@ -221,7 +221,7 @@ function wallTap(p) {
   if (wall.big >= 0) { wall.big = -1; beep(660, 0.06, 'triangle'); return; } // any tap puts the big picture back
   const nx = cardAt(CHAPTER);
   if (Math.hypot(p[0] - nx.x - CARD.w / 2, p[1] - nx.y - CARD.h / 2) < 130) {
-    if (wall.opens && wall.unlocked < 0) { beep(300, 0.08); buzz('tap'); return; } // still locked: the pictures play first
+    if (wall.opens && wall.unlocked < 0) { for (const c of wall.cards) c.t0 = -99; wall.cards.forEach((_, n) => wall.started.add(n)); unlock(); return; } // a tap springs the lock open; the pictures stop playing
     beep(880, 0.1, 'triangle'); buzz('tap'); return newLevel(wall.next); }
   wall.cards.forEach((c, n) => {
     const { x, y } = cardAt(n);
