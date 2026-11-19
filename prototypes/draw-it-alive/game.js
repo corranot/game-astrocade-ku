@@ -31,7 +31,7 @@ let save = { level: 0, stars: {}, art: {}, muted: false }, saveRead = false, mut
 let view = 'play', wall = null; // 'play' is a level; 'wall' is the player's own finished pictures
 let S = null, target = [], targetLen = 0, back = null, bits = [];
 let pointerDown = false, touched = false, bound = false, press = null;
-let ac = null, lastTick = 0, timers = [];
+let ac = null, timers = [];
 let quality = 0, frameTimes = [], slow = 0, fast = 0; // 0 full, 1 fewer particles, 2 also a still wall
 const cardBacks = [], cardImgs = [];
 let wallBack = null;
@@ -62,7 +62,7 @@ function hush() { for (const t of timers) clearTimeout(t); timers = []; }
 function scene(lv, i) {
   const s = {
     i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, stroke: null, morph: null, misses: 0,
-    faded: null, sadFor: 0, assisted: false, stars: 0, starsShown: 0, freeze: 0, cue: 0, did: {}, quiet: false, idle: 0, dotPop: 0,
+    faded: null, sadFor: 0, tick: -1, assisted: false, stars: 0, starsShown: 0, freeze: 0, cue: 0, did: {}, quiet: false, idle: 0, dotPop: 0,
     once(key, fn) { if (!s.did[key]) { s.did[key] = true; fn(); } },
     burst(x, y, n) { if (!s.quiet) confetti(x, y, n); },
     art(n) { return save.art[n] || null; },
@@ -281,7 +281,7 @@ function bindInput() {
     if (S.pen.length < 600 && dist(p, S.pen[S.pen.length - 1]) >= 4) {
       S.pen.push(p);
       // the pencil sound climbs as the line gets longer
-      if (S.t - lastTick > 0.06) { lastTick = S.t; beep(420 + Math.min(1.2, pathLen(S.pen) / targetLen) * 520, 0.05, 'sine', 0.035); }
+      if (S.t - S.tick > 0.06) { S.tick = S.t; beep(420 + Math.min(1.2, pathLen(S.pen) / targetLen) * 520, 0.05, 'sine', 0.035); }
     }
   });
   const up = (e) => {
