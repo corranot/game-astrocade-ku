@@ -197,7 +197,7 @@ function startGame(mode) {
     city = createCity(scene, cfg, rng, quality);
     resize();
     S = {
-      x: 0, z: city.half - 4, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
+      x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
       scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
@@ -325,7 +325,7 @@ function startGame(mode) {
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
     if (!mag && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
-      if (!target || target.state !== 'intact') target = city.nearest(S.x, S.z, (b) => b.k <= S.stage + 1);
+      if (!target || target.state !== 'intact') target = city.nearest(S.x, S.z, (b) => b.k <= S.stage + 1, 0.8); // prefers what lies ahead, as a child dragging up
       if (target) {
         ix = target.cx - S.x; iz = target.cz - S.z; const l = Math.hypot(ix, iz) || 1; ix /= l; iz /= l; mag = 0.75;
         if (S.avoidT > 0) { ix = ix * 0.3 + S.avoidX; iz = iz * 0.3 + S.avoidZ; } // step round a building too big to break

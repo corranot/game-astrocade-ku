@@ -45,23 +45,27 @@ const server = http.createServer((q, s) => {
   check(await g(() => __game.S.points > 0), 'autopilot breaks something before any touch');
   await page.screenshot({ path: path.join(out, `01-start-${lang}.png`) });
   check(await g(() => __game.S.time === 0), 'attract mode (no touch yet) does not run the clock');
-  await g(() => { __game.S.touched = true; __game.S.idle = 99; }); // a child who touched once then let go: autopilot plays on and the round counts
+  await g(() => { __game.newRound(); __game.S.touched = true; __game.S.idle = 99; }); // a fresh round as a child who touched once then let go: autopilot plays on and the round counts
 
   // play on autopilot; note when things happen
-  const seen = { stage3: false, domino: false };
+  const seen = { stage3: false, domino: false, grow1: null, dom1: null };
   const t0 = Date.now();
   while (Date.now() - t0 < 420000) {
     const s = await g(() => ({ stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
+    if (seen.grow1 === null && s.stage >= 2) seen.grow1 = s.time;
+    if (seen.dom1 === null && s.dom >= 2) seen.dom1 = s.time;
     if (!seen.stage3 && s.stage >= 3) { seen.stage3 = true; await page.screenshot({ path: path.join(out, `02-grown-${lang}.png`) }); console.log('     stage 3 at', s.time.toFixed(0), 's'); }
     if (!seen.domino && s.dom >= 2) { seen.domino = true; await page.screenshot({ path: path.join(out, `03-domino-${lang}.png`) }); console.log('     domino x' + s.dom + ' at', s.time.toFixed(0), 's'); }
     if (s.fin) { console.log(`     finished at ${s.time.toFixed(0)} s game time, stage ${s.stage}, ${s.pts} points`); break; }
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(250);
   }
   const end = await g(() => ({ fin: __game.S.finished, stage: __game.S.stage, time: __game.S.time, coins: __game.S.coins, best: __game.S.bestCombo }));
   check(end.fin, 'the city is flattened and the round finishes');
   check(end.stage >= 5, 'Bonbon grows to stage 5+ in one round (got ' + end.stage + ')');
   check(end.time > 60 && end.time < 300, 'autopilot round from the first touch (the shortest path; a child wanders) takes 60-300 game s: ' + end.time.toFixed(0) + ' s');
   check(seen.domino, 'at least one domino chain happens');
+  check(seen.grow1 !== null && seen.grow1 <= 10, `first GROW within 10 s of the first touch (${seen.grow1 === null ? 'never' : seen.grow1.toFixed(1) + ' s'})`);
+  check(seen.dom1 !== null && seen.dom1 <= 30, `first domino within 30 s (${seen.dom1 === null ? 'never' : seen.dom1.toFixed(1) + ' s'})`);
   await page.waitForTimeout(2500);
   check(await g(() => !document.querySelector('#result').hidden), 'result screen shows');
   await page.screenshot({ path: path.join(out, `04-result-${lang}.png`) });
