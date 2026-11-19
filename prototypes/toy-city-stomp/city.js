@@ -174,7 +174,7 @@ export function createCity(scene, cfg, rng, quality) {
   blocks.receiveShadow = true; blocks.castShadow = quality.shadowsOnBlocks; blocks.frustumCulled = false;
   blocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   group.add(blocks);
-  let dMin = Infinity, dMax = -1; // range of blocks changed this frame: only that part goes to the GPU
+  let dMin = Infinity, dMax = -1, cMin = Infinity, cMax = -1; // range of blocks changed this frame: only that part goes to the GPU
   const writeMatrix = (i) => {
     if (i < dMin) dMin = i; if (i > dMax) dMax = i;
     quat.set(vox.q[i * 4], vox.q[i * 4 + 1], vox.q[i * 4 + 2], vox.q[i * 4 + 3]);
@@ -438,7 +438,7 @@ export function createCity(scene, cfg, rng, quality) {
     if (!b.cracked && b.alive / b.total < 0.8 && b.alive / b.total >= cfg.collapseAt) {
       b.cracked = true; let lo = Infinity, hi = -1;
       for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0 && rng() < 0.22) { blocks.setColorAt(i, col.setHex(vox.col[i]).multiplyScalar(0.62)); lo = Math.min(lo, i); hi = Math.max(hi, i); }
-      if (hi >= 0) { const a = blocks.instanceColor; a.clearUpdateRanges(); a.addUpdateRange(lo * 3, (hi - lo + 1) * 3); a.needsUpdate = true; }
+      if (hi >= 0) { cMin = Math.min(cMin, lo); cMax = Math.max(cMax, hi); } // uploaded once per frame with every other crack
       events.push({ type: 'creak', b });
     }
     if (b.alive / b.total < cfg.collapseAt) collapse(b, dir, chain);
@@ -600,6 +600,10 @@ export function createCity(scene, cfg, rng, quality) {
     if (dMax >= 0) {
       const a = blocks.instanceMatrix; a.clearUpdateRanges(); a.addUpdateRange(dMin * 16, (dMax - dMin + 1) * 16); a.needsUpdate = true;
       dMin = Infinity; dMax = -1;
+    }
+    if (cMax >= 0) {
+      const a = blocks.instanceColor; a.clearUpdateRanges(); a.addUpdateRange(cMin * 3, (cMax - cMin + 1) * 3); a.needsUpdate = true;
+      cMin = Infinity; cMax = -1;
     }
   }
   function setXray(cam, mon, r) { const u = blockMat.userData.uniforms; u.uCam.value.copy(cam); u.uMon.value.copy(mon); u.uR.value = r; }

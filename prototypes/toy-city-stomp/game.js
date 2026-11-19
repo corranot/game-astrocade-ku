@@ -293,7 +293,7 @@ function startGame(mode) {
     city.burstConfetti(c.x, 2, c.z, 14, [0xff9cc6, 0xfff0b3, 0xa8f0d8]);
     if (S.trucks >= 3 && S.rainbowT <= 0) { S.rainbowT = 15; banner(T('rainbow'), 1.8); Sound.rainbow(); buzz('success'); bon.setRainbow(true); }
   }
-  const mission = (ev, n) => { if (missions && !S.finished) { missions.on(ev, n); updateHud(); } };
+  const mission = (ev, n) => { if (missions && !S.finished && S.touched) { // the attract mode does not do the child's missions missions.on(ev, n); updateHud(); } };
   /** A bite only keeps the combo alive; a building down, a car squashed or a prop popped adds to it. */
   function hitCombo(counts = true) {
     S.comboT = CB.windowSec; if (!counts) return;
