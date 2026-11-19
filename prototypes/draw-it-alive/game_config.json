@@ -64,7 +64,8 @@
       "sticker": "New sticker!",
       "setDone": "Set complete!",
       "open": "Chapter {n} is open!",
-      "name": "English"
+      "name": "English",
+      "daily": "Daily gift!"
     },
     "ar": {
       "L1": "ارسم الجسر!",
@@ -104,7 +105,8 @@
       "sticker": "ملصق جديد!",
       "setDone": "اكتملت المجموعة!",
       "open": "فُتح الفصل {n}!",
-      "name": "العربية"
+      "name": "العربية",
+      "daily": "هدية اليوم!"
     },
     "es": {
       "L1": "¡Dibuja el puente!",
@@ -144,7 +146,8 @@
       "sticker": "¡Pegatina nueva!",
       "setDone": "¡Colección completa!",
       "open": "¡Capítulo {n} abierto!",
-      "name": "Español"
+      "name": "Español",
+      "daily": "¡Regalo del día!"
     },
     "vi": {
       "L1": "Vẽ cây cầu!",
@@ -184,7 +187,8 @@
       "sticker": "Nhãn dán mới!",
       "setDone": "Đủ bộ rồi!",
       "open": "Mở chương {n}!",
-      "name": "Tiếng Việt"
+      "name": "Tiếng Việt",
+      "daily": "Quà hôm nay!"
     },
     "hi": {
       "L1": "पुल बनाओ!",
@@ -224,7 +228,8 @@
       "sticker": "नया स्टिकर!",
       "setDone": "सेट पूरा!",
       "open": "अध्याय {n} खुला!",
-      "name": "हिन्दी"
+      "name": "हिन्दी",
+      "daily": "आज का तोहफ़ा!"
     },
     "bn": {
       "L1": "সেতু আঁকো!",
@@ -264,7 +269,8 @@
       "sticker": "নতুন স্টিকার!",
       "setDone": "সেট পূর্ণ!",
       "open": "অধ্যায় {n} খুলল!",
-      "name": "বাংলা"
+      "name": "বাংলা",
+      "daily": "আজকের উপহার!"
     },
     "id": {
       "L1": "Gambar jembatan!",
@@ -304,10 +310,13 @@
       "sticker": "Stiker baru!",
       "setDone": "Set lengkap!",
       "open": "Bab {n} terbuka!",
-      "name": "Bahasa Indonesia"
+      "name": "Bahasa Indonesia",
+      "daily": "Hadiah hari ini!"
     }
   },
   "rtl": [
     "ar"
-  ]
+  ],
+  "dailyDrops": 3,
+  "bigExtra": 1.5
 }
