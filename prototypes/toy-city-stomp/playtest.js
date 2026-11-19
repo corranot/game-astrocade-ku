@@ -69,7 +69,7 @@ const server = http.createServer((q, s) => {
   check(seen.domino, 'at least one domino chain happens');
   check(seen.stars >= 2 && seen.units >= 2, `the toy army comes (most stars ${seen.stars}, most units at once ${seen.units})`);
   check(seen.hurt, 'army hits lower Spirit at least once');
-  check(seen.boss && await g(() => __game.S.bossDone), 'the Wind-Up Robot appears and is beaten before the finish');
+  check(seen.boss && await g(() => __game.S.bossDone && !__game.army.boss.alive), 'the Wind-Up Robot appears, is beaten before the finish, and does not come back');
   check(seen.grow1 !== null && seen.grow1 <= 10, `first GROW within 10 s of the first touch (${seen.grow1 === null ? 'never' : seen.grow1.toFixed(1) + ' s'})`);
   check(seen.dom1 !== null && seen.dom1 <= 30, `first domino within 30 s (${seen.dom1 === null ? 'never' : seen.dom1.toFixed(1) + ' s'})`);
   await page.waitForTimeout(2500);

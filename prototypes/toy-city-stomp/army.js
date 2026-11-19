@@ -42,7 +42,7 @@ export function createArmy(scene, cfg, rng, quality, city) {
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.25; ring.visible = false; group.add(ring);
 
   // boss: one group of meshes (it is a single big actor)
-  const boss = { alive: false, hp: B.hp, phase: 0, x: 0, z: 0, y: 0, yaw: 0, t: 0, act: 'idle', actT: 0, jump: null, introT: 0, down: false, scale: 1 };
+  const boss = { spawned: false, alive: false, hp: B.hp, phase: 0, x: 0, z: 0, y: 0, yaw: 0, t: 0, act: 'idle', actT: 0, jump: null, down: false, scale: 1 };
   const bossG = new THREE.Group(); bossG.visible = false; group.add(bossG);
   const inkMat = keep(new THREE.MeshBasicMaterial({ color: 0x24123f, side: THREE.BackSide }));
   const bpart = (geo, c, x, y, z, parent = bossG) => {
@@ -69,7 +69,7 @@ export function createArmy(scene, cfg, rng, quality, city) {
   const roadLine = (p) => { const i = Math.round((p + half - C.road / 2) / pitch); return -half + THREE.MathUtils.clamp(i, 0, C.lots) * pitch + C.road / 2; };
 
   function spawnUnit(type, bon) {
-    if (units.length >= Math.min(UNITS, A.maxUnits[stars] || 0)) return;
+    if (units.length >= Math.min(UNITS, quality.maxUnits || UNITS, A.maxUnits[stars] || 0)) return;
     // come in on a road from the side of the city away from the camera's view (ahead of or beside Bonbon)
     const side = Math.floor(rng() * 3), along = roadLine(bon.x + (rng() - 0.5) * 60);
     let x, z, axis;
@@ -88,10 +88,13 @@ export function createArmy(scene, cfg, rng, quality, city) {
   function heat(points) { heatV += points * A.heatPerPoint; calmT = 0; }
 
   function startBoss(bon) {
-    boss.alive = true; boss.hp = B.hp; boss.phase = 1; boss.down = false; boss.t = 0;
-    boss.scale = Math.max(1.6, bon.scale * 0.95);
-    boss.x = THREE.MathUtils.clamp(bon.x, -half + 10, half - 10); boss.z = THREE.MathUtils.clamp(bon.z - 26 * Math.sqrt(boss.scale), -half + 8, half - 8);
-    boss.y = 60; boss.introT = 1.6; boss.act = 'drop';
+    boss.spawned = true; boss.alive = true; boss.hp = B.hp; boss.phase = 1; boss.down = false; boss.t = 0;
+    // as big as Bonbon will be (not the size mid-growth), landing ahead and a little to the side so the camera
+    // behind Bonbon sees it
+    boss.scale = Math.max(1.2, (bon.size || bon.scale) * 0.48); // the robot model is ~8 tall; Bonbon ~2.8 x its size: about 1.4x Bonbon
+    const side = rng() < 0.5 ? -1 : 1;
+    boss.x = THREE.MathUtils.clamp(bon.x + side * 6 * Math.sqrt(boss.scale), -half + 10, half - 10); boss.z = THREE.MathUtils.clamp(bon.z - 14 * Math.sqrt(boss.scale) - 8, -half + 8, half - 8);
+    boss.y = 60; boss.act = 'drop';
     bossG.visible = true; bossG.scale.setScalar(boss.scale);
     events.push({ type: 'bossIntro' });
   }
@@ -121,7 +124,7 @@ export function createArmy(scene, cfg, rng, quality, city) {
       spawnUnit(pick, bon);
     }
     // boss trigger: full size, or the city is nearly flat
-    if (!boss.alive && (bon.stage >= B.atStage || city.intactLeft() / city.buildings.length < B.orCityBelow)) startBoss(bon);
+    if (!boss.spawned && (bon.stage >= B.atStage || city.intactLeft() / city.buildings.length < B.orCityBelow)) startBoss(bon);
 
     const R = bon.r;
     for (let i = units.length - 1; i >= 0; i--) {
@@ -140,11 +143,12 @@ export function createArmy(scene, cfg, rng, quality, city) {
         const sp = (u.type === 'car' ? A.car.speed : A.tank.speed) * Math.sqrt(bon.scale) * dt;
         const range = u.type === 'tank' ? A.tank.range * Math.sqrt(bon.scale) : 0;
         if (d > range + 0.5) {
-          if (u.axis === 'x') { const tx = roadLine(bon.x); const ddx = tx - u.x; if (Math.abs(ddx) < sp + 0.05) { u.x = tx; u.axis = 'z'; u.line = tx; } else u.x += Math.sign(ddx) * sp; u.z = u.line; u.yaw = Math.sign(ddx) > 0 ? 0 : Math.PI; }
+          if (u.free || d < pitch * 0.9) { u.free = true; u.x += dx / d * sp; u.z += dz / d * sp; u.yaw = Math.atan2(-dz, dx); } // close: leave the road and go straight at Bonbon
+          else if (u.axis === 'x') { const tx = roadLine(bon.x); const ddx = tx - u.x; if (Math.abs(ddx) < sp + 0.05) { u.x = tx; u.axis = 'z'; u.line = tx; } else u.x += Math.sign(ddx) * sp; u.z = u.line; u.yaw = Math.sign(ddx) > 0 ? 0 : Math.PI; }
           else { const tz = Math.abs(bon.x - u.line) > pitch * 0.6 ? roadLine(bon.z) : bon.z; const ddz = tz - u.z; if (Math.abs(ddz) < sp + 0.05) { if (Math.abs(bon.x - u.line) > pitch * 0.6) { u.axis = 'x'; u.line = roadLine(bon.z); } } else u.z += Math.sign(ddz) * sp; u.x = u.line; u.yaw = Math.sign(ddz) > 0 ? -Math.PI / 2 : Math.PI / 2; }
         }
         if (u.type === 'tank') { u.cool -= dt; u.aim = Math.atan2(-dz, dx); if (u.cool <= 0 && d < range * 1.4) { u.cool = A.tank.fireSec; fire('dart', u.x, 1.2, u.z, bon.x, bon.z, A.tank.dmg); } }
-        if (u.type === 'car') { u.spin += dt * 8; if (d < R + 1.2) { events.push({ type: 'hitBonbon', dmg: A.car.dmg, x: u.x, z: u.z }); kill(u, false); continue; } }
+        if (u.type === 'car') { u.spin += dt * 8; if (d < R + 1.2) { events.push({ type: 'hitBonbon', dmg: A.car.dmg, x: u.x, z: u.z }); kill(u, true); continue; } }
       }
       // Bonbon squashes or swats anything it reaches
       if (d < R * 0.95 + (u.type === 'heli' ? 1.5 : 1) && (u.type !== 'heli' || Math.abs(u.y - bon.height * 0.85) < 3 * bon.scale)) kill(u, true);
@@ -163,7 +167,6 @@ export function createArmy(scene, cfg, rng, quality, city) {
     }
 
     updateBoss(dt, bon);
-    draw();
   }
 
   function kill(u, byBonbon) {
@@ -182,9 +185,10 @@ export function createArmy(scene, cfg, rng, quality, city) {
     boss.t += dt; boss.actT -= dt;
     const dx = bon.x - boss.x, dz = bon.z - boss.z, d = Math.hypot(dx, dz) || 1, sc = boss.scale;
     if (boss.act === 'drop') {
-      boss.y = Math.max(0, boss.y - dt * 70); boss.introT -= dt;
+      boss.y = Math.max(0, boss.y - dt * 70);
       if (boss.y <= 0) { boss.act = 'idle'; boss.actT = 1.0; events.push({ type: 'bossLand', x: boss.x, z: boss.z }); }
     } else if (boss.act === 'unwind') {
+      ring.visible = false; boss.y = Math.max(0, boss.y - dt * 20);
       key.rotation.z += dt * 30 * Math.max(0, boss.actT / 2.2);
       bossG.rotation.z = Math.sin(boss.t * 9) * 0.06 * Math.max(0, boss.actT);
       if (boss.actT <= 0) { boss.alive = false; bossG.visible = false; events.push({ type: 'bossGone', x: boss.x, z: boss.z }); }
@@ -233,10 +237,11 @@ export function createArmy(scene, cfg, rng, quality, city) {
   const place = (m, i, x, y, z, yaw, sx = 1, sy = 1, sz = 1, pitch = 0, roll = 0) => {
     q.setFromEuler(e.set(pitch, yaw, roll, 'YXZ')); m.setMatrixAt(i, mtx.compose(v.set(x, y, z), q, s3.set(sx, sy, sz)));
   };
+  const UNIT_PARTS = [carBody, carKey, tankBody, tankTurret, tankBarrel, heliBody, heliRotor, heliTail], ALL = [...UNIT_PARTS, darts, bubbles];
   function draw() {
     for (let i = 0; i < UNITS; i++) {
       const u = units[i];
-      for (const m of [carBody, carKey, tankBody, tankTurret, tankBarrel, heliBody, heliRotor, heliTail]) hide(m, i);
+      for (const m of UNIT_PARTS) hide(m, i);
       if (!u) continue;
       const pop = u.dead > 0 ? u.dead / 0.25 : 1, sc = 1.2 * pop;
       if (u.type === 'car') {
@@ -259,11 +264,16 @@ export function createArmy(scene, cfg, rng, quality, city) {
       if (s.kind === 'dart') place(darts, i, s.x, s.y, s.z, Math.atan2(-(s.tz - s.sz), s.tx - s.sx), 1, 1, 1);
       else place(bubbles, i, s.x, s.y, s.z, 0, 1 + Math.sin(s.t * 12) * 0.08, 1 - Math.sin(s.t * 12) * 0.08, 1);
     }
-    for (const m of [carBody, carKey, tankBody, tankTurret, tankBarrel, heliBody, heliRotor, heliTail, darts, bubbles]) m.instanceMatrix.needsUpdate = true;
+    for (const m of ALL) m.instanceMatrix.needsUpdate = true;
   }
 
+  /** At the finish: every toy and shot pops away, so nothing hangs in the air behind the result card. */
+  function clearAll() { for (const u of units) if (u.dead <= 0) u.dead = 0.25; shots.length = 0; }
+  /** Settles popping units after the finish (no new spawns, no attacks). */
+  function settle(dt) { for (let i = units.length - 1; i >= 0; i--) { const u = units[i]; if (u.dead > 0) { u.dead -= dt; if (u.dead <= 0) units.splice(i, 1); } } }
+
   return {
-    update, heat, hitArea, damageBoss, events, boss, units,
+    update, settle, draw, clearAll, heat, hitArea, damageBoss, events, boss, units,
     get stars() { return stars; },
     /** Point of the boss Bonbon can reach, for contact tests. */
     bossReach(bon) { if (!boss.alive || boss.down || boss.act === 'drop' || boss.y > 2) return null; return { x: boss.x, z: boss.z, r: 1.8 * boss.scale }; },

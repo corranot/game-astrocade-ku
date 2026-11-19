@@ -15,8 +15,9 @@ game (GDD and storyboard: artifact "Toy City Stomp", decisions K1–K6 all taken
 - One city (Block Town, 6×6 lots, ~110 buildings), growth stages 1–8, combo, dominoes, Tail Spin skill at
   stage 3, cars, trees, residents with balloons, see-through cut when a building hides Bonbon, result screen with
   stars and an instant PLAY AGAIN, 7 languages with RTL for Arabic, sound made in code, save of coins and best time.
-- Not yet: toy army and wanted stars, the Wind-Up Robot boss, the shop and its 10 moves, missions, other cities,
-  Rainbow Mode, edit-mode object editing (edit mode shows the city without gameplay).
+- Toy army and wanted stars (army.js), the Wind-Up Robot boss (3 phases), Spirit (hits make Bonbon dizzy, never
+  a game over), the shop with 10 moves (moves.js) on the result screen.
+- Not yet: missions, other cities, Rainbow Mode, edit-mode object editing (edit mode shows the city without gameplay).
 
 ## How to run
 
@@ -32,6 +33,8 @@ Artifact page: `node ../../tools/artifact-modules.js . <page.html>`, then publis
 - `game.js`: `run(mode)`, renderer and camera, input, rules (bite, grow, combo, sweep, finish), HUD, sound, languages, save.
 - `city.js`: the city: one InstancedMesh for every block (toy-plastic shader with bevel edges and the see-through
   cut), island, sea and sky props, flying and resting blocks, pancake and topple, cars, trees, lamps, residents, soft dust, confetti.
+- `army.js`: toy cars, foam tanks, bubble helicopters on the road grid, their shots, wanted stars, the boss.
+- `moves.js`: the nine button moves as short scripts, plus buy and ready rules.
 - `bonbon.js`: the monster: head with jaw, claws, candy material (matte on low-end phones), ink outline, spring tail, squash and stretch, six faces.
 - `game_config.json`: every tunable value and the strings for 7 languages.
 

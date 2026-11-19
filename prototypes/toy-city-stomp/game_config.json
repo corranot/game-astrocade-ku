@@ -23,7 +23,7 @@
     "car": { "speed": 7, "dmg": 3, "points": 30 },
     "tank": { "speed": 4, "range": 13, "fireSec": 2.4, "dmg": 5, "points": 60 },
     "heli": { "speed": 6, "fireSec": 2.8, "dmg": 4, "points": 80 },
-    "spirit": { "base": 100, "perStage": 20, "perHit": 1, "perKill": 5, "dizzySec": 2, "loseGrowFrac": 0.1 }
+    "spirit": { "base": 100, "perStage": 20, "perKill": 5, "dizzySec": 2, "loseGrowFrac": 0.1 }
   },
   "boss": { "hp": 120, "atStage": 8, "orCityBelow": 0.15, "hitDmg": 4, "skillDmg": 12, "dominoDmg": 15, "stompDmg": 10, "dartDmg": 5, "slamDmg": 15, "points": 2000 },
   "moves": [

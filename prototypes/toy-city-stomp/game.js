@@ -86,8 +86,8 @@ function startGame(mode) {
 
   // quality tier: 0 low .. 3 high; chosen from the device, then lowered live when frames are slow
   const tiers = [
-    { dpr: 0.75, shadow: 0, shadowsOnBlocks: false, candy: false, rubble: 700, dust: 50, confetti: 80 },
-    { dpr: 1.0, shadow: 1024, shadowsOnBlocks: false, candy: false, rubble: 1200, dust: 90, confetti: 140 },
+    { dpr: 0.75, shadow: 0, shadowsOnBlocks: false, candy: false, rubble: 700, dust: 50, confetti: 80, maxUnits: 6 },
+    { dpr: 1.0, shadow: 1024, shadowsOnBlocks: false, candy: false, rubble: 1200, dust: 90, confetti: 140, maxUnits: 8 },
     { dpr: 1.25, shadow: 1024, shadowsOnBlocks: true, candy: true, rubble: 2000, dust: 130, confetti: 200 },
     { dpr: 1.75, shadow: 2048, shadowsOnBlocks: true, candy: true, rubble: 3000, dust: 160, confetti: 260 },
   ];
@@ -207,7 +207,7 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, bossDone: false, bossShown: false, starsShown: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
@@ -272,14 +272,15 @@ function startGame(mode) {
     if (S.combo >= CB.every && S.combo % CB.every === 0) { Sound.combo(S.combo / CB.every); const c = $('combo'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
   }
   function grow() {
-    S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1);
+    S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1); S.spirit += cfg.army.spirit.perStage;
     S.slowT = FX.slowmoSec; shake(0.35);
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success');
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
     for (const c of city.squashCars(S.x, S.z, 4 * S.scaleTarget)) score(PT.car, c.x, 1, c.z, '');
     for (let k = 0; k < 10; k++) city.puff(S.x + Math.cos(k) * 3 * S.scaleTarget, 0.6, S.z + Math.sin(k) * 3 * S.scaleTarget, 2.2);
-    if (save.equipped === 'spin' && S.stage === (moveInfo(cfg, 'spin') || {}).stage) setTimeout(() => { if (S && !S.finished) { banner(T('newMove'), 1.6); refreshSkill(); } }, 900);
+    const round = S;
+    if (save.equipped === 'spin' && S.stage === (moveInfo(cfg, 'spin') || {}).stage) setTimeout(() => { if (S === round && !S.finished) { banner(T('newMove'), 1.6); refreshSkill(); } }, 900);
   }
 
   // ---------- input: the first finger steers (a floating stick); keyboard on desktop
@@ -312,7 +313,7 @@ function startGame(mode) {
   canvas.addEventListener('pointerdown', onDown); hud.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey); window.addEventListener('blur', onBlur);
-  root.addEventListener('contextmenu', (e) => e.preventDefault());
+  const noMenu = (e) => e.preventDefault(); root.addEventListener('contextmenu', noMenu);
 
   $('mute').onclick = (e) => { e.currentTarget.blur(); Sound.setMuted(!Sound.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊'; };
   $('lang').onclick = (e) => {
@@ -359,7 +360,7 @@ function startGame(mode) {
     if (!S || S.finished || S.skillCd > 0 || S.jump || S.dizzyT > 0) return;
     const id = save.equipped;
     if (!moveReady(cfg, id, save.owned, S.stage) || !MOVES[id]) return;
-    S.skillCd = moveInfo(cfg, id).cooldownSec; bon.stomp(1.2); bon.face('angry', 0.6); buzz('thud');
+    S.skillCd = S.skillCdMax = moveInfo(cfg, id).cooldownSec; bon.stomp(1.2); bon.face('angry', 0.6); buzz('thud');
     MOVES[id](fx);
   }
   /** Shows the big button with the equipped move once it can be used. */
@@ -462,7 +463,7 @@ function startGame(mode) {
         const n = city.bite(b, biteP, MC.biteRadius * Math.pow(S.scale, 0.85), dirV);
         if (n) {
           hitCombo(false); score(n * PT.perVoxel, biteP.x, biteP.y + 1, biteP.z, S.firstBonk ? undefined : T('bonk')); S.firstBonk = true;
-          S.hitstopT = FX.hitstopSec * 0.6; // no screen shake per bite: the blocks and dust carry the hit Sound.bite(b.k); buzz('tap');
+          S.hitstopT = FX.hitstopSec * 0.6; Sound.bite(b.k); buzz('tap'); // no screen shake per bite: the blocks and dust carry the hit
         }
       }
     }
@@ -508,7 +509,7 @@ function startGame(mode) {
       } else if (e.type === 'stars') {
         const [sx, sy] = screenOf(S.x, 6 * S.scale, S.z); pop(T('wanted') + ' ' + '★'.repeat(e.stars), sx, sy, '#ffc531', 1.1); Sound.combo(2 + e.stars);
       } else if (e.type === 'bossIntro') {
-        S.bossShown = true; banner(T('warn'), 1.8); $('bossName').textContent = T('boss'); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
+        banner(T('warn'), 1.8); $('bossName').textContent = T('boss'); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
       } else if (e.type === 'bossLand') {
         shake(0.45); Sound.land(); for (let k = 0; k < 10; k++) city.puff(e.x + Math.cos(k) * 5, 0.8, e.z + Math.sin(k) * 5, 2.4);
       } else if (e.type === 'bossSlam') {
@@ -538,6 +539,7 @@ function startGame(mode) {
   }
 
   function finish() {
+    army.clearAll();
     S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true;
     bon.face('win', 99); S.yaw = Math.atan2(camera.position.x - S.x, camera.position.z - S.z); Sound.win(); buzz('success');
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
@@ -574,8 +576,10 @@ function startGame(mode) {
     const w = 5, ax = (S.x - follow.x) * w * w - 2 * w * follow.vx, az = (S.z - follow.z) * w * w - 2 * w * follow.vz;
     follow.vx += ax * dt; follow.vz += az * dt; follow.x += follow.vx * dt; follow.z += follow.vz * dt;
     const z = Math.pow(S.scale / G.baseScale, 0.95); // the camera backs off as fast as Bonbon grows
-    camPos.set(follow.x + 0.8 * z, 7.5 * z + 2.5, follow.z + 13 * z + 3);
-    camLook.set(follow.x, 2.2 * z, follow.z - 12 * z);
+    // all offsets scale with Bonbon, so it keeps the same size and place on screen at every stage: low in the
+    // frame, leaving the sky and what lies ahead (a boss, the next towers) in view
+    camPos.set(follow.x + 0.8 * z, 8.6 * z, follow.z + 16 * z);
+    camLook.set(follow.x, 3.4 * z, follow.z - 14 * z);
     S.trauma = Math.max(0, S.trauma - dt * 2.2);
     const sh = S.trauma * S.trauma * FX.shakeMax * z, tt = performance.now() / 1000;
     camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 23) * sh * 0.35, Math.sin(tt * 19 + 1) * sh * 0.25, 0));
@@ -612,9 +616,9 @@ function startGame(mode) {
     const raw = Math.min(0.11, (now - last) / 1000); last = now;
     fps = fps * 0.95 + (1 / Math.max(raw, 0.001)) * 0.05;
     for (let k = 0; k < SIM; k++) simulate(raw);
-    updateCamera(raw);
+    updateCamera(raw); army.draw();
     bannerT -= raw; if (bannerT <= 0) $('banner').classList.remove('show');
-    const ring = S.skillCd > 0 ? Math.ceil(S.skillCd / cfg.skill.cooldownSec * 20) / 20 : 0;
+    const ring = S.skillCd > 0 ? Math.ceil(S.skillCd / (S.skillCdMax || 1) * 20) / 20 : 0;
     if (ring !== ringShown) { ringShown = ring; $('ring').style.setProperty('--p', ring); $('skill').classList.toggle('ready', ring === 0); }
     renderer.render(scene, camera);
     if (mode === 'play' && SIM === 1) adaptQuality(raw);
@@ -643,7 +647,8 @@ function startGame(mode) {
     bon.root.position.set(S.x, airY, S.z); bon.root.rotation.y = S.yaw;
     bon.update(dt, { moving: S.moving && !S.finished, speed: S.speed, lookAt });
     city.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, moving: S.moving && !S.finished });
-    if (mode === 'play' && !S.finished) army.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, scale: S.scale, height: 2.8 * S.scale, stage: S.stage });
+    if (mode === 'play' && S.finished) army.settle(dt);
+    if (mode === 'play' && !S.finished) army.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, scale: S.scale, size: S.scaleTarget, height: 2.8 * S.scale, stage: S.stage });
   }
 
   // ---------- start
@@ -669,18 +674,19 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
-      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang;
+      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped;
       if (st) {
         Object.assign(save, st);
         save.coins = (st.coins || 0) + earned;
         if (best !== null) save.best = save.best === null ? best : Math.min(best, save.best);
         save.bestCombo = Math.max(combo, st.bestCombo || 0);
         if (picked) save.lang = picked;
-        if (!Array.isArray(save.owned)) save.owned = []; if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
+        save.owned = [...new Set([...(Array.isArray(st.owned) ? st.owned : []), ...ownedBefore])]; if (equippedBefore !== 'spin') save.equipped = equippedBefore;
+        if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
-      if (earned > 0 || picked) persist();
+      if (earned > 0 || picked || ownedBefore.length) persist();
     }).catch(() => { saveLoaded = true; });
   }
   raf = requestAnimationFrame(frame);
@@ -689,7 +695,7 @@ function startGame(mode) {
     destroy() {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
-      window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); window.removeEventListener('resize', onResize);
       city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envTex.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
