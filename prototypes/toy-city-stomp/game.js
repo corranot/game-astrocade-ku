@@ -204,14 +204,13 @@ function startGame(mode) {
   hud.innerHTML = `
     <div class="top">
       <div class="grow"><div class="stage"><span id="stage" class="out">1</span></div><div class="bar gloss"><i id="bar"></i></div></div>
-      <div class="vs out">VS</div>
       <div class="cityhp"><div class="bar blue gloss"><i id="cityBar" style="width:100%"></i><b id="cityPct" class="out">100%</b></div><div class="bld"></div></div>
     </div>
     <div class="row2">
       <div class="leftcol"><div class="coins gloss"><span class="coin-ico"></span><b id="coins">0</b></div>
       <div class="mission gloss" id="mission" hidden><span class="mi-ico" id="miIco"></span><b id="miCount"></b><span class="mi-rw"><span class="coin-ico"></span><i id="miRw"></i></span></div></div>
-      <div class="mid"><div class="spirit gloss"><span class="heart">❤</span><div class="sbar"><i id="spirit"></i></div></div><div class="wanted out" id="wanted"></div></div>
-      <div class="btns"><button class="icon gloss" id="lang" aria-label="Language">🌐</button><button class="icon gloss" id="mute" aria-label="Sound">${Sound.muted ? '🔇' : '🔊'}</button></div>
+      <div class="mid"><div class="spirit gloss" id="spiritBox"><span class="heart">❤</span><div class="sbar"><i id="spirit"></i></div></div><div class="wanted out" id="wanted"></div></div>
+      <div class="btns"><button class="icon gloss" id="gear" aria-label="Settings">⚙️</button></div>
     </div>
     <div class="bossbar" id="bossbar" hidden><b class="out" id="bossName"></b><div class="bar gloss"><i id="bossHp"></i></div></div>
     <div class="combo out" id="combo"></div>
@@ -252,8 +251,11 @@ function startGame(mode) {
 
   function newRound() {
     if (city) city.dispose();
-    rng = mulberry32(cfg.seed || 1);
-    city = createCity(scene, cfg, rng, quality);
+    // a new city every round: the first one (and the attract mode) is the tuned seed, then each finished city
+    // moves the seed on, so the layout, colours and the clock tower's place change
+    const n = save.rounds || 0;
+    rng = mulberry32(((cfg.seed || 1) + n * 7919) >>> 0);
+    city = createCity(scene, cfg, rng, quality, { shuffle: n > 0 });
     if (army) army.dispose();
     army = createArmy(scene, cfg, rng, quality, city);
     missions = createMissions(rng, !!save.tutorialDone, missionDone, levelOf);
@@ -262,18 +264,18 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.setRainbow(false); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
-    $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play';
+    $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play'; hud.classList.remove('ended');
     follow.init = false; follow.vx = follow.vz = 0;
     S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = hudCache.mission = null;
     updateHud();
   }
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0 };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -288,14 +290,14 @@ function startGame(mode) {
     const cb = $('combo'), txt = S.combo >= CB.every ? T('combo') + ' ×' + comboMult(S.combo, CB) : '';
     if (hudCache.combo !== txt) { hudCache.combo = txt; if (txt) { cb.textContent = txt; cb.classList.add('on'); } else cb.classList.remove('on'); }
     const sp = Math.round(S.spirit / spiritMax() * 100) + '%';
-    if (hudCache.spirit !== sp) { hudCache.spirit = sp; $('spirit').style.width = sp; }
+    if (hudCache.spirit !== sp) { hudCache.spirit = sp; $('spirit').style.width = sp; $('spiritBox').classList.toggle('full', sp === '100%'); }
     const ws = army ? army.stars : 0;
     if (hudCache.wanted !== ws) { hudCache.wanted = ws; $('wanted').textContent = ws ? '★'.repeat(ws) + '☆'.repeat(4 - ws) : ''; }
     if (army && army.boss.alive) { const bh = Math.round(army.boss.hp / cfg.boss.hp * 100) + '%'; if (hudCache.boss !== bh) { hudCache.boss = bh; $('bossHp').style.width = bh; } }
     const mi = missions && !S.finished && missions.current, mk = mi ? mi.icon + mi.have + '/' + mi.n : '';
     if (hudCache.mission !== mk) {
       hudCache.mission = mk; $('mission').hidden = !mi || S.finished;
-      if (mi) { $('miIco').textContent = mi.icon; $('miCount').textContent = mi.have + '/' + mi.n; $('miRw').textContent = missions.reward(mi); const el = $('mission'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+      if (mi) { $('miIco').textContent = mi.icon; $('miCount').textContent = mi.have + '/' + mi.n; $('miRw').textContent = missions.reward(mi); const el = $('mission'); el.classList.remove('bump', 'mini'); void el.offsetWidth; el.classList.add('bump'); setTimeout(() => { if (hudCache.mission === mk) el.classList.add('mini'); }, 3000); }
     }
     const pct = Math.max(0, Math.round(S.pct));
     if (hudCache.pct !== pct) { hudCache.pct = pct; $('cityBar').style.width = pct + '%'; $('cityPct').textContent = pct + '%'; }
@@ -316,7 +318,7 @@ function startGame(mode) {
   /** Toy army hits lower Spirit; at zero Bonbon is dizzy for a moment and loses a little grow bar. Never a game over. */
   function hurt(dmg, x, z) {
     if (S.finished || S.dizzyT > 0) return;
-    S.spirit = Math.max(0, S.spirit - dmg); bon.face('surprised', 0.4); bon.stomp(0.3); buzz('tap'); Sound.boing();
+    S.hits++; S.spirit = Math.max(0, S.spirit - dmg); bon.face('surprised', 0.4); bon.stomp(0.3); buzz('tap'); Sound.boing();
     const [sx, sy] = screenOf(x, 2, z); pop('-' + dmg, sx, sy, '#3fa9ff', 0.8);
     if (S.spirit <= 0) {
       S.dizzyT = cfg.army.spirit.dizzySec; bon.face('dizzy', S.dizzyT); banner(T('dizzy'), 1.2);
@@ -336,7 +338,7 @@ function startGame(mode) {
   }
   /** Every car squash goes through here: points, combo, the car mission and the ice-cream secret. */
   function squashCarsAt(x, z, r) {
-    for (const c of city.squashCars(x, z, r)) { carDown(c); mission('car'); hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
+    for (const c of city.squashCars(x, z, r)) { S.cars++; carDown(c); mission('car'); hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
   }
   /** The current level of a "reach" mission event, so a new mission starts from where the player already is. */
   function levelOf(ev) { return ev === 'grow' ? S.stage : ev === 'stars' ? (army ? army.stars : 0) : ev === 'combo' ? comboMult(S.combo, CB) : 0; }
@@ -399,12 +401,14 @@ function startGame(mode) {
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey); window.addEventListener('blur', onBlur);
   const noMenu = (e) => e.preventDefault(); root.addEventListener('contextmenu', noMenu);
 
-  $('mute').onclick = (e) => { e.currentTarget.blur(); Sound.setMuted(!Sound.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊'; };
-  $('lang').onclick = (e) => {
-    e.currentTarget.blur();
+  $('gear').onclick = (e) => {
+    e.currentTarget.blur(); Sound.unlock();
     const box = $('langs'); box.hidden = !box.hidden;
-    box.innerHTML = LANGS.map((l) => `<button data-l="${l}" class="${l === lang ? 'on' : ''}" lang="${l}">${LANG_NAMES[l]}</button>`).join('');
-    box.querySelectorAll('button').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
+    if (box.hidden) return;
+    box.innerHTML = `<button id="snd" class="snd">${Sound.muted ? '🔇' : '🔊'}</button>` +
+      LANGS.map((l) => `<button data-l="${l}" class="${l === lang ? 'on' : ''}" lang="${l}">${LANG_NAMES[l]}</button>`).join('');
+    box.querySelector('#snd').onclick = (ev) => { Sound.setMuted(!Sound.muted); ev.currentTarget.textContent = Sound.muted ? '🔇' : '🔊'; };
+    box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
   };
   $('skill').onclick = (e) => { e.currentTarget.blur(); Sound.unlock(); useSkill(); };
 
@@ -627,6 +631,46 @@ function startGame(mode) {
     if (left === 0 && S.bossDone && city.events.length === 0 && army.events.length === 0 && !city.anyToppling() && !S.finished) finish();
   }
 
+  const fmt = (n) => { try { return n.toLocaleString(lang); } catch (e) { return String(n); } };
+  /** The cheapest move not owned yet: how close the coins are to it (shown under the result). */
+  function nextGoal() {
+    const m = (cfg.moves || []).filter((x) => x.price > 0 && !save.owned.includes(x.id)).sort((a, b) => a.price - b.price)[0];
+    if (!m) return null;
+    const need = m.price - save.coins;
+    return { icon: m.icon, p: Math.min(100, Math.round(save.coins / m.price * 100)), text: need > 0 ? T('need').replace('{n}', fmt(need)) : T('buy') + '!' };
+  }
+  /** Counts a number up over about a second with soft ticks. */
+  function countUp(el, to) {
+    if (!el) return;
+    const round = S, t0 = performance.now(), dur = 1100; let ticks = 0;
+    const step = (now) => {
+      if (!alive || S !== round || !el.isConnected) return;
+      const k = Math.min(1, (now - t0) / dur), v = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      el.textContent = fmt(v);
+      if (Math.floor(k * 12) > ticks) { ticks = Math.floor(k * 12); Sound.pop(); }
+      if (k < 1) requestAnimationFrame(step); else { el.classList.add('bump'); buzz('success'); }
+    };
+    requestAnimationFrame(step);
+  }
+  /** Posts lifetime blocks smashed and shows the top three under the result (names as plain text). */
+  function postScore() {
+    const round = S;
+    Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(save.smashed)).catch(() => {})
+      .then(() => lib.getTopNEntriesFromLeaderboard(3)).then((res) => {
+        const list = res && Array.isArray(res.entries) ? res.entries.slice(0, 3) : [];
+        const box = document.querySelector('#board');
+        if (!alive || S !== round || !box || !list.length) return;
+        box.innerHTML = '';
+        list.forEach((e, i) => {
+          const li = document.createElement('li'), nm = document.createElement('span'), sc = document.createElement('b');
+          nm.textContent = ['🥇', '🥈', '🥉'][i] + ' ' + String(e.username || '?').slice(0, 16); nm.dir = 'auto';
+          sc.textContent = fmt(Number(e.score) || 0); sc.dir = 'ltr';
+          li.append(nm, sc); box.appendChild(li);
+        });
+        if (typeof res.userRank === 'number' && res.userRank > 3) { const li = document.createElement('li'); li.className = 'me'; li.textContent = '#' + res.userRank; box.appendChild(li); }
+        box.hidden = false;
+      }).catch(() => {});
+  }
   function finish() {
     army.clearAll();
     S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true; $('skill').hidden = true;
@@ -636,19 +680,27 @@ function startGame(mode) {
     const counts = S.touched; // the attract mode (nobody touched yet) shows the result but saves nothing
     const isBest = counts && (save.best === null || sec < save.best);
     if (isBest) save.best = sec;
-    if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); persist(); Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(S.points)).catch(() => {}); }
+    const blocks = city.totalBlocks; // every block of the city fell
+    // the leaderboard ranks lifetime blocks smashed: it only grows, so every city played moves a child up
+    if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); save.rounds = (save.rounds || 0) + 1; save.smashed = (save.smashed || 0) + blocks; persist(); postScore(); }
     updateHud();
     const r = $('result');
     const mmss = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    const goal = nextGoal();
     r.innerHTML = `<div class="card">
       <h2 dir="auto">${T('flat')}</h2>
       <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('')}</div>
-      <dl><dt>${T('time')}</dt><dd dir="ltr">${mmss}</dd><dt>${T('bestCombo')}</dt><dd dir="ltr">×${comboMult(S.bestCombo, CB)}</dd><dt><span class="coin-ico"></span></dt><dd dir="ltr">+${S.coins}</dd></dl>
+      <div class="smash"><b class="out" id="blk" dir="ltr">0</b><span dir="auto">${T('smashed')}</span></div>
+      <div class="chips" dir="ltr"><span>⏱ ${mmss}</span><span>🚗 ${S.cars}</span><span>🎈 ${city.rescued()}</span><span>🔥 ×${comboMult(S.bestCombo, CB)}</span></div>
+      <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${S.coins}</b></div>
+      ${counts ? `<div class="total" dir="auto">${T('total')} <b dir="ltr">${fmt(save.smashed)}</b> 🧱</div>` : ''}
       ${isBest ? `<div class="best">${T('best')}</div>` : ''}
+      ${goal ? `<div class="goal"><span class="gico">${goal.icon}</span><div class="gbar"><i style="width:${goal.p}%"></i></div><b dir="auto">${goal.text}</b></div>` : ''}
+      <ol class="board" id="board" hidden></ol>
     </div>
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
     <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button></div>`;
-    setTimeout(() => { if (!S.finished) return; r.hidden = false; r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
+    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
@@ -769,6 +821,7 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
+      const roundsBefore = save.rounds || 0, smashedBefore = save.smashed || 0;
       const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped, tutorialBefore = save.tutorialDone;
       if (st) {
         Object.assign(save, st);
@@ -779,12 +832,15 @@ function startGame(mode) {
         save.tutorialDone = !!(st.tutorialDone || tutorialBefore);
         save.owned = [...new Set([...(Array.isArray(st.owned) ? st.owned : []), ...ownedBefore])]; if (equippedBefore !== 'spin') save.equipped = equippedBefore;
         if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
+        save.rounds = (Number(st.rounds) || 0) + roundsBefore; save.smashed = (Number(st.smashed) || 0) + smashedBefore;
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
       // a player who did the tutorial before should not get it again just because the save arrived late
       if (save.tutorialDone && missions && missions.tutorial && !S.touched) missions = createMissions(rng, true, missionDone, levelOf);
+      // nobody has touched yet: rebuild so a returning player sees the city after their last one
+      if (save.rounds > 0 && roundsBefore === 0 && S && !S.touched && !S.finished) newRound();
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
-      if (earned > 0 || picked || ownedBefore.length) persist();
+      if (earned > 0 || picked || ownedBefore.length || roundsBefore) persist();
       { const ts = document.querySelector('#toShop'); if (ts && S.finished && canBuy() && !ts.querySelector('.badge')) ts.insertAdjacentHTML('beforeend', '<span class="badge">!</span>'); }
     }).catch(() => { saveLoaded = true; });
   }
@@ -811,7 +867,7 @@ window.run = run;
 // Outside Astrocade (?local): stand in for the host, read the config file and start.
 if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('local') && !window.lib) {
   const none = async () => ({});
-  window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none,
+  window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
     shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} } };
   Promise.all([fetch('./game_config.json').then((r) => r.json()), fetch('./asset_map.json').then((r) => r.json()).catch(() => ({}))]).then(([c, assets]) => {
     window.lib.getAsset = (id) => assets[id];

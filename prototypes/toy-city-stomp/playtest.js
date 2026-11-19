@@ -57,14 +57,16 @@ const server = http.createServer((q, s) => {
     await page.waitForTimeout(500);
     check(await g(() => __game.Sound.musicOn), 'music plays again after the game is started a second time');
   }
-  await g(() => { __game.newRound(); __game.S.touched = true; __game.S.idle = 99; }); // a fresh round as a child who touched once then let go: autopilot plays on and the round counts
+  // --city N plays the Nth city (0 = the first, tuned one; later ones are shuffled)
+  const cityN = Number(process.argv[process.argv.indexOf('--city') + 1]) || 0;
+  await g((n) => { __game.save.rounds = n; __game.newRound(); __game.S.touched = true; __game.S.idle = 99; }, process.argv.includes('--city') ? cityN : 0); // a fresh round as a child who touched once then let go: autopilot plays on and the round counts
 
   // play on autopilot; note when things happen
   const seen = { stage3: false, domino: false, grow1: null, dom1: null, units: 0, stars: 0, boss: false, bossShot: false, hurt: false, armyShot: false };
   const t0 = Date.now();
   while (Date.now() - t0 < 420000) {
-    const s = await g(() => ({ cracked: __game.city.buildings.some((b) => b.cracked), units: __game.army.units.length, stars: __game.army.stars, boss: __game.army.boss.alive, spirit: __game.S.spirit, stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
-    if (s.cracked) seen.cracked = true; seen.units = Math.max(seen.units, s.units); seen.stars = Math.max(seen.stars, s.stars); if (s.spirit < 99) seen.hurt = true;
+    const s = await g(() => ({ cracked: __game.city.buildings.some((b) => b.cracked), units: __game.army.units.length, stars: __game.army.stars, boss: __game.army.boss.alive, spirit: __game.S.spirit, hits: __game.S.hits, stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
+    if (s.cracked) seen.cracked = true; seen.units = Math.max(seen.units, s.units); seen.stars = Math.max(seen.stars, s.stars); if (s.hits > 0) seen.hurt = true;
     if (!seen.armyShot && s.units >= 3) { seen.armyShot = true; await page.screenshot({ path: path.join(out, `05-army-${lang}.png`) }); }
     if (s.boss) { seen.boss = true; if (!seen.bossShot) { seen.bossShot = true; await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, `06-boss-${lang}.png`) }); } }
     if (seen.grow1 === null && s.stage >= 2) seen.grow1 = s.time;
@@ -88,9 +90,20 @@ const server = http.createServer((q, s) => {
   await page.waitForTimeout(2500);
   check(await g(() => !document.querySelector('#result').hidden), 'result screen shows');
   await page.screenshot({ path: path.join(out, `04-result-${lang}.png`) });
+  const sig = 'const cl = __game.city.buildings.find((b) => b.k === 5); return { clock: cl.x0 + "," + cl.z0, layout: __game.city.buildings.map((b) => b.k + ":" + b.x0 + "," + b.z0).join() };';
+  const city1 = await g(new Function(sig)), saved1 = await g(() => ({ rounds: __game.save.rounds, smashed: __game.save.smashed, blocks: __game.city.totalBlocks }));
+  check(saved1.rounds === (process.argv.includes('--city') ? cityN : 0) + 1 && saved1.smashed === saved1.blocks, `the finished city is saved: ${saved1.rounds} city, ${saved1.smashed} blocks smashed all-time`);
+  check(/\d/.test(await g(() => document.querySelector('#blk').textContent)) && await g(() => document.querySelector('#blk').textContent !== '0'), 'the result counts the blocks smashed up from 0');
   const { ms, reset } = await g(() => { const t = performance.now(); document.querySelector('#again').click(); const ms = performance.now() - t;
     return { ms, reset: { fin: __game.S.finished, stage: __game.S.stage, left: __game.city.intactLeft(), n: __game.city.buildings.length } }; });
   check(!reset.fin && reset.stage === 1 && reset.left === reset.n && ms < 100, `replay resets the round in ${ms.toFixed(0)} ms`);
+  const city2 = await g(new Function(sig));
+  check(city2.layout !== city1.layout && city2.clock !== city1.clock, `the next city is a new one (clock tower ${city1.clock} -> ${city2.clock})`);
+  // one settings button holds sound and languages
+  const gear = await g(() => { document.querySelector('#gear').click(); const box = document.querySelector('#langs'), m0 = __game.Sound.muted;
+    box.querySelector('#snd').click(); const m1 = __game.Sound.muted; box.querySelector('#snd').click();
+    const r = { open: !box.hidden, langs: box.querySelectorAll('[data-l]').length, toggled: m1 !== m0, back: __game.Sound.muted === m0 }; document.querySelector('#gear').click(); return { ...r, closed: box.hidden }; });
+  check(gear.open && gear.langs === 7 && gear.toggled && gear.back && gear.closed, `the settings button opens sound + 7 languages and closes again (${JSON.stringify(gear)})`);
   // shop: a locked card refuses, a bought move goes on the big button and breaks things when used
   {
     const r1 = await g(() => { __game.save.coins = 100; __game.save.owned = []; __game.save.equipped = 'spin'; __game.openShop(); const c = document.querySelector('.mcard[data-id="flop"]'); c.click(); return { cls: c.className, owned: __game.save.owned.slice() }; });
