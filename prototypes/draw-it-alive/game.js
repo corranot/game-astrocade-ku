@@ -2,7 +2,9 @@
 /**
  * Draw It Alive: draw the one missing part with a finger and the scene comes alive, using the line you drew.
  *
- * There is no menu and no text. Level 1 is on screen at once, with a dashed outline of the missing part,
+ * There is no menu. Words are few and short: one command per part, praise, and labels on the box, the wall and
+ * the book, in the device's language (seven languages, Arabic right to left; the globe in the sticker book
+ * changes it). Level 1 is on screen at once, with a dashed outline of the missing part,
  * a pulsing start dot and a ghost hand that shows the gesture; the hand comes back whenever the player
  * waits. A stroke is compared with the level's hidden path when the finger lifts. A miss never ends
  * anything: the line fades, the hand shows the way again, and after a few misses the player's line slides
@@ -26,13 +28,15 @@ const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of th
 const WALLB = { x: 600, y: 1040, s: 96 }; // button to the wall, lower right
 const JAR = { x: 24, y: 40, s: 110 }; // the paint jar, top left; it opens the sticker book
 const BACK = { x: 312, y: 1110, s: 96 }; // the way back out of the sticker book
+const LANGB = { x: 140, y: 46, w: 440, h: 96 }; // the language button at the top of the sticker book
 const CARD = { k: 0.4, w: 288, h: 320, top: 280, border: 1.6, pad: 30 }; // a wall card shows the scene at 0.4, cropped from y = 280
 const SKIN = '#FFD8B5';
 const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 
 let cv, g, cfg, mode, raf = 0, last = 0, runs = 0;
-let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [] }, saveRead = false, muteTouched = false;
+let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [], lang: null }, saveRead = false, muteTouched = false;
 let view = 'play', wall = null, gift = null, book = null; // 'play' a level, 'wall' the finished pictures, 'box' a surprise box, 'book' the stickers
+let lang = 'en', said = { key: '', t: 0 }; // the language shown; the command on screen and when it appeared
 let jarShown = 0, flyers = [], dropsSince = 0; // dropsSince: drops earned (less boxes opened) since this run started // drops in the jar as drawn, and drops on their way to it
 let S = null, target = [], targetLen = 0, closed = false, back = null, bits = [];
 let pointerDown = false, touched = false, bound = false, press = null;
@@ -40,6 +44,44 @@ let ac = null, lastTick = 0, timers = [];
 let quality = 0, frameTimes = [], slow = 0, fast = 0; // 0 full, 1 fewer particles, 2 also a still wall
 const cardBacks = [], cardImgs = [];
 let wallBack = null;
+
+// ---------- words ----------
+/** Player-facing text for key k in the current language; English when the language lacks it. All text lives in cfg.strings. */
+const T = (k) => (cfg.strings[lang] && cfg.strings[lang][k]) || cfg.strings.en[k] || k;
+/** The first device language the game has text for, else English. */
+function detectLang() {
+  for (const l of navigator.languages || [navigator.language || 'en']) { const base = String(l).toLowerCase().split('-')[0]; if (cfg.strings[base]) return base; }
+  return 'en';
+}
+const rtl = () => (cfg.rtl || []).includes(lang);
+/** Text centred on (x, y), bold, shrunk until it fits in maxW. Returns the width drawn. */
+function words(str, x, y, size, maxW, color) {
+  g.direction = rtl() ? 'rtl' : 'ltr'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let px = size; g.font = `bold ${px}px system-ui, 'Noto Sans', sans-serif`;
+  while (px > 18 && g.measureText(str).width > maxW) { px -= 2; g.font = `bold ${px}px system-ui, 'Noto Sans', sans-serif`; }
+  g.fillStyle = color; g.fillText(str, x, y);
+  return Math.min(maxW, g.measureText(str).width);
+}
+/** A white pill with words in it, centred at (x, y); pop scales it for a bounce. */
+function banner(str, x, y, size, maxW, color = NAVY, pop = 1) {
+  g.save(); g.translate(x, y); g.scale(pop, pop);
+  g.font = `bold ${size}px system-ui, 'Noto Sans', sans-serif`;
+  const w = Math.min(maxW, g.measureText(str).width) + 64, h = size + 34;
+  box(g, -w / 2, -h / 2 + 6, w, h, h / 2, 'rgba(31,42,107,0.22)');
+  box(g, -w / 2, -h / 2, w, h, h / 2, WHITE);
+  words(str, 0, 2, size, maxW, color);
+  g.restore();
+}
+const popIn = (age) => (age < 0.35 ? 0.6 + 0.4 * ease(age / 0.35) + Math.sin(Math.min(1, age / 0.35) * Math.PI) * 0.12 : 1);
+
+/** The command for the part being drawn, or "try again" just after a miss; praise once the level is done. */
+function drawWords() {
+  if (S.won < 0) {
+    const key = S.mood === 'sad' && S.sadFor > 0 ? 'miss' : 'L' + (S.i % LEVELS.length + 1) + (S.k ? 'b' : '');
+    if (said.key !== key) said = { key, t: S.t };
+    banner(T(key), W / 2, 200, 46, 560, key === 'miss' ? CORAL : NAVY, popIn(S.t - said.t));
+  } else if (S.won > 0.4) banner(T('p' + S.stars), W / 2, 196, 52, 520, ORANGE, popIn(S.won - 0.4));
+}
 
 // ---------- host calls that must never stop the game ----------
 const buzz = (kind) => { try { if (lib.haptics && lib.haptics.play) lib.haptics.play(kind); } catch (e) { /* no vibration here */ } };
@@ -233,6 +275,7 @@ function drawWall() {
   }
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
+  if (wall.opens && wall.unlocked >= 0 && wall.next > 0 && wall.next < LEVELS.length) banner(T('open').replace('{n}', chapterOf(wall.next) + 1), W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
 }
 
 // ---------- judging ----------
@@ -300,7 +343,7 @@ function win(pen, from) {
   save.level = Math.max(save.level, S.i + 1);
   // every star is a paint drop that flies to the jar
   save.drops += S.stars; dropsSince += S.stars;
-  for (let j = 0; j < S.stars; j++) flyers.push({ x: W / 2 + (j - 1) * 112, y: 250, t: -0.55 - j * 0.25 });
+  for (let j = 0; j < S.stars; j++) flyers.push({ x: W / 2 + (j - 1) * 112, y: 310, t: -0.55 - j * 0.25 });
   persist();
 }
 
@@ -328,7 +371,9 @@ function release(p) {
   if (pr.what === 'toWall' && onButton(WALLB, p)) { const c = wallChapter(); return openWall(c, S.i, false); }
   if (pr.what === 'jar' && onButton(JAR, p)) return openBook();
   if (pr.what === 'box') return gift.open < 0 ? popBox() : gift.t - gift.open > cfg.skipAfter * 0.5 ? gift.then() : undefined;
-  if (pr.what === 'book') { if (onButton(BACK, p)) { beep(700, 0.08); view = 'play'; book = null; S.idle = 0; } return; }
+  if (pr.what === 'book') {
+    if (p[0] > LANGB.x && p[0] < LANGB.x + LANGB.w && p[1] > LANGB.y && p[1] < LANGB.y + LANGB.h) { const all = Object.keys(cfg.strings); lang = save.lang = all[(all.indexOf(lang) + 1) % all.length]; persist(); beep(760, 0.07); return; }
+    if (onButton(BACK, p)) { beep(700, 0.08); view = 'play'; book = null; S.idle = 0; } return; }
   if (pr.what === 'mute' && onButton(MUTE, p)) { save.muted = !save.muted; muteTouched = true; beep(700, 0.08); persist(); return; }
   if (pr.what === 'skip' && S.won > cfg.skipAfter) { S.won = 99; S.cue = (S.lv.cues || []).length; S.starsShown = S.stars; } // skip the sounds still to come too
 }
@@ -437,6 +482,7 @@ function drawBox() {
     g.fillStyle = WHITE; g.beginPath(); g.arc(cx, y, r * 1.25, 0, 7); g.fill();
     STICKERS[gift.id](g, cx, y, r);
     // the set it belongs to: six slots, the new one glowing
+    banner(T(gift.full ? 'setDone' : 'sticker'), W / 2, 214, 52, 520, gift.full ? ORANGE : VIOLET, popIn(a - 0.3));
     const s0 = gift.id - gift.id % SET;
     for (let j = 0; j < SET; j++) {
       const id = s0 + j, x = cx + (j - 2.5) * 104, yy = 1060, has = save.stickers.includes(id);
@@ -445,6 +491,7 @@ function drawBox() {
       if (has) STICKERS[id](g, x, yy, id === gift.id ? 34 + Math.sin(a * 10) * 3 : 34); else { g.fillStyle = '#D9CCFF'; g.beginPath(); g.arc(x, yy, 26, 0, 7); g.fill(); }
     }
   } else { // the hand shows where to tap
+    banner(T('tap'), W / 2, 420, 56, 400, CORAL, 1 + Math.abs(Math.sin(gift.t * 4)) * 0.06);
     hand(cx + 40, cy - 20 + Math.abs(Math.sin(gift.t * 4)) * 20);
   }
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
@@ -470,7 +517,15 @@ function drawBook() {
       if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 66);
       else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 62, 0, 7); g.fill(); g.fillStyle = '#F5C6DA'; g.beginPath(); g.arc(x, y, 18, 0, 7); g.fill(); }
     }
+    let n = 0; for (let id = s0; id < s0 + SET; id++) if (save.stickers.includes(id)) n++;
+    box(g, W / 2 - 70, top - 30, 140, 60, 30, gold ? ORANGE : VIOLET); words(n + '/' + SET, W / 2, top + 2, 38, 120, WHITE); // numbers are not mirrored
   }
+  // the language button: a globe and the language's own name
+  const L = LANGB; box(g, L.x, L.y + 6, L.w, L.h, L.h / 2, 'rgba(31,42,107,0.22)'); box(g, L.x, L.y, L.w, L.h, L.h / 2, WHITE);
+  const gx = rtl() ? L.x + L.w - 54 : L.x + 54, gy = L.y + L.h / 2;
+  g.strokeStyle = SKY; g.lineWidth = 6; g.beginPath(); g.arc(gx, gy, 26, 0, 7); g.moveTo(gx - 26, gy); g.lineTo(gx + 26, gy); g.moveTo(gx, gy - 26); g.lineTo(gx, gy + 26); g.stroke();
+  g.beginPath(); g.ellipse(gx, gy, 12, 26, 0, 0, 7); g.stroke();
+  words(T('name'), L.x + L.w / 2 + (rtl() ? -30 : 30), gy + 2, 40, L.w - 130, NAVY);
   disc(BACK); const { x, y, s } = BACK;
   g.fillStyle = MINT; g.beginPath(); g.moveTo(x + s / 2 + 24, y + 22); g.lineTo(x + s / 2 - 30, y + s / 2); g.lineTo(x + s / 2 + 24, y + s - 22); g.closePath(); g.fill();
 }
@@ -550,7 +605,7 @@ function drawPips() {
   const n = CHAPTER, gap = 54, x0 = W / 2 - (n - 1) * gap / 2;
   for (let i = 0; i < n; i++) {
     const cur = i === S.i % n, done = i < S.i % n || (cur && S.won >= 0);
-    g.beginPath(); g.arc(x0 + i * gap, 120, cur ? 19 : 13, 0, 7);
+    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 120, cur ? 19 : 13, 0, 7);
     g.fillStyle = done ? WHITE : 'rgba(255,255,255,0.4)'; g.fill();
     if (cur) { g.lineWidth = 6; g.strokeStyle = NAVY; g.stroke(); }
   }
@@ -562,7 +617,7 @@ function drawStars() {
   for (let i = 0; i < 3; i++) {
     const age = S.won - 0.5 - i * 0.25, got = i < S.stars;
     if (got && age < 0) continue;
-    const pop = got ? 1 + Math.max(0, 1 - age / 0.25) * 0.6 : 1, x = W / 2 + (i - 1) * 112, y = 250 - (i === 1 ? 18 : 0);
+    const pop = got ? 1 + Math.max(0, 1 - age / 0.25) * 0.6 : 1, x = W / 2 + (i - 1) * 112, y = 310 - (i === 1 ? 18 : 0);
     g.save(); g.globalAlpha = got ? 1 : 0.35;
     sticker(() => star(g, x, y, 44 * pop, got ? ORANGE : WHITE, (i - 1) * 0.18));
     g.restore();
@@ -608,7 +663,7 @@ function draw() {
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
-  drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar();
+  drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawWords();
   if (view === 'box') { drawBox(); drawJar(); }
 }
 
@@ -658,6 +713,7 @@ function applySave(st) {
   if (st.stars && typeof st.stars === 'object') for (const [n, v] of Object.entries(st.stars)) { const k = Math.max(0, Math.min(3, Math.round(Number(v)) || 0)); if (k) save.stars[n] = Math.max(save.stars[n] || 0, k); }
   if (st.art && typeof st.art === 'object') for (const [n, pts] of Object.entries(st.art)) if (!save.art[n] && goodLine(pts)) save.art[n] = pts;
   if (!muteTouched && typeof st.muted === 'boolean') save.muted = st.muted;
+  if (!save.lang && typeof st.lang === 'string' && cfg.strings[st.lang]) lang = save.lang = st.lang;
   if (Array.isArray(st.stickers)) for (const id of st.stickers) if (Number.isInteger(id) && id >= 0 && id < STICKERS.length && !save.stickers.includes(id)) save.stickers.push(id);
   if (Number.isInteger(st.drops) && st.drops >= 0) { save.drops = Math.max(0, Math.min(99, st.drops + dropsSince)); jarShown = Math.min(cfg.jarDrops, save.drops); }
   if (Number.isInteger(st.level) && st.level > save.level) { save.level = st.level; if (!touched && view === 'play') newLevel(st.level); }
@@ -684,6 +740,7 @@ function run(m) {
     });
   } catch (e) { /* settings panel not offered here */ }
   cancelAnimationFrame(raf); hush(); pointerDown = false; touched = false; press = null; flyers = []; dropsSince = 0; jarShown = Math.min(cfg.jarDrops, save.drops);
+  lang = save.lang || detectLang();
   newLevel(mode === 'play' ? save.level : 0); // a second start resumes where the player is; edit mode shows level 1
   if (mode === 'play') {
     bindInput();
@@ -702,7 +759,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, haptics: { play() {}, start() {}, stop() {} } };
-  window.__game = { LEVELS, newLevel, get backLayer() { return back; }, get S() { return S; }, get target() { return target; }, get quality() { return quality; }, set quality(q) { quality = q; }, get save() { return save; }, set save(v) { save = v; }, applySave, get view() { return view; }, get wall() { return wall; }, get gift() { return gift; }, get jarShown() { return jarShown; }, MUTE, WALLB, JAR, BACK, CARD, CHAPTER, STICKERS, cardAt, slotAt, openWall, openBox, openBook, partsOf, artKey, get cfg() { return cfg; }, get canvases() { return cardImgs.length + cardBacks.length; } };
+  window.__game = { LEVELS, newLevel, get backLayer() { return back; }, get S() { return S; }, get target() { return target; }, get quality() { return quality; }, set quality(q) { quality = q; }, get save() { return save; }, set save(v) { save = v; }, applySave, get view() { return view; }, get wall() { return wall; }, get gift() { return gift; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; }, detectLang, T, LANGB, get jarShown() { return jarShown; }, MUTE, WALLB, JAR, BACK, CARD, CHAPTER, STICKERS, cardAt, slotAt, openWall, openBox, openBook, partsOf, artKey, get cfg() { return cfg; }, get canvases() { return cardImgs.length + cardBacks.length; } };
   const q = new URLSearchParams(location.search);
   fetch('game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = { ...c, ...JSON.parse(q.get('cfg') || '{}') }; run(q.get('mode') || 'play'); });
 }

@@ -280,6 +280,51 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   const bb = await page.evaluate(() => window.__game.BACK); await page.mouse.click(bb.x + bb.s / 2, bb.y + bb.s / 2); await page.waitForTimeout(800);
   s = await state(page); ok(s.misses === 0 && !s.pen, 'a line lifted just before opening the book is dropped, not judged as a miss');
 
+
+  console.log('11. words: the device language is used (seven languages, others fall back to English), every text fits big enough, the globe changes it');
+  for (const loc of ['en-US', 'ar-SA', 'es-MX', 'vi-VN', 'hi-IN', 'bn-BD', 'id-ID', 'fr-FR']) {
+    if (current) await current.context().close();
+    const ctx = await browser.newContext({ viewport: { width: 720, height: 1280 }, locale: loc });
+    page = current = await ctx.newPage(); page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e)));
+    await page.goto(base + '&cfg=' + encodeURIComponent(JSON.stringify({ boxAutoOpen: 99 }))); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3);
+    const want = loc === 'fr-FR' ? 'en' : loc.split('-')[0];
+    const got = await page.evaluate(() => window.__game.lang);
+    ok(got === want, `${loc}: the game shows ${got}`);
+    if (loc === 'fr-FR') continue;
+    // the smallest size any text shrinks to, with the widths the game gives it
+    const small = await page.evaluate(() => {
+      const g = window.__game, c = document.createElement('canvas').getContext('2d'); let worst = [99, ''];
+      for (const [k, v] of Object.entries(g.cfg.strings[g.lang])) {
+        const maxW = k === 'name' ? 310 : /^L/.test(k) ? 560 : 520; let px = k === 'name' ? 40 : 46;
+        c.font = `bold ${px}px system-ui, 'Noto Sans', sans-serif`;
+        while (px > 18 && c.measureText(v).width > maxW) { px -= 2; c.font = `bold ${px}px system-ui, 'Noto Sans', sans-serif`; }
+        if (px < worst[0]) worst = [px, k];
+      }
+      return worst;
+    });
+    ok(small[0] >= 30, `${want}: every text stays 30 px or bigger (smallest ${small[0]} px, "${small[1]}")`);
+    const l = want;
+    await page.waitForTimeout(400); await shot(page, `lang-${l}-L1`);
+    await page.evaluate(() => { const g = window.__game; g.save.level = 20; g.newLevel(10); });
+    await drag(page, await target(page)); await settled(page); await page.waitForTimeout(500); await shot(page, `lang-${l}-L11-part2`);
+    await drag(page, [[600, 1000], [650, 1100], [700, 1000]]); await settled(page); await page.waitForTimeout(150); await shot(page, `lang-${l}-miss`);
+    await drag(page, await target(page)); await settled(page); await page.waitForTimeout(1200); await shot(page, `lang-${l}-praise`);
+    await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 1, 2, 3, 4]; g.save.drops = 6; g.openBox(() => g.newLevel(3)); });
+    await page.waitForTimeout(500); await shot(page, `lang-${l}-box`);
+    await page.mouse.click(360, 760); await page.waitForTimeout(900); await shot(page, `lang-${l}-box-open`);
+    await page.evaluate(() => { const g = window.__game; g.newLevel(3); g.openBook(); }); await page.waitForTimeout(300); await shot(page, `lang-${l}-book`);
+    await page.evaluate(() => { const g = window.__game; g.LEVELS.forEach((lv, n) => g.partsOf(lv).forEach((_, k) => { g.save.art[g.artKey(n, k)] = g.partsOf(lv)[k].target.map((q) => q.slice()); })); g.openWall(0, 5, true); g.wall.unlocked = g.wall.t; });
+    await page.waitForTimeout(600); await shot(page, `lang-${l}-wall`);
+    ok(page.errors.length === 0, `${l}: no page errors ` + page.errors.join(' | '));
+  }
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; g.save.level = 3; g.newLevel(3); g.openBook(); });
+  const lb = await page.evaluate(() => window.__game.LANGB);
+  const before2 = await page.evaluate(() => window.__game.lang);
+  await page.mouse.click(lb.x + lb.w / 2, lb.y + lb.h / 2); await page.waitForTimeout(150);
+  const after2 = await page.evaluate(() => [window.__game.lang, window.__game.save.lang]);
+  ok(after2[0] !== before2 && after2[1] === after2[0], `the globe changes the language and keeps it in the save (${before2} -> ${after2[0]})`);
+
   console.log('5. edit mode shows the live picture and ignores input');
   page = await open('&mode=edit');
   await drag(page, await target(page)); await page.waitForTimeout(900);
