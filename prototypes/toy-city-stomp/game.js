@@ -264,18 +264,18 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.setRainbow(false); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
-    $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play'; hud.classList.remove('ended');
+    $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play'; hud.classList.remove('ended'); $('langs').hidden = true;
     follow.init = false; follow.vx = follow.vz = 0;
     S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = hudCache.mission = null;
     updateHud();
   }
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0 };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -372,10 +372,18 @@ function startGame(mode) {
   // ---------- input: the first finger steers (a floating stick); keyboard on desktop
   const input = { id: null, sx: 0, sy: 0, dx: 0, dy: 0, keys: new Set() };
   const STICK = 70;
-  function wake() { Sound.unlock(); if (S) { S.touched = true; S.idle = 0; $('hint').hidden = true; } }
+  function wake() {
+    Sound.unlock();
+    if (!S) return;
+    // what the attract mode broke and earned before the first touch is not the child's: coins restart at 0, and
+    // the blocks already down are left out of the count
+    if (!S.touched) { S.coins = 0; S.blocks0 = city.buildings.reduce((n, b) => n + (b.state === 'intact' ? 0 : b.total), 0); hudCache.coins = null; }
+    S.touched = true; S.idle = 0; $('hint').hidden = true;
+  }
   const onDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.target.closest && e.target.closest('button, .result, .langs')) return;
+    $('langs').hidden = true; // a tap in the game closes the settings
     if (input.id !== null) return; // a second finger does not steer
     input.id = e.pointerId; input.sx = e.clientX; input.sy = e.clientY; input.dx = input.dy = 0;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* capture not available */ }
@@ -407,8 +415,8 @@ function startGame(mode) {
     if (box.hidden) return;
     box.innerHTML = `<button id="snd" class="snd">${Sound.muted ? '🔇' : '🔊'}</button>` +
       LANGS.map((l) => `<button data-l="${l}" class="${l === lang ? 'on' : ''}" lang="${l}">${LANG_NAMES[l]}</button>`).join('');
-    box.querySelector('#snd').onclick = (ev) => { Sound.setMuted(!Sound.muted); ev.currentTarget.textContent = Sound.muted ? '🔇' : '🔊'; };
-    box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
+    box.querySelector('#snd').onclick = (ev) => { Sound.setMuted(!Sound.muted); save.muted = Sound.muted; persist(); ev.currentTarget.textContent = Sound.muted ? '🔇' : '🔊'; };
+    box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); $('bossName').textContent = T('boss'); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
   };
   $('skill').onclick = (e) => { e.currentTarget.blur(); Sound.unlock(); useSkill(); };
 
@@ -631,7 +639,7 @@ function startGame(mode) {
     if (left === 0 && S.bossDone && city.events.length === 0 && army.events.length === 0 && !city.anyToppling() && !S.finished) finish();
   }
 
-  const fmt = (n) => { try { return n.toLocaleString(lang); } catch (e) { return String(n); } };
+  const fmt = (n) => { try { return n.toLocaleString(lang, { numberingSystem: 'latn' }); } catch (e) { return String(n); } };
   /** The cheapest move not owned yet: how close the coins are to it (shown under the result). */
   function nextGoal() {
     const m = (cfg.moves || []).filter((x) => x.price > 0 && !save.owned.includes(x.id)).sort((a, b) => a.price - b.price)[0];
@@ -663,7 +671,7 @@ function startGame(mode) {
         box.innerHTML = '';
         list.forEach((e, i) => {
           const li = document.createElement('li'), nm = document.createElement('span'), sc = document.createElement('b');
-          nm.textContent = ['🥇', '🥈', '🥉'][i] + ' ' + String(e.username || '?').slice(0, 16); nm.dir = 'auto';
+          nm.textContent = ['🥇', '🥈', '🥉'][i] + ' ' + Array.from(String(e.username || '?')).slice(0, 16).join(''); nm.dir = 'auto';
           sc.textContent = fmt(Number(e.score) || 0); sc.dir = 'ltr';
           li.append(nm, sc); box.appendChild(li);
         });
@@ -678,9 +686,10 @@ function startGame(mode) {
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
     const sec = Math.round(S.time), stars = starsFor(sec, cfg.starsTimeSec);
     const counts = S.touched; // the attract mode (nobody touched yet) shows the result but saves nothing
-    const isBest = counts && (save.best === null || sec < save.best);
+    // a best time only counts when the child played (almost) the whole city
+    const isBest = counts && S.blocks0 < city.totalBlocks * 0.1 && (save.best === null || sec < save.best);
     if (isBest) save.best = sec;
-    const blocks = city.totalBlocks; // every block of the city fell
+    const blocks = city.totalBlocks - S.blocks0; // every block fell; those down before the first touch are not counted
     // the leaderboard ranks lifetime blocks smashed: it only grows, so every city played moves a child up
     if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); save.rounds = (save.rounds || 0) + 1; save.smashed = (save.smashed || 0) + blocks; persist(); postScore(); }
     updateHud();
@@ -693,14 +702,14 @@ function startGame(mode) {
       <div class="smash"><b class="out" id="blk" dir="ltr">0</b><span dir="auto">${T('smashed')}</span></div>
       <div class="chips" dir="ltr"><span>⏱ ${mmss}</span><span>🚗 ${S.cars}</span><span>🎈 ${city.rescued()}</span><span>🔥 ×${comboMult(S.bestCombo, CB)}</span></div>
       <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${S.coins}</b></div>
-      ${counts ? `<div class="total" dir="auto">${T('total')} <b dir="ltr">${fmt(save.smashed)}</b> 🧱</div>` : ''}
+      ${counts ? `<div class="total" dir="auto">${T('total')} <b dir="ltr" id="tot">${fmt(save.smashed)}</b> 🧱</div>` : ''}
       ${isBest ? `<div class="best">${T('best')}</div>` : ''}
       ${goal ? `<div class="goal"><span class="gico">${goal.icon}</span><div class="gbar"><i style="width:${goal.p}%"></i></div><b dir="auto">${goal.text}</b></div>` : ''}
       <ol class="board" id="board" hidden></ol>
     </div>
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
     <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button></div>`;
-    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
+    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); $('langs').hidden = true; countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
@@ -841,8 +850,11 @@ function startGame(mode) {
       if (save.rounds > 0 && roundsBefore === 0 && S && !S.touched && !S.finished) newRound();
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length || roundsBefore) persist();
+      if (st && st.muted && !Sound.muted) Sound.setMuted(true);
+      // a city finished before the save arrived: show and post the real all-time total
+      if (roundsBefore && S && S.finished) { const t = document.querySelector('#tot'); if (t) t.textContent = fmt(save.smashed); postScore(); }
       { const ts = document.querySelector('#toShop'); if (ts && S.finished && canBuy() && !ts.querySelector('.badge')) ts.insertAdjacentHTML('beforeend', '<span class="badge">!</span>'); }
-    }).catch(() => { saveLoaded = true; });
+    }).catch(() => { /* the save could not be read: keep it safe by not writing over it this session */ });
   }
   raf = requestAnimationFrame(frame);
 

@@ -165,6 +165,32 @@ const server = http.createServer((q, s) => {
     const nx = await g(() => __game.missions.current && __game.missions.current.icon);
     check(r.stage >= 2 && nx === '🚗', `after houses, a grow-to-2 step already met is skipped (next: ${nx})`);
   }
+  // the settings close at a new round; what the attract mode broke before the first touch is not the child's
+  {
+    const r = await g(() => { document.querySelector('#gear').click(); const open = !document.querySelector('#langs').hidden; __game.newRound(); return { open, closed: document.querySelector('#langs').hidden }; });
+    check(r.open && r.closed, 'the settings panel closes when a new round starts');
+    const pre = await g(() => { const S = __game.S, b = __game.city.buildings[0]; __game.city.collapse(b, { x: 0, z: 1 }, 0); S.coins = 40; return b.total; });
+    const bb = await page.locator('#app').boundingBox();
+    await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height * 0.6); await page.mouse.down(); await page.mouse.up();
+    const t = await g(() => ({ b0: __game.S.blocks0, coins: __game.S.coins, touched: __game.S.touched }));
+    check(t.touched && t.b0 >= pre && t.coins < 40, `the first touch starts the child's count: ${t.b0} blocks already down left out (>= ${pre}), coins ${t.coins} (the 40 from before are gone), touched ${t.touched}`);
+  }
+  // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
+  {
+    const p2 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p2.addInitScript(() => {
+      window.__saves = [];
+      window.lib = { showGameParameters() {}, log() {}, getAsset: () => undefined, haptics: { play() {}, start() {}, stop() {} }, shouldUseTouchControls: () => false,
+        getUserGameState: () => Promise.reject(new Error('offline')), saveUserGameState: async (s) => { window.__saves.push(s); },
+        addPlayerScoreToLeaderboard: async () => ({}), getTopNEntriesFromLeaderboard: async () => ({}) };
+      addEventListener('load', async () => { window.gameConfig = await (await fetch('./game_config.json')).json(); window.run('play'); });
+    });
+    await p2.goto(`http://localhost:${port}/?speed=6`);
+    await p2.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    const n = await p2.evaluate(async () => { const S = __game.S; S.touched = true; __game.save.coins = 500; __game.finish(); await new Promise((r) => setTimeout(r, 300)); return window.__saves.length; });
+    check(n === 0, `a save that failed to load is not overwritten (${n} writes)`);
+    await p2.close();
+  }
   check(errors.length === 0, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
