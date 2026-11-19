@@ -4,7 +4,7 @@
 // Bonbon's Spirit (never a game over). Bonbon squashes or swats them for points. At full size (or when the city
 // is nearly flat) the Wind-Up Robot drops in: three phases (walk and stomp, foam volleys, jump slam with a
 // landing ring on the ground), then it unwinds into a shower of gears. Kid-safe: toys, foam, bubbles; nobody hurt.
-import * as THREE from 'three';
+/* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 
 const UNITS = 12, SHOTS = 24;
 

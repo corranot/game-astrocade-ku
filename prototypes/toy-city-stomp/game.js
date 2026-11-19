@@ -6,7 +6,7 @@
 // residents float away on balloons. Points fill the grow bar; Bonbon grows 8 stages and can then break bigger
 // buildings. Flatten the whole city for stars and coins.
 // Modules: bonbon.js (the monster), city.js (island, blocks, cars, props, particles).
-import * as THREE from 'three';
+/* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 import { createCity } from './city.js';
 import { createBonbon } from './bonbon.js';
 import { createArmy } from './army.js';
@@ -108,6 +108,8 @@ const Sound = (() => {
 // ---------------------------------------------------------------- the game
 let app = null;
 function run(mode) {
+  // the host may call run() before Three.js has arrived from the CDN: start as soon as it is there
+  if (!window.THREE) { window.addEventListener('three-ready', () => run(mode), { once: true }); return; }
   if (app) app.destroy();
   app = startGame(mode === 'edit' ? 'edit' : 'play');
   window.__game = app.debug;

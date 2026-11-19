@@ -3,7 +3,7 @@
 // off, pancake or topple like dominoes; cars that squash flat and pop back; trees and street lamps; toy residents
 // that float away on balloons; soft dust clouds and confetti; sea, beach, distant hills and clouds around it.
 // All gameplay randomness comes from the seeded rng passed in.
-import * as THREE from 'three';
+/* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 
 const PALETTE = [0x3fa9ff, 0x22c6a3, 0xffc531, 0x9b6bff, 0xff9b54, 0xff6f91, 0x5ad1ff, 0xb8e05a];
 const ROOF = [0xff5a4f, 0xff7a45, 0xe8475f];
