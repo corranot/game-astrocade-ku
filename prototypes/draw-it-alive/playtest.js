@@ -398,7 +398,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await page.evaluate(() => { const g = window.__game; g.openBox(() => g.newLevel(3)); window.run('play'); });
   await page.waitForTimeout(400);
   const dr13 = await page.evaluate(() => ({ d: window.__game.save.drops, st: window.__game.save.stickers.length }));
-  X;
+  ok(dr13.d === 0 && dr13.st === 1, `a box's cost stays paid after the host starts the game again (drops ${dr13.d}, stickers ${dr13.st})`);
   // a save read that lands while drops fly to the jar does not overfill the jar
   page = await open();
   await drag(page, await target(page)); await settled(page);
