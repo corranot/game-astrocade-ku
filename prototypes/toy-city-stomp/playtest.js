@@ -45,6 +45,12 @@ const server = http.createServer((q, s) => {
   check(await g(() => __game.S.points > 0), 'autopilot breaks something before any touch');
   await page.screenshot({ path: path.join(out, `01-start-${lang}.png`) });
   check(await g(() => __game.S.time === 0), 'attract mode (no touch yet) does not run the clock');
+  {
+    const box = await page.$('#app'); const bb = await box.boundingBox(); await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height * 0.6); // a first tap unlocks sound
+    await page.waitForFunction(() => __game.Sound.loaded.length >= 8, null, { timeout: 30000 }).catch(() => {});
+    const got = await g(() => __game.Sound.loaded);
+    check(got.length === 8, `recorded sounds and music load from the asset map after the first tap (${got.length}/8)`);
+  }
   await g(() => { __game.newRound(); __game.S.touched = true; __game.S.idle = 99; }); // a fresh round as a child who touched once then let go: autopilot plays on and the round counts
 
   // play on autopilot; note when things happen
