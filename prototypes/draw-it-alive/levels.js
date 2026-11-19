@@ -193,8 +193,8 @@ function room(ctx) {
 /** The party: bunting along the top, a floor from y = 900. */
 function party(ctx) {
   dots(ctx);
-  ctx.strokeStyle = WHITE; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 330); ctx.quadraticCurveTo(360, 400, 720, 330); ctx.stroke();
-  sticker(() => { const cs = [CORAL, MINT, VIOLET, SKY, ORANGE]; for (let i = 0; i < 9; i++) { const x = 40 + i * 80, y = 330 + Math.sin(i / 8 * Math.PI) * 36; shape(ctx, [[x - 26, y], [x + 26, y], [x, y + 50]], cs[i % 5]); } });
+  ctx.strokeStyle = WHITE; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 390); ctx.quadraticCurveTo(360, 460, 720, 390); ctx.stroke(); // below the stars of a win
+  sticker(() => { const cs = [CORAL, MINT, VIOLET, SKY, ORANGE]; for (let i = 0; i < 9; i++) { const x = 40 + i * 80, y = 390 + Math.sin(i / 8 * Math.PI) * 36; shape(ctx, [[x - 26, y], [x + 26, y], [x, y + 50]], cs[i % 5]); } });
   sticker(() => box(ctx, -40, 900, 800, 500, 0, MINT));
   front(ctx, GRASS, CORAL);
 }

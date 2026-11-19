@@ -5,8 +5,10 @@
 set -euo pipefail
 src=$1 out=$2
 mkdir -p "$out"
-for f in index.html game.js scene.js; do
-  [ -f "$src/$f" ] && grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$src/$f" > "$out/$f"
+for p in "$src"/index.html "$src"/*.js; do # every module the game loads; test scripts stay home
+  f=$(basename "$p")
+  case "$f" in playtest.js|soak.js|look.js) continue ;; esac
+  grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$p" > "$out/$f"
 done
 banned='prototype|playtest|soak|audit|astrocade\.md|claude|anthropic|subagent|\bagent\b|\bAI\b|leanrea|caveman|ponytail|crazyharibo|cashflow|\bfeed\b|trend|research'
 if grep -nEi "$banned" "$out"/*; then echo "FAIL: workflow words left in the upload set" >&2; exit 1; fi

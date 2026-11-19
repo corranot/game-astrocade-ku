@@ -71,7 +71,8 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
       await page.waitForTimeout(1500); await shot(page, 'wall');
       const c0 = await page.evaluate(() => { const g = window.__game, p = g.cardAt(2); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
       await page.mouse.click(c0[0], c0[1]); await page.waitForTimeout(100);
-      ok(await page.evaluate(() => window.__game.wall.cards[2].pop > 0), 'a tap on a card replays it');
+      ok(await page.evaluate(() => window.__game.wall.cards[2].pop > 0 && window.__game.wall.big === 2), 'a tap on a card replays it, large');
+      await page.mouse.click(360, 600); await page.waitForTimeout(100); // a tap puts it back
       const nx = await page.evaluate(() => { const g = window.__game, p = g.cardAt(5); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
       await page.evaluate(() => { window.__game.wall.unlocked = window.__game.wall.t; });
       await page.mouse.click(nx[0], nx[1]); await page.waitForTimeout(150);
@@ -211,19 +212,19 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await drag(page, await target(page)); await settled(page);
   await page.waitForFunction(() => window.__game.view === 'box', null, { timeout: 8000 });
   await page.waitForTimeout(250); await shot(page, 'box-closed');
-  await page.mouse.click(360, 760); await page.waitForTimeout(700); await shot(page, 'box-open');
+  await page.mouse.click(360, 760); await page.waitForTimeout(300); await shot(page, 'box-open'); // the box shows for 0.6 s here
   ok(await page.evaluate(() => window.__game.save.stickers.length === 1 && window.__game.save.drops === 3), 'a tap opens the box; the sticker is kept and the jar is emptied (stars 3 stay)');
   await page.waitForFunction(() => window.__game.view === 'play' && window.__game.S.i === 2, null, { timeout: 8000 });
   ok(true, 'the game carries on to the next level after the box');
   const got = await page.evaluate(async () => {
     const g = window.__game, seen = [];
-    for (let k = 0; k < 14; k++) { g.save.drops = 6; g.openBox(() => g.newLevel(2)); if (g.view === 'box') seen.push(g.gift.id); g.newLevel(2); }
+    for (let k = 0; k < 26; k++) { g.save.drops = 6; g.openBox(() => g.newLevel(2)); if (g.view === 'box') seen.push(g.gift.id); g.newLevel(2); }
     return { seen, kept: g.save.stickers.slice(), drops: g.save.drops };
   });
   const all = new Set(got.kept);
-  ok(all.size === 12 && got.kept.length === 12, 'twelve boxes give twelve different stickers: ' + got.kept.join(','));
-  ok(got.kept.slice(0, 6).every((id) => id < 6), 'the first set is finished before the second starts');
-  ok(got.seen.length === 11, 'no box once every sticker is owned (' + got.seen.length + ' more boxes after the first)');
+  ok(all.size === 24 && got.kept.length === 24, 'twenty-four boxes give twenty-four different stickers: ' + got.kept.join(','));
+  ok(got.kept.slice(0, 6).every((id) => id < 6) && got.kept.slice(12, 18).every((id) => id >= 12 && id < 18), 'each set is finished before the next starts');
+  ok(got.seen.length === 23, 'no box once every sticker is owned (' + got.seen.length + ' more boxes after the first)');
   await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 1, 2, 3, 4, 5, 7, 9]; g.newLevel(2); });
   const jar = await page.evaluate(() => window.__game.JAR);
   await page.mouse.click(jar.x + jar.s / 2, jar.y + jar.s / 2); await page.waitForTimeout(300);
@@ -427,6 +428,77 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   const age = await page.evaluate(() => { const g = window.__game; g.LEVELS.forEach((lv, n) => g.partsOf(lv).forEach((_, k) => { g.save.art[g.artKey(n, k)] = g.partsOf(lv)[k].target.map((q) => q.slice()); })); g.openWall(2, 15, true); const c = g.wall.cards.find((c) => c.s.i === 12); return c ? c.s.age(0) : -1; });
   ok(age >= 0 && age < 10, `the two-bridge card replays the first crossing (age of part 1 on the card: ${age})`);
   ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
+
+  console.log('14. four sticker sets, the daily gift, the mirrored second round, the big picture on the wall');
+  page = await open();
+  ok(await page.evaluate(() => window.__game.STICKERS.length) === 24, 'four sets of six stickers');
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 1, 2, 3, 4, 5, 6, 8, 12, 13, 14, 15, 16, 17, 18, 21]; g.openBook(); });
+  await page.waitForTimeout(400); await shot(page, 'book-4sets');
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 24 }, (_, i) => i); });
+  await page.waitForTimeout(300); await shot(page, 'book-full');
+  ok(page.errors.length === 0, 'every sticker draws without an error: ' + page.errors.join(' | '));
+  // daily gift: only on a later day, never on the first day, never with the clock turned back
+  const daily = async (day) => {
+    page = await open();
+    await page.evaluate((day) => { const g = window.__game; g.save.day = day === 'yesterday' ? g.today() - 1 : day === 'future' ? g.today() + 5 : 0; }, day);
+    const d0 = await page.evaluate(() => window.__game.save.drops);
+    await drag(page, await target(page)); await settled(page);
+    return page.evaluate((d0) => ({ daily: window.__game.S.daily, drops: window.__game.save.drops - d0, stars: window.__game.S.stars, day: window.__game.save.day, today: window.__game.today() }), d0);
+  };
+  let dy = await daily('yesterday');
+  ok(dy.daily === 3 && dy.drops === dy.stars + 3 && dy.day === dy.today, `the first win of a new day gives 3 extra drops (${JSON.stringify(dy)})`);
+  await page.waitForFunction(() => window.__game.S.won > 2.0); await shot(page, 'daily-gift');
+  dy = await daily('first');
+  ok(!dy.daily && dy.drops === dy.stars && dy.day === dy.today, 'no gift on the very first day, which is remembered');
+  dy = await daily('future');
+  ok(!dy.daily && dy.drops === dy.stars, 'a clock turned back gives no gift');
+  // second round: mirrored scenes, judged and stored in the level's own frame
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; g.save.level = 22; g.newLevel(22); });
+  await page.waitForTimeout(500); await shot(page, 'round2-L3-start');
+  const st2 = await page.evaluate(() => ({ flip: window.__game.S.flip, x: window.__game.target[0][0] }));
+  ok(st2.flip && st2.x > 360, `level 23 is level 3 mirrored (the can is now on the right: path starts at x ${Math.round(st2.x)})`);
+  await drag(page, wobble(await target(page))); await settled(page);
+  s = await state(page); ok(s.won >= 0 && !s.assisted, 'a line along the mirrored part wins');
+  await page.waitForTimeout(1500); await shot(page, 'round2-L3-payoff');
+  const art3 = await page.evaluate(() => window.__game.save.art[window.__game.artKey(2, 0)]);
+  ok(art3 && art3[0][0] > 300, `the stored line is in the level's frame, so the wall card is right (starts at x ${art3 && art3[0][0]})`);
+  // the big picture on the wall
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; for (let n = 0; n < 5; n++) g.save.art[n] = g.partsOf(g.LEVELS[n])[0].target.map((q) => q.slice()); g.openWall(0, 5, false); });
+  await page.waitForTimeout(300);
+  const cb = await page.evaluate(() => { const g = window.__game, p = g.cardAt(3); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+  await page.mouse.click(cb[0], cb[1]); await page.waitForTimeout(1200); await shot(page, 'wall-big');
+  ok(await page.evaluate(() => window.__game.wall.big) === 3, 'a tapped card is shown large');
+  await page.mouse.click(360, 600); await page.waitForTimeout(150);
+  ok(await page.evaluate(() => window.__game.wall.big) === -1, 'any tap puts it back');
+  ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
+
+  console.log('15. drops on level 1 can be seen; a skip keeps the daily banner; round 2 chapter banner, hand and slow-phone big card');
+  page = await open();
+  await drag(page, await target(page)); await settled(page);
+  await page.waitForFunction(() => window.__game.S.won > 1.0);
+  const jarPx = await page.evaluate(() => { const g = window.__game, d = document.getElementById('game').getContext('2d').getImageData(g.JAR.x + g.JAR.s / 2, g.JAR.y + 12, 1, 1).data; return [d[0], d[1], d[2]]; });
+  ok(jarPx[0] > 230 && jarPx[1] > 230 && jarPx[2] > 230, `the jar is on screen while the first drops fly to it (pixel ${jarPx})`);
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; g.save.day = g.today() - 1; });
+  await drag(page, await target(page)); await settled(page);
+  await page.waitForFunction(() => window.__game.S.won > 2.0); await page.mouse.click(360, 500); await page.waitForTimeout(80);
+  ok(await page.evaluate(() => window.__game.S.won < 50), 'a tap does not skip the daily banner before it has been seen');
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; g.LEVELS.forEach((lv, n) => g.partsOf(lv).forEach((_, k) => { g.save.art[g.artKey(n, k)] = g.partsOf(lv)[k].target.map((q) => q.slice()); })); g.openWall(0, 25, true); });
+  await page.waitForFunction(() => window.__game.wall.unlocked >= 0, null, { timeout: 30000 }); await page.waitForTimeout(500); await shot(page, 'round2-wall-open');
+  page = await open('&cfg=' + encodeURIComponent(JSON.stringify({ ghostIdle: 0.5, ghostIdleEasy: 0.5 })));
+  await page.evaluate(() => { const g = window.__game; g.save.level = 21; g.newLevel(21); });
+  await page.waitForTimeout(1800); await shot(page, 'round2-ghost-hand');
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; for (let n = 0; n < 5; n++) g.save.art[n] = g.partsOf(g.LEVELS[n])[0].target.map((q) => q.slice()); g.openWall(0, 5, false); g.quality = 2; });
+  const cq = await page.evaluate(() => { const g = window.__game, p = g.cardAt(1); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+  await page.mouse.click(cq[0], cq[1]); await page.waitForTimeout(600); await shot(page, 'wall-big-slowphone');
+  ok(await page.evaluate(() => window.__game.wall.big) === 1 && page.errors.length === 0, 'the big card on a slow phone shows without errors: ' + page.errors.join(' | '));
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 24 }, (_, i) => i); g.openBook(); });
+  await page.waitForTimeout(300); await shot(page, 'book-full-2');
 
   await browser.close(); server.close();
   console.log(failed ? `PLAYTEST FAIL (${failed})` : 'PLAYTEST PASS'); process.exit(failed ? 1 : 0);
