@@ -218,13 +218,13 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(true, 'the game carries on to the next level after the box');
   const got = await page.evaluate(async () => {
     const g = window.__game, seen = [];
-    for (let k = 0; k < 14; k++) { g.save.drops = 6; g.openBox(() => g.newLevel(2)); if (g.view === 'box') seen.push(g.gift.id); g.newLevel(2); }
+    for (let k = 0; k < 26; k++) { g.save.drops = 6; g.openBox(() => g.newLevel(2)); if (g.view === 'box') seen.push(g.gift.id); g.newLevel(2); }
     return { seen, kept: g.save.stickers.slice(), drops: g.save.drops };
   });
   const all = new Set(got.kept);
-  ok(all.size === 12 && got.kept.length === 12, 'twelve boxes give twelve different stickers: ' + got.kept.join(','));
-  ok(got.kept.slice(0, 6).every((id) => id < 6), 'the first set is finished before the second starts');
-  ok(got.seen.length === 11, 'no box once every sticker is owned (' + got.seen.length + ' more boxes after the first)');
+  ok(all.size === 24 && got.kept.length === 24, 'twenty-four boxes give twenty-four different stickers: ' + got.kept.join(','));
+  ok(got.kept.slice(0, 6).every((id) => id < 6) && got.kept.slice(12, 18).every((id) => id >= 12 && id < 18), 'each set is finished before the next starts');
+  ok(got.seen.length === 23, 'no box once every sticker is owned (' + got.seen.length + ' more boxes after the first)');
   await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 1, 2, 3, 4, 5, 7, 9]; g.newLevel(2); });
   const jar = await page.evaluate(() => window.__game.JAR);
   await page.mouse.click(jar.x + jar.s / 2, jar.y + jar.s / 2); await page.waitForTimeout(300);
@@ -457,7 +457,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await page.evaluate(() => { const g = window.__game; g.save.level = 22; g.newLevel(22); });
   await page.waitForTimeout(500); await shot(page, 'round2-L3-start');
   const st2 = await page.evaluate(() => ({ flip: window.__game.S.flip, x: window.__game.target[0][0] }));
-  ok(st2.flip && st2.x < 360, `level 23 is level 3 mirrored (the can is now on the right: path starts at x ${Math.round(st2.x)})`);
+  ok(st2.flip && st2.x > 360, `level 23 is level 3 mirrored (the can is now on the right: path starts at x ${Math.round(st2.x)})`);
   await drag(page, wobble(await target(page))); await settled(page);
   s = await state(page); ok(s.won >= 0 && !s.assisted, 'a line along the mirrored part wins');
   await page.waitForTimeout(1500); await shot(page, 'round2-L3-payoff');
