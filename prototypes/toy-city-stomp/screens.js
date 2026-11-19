@@ -29,8 +29,10 @@ const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
     await page.waitForTimeout(4000);
     await page.screenshot({ path: path.join(out, `${lang}-1-play.png`) });
     let cut = await page.evaluate(cutOff);
-    await page.evaluate(() => { __game.save.coins = 300; __game.finish(); });
-    await page.waitForTimeout(2600);
+    // a full leaderboard with long names, so the result card is checked at its tallest
+    await page.evaluate(() => { lib.getTopNEntriesFromLeaderboard = async () => ({ entries: [{ username: 'SuperStomperKid2016', score: 98765 }, { username: 'محمد الصغير', score: 45210 }, { username: 'Ánh', score: 3020 }], userRank: 12 }); });
+    await page.evaluate(() => { __game.save.coins = 300; __game.save.rounds = 4; __game.save.smashed = 12000; __game.finish(); });
+    await page.waitForTimeout(3300);
     await page.screenshot({ path: path.join(out, `${lang}-2-result.png`) });
     cut = cut.concat(await page.evaluate(cutOff));
     await page.evaluate(() => __game.openShop());
