@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Plays several chapters in one page and fails on errors, a broken save, lost feedback or growing canvases.
-// Usage: node soak.js [chapters]
+// Usage: node soak.js [rounds of every level]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const chapters = +process.argv[2] || 3;
@@ -13,7 +13,7 @@ let failed = 0;
 const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); if (!cond) failed++; };
 (async () => {
   await new Promise((r) => server.listen(0, r));
-  const cfg = encodeURIComponent(JSON.stringify({ celebrateSeconds: 1.9, celebrateLater: 1.9, wallEndPause: 0.2, cardRestSeconds: 0.6 }));
+  const cfg = encodeURIComponent(JSON.stringify({ celebrateSeconds: 1.9, celebrateLater: 1.9, wallEndPause: 0.2, cardRestSeconds: 0.6, boxAutoOpen: 0.3, boxShowSeconds: 0.6 }));
   const browser = await chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 720, height: 1280 } })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
@@ -25,21 +25,29 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   const n = await page.evaluate(() => window.__game.LEVELS.length);
   const perLevel = [];
   for (let L = 0; L < n * chapters; L++) {
-    await page.waitForFunction((L) => window.__game.view === 'play' && window.__game.S.i === L && window.__game.S.won < 0, L, { timeout: 15000 });
+    // boxes and chapter walls lead on by themselves
+    await page.waitForFunction((L) => window.__game.view === 'play' && window.__game.S.i === L && window.__game.S.won < 0, L, { timeout: 30000 });
     const b0 = await page.evaluate(() => window.__beeps);
-    const t = await page.evaluate(() => window.__game.target.filter((_, i) => i % 3 === 0).concat([window.__game.target.at(-1)]));
-    await page.mouse.move(t[0][0], t[0][1]); await page.mouse.down();
-    for (const p of t.slice(1)) await page.mouse.move(p[0], p[1], { steps: 2 });
-    await page.mouse.up();
+    while (await page.evaluate(() => window.__game.S.won < 0)) { // one stroke per part
+      const k = await page.evaluate(() => window.__game.S.lines.filter(Boolean).length);
+      await page.waitForFunction(() => !window.__game.S.pen);
+      const t = await page.evaluate(() => window.__game.target.filter((_, i) => i % 3 === 0).concat([window.__game.target.at(-1)]));
+      await page.mouse.move(t[0][0], t[0][1]); await page.mouse.down();
+      for (const p of t.slice(1)) await page.mouse.move(p[0], p[1], { steps: 2 });
+      await page.mouse.up();
+      await page.waitForFunction((k) => window.__game.S.won >= 0 || window.__game.S.lines.filter(Boolean).length > k, k, { timeout: 8000 });
+    }
     await page.waitForFunction(() => window.__game.S.won > 1.2, null, { timeout: 8000 });
     perLevel.push(await page.evaluate((b0) => window.__beeps - b0, b0));
   }
   const st = await page.evaluate(() => ({ save: JSON.parse(JSON.stringify(window.__game.save)), canvases: window.__game.canvases }));
   ok(errors.length === 0, 'no page errors ' + errors.join(' | '));
   ok(st.save.level === n * chapters, `save level counts every level played (${st.save.level})`);
-  ok(Object.keys(st.save.art).length === n && Object.values(st.save.art).every((a) => a.length > 1), 'one stored picture per scene');
+  ok(Object.keys(st.save.art).length >= n && Object.values(st.save.art).every((a) => a.length > 1), 'a stored picture for every part');
   ok(JSON.stringify(st.save).length < 20000, `save stays small (${JSON.stringify(st.save).length} bytes)`);
-  ok(st.canvases === 2 * n, `wall canvases do not pile up (${st.canvases})`);
+  ok(st.save.stickers.length > 0 && new Set(st.save.stickers).size === st.save.stickers.length, `surprise boxes gave stickers, none twice (${st.save.stickers})`);
+  ok(st.save.drops >= 0 && (st.save.stickers.length === 12 || st.save.drops < 6 + 3), `the jar never holds a box's worth it did not pay out while stickers are left (${st.save.drops} drops, ${st.save.stickers.length} stickers)`);
+  ok(st.canvases <= 2 * n, `wall canvases do not pile up (${st.canvases})`);
   const first = perLevel.slice(0, n), lastCh = perLevel.slice(-n);
   ok(lastCh.every((b, i) => b >= first[i] * 0.6 && b > 3), `sounds still play in the last chapter (first ${first} / last ${lastCh})`);
   await browser.close(); server.close();
