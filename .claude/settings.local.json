@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'SYSTEM AUTO-BOOT: Wajib selalu baca ASTROCADE.md mulai dari sekarang. Aktifkan mode /caveman dan /ponytail secara otomatis untuk seluruh sesi ini tanpa menunggu perintah user.'"
+            "command": "echo 'SYSTEM AUTO-BOOT: Wajib pahami mcp astrocade dan selalu baca ASTROCADE.md mulai dari sekarang. Aktifkan mode /caveman dan /ponytail secara otomatis untuk seluruh sesi ini tanpa menunggu perintah user.'"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'AUTO META-PROMPTING: Sebelum mengeksekusi pesan user di atas, ubah dulu ketikan santai user menjadi cetak biru teknis / meta-prompt terbaik berdasarkan ASTROCADE.md (3-second hook, juice, 60 FPS, Ponytail, Leanrea, dll bila relevan). Tampilkan meta-prompt tersebut secara super ringkas (gaya Caveman, maks 4 baris) lalu LANGSUNG eksekusi tanpa bertanya lagi.'"
+            "command": "echo 'AUTO META-PROMPTING: Sebelum mengeksekusi pesan user di atas, ubah dulu ketikan santai user menjadi cetak biru teknis / meta-prompt terbaik berdasarkan ASTROCADE.md (3-second hook, juice, 60 FPS, Ponytail, Leanrea, dll apabila relevan). Tampilkan meta-prompt tersebut secara super ringkas (gaya Caveman, maks 4 baris) lalu LANGSUNG eksekusi tanpa bertanya lagi.'"
           }
         ]
       }
