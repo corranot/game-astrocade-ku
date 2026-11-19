@@ -417,13 +417,14 @@ export const LEVELS = [
     back: meadow,
     live(ctx, S) {
       const w = S.won, eat = ease((w - 1.0) / 1.1), x = 200 + ease((w - 0.3) / 0.7) * 90;
-      if (w >= 0 && eat < 0.98) {
-        const right = Math.max(...S.stroke.map((q) => q[0])), [, cy] = centroid(S.stroke), leaf = moved(S.stroke, right, cy, 1 - eat);
+      shelled(ctx, S, x, 850, 0, 0.8);
+      if (w >= 0 && eat < 0.98) { // in front of the snail: the leaf shrinks into its mouth (face at (154, -141) in its frame, scaled 0.8)
+        const [cx, cy] = centroid(S.stroke), mx = x + 154 * 0.8, my = 850 - 141 * 0.8;
+        const leaf = moved(S.stroke, cx, cy, 1 - eat, (mx - cx) * eat, (my - cy) * eat);
         sticker(() => shape(ctx, leaf, '#A6E85A'));
         const [lx, ly] = centroid(leaf); ctx.strokeStyle = '#5FB82E'; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(lx - 60 * (1 - eat), ly); ctx.lineTo(lx + 60 * (1 - eat), ly); ctx.stroke();
       }
-      shelled(ctx, S, x, 850, 0, 0.8);
       if (w > 2.1) S.once('yum', () => S.burst(400, 700, 30));
       if (w > 2.1) { const a = Math.min(1, w - 2.1); ctx.save(); ctx.globalAlpha = 1 - a; sticker(() => heart(ctx, 330, 640 - a * 120, 18, CORAL)); ctx.restore(); }
     },
