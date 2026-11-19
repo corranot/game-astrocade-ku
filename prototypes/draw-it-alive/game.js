@@ -1,6 +1,7 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 /**
- * Draw It Alive: draw the one missing part with a finger and the scene comes alive, using the line you drew.
+ * Draw It Alive: Draw the Missing Part. A drawing puzzle game for kids (finish-the-picture, creative, casual):
+ * draw the one missing part with a finger and the scene comes alive, using the line you drew.
  *
  * There is no menu. Words are few and short: one command per part, praise, and labels on the box, the wall and
  * the book, in the device's language (seven languages, Arabic right to left; the globe in the sticker book
@@ -12,7 +13,9 @@
  * try, 2 with retries, 1 when helped. The next level starts by itself; a tap skips the end of a celebration.
  * Each chapter of five ends on the wall of the player's own pictures, which plays each picture once in turn and
  * then opens the next chapter. Every star is a paint drop for the jar; a full jar gives a surprise box with a
- * sticker the player does not have yet (two sets of six), kept in the sticker book behind the jar.
+ * sticker the player does not have yet (four sets of six), kept in the sticker book behind the jar. The first
+ * win of a new day gives extra drops; a tap on the padlock opens the next chapter; a tapped picture on the
+ * wall is shown large. Levels 21-40 show every scene mirrored.
  *
  * The 720 x 1280 scene is drawn by code (art.js). What never moves is drawn once per level into a
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame. The wall shows
