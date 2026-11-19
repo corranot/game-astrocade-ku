@@ -1,0 +1,33 @@
+{
+  "seed": 20261119,
+  "city": { "lots": 6, "lotSize": 13, "road": 5, "cars": 9, "trees": 26 },
+  "classes": [
+    { "w": 3, "d": 3, "h": 3, "roof": 2, "hp": 1 },
+    { "w": 4, "d": 4, "h": 5, "roof": 0, "hp": 1 },
+    { "w": 5, "d": 5, "h": 9, "roof": 0, "hp": 1.2 },
+    { "w": 6, "d": 6, "h": 14, "roof": 0, "hp": 1.4 },
+    { "w": 7, "d": 7, "h": 20, "roof": 3, "hp": 1.6 }
+  ],
+  "collapseAt": 0.45,
+  "toppleMinHeight": 9,
+  "crushBelow": 3,
+  "growth": { "base": 150, "ratio": 1.7, "stages": 8, "baseScale": 1.7, "scaleRatio": 1.25 },
+  "monster": { "speed": 6, "speedPerStage": 0.12, "radius": 1.1, "attackSec": 0.48, "biteRadius": 1.45 },
+  "combo": { "windowSec": 3.5, "every": 3, "max": 10 },
+  "points": { "perClass": 10, "perVoxel": 1, "car": 15, "tree": 3 },
+  "fx": { "shakeMax": 1.0, "slowmoScale": 0.3, "slowmoSec": 0.9, "hitstopSec": 0.05 },
+  "idleAutoplaySec": 4,
+  "skill": { "unlockStage": 3, "cooldownSec": 6, "radius": 4.5 },
+  "starsTimeSec": [180, 270],
+  "coinsPerPoint": 0.006,
+  "strings": {
+    "en": { "swipe": "Swipe!", "grow": "GROW!", "tooBig": "TOO BIG!", "combo": "COMBO", "domino": "DOMINO", "flat": "CITY FLATTENED!", "again": "PLAY AGAIN", "newMove": "NEW MOVE!", "spin": "TAIL SPIN", "best": "NEW BEST!", "city": "City", "time": "Time", "bestCombo": "Best combo", "squash": "SQUASH!", "bonk": "BONK!" },
+    "id": { "swipe": "Geser!", "grow": "TUMBUH!", "tooBig": "TERLALU BESAR!", "combo": "KOMBO", "domino": "DOMINO", "flat": "KOTA RATA!", "again": "MAIN LAGI", "newMove": "JURUS BARU!", "spin": "PUTAR EKOR", "best": "REKOR BARU!", "city": "Kota", "time": "Waktu", "bestCombo": "Kombo terbaik", "squash": "PENYOK!", "bonk": "BONK!" },
+    "ar": { "swipe": "اسحب!", "grow": "اكبر!", "tooBig": "كبير جدًا!", "combo": "كومبو", "domino": "دومينو", "flat": "المدينة سُوّيت!", "again": "العب مجددًا", "newMove": "حركة جديدة!", "spin": "دوران الذيل", "best": "رقم قياسي!", "city": "المدينة", "time": "الوقت", "bestCombo": "أفضل كومبو", "squash": "انسحق!", "bonk": "بونك!" },
+    "es": { "swipe": "¡Desliza!", "grow": "¡CRECE!", "tooBig": "¡MUY GRANDE!", "combo": "COMBO", "domino": "DOMINÓ", "flat": "¡CIUDAD APLASTADA!", "again": "JUGAR OTRA VEZ", "newMove": "¡NUEVO MOVIMIENTO!", "spin": "GIRO DE COLA", "best": "¡NUEVO RÉCORD!", "city": "Ciudad", "time": "Tiempo", "bestCombo": "Mejor combo", "squash": "¡PLAF!", "bonk": "¡BONK!" },
+    "vi": { "swipe": "Vuốt!", "grow": "LỚN LÊN!", "tooBig": "QUÁ TO!", "combo": "COMBO", "domino": "DOMINO", "flat": "PHÁ SẠCH THÀNH PHỐ!", "again": "CHƠI LẠI", "newMove": "CHIÊU MỚI!", "spin": "QUẬT ĐUÔI", "best": "KỶ LỤC MỚI!", "city": "Thành phố", "time": "Thời gian", "bestCombo": "Combo cao nhất", "squash": "BẸP!", "bonk": "BỐP!" },
+    "hi": { "swipe": "स्वाइप करो!", "grow": "बड़े बनो!", "tooBig": "बहुत बड़ा!", "combo": "कॉम्बो", "domino": "डोमिनो", "flat": "शहर सपाट!", "again": "फिर खेलो", "newMove": "नई चाल!", "spin": "पूँछ घुमाओ", "best": "नया रिकॉर्ड!", "city": "शहर", "time": "समय", "bestCombo": "सबसे बड़ा कॉम्बो", "squash": "पिचक!", "bonk": "धड़ाम!" },
+    "bn": { "swipe": "সোয়াইপ করো!", "grow": "বড় হও!", "tooBig": "অনেক বড়!", "combo": "কম্বো", "domino": "ডমিনো", "flat": "শহর সমান!", "again": "আবার খেলো", "newMove": "নতুন চাল!", "spin": "লেজ ঘোরাও", "best": "নতুন রেকর্ড!", "city": "শহর", "time": "সময়", "bestCombo": "সেরা কম্বো", "squash": "চ্যাপ্টা!", "bonk": "ধপাস!" }
+  },
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
