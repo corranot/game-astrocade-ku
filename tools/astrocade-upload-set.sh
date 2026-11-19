@@ -7,7 +7,7 @@ src=$1 out=$2
 mkdir -p "$out"
 for p in "$src"/index.html "$src"/*.js; do # every module the game loads; test scripts stay home
   f=$(basename "$p")
-  case "$f" in playtest.js|soak.js|look.js) continue ;; esac
+  grep -q "require('playwright')" "$p" && continue # test and check scripts drive a browser; they never ship
   grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$p" > "$out/$f"
 done
 # README.md is a required game file (overview + code structure); the game folder's own README holds dev notes,

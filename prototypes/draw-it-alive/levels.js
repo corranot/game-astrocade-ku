@@ -19,6 +19,8 @@
 import { sticker, blob, box, stick, shape, shadow, face, heart, tuft, bloom, dots, front, curve, circle, spiral, offsetPath, resample, borderScale, upTo, pointAt, pathLen, centroid, moved, loop,
   WHITE, NAVY, BLUSH, MINT, SUNNY, CORAL, ORANGE, VIOLET, SKY, GRASS } from './art.js';
 
+/** Skies chosen against what stands in front of them (green grass and hills, yellow chicks and suns). */
+const LIGHT_SKY = '#80D8FF', LILAC_SKY = '#D7C9FF', ROCK = '#B49BFF';
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const ease = (k) => 1 - Math.pow(1 - clamp01(k), 3);
 const hop = (s, speed, height) => Math.abs(Math.sin(s * speed)) * height;
@@ -194,7 +196,7 @@ function room(ctx) {
 function party(ctx) {
   dots(ctx);
   ctx.strokeStyle = WHITE; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 390); ctx.quadraticCurveTo(360, 460, 720, 390); ctx.stroke(); // below the stars of a win
-  sticker(() => { const cs = [CORAL, MINT, VIOLET, SKY, ORANGE]; for (let i = 0; i < 9; i++) { const x = 40 + i * 80, y = 390 + Math.sin(i / 8 * Math.PI) * 36; shape(ctx, [[x - 26, y], [x + 26, y], [x, y + 50]], cs[i % 5]); } });
+  sticker(() => { const cs = [CORAL, MINT, VIOLET, SUNNY, ORANGE]; for (let i = 0; i < 9; i++) { const x = 40 + i * 80, y = 390 + Math.sin(i / 8 * Math.PI) * 36; shape(ctx, [[x - 26, y], [x + 26, y], [x, y + 50]], cs[i % 5]); } });
   sticker(() => box(ctx, -40, 900, 800, 500, 0, MINT));
   front(ctx, GRASS, CORAL);
 }
@@ -257,7 +259,7 @@ function rock(ctx) {
   sticker(() => blob(ctx, 130, 300, 62, 62, SUNNY));
   ctx.fillStyle = '#35CC8B'; ctx.beginPath(); ctx.ellipse(220, 870, 240, 90, 0, 0, 7); ctx.fill();
   sticker(() => box(ctx, -40, 850, 800, 500, 0, GRASS));
-  sticker(() => box(ctx, 470, 600, 330, 300, 30, SKY));
+  sticker(() => box(ctx, 470, 600, 330, 300, 30, ROCK)); // a lilac rock, clear of the blue sky
   ctx.fillStyle = 'rgba(255,255,255,0.16)';
   for (const [x, y, r] of [[560, 720, 40], [660, 800, 30], [150, 1010, 60], [450, 1140, 70]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.5, 0, 0, 7); ctx.fill(); }
   sticker(() => { tuft(ctx, 40, 850, MINT); tuft(ctx, 250, 850, MINT); tuft(ctx, 690, 600, MINT); });
@@ -304,7 +306,7 @@ export const LEVELS = [
   },
   // 2 -------- a shell for the snail: one closed round shape
   {
-    bg: MINT, closed: true, target: circle(250, 705, 100), notes: [392, 523, 659, 880],
+    bg: LIGHT_SKY, closed: true, target: circle(250, 705, 100), notes: [392, 523, 659, 880],
     cues: [[0.55, 240, 1.5, 'sine', 420]],
     back: meadow,
     live(ctx, S) {
@@ -327,7 +329,7 @@ export const LEVELS = [
   },
   // 3 -------- water for the flower: a curve that joins two things
   {
-    bg: SUNNY, target: curve([[318, 500], [420, 470], [505, 590], [548, 790]]), notes: [587, 740, 880, 1175],
+    bg: LILAC_SKY, target: curve([[318, 500], [420, 470], [505, 590], [548, 790]]), notes: [587, 740, 880, 1175],
     cues: [[0.2, 1900, 0.05, 'sine', -500], [0.45, 2100, 0.05, 'sine', -500], [0.7, 1800, 0.05, 'sine', -500], [0.95, 2000, 0.05, 'sine', -500], [1.2, 1900, 0.05, 'sine', -500], [2.0, 1319, 0.5, 'triangle', 0]],
     back: garden,
     live(ctx, S) {
@@ -373,7 +375,7 @@ export const LEVELS = [
   },
   // 5 -------- a ramp for the snail, who wears the shell the player drew: one sloping line
   {
-    bg: MINT, target: [[300, 846], [470, 600]], notes: [392, 523, 659, 784, 1047],
+    bg: LIGHT_SKY, target: [[300, 846], [470, 600]], notes: [392, 523, 659, 784, 1047],
     cues: [[0.5, 260, 1.6, 'sine', 500], [2.5, 1319, 0.12, 'triangle', 0], [2.65, 1568, 0.3, 'triangle', 0]],
     back: rock,
     live(ctx, S) {
@@ -412,7 +414,7 @@ export const LEVELS = [
   },
   // 7 -------- a leaf for the snail to eat: a closed flat shape
   {
-    bg: MINT, closed: true, target: oval(530, 790, 100, 50), notes: [392, 523, 659, 880],
+    bg: LIGHT_SKY, closed: true, target: oval(530, 790, 100, 50), notes: [392, 523, 659, 880],
     cues: [[1.1, 300, 0.08, 'square', -100], [1.4, 300, 0.08, 'square', -100], [1.7, 300, 0.08, 'square', -100], [2.2, 1319, 0.3, 'triangle', 0]],
     back: meadow,
     live(ctx, S) {
@@ -431,7 +433,7 @@ export const LEVELS = [
   },
   // 8 -------- a stem for the flower: one line straight up
   {
-    bg: SUNNY, target: [[548, 872], [548, 610]], notes: [587, 740, 880, 1175],
+    bg: LILAC_SKY, target: [[548, 872], [548, 610]], notes: [587, 740, 880, 1175],
     cues: [[0.4, 600, 0.6, 'sine', 600], [1.4, 1319, 0.5, 'triangle', 0]],
     back: garden,
     live(ctx, S) {
@@ -476,7 +478,7 @@ export const LEVELS = [
   },
   // 10 -------- a slide off the rock: one curve down
   {
-    bg: MINT, target: curve([[470, 612], [420, 650], [340, 760], [250, 846]]), notes: [784, 659, 523, 392, 1047],
+    bg: LIGHT_SKY, target: curve([[470, 612], [420, 650], [340, 760], [250, 846]]), notes: [784, 659, 523, 392, 1047],
     cues: [[0.5, 900, 1.0, 'sine', -600], [2.1, 1319, 0.12, 'triangle', 0], [2.25, 1568, 0.3, 'triangle', 0]],
     back: rock,
     live(ctx, S) {
@@ -562,7 +564,7 @@ export const LEVELS = [
   },
   // 14 -------- a shell for the baby snail: one small closed shape
   {
-    bg: MINT, closed: true, target: circle(455, 777, 52), notes: [392, 523, 659, 880],
+    bg: LIGHT_SKY, closed: true, target: circle(455, 777, 52), notes: [392, 523, 659, 880],
     cues: [[0.55, 300, 1.4, 'sine', 400], [2.0, 1319, 0.3, 'triangle', 0]],
     back: meadow,
     live(ctx, S) {
@@ -632,14 +634,14 @@ export const LEVELS = [
   },
   // 17 -------- up the rock and down the other side: a ramp and a slide
   {
-    bg: MINT, notes: [392, 523, 659, 784, 1047],
+    bg: LIGHT_SKY, notes: [392, 523, 659, 784, 1047],
     parts: [{ target: [[200, 846], [330, 676]] }, { target: curve([[500, 676], [545, 710], [585, 790], [610, 846]]) }],
     cues: [[0.5, 260, 1.2, 'sine', 500], [1.8, 900, 0.9, 'sine', -600], [3.0, 1319, 0.12, 'triangle', 0], [3.15, 1568, 0.3, 'triangle', 0]],
     back(ctx) {
       dots(ctx);
       sticker(() => blob(ctx, 600, 300, 62, 62, SUNNY));
       sticker(() => box(ctx, -40, 850, 800, 500, 0, GRASS));
-      sticker(() => box(ctx, 330, 670, 170, 250, 30, SKY));
+      sticker(() => box(ctx, 330, 670, 170, 250, 30, ROCK)); // lilac, clear of the blue sky
       ctx.fillStyle = 'rgba(255,255,255,0.16)'; for (const [x, y, r] of [[390, 760, 30], [450, 820, 24], [330, 1080, 70]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.5, 0, 0, 7); ctx.fill(); }
       sticker(() => { tuft(ctx, 460, 670, MINT); bloom(ctx, 250, 960, 15, SUNNY); bloom(ctx, 470, 980, 16, ORANGE); });
       front(ctx, MINT, CORAL);
@@ -693,7 +695,7 @@ export const LEVELS = [
   },
   // 20 -------- the party: a table, then the cake
   {
-    bg: SUNNY, notes: [523, 659, 784, 1047, 1319],
+    bg: LIGHT_SKY, notes: [523, 659, 784, 1047, 1319],
     parts: [{ target: [[200, 800], [520, 800]] }, { target: loop([[270, 786], [270, 650], [450, 650], [450, 786]]), closed: true }],
     cues: [[0.5, 1047, 0.15, 'triangle', 0], [0.7, 1319, 0.15, 'triangle', 0], [0.9, 1568, 0.3, 'triangle', 0], [2.0, 2093, 0.4, 'triangle', 0]],
     back: party,
