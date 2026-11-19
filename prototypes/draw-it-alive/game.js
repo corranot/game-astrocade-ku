@@ -24,7 +24,7 @@ import { LEVELS } from './levels.js';
 const W = 720, H = 1280, STEP = 8, CHAPTER = 5, SET = 6;
 const DEBUG = location.search.includes('local');
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, WHITE];
-const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of the feed's swipe edge
+const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of the swipe edge
 const WALLB = { x: 600, y: 1040, s: 96 }; // button to the wall, lower right
 const JAR = { x: 24, y: 40, s: 110 }; // the paint jar, top left; it opens the sticker book
 const BACK = { x: 312, y: 1110, s: 96 }; // the way back out of the sticker book
@@ -401,7 +401,7 @@ function pressTarget(p) {
   return null;
 }
 
-/** Buttons act on release with little travel, so a swipe of the feed or a gripping thumb does nothing. */
+/** Buttons act on release with little travel, so a swipe to the next game or a gripping thumb does nothing. */
 function release(p) {
   const pr = press; press = null;
   if (!pr || dist(p, pr.p) > cfg.tapTravel) return;
