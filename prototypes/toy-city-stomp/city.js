@@ -173,7 +173,9 @@ export function createCity(scene, cfg, rng, quality) {
   blocks.receiveShadow = true; blocks.castShadow = quality.shadowsOnBlocks; blocks.frustumCulled = false;
   blocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   group.add(blocks);
+  let dMin = Infinity, dMax = -1; // range of blocks changed this frame: only that part goes to the GPU
   const writeMatrix = (i) => {
+    if (i < dMin) dMin = i; if (i > dMax) dMax = i;
     quat.set(vox.q[i * 4], vox.q[i * 4 + 1], vox.q[i * 4 + 2], vox.q[i * 4 + 3]);
     mtx.compose(v3.set(vox.px[i], vox.py[i], vox.pz[i]), quat, one.setScalar(vox.s[i]));
     blocks.setMatrixAt(i, mtx);
@@ -220,10 +222,13 @@ export function createCity(scene, cfg, rng, quality) {
   let ki = 0;
   for (let i = 0; i < C.lots; i++) for (let j = 0; j < C.lots; j++) {
     const lx = -half + C.road + i * pitch, lz = -half + C.road + j * pitch, L = C.lotSize;
-    const kind = i === centre && j === centre ? 'clock' : (i === centre && j === C.lots - 1) ? 'cottages' : kinds[ki++ % kinds.length];
+    // fixed lots: the clock tower in the middle, cottages where Bonbon starts, and just ahead a lot built to fall
+    // like dominoes (an apartment in front of a row of shops), so the first domino comes early
+    const kind = i === centre && j === centre ? 'clock' : (i === centre && j === C.lots - 1) ? 'cottages' : (i === centre && j === C.lots - 2) ? 'domino' : kinds[ki++ % kinds.length];
     const place = (k, fx, fz) => { const c = classes[k - 1]; addBuilding(k, Math.round(lx + fx * (L - c.w)), Math.round(lz + fz * (L - c.d))); };
     if (kind === 'clock') place(5, 0.5, 0.5);
     else if (kind === 'tower') { place(4, 0.2, 0.2); place(1, 0.95, 0.95); }
+    else if (kind === 'domino') { place(3, 0.5, 1); place(2, 0.05, 0); place(2, 0.5, 0); place(2, 0.95, 0); }
     else if (kind === 'apart') { place(3, 0.05, 0.1); place(2, 0.95, 0.9); }
     else if (kind === 'shops') { place(2, 0.05, 0.05); place(2, 0.95, 0.05); place(2, 0.05, 0.95); place(1, 0.95, 0.95); }
     else if (kind === 'cottages') { place(1, 0.05, 0.05); place(1, 0.95, 0.05); place(1, 0.05, 0.95); place(1, 0.95, 0.95); place(1, 0.5, 0.5); }
@@ -231,6 +236,7 @@ export function createCity(scene, cfg, rng, quality) {
   }
   blocks.count = count;
   blocks.instanceMatrix.needsUpdate = true; if (blocks.instanceColor) blocks.instanceColor.needsUpdate = true;
+  dMin = Infinity; dMax = -1; // the first upload sends everything
   const totalBlocks = count;
 
   // ---------- props: trees in parks, street lamps along the kerbs (both pop when stepped on)
@@ -455,7 +461,6 @@ export function createCity(scene, cfg, rng, quality) {
         vox.q[i * 4] = qd.x; vox.q[i * 4 + 1] = qd.y; vox.q[i * 4 + 2] = qd.z; vox.q[i * 4 + 3] = qd.w;
         writeMatrix(i);
       }
-      blocks.instanceMatrix.needsUpdate = true;
       if (T.angle >= Math.PI / 2 - 0.05) {
         b.state = 'gone';
         for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) {
@@ -480,7 +485,6 @@ export function createCity(scene, cfg, rng, quality) {
   }
 
   function updateBlocks(dt, monster) {
-    let dirty = false;
     const mx = monster.x, mz = monster.z, mr = monster.r * 0.8, mr2 = mr * mr;
     for (let i = 0; i < count; i++) {
       const st = vox.state[i];
@@ -499,7 +503,7 @@ export function createCity(scene, cfg, rng, quality) {
           }
         }
         vox.q[i * 4] = quat.x; vox.q[i * 4 + 1] = quat.y; vox.q[i * 4 + 2] = quat.z; vox.q[i * 4 + 3] = quat.w;
-        writeMatrix(i); dirty = true;
+        writeMatrix(i);
       } else if (st === 2) {
         if (!monster.moving) continue;
         const dx = vox.px[i] - mx, dz = vox.pz[i] - mz, d2 = dx * dx + dz * dz;
@@ -507,7 +511,7 @@ export function createCity(scene, cfg, rng, quality) {
       } else if (st === 4) {
         vox.s[i] -= dt * 1.5;
         if (vox.s[i] <= 0) { vox.s[i] = 0; vox.state[i] = 3; }
-        writeMatrix(i); dirty = true;
+        writeMatrix(i);
       }
     }
     // tidy away the oldest rubble while there is more than the device can keep
@@ -515,7 +519,6 @@ export function createCity(scene, cfg, rng, quality) {
       const at = rqHead, i = rubbleQueue[at]; rqHead = (rqHead + 1) % MAXV;
       if (vox.state[i] === 2 && vox.slot[i] === at) { vox.state[i] = 4; rubbleCount--; } // stale entries (kicked, landed again) are skipped
     }
-    if (dirty) blocks.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- queries for game.js
@@ -529,9 +532,10 @@ export function createCity(scene, cfg, rng, quality) {
     }
     return out;
   }
-  function nearest(x, z, filter) {
+  /** Nearest intact building; `behind` > 0 adds that much distance per unit a building lies behind (south of) (x, z). */
+  function nearest(x, z, filter, behind = 0) {
     let best = null, bd = Infinity;
-    for (const b of buildings) if (b.state === 'intact' && (!filter || filter(b))) { const d = Math.hypot(b.cx - x, b.cz - z); if (d < bd) bd = d, best = b; }
+    for (const b of buildings) if (b.state === 'intact' && (!filter || filter(b))) { const d = Math.hypot(b.cx - x, b.cz - z) + behind * Math.max(0, b.cz - z); if (d < bd) bd = d, best = b; }
     return best;
   }
   function squashCars(x, z, r) {
@@ -553,10 +557,15 @@ export function createCity(scene, cfg, rng, quality) {
   function update(dt, monster) {
     seaT += dt; seaMat.uniforms.uT.value = seaT;
     updateTopples(dt); updateBlocks(dt, monster); updateCars(dt); updateParticles(dt);
+    if (dMax >= 0) {
+      const a = blocks.instanceMatrix; a.clearUpdateRanges(); a.addUpdateRange(dMin * 16, (dMax - dMin + 1) * 16); a.needsUpdate = true;
+      dMin = Infinity; dMax = -1;
+    }
   }
   function setXray(cam, mon, r) { const u = blockMat.userData.uniforms; u.uCam.value.copy(cam); u.uMon.value.copy(mon); u.uR.value = r; }
 
   return {
+    start: { x: -half + C.road + centre * pitch + C.lotSize / 2, z: half - 1 }, // in front of the cottages lot
     group, buildings, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees,
     puff, burstConfetti, releaseResidents,
     intactLeft: () => intact,
