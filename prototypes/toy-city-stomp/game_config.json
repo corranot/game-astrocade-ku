@@ -15,7 +15,7 @@
   "monster": { "speed": 6, "speedPerStage": 0.12, "radius": 1.1, "attackSec": 0.48, "biteRadius": 1.45 },
   "combo": { "windowSec": 3.5, "every": 3, "max": 10 },
   "points": { "perClass": 10, "perVoxel": 1, "car": 15, "tree": 3 },
-  "fx": { "shakeMax": 1.0, "slowmoScale": 0.3, "slowmoSec": 0.9, "hitstopSec": 0.05 },
+  "fx": { "shakeMax": 0.5, "slowmoScale": 0.3, "slowmoSec": 0.9, "hitstopSec": 0.05 },
   "idleAutoplaySec": 4,
   "skill": { "unlockStage": 3, "cooldownSec": 6, "radius": 4.5 },
   "starsTimeSec": [180, 270],
