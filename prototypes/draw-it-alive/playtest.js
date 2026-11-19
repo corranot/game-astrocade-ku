@@ -71,7 +71,8 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
       await page.waitForTimeout(1500); await shot(page, 'wall');
       const c0 = await page.evaluate(() => { const g = window.__game, p = g.cardAt(2); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
       await page.mouse.click(c0[0], c0[1]); await page.waitForTimeout(100);
-      ok(await page.evaluate(() => window.__game.wall.cards[2].pop > 0), 'a tap on a card replays it');
+      ok(await page.evaluate(() => window.__game.wall.cards[2].pop > 0 && window.__game.wall.big === 2), 'a tap on a card replays it, large');
+      await page.mouse.click(360, 600); await page.waitForTimeout(100); // a tap puts it back
       const nx = await page.evaluate(() => { const g = window.__game, p = g.cardAt(5); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
       await page.evaluate(() => { window.__game.wall.unlocked = window.__game.wall.t; });
       await page.mouse.click(nx[0], nx[1]); await page.waitForTimeout(150);
