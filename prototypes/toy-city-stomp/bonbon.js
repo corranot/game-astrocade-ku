@@ -109,7 +109,7 @@ export function createBonbon(opts = {}) {
   }
   setStage(1);
 
-  let t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0, jawOpen = 0;
+  let headYaw = 0, laughT = 0, t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0, jawOpen = 0;
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
   function setFace(name, sec = 1) { faceName = name; faceTimer = sec; }
 
@@ -130,7 +130,7 @@ export function createBonbon(opts = {}) {
     dizzy.visible = f === 'dizzy';
   }
 
-  function update(dt, state) {
+  let update = function (dt, state) {
     t += dt;
     faceTimer -= dt; if (faceTimer <= 0 && faceName !== 'happy') faceName = 'happy';
     blink -= dt; if (blink < -2.6 - Math.sin(t * 3.1) * 1.2) blink = 0.12;
@@ -149,6 +149,12 @@ export function createBonbon(opts = {}) {
     torso.rotation.x = (moving ? 0.1 : 0) + atk * 0.25; torso.rotation.z = moving ? step * 0.06 : 0;
     head.rotation.x = -0.05 + atk * 0.35 - (roarT > 0 ? 0.35 : 0) + (moving ? Math.cos(walkPhase * 2) * 0.03 : Math.sin(t * 1.7) * 0.03);
     head.rotation.z = moving ? -step * 0.05 : Math.sin(t * 0.9) * 0.05;
+    // the head turns toward what Bonbon is about to break
+    let wantYaw = 0;
+    if (state.lookAt) { root.worldToLocal(tmp.copy(state.lookAt)); wantYaw = THREE.MathUtils.clamp(Math.atan2(tmp.x, tmp.z), -0.7, 0.7); }
+    headYaw += (wantYaw - headYaw) * Math.min(1, dt * 6); head.rotation.y = headYaw;
+    // a laugh: a quick giggle shake of the whole body
+    if (laughT > 0) { laughT -= dt; body.rotation.z = Math.sin(t * 38) * 0.07 * Math.min(1, laughT * 2); head.rotation.x -= 0.25; } else body.rotation.z = 0;
     belly.scale.set(0.78 + squash * 0.25, 1.0 - squash * 0.2, 0.42);
     for (const [i, a] of arms.entries()) {
       const s = i ? 1 : -1;
@@ -182,10 +188,25 @@ export function createBonbon(opts = {}) {
     }
   }
 
+  let rainbow = false;
+  const bodyMats = [...mats.values()].filter((m) => m.color && (m.color.getHex() === PINK || m.color.getHex() === PINK_D));
+  const baseCol = bodyMats.map((m) => m.color.getHex()), hue = new THREE.Color();
+  /** Rainbow Mode: the body cycles through the rainbow and glows a little. */
+  function setRainbow(on) {
+    rainbow = on;
+    bodyMats.forEach((m, i) => { m.color.setHex(baseCol[i]); if (m.emissive) m.emissive.setHex(0x000000); });
+  }
+  const _update = update;
+  update = function (dt, state) {
+    _update(dt, state);
+    if (rainbow) bodyMats.forEach((m, i) => { m.color.copy(hue.setHSL((t * 0.35 + i * 0.12) % 1, 0.85, 0.62)); if (m.emissive) m.emissive.copy(hue).multiplyScalar(0.25); });
+  };
+
   return {
-    root, update, setStage, face: setFace,
+    root, update: (dt, s) => update(dt, s), setStage, face: setFace, setRainbow,
     stomp(strength = 1) { squashV -= 6 * strength; attackT = 0.3; },
     roar() { roarT = 1.0; setFace('roar', 1.0); squashV += 5; },
+    laugh() { laughT = 0.9; setFace('win', 1.0); },
     resetTail() { for (const s of tail) s.userData.pos.set(0, 0, 0), s.userData.vel.set(0, 0, 0); },
     dispose() { for (const g of geos) g.dispose(); for (const m of mats.values()) m.dispose(); inkMat.dispose(); },
   };
