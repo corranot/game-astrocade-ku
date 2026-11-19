@@ -3,7 +3,7 @@
 // eyes), clawed arms and toed feet, a 6-segment spring tail and back spikes. Candy material: glossy clearcoat
 // with an environment reflection on capable devices, smooth matte shading on low-end ones; thin ink outline either way.
 // Animated in code: walk, squash and stretch, jelly belly, jaw, look-at eyes, six faces.
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js';
+import * as THREE from 'three';
 
 const PINK = 0xff5fa2, PINK_D = 0xe8478a, SPOT = 0xff86bb, BELLY = 0xffe3ef, SPIKE = 0xffc531, INK = 0x3a1f3d, WHITE = 0xffffff, MOUTH = 0x8a1d48, TONGUE = 0xff7aa8;
 

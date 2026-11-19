@@ -10,6 +10,7 @@ if (!dir || !out) { console.error('usage: node tools/artifact-modules.js <game f
 const page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
 const title = (page.match(/<title>([^<]*)<\/title>/) || [, 'Game'])[1];
 const style = (page.match(/<style>([\s\S]*?)<\/style>/) || [, ''])[1];
+const importMap = (page.match(/<script type="importmap">[\s\S]*?<\/script>/) || [''])[0]; // bare imports such as 'three'
 const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8'));
 delete cfg.persistent_storage_config; // the host keeps this key out of window.gameConfig
 const key = 'save-' + path.basename(path.resolve(dir));
@@ -17,6 +18,7 @@ const key = 'save-' + path.basename(path.resolve(dir));
 const html = `<title>${title}</title>
 <style>${style}</style>
 <div id="app"></div>
+${importMap}
 <script>
 window.gameConfig = ${JSON.stringify(cfg)};
 window.lib = { showGameParameters() {}, log() {},
