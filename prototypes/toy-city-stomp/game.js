@@ -69,24 +69,26 @@ const Sound = (() => {
     await Promise.all(['sfx_stomp', 'sfx_crumble', 'sfx_roar', 'sfx_coin', 'sfx_squash', 'sfx_glass', 'sfx_win'].map(one));
     await one('music_main'); startMusic();
   }
+  let active = true, rate = 1; // active: a game is running (music must not start for one already closed)
   function play(id, vol = 0.5, rate = 1) {
     if (!ctx || muted || !buffers[id]) return !!buffers[id] && !muted;
     const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buffers[id]; s.playbackRate.value = rate; g.gain.value = vol;
     s.connect(g).connect(master); s.start(); return true;
   }
   function startMusic() {
-    if (!ctx || music || !buffers.music_main) return;
+    if (!ctx || music || !buffers.music_main || !active) return;
     musicGain = ctx.createGain(); musicGain.gain.value = muted ? 0 : 0.3; musicGain.connect(master);
     music = ctx.createBufferSource(); music.buffer = buffers.music_main; music.loop = true; music.connect(musicGain); music.start();
   }
   return {
-    unlock() { if (ensure()) { if (ctx.state === 'suspended') ctx.resume(); loadAssets(); } },
+    unlock() { active = true; if (ensure()) { if (ctx.state === 'suspended') ctx.resume(); loadAssets(); startMusic(); } }, // startMusic: back again after a restart
     setMuted(m) { muted = m; if (musicGain) musicGain.gain.value = m ? 0 : 0.3; }, get muted() { return muted; },
     /** Music goes a little faster when the toy army is out in force or the boss fights. */
-    musicRate(r) { if (music) music.playbackRate.value = r; },
+    musicRate(r) { if (!music || r === rate) return; rate = r; music.playbackRate.setTargetAtTime(r, ctx.currentTime, 0.8); }, // a slow glide, only on a change
     pause(p) { if (ctx) (p ? ctx.suspend() : ctx.resume()).catch(() => {}); },
     get loaded() { return Object.keys(buffers); },
-    stopMusic() { try { if (music) music.stop(); } catch (e) { /* already stopped */ } music = null; },
+    get musicOn() { return !!music; },
+    stopMusic() { active = false; rate = 1; try { if (music) music.stop(); } catch (e) { /* already stopped */ } music = null; },
     bite(size) { crash(0.18 + size * 0.04, 2200 - size * 200, 0.35); tone('triangle', 220 - size * 20, 90, 0.12, 0.25); },
     collapse(k) { if (!play('sfx_crumble', 0.35 + k * 0.08, 1.15 - k * 0.07)) crash(0.5 + k * 0.15, 1400 - k * 150, 0.6); tone('sine', 120 - k * 12, 40, 0.5 + k * 0.1, 0.5); },
     land() { crash(0.9, 900, 0.8); tone('sine', 70, 30, 0.9, 0.7); },
@@ -106,10 +108,23 @@ const Sound = (() => {
 })();
 
 // ---------------------------------------------------------------- the game
-let app = null;
+let app = null, pendingMode = null;
+/** Three.js could not be loaded (no connection): one big retry button instead of a blank screen. */
+function showRetry() {
+  const root = document.getElementById('app') || document.body;
+  root.innerHTML = '<button style="position:absolute;inset:0;margin:auto;width:40%;aspect-ratio:1;border-radius:50%;border:6px solid #24123f;background:#22c6a3;color:#fff;font-size:12vmin;cursor:pointer" aria-label="Retry">↻</button>';
+  root.querySelector('button').onclick = () => location.reload();
+}
 function run(mode) {
   // the host may call run() before Three.js has arrived from the CDN: start as soon as it is there
-  if (!window.THREE) { window.addEventListener('three-ready', () => run(mode), { once: true }); return; }
+  if (!window.THREE) {
+    const first = pendingMode === null; pendingMode = mode; // a second call while waiting only changes the mode
+    if (first) {
+      window.addEventListener('three-ready', () => { const m = pendingMode; pendingMode = null; run(m); }, { once: true });
+      setTimeout(() => { if (!window.THREE) showRetry(); }, 10000); // never a blank screen forever
+    }
+    return;
+  }
   if (app) app.destroy();
   app = startGame(mode === 'edit' ? 'edit' : 'play');
   window.__game = app.debug;
@@ -196,7 +211,7 @@ function startGame(mode) {
       <div class="leftcol"><div class="coins gloss"><span class="coin-ico"></span><b id="coins">0</b></div>
       <div class="mission gloss" id="mission" hidden><span class="mi-ico" id="miIco"></span><b id="miCount"></b><span class="mi-rw"><span class="coin-ico"></span><i id="miRw"></i></span></div></div>
       <div class="mid"><div class="spirit gloss"><span class="heart">❤</span><div class="sbar"><i id="spirit"></i></div></div><div class="wanted out" id="wanted"></div></div>
-      <div class="btns"><button class="icon gloss" id="lang" aria-label="Language">🌐</button><button class="icon gloss" id="mute" aria-label="Sound">🔊</button></div>
+      <div class="btns"><button class="icon gloss" id="lang" aria-label="Language">🌐</button><button class="icon gloss" id="mute" aria-label="Sound">${Sound.muted ? '🔇' : '🔊'}</button></div>
     </div>
     <div class="bossbar" id="bossbar" hidden><b class="out" id="bossName"></b><div class="bar gloss"><i id="bossHp"></i></div></div>
     <div class="combo out" id="combo"></div>
@@ -770,6 +785,7 @@ function startGame(mode) {
       if (save.tutorialDone && missions && missions.tutorial && !S.touched) missions = createMissions(rng, true, missionDone, levelOf);
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length) persist();
+      { const ts = document.querySelector('#toShop'); if (ts && S.finished && canBuy() && !ts.querySelector('.badge')) ts.insertAdjacentHTML('beforeend', '<span class="badge">!</span>'); }
     }).catch(() => { saveLoaded = true; });
   }
   raf = requestAnimationFrame(frame);
