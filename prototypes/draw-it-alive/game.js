@@ -205,7 +205,7 @@ function openWall(c = 0, next = 0, opens = false) {
 }
 
 /** Play card n's scene from the start. */
-function playCard(n) { const c = wall.cards[n]; c.t0 = wall.t; c.pop = 1; wall.turn = n; wall.started.add(n); }
+function playCard(n) { for (const o of wall.cards) o.t0 = -99; const c = wall.cards[n]; c.t0 = wall.t; c.pop = 1; wall.turn = n; wall.started.add(n); }
 
 /** The lock on the way into the next chapter springs open. */
 function unlock() { if (wall.unlocked < 0) { wall.unlocked = wall.t; const a = cardAt(CHAPTER); confetti(a.x + CARD.w / 2, a.y + CARD.h / 2, cfg.confetti); tune([784, 988, 1175, 1568], 90, 0.25, 0.1); buzz('success'); } }
@@ -383,12 +383,13 @@ function bindInput() {
   cv.addEventListener('pointerdown', (e) => {
     if (mode !== 'play' || !e.isPrimary) return;
     e.preventDefault(); startAudio(); touched = true;
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
     const p = point(e), what = pressTarget(p);
     if (what) { press = { what, p }; return; }
     pointerDown = true; S.look = p; S.mood = 'draw'; S.sadFor = 0; S.idle = 0;
     // a finger that lifts and comes back near the end of the line carries on with it
     if (S.pen && S.liftAt && dist(p, S.pen[S.pen.length - 1]) <= cfg.liftReach) S.liftAt = 0;
-    else { S.pen = [p]; S.faded = null; }
+    else { S.pen = [p]; S.faded = null; S.liftAt = 0; }
   });
   cv.addEventListener('pointermove', (e) => {
     if (!pointerDown || !S.pen || !e.isPrimary) return;
@@ -402,6 +403,7 @@ function bindInput() {
   });
   const up = (e) => {
     if (!e.isPrimary || mode !== 'play') return;
+    if (e.type === 'pointerup') startAudio(); // phones count the lift, not the press, as the gesture that may start sound
     if (press) return release(point(e));
     if (!pointerDown) return;
     pointerDown = false;
@@ -748,8 +750,9 @@ function run(m) {
       if (me !== runs) return;
       saveRead = true; // from now on the save may be written
       applySave(r && r.state);
-    }).catch(() => { if (me === runs && tries > 0) setTimeout(() => read(tries - 1), 4000); });
-    read(3);
+      persist(); // progress made before the read arrived is written now, merged with the stored one
+    }).catch(() => { if (me === runs) setTimeout(() => read(tries + 1), Math.min(30000, 4000 * tries)); }); // never give up: writing blind could erase the player's real save
+    read(1);
   }
   last = performance.now(); raf = requestAnimationFrame(frame);
 }
