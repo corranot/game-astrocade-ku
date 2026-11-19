@@ -46,7 +46,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(Object.keys(st.save.art).length >= n && Object.values(st.save.art).every((a) => a.length > 1), 'a stored picture for every part');
   ok(JSON.stringify(st.save).length < 20000, `save stays small (${JSON.stringify(st.save).length} bytes)`);
   ok(st.save.stickers.length > 0 && new Set(st.save.stickers).size === st.save.stickers.length, `surprise boxes gave stickers, none twice (${st.save.stickers})`);
-  ok(st.save.drops >= 0 && st.save.drops < 6 + 3, `the jar never holds a box's worth it did not pay out (${st.save.drops} drops)`);
+  ok(st.save.drops >= 0 && (st.save.stickers.length === 12 || st.save.drops < 6 + 3), `the jar never holds a box's worth it did not pay out while stickers are left (${st.save.drops} drops, ${st.save.stickers.length} stickers)`);
   ok(st.canvases <= 2 * n, `wall canvases do not pile up (${st.canvases})`);
   const first = perLevel.slice(0, n), lastCh = perLevel.slice(-n);
   ok(lastCh.every((b, i) => b >= first[i] * 0.6 && b > 3), `sounds still play in the last chapter (first ${first} / last ${lastCh})`);
