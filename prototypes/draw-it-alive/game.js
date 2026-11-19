@@ -25,6 +25,7 @@ import { sticker, stick, shape, star, box, blob, dots, borderScale, colourPass, 
 import { LEVELS } from './levels.js';
 
 const W = 720, H = 1280, STEP = 8, CHAPTER = 5, SET = 6;
+const STICKER_BG = '#CFC2FF'; // behind every sticker (box and book): a lilac no sticker is drawn in, so white and pink ones show
 const DEBUG = location.search.includes('local');
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, WHITE];
 const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of the swipe edge
@@ -526,7 +527,7 @@ function drawBox() {
   g.restore();
   if (gift.open >= 0) {
     const up = ease(a / 0.6), r = 120 * up * (1 + Math.max(0, 0.3 - Math.abs(a - 0.6)) * 0.8), y = cy - 40 - up * 260;
-    g.fillStyle = WHITE; g.beginPath(); g.arc(cx, y, r * 1.25, 0, 7); g.fill();
+    g.fillStyle = STICKER_BG; g.beginPath(); g.arc(cx, y, r * 1.25, 0, 7); g.fill();
     STICKERS[gift.id](g, cx, y, r);
     // the set it belongs to: six slots, the new one glowing
     banner(T(gift.full ? 'setDone' : 'sticker'), W / 2, 214, 52, 520, gift.full ? ORANGE : VIOLET, popIn(a - 0.3));
@@ -534,8 +535,8 @@ function drawBox() {
     for (let j = 0; j < SET; j++) {
       const id = s0 + j, x = cx + (j - 2.5) * 104, yy = 1060, has = save.stickers.includes(id);
       if (gift.full) { g.fillStyle = SUNNY; g.beginPath(); g.arc(x, yy, 54, 0, 7); g.fill(); } // a finished set gets gold rings
-      g.fillStyle = WHITE; g.beginPath(); g.arc(x, yy, 46, 0, 7); g.fill();
-      if (has) STICKERS[id](g, x, yy, id === gift.id ? 34 + Math.sin(a * 10) * 3 : 34); else { g.fillStyle = '#D9CCFF'; g.beginPath(); g.arc(x, yy, 26, 0, 7); g.fill(); }
+      g.fillStyle = STICKER_BG; g.beginPath(); g.arc(x, yy, 46, 0, 7); g.fill();
+      if (has) STICKERS[id](g, x, yy, id === gift.id ? 34 + Math.sin(a * 10) * 3 : 34); else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, yy, 26, 0, 7); g.fill(); }
     }
   } else { // the hand shows where to tap
     banner(T('tap'), W / 2, 420, 56, 400, CORAL, 1 + Math.abs(Math.sin(gift.t * 4)) * 0.06);
@@ -558,12 +559,12 @@ function drawBook() {
     const P = panelAt(s0 / SET), top = P.y, gold = setDone(s0);
     box(g, P.x, top + 10, P.w, P.h, 36, 'rgba(31,42,107,0.22)');
     if (gold) box(g, P.x - 8, top - 8, P.w + 16, P.h + 16, 42, ORANGE); // a finished set gets a gold frame
-    box(g, P.x, top, P.w, P.h, 36, '#FFE3EF');
+    box(g, P.x, top, P.w, P.h, 36, STICKER_BG);
     if (gold) for (const x of [P.x + 34, P.x + P.w - 34]) sticker(() => star(g, x, top + 18, 22, SUNNY, Math.sin(book.t * 3) * 0.3));
     for (let id = s0; id < s0 + SET; id++) {
       const { x, y } = slotAt(id);
       if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 50);
-      else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 48, 0, 7); g.fill(); g.fillStyle = '#F5C6DA'; g.beginPath(); g.arc(x, y, 14, 0, 7); g.fill(); }
+      else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 48, 0, 7); g.fill(); g.fillStyle = STICKER_BG; g.beginPath(); g.arc(x, y, 14, 0, 7); g.fill(); }
     }
     let n = 0; for (let id = s0; id < s0 + SET; id++) if (save.stickers.includes(id)) n++;
     box(g, P.x + P.w / 2 - 62, top - 26, 124, 52, 26, gold ? ORANGE : VIOLET); words(n + '/' + SET, P.x + P.w / 2, top + 2, 34, 110, WHITE); // numbers are not mirrored
@@ -812,7 +813,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, saveUserGameState: none, haptics: { play() {}, start() {}, stop() {} } };
-  window.__game = { today, LEVELS, newLevel, get backLayer() { return back; }, get S() { return S; }, get target() { return S.flip ? mirror(target) : target; }, get quality() { return quality; }, set quality(q) { quality = q; }, get save() { return save; }, set save(v) { save = v; }, applySave, get view() { return view; }, get wall() { return wall; }, get gift() { return gift; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; }, detectLang, T, LANGB, get jarShown() { return jarShown; }, MUTE, WALLB, JAR, BACK, CARD, CHAPTER, STICKERS, cardAt, slotAt, openWall, openBox, openBook, partsOf, artKey, get cfg() { return cfg; }, get canvases() { return cardImgs.length + cardBacks.length; } };
+  window.__game = { discColour: STICKER_BG, panelColour: STICKER_BG, today, LEVELS, newLevel, get backLayer() { return back; }, get S() { return S; }, get target() { return S.flip ? mirror(target) : target; }, get quality() { return quality; }, set quality(q) { quality = q; }, get save() { return save; }, set save(v) { save = v; }, applySave, get view() { return view; }, get wall() { return wall; }, get gift() { return gift; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; }, detectLang, T, LANGB, get jarShown() { return jarShown; }, MUTE, WALLB, JAR, BACK, CARD, CHAPTER, STICKERS, cardAt, slotAt, openWall, openBox, openBook, partsOf, artKey, get cfg() { return cfg; }, get canvases() { return cardImgs.length + cardBacks.length; } };
   const q = new URLSearchParams(location.search);
   fetch('game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = { ...c, ...JSON.parse(q.get('cfg') || '{}') }; run(q.get('mode') || 'play'); });
 }

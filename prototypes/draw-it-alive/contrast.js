@@ -72,7 +72,7 @@ function scan(maxD) {
     const flags = await page.evaluate(scan, maxD);
     for (const f of flags) console.log(`${name}: ${hex(f.col)} on ${hex(f.on)} distance ${f.dist}, ${f.area} px at ${f.box.join(',')}`);
     total += flags.length;
-    if (out && flags.length) {
+    if (out && (flags.length || !/^L\d/.test(name))) { // every screen other than a level is kept to be looked at
       await page.evaluate((flags) => { const g = document.getElementById('game').getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.lineWidth = 6; g.strokeStyle = '#FF00FF'; for (const f of flags) g.strokeRect(f.box[0] - 4, f.box[1] - 4, f.box[2] - f.box[0] + 8, f.box[3] - f.box[1] + 8); g.restore(); }, flags);
       await page.screenshot({ path: path.join(out, name + '.png') });
     }
@@ -92,6 +92,38 @@ function scan(maxD) {
     await page.waitForFunction(() => window.__game.S.won > 2.6, null, { timeout: 8000 }).catch(() => {});
     await report(`L${i + 1}-payoff`);
   }
+  // every other screen: a missed line, the walls, the big card, the box, the book, and the mirrored round
+  const art = () => page.evaluate(() => { const g = window.__game; g.LEVELS.forEach((lv, n) => g.partsOf(lv).forEach((_, k) => { g.save.art[g.artKey(n, k)] = g.partsOf(lv)[k].target.map((q) => q.slice()); })); });
+  const settle = (ms = 400) => page.waitForTimeout(ms);
+  await page.evaluate(() => { const g = window.__game; g.save.level = 1; g.newLevel(1); }); await settle();
+  await page.mouse.move(100, 300); await page.mouse.down(); await page.mouse.move(200, 320, { steps: 4 }); await page.mouse.move(300, 300, { steps: 4 }); await page.mouse.up();
+  await settle(900); await report('miss');
+  await art();
+  for (let c = 0; c < 4; c++) {
+    await page.evaluate((c) => { window.__game.openWall(c, (c + 1) * 5, true); }, c);
+    await settle(200); await report(`wall-ch${c + 1}-locked`);
+    const lk = await page.evaluate(() => { const g = window.__game, p = g.cardAt(5); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+    await page.mouse.click(lk[0], lk[1]); await settle(900); await report(`wall-ch${c + 1}-open`);
+    const cd = await page.evaluate(() => { const g = window.__game, p = g.cardAt(1); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+    await page.mouse.click(cd[0], cd[1]); await settle(1200); await report(`wall-ch${c + 1}-big`);
+  }
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = []; g.save.drops = 6; g.openBox(() => g.newLevel(2)); }); await settle(300); await report('box-closed');
+  await page.mouse.click(360, 760); await settle(700); await report('box-open');
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 6, 12, 18]; g.newLevel(2); g.openBook(); }); await settle(); await report('book-few');
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 24 }, (_, i) => i); }); await settle(); await report('book-full');
+  await page.evaluate(() => { const g = window.__game; g.save.level = 27; g.newLevel(26); }); await settle(); await report('round2-L7-start');
+  // every sticker on the two grounds it is shown on: the box's reveal disc and a book panel
+  const sheet = await page.evaluate(() => {
+    const g = window.__game, c = document.createElement('canvas'); c.width = 720; c.height = 1280; const x = c.getContext('2d');
+    x.fillStyle = '#7A4DFF'; x.fillRect(0, 0, 720, 640); x.fillStyle = '#3EC5FF'; x.fillRect(0, 640, 720, 640);
+    g.STICKERS.forEach((draw, i) => {
+      const cx = 60 + (i % 6) * 120, cy = 60 + Math.floor(i / 6) * 140;
+      x.fillStyle = g.discColour || '#FFFFFF'; x.beginPath(); x.arc(cx, cy, 52, 0, 7); x.fill(); draw(x, cx, cy, 40); // the box
+      x.fillStyle = g.panelColour || '#FFE3EF'; x.fillRect(cx - 58, cy + 582, 116, 116); draw(x, cx, cy + 640, 40); // the book
+    });
+    return c.toDataURL();
+  });
+  if (out) fs.writeFileSync(path.join(out, 'stickers-sheet.png'), Buffer.from(sheet.split(',')[1], 'base64'));
   console.log(total ? `${total} places where a thing is close to the colour behind it (distance < ${maxD})` : 'no thing close to the colour behind it');
   await browser.close(); server.close();
 })();
