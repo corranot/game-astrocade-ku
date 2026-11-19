@@ -168,7 +168,8 @@ function startGame(mode) {
   scene.add(sky);
   // reflections for the plastic and the candy: a small scene of sky plus two soft light panels, prefiltered once
   let envTex = null;
-  {
+  function makeEnv() {
+    if (envTex) envTex.dispose();
     const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
     const envSky = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), skyMat); envScene.add(envSky);
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
@@ -176,6 +177,17 @@ function startGame(mode) {
     const p2 = panel.clone(); p2.position.set(-6, 3, -2); p2.lookAt(0, 0, 0); p2.scale.setScalar(0.6); envScene.add(p2);
     envTex = pm.fromScene(envScene, 0.02).texture; scene.environment = envTex;
     panel.geometry.dispose(); panel.material.dispose(); envSky.geometry.dispose(); pm.dispose();
+  }
+  makeEnv();
+  // ---------- cities: Toy Town first, then themed cities that open one after another (game_config.themes)
+  const THEMES = Array.isArray(cfg.themes) && cfg.themes.length ? cfg.themes : [{ id: 'toy', icon: '🏙️' }];
+  const TOY_SKY = ['#3f9dff', '#8fd2ff', '#cdeeff'];
+  let skyShown = -1;
+  /** Sky, fog and reflections for a city. */
+  function applySky(t) {
+    const s = t.sky || TOY_SKY, u = skyMat.uniforms;
+    u.uTop.value.set(s[0]); u.uMid.value.set(s[1]); u.uBot.value.set(s[2]); scene.fog.color.set(t.horizon || s[2]);
+    makeEnv();
   }
   const camera = new THREE.PerspectiveCamera(50, W / H, 0.5, 900);
   scene.add(new THREE.HemisphereLight(0xeaf6ff, 0xffd9a8, 1.25));
@@ -221,6 +233,7 @@ function startGame(mode) {
     <button class="skill" id="skill" hidden><span class="ring" id="ring"></span><span class="sk-ico" id="skIco">🌀</span></button>
     <div class="result" id="result" hidden></div>
     <div class="shop" id="shop" hidden></div>
+    <div class="album" id="album" hidden></div>
     <div class="langs" id="langs" hidden></div>`;
   const $ = (id) => hud.querySelector('#' + id);
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
@@ -234,8 +247,9 @@ function startGame(mode) {
   }
   const projV = new THREE.Vector3();
   const screenOf = (x, y, z) => { projV.set(x, y, z).project(camera); return [(projV.x + 1) / 2, (1 - projV.y) / 2]; };
-  let bannerT = 0;
-  function banner(text, sec = 1.4) { const b = $('banner'); b.textContent = text; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); bannerT = sec; }
+  let bannerT = 0, bannerPrio = 0;
+  /** A big word across the screen; a more important one (prio) is not covered by a lesser one while it shows. */
+  function banner(text, sec = 1.4, prio = 0) { if (bannerT > 0 && prio < bannerPrio) return; bannerPrio = prio; const b = $('banner'); b.textContent = text; b.style.animationDuration = sec + 's'; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); bannerT = sec; }
   function flyCoins(x, y, n) {
     for (let i = 0; i < Math.min(n, 6); i++) {
       const c = document.createElement('div'); c.className = 'flycoin'; c.style.left = x * 100 + '%'; c.style.top = y * 100 + '%';
@@ -253,9 +267,11 @@ function startGame(mode) {
     if (city) city.dispose();
     // a new city every round: the first one (and the attract mode) is the tuned seed, then each finished city
     // moves the seed on, so the layout, colours and the clock tower's place change
-    const n = save.rounds || 0;
+    const n = save.rounds || 0, ti = themeIndex();
     rng = mulberry32(((cfg.seed || 1) + n * 7919) >>> 0);
-    city = createCity(scene, cfg, rng, quality, { shuffle: n > 0 });
+    const newSky = ti !== skyShown;
+    if (newSky) { applySky(THEMES[ti]); skyShown = ti; }
+    city = createCity(scene, cfg, rng, quality, { shuffle: n > 0, theme: THEMES[ti] });
     if (army) army.dispose();
     army = createArmy(scene, cfg, rng, quality, city);
     missions = createMissions(rng, !!save.tutorialDone, missionDone, levelOf);
@@ -264,18 +280,24 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '',
     };
+    const SA = (cfg.stickers && cfg.stickers.atCollapse) || [4, 22];
+    S.stickerAt = SA[0] + Math.floor(rng() * (SA[1] - SA[0] + 1)); // the n-th building the child knocks down hides a sticker
     target = null; lookAt = null;
     bon.setStage(1); bon.setRainbow(false); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
-    $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play'; hud.classList.remove('ended'); $('langs').hidden = true;
+    $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play'; hud.classList.remove('ended'); $('langs').hidden = true; $('album').hidden = true;
     follow.init = false; follow.vx = follow.vz = 0;
     S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = hudCache.mission = null;
     updateHud();
+    if (newSky && ti > 0) banner(THEMES[ti].icon + ' ' + T('t_' + THEMES[ti].id), 1.8); // the name of a new city
   }
+  const unlockedCount = () => Math.min(THEMES.length, Math.max(1, Number(save.unlocked) || 1));
+  /** The city to play: the one picked on the map, never past the last one opened. */
+  const themeIndex = () => Math.min(unlockedCount() - 1, Math.max(0, Number(save.theme) || 0));
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false, unlocked: 1, theme: 0, wardrobe: [], hat: 'none', skin: 'pink', stickers: [] };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -467,22 +489,59 @@ function startGame(mode) {
   }
 
   // ---------- shop: every move as a card; buy with coins, choose which one sits on the big button
-  const canBuy = () => (cfg.moves || []).some((m) => m.price > 0 && !save.owned.includes(m.id) && save.coins >= m.price);
+  const canBuy = () => (cfg.moves || []).some((m) => m.price > 0 && !save.owned.includes(m.id) && save.coins >= m.price) || COSTUMES.some((x) => !ownsLook(x) && save.coins >= x.price);
+  // ---------- costumes (game_config.costumes): a hat and a skin, bought once with coins, worn from then on
+  const COSTUMES = cfg.costumes || [];
+  const costume = (id) => COSTUMES.find((x) => x.id === id) || null;
+  const ownsLook = (x) => x.price === 0 || (Array.isArray(save.wardrobe) && save.wardrobe.includes(x.id));
+  /** Puts the saved hat and skin on Bonbon (an unknown or unowned one falls back to none / pink). */
+  function wearCostume() {
+    const h = costume(save.hat), s = costume(save.skin);
+    bon.setHat(h && h.kind === 'hat' && ownsLook(h) ? h.id : 'none');
+    if (s && s.kind === 'skin' && ownsLook(s)) bon.setSkin(parseInt(s.color.slice(1), 16), parseInt(s.dark.slice(1), 16)); else bon.setSkin();
+  }
+  let shopTab = 'moves';
   function openShop() { $('result').hidden = true; $('shop').hidden = false; renderShop(); }
   function renderShop() {
     const box = $('shop');
     const card = (icon, name, label, cls, id) => `<button class="mcard ${cls}" data-id="${id}"><span class="mico">${icon}</span><span class="mname" dir="auto">${name}</span><span class="mtag gloss">${label}</span></button>`;
-    let html = `<div class="shead"><h2 class="out">${T('shop')}</h2><div class="coins gloss"><span class="coin-ico"></span><b>${save.coins}</b></div></div><div class="mgrid">`;
-    html += card('👣', T('m_stomp'), '✓', 'owned basic', 'stomp');
-    for (const m of cfg.moves || []) {
+    let html = `<div class="shead"><h2 class="out">${T('shop')}</h2><div class="coins gloss"><span class="coin-ico"></span><b>${save.coins}</b></div></div>
+      <div class="tabs"><button class="tab gloss${shopTab === 'moves' ? ' on' : ''}" data-tab="moves">🌀 ${T('tabMoves')}</button><button class="tab gloss${shopTab === 'looks' ? ' on' : ''}" data-tab="looks">🎩 ${T('tabLooks')}</button></div><div class="mgrid${shopTab === 'looks' ? ' looks' : ''}">`;
+    if (shopTab === 'looks') {
+      for (const x of COSTUMES) {
+        const owned = ownsLook(x), on = owned && (x.kind === 'hat' ? save.hat : save.skin) === x.id;
+        const label = on ? '✓' : owned ? T('use') : `<span class="coin-ico"></span>${x.price}`;
+        const ico = x.kind === 'skin' ? `<span class="swatch" style="background:${x.color}"></span>` : x.icon;
+        html += `<button class="mcard look ${on ? 'on' : owned ? 'owned' : save.coins >= x.price ? 'afford' : 'lock'}" data-look="${x.id}"><span class="mico">${ico}</span><span class="mtag gloss">${label}</span></button>`;
+      }
+    } else html += card('👣', T('m_stomp'), '✓', 'owned basic', 'stomp');
+    if (shopTab === 'moves') for (const m of cfg.moves || []) {
       const owned = m.price === 0 || save.owned.includes(m.id), on = save.equipped === m.id;
       const label = on ? T('inUse') : owned ? T('use') : `<span class="coin-ico"></span>${m.price}`;
       html += card(m.icon, T('m_' + m.id), label, on ? 'on' : owned ? 'owned' : save.coins >= m.price ? 'afford' : 'lock', m.id);
     }
     html += `</div><button class="again gloss out" id="shopPlay">${T('again')}</button>`;
     box.innerHTML = html;
-    box.querySelectorAll('.mcard').forEach((b) => b.onclick = () => shopTap(b));
+    box.querySelectorAll('.mcard:not(.look)').forEach((b) => b.onclick = () => shopTap(b));
+    box.querySelectorAll('.mcard.look').forEach((b) => b.onclick = () => lookTap(b));
+    box.querySelectorAll('.tab').forEach((b) => b.onclick = () => { shopTab = b.dataset.tab; Sound.pop(); renderShop(); });
     box.querySelector('#shopPlay').onclick = () => { Sound.unlock(); newRound(); };
+  }
+  function lookTap(b) {
+    const x = costume(b.dataset.look);
+    if (!x) return;
+    if (!ownsLook(x)) {
+      if (save.coins < x.price) {
+        b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); Sound.boing(); buzz('error');
+        const rect = b.getBoundingClientRect(), rr = root.getBoundingClientRect();
+        pop(T('need').replace('{n}', x.price - save.coins), (rect.left + rect.width / 2 - rr.left) / rr.width, (rect.top - rr.top) / rr.height, '#ff5a4f', 0.8);
+        return;
+      }
+      save.coins -= x.price; save.wardrobe = [...(Array.isArray(save.wardrobe) ? save.wardrobe : []), x.id]; Sound.win(); buzz('success');
+    } else { Sound.pop(); buzz('tick'); }
+    if (x.kind === 'hat') save.hat = x.id; else save.skin = x.id;
+    wearCostume(); bon.laugh(); persist(); renderShop();
+    const card = $('shop').querySelector(`[data-look="${x.id}"]`); if (card) card.classList.add('bought');
   }
   function shopTap(b) {
     const id = b.dataset.id, m = moveInfo(cfg, id);
@@ -577,10 +636,33 @@ function startGame(mode) {
     const t = city.crushTrees(S.x, S.z, R * 0.8); if (t) { mission('prop', t); hitCombo(); score(PT.tree * t, S.x, 1, S.z); Sound.pop(); }
   }
 
+  // ---------- sticker book: three special residents per city, one found per round (game_config.stickers)
+  const stickerSet = (i) => ((cfg.stickers && cfg.stickers.sets) || {})[THEMES[i].id] || [];
+  const stickerTotal = () => THEMES.reduce((n, t, i) => n + stickerSet(i).length, 0);
+  const hasSticker = (id) => Array.isArray(save.stickers) && save.stickers.includes(id);
+  /** A special resident floats out of the building: the next sticker of this city not found yet. */
+  function giveSticker(x, z) {
+    const set = stickerSet(S.theme), k = set.findIndex((_, i) => !hasSticker(THEMES[S.theme].id + i));
+    if (k < 0) return;
+    save.stickers = [...(Array.isArray(save.stickers) ? save.stickers : []), THEMES[S.theme].id + k]; persist();
+    S.newSticker = set[k];
+    const [sx, sy] = screenOf(x, 4, z); pop(set[k], sx, sy, '#fff', 2.4);
+    banner(set[k] + ' ' + T('sticker'), 2.2, 2); Sound.win(); buzz('success'); bon.laugh(); city.releaseResidents(x, 3, z, 3);
+  }
+  function openAlbum() {
+    const box = $('album'), n = THEMES.reduce((a, t, i) => a + stickerSet(i).filter((_, k) => hasSticker(t.id + k)).length, 0);
+    box.innerHTML = `<div class="acard"><h2 class="out" dir="auto">📖 ${T('album')}</h2><div class="acount" dir="ltr">${n} / ${stickerTotal()}</div>
+      ${THEMES.map((t, i) => stickerSet(i).length ? `<div class="arow"><span class="aico">${i < unlockedCount() ? t.icon : '🔒'}</span>${stickerSet(i).map((e, k) => `<span class="slot${hasSticker(t.id + k) ? ' got' : ''}">${hasSticker(t.id + k) ? e : '?'}</span>`).join('')}</div>` : '').join('')}
+      <button class="again gloss out" id="albumClose">✓</button></div>`;
+    box.hidden = false; Sound.pop();
+    box.querySelector('#albumClose').onclick = () => { box.hidden = true; Sound.pop(); };
+  }
+
   function drainEvents() {
     for (const e of city.events.splice(0)) {
       if (e.type === 'collapse') {
         hitCombo();
+        if (S.touched && ++S.collapses === S.stickerAt) giveSticker(e.x, e.z);
         const label = e.chain > 0 ? T('domino') + ' ×' + (e.chain + 1) : '';
         score(PT.perClass * e.b.k * e.b.k, e.x, Math.min(e.b.h, 8), e.z, label);
         mission(e.b.h >= cfg.toppleMinHeight ? 'tower' : 'house'); if (S.rainbowT > 0) city.burstConfetti(e.x, 3, e.z, 18, [0xff5a4f, 0xffc531, 0x6fd64b, 0x3fa9ff, 0x9b6bff]); if (e.chain > 0) mission('domino', e.chain + 1);
@@ -689,9 +771,14 @@ function startGame(mode) {
     // a best time only counts when the child played (almost) the whole city
     const isBest = counts && S.blocks0 < city.totalBlocks * 0.1 && (save.best === null || sec < save.best);
     if (isBest) save.best = sec;
+    let newCity = -1;
     const blocks = city.totalBlocks - S.blocks0; // every block fell; those down before the first touch are not counted
     // the leaderboard ranks lifetime blocks smashed: it only grows, so every city played moves a child up
-    if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); save.rounds = (save.rounds || 0) + 1; save.smashed = (save.smashed || 0) + blocks; persist(); postScore(); }
+    if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); save.rounds = (save.rounds || 0) + 1; save.smashed = (save.smashed || 0) + blocks;
+      // finishing the newest city opens the next one, which is picked for the next round
+      const un = unlockedCount();
+      if (S.theme === un - 1 && un < THEMES.length) { save.unlocked = un + 1; save.theme = un; newCity = un; }
+      persist(); postScore(); }
     updateHud();
     const r = $('result');
     const mmss = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
@@ -707,9 +794,16 @@ function startGame(mode) {
       ${goal ? `<div class="goal"><span class="gico">${goal.icon}</span><div class="gbar"><i style="width:${goal.p}%"></i></div><b dir="auto">${goal.text}</b></div>` : ''}
       <ol class="board" id="board" hidden></ol>
     </div>
+    <div class="map" id="map">${THEMES.map((t, i) => { const lock = i >= unlockedCount(); return `<button class="city gloss${i === themeIndex() ? ' on' : ''}${lock ? ' locked' : ''}${i === newCity ? ' new' : ''}" data-c="${i}"${lock ? ' disabled' : ''} aria-label="${T('t_' + t.id)}">${lock ? '🔒' : t.icon}</button>`; }).join('')}</div>
+    <div class="cityname out" id="cityName" dir="auto">${newCity >= 0 ? T('newCity') + ' ' : ''}${T('t_' + THEMES[themeIndex()].id)}</div>
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
-    <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button></div>`;
-    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); $('langs').hidden = true; countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
+    <div class="row3"><button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button>
+    <button class="toalbum gloss" id="toAlbum" aria-label="${T('album')}">📖${S.newSticker ? `<span class="badge">${S.newSticker}</span>` : ''}</button></div></div>`;
+    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); $('langs').hidden = true; countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; r.querySelector('#toAlbum').onclick = () => { Sound.unlock(); openAlbum(); };
+      r.querySelectorAll('.city:not(.locked)').forEach((b) => b.onclick = () => {
+        Sound.unlock(); Sound.pop(); save.theme = Number(b.dataset.c); persist();
+        r.querySelectorAll('.city').forEach((x) => x.classList.toggle('on', x === b)); r.querySelector('#cityName').textContent = T('t_' + THEMES[themeIndex()].id);
+      }); }, 1600);
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
@@ -811,6 +905,7 @@ function startGame(mode) {
   const onResize = () => resize();
   window.addEventListener('resize', onResize);
   newRound();
+  wearCostume();
   renderer.compile(scene, camera); // compile shaders now so the first hit does not stall
 
   try {
@@ -830,7 +925,7 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
-      const roundsBefore = save.rounds || 0, smashedBefore = save.smashed || 0;
+      const roundsBefore = save.rounds || 0, smashedBefore = save.smashed || 0, unlockedBefore = unlockedCount(), themeBefore = save.theme, wardrobeBefore = save.wardrobe.slice(), stickersBefore = save.stickers.slice();
       const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped, tutorialBefore = save.tutorialDone;
       if (st) {
         Object.assign(save, st);
@@ -841,6 +936,9 @@ function startGame(mode) {
         save.tutorialDone = !!(st.tutorialDone || tutorialBefore);
         save.owned = [...new Set([...(Array.isArray(st.owned) ? st.owned : []), ...ownedBefore])]; if (equippedBefore !== 'spin') save.equipped = equippedBefore;
         if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
+        save.unlocked = Math.max(Number(st.unlocked) || 1, unlockedBefore); if (unlockedBefore > (Number(st.unlocked) || 1)) save.theme = themeBefore;
+        save.stickers = [...new Set([...(Array.isArray(st.stickers) ? st.stickers : []), ...stickersBefore])];
+        save.wardrobe = [...new Set([...(Array.isArray(st.wardrobe) ? st.wardrobe : []), ...wardrobeBefore])];
         save.rounds = (Number(st.rounds) || 0) + roundsBefore; save.smashed = (Number(st.smashed) || 0) + smashedBefore;
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
@@ -851,6 +949,7 @@ function startGame(mode) {
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length || roundsBefore) persist();
       if (st && st.muted && !Sound.muted) Sound.setMuted(true);
+      wearCostume();
       // a city finished before the save arrived: show and post the real all-time total
       if (roundsBefore && S && S.finished) { const t = document.querySelector('#tot'); if (t) t.textContent = fmt(save.smashed); postScore(); }
       { const ts = document.querySelector('#toShop'); if (ts && S.finished && canBuy() && !ts.querySelector('.badge')) ts.insertAdjacentHTML('beforeend', '<span class="badge">!</span>'); }
@@ -867,7 +966,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

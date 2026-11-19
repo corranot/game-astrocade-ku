@@ -1,5 +1,5 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Screens in all 7 languages: play (HUD, mission card), result and shop, saved to
+// Screens in all 7 languages: play (HUD, mission card), result (city map), shop (moves, looks) and sticker book, saved to
 // production/qa/evidence/toy-city-stomp/ (overwrites the previous set). Reports any HUD text cut off.
 // Usage: node screens.js
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -38,6 +38,14 @@ const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
     await page.evaluate(() => __game.openShop());
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(out, `${lang}-3-shop.png`) });
+    cut = cut.concat(await page.evaluate(cutOff));
+    await page.evaluate(() => document.querySelector('[data-tab=looks]').click());
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(out, `${lang}-4-looks.png`) });
+    cut = cut.concat(await page.evaluate(cutOff));
+    await page.evaluate(() => { __game.save.stickers = ['toy0', 'toy2', 'candy1', 'snow0']; __game.save.unlocked = 4; __game.openAlbum(); });
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: path.join(out, `${lang}-5-album.png`) });
     cut = cut.concat(await page.evaluate(cutOff));
     console.log((cut.length ? 'CUT  ' : 'ok   ') + lang + (cut.length ? ': ' + [...new Set(cut)].join(' | ') : ''));
     if (cut.length) problems.push(lang);
