@@ -82,7 +82,7 @@ function dustMaterial() {
  * Builds the city into `scene`. cfg is game_config; rng a seeded () => [0,1); quality the device tier.
  * Returns the city object used by game.js (see the return statement).
  */
-export function createCity(scene, cfg, rng, quality) {
+export function createCity(scene, cfg, rng, quality, opts = {}) {
   const C = cfg.city, classes = cfg.classes;
   const pitch = C.lotSize + C.road, span = C.lots * pitch + C.road, half = span / 2;
   const group = new THREE.Group(); scene.add(group);
@@ -221,11 +221,15 @@ export function createCity(scene, cfg, rng, quality) {
   for (let n = kinds.length - 1; n > 0; n--) { const m = Math.floor(rng() * (n + 1)); [kinds[n], kinds[m]] = [kinds[m], kinds[n]]; }
   const treeSpots = [];
   let ki = 0;
+  // the clock tower stands in the middle of the first city; later cities (opts.shuffle) put it anywhere but the
+  // two lots in front of Bonbon, so each city looks different
+  let clockI = centre, clockJ = centre;
+  if (opts.shuffle) { clockI = Math.floor(rng() * C.lots); clockJ = Math.floor(rng() * (C.lots - 2)); }
   for (let i = 0; i < C.lots; i++) for (let j = 0; j < C.lots; j++) {
     const lx = -half + C.road + i * pitch, lz = -half + C.road + j * pitch, L = C.lotSize;
-    // fixed lots: the clock tower in the middle, cottages where Bonbon starts, and just ahead a lot built to fall
+    // fixed lots: the clock tower, cottages where Bonbon starts, and just ahead a lot built to fall
     // like dominoes (an apartment in front of a row of shops), so the first domino comes early
-    const kind = i === centre && j === centre ? 'clock' : (i === centre && j === C.lots - 1) ? 'cottages' : (i === centre && j === C.lots - 2) ? 'domino' : kinds[ki++ % kinds.length];
+    const kind = i === clockI && j === clockJ ? 'clock' : (i === centre && j === C.lots - 1) ? 'cottages' : (i === centre && j === C.lots - 2) ? 'domino' : kinds[ki++ % kinds.length];
     const place = (k, fx, fz) => { const c = classes[k - 1]; addBuilding(k, Math.round(lx + fx * (L - c.w)), Math.round(lz + fz * (L - c.d))); };
     if (kind === 'clock') place(5, 0.5, 0.5);
     else if (kind === 'tower') { place(4, 0.2, 0.2); place(1, 0.95, 0.95); }
@@ -349,7 +353,9 @@ export function createCity(scene, cfg, rng, quality) {
     }
     if (confetti.m.instanceColor) confetti.m.instanceColor.needsUpdate = true;
   }
+  let rescued = 0; // residents who floated away on balloons this city
   function releaseResidents(x, y, z, n, ring = 0) {
+    rescued += n;
     y = 0.4; // they step out on the ground beside the building, hop for joy, then float off
     for (let k = 0; k < n; k++) {
       const i = take(people), it = people.items[i];
@@ -616,6 +622,7 @@ export function createCity(scene, cfg, rng, quality) {
     group, buildings, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees,
     puff, burstConfetti, releaseResidents, footprint,
     intactLeft: () => intact,
+    rescued: () => rescued,
     anyToppling: () => buildings.some((b) => b.state === 'toppling'),
     totalBlocks, meshes: { blocks },
     setDustScale(s) { dustMat.uniforms.uScale.value = s; },
