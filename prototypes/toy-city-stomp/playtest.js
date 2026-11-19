@@ -48,10 +48,13 @@ const server = http.createServer((q, s) => {
   await g(() => { __game.newRound(); __game.S.touched = true; __game.S.idle = 99; }); // a fresh round as a child who touched once then let go: autopilot plays on and the round counts
 
   // play on autopilot; note when things happen
-  const seen = { stage3: false, domino: false, grow1: null, dom1: null };
+  const seen = { stage3: false, domino: false, grow1: null, dom1: null, units: 0, stars: 0, boss: false, bossShot: false, hurt: false, armyShot: false };
   const t0 = Date.now();
   while (Date.now() - t0 < 420000) {
-    const s = await g(() => ({ stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
+    const s = await g(() => ({ units: __game.army.units.length, stars: __game.army.stars, boss: __game.army.boss.alive, spirit: __game.S.spirit, stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
+    seen.units = Math.max(seen.units, s.units); seen.stars = Math.max(seen.stars, s.stars); if (s.spirit < 99) seen.hurt = true;
+    if (!seen.armyShot && s.units >= 3) { seen.armyShot = true; await page.screenshot({ path: path.join(out, `05-army-${lang}.png`) }); }
+    if (s.boss) { seen.boss = true; if (!seen.bossShot) { seen.bossShot = true; await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, `06-boss-${lang}.png`) }); } }
     if (seen.grow1 === null && s.stage >= 2) seen.grow1 = s.time;
     if (seen.dom1 === null && s.dom >= 2) seen.dom1 = s.time;
     if (!seen.stage3 && s.stage >= 3) { seen.stage3 = true; await page.screenshot({ path: path.join(out, `02-grown-${lang}.png`) }); console.log('     stage 3 at', s.time.toFixed(0), 's'); }
@@ -64,6 +67,9 @@ const server = http.createServer((q, s) => {
   check(end.stage >= 5, 'Bonbon grows to stage 5+ in one round (got ' + end.stage + ')');
   check(end.time > 60 && end.time < 300, 'autopilot round from the first touch (the shortest path; a child wanders) takes 60-300 game s: ' + end.time.toFixed(0) + ' s');
   check(seen.domino, 'at least one domino chain happens');
+  check(seen.stars >= 2 && seen.units >= 2, `the toy army comes (most stars ${seen.stars}, most units at once ${seen.units})`);
+  check(seen.hurt, 'army hits lower Spirit at least once');
+  check(seen.boss && await g(() => __game.S.bossDone), 'the Wind-Up Robot appears and is beaten before the finish');
   check(seen.grow1 !== null && seen.grow1 <= 10, `first GROW within 10 s of the first touch (${seen.grow1 === null ? 'never' : seen.grow1.toFixed(1) + ' s'})`);
   check(seen.dom1 !== null && seen.dom1 <= 30, `first domino within 30 s (${seen.dom1 === null ? 'never' : seen.dom1.toFixed(1) + ' s'})`);
   await page.waitForTimeout(2500);

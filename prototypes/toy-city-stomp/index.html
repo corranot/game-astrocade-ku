@@ -34,8 +34,18 @@ body{display:flex;align-items:center;justify-content:center}
 .coins{display:flex;align-items:center;gap:calc(var(--u)*10px);padding:calc(var(--u)*6px) calc(var(--u)*22px) calc(var(--u)*6px) calc(var(--u)*8px);background:linear-gradient(#fff,#e9e4ff);font-weight:900;font-size:calc(var(--u)*34px)}
 .coin-ico{display:inline-block;vertical-align:middle;width:calc(var(--u)*40px);height:calc(var(--u)*40px);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7c2,#ffc531 50%,#e09a00);border:calc(var(--u)*4px) solid var(--ink)}
 .btns{display:flex;gap:calc(var(--u)*12px)}
+.mid{flex:1;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6px);margin:0 calc(var(--u)*14px)}
+.spirit{display:flex;align-items:center;gap:calc(var(--u)*6px);width:calc(var(--u)*230px);padding:calc(var(--u)*4px) calc(var(--u)*10px);background:linear-gradient(#fff,#ffe4ee)}
+.heart{color:#ff4f7d;font-size:calc(var(--u)*34px);line-height:1}
+.sbar{flex:1;height:calc(var(--u)*18px);border-radius:999px;background:#ffd6e2;overflow:hidden;border:calc(var(--u)*3px) solid var(--ink)}
+.sbar i{display:block;height:100%;width:100%;background:linear-gradient(#ff9ab8,#ff4f7d);transition:width .2s}
+.wanted{color:#ffc531;font-size:calc(var(--u)*34px);letter-spacing:calc(var(--u)*3px);--o:calc(var(--u)*3px);min-height:calc(var(--u)*38px)}
+.bossbar{position:absolute;top:calc(var(--u)*318px);left:calc(var(--u)*80px);right:calc(var(--u)*80px);text-align:center}
+.bossbar b{display:block;color:#ff5a4f;font-size:calc(var(--u)*38px);--o:calc(var(--u)*3.5px);margin-bottom:calc(var(--u)*6px)}
+.bossbar .bar{height:calc(var(--u)*30px)}
+.bossbar .bar i{width:100%;background:linear-gradient(#ffb0a8,#ff5a4f 55%,#e0352b)}
 .icon{width:calc(var(--u)*80px);height:calc(var(--u)*80px);background:linear-gradient(#fff,#dfe8ff) !important;font-size:calc(var(--u)*36px) !important;display:grid;place-items:center;padding:0}
-.combo{position:absolute;top:calc(var(--u)*220px);left:0;right:0;text-align:center;font-weight:900;font-size:calc(var(--u)*60px);color:#ff5fa2;opacity:0;transform:scale(.6);transition:opacity .2s,transform .2s}
+.combo{position:absolute;top:calc(var(--u)*230px);left:0;right:0;text-align:center;font-weight:900;font-size:calc(var(--u)*60px);color:#ff5fa2;opacity:0;transform:scale(.6);transition:opacity .2s,transform .2s}
 .combo.on{opacity:1;transform:scale(1)}
 .combo.bump{animation:bump .35s}
 @keyframes bump{40%{transform:scale(1.35) rotate(-4deg)}}

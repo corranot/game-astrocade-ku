@@ -8,6 +8,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js';
 import { createCity } from './city.js';
 import { createBonbon } from './bonbon.js';
+import { createArmy } from './army.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const LANG_NAMES = { en: 'English', ar: 'العربية', es: 'Español', vi: 'Tiếng Việt', hi: 'हिन्दी', bn: 'বাংলা', id: 'Indonesia' };
@@ -154,8 +155,10 @@ function startGame(mode) {
     </div>
     <div class="row2">
       <div class="coins gloss"><span class="coin-ico"></span><b id="coins">0</b></div>
+      <div class="mid"><div class="spirit gloss"><span class="heart">❤</span><div class="sbar"><i id="spirit"></i></div></div><div class="wanted out" id="wanted"></div></div>
       <div class="btns"><button class="icon gloss" id="lang" aria-label="Language">🌐</button><button class="icon gloss" id="mute" aria-label="Sound">🔊</button></div>
     </div>
+    <div class="bossbar" id="bossbar" hidden><b class="out" id="bossName"></b><div class="bar gloss"><i id="bossHp"></i></div></div>
     <div class="combo out" id="combo"></div>
     <div class="banner out" id="banner"></div>
     <div class="pops" id="pops"></div>
@@ -188,25 +191,28 @@ function startGame(mode) {
   // ---------- state
   const G = cfg.growth, MC = cfg.monster, CB = cfg.combo, PT = cfg.points, FX = cfg.fx;
   const bon = createBonbon({ candy: quality.candy }); scene.add(bon.root);
-  let rng, S, target = null, lookAt = null;
+  let rng, S, army = null, target = null, lookAt = null;
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
   function newRound() {
     if (city) city.dispose();
     rng = mulberry32(cfg.seed || 1);
     city = createCity(scene, cfg, rng, quality);
+    if (army) army.dispose();
+    army = createArmy(scene, cfg, rng, quality, city);
     resize();
     S = {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, spirit: 0, dizzyT: 0, bossDone: false, bossShown: false, starsShown: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
     $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play';
     follow.init = false; follow.vx = follow.vz = 0;
-    hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = null;
+    S.spirit = spiritMax(); $('bossbar').hidden = true;
+    hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = null;
     updateHud();
   }
 
@@ -224,19 +230,38 @@ function startGame(mode) {
     if (hudCache.bar !== w) { hudCache.bar = w; $('bar').style.width = w; }
     const cb = $('combo'), txt = S.combo >= CB.every ? T('combo') + ' ×' + comboMult(S.combo, CB) : '';
     if (hudCache.combo !== txt) { hudCache.combo = txt; if (txt) { cb.textContent = txt; cb.classList.add('on'); } else cb.classList.remove('on'); }
+    const sp = Math.round(S.spirit / spiritMax() * 100) + '%';
+    if (hudCache.spirit !== sp) { hudCache.spirit = sp; $('spirit').style.width = sp; }
+    const ws = army ? army.stars : 0;
+    if (hudCache.wanted !== ws) { hudCache.wanted = ws; $('wanted').textContent = ws ? '★'.repeat(ws) + '☆'.repeat(4 - ws) : ''; }
+    if (army && army.boss.alive) { const bh = Math.round(army.boss.hp / cfg.boss.hp * 100) + '%'; if (hudCache.boss !== bh) { hudCache.boss = bh; $('bossHp').style.width = bh; } }
     const pct = Math.max(0, Math.round(S.pct));
     if (hudCache.pct !== pct) { hudCache.pct = pct; $('cityBar').style.width = pct + '%'; $('cityPct').textContent = pct + '%'; }
   }
 
   /** Adds points (combo-multiplied) and fills the grow bar with the base points. */
   function score(base, x, y, z, label) {
-    const m = comboMult(S.combo, CB), p = Math.round(base * m);
+    const m = comboMult(S.combo, CB) * (1 + 0.5 * (army ? army.stars : 0)), p = Math.round(base * m); // more wanted, more points
+    if (army && !S.finished) army.heat(base);
     S.points += p; S.xp += base; // the grow bar fills from base points, so a long combo does not end the round early
     S.coins = Math.floor(S.points * cfg.coinsPerPoint);
     if (label !== undefined) { const [sx, sy] = screenOf(x, y, z); pop((label ? label + ' ' : '') + '+' + p, sx, sy, m > 1 ? '#ff5fa2' : '#2a2140', label ? 1.15 : 0.8); }
     while (S.stage < G.stages && S.xp >= xpFor(S.stage, G)) { S.xp -= xpFor(S.stage, G); grow(); }
     updateHud();
     return p;
+  }
+  const spiritMax = () => cfg.army.spirit.base + cfg.army.spirit.perStage * ((S && S.stage) || 1);
+  /** Toy army hits lower Spirit; at zero Bonbon is dizzy for a moment and loses a little grow bar. Never a game over. */
+  function hurt(dmg, x, z) {
+    if (S.finished || S.dizzyT > 0) return;
+    S.spirit = Math.max(0, S.spirit - dmg); bon.face('surprised', 0.4); bon.stomp(0.3); buzz('tap'); Sound.boing();
+    const [sx, sy] = screenOf(x, 2, z); pop('-' + dmg, sx, sy, '#3fa9ff', 0.8);
+    if (S.spirit <= 0) {
+      S.dizzyT = cfg.army.spirit.dizzySec; bon.face('dizzy', S.dizzyT); banner(T('dizzy'), 1.2);
+      S.xp = Math.max(0, S.xp - xpFor(S.stage, G) * cfg.army.spirit.loseGrowFrac);
+      S.spirit = spiritMax() * 0.6;
+    }
+    updateHud();
   }
   /** A bite only keeps the combo alive; a building down, a car squashed or a prop popped adds to it. */
   function hitCombo(counts = true) {
@@ -310,6 +335,8 @@ function startGame(mode) {
     }
     for (const c of city.squashCars(S.x, S.z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); }
     if (city.crushTrees(S.x, S.z, r)) hitCombo();
+    army.hitArea(S.x, S.z, r);
+    { const br = army.bossReach(); if (br && Math.hypot(br.x - S.x, br.z - S.z) < r + br.r) army.damageBoss(cfg.boss.skillDmg, 'skill'); }
     for (let k = 0; k < 12; k++) city.puff(S.x + Math.cos(k / 2) * r * 0.8, 0.5, S.z + Math.sin(k / 2) * r * 0.8, 1.6);
   }
 
@@ -322,10 +349,13 @@ function startGame(mode) {
     if (k.has('w') || k.has('arrowup')) iz -= 1; if (k.has('s') || k.has('arrowdown')) iz += 1;
     let mag = Math.min(1, Math.hypot(ix, iz));
     if (mag < 0.12) mag = 0;
+    if (S.dizzyT > 0) { S.dizzyT -= dt; mag = 0; ix = iz = 0; S.idle = 0; }
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
-    if (!mag && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
-      if (!target || target.state !== 'intact') target = city.nearest(S.x, S.z, (b) => b.k <= S.stage + 1, 0.8); // prefers what lies ahead, as a child dragging up
+    if (!mag && S.dizzyT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
+      const bossAt = army.bossReach();
+      if (bossAt) target = { cx: bossAt.x, cz: bossAt.z, state: 'intact', boss: true };
+      else if (!target || target.state !== 'intact' || target.boss) target = city.nearest(S.x, S.z, (b) => b.k <= S.stage + 1, 0.8); // prefers what lies ahead, as a child dragging up
       if (target) {
         ix = target.cx - S.x; iz = target.cz - S.z; const l = Math.hypot(ix, iz) || 1; ix /= l; iz /= l; mag = 0.75;
         if (S.avoidT > 0) { ix = ix * 0.3 + S.avoidX; iz = iz * 0.3 + S.avoidZ; } // step round a building too big to break
@@ -376,6 +406,15 @@ function startGame(mode) {
         }
       }
     }
+    const br = army.bossReach();
+    if (br) {
+      const bx = S.x - br.x, bz = S.z - br.z, bd = Math.hypot(bx, bz) || 0.001;
+      if (bd < R + br.r) {
+        S.x = br.x + bx / bd * (R + br.r); S.z = br.z + bz / bd * (R + br.r);
+        lookAt = lookV.set(br.x, 4 * army.boss.scale, br.z);
+        if (S.attackT <= 0) { S.attackT = MC.attackSec; bon.stomp(1); bon.face('angry', 0.5); if (army.damageBoss(cfg.boss.hitDmg, 'hit')) { S.hitstopT = FX.hitstopSec; Sound.bite(4); buzz('tap'); } }
+      }
+    }
     for (const c of city.squashCars(S.x, S.z, R * 0.9)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
     const t = city.crushTrees(S.x, S.z, R * 0.8); if (t) { hitCombo(); score(PT.tree * t, S.x, 1, S.z); Sound.pop(); }
   }
@@ -392,9 +431,39 @@ function startGame(mode) {
       } else if (e.type === 'land') {
         Sound.land(); shake(0.45); buzz('thud'); S.slowT = Math.max(S.slowT, e.hits ? 0.6 : 0.25);
         city.burstConfetti(e.x, 3, e.z, 16);
+        const br = army.bossReach(); if (br && Math.hypot(br.x - e.x, br.z - e.z) < br.r + e.b.h * 0.5) army.damageBoss(cfg.boss.dominoDmg, 'domino');
       }
     }
+    drainArmy();
     S.pct = city.intactLeft() / city.buildings.length * 100;
+  }
+
+  function drainArmy() {
+    for (const e of army.events.splice(0)) {
+      if (e.type === 'hitBonbon') hurt(e.dmg, e.x, e.z);
+      else if (e.type === 'splat') { city.puff(e.x, 0.6, e.z, e.kind === 'bubble' ? 0.8 : 0.6); if (e.kind === 'bubble') Sound.pop(); }
+      else if (e.type === 'unitDown') {
+        hitCombo(); score(e.points, e.x, e.y + 1, e.z, T('bonk')); Sound.squash(); buzz('tap');
+        S.spirit = Math.min(spiritMax(), S.spirit + cfg.army.spirit.perKill); city.burstConfetti(e.x, e.y + 0.5, e.z, 10);
+      } else if (e.type === 'stars') {
+        const [sx, sy] = screenOf(S.x, 6 * S.scale, S.z); pop(T('wanted') + ' ' + '★'.repeat(e.stars), sx, sy, '#ffc531', 1.1); Sound.combo(2 + e.stars);
+      } else if (e.type === 'bossIntro') {
+        S.bossShown = true; banner(T('warn'), 1.8); $('bossName').textContent = T('boss'); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
+      } else if (e.type === 'bossLand') {
+        shake(0.45); Sound.land(); for (let k = 0; k < 10; k++) city.puff(e.x + Math.cos(k) * 5, 0.8, e.z + Math.sin(k) * 5, 2.4);
+      } else if (e.type === 'bossSlam') {
+        shake(0.3); Sound.land(); for (let k = 0; k < 8; k++) city.puff(e.x + Math.cos(k) * 4, 0.6, e.z + Math.sin(k) * 4, 2);
+      } else if (e.type === 'bossHit') {
+        const [sx, sy] = screenOf(e.x, 5 * army.boss.scale, e.z); pop(e.how === 'hit' ? T('bonk') : e.how === 'domino' ? T('domino') + '!' : '★', sx, sy, '#ff5fa2', 0.9); updateHud();
+      } else if (e.type === 'bossDown') {
+        S.slowT = FX.slowmoSec * 1.5; shake(0.4); banner(T('bossDown'), 2); Sound.win(); buzz('success');
+        score(cfg.boss.points, e.x, 8, e.z, ''); city.burstConfetti(e.x, 8 * army.boss.scale, e.z, 40, [0xffc531, 0xb8c2d6, 0x8e99b0, 0xff5a4f]);
+      } else if (e.type === 'bossGone') {
+        S.bossDone = true; $('bossbar').hidden = true;
+        for (let k = 0; k < 12; k++) city.puff(e.x + (Math.random() - 0.5) * 6, 1 + Math.random() * 6, e.z + (Math.random() - 0.5) * 6, 2.2);
+        city.releaseResidents(e.x, 3, e.z, 6);
+      }
+    }
   }
 
   function sweep(dt) {
@@ -405,7 +474,7 @@ function startGame(mode) {
       if (S.sweepT <= 0) { S.sweepT = 0.45; const b = city.nearest(S.x, S.z); if (b) city.collapse(b, dirV.set(b.cx - S.x, 0, b.cz - S.z).normalize(), 0); }
     }
     // finish only once every collapse has been scored (events drained) and nothing is still falling
-    if (left === 0 && city.events.length === 0 && !city.anyToppling() && !S.finished) finish();
+    if (left === 0 && S.bossDone && city.events.length === 0 && army.events.length === 0 && !city.anyToppling() && !S.finished) finish();
   }
 
   function finish() {
@@ -499,11 +568,12 @@ function startGame(mode) {
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
       S.skillCd = Math.max(0, S.skillCd - raw);
       drainEvents(); sweep(dt);
-    } else city.events.length = 0; // after the finish (or in edit mode) falling blocks still look right but score nothing
+    } else { city.events.length = 0; army.events.length = 0; } // after the finish (or in edit mode) falling blocks still look right but score nothing
     if (S.spinT > 0) { S.spinT -= dt; S.yaw += dt * Math.PI * 2 / 0.55; }
     bon.root.position.set(S.x, 0, S.z); bon.root.rotation.y = S.yaw;
     bon.update(dt, { moving: S.moving && !S.finished, speed: S.speed, lookAt });
     city.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, moving: S.moving && !S.finished });
+    if (mode === 'play' && !S.finished) army.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, scale: S.scale, height: 2.8 * S.scale, stage: S.stage });
   }
 
   // ---------- start
@@ -549,11 +619,11 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); window.removeEventListener('resize', onResize);
-      city.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envTex.dispose();
+      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envTex.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },
