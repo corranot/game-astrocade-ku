@@ -654,7 +654,7 @@ function drawPips() {
   for (let i = 0; i < n; i++) {
     const cur = i === S.i % n, done = i < S.i % n || (cur && S.won >= 0);
     g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 120, cur ? 19 : 13, 0, 7);
-    g.fillStyle = done ? WHITE : 'rgba(255,255,255,0.4)'; g.fill();
+    g.fillStyle = done ? WHITE : 'rgba(31,42,107,0.22)'; g.fill(); // levels still to come: a soft navy that shows on every sky
     if (cur) { g.lineWidth = 6; g.strokeStyle = NAVY; g.stroke(); }
   }
 }
