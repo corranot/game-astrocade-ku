@@ -200,12 +200,12 @@ function startGame(mode) {
       x: 0, z: city.half - 4, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
     $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play';
-    camPos.set(S.x, 9, S.z + 14); camLook.set(S.x, 3, S.z - 10);
+    follow.init = false; follow.vx = follow.vz = 0;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = null;
     updateHud();
   }
@@ -246,7 +246,7 @@ function startGame(mode) {
   }
   function grow() {
     S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1);
-    S.slowT = FX.slowmoSec; S.trauma = Math.min(1, S.trauma + 0.8);
+    S.slowT = FX.slowmoSec; shake(0.35);
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success');
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
@@ -300,7 +300,7 @@ function startGame(mode) {
   function useSkill() {
     if (!S || S.finished || S.stage < cfg.skill.unlockStage || S.skillCd > 0) return;
     S.skillCd = cfg.skill.cooldownSec; S.spinT = 0.55; bon.stomp(1.4); buzz('thud'); Sound.collapse(2);
-    S.trauma = Math.min(1, S.trauma + 0.5);
+    shake(0.2);
     const r = cfg.skill.radius * S.scale;
     for (const h of city.touching(S.x, S.z, r, touchList)) {
       if (h.b.k > S.stage + 1) continue;
@@ -333,6 +333,8 @@ function startGame(mode) {
       }
     } else target = null;
     S.avoidT -= dt;
+    // the bounce off a building too big to break slides back smoothly
+    S.x += S.kbX * dt; S.z += S.kbZ * dt; const kd = Math.exp(-6 * dt); S.kbX *= kd; S.kbZ *= kd;
     S.moving = mag > 0;
     const speed = MC.speed * (1 + MC.speedPerStage * (S.stage - 1)) * Math.sqrt(S.scale) * mag;
     S.speed = speed;
@@ -340,7 +342,7 @@ function startGame(mode) {
       const l = Math.hypot(ix, iz) || 1; fwd.set(ix / l, 0, iz / l);
       let d = Math.atan2(fwd.x, fwd.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 10);
       S.x += fwd.x * speed * dt; S.z += fwd.z * speed * dt;
-      S.stepT -= dt * (speed / Math.max(1, S.scale)); if (S.stepT <= 0) { S.stepT = 0.42; Sound.step(S.stage); if (S.stage >= 4) S.trauma = Math.min(1, S.trauma + 0.04 * S.stage); }
+      S.stepT -= dt * (speed / Math.max(1, S.scale)); if (S.stepT <= 0) { S.stepT = 0.42; Sound.step(S.stage); }
     }
     const lim = city.half + 2; S.x = THREE.MathUtils.clamp(S.x, -lim, lim); S.z = THREE.MathUtils.clamp(S.z, -lim, lim);
   }
@@ -357,7 +359,7 @@ function startGame(mode) {
       lookAt = lookV.set(h.px, Math.min(b.h, 2 * S.scale), h.pz);
       if (b.k > S.stage + 1) {
         if (S.tooBigT <= 0) {
-          S.tooBigT = 1.2; S.x += nx * 1.2 * S.scale; S.z += nz * 1.2 * S.scale; bon.face('surprised', 0.8); bon.stomp(0.6); Sound.boing(); buzz('tap');
+          S.tooBigT = 1.2; S.kbX = nx * 7 * Math.sqrt(S.scale); S.kbZ = nz * 7 * Math.sqrt(S.scale); bon.face('surprised', 0.8); bon.stomp(0.6); Sound.boing(); buzz('tap');
           S.avoidX = -nz; S.avoidZ = nx; S.avoidT = 1.2;
           const [sx, sy] = screenOf(h.px, Math.min(b.h, 4), h.pz); pop(T('tooBig'), sx, sy, '#3fa9ff', 1.05);
         }
@@ -370,7 +372,7 @@ function startGame(mode) {
         const n = city.bite(b, biteP, MC.biteRadius * Math.pow(S.scale, 0.85), dirV);
         if (n) {
           hitCombo(false); score(n * PT.perVoxel, biteP.x, biteP.y + 1, biteP.z, S.firstBonk ? undefined : T('bonk')); S.firstBonk = true;
-          S.trauma = Math.min(1, S.trauma + 0.18 + b.k * 0.03); S.hitstopT = FX.hitstopSec * 0.6; Sound.bite(b.k); buzz('tap');
+          S.hitstopT = FX.hitstopSec * 0.6; // no screen shake per bite: the blocks and dust carry the hit Sound.bite(b.k); buzz('tap');
         }
       }
     }
@@ -384,11 +386,11 @@ function startGame(mode) {
         hitCombo();
         const label = e.chain > 0 ? T('domino') + ' ×' + (e.chain + 1) : '';
         score(PT.perClass * e.b.k * e.b.k, e.x, Math.min(e.b.h, 8), e.z, label);
-        Sound.collapse(e.b.k); S.trauma = Math.min(1, S.trauma + 0.25 + e.b.k * 0.08); S.hitstopT = FX.hitstopSec; buzz(e.b.k >= 3 ? 'thud' : 'tap');
+        Sound.collapse(e.b.k); if (e.b.k >= 3) shake(0.1 + e.b.k * 0.05); S.hitstopT = FX.hitstopSec; buzz(e.b.k >= 3 ? 'thud' : 'tap');
         const [sx, sy] = screenOf(e.x, 2, e.z); flyCoins(sx, sy, e.b.k + 1); setTimeout(() => Sound.coin(e.b.k), 300);
         if (e.chain > 0) { bon.face('win', 1); if (e.chain + 1 > S.chainShown) { S.chainShown = e.chain + 1; banner(T('domino') + ' ×' + (e.chain + 1) + '!', 1.2); } }
       } else if (e.type === 'land') {
-        Sound.land(); S.trauma = 1; buzz('thud'); S.slowT = Math.max(S.slowT, e.hits ? 0.6 : 0.25);
+        Sound.land(); shake(0.45); buzz('thud'); S.slowT = Math.max(S.slowT, e.hits ? 0.6 : 0.25);
         city.burstConfetti(e.x, 3, e.z, 16);
       }
     }
@@ -428,20 +430,26 @@ function startGame(mode) {
     setTimeout(() => { if (!S.finished) return; r.hidden = false; r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; }, 1600);
   }
 
-  const camWant = new THREE.Vector3(), lookWant = new THREE.Vector3(), shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
+  const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
+  const follow = { x: 0, z: 0, vx: 0, vz: 0, init: false };
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** Adds screen shake for a big moment only; amounts are small and never stack past 0.6. */
+  function shake(a) { if (!calm) S.trauma = Math.min(0.6, S.trauma + a); }
   function updateCamera(dt) {
     S.scale += (S.scaleTarget - S.scale) * Math.min(1, dt * 3);
     bon.root.scale.setScalar(S.scale);
-    // low and close behind Bonbon, looking ahead to the horizon: the city towers around it, the sea shows beyond
-    const z = Math.pow(S.scale / G.baseScale, 0.95); // the camera backs off as fast as Bonbon grows, so it keeps its size on screen
-    camWant.set(S.x + 0.8 * z, 7.5 * z + 2.5, S.z + 13 * z + 3);
-    camPos.lerp(camWant, Math.min(1, dt * 3));
-    camLook.lerp(lookWant.set(S.x, 2.2 * z, S.z - 12 * z), Math.min(1, dt * 4));
-    S.trauma = Math.max(0, S.trauma - dt * 1.6);
-    const sh = S.trauma * S.trauma * FX.shakeMax, tt = performance.now() / 1000;
-    camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 47) * sh * 0.5 * z, Math.sin(tt * 39 + 1) * sh * 0.4 * z, Math.sin(tt * 43 + 2) * sh * 0.3 * z));
+    // the camera follows a smoothed copy of Bonbon's position (critically damped), so wall pushes, bites and
+    // bounces never jerk the view
+    if (!follow.init) { follow.x = S.x; follow.z = S.z; follow.init = true; }
+    const w = 5, ax = (S.x - follow.x) * w * w - 2 * w * follow.vx, az = (S.z - follow.z) * w * w - 2 * w * follow.vz;
+    follow.vx += ax * dt; follow.vz += az * dt; follow.x += follow.vx * dt; follow.z += follow.vz * dt;
+    const z = Math.pow(S.scale / G.baseScale, 0.95); // the camera backs off as fast as Bonbon grows
+    camPos.set(follow.x + 0.8 * z, 7.5 * z + 2.5, follow.z + 13 * z + 3);
+    camLook.set(follow.x, 2.2 * z, follow.z - 12 * z);
+    S.trauma = Math.max(0, S.trauma - dt * 2.2);
+    const sh = S.trauma * S.trauma * FX.shakeMax * z, tt = performance.now() / 1000;
+    camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 23) * sh * 0.35, Math.sin(tt * 19 + 1) * sh * 0.25, 0));
     camera.lookAt(camLook);
-    camera.rotation.z += Math.sin(tt * 31) * sh * 0.02;
     city.setXray(camera.position, monV.set(S.x, 1.4 * S.scale, S.z), 1.6 * S.scale);
     sky.position.copy(camera.position);
     const span = 26 * z;

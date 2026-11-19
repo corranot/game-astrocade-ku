@@ -16,6 +16,23 @@ const server = http.createServer((q, s) => {
   const port = server.address().port, fails = [];
   const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  // screen comfort, on its own page at normal speed: hold a wandering drag with a big Bonbon, record the camera
+  {
+    const cp = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await cp.goto(`http://localhost:${port}/?local&tier=0`);
+    await cp.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    await cp.evaluate(() => { for (let i = 0; i < 4; i++) __game.grow(); });
+    await cp.waitForTimeout(1500);
+    await cp.evaluate(() => { window.__cam = []; const c = __game.camera; const loop = () => { if (!window.__cam) return; __cam.push([c.position.x, c.position.y, c.position.z, c.rotation.z]); requestAnimationFrame(loop); }; loop(); });
+    await cp.mouse.move(200, 500); await cp.mouse.down();
+    for (const [x, y] of [[200, 430], [140, 440], [200, 430], [260, 440], [200, 560]]) { await cp.mouse.move(x, y, { steps: 4 }); await cp.waitForTimeout(1000); }
+    await cp.mouse.up();
+    const cam = await cp.evaluate(() => { const a = __cam; window.__cam = null; let maxJ = 0, roll = 0;
+      for (let i = 2; i < a.length; i++) { maxJ = Math.max(maxJ, Math.hypot(...[0, 1, 2].map((k) => a[i][k] - 2 * a[i - 1][k] + a[i - 2][k]))); roll = Math.max(roll, Math.abs(a[i][3] - a[i - 1][3])); }
+      return { maxJ, roll, n: a.length }; });
+    check(cam.roll < 0.002 && cam.maxJ < 1.0, `screen comfort at stage 5: camera roll change ${cam.roll.toFixed(4)} per frame, biggest jolt ${cam.maxJ.toFixed(2)} (< 1.0) over ${cam.n} frames`);
+    await cp.close();
+  }
   const page = await browser.newPage({ viewport: { width: 405, height: 720 }, locale: lang });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
