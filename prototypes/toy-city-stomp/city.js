@@ -166,6 +166,7 @@ export function createCity(scene, cfg, rng, quality) {
     q: new Float32Array(MAXV * 4), w: new Float32Array(MAXV * 3), s: new Float32Array(MAXV),
     state: new Uint8Array(MAXV), // 0 standing, 1 flying, 2 rubble, 3 gone, 4 shrinking away
     b: new Int32Array(MAXV), slot: new Int32Array(MAXV), // slot: this block's place in the rubble queue
+    col: new Uint32Array(MAXV), // block colour, so windows can sparkle and cracks can darken
   };
   let count = 0;
   const blockMat = keep(blockMaterial());
@@ -173,7 +174,7 @@ export function createCity(scene, cfg, rng, quality) {
   blocks.receiveShadow = true; blocks.castShadow = quality.shadowsOnBlocks; blocks.frustumCulled = false;
   blocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   group.add(blocks);
-  let dMin = Infinity, dMax = -1; // range of blocks changed this frame: only that part goes to the GPU
+  let dMin = Infinity, dMax = -1, cMin = Infinity, cMax = -1; // range of blocks changed this frame: only that part goes to the GPU
   const writeMatrix = (i) => {
     if (i < dMin) dMin = i; if (i > dMax) dMax = i;
     quat.set(vox.q[i * 4], vox.q[i * 4 + 1], vox.q[i * 4 + 2], vox.q[i * 4 + 3]);
@@ -184,7 +185,7 @@ export function createCity(scene, cfg, rng, quality) {
     const i = count++;
     vox.px[i] = vox.ox[i] = x; vox.py[i] = vox.oy[i] = y; vox.pz[i] = vox.oz[i] = z;
     vox.q[i * 4 + 3] = 1; vox.s[i] = 1; vox.state[i] = 0; vox.b[i] = bid;
-    blocks.setColorAt(i, col.setHex(color)); writeMatrix(i);
+    vox.col[i] = color; blocks.setColorAt(i, col.setHex(color)); writeMatrix(i);
   };
 
   // ---------- buildings
@@ -273,6 +274,7 @@ export function createCity(scene, cfg, rng, quality) {
     const horiz = n % 2 === 0, line = Math.floor(rng() * (C.lots + 1)), lane = rng() < 0.5 ? -1 : 1;
     cars.push({ horiz, p: -half + line * pitch + C.road / 2 + lane * 1.2, t: rng() * span - half, speed: (3 + rng() * 3) * lane, squash: 0, x: 0, z: 0, color: PALETTE[n % PALETTE.length] });
   }
+  for (let n = 0; n < 3 && n < cars.length; n++) { const c = cars[(n * 3 + 1) % cars.length]; c.icecream = true; c.color = 0xff9cc6; }
   const carBody = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(2.2, 0.8, 1.2)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })), cars.length);
   const carTop = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.2, 0.6, 1.0)), keep(new THREE.MeshStandardMaterial({ color: 0xd9f3ff, roughness: 0.15 })), cars.length);
   const wheelGeo = keep(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12)); wheelGeo.rotateX(Math.PI / 2);
@@ -280,7 +282,12 @@ export function createCity(scene, cfg, rng, quality) {
   carBody.castShadow = true;
   for (const m of [carBody, carTop, carWheels]) m.frustumCulled = false;
   cars.forEach((c, i) => carBody.setColorAt(i, col.setHex(c.color)));
-  group.add(carBody, carTop, carWheels);
+  const coneGeo = new THREE.ConeGeometry(0.42, 1.0, 12); coneGeo.rotateX(Math.PI); coneGeo.translate(0, 0.5, 0);
+  const cones = new THREE.InstancedMesh(keep(coneGeo), keep(new THREE.MeshStandardMaterial({ color: 0xe8b46a, roughness: 0.6 })), cars.length);
+  const scoops = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.5, 14, 10)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })), cars.length);
+  for (const m of [cones, scoops]) { m.frustumCulled = false; for (let i = 0; i < cars.length; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0)); }
+  cars.forEach((c, i) => scoops.setColorAt(i, col.setHex([0xff9cc6, 0xfff0b3, 0xa8f0d8][i % 3])));
+  group.add(carBody, carTop, carWheels, cones, scoops);
   const yAxis = new THREE.Vector3(0, 1, 0), wheelPos = new THREE.Vector3();
   function updateCars(dt) {
     for (let i = 0; i < cars.length; i++) {
@@ -292,12 +299,16 @@ export function createCity(scene, cfg, rng, quality) {
       const wide = c.squash > 0.4 ? 1.25 : 1;
       carBody.setMatrixAt(i, mtx.compose(v3.set(c.x, 0.7 * flat, c.z), quat, one.set(wide, flat, wide)));
       carTop.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.35 * flat, c.z), quat, one.set(wide, flat, wide)));
+      if (c.icecream) {
+        cones.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.65 * flat, c.z), quat, one.set(wide, flat, wide)));
+        scoops.setMatrixAt(i, mtx.compose(v3.set(c.x, (2.75 + Math.sin(seaT * 4 + i) * 0.08) * flat, c.z), quat, one.set(wide, flat, wide)));
+      }
       for (let w = 0; w < 4; w++) {
         wheelPos.set(w < 2 ? -0.7 : 0.7, 0.32 * flat, w % 2 ? -0.6 : 0.6).applyQuaternion(quat); wheelPos.x += c.x; wheelPos.z += c.z;
         carWheels.setMatrixAt(i * 4 + w, mtx.compose(wheelPos, quat, one.set(1, flat, 1)));
       }
     }
-    carBody.instanceMatrix.needsUpdate = carTop.instanceMatrix.needsUpdate = carWheels.instanceMatrix.needsUpdate = true;
+    carBody.instanceMatrix.needsUpdate = carTop.instanceMatrix.needsUpdate = carWheels.instanceMatrix.needsUpdate = cones.instanceMatrix.needsUpdate = scoops.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- dust (soft points), confetti, residents with balloons, clouds
@@ -338,12 +349,14 @@ export function createCity(scene, cfg, rng, quality) {
     }
     if (confetti.m.instanceColor) confetti.m.instanceColor.needsUpdate = true;
   }
-  function releaseResidents(x, y, z, n) {
+  function releaseResidents(x, y, z, n, ring = 0) {
+    y = 0.4; // they step out on the ground beside the building, hop for joy, then float off
     for (let k = 0; k < n; k++) {
       const i = take(people), it = people.items[i];
       people.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4]));
       balloons.m.setColorAt(i, col.setHex([0xff5a4f, 0xffc531, 0x3fa9ff, 0x22c6a3, 0x9b6bff][Math.floor(rng() * 5)]));
-      Object.assign(it, { x: x + (rng() - 0.5) * 3, y: y + rng(), z: z + (rng() - 0.5) * 3, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
+      const a = rng() * Math.PI * 2;
+      Object.assign(it, { hop: 0.9, y0: 0.4, x: x + Math.cos(a) * ring + (rng() - 0.5) * 2, y, z: z + Math.sin(a) * ring + (rng() - 0.5) * 2, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
     }
     people.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = true;
   }
@@ -367,7 +380,8 @@ export function createCity(scene, cfg, rng, quality) {
     for (let i = 0; i < people.items.length; i++) {
       const it = people.items[i]; if (it.life <= 0) continue;
       it.life -= dt;
-      it.x += (it.vx + Math.sin(it.life * 2 + it.ph) * 0.6) * dt; it.y += it.vy * dt; it.z += it.vz * dt;
+      if (it.hop > 0) { it.hop -= dt; it.y = it.y0 + Math.abs(Math.sin(it.hop * 11)) * 0.9; } // a little jump for joy on the ground first
+      else { it.x += (it.vx + Math.sin(it.life * 2 + it.ph) * 0.6) * dt; it.y += it.vy * dt; it.z += it.vz * dt; }
       // residents close to the camera fade out so a balloon never fills the screen
       const cam = blockMat.userData.uniforms.uCam.value, cd = Math.hypot(it.x - cam.x, it.y - cam.y, it.z - cam.z);
       const s = Math.max(0, it.life < 0.5 ? it.life / 0.5 : Math.min(1, (it.max - it.life) * 4)) * THREE.MathUtils.smoothstep(cd, 7, 14);
@@ -394,6 +408,7 @@ export function createCity(scene, cfg, rng, quality) {
     vox.state[i] = 1; vox.vx[i] = vx; vox.vy[i] = vy; vox.vz[i] = vz;
     vox.w[i * 3] = (rng() - 0.5) * 12; vox.w[i * 3 + 1] = (rng() - 0.5) * 12; vox.w[i * 3 + 2] = (rng() - 0.5) * 12;
   }
+  let glass = 0;
   const biteAt = (b, p, r, dir, power) => {
     let n = 0;
     for (let i = b.start; i < b.start + b.total; i++) {
@@ -401,22 +416,32 @@ export function createCity(scene, cfg, rng, quality) {
       const dx = vox.px[i] - p.x, dy = vox.py[i] - p.y, dz = vox.pz[i] - p.z;
       if (dx * dx + dy * dy + dz * dz > r * r) continue;
       launch(i, dir.x * (5 + rng() * 6) * power + dx * 2, 3 + rng() * 6, dir.z * (5 + rng() * 6) * power + dz * 2); n++;
+      if (vox.col[i] === WINDOW) glass++;
     }
     return n;
   };
-  const near = new THREE.Vector3();
+  const near = new THREE.Vector3(), nearB = new THREE.Vector3();
   /** Bites blocks within radius r of point p off building b, flung along dir. When that spot is already empty
    *  (a hollow shell bitten before), it bites around the nearest standing block instead. Returns blocks removed. */
   function bite(b, p, r, dir, power = 1, chain = 0) {
     if (b.state !== 'intact') return 0;
+    glass = 0;
     let n = biteAt(b, p, r, dir, power);
     if (!n) {
       let best = -1, bd = Infinity;
       for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) { const d = (vox.px[i] - p.x) ** 2 + (vox.py[i] - p.y) ** 2 + (vox.pz[i] - p.z) ** 2; if (d < bd) bd = d, best = i; }
-      if (best >= 0) n = biteAt(b, near.set(vox.px[best], vox.py[best], vox.pz[best]), r, dir, power);
+      if (best >= 0) n = biteAt(b, nearB.set(vox.px[best], vox.py[best], vox.pz[best]), r, dir, power);
     }
     b.alive -= n;
     if (n) { puff(p.x, p.y, p.z, 1.1); puff(p.x, Math.max(0.6, p.y - 1), p.z, 0.9); }
+    if (glass) { burstConfetti(p.x, p.y, p.z, Math.min(14, glass * 2), [0xffffff, 0xcff0ff, 0x9fe0ff]); events.push({ type: 'glass', n: glass }); }
+    // cracks first: once a building is badly hit, some of its blocks darken and it creaks before it falls
+    if (!b.cracked && b.alive / b.total < 0.8 && b.alive / b.total >= cfg.collapseAt) {
+      b.cracked = true; let lo = Infinity, hi = -1;
+      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0 && rng() < 0.22) { blocks.setColorAt(i, col.setHex(vox.col[i]).multiplyScalar(0.62)); lo = Math.min(lo, i); hi = Math.max(hi, i); }
+      if (hi >= 0) { cMin = Math.min(cMin, lo); cMax = Math.max(cMax, hi); } // uploaded once per frame with every other crack
+      events.push({ type: 'creak', b });
+    }
     if (b.alive / b.total < cfg.collapseAt) collapse(b, dir, chain);
     return n;
   }
@@ -426,7 +451,7 @@ export function createCity(scene, cfg, rng, quality) {
     if (b.state !== 'intact') return;
     intact--;
     events.push({ type: 'collapse', b, x: b.cx, z: b.cz, chain });
-    releaseResidents(b.cx, Math.min(b.h, 6), b.cz, 2 + Math.floor(rng() * 3));
+    releaseResidents(b.cx, 0, b.cz, 2 + Math.floor(rng() * 3), Math.max(b.w, b.d) / 2 + 1);
     if (b.h >= cfg.toppleMinHeight) {
       // fall away from Bonbon; if a neighbour stands within reach to the side, fall onto it (dominoes)
       const ax = Math.abs(dir.x) > Math.abs(dir.z);
@@ -442,7 +467,7 @@ export function createCity(scene, cfg, rng, quality) {
     } else {
       b.state = 'gone';
       for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) launch(i, (rng() - 0.5) * 3 + dir.x * 2, -rng() * 2, (rng() - 0.5) * 3 + dir.z * 2);
-      for (let k = 0; k < 7; k++) puff(b.cx + (rng() - 0.5) * b.w, 0.8 + rng() * b.h * 0.3, b.cz + (rng() - 0.5) * b.d, 1.6 + b.k * 0.3);
+      for (let k = 0; k < 6 + b.k * 3; k++) puff(b.cx + (rng() - 0.5) * b.w * 1.3, 0.8 + rng() * b.h * 0.4, b.cz + (rng() - 0.5) * b.d * 1.3, 1.6 + b.k * 0.45);
       b.alive = 0;
     }
   }
@@ -554,20 +579,42 @@ export function createCity(scene, cfg, rng, quality) {
     return n;
   }
 
+  // ---------- footprints: flat marks where Bonbon's feet land, fading out
+  const FOOT = 40;
+  const foot = new THREE.InstancedMesh(keep(new THREE.CircleGeometry(0.5, 16).rotateX(-Math.PI / 2)), keep(new THREE.MeshBasicMaterial({ color: 0x3a6b2c, transparent: true, opacity: 0.28, depthWrite: false })), FOOT);
+  foot.frustumCulled = false; foot.renderOrder = 1; group.add(foot);
+  const feet = Array.from({ length: FOOT }, () => ({ life: 0 })); let footNext = 0;
+  for (let i = 0; i < FOOT; i++) foot.setMatrixAt(i, mtx.makeScale(0, 0, 0));
+  function footprint(x, z, size, yaw) { Object.assign(feet[footNext], { x, z, size, yaw, life: 6 }); footNext = (footNext + 1) % FOOT; }
+  function updateFeet(dt) {
+    for (let i = 0; i < FOOT; i++) {
+      const f = feet[i]; if (f.life <= 0) continue; f.life -= dt;
+      const s = f.size * Math.min(1, Math.max(0, f.life) / 1.5);
+      foot.setMatrixAt(i, mtx.compose(v3.set(f.x, 0.06, f.z), quat.setFromAxisAngle(yAxis, f.yaw), one.set(s * 0.8, 1, s * 1.15)));
+    }
+    foot.instanceMatrix.needsUpdate = true;
+  }
+
   function update(dt, monster) {
     seaT += dt; seaMat.uniforms.uT.value = seaT;
-    updateTopples(dt); updateBlocks(dt, monster); updateCars(dt); updateParticles(dt);
+    updateTopples(dt); updateBlocks(dt, monster); updateCars(dt); updateParticles(dt); updateFeet(dt);
     if (dMax >= 0) {
       const a = blocks.instanceMatrix; a.clearUpdateRanges(); a.addUpdateRange(dMin * 16, (dMax - dMin + 1) * 16); a.needsUpdate = true;
       dMin = Infinity; dMax = -1;
+    }
+    if (cMax >= 0) {
+      const a = blocks.instanceColor; a.clearUpdateRanges(); a.addUpdateRange(cMin * 3, (cMax - cMin + 1) * 3); a.needsUpdate = true;
+      cMin = Infinity; cMax = -1;
     }
   }
   function setXray(cam, mon, r) { const u = blockMat.userData.uniforms; u.uCam.value.copy(cam); u.uMon.value.copy(mon); u.uR.value = r; }
 
   return {
     start: { x: -half + C.road + centre * pitch + C.lotSize / 2, z: half - 1 }, // in front of the cottages lot
+    /** Ice-cream trucks still driving, for the jingle. */
+    iceTrucks: () => cars.filter((x) => x.icecream && x.squash <= 0),
     group, buildings, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees,
-    puff, burstConfetti, releaseResidents,
+    puff, burstConfetti, releaseResidents, footprint,
     intactLeft: () => intact,
     anyToppling: () => buildings.some((b) => b.state === 'toppling'),
     totalBlocks, meshes: { blocks },

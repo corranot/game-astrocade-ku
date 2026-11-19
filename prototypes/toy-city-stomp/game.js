@@ -10,6 +10,7 @@ import { createCity } from './city.js';
 import { createBonbon } from './bonbon.js';
 import { createArmy } from './army.js';
 import { MOVES, moveInfo, moveReady, buyMove } from './moves.js';
+import { createMissions } from './missions.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const LANG_NAMES = { en: 'English', ar: 'العربية', es: 'Español', vi: 'Tiếng Việt', hi: 'हिन्दी', bn: 'বাংলা', id: 'Indonesia' };
@@ -66,6 +67,10 @@ const Sound = (() => {
     step(stage) { tone('sine', 90 - stage * 6, 45, 0.12, 0.12 + stage * 0.02); },
     win() { [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.25, 0.25, i * 0.12)); },
     pop() { tone('sine', 700, 1200, 0.08, 0.15); },
+    glass(n) { for (let i = 0; i < Math.min(4, 1 + (n >> 2)); i++) tone('triangle', 2400 + Math.random() * 1600, 3200 + Math.random() * 1200, 0.09, 0.07, i * 0.035); },
+    creak() { tone('sawtooth', 140, 90, 0.45, 0.08); },
+    jingle(vol = 0.08) { [784, 659, 784, 880, 784, 659, 523].forEach((f, i) => tone('triangle', f, f, 0.14, vol, i * 0.16)); },
+    rainbow() { [523, 659, 784, 1046, 1318].forEach((f, i) => tone('sine', f, f * 1.01, 0.3, 0.2, i * 0.07)); },
   };
 })();
 
@@ -155,7 +160,8 @@ function startGame(mode) {
       <div class="cityhp"><div class="bar blue gloss"><i id="cityBar" style="width:100%"></i><b id="cityPct" class="out">100%</b></div><div class="bld"></div></div>
     </div>
     <div class="row2">
-      <div class="coins gloss"><span class="coin-ico"></span><b id="coins">0</b></div>
+      <div class="leftcol"><div class="coins gloss"><span class="coin-ico"></span><b id="coins">0</b></div>
+      <div class="mission gloss" id="mission" hidden><span class="mi-ico" id="miIco"></span><b id="miCount"></b><span class="mi-rw"><span class="coin-ico"></span><i id="miRw"></i></span></div></div>
       <div class="mid"><div class="spirit gloss"><span class="heart">❤</span><div class="sbar"><i id="spirit"></i></div></div><div class="wanted out" id="wanted"></div></div>
       <div class="btns"><button class="icon gloss" id="lang" aria-label="Language">🌐</button><button class="icon gloss" id="mute" aria-label="Sound">🔊</button></div>
     </div>
@@ -193,7 +199,7 @@ function startGame(mode) {
   // ---------- state
   const G = cfg.growth, MC = cfg.monster, CB = cfg.combo, PT = cfg.points, FX = cfg.fx;
   const bon = createBonbon({ candy: quality.candy }); scene.add(bon.root);
-  let rng, S, army = null, target = null, lookAt = null;
+  let rng, S, army = null, missions = null, target = null, lookAt = null;
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
   function newRound() {
@@ -202,23 +208,24 @@ function startGame(mode) {
     city = createCity(scene, cfg, rng, quality);
     if (army) army.dispose();
     army = createArmy(scene, cfg, rng, quality, city);
+    missions = createMissions(rng, !!save.tutorialDone, missionDone, levelOf);
     resize();
     S = {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
     };
     target = null; lookAt = null;
-    bon.setStage(1); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
+    bon.setStage(1); bon.setRainbow(false); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
     $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play';
     follow.init = false; follow.vx = follow.vz = 0;
     S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
-    hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = null;
+    hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = hudCache.mission = null;
     updateHud();
   }
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin' };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -237,16 +244,21 @@ function startGame(mode) {
     const ws = army ? army.stars : 0;
     if (hudCache.wanted !== ws) { hudCache.wanted = ws; $('wanted').textContent = ws ? '★'.repeat(ws) + '☆'.repeat(4 - ws) : ''; }
     if (army && army.boss.alive) { const bh = Math.round(army.boss.hp / cfg.boss.hp * 100) + '%'; if (hudCache.boss !== bh) { hudCache.boss = bh; $('bossHp').style.width = bh; } }
+    const mi = missions && !S.finished && missions.current, mk = mi ? mi.icon + mi.have + '/' + mi.n : '';
+    if (hudCache.mission !== mk) {
+      hudCache.mission = mk; $('mission').hidden = !mi || S.finished;
+      if (mi) { $('miIco').textContent = mi.icon; $('miCount').textContent = mi.have + '/' + mi.n; $('miRw').textContent = missions.reward(mi); const el = $('mission'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+    }
     const pct = Math.max(0, Math.round(S.pct));
     if (hudCache.pct !== pct) { hudCache.pct = pct; $('cityBar').style.width = pct + '%'; $('cityPct').textContent = pct + '%'; }
   }
 
   /** Adds points (combo-multiplied) and fills the grow bar with the base points. */
   function score(base, x, y, z, label) {
-    const m = comboMult(S.combo, CB) * (1 + 0.5 * (army ? army.stars : 0)), p = Math.round(base * m); // more wanted, more points
+    const m = comboMult(S.combo, CB) * (1 + 0.5 * (army ? army.stars : 0)) * (S.rainbowT > 0 ? 2 : 1), p = Math.round(base * m); // more wanted, more points
     if (army && !S.finished) army.heat(base);
     S.points += p; S.xp += base; // the grow bar fills from base points, so a long combo does not end the round early
-    S.coins = Math.floor(S.points * cfg.coinsPerPoint);
+    S.coins = Math.floor(S.points * cfg.coinsPerPoint) + S.bonusCoins;
     if (label !== undefined) { const [sx, sy] = screenOf(x, y, z); pop((label ? label + ' ' : '') + '+' + p, sx, sy, m > 1 ? '#ff5fa2' : '#2a2140', label ? 1.15 : 0.8); }
     while (S.stage < G.stages && S.xp >= xpFor(S.stage, G)) { S.xp -= xpFor(S.stage, G); grow(); }
     updateHud();
@@ -265,19 +277,43 @@ function startGame(mode) {
     }
     updateHud();
   }
+  /** A mission is complete: coins on top of the round's points, a cheer, and the tutorial remembered. */
+  function missionDone(m) {
+    const rw = missions.reward(m);
+    S.bonusCoins += rw; S.coins += rw;
+    banner(T('missionDone') + ' +' + rw, 1.3); Sound.win(); buzz('success');
+    city.burstConfetti(S.x, 4 * S.scale, S.z, 24);
+    if (m.tutorial && !missions.tutorial && !save.tutorialDone) { save.tutorialDone = true; persist(); }
+    hudCache.mission = null; updateHud();
+  }
+  /** Every car squash goes through here: points, combo, the car mission and the ice-cream secret. */
+  function squashCarsAt(x, z, r) {
+    for (const c of city.squashCars(x, z, r)) { carDown(c); mission('car'); hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
+  }
+  /** The current level of a "reach" mission event, so a new mission starts from where the player already is. */
+  function levelOf(ev) { return ev === 'grow' ? S.stage : ev === 'stars' ? (army ? army.stars : 0) : ev === 'combo' ? comboMult(S.combo, CB) : 0; }
+  /** The secret: squash all three ice-cream trucks in one round for 15 s of Rainbow Mode (points x2, confetti). */
+  function carDown(c) {
+    if (!c.icecream || S.finished || S.rainbowUsed || S.truckSet.has(c)) return;
+    S.truckSet.add(c); S.trucks = S.truckSet.size;
+    city.burstConfetti(c.x, 2, c.z, 14, [0xff9cc6, 0xfff0b3, 0xa8f0d8]);
+    if (S.trucks >= 3) { S.rainbowUsed = true; S.rainbowT = 15; banner(T('rainbow'), 1.8); Sound.rainbow(); buzz('success'); bon.setRainbow(true); }
+  }
+  // the attract mode (before the first touch) does not do the child's missions
+  const mission = (ev, n) => { if (missions && !S.finished && S.touched) { missions.on(ev, n); updateHud(); } };
   /** A bite only keeps the combo alive; a building down, a car squashed or a prop popped adds to it. */
   function hitCombo(counts = true) {
     S.comboT = CB.windowSec; if (!counts) return;
-    S.combo++; S.bestCombo = Math.max(S.bestCombo, S.combo);
+    S.combo++; S.bestCombo = Math.max(S.bestCombo, S.combo); mission('combo', comboMult(S.combo, CB));
     if (S.combo >= CB.every && S.combo % CB.every === 0) { Sound.combo(S.combo / CB.every); const c = $('combo'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
   }
   function grow() {
     S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1); S.spirit += cfg.army.spirit.perStage;
     S.slowT = FX.slowmoSec; shake(0.35);
-    bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success');
+    bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success'); mission('grow', S.stage);
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
-    for (const c of city.squashCars(S.x, S.z, 4 * S.scaleTarget)) score(PT.car, c.x, 1, c.z, '');
+    squashCarsAt(S.x, S.z, 4 * S.scaleTarget);
     for (let k = 0; k < 10; k++) city.puff(S.x + Math.cos(k) * 3 * S.scaleTarget, 0.6, S.z + Math.sin(k) * 3 * S.scaleTarget, 2.2);
     const round = S;
     if (save.equipped === 'spin' && S.stage === (moveInfo(cfg, 'spin') || {}).stage) setTimeout(() => { if (S === round && !S.finished) { banner(T('newMove'), 1.6); refreshSkill(); } }, 900);
@@ -343,8 +379,8 @@ function startGame(mode) {
         const n = city.bite(h.b, biteP.set(h.px, Math.min(h.b.h - 0.5, 1.5 * S.scale), h.pz), Math.max(2, r * 0.55), dirV, 1.6);
         if (n) { hitCombo(false); score(n * PT.perVoxel, h.px, 2, h.pz); }
       }
-      for (const c of city.squashCars(x, z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); }
-      if (city.crushTrees(x, z, r)) hitCombo();
+      squashCarsAt(x, z, r);
+      { const t = city.crushTrees(x, z, r); if (t) { mission('prop', t); hitCombo(); } }
       army.hitArea(x, z, r);
       const br = army.bossReach(); if (br && Math.hypot(br.x - x, br.z - z) < r + br.r) army.damageBoss(cfg.boss.skillDmg, 'skill');
       for (let k = 0; k < 8; k++) city.puff(x + Math.cos(k * 0.8) * r * 0.7, 0.5, z + Math.sin(k * 0.8) * r * 0.7, 1.4);
@@ -354,14 +390,14 @@ function startGame(mode) {
       Sound.bite(3); buzz(shakeAmt > 0.2 ? 'thud' : 'tap');
     },
     /** Pulls toy units and cars in from r and knocks them out. */
-    pull(r) { army.hitArea(S.x, S.z, r); for (const c of city.squashCars(S.x, S.z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); } city.burstConfetti(S.x, 3, S.z, 14, [0xff5a4f, 0x3fa9ff]); },
+    pull(r) { army.hitArea(S.x, S.z, r); squashCarsAt(S.x, S.z, r); city.burstConfetti(S.x, 3, S.z, 14, [0xff5a4f, 0x3fa9ff]); },
   };
   function useSkill() {
     if (!S || S.finished || S.skillCd > 0 || S.jump || S.dizzyT > 0) return;
     const id = save.equipped;
     if (!moveReady(cfg, id, save.owned, S.stage) || !MOVES[id]) return;
     S.skillCd = S.skillCdMax = moveInfo(cfg, id).cooldownSec; bon.stomp(1.2); bon.face('angry', 0.6); buzz('thud');
-    MOVES[id](fx);
+    MOVES[id](fx); mission('move');
   }
   /** Shows the big button with the equipped move once it can be used. */
   function refreshSkill() {
@@ -433,7 +469,8 @@ function startGame(mode) {
       const l = Math.hypot(ix, iz) || 1; fwd.set(ix / l, 0, iz / l);
       let d = Math.atan2(fwd.x, fwd.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 10);
       S.x += fwd.x * speed * dt; S.z += fwd.z * speed * dt;
-      S.stepT -= dt * (speed / Math.max(1, S.scale)); if (S.stepT <= 0) { S.stepT = 0.42; Sound.step(S.stage); }
+      S.stepT -= dt * (speed / Math.max(1, S.scale)); if (S.stepT <= 0) { S.stepT = 0.42; Sound.step(S.stage); S.foot = -(S.foot || 1);
+        city.footprint(S.x + Math.cos(S.yaw) * 0.52 * S.scale * S.foot, S.z - Math.sin(S.yaw) * 0.52 * S.scale * S.foot, 0.9 * S.scale, S.yaw); }
     }
     const lim = city.half + 2; S.x = THREE.MathUtils.clamp(S.x, -lim, lim); S.z = THREE.MathUtils.clamp(S.z, -lim, lim);
   }
@@ -476,8 +513,8 @@ function startGame(mode) {
         if (S.attackT <= 0) { S.attackT = MC.attackSec; bon.stomp(1); bon.face('angry', 0.5); if (army.damageBoss(cfg.boss.hitDmg, 'hit')) { S.hitstopT = FX.hitstopSec; Sound.bite(4); buzz('tap'); } }
       }
     }
-    for (const c of city.squashCars(S.x, S.z, R * 0.9)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
-    const t = city.crushTrees(S.x, S.z, R * 0.8); if (t) { hitCombo(); score(PT.tree * t, S.x, 1, S.z); Sound.pop(); }
+    squashCarsAt(S.x, S.z, R * 0.9);
+    const t = city.crushTrees(S.x, S.z, R * 0.8); if (t) { mission('prop', t); hitCombo(); score(PT.tree * t, S.x, 1, S.z); Sound.pop(); }
   }
 
   function drainEvents() {
@@ -486,9 +523,12 @@ function startGame(mode) {
         hitCombo();
         const label = e.chain > 0 ? T('domino') + ' ×' + (e.chain + 1) : '';
         score(PT.perClass * e.b.k * e.b.k, e.x, Math.min(e.b.h, 8), e.z, label);
+        mission(e.b.h >= cfg.toppleMinHeight ? 'tower' : 'house'); if (S.rainbowT > 0) city.burstConfetti(e.x, 3, e.z, 18, [0xff5a4f, 0xffc531, 0x6fd64b, 0x3fa9ff, 0x9b6bff]); if (e.chain > 0) mission('domino', e.chain + 1);
         Sound.collapse(e.b.k); if (e.b.k >= 3) shake(0.1 + e.b.k * 0.05); S.hitstopT = FX.hitstopSec; buzz(e.b.k >= 3 ? 'thud' : 'tap');
         const [sx, sy] = screenOf(e.x, 2, e.z); flyCoins(sx, sy, e.b.k + 1); setTimeout(() => Sound.coin(e.b.k), 300);
-        if (e.chain > 0) { bon.face('win', 1); if (e.chain + 1 > S.chainShown) { S.chainShown = e.chain + 1; banner(T('domino') + ' ×' + (e.chain + 1) + '!', 1.2); } }
+        if (e.chain > 0) { bon.laugh(); if (e.chain + 1 > S.chainShown) { S.chainShown = e.chain + 1; banner(T('domino') + ' ×' + (e.chain + 1) + '!', 1.2); } }
+      } else if (e.type === 'glass') { Sound.glass(e.n);
+      } else if (e.type === 'creak') { Sound.creak(); bon.face('surprised', 0.4);
       } else if (e.type === 'land') {
         Sound.land(); shake(0.45); buzz('thud'); S.slowT = Math.max(S.slowT, e.hits ? 0.6 : 0.25);
         city.burstConfetti(e.x, 3, e.z, 16);
@@ -504,10 +544,11 @@ function startGame(mode) {
       if (e.type === 'hitBonbon') hurt(e.dmg, e.x, e.z);
       else if (e.type === 'splat') { city.puff(e.x, 0.6, e.z, e.kind === 'bubble' ? 0.8 : 0.6); if (e.kind === 'bubble') Sound.pop(); }
       else if (e.type === 'unitDown') {
-        hitCombo(); score(e.points, e.x, e.y + 1, e.z, T('bonk')); Sound.squash(); buzz('tap');
+        mission('toy'); hitCombo(); score(e.points, e.x, e.y + 1, e.z, T('bonk')); Sound.squash(); buzz('tap');
         S.spirit = Math.min(spiritMax(), S.spirit + cfg.army.spirit.perKill); city.burstConfetti(e.x, e.y + 0.5, e.z, 10);
       } else if (e.type === 'stars') {
-        const [sx, sy] = screenOf(S.x, 6 * S.scale, S.z); pop(T('wanted') + ' ' + '★'.repeat(e.stars), sx, sy, '#ffc531', 1.1); Sound.combo(2 + e.stars);
+        mission('stars', e.stars);
+        const w = $('wanted'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); Sound.combo(2 + e.stars); // the star row itself pops, no extra text
       } else if (e.type === 'bossIntro') {
         banner(T('warn'), 1.8); $('bossName').textContent = T('boss'); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
       } else if (e.type === 'bossLand') {
@@ -631,7 +672,10 @@ function startGame(mode) {
       if (S.touched) S.time += raw;
       steer(dt); if (!S.jump) contact(dt);
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
-      S.skillCd = Math.max(0, S.skillCd - raw);
+      S.skillCd = Math.max(0, S.skillCd - raw); if (missions.update(raw)) updateHud();
+      if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0) bon.setRainbow(false); }
+      S.jingleT -= raw; // an ice-cream truck nearby plays its tune now and then: a clue, never explained
+      if (S.jingleT <= 0) { S.jingleT = 4; const t = city.iceTrucks().find((c) => Math.hypot(c.x - S.x, c.z - S.z) < 30 * Math.sqrt(S.scale)); if (t) Sound.jingle(); }
       drainEvents(); sweep(dt);
     } else { city.events.length = 0; army.events.length = 0; } // after the finish (or in edit mode) falling blocks still look right but score nothing
     if (S.spinT > 0) { S.spinT -= dt; S.yaw += dt * Math.PI * 2 / 0.55; }
@@ -674,17 +718,20 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
-      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped;
+      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped, tutorialBefore = save.tutorialDone;
       if (st) {
         Object.assign(save, st);
         save.coins = (st.coins || 0) + earned;
         if (best !== null) save.best = save.best === null ? best : Math.min(best, save.best);
         save.bestCombo = Math.max(combo, st.bestCombo || 0);
         if (picked) save.lang = picked;
+        save.tutorialDone = !!(st.tutorialDone || tutorialBefore);
         save.owned = [...new Set([...(Array.isArray(st.owned) ? st.owned : []), ...ownedBefore])]; if (equippedBefore !== 'spin') save.equipped = equippedBefore;
         if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
+      // a player who did the tutorial before should not get it again just because the save arrived late
+      if (save.tutorialDone && missions && missions.tutorial && !S.touched) missions = createMissions(rng, true, missionDone, levelOf);
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length) persist();
     }).catch(() => { saveLoaded = true; });
@@ -700,7 +747,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get save() { return save; }, openShop, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },
