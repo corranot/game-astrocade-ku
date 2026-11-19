@@ -12,6 +12,10 @@ const title = (page.match(/<title>([^<]*)<\/title>/) || [, 'Game'])[1];
 const style = (page.match(/<style>([\s\S]*?)<\/style>/) || [, ''])[1];
 const importMap = (page.match(/<script type="importmap">[\s\S]*?<\/script>/) || [''])[0]; // bare imports such as 'three'
 const libLoader = (page.match(/<script type="module" data-lib>[\s\S]*?<\/script>/) || [''])[0]; // puts libraries on window
+// a page that uses an import map or a library loader must have them copied, or the artifact waits forever
+if (!style) { console.error('index.html has no <style> block'); process.exit(1); }
+if (page.includes('importmap') && !importMap) { console.error('index.html has an import map this tool could not read (expects <script type="importmap">)'); process.exit(1); }
+if (page.includes('data-lib') && !libLoader) { console.error('index.html has a data-lib loader this tool could not read (expects <script type="module" data-lib>)'); process.exit(1); }
 const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8'));
 delete cfg.persistent_storage_config; // the host keeps this key out of window.gameConfig
 const key = 'save-' + path.basename(path.resolve(dir));

@@ -50,6 +50,12 @@ const server = http.createServer((q, s) => {
     await page.waitForFunction(() => __game.Sound.loaded.length >= 8, null, { timeout: 30000 }).catch(() => {});
     const got = await g(() => __game.Sound.loaded);
     check(got.length === 8, `recorded sounds and music load from the asset map after the first tap (${got.length}/8)`);
+    // the host may start the game again (edit, then play): the music must come back after the next tap
+    await g(() => window.run('play'));
+    await page.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 10000 });
+    await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height * 0.6);
+    await page.waitForTimeout(500);
+    check(await g(() => __game.Sound.musicOn), 'music plays again after the game is started a second time');
   }
   await g(() => { __game.newRound(); __game.S.touched = true; __game.S.idle = 99; }); // a fresh round as a child who touched once then let go: autopilot plays on and the round counts
 
