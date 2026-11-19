@@ -41,7 +41,7 @@ const server = http.createServer((q, s) => {
   const end = await g(() => ({ fin: __game.S.finished, stage: __game.S.stage, time: __game.S.time, coins: __game.S.coins, best: __game.S.bestCombo }));
   check(end.fin, 'the city is flattened and the round finishes');
   check(end.stage >= 5, 'Bonbon grows to stage 5+ in one round (got ' + end.stage + ')');
-  check(end.time > 120 && end.time < 300, 'autopilot round takes 2-5 game minutes: ' + end.time.toFixed(0) + ' s');
+  check(end.time > 75 && end.time < 300, 'autopilot round (the shortest path; a child wanders) takes 75-300 game s: ' + end.time.toFixed(0) + ' s');
   check(seen.domino, 'at least one domino chain happens');
   await page.waitForTimeout(2500);
   check(await g(() => !document.querySelector('#result').hidden), 'result screen shows');

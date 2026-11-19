@@ -1,123 +1,131 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Bonbon: the gummy dino the player walks through the toy city. Built from primitives with a 3-step toon
-// shade and an ink outline (back-face hull), animated in code: walk bob, squash and stretch, jelly belly,
-// spring tail, eyes that look around, six faces (happy, angry, roar, dizzy, surprised, win).
+// Bonbon v2: the gummy dino. A chubby pear body with a separate head (snout, opening jaw, teeth, nostrils, big
+// eyes), clawed arms and toed feet, a 6-segment spring tail and back spikes. Candy material: glossy clearcoat
+// with an environment reflection on capable devices, smooth matte shading on low-end ones; thin ink outline either way.
+// Animated in code: walk, squash and stretch, jelly belly, jaw, look-at eyes, six faces.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js';
 
-const PINK = 0xff5fa2, PINK_D = 0xe0407f, BELLY = 0xffc6de, SPIKE = 0xffc531, INK = 0x2a2140, WHITE = 0xffffff;
-
-/** A 3-step gradient so toon materials read as flat cartoon bands. */
-function toonRamp() {
-  const t = new THREE.DataTexture(new Uint8Array([90, 90, 90, 255, 175, 175, 175, 255, 255, 255, 255, 255]), 3, 1);
-  t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
-}
+const PINK = 0xff5fa2, PINK_D = 0xe8478a, SPOT = 0xff86bb, BELLY = 0xffe3ef, SPIKE = 0xffc531, INK = 0x3a1f3d, WHITE = 0xffffff, MOUTH = 0x8a1d48, TONGUE = 0xff7aa8;
 
 /**
- * Builds Bonbon. Returns { root, update(dt, state), setStage(stage), face(name, sec), stomp(), roar() }.
- * state: { moving, speed, lookAt: Vector3|null }.
+ * Builds Bonbon. opts.candy: glossy physical material (needs scene.environment) or matte Lambert.
+ * Returns { root, update(dt, state), setStage, face, stomp, roar, resetTail, dispose }.
  */
-export function createBonbon() {
-  const ramp = toonRamp();
-  const mat = (c) => new THREE.MeshToonMaterial({ color: c, gradientMap: ramp });
+export function createBonbon(opts = {}) {
+  const mats = new Map();
+  const mat = (c, gloss = 1) => {
+    const key = c + ':' + gloss; if (mats.has(key)) return mats.get(key);
+    const m = opts.candy
+      ? new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.32, metalness: 0, clearcoat: gloss, clearcoatRoughness: 0.12, envMapIntensity: 0.9 })
+      : new THREE.MeshLambertMaterial({ color: c }); // smooth and cheap on low-end phones
+    mats.set(key, m); return m;
+  };
+  const flat = (c) => { const k = 'b' + c; if (!mats.has(k)) mats.set(k, new THREE.MeshBasicMaterial({ color: c })); return mats.get(k); };
   const inkMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
-  const root = new THREE.Group();      // world position and heading
-  const body = new THREE.Group();      // squash and stretch, bob
-  root.add(body);
+  const geos = [];
+  const G = (g) => { geos.push(g); return g; };
 
-  /** A mesh plus its ink hull. */
-  const part = (geo, m, parent, outline = 0.06) => {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const part = (geo, m, parent, outline = 0.045) => {
     const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; parent.add(mesh);
     if (outline) { const hull = new THREE.Mesh(geo, inkMat); hull.scale.setScalar(1 + outline); mesh.add(hull); }
     return mesh;
   };
+  const sphere = G(new THREE.SphereGeometry(1, 28, 20));
 
-  const torso = part(new THREE.SphereGeometry(1, 24, 18), mat(PINK), body);
-  torso.scale.set(1.05, 1.2, 0.95); torso.position.y = 1.35;
-  const belly = part(new THREE.SphereGeometry(0.72, 20, 14), mat(BELLY), torso, 0);
-  belly.position.set(0, -0.12, 0.42); belly.scale.set(1, 1.05, 0.6);
+  // body: pear of two spheres, belly plate, spots
+  const torso = new THREE.Group(); torso.position.y = 1.2; body.add(torso);
+  const upper = part(sphere, mat(PINK), torso); upper.scale.set(0.92, 0.95, 0.85); upper.position.y = 0.25;
+  const lower = part(sphere, mat(PINK), torso); lower.scale.set(1.08, 0.95, 1.0); lower.position.y = -0.25;
+  const belly = part(sphere, mat(BELLY, 0.6), torso, 0); belly.scale.set(0.78, 1.0, 0.42); belly.position.set(0, -0.1, 0.66);
+  for (const [x, y, z, s] of [[-0.75, 0.1, -0.4, 0.2], [0.8, -0.3, -0.3, 0.16], [-0.4, 0.55, -0.62, 0.13], [0.35, -0.5, -0.82, 0.18]]) {
+    const sp = part(sphere, mat(SPOT, 0.4), torso, 0); sp.position.set(x, y, z); sp.scale.set(s, s, s * 0.45); sp.lookAt(x * 3, y * 3, z * 3);
+  }
 
-  // face, on the front of the torso
-  const face = new THREE.Group(); face.position.set(0, 0.6, 0.66); face.rotation.x = -0.35; torso.add(face);
+  // head with snout, jaw, teeth, nostrils, eyes
+  const head = new THREE.Group(); head.position.set(0, 2.1, 0.22); body.add(head);
+  const skull = part(sphere, mat(PINK), head); skull.scale.set(0.72, 0.66, 0.7);
+  const snout = part(sphere, mat(PINK), head); snout.scale.set(0.56, 0.36, 0.5); snout.position.set(0, -0.12, 0.5);
+  for (const s of [-1, 1]) { const n = new THREE.Mesh(sphere, flat(INK)); n.scale.setScalar(0.045); n.position.set(0.14 * s, -0.04, 0.97); head.add(n); }
+  for (const s of [-1, 1]) { const t = new THREE.Mesh(G(new THREE.ConeGeometry(0.06, 0.13, 8)), mat(WHITE, 0.3)); t.rotation.x = Math.PI; t.position.set(0.18 * s, -0.33, 0.83); head.add(t); }
+  const jaw = new THREE.Group(); jaw.position.set(0, -0.28, 0.22); head.add(jaw);
+  const jawMesh = part(sphere, mat(PINK_D), jaw); jawMesh.scale.set(0.48, 0.2, 0.5); jawMesh.position.set(0, -0.06, 0.28);
+  const mouthIn = new THREE.Mesh(sphere, flat(MOUTH)); mouthIn.scale.set(0.42, 0.12, 0.44); mouthIn.position.set(0, -0.12, 0.47); head.add(mouthIn);
+  const tongue = new THREE.Mesh(sphere, mat(TONGUE, 0.5)); tongue.scale.set(0.24, 0.07, 0.28); tongue.position.set(0, 0.06, 0.3); jaw.add(tongue);
   const eyes = [], pupils = [];
-  for (const sx of [-0.33, 0.33]) {
-    const eye = part(new THREE.SphereGeometry(0.3, 16, 12), mat(WHITE), face, 0.1);
-    eye.position.set(sx * 1.1, 0.22, -0.05); eye.scale.set(1, 1.12, 0.85);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), new THREE.MeshBasicMaterial({ color: INK }));
-    pupil.position.set(0, 0, 0.25); eye.add(pupil);
-    const shine = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: WHITE }));
-    shine.position.set(0.04, 0.05, 0.1); pupil.add(shine);
+  for (const s of [-1, 1]) {
+    const eye = part(sphere, mat(WHITE, 0.8), head, 0.08); eye.scale.set(0.24, 0.27, 0.2); eye.position.set(0.3 * s, 0.22, 0.48);
+    const pupil = new THREE.Mesh(sphere, flat(0x1a1030)); pupil.scale.set(0.5, 0.5, 0.4); pupil.position.set(0, 0, 0.72); eye.add(pupil);
+    const shine = new THREE.Mesh(sphere, flat(WHITE)); shine.scale.setScalar(0.32); shine.position.set(0.35, 0.4, 0.6); pupil.add(shine);
     eyes.push(eye); pupils.push(pupil);
   }
-  const brows = [-1, 1].map((s) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.06), new THREE.MeshBasicMaterial({ color: INK }));
-    b.position.set(0.33 * s, 0.33, 0.08); face.add(b); b.userData.side = s; return b;
-  });
-  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.04, 8, 20, Math.PI), new THREE.MeshBasicMaterial({ color: INK }));
-  smile.rotation.z = Math.PI; smile.position.set(0, -0.3, 0.02); face.add(smile);
-  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0x7a1b3d }));
-  mouth.position.set(0, -0.32, -0.02); mouth.scale.set(1, 0.85, 0.4); face.add(mouth);
-  const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.05), mat(WHITE));
-  tooth.position.set(0, -0.2, 0.05); face.add(tooth);
-  const blush = [-1, 1].map((s) => {
-    const b = new THREE.Mesh(new THREE.CircleGeometry(0.1, 14), new THREE.MeshBasicMaterial({ color: 0xff8fc0 }));
-    b.position.set(0.55 * s, -0.18, -0.05); b.rotation.y = 0.5 * s; face.add(b); return b;
-  });
-  // dizzy stars that orbit the head
-  const dizzy = new THREE.Group(); dizzy.position.y = 2.55; body.add(dizzy); dizzy.visible = false;
-  for (let i = 0; i < 4; i++) {
-    const s = new THREE.Mesh(new THREE.OctahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: SPIKE }));
-    s.position.set(Math.cos(i * 1.57) * 0.75, 0, Math.sin(i * 1.57) * 0.75); dizzy.add(s);
-  }
+  const brows = [-1, 1].map((s) => { const b = new THREE.Mesh(G(new THREE.BoxGeometry(0.26, 0.06, 0.06)), flat(INK)); b.position.set(0.3 * s, 0.5, 0.58); b.userData.s = s; head.add(b); return b; });
+  const blush = [-1, 1].map((s) => { const b = new THREE.Mesh(sphere, flat(0xff9cc6)); b.scale.set(0.12, 0.07, 0.03); b.position.set(0.52 * s, -0.05, 0.42); b.rotation.y = 0.6 * s; head.add(b); return b; });
+  const dizzy = new THREE.Group(); dizzy.position.y = 0.75; head.add(dizzy); dizzy.visible = false;
+  const starGeo = G(new THREE.OctahedronGeometry(0.12));
+  for (let i = 0; i < 4; i++) { const st = new THREE.Mesh(starGeo, flat(SPIKE)); st.position.set(Math.cos(i * 1.57) * 0.7, 0, Math.sin(i * 1.57) * 0.7); dizzy.add(st); }
 
-  // arms and legs
-  const limb = (r, len, color) => { const g = new THREE.CapsuleGeometry(r, len, 6, 12); g.translate(0, -len / 2, 0); return part(g, mat(color), body); };
-  const arms = [-1, 1].map((s) => { const a = limb(0.17, 0.35, PINK); a.position.set(0.9 * s, 1.55, 0.25); a.rotation.z = 0.5 * s; return a; });
-  const legs = [-1, 1].map((s) => { const l = limb(0.27, 0.32, PINK_D); l.position.set(0.48 * s, 0.62, 0); return l; });
+  // arms with claws, legs with toes
+  const clawGeo = G(new THREE.ConeGeometry(0.06, 0.18, 8));
+  const arms = [-1, 1].map((s) => {
+    const a = new THREE.Group(); a.position.set(0.82 * s, 1.55, 0.35); body.add(a);
+    const g = G(new THREE.CapsuleGeometry(0.17, 0.32, 6, 12)); g.translate(0, -0.25, 0);
+    part(g, mat(PINK), a);
+    for (let k = -1; k <= 1; k++) { const c = new THREE.Mesh(clawGeo, mat(WHITE, 0.3)); c.position.set(k * 0.08, -0.6, 0.08); c.rotation.x = Math.PI * 0.85; a.add(c); }
+    return a;
+  });
+  const legs = [-1, 1].map((s) => {
+    const l = new THREE.Group(); l.position.set(0.52 * s, 0.62, 0.05); body.add(l);
+    const g = G(new THREE.CapsuleGeometry(0.32, 0.25, 6, 12)); g.translate(0, -0.2, 0);
+    part(g, mat(PINK_D), l);
+    const foot = part(sphere, mat(PINK_D), l); foot.scale.set(0.36, 0.2, 0.46); foot.position.set(0, -0.5, 0.16);
+    for (let k = -1; k <= 1; k++) { const c = new THREE.Mesh(clawGeo, mat(WHITE, 0.3)); c.position.set(k * 0.14, -0.55, 0.58); c.rotation.x = Math.PI / 2; l.add(c); }
+    return l;
+  });
 
-  // tail: 4 spring-driven segments
+  // tail: 6 spring segments
   const tail = [];
-  for (let i = 0; i < 4; i++) {
-    const r = 0.42 - i * 0.08;
-    const seg = part(new THREE.SphereGeometry(r, 14, 10), mat(i % 2 ? PINK : PINK_D), root, 0.08);
+  for (let i = 0; i < 6; i++) {
+    const r = 0.5 - i * 0.065;
+    const seg = part(sphere, mat(i % 2 ? PINK : PINK_D), root, 0.06); seg.scale.setScalar(r);
     seg.userData = { r, pos: new THREE.Vector3(), vel: new THREE.Vector3() };
     tail.push(seg);
   }
 
-  // back spikes, rebuilt as Bonbon grows
-  const spikes = new THREE.Group(); torso.add(spikes);
-  const spikeGeo = new THREE.ConeGeometry(0.22, 0.5, 10), spikeMat = mat(SPIKE);
+  // spikes: crown and back, more as Bonbon grows
+  const spikes = new THREE.Group(); body.add(spikes);
+  const spikeGeo = G(new THREE.ConeGeometry(0.2, 0.46, 10));
   function setStage(stage) {
     spikes.clear();
-    const n = 3 + Math.min(stage, 6);
+    const n = 4 + Math.min(stage, 6);
     for (let i = 0; i < n; i++) {
-      const a = -0.25 + (i / (n - 1)) * 1.6; // from the crown down the back
-      const s = part(spikeGeo, spikeMat, spikes, 0.1);
-      s.position.set(0, Math.cos(a) * 1.0, -Math.sin(a) * 0.98);
-      s.rotation.x = -a; s.scale.setScalar(1 + stage * 0.05 - Math.abs(i - n / 3) * 0.04);
+      const f = i / (n - 1), a = -0.6 + f * 2.2; // from the crown over the back
+      const s = part(spikeGeo, mat(SPIKE, 0.8), spikes, 0.08);
+      const onHead = a < 0.15;
+      if (onHead) { s.position.set(0, 2.1 + Math.cos(a + 0.6) * 0.68, 0.22 - Math.sin(a + 0.6) * 0.5); s.rotation.x = -(a + 0.6) * 0.8; }
+      else { s.position.set(0, 1.45 + Math.cos(a) * 0.95, -Math.sin(a) * 0.9); s.rotation.x = -a; }
+      s.scale.setScalar(0.8 + stage * 0.05 - Math.abs(f - 0.35) * 0.35);
     }
   }
   setStage(1);
 
-  // animation state
-  let t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0;
+  let t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0, jawOpen = 0;
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
-
   function setFace(name, sec = 1) { faceName = name; faceTimer = sec; }
 
-  /** Applies the current face to eyes, brows, mouth. */
-  function applyFace() {
+  function applyFace(dt) {
     const f = faceName;
-    smile.visible = f === 'happy' || f === 'win';
-    mouth.visible = !smile.visible;
-    const open = f === 'roar' ? 1.6 : f === 'surprised' ? 1.1 : f === 'angry' ? 0.6 : f === 'dizzy' ? 0.7 : 0.5;
-    mouth.scale.set(1.1, 0.85 * open, 0.4);
+    const wantJaw = f === 'roar' ? 0.75 : f === 'surprised' ? 0.45 : f === 'win' ? 0.4 : f === 'angry' ? 0.12 : f === 'dizzy' ? 0.3 : 0.18;
+    jawOpen += (wantJaw - jawOpen) * Math.min(1, dt * 14);
+    jaw.rotation.x = jawOpen;
+    mouthIn.scale.y = 0.06 + jawOpen * 0.32;
     for (const b of brows) {
       b.visible = f === 'angry' || f === 'roar' || f === 'surprised';
-      b.rotation.z = f === 'surprised' ? 0.15 * b.userData.side : -0.45 * b.userData.side;
-      b.position.y = f === 'surprised' ? 0.42 : 0.3;
+      b.rotation.z = f === 'surprised' ? 0.2 * b.userData.s : -0.45 * b.userData.s;
+      b.position.y = f === 'surprised' ? 0.58 : 0.48;
     }
-    const eyeY = blink > 0 ? 0.12 : f === 'win' ? 0.5 : f === 'surprised' ? 1.3 : 1.12;
-    for (const e of eyes) e.scale.y = eyeY;
+    const eyeY = blink > 0 ? 0.04 : f === 'win' ? 0.1 : f === 'surprised' ? 0.33 : 0.27;
+    for (const e of eyes) e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 25);
     for (const b of blush) b.visible = f === 'happy' || f === 'win';
     dizzy.visible = f === 'dizzy';
   }
@@ -127,65 +135,58 @@ export function createBonbon() {
     faceTimer -= dt; if (faceTimer <= 0 && faceName !== 'happy') faceName = 'happy';
     blink -= dt; if (blink < -2.6 - Math.sin(t * 3.1) * 1.2) blink = 0.12;
     roarT = Math.max(0, roarT - dt); attackT = Math.max(0, attackT - dt);
-
-    // walk cycle
     const moving = state.moving;
-    walkPhase += dt * (moving ? 9 + state.speed * 0.3 : 0);
+    walkPhase += dt * (moving ? 8 + state.speed * 0.25 : 0);
     const step = Math.sin(walkPhase);
-    legs[0].position.y = 0.62 + (moving ? Math.max(0, step) * 0.28 : 0);
-    legs[1].position.y = 0.62 + (moving ? Math.max(0, -step) * 0.28 : 0);
-    legs[0].rotation.x = moving ? step * 0.5 : 0; legs[1].rotation.x = moving ? -step * 0.5 : 0;
-    const bob = moving ? Math.abs(Math.cos(walkPhase)) * 0.12 : Math.sin(t * 2.2) * 0.03;
-
-    // jelly squash: a damped spring on vertical scale
+    legs[0].position.y = 0.62 + (moving ? Math.max(0, step) * 0.3 : 0);
+    legs[1].position.y = 0.62 + (moving ? Math.max(0, -step) * 0.3 : 0);
+    legs[0].rotation.x = moving ? step * 0.55 : 0; legs[1].rotation.x = moving ? -step * 0.55 : 0;
+    const bob = moving ? Math.abs(Math.cos(walkPhase)) * 0.14 : Math.sin(t * 2.2) * 0.03;
     squashV += (-squash * 140 - squashV * 9) * dt; squash += squashV * dt;
-    const sy = 1 - squash + (roarT > 0 ? 0.12 : 0), sxz = 1 + squash * 0.55;
-    body.scale.set(sxz, sy, sxz);
-    body.position.y = bob;
-    torso.rotation.x = (moving ? 0.12 : 0) + (attackT > 0 ? Math.sin((attackT / 0.3) * Math.PI) * 0.35 : 0);
-    torso.rotation.z = moving ? Math.sin(walkPhase) * 0.06 : 0;
-    belly.scale.set(1 + squash * 0.3, 1.05 - squash * 0.2, 0.6);
-
-    // arms swing, or punch forward during an attack
+    const sy = 1 - squash + (roarT > 0 ? 0.1 : 0), sxz = 1 + squash * 0.55;
+    body.scale.set(sxz, sy, sxz); body.position.y = bob;
+    const atk = attackT > 0 ? Math.sin((attackT / 0.3) * Math.PI) : 0;
+    torso.rotation.x = (moving ? 0.1 : 0) + atk * 0.25; torso.rotation.z = moving ? step * 0.06 : 0;
+    head.rotation.x = -0.05 + atk * 0.35 - (roarT > 0 ? 0.35 : 0) + (moving ? Math.cos(walkPhase * 2) * 0.03 : Math.sin(t * 1.7) * 0.03);
+    head.rotation.z = moving ? -step * 0.05 : Math.sin(t * 0.9) * 0.05;
+    belly.scale.set(0.78 + squash * 0.25, 1.0 - squash * 0.2, 0.42);
     for (const [i, a] of arms.entries()) {
       const s = i ? 1 : -1;
-      a.rotation.x = attackT > 0 ? -1.6 * Math.sin((attackT / 0.3) * Math.PI) : moving ? Math.sin(walkPhase + i * Math.PI) * 0.6 : Math.sin(t * 2 + i) * 0.1;
-      a.rotation.z = (roarT > 0 ? 1.3 : 0.5) * -s;
+      a.rotation.x = atk ? -1.7 * atk : moving ? Math.sin(walkPhase + i * Math.PI) * 0.6 : Math.sin(t * 2 + i) * 0.1;
+      a.rotation.z = (roarT > 0 ? 1.4 : 0.35) * -s;
     }
-
-    // eyes look at the target or around
     const look = state.lookAt;
     for (const p of pupils) {
-      let lx = Math.sin(t * 0.7) * 0.04, ly = 0;
-      if (look) { root.worldToLocal(tmp.copy(look)); lx = THREE.MathUtils.clamp(tmp.x * 0.02, -0.07, 0.07); ly = THREE.MathUtils.clamp((tmp.y - 2) * 0.01, -0.05, 0.05); }
+      let lx = Math.sin(t * 0.7) * 0.12, ly = 0;
+      if (look) { head.worldToLocal(tmp.copy(look)); lx = THREE.MathUtils.clamp(tmp.x * 0.15, -0.25, 0.25); ly = THREE.MathUtils.clamp(tmp.y * 0.1, -0.2, 0.2); }
+      if (faceName === 'dizzy') { lx = Math.cos(t * 9) * 0.25; ly = Math.sin(t * 9) * 0.25; }
       p.position.x = lx; p.position.y = ly;
     }
     dizzy.rotation.y += dt * 5;
-    applyFace();
-
-    // tail follows the body with springs (in world space, then kept on the ground plane)
+    applyFace(dt);
+    // tail springs in world space
     root.updateMatrixWorld();
-    let prev = tmp2.set(0, 0.85, -0.85).applyMatrix4(root.matrixWorld);
+    let prev = tmp2.set(0, 0.75, -0.8).applyMatrix4(root.matrixWorld);
     const sc = root.scale.x;
     for (const [i, seg] of tail.entries()) {
-      const d = seg.userData, gap = (0.45 - i * 0.04) * sc;
+      const d = seg.userData, gap = (0.42 - i * 0.03) * sc;
       if (d.pos.lengthSq() === 0) d.pos.copy(prev);
       tmp.copy(d.pos).sub(prev); const len = tmp.length() || 1;
       d.vel.addScaledVector(tmp, -(len - gap) / len * 120 * dt); d.vel.multiplyScalar(Math.exp(-6 * dt));
       d.vel.y += Math.sin(t * 5 + i) * 0.4 * dt * sc;
       d.pos.addScaledVector(d.vel, dt);
       tmp.copy(d.pos).sub(prev).setLength(gap); d.pos.copy(prev).add(tmp);
-      d.pos.y = Math.max(d.pos.y, (0.25 + d.r * 0.5) * sc);
+      d.pos.y = Math.max(d.pos.y, (0.12 + d.r) * sc * 0.8);
       seg.position.copy(d.pos); root.worldToLocal(seg.position);
-      prev = seg.userData.pos;
+      prev = d.pos;
     }
   }
 
   return {
     root, update, setStage, face: setFace,
-    /** A stomp or punch: squash down then spring back. */
     stomp(strength = 1) { squashV -= 6 * strength; attackT = 0.3; },
     roar() { roarT = 1.0; setFace('roar', 1.0); squashV += 5; },
     resetTail() { for (const s of tail) s.userData.pos.set(0, 0, 0), s.userData.vel.set(0, 0, 0); },
+    dispose() { for (const g of geos) g.dispose(); for (const m of mats.values()) m.dispose(); inkMat.dispose(); },
   };
 }

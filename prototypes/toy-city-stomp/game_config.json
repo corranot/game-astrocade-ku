@@ -1,6 +1,6 @@
 {
   "seed": 20261119,
-  "city": { "lots": 5, "lotSize": 13, "road": 5, "cars": 9, "trees": 26 },
+  "city": { "lots": 6, "lotSize": 13, "road": 5, "cars": 9, "trees": 26 },
   "classes": [
     { "w": 3, "d": 3, "h": 3, "roof": 2, "hp": 1 },
     { "w": 4, "d": 4, "h": 5, "roof": 0, "hp": 1 },
@@ -8,17 +8,18 @@
     { "w": 6, "d": 6, "h": 14, "roof": 0, "hp": 1.4 },
     { "w": 7, "d": 7, "h": 20, "roof": 3, "hp": 1.6 }
   ],
-  "collapseAt": 0.62,
+  "collapseAt": 0.45,
   "toppleMinHeight": 9,
-  "growth": { "base": 100, "ratio": 1.75, "stages": 8, "baseScale": 1.7, "scaleRatio": 1.25 },
-  "monster": { "speed": 7, "speedPerStage": 0.12, "radius": 1.1, "attackSec": 0.42, "biteRadius": 1.7 },
+  "crushBelow": 3,
+  "growth": { "base": 150, "ratio": 1.7, "stages": 8, "baseScale": 1.7, "scaleRatio": 1.25 },
+  "monster": { "speed": 6, "speedPerStage": 0.12, "radius": 1.1, "attackSec": 0.48, "biteRadius": 1.45 },
   "combo": { "windowSec": 3.5, "every": 3, "max": 10 },
   "points": { "perClass": 10, "perVoxel": 1, "car": 15, "tree": 3 },
   "fx": { "shakeMax": 1.0, "slowmoScale": 0.3, "slowmoSec": 0.9, "hitstopSec": 0.05 },
   "idleAutoplaySec": 4,
   "skill": { "unlockStage": 3, "cooldownSec": 6, "radius": 4.5 },
   "starsTimeSec": [180, 270],
-  "coinsPerPoint": 0.02,
+  "coinsPerPoint": 0.006,
   "strings": {
     "en": { "swipe": "Swipe!", "grow": "GROW!", "tooBig": "TOO BIG!", "combo": "COMBO", "domino": "DOMINO", "flat": "CITY FLATTENED!", "again": "PLAY AGAIN", "newMove": "NEW MOVE!", "spin": "TAIL SPIN", "best": "NEW BEST!", "city": "City", "time": "Time", "bestCombo": "Best combo", "squash": "SQUASH!", "bonk": "BONK!" },
     "id": { "swipe": "Geser!", "grow": "TUMBUH!", "tooBig": "TERLALU BESAR!", "combo": "KOMBO", "domino": "DOMINO", "flat": "KOTA RATA!", "again": "MAIN LAGI", "newMove": "JURUS BARU!", "spin": "PUTAR EKOR", "best": "REKOR BARU!", "city": "Kota", "time": "Waktu", "bestCombo": "Kombo terbaik", "squash": "PENYOK!", "bonk": "BONK!" },

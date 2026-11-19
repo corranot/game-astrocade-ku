@@ -1,17 +1,27 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// The toy city: buildings made of plastic blocks (one InstancedMesh for every block in the city), which bite
-// off, pancake or topple like dominoes, plus cars that squash flat and pop back, trees, toy residents that float
-// away on balloons, dust and confetti. All gameplay randomness comes from the seeded rng passed in.
+// The toy city on an island: buildings made of plastic blocks (one InstancedMesh for every block), which bite
+// off, pancake or topple like dominoes; cars that squash flat and pop back; trees and street lamps; toy residents
+// that float away on balloons; soft dust clouds and confetti; sea, beach, distant hills and clouds around it.
+// All gameplay randomness comes from the seeded rng passed in.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js';
 
 const PALETTE = [0x3fa9ff, 0x22c6a3, 0xffc531, 0x9b6bff, 0xff9b54, 0xff6f91, 0x5ad1ff, 0xb8e05a];
 const ROOF = [0xff5a4f, 0xff7a45, 0xe8475f];
-const WINDOW = 0xd9f3ff, DOOR = 0x8a5a3c, TRIM = 0xfff6e0;
+const WINDOW = 0xcff0ff, DOOR = 0x8a5a3c, TRIM = 0xfff6e0, AWNING = [0xff5a4f, 0x22c6a3, 0x3fa9ff, 0xffc531];
 const GRAVITY = 32, HALF = 0.48;
 
-/** A block material: shiny toy plastic with darkened bevel edges drawn in the shader (no extra triangles). */
+/** A canvas texture drawn once (the browser's own 2D canvas; no image files). */
+function canvasTexture(size, draw, repeat = 1) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+/** Block material: toy plastic (standard PBR, reflects the sky), bevel edges in the shader, and a see-through
+ *  dither for blocks between the camera and Bonbon. */
 function blockMaterial() {
-  const m = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 70, specular: 0x333333 });
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0, envMapIntensity: 0.7 });
   const uniforms = { uCam: { value: new THREE.Vector3() }, uMon: { value: new THREE.Vector3() }, uR: { value: 3 } };
   m.userData.uniforms = uniforms;
   m.onBeforeCompile = (s) => {
@@ -26,7 +36,6 @@ function blockMaterial() {
         vWorld = (modelMatrix * wpos).xyz;`);
     s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vLocal;\nvarying vec3 vWorld;\nuniform vec3 uCam;\nuniform vec3 uMon;\nuniform float uR;')
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-        // see-through: blocks between the camera and Bonbon are cut with a dither, so Bonbon is never hidden
         vec3 seg = uMon - uCam; float tt = clamp(dot(vWorld - uCam, seg) / dot(seg, seg), 0.0, 1.0);
         float dd = length(vWorld - (uCam + seg * tt));
         if (tt < 0.9 && dd < uR * (0.35 + 0.65 * tt)) {
@@ -37,48 +46,110 @@ function blockMaterial() {
         vec3 a = abs(vLocal) / ${HALF.toFixed(2)};
         float mx = max(a.x, max(a.y, a.z)), mn = min(a.x, min(a.y, a.z));
         float mid = a.x + a.y + a.z - mx - mn;
-        float edge = smoothstep(0.74, 0.97, mid);
-        diffuseColor.rgb *= 1.0 - 0.3 * edge;
-        diffuseColor.rgb += 0.06 * (1.0 - edge) * step(0.99, a.y);`);
+        float edge = smoothstep(0.76, 0.98, mid);
+        diffuseColor.rgb *= 1.0 - 0.32 * edge;
+        diffuseColor.rgb += 0.05 * (1.0 - edge) * step(0.99, a.y);`);
   };
   return m;
 }
 
+/** Soft dust: one Points draw call, each puff a size and an alpha, drawn with a lumpy round texture. */
+function dustMaterial() {
+  const tex = canvasTexture(128, (g, n) => {
+    for (let i = 0; i < 7; i++) {
+      const x = n / 2 + Math.cos(i * 0.9) * n * 0.16 * (i ? 1 : 0), y = n / 2 + Math.sin(i * 1.3) * n * 0.14 * (i ? 1 : 0), r = n * (i ? 0.26 : 0.36);
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, n, n);
+    }
+  });
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  return new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uTex: { value: tex }, uScale: { value: 600 }, uColor: { value: new THREE.Color(0xf3e3c8) } },
+    vertexShader: `attribute float aSize; attribute float aAlpha; attribute float aSpin; varying float vA; varying float vSpin; uniform float uScale;
+      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSize * uScale / max(0.1, -mv.z); vA = aAlpha; vSpin = aSpin; }`,
+    fragmentShader: `uniform sampler2D uTex; uniform vec3 uColor; varying float vA; varying float vSpin;
+      void main() { vec2 p = gl_PointCoord - 0.5; float c = cos(vSpin), s = sin(vSpin); p = vec2(c * p.x - s * p.y, s * p.x + c * p.y) + 0.5;
+        vec4 t = texture2D(uTex, p); float shade = 0.82 + 0.18 * (1.0 - gl_PointCoord.y); gl_FragColor = vec4(uColor * shade, t.a * vA); if (gl_FragColor.a < 0.01) discard; }`,
+  });
+}
+
 /**
- * Builds the city into `scene`. cfg is game_config; rng a seeded () => [0,1).
- * Returns the city object used by game.js (see the return statement for its API).
+ * Builds the city into `scene`. cfg is game_config; rng a seeded () => [0,1); quality the device tier.
+ * Returns the city object used by game.js (see the return statement).
  */
 export function createCity(scene, cfg, rng, quality) {
   const C = cfg.city, classes = cfg.classes;
   const pitch = C.lotSize + C.road, span = C.lots * pitch + C.road, half = span / 2;
   const group = new THREE.Group(); scene.add(group);
+  const disposables = [];
+  const keep = (x) => { disposables.push(x); return x; };
+  const col = new THREE.Color(), mtx = new THREE.Matrix4(), quat = new THREE.Quaternion(), qd = new THREE.Quaternion(), v3 = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), eul = new THREE.Euler();
 
-  // ---------- board, roads, rim
-  const board = new THREE.Mesh(new THREE.BoxGeometry(span + 6, 1, span + 6), new THREE.MeshLambertMaterial({ color: 0x8fdc6a }));
-  board.position.y = -0.5; board.receiveShadow = true; group.add(board);
-  const rim = new THREE.Mesh(new THREE.BoxGeometry(span + 10, 1.6, span + 10), new THREE.MeshLambertMaterial({ color: 0xd99a5b }));
-  rim.position.y = -1.3; group.add(rim);
-  const roadGeos = [], dashGeos = [];
+  // ---------- island, sea, beach, grass, plazas, roads, kerbs
+  const grassTex = keep(canvasTexture(256, (g, n) => {
+    g.fillStyle = '#8fdc6a'; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < 900; i++) { g.fillStyle = ['#84d35f', '#9be57a', '#7fcf5a', '#a6ea86'][i % 4]; g.fillRect(Math.random() * n, Math.random() * n, 2 + Math.random() * 3, 2 + Math.random() * 3); }
+  }, span / 8));
+  const plazaTex = keep(canvasTexture(128, (g, n) => {
+    const s = n / 4;
+    for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#f6e7cf' : '#efd6b6'; g.fillRect(x * s, y * s, s, s); }
+    g.strokeStyle = 'rgba(160,120,80,0.25)'; g.lineWidth = 2; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, n); g.moveTo(0, i * s); g.lineTo(n, i * s); g.stroke(); }
+  }, 1));
+  const roadTex = keep(canvasTexture(128, (g, n) => {
+    g.fillStyle = '#9aa3b5'; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; g.fillRect(Math.random() * n, Math.random() * n, 2, 2); }
+  }, 1));
+  const island = new THREE.Mesh(keep(new THREE.CylinderGeometry(span * 0.78, span * 0.86, 2, 48)), keep(new THREE.MeshLambertMaterial({ color: 0xf5dfa6 })));
+  island.position.y = -1.05; island.receiveShadow = true; group.add(island);
+  const grass = new THREE.Mesh(keep(new THREE.CircleGeometry(span * 0.74, 64)), keep(new THREE.MeshLambertMaterial({ map: grassTex })));
+  grass.rotation.x = -Math.PI / 2; grass.position.y = -0.04; grass.receiveShadow = true; group.add(grass);
+  const lotGeo = new THREE.PlaneGeometry(C.lotSize, C.lotSize); lotGeo.rotateX(-Math.PI / 2);
+  const roadMat = keep(new THREE.MeshLambertMaterial({ map: roadTex }));
+  const roads = new THREE.Mesh(keep(new THREE.PlaneGeometry(span, span)), roadMat);
+  roads.rotation.x = -Math.PI / 2; roads.position.y = -0.01; roads.receiveShadow = true; group.add(roads);
+  const plazas = new THREE.InstancedMesh(keep(lotGeo), keep(new THREE.MeshLambertMaterial({ map: plazaTex })), C.lots * C.lots);
+  const kerbs = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1)), keep(new THREE.MeshLambertMaterial({ color: 0xeeeae2 })), C.lots * C.lots * 4);
+  plazaTex.repeat.set(C.lotSize / 3, C.lotSize / 3);
+  const dashGeos = [];
+  for (let i = 0; i < C.lots; i++) for (let j = 0; j < C.lots; j++) {
+    const cx = -half + C.road + i * pitch + C.lotSize / 2, cz = -half + C.road + j * pitch + C.lotSize / 2, n = i * C.lots + j;
+    plazas.setMatrixAt(n, mtx.makeTranslation(cx, 0.16, cz)); plazas.receiveShadow = true;
+    const L = C.lotSize + 0.8;
+    [[cx, cz - L / 2, L, 0.6], [cx, cz + L / 2, L, 0.6], [cx - L / 2, cz, 0.6, L], [cx + L / 2, cz, 0.6, L]].forEach(([x, z, w, d], k) => kerbs.setMatrixAt(n * 4 + k, mtx.compose(v3.set(x, 0.08, z), quat.identity(), one.set(w, 0.3, d))));
+  }
   for (let i = 0; i <= C.lots; i++) {
     const p = -half + i * pitch + C.road / 2;
-    for (const horiz of [true, false]) {
-      const g = new THREE.BoxGeometry(horiz ? span : C.road, 0.06, horiz ? C.road : span);
-      g.translate(horiz ? 0 : p, 0.03, horiz ? p : 0); roadGeos.push(g);
-      for (let k = -half + 2; k < half - 2; k += 4) {
-        const dg = new THREE.BoxGeometry(horiz ? 1.6 : 0.25, 0.08, horiz ? 0.25 : 1.6);
-        dg.translate(horiz ? k : p, 0.04, horiz ? p : k); dashGeos.push(dg);
-      }
+    for (let k = -half + 2; k < half - 2; k += 4) {
+      dashGeos.push(new THREE.BoxGeometry(1.8, 0.04, 0.22).translate(k, 0.02, p), new THREE.BoxGeometry(0.22, 0.04, 1.8).translate(p, 0.02, k));
     }
   }
-  const merge = (geos) => { // tiny merge: concatenate non-indexed positions and normals
-    const pos = [], nor = [];
-    for (const g of geos) { const n = g.toNonIndexed(); pos.push(...n.attributes.position.array); nor.push(...n.attributes.normal.array); }
-    const out = new THREE.BufferGeometry();
-    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    return out;
-  };
-  const roads = new THREE.Mesh(merge(roadGeos), new THREE.MeshLambertMaterial({ color: 0xf5e6c4 })); roads.receiveShadow = true; group.add(roads);
-  group.add(new THREE.Mesh(merge(dashGeos), new THREE.MeshLambertMaterial({ color: 0xffffff })));
+  const mergeGeos = (geos) => { const pos = [], nor = []; for (const g of geos) { const n = g.toNonIndexed(); pos.push(...n.attributes.position.array); nor.push(...n.attributes.normal.array); g.dispose(); n.dispose(); } const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); return out; };
+  group.add(plazas, kerbs, new THREE.Mesh(keep(mergeGeos(dashGeos)), keep(new THREE.MeshBasicMaterial({ color: 0xffffff }))));
+
+  // sea with gentle waves, distant hills
+  const seaMat = keep(new THREE.ShaderMaterial({
+    uniforms: { uT: { value: 0 }, uFog: { value: new THREE.Color(0xcdeeff) } },
+    vertexShader: `uniform float uT; varying vec3 vW; void main() { vec3 p = position; vec4 w = modelMatrix * vec4(p, 1.0);
+      w.y += sin(w.x * 0.15 + uT * 1.2) * 0.12 + cos(w.z * 0.13 + uT) * 0.12; vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `uniform float uT; uniform vec3 uFog; varying vec3 vW; void main() {
+      float r = length(vW.xz); vec3 shallow = vec3(0.35, 0.86, 0.95), deep = vec3(0.16, 0.6, 0.95);
+      vec3 c = mix(shallow, deep, smoothstep(${(span * 0.8).toFixed(1)}, ${(span * 1.4).toFixed(1)}, r));
+      float sp = sin(vW.x * 0.9 + uT * 2.0) * sin(vW.z * 0.8 - uT * 1.6); c += smoothstep(0.92, 1.0, sp) * 0.35;
+      float foam = smoothstep(${(span * 0.86).toFixed(1)}, ${(span * 0.8).toFixed(1)}, r); c = mix(c, vec3(1.0), foam * 0.6);
+      c = mix(c, uFog, smoothstep(140.0, 380.0, r)); gl_FragColor = vec4(c, 1.0); }`,
+  }));
+  const sea = new THREE.Mesh(keep(new THREE.PlaneGeometry(900, 900, 90, 90)), seaMat);
+  sea.rotation.x = -Math.PI / 2; sea.position.y = -1.2; group.add(sea);
+  const hillGeo = keep(new THREE.IcosahedronGeometry(1, 1));
+  const hills = new THREE.InstancedMesh(hillGeo, keep(new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true })), 14);
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + rng() * 0.3, r = 230 + rng() * 60, s = 18 + rng() * 26;
+    hills.setMatrixAt(i, mtx.compose(v3.set(Math.cos(a) * r, -s * 0.35, Math.sin(a) * r), quat.identity(), one.set(s * 1.6, s, s * 1.3)));
+    hills.setColorAt(i, col.setHex([0x7fd36a, 0x6cc7a0, 0x9adf72][i % 3]));
+  }
+  group.add(hills);
 
   // ---------- blocks
   const MAXV = 12000;
@@ -87,15 +158,15 @@ export function createCity(scene, cfg, rng, quality) {
     ox: new Float32Array(MAXV), oy: new Float32Array(MAXV), oz: new Float32Array(MAXV),
     vx: new Float32Array(MAXV), vy: new Float32Array(MAXV), vz: new Float32Array(MAXV),
     q: new Float32Array(MAXV * 4), w: new Float32Array(MAXV * 3), s: new Float32Array(MAXV),
-    state: new Uint8Array(MAXV), // 0 standing, 1 flying, 2 rubble, 3 gone
-    b: new Int32Array(MAXV), settledAt: new Float32Array(MAXV),
+    state: new Uint8Array(MAXV), // 0 standing, 1 flying, 2 rubble, 3 gone, 4 shrinking away
+    b: new Int32Array(MAXV),
   };
   let count = 0;
-  const blocks = new THREE.InstancedMesh(new THREE.BoxGeometry(HALF * 2, HALF * 2, HALF * 2), blockMaterial(), MAXV);
-  blocks.receiveShadow = true; blocks.castShadow = quality.shadowsOnBlocks;
+  const blockMat = keep(blockMaterial());
+  const blocks = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(HALF * 2, HALF * 2, HALF * 2)), blockMat, MAXV);
+  blocks.receiveShadow = true; blocks.castShadow = quality.shadowsOnBlocks; blocks.frustumCulled = false;
   blocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   group.add(blocks);
-  const col = new THREE.Color(), mtx = new THREE.Matrix4(), quat = new THREE.Quaternion(), qd = new THREE.Quaternion(), v3 = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
   const writeMatrix = (i) => {
     quat.set(vox.q[i * 4], vox.q[i * 4 + 1], vox.q[i * 4 + 2], vox.q[i * 4 + 3]);
     mtx.compose(v3.set(vox.px[i], vox.py[i], vox.pz[i]), quat, one.setScalar(vox.s[i]));
@@ -110,10 +181,10 @@ export function createCity(scene, cfg, rng, quality) {
 
   // ---------- buildings
   const buildings = [];
-  /** One building of class k with its min corner at (x0, z0). */
+  let intact = 0;
   function addBuilding(k, x0, z0) {
     const c = classes[k - 1], id = buildings.length, start = count;
-    const body = PALETTE[Math.floor(rng() * PALETTE.length)], roofCol = ROOF[Math.floor(rng() * ROOF.length)];
+    const body = PALETTE[Math.floor(rng() * PALETTE.length)], roofCol = ROOF[Math.floor(rng() * ROOF.length)], awn = AWNING[Math.floor(rng() * AWNING.length)];
     const { w, d, h } = c;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
       const edgeX = x === 0 || x === w - 1, edgeZ = z === 0 || z === d - 1;
@@ -123,31 +194,26 @@ export function createCity(scene, cfg, rng, quality) {
       const along = edgeX ? z : x;
       if (y % 3 === 0 && y > 0) color = TRIM;
       else if (onFace && y % 3 !== 0 && along % 2 === 1 && along > 0 && along < (edgeX ? d : w) - 1 && y < h - 1) color = WINDOW;
+      if (k === 2 && y === 1 && onFace) color = (x + z) % 2 ? awn : 0xffffff; // shop awning stripes
       if (y === 0 && z === d - 1 && x === Math.floor(w / 2)) color = DOOR;
-      if (k === 5 && z === d - 1 && y >= h - 5 && y < h - 1 && x >= 2 && x <= w - 3) color = (x === Math.floor(w / 2) && y === h - 3) ? 0x2a2140 : 0xffffff; // clock face
+      if (k === 5 && z === d - 1 && y >= h - 5 && y < h - 1 && x >= 2 && x <= w - 3) color = (x === Math.floor(w / 2) && y === h - 3) ? 0x2a2140 : 0xffffff;
       addVoxel(x0 + x + 0.5, y + 0.5, z0 + z + 0.5, color, id);
     }
-    for (let r = 0; r < c.roof; r++) { // stepped roof
-      for (let x = r; x < w - r; x++) for (let z = r; z < d - r; z++) {
-        if (x !== r && x !== w - 1 - r && z !== r && z !== d - 1 - r && r < c.roof - 1) continue;
-        addVoxel(x0 + x + 0.5, h + r + 0.5, z0 + z + 0.5, roofCol, id);
-      }
+    for (let r = 0; r < c.roof; r++) for (let x = r; x < w - r; x++) for (let z = r; z < d - r; z++) {
+      if (x !== r && x !== w - 1 - r && z !== r && z !== d - 1 - r && r < c.roof - 1) continue;
+      addVoxel(x0 + x + 0.5, h + r + 0.5, z0 + z + 0.5, roofCol, id);
     }
     const total = count - start;
     buildings.push({ id, k, x0, z0, w, d, h: h + c.roof, start, total, alive: total, state: 'intact', cx: x0 + w / 2, cz: z0 + d / 2, topple: null });
+    intact++;
   }
-
-  // lots: the centre lot holds the clock tower, the rest a mix
-  const lotPlan = [];
-  for (let i = 0; i < C.lots; i++) for (let j = 0; j < C.lots; j++) lotPlan.push([i, j]);
   const centre = Math.floor(C.lots / 2);
   const kinds = ['cottages', 'cottages', 'cottages', 'cottages', 'cottages', 'shops', 'shops', 'shops', 'shops', 'shops', 'apart', 'apart', 'apart', 'apart', 'apart', 'tower', 'tower', 'tower', 'tower', 'park', 'park', 'cottages', 'shops', 'apart'];
   for (let n = kinds.length - 1; n > 0; n--) { const m = Math.floor(rng() * (n + 1)); [kinds[n], kinds[m]] = [kinds[m], kinds[n]]; }
   const treeSpots = [];
   let ki = 0;
-  for (const [i, j] of lotPlan) {
+  for (let i = 0; i < C.lots; i++) for (let j = 0; j < C.lots; j++) {
     const lx = -half + C.road + i * pitch, lz = -half + C.road + j * pitch, L = C.lotSize;
-    // the start lot (front centre) is cottages so the first bite is always a small one
     const kind = i === centre && j === centre ? 'clock' : (i === centre && j === C.lots - 1) ? 'cottages' : kinds[ki++ % kinds.length];
     const place = (k, fx, fz) => { const c = classes[k - 1]; addBuilding(k, Math.round(lx + fx * (L - c.w)), Math.round(lz + fz * (L - c.d))); };
     if (kind === 'clock') place(5, 0.5, 0.5);
@@ -156,78 +222,105 @@ export function createCity(scene, cfg, rng, quality) {
     else if (kind === 'shops') { place(2, 0.05, 0.05); place(2, 0.95, 0.05); place(2, 0.05, 0.95); place(1, 0.95, 0.95); }
     else if (kind === 'cottages') { place(1, 0.05, 0.05); place(1, 0.95, 0.05); place(1, 0.05, 0.95); place(1, 0.95, 0.95); place(1, 0.5, 0.5); }
     else for (let t = 0; t < 6; t++) treeSpots.push([lx + 2 + rng() * (L - 4), lz + 2 + rng() * (L - 4)]);
-    treeSpots.push([lx - C.road / 2 + 0.01, lz + rng() * L]); // a street tree beside each lot
   }
   blocks.count = count;
   blocks.instanceMatrix.needsUpdate = true; if (blocks.instanceColor) blocks.instanceColor.needsUpdate = true;
   const totalBlocks = count;
 
-  // ---------- trees
-  const trees = treeSpots.slice(0, C.trees + 20).map(([x, z]) => ({ x, z, alive: true, s: 0.8 + rng() * 0.5 }));
-  const trunkMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8), new THREE.MeshLambertMaterial({ color: 0x9a6a3f }), trees.length);
-  const crownMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 30, flatShading: true }), trees.length);
+  // ---------- props: trees in parks, street lamps along the kerbs (both pop when stepped on)
+  const props = [];
+  for (const [x, z] of treeSpots) props.push({ kind: 'tree', x, z, alive: true, s: 0.8 + rng() * 0.5 });
+  for (let i = 0; i < C.lots; i++) for (let j = 0; j <= C.lots; j++) {
+    const x = -half + C.road + i * pitch + C.lotSize / 2, z = -half + j * pitch + C.road / 2 - 1.9;
+    props.push({ kind: 'lamp', x: x - 3, z, alive: true, s: 1 }, { kind: 'lamp', x: x + 3, z: z + 3.8, alive: true, s: 1 });
+  }
+  const trunkMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8)), keep(new THREE.MeshLambertMaterial({ color: 0x9a6a3f })), props.length);
+  const crownMesh = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1, 1)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, flatShading: true })), props.length);
+  const lampHead = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.32, 10, 8)), keep(new THREE.MeshBasicMaterial({ color: 0xfff1b8 })), props.length);
   crownMesh.castShadow = true;
-  const placeTree = (i) => {
-    const t = trees[i], s = t.alive ? t.s : 0;
-    trunkMesh.setMatrixAt(i, mtx.compose(v3.set(t.x, 0.7 * s, t.z), quat.identity(), one.setScalar(s)));
-    crownMesh.setMatrixAt(i, mtx.compose(v3.set(t.x, 2 * s, t.z), quat.identity(), one.set(1.1 * s, 1.25 * s, 1.1 * s)));
-    trunkMesh.instanceMatrix.needsUpdate = crownMesh.instanceMatrix.needsUpdate = true;
+  for (const m of [trunkMesh, crownMesh, lampHead]) m.frustumCulled = false;
+  const placeProp = (i) => {
+    const p = props[i], s = p.alive ? p.s : 0;
+    if (p.kind === 'tree') {
+      trunkMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 0.7 * s, p.z), quat.identity(), one.setScalar(s)));
+      crownMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 2 * s, p.z), quat.identity(), one.set(1.1 * s, 1.25 * s, 1.1 * s)));
+      lampHead.setMatrixAt(i, mtx.makeScale(0, 0, 0));
+    } else {
+      trunkMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 1.6 * s, p.z), quat.identity(), one.set(0.35 * s, 2.3 * s, 0.35 * s)));
+      crownMesh.setMatrixAt(i, mtx.makeScale(0, 0, 0));
+      lampHead.setMatrixAt(i, mtx.compose(v3.set(p.x, 3.3 * s, p.z), quat.identity(), one.setScalar(s)));
+    }
+    trunkMesh.instanceMatrix.needsUpdate = crownMesh.instanceMatrix.needsUpdate = lampHead.instanceMatrix.needsUpdate = true;
   };
-  trees.forEach((t, i) => { crownMesh.setColorAt(i, col.setHex([0x4cc35a, 0x6fd64b, 0x2fb37a][i % 3])); placeTree(i); });
-  group.add(trunkMesh, crownMesh);
+  props.forEach((p, i) => { trunkMesh.setColorAt(i, col.setHex(p.kind === 'tree' ? 0xffffff : 0x8f96b0)); crownMesh.setColorAt(i, col.setHex([0x4cc35a, 0x6fd64b, 0x2fb37a][i % 3])); placeProp(i); });
+  group.add(trunkMesh, crownMesh, lampHead);
 
-  // ---------- cars: drive along road lines, squash flat, pop back
+  // ---------- cars
   const cars = [];
   for (let n = 0; n < C.cars; n++) {
-    const horiz = n % 2 === 0, line = Math.floor(rng() * (C.lots + 1));
-    const lane = (rng() < 0.5 ? -1 : 1);
-    cars.push({ horiz, lane, p: -half + line * pitch + C.road / 2 + lane * 1.2, t: rng() * span - half, speed: (3 + rng() * 3) * lane, squash: 0, x: 0, z: 0, color: PALETTE[n % PALETTE.length] });
+    const horiz = n % 2 === 0, line = Math.floor(rng() * (C.lots + 1)), lane = rng() < 0.5 ? -1 : 1;
+    cars.push({ horiz, p: -half + line * pitch + C.road / 2 + lane * 1.2, t: rng() * span - half, speed: (3 + rng() * 3) * lane, squash: 0, x: 0, z: 0, color: PALETTE[n % PALETTE.length] });
   }
-  const carBody = new THREE.InstancedMesh(new THREE.BoxGeometry(2.2, 0.8, 1.2), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 }), cars.length);
-  const carTop = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 0.6, 1.0), new THREE.MeshPhongMaterial({ color: 0xd9f3ff, shininess: 90 }), cars.length);
-  const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12); wheelGeo.rotateX(Math.PI / 2);
-  const carWheels = new THREE.InstancedMesh(wheelGeo, new THREE.MeshLambertMaterial({ color: 0x2a2140 }), cars.length * 4);
+  const carBody = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(2.2, 0.8, 1.2)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })), cars.length);
+  const carTop = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.2, 0.6, 1.0)), keep(new THREE.MeshStandardMaterial({ color: 0xd9f3ff, roughness: 0.15 })), cars.length);
+  const wheelGeo = keep(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12)); wheelGeo.rotateX(Math.PI / 2);
+  const carWheels = new THREE.InstancedMesh(wheelGeo, keep(new THREE.MeshLambertMaterial({ color: 0x2a2140 })), cars.length * 4);
   carBody.castShadow = true;
+  for (const m of [carBody, carTop, carWheels]) m.frustumCulled = false;
   cars.forEach((c, i) => carBody.setColorAt(i, col.setHex(c.color)));
   group.add(carBody, carTop, carWheels);
-  const yAxis = new THREE.Vector3(0, 1, 0);
+  const yAxis = new THREE.Vector3(0, 1, 0), wheelPos = new THREE.Vector3();
   function updateCars(dt) {
-    for (const [i, c] of cars.entries()) {
+    for (let i = 0; i < cars.length; i++) {
+      const c = cars[i];
       if (c.squash > 0) c.squash = Math.max(0, c.squash - dt); else { c.t += c.speed * dt; if (c.t > half) c.t -= span; if (c.t < -half) c.t += span; }
       c.x = c.horiz ? c.t : c.p; c.z = c.horiz ? c.p : c.t;
       const flat = c.squash > 0.4 ? 0.28 : c.squash > 0 ? 0.28 + (0.4 - c.squash) / 0.4 * 0.72 * (1 + Math.sin((0.4 - c.squash) * 30) * 0.3) : 1;
       quat.setFromAxisAngle(yAxis, c.horiz ? (c.speed > 0 ? 0 : Math.PI) : (c.speed > 0 ? -Math.PI / 2 : Math.PI / 2));
       const wide = c.squash > 0.4 ? 1.25 : 1;
       carBody.setMatrixAt(i, mtx.compose(v3.set(c.x, 0.7 * flat, c.z), quat, one.set(wide, flat, wide)));
-      carTop.setMatrixAt(i, mtx.compose(v3.set(c.x, (0.7 + 0.65) * flat, c.z), quat, one.set(wide, flat, wide)));
+      carTop.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.35 * flat, c.z), quat, one.set(wide, flat, wide)));
       for (let w = 0; w < 4; w++) {
-        const ox = (w < 2 ? -0.7 : 0.7), oz = (w % 2 ? -0.6 : 0.6);
-        v3.set(ox, 0.32 * flat, oz).applyQuaternion(quat).add(new THREE.Vector3(c.x, 0, c.z));
-        carWheels.setMatrixAt(i * 4 + w, mtx.compose(v3, quat, one.set(1, flat, 1)));
+        wheelPos.set(w < 2 ? -0.7 : 0.7, 0.32 * flat, w % 2 ? -0.6 : 0.6).applyQuaternion(quat); wheelPos.x += c.x; wheelPos.z += c.z;
+        carWheels.setMatrixAt(i * 4 + w, mtx.compose(wheelPos, quat, one.set(1, flat, 1)));
       }
     }
     carBody.instanceMatrix.needsUpdate = carTop.instanceMatrix.needsUpdate = carWheels.instanceMatrix.needsUpdate = true;
   }
 
-  // ---------- particles: dust puffs, confetti, residents with balloons
-  const pool = (n, geo, mat, shadow) => {
-    const m = new THREE.InstancedMesh(geo, mat, n); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.castShadow = !!shadow;
+  // ---------- dust (soft points), confetti, residents with balloons, clouds
+  const DUSTN = quality.dust;
+  const dustGeo = keep(new THREE.BufferGeometry());
+  const dPos = new Float32Array(DUSTN * 3), dSize = new Float32Array(DUSTN), dAlpha = new Float32Array(DUSTN), dSpin = new Float32Array(DUSTN);
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3).setUsage(THREE.DynamicDrawUsage));
+  dustGeo.setAttribute('aSize', new THREE.BufferAttribute(dSize, 1).setUsage(THREE.DynamicDrawUsage));
+  dustGeo.setAttribute('aAlpha', new THREE.BufferAttribute(dAlpha, 1).setUsage(THREE.DynamicDrawUsage));
+  dustGeo.setAttribute('aSpin', new THREE.BufferAttribute(dSpin, 1));
+  const dustMat = keep(dustMaterial());
+  const dustPts = new THREE.Points(dustGeo, dustMat); dustPts.frustumCulled = false; dustPts.renderOrder = 2; group.add(dustPts);
+  const dust = Array.from({ length: DUSTN }, () => ({ life: 0 }));
+  let dustNext = 0;
+  const pool = (n, geo, mat) => {
+    const m = new THREE.InstancedMesh(keep(geo), keep(mat), n); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false;
     for (let i = 0; i < n; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0));
     group.add(m); return { m, items: Array.from({ length: n }, () => ({ life: 0 })), next: 0 };
   };
-  const dust = pool(quality.dust, new THREE.IcosahedronGeometry(0.42, 0), new THREE.MeshLambertMaterial({ color: 0xfff0d6, flatShading: true }));
   const confetti = pool(quality.confetti, new THREE.BoxGeometry(0.35, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: 0xffffff }));
   const people = pool(24, new THREE.CapsuleGeometry(0.2, 0.32, 4, 8), new THREE.MeshToonMaterial({ color: 0xffffff }));
-  const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 }));
+  const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }));
   const strings = pool(24, new THREE.CylinderGeometry(0.02, 0.02, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0x2a2140 }));
-  const spawn = (P) => { const it = P.items[P.next]; P.next = (P.next + 1) % P.items.length; return it; };
+  const take = (P) => { const i = P.next; P.next = (P.next + 1) % P.items.length; return i; };
+  const clouds = pool(18, new THREE.IcosahedronGeometry(1, 2), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x6f7f8f }));
+  clouds.items.forEach((it, i) => Object.assign(it, { life: 1, x: (rng() - 0.5) * 420, y: 45 + rng() * 25, z: -60 - rng() * 220, s: 6 + rng() * 9, v: 1 + rng() * 1.5 }));
 
   function puff(x, y, z, size = 1) {
-    const it = spawn(dust); Object.assign(it, { x, y, z, vx: (rng() - 0.5) * 4, vy: 1.5 + rng() * 2, vz: (rng() - 0.5) * 4, life: 0.5 + rng() * 0.35, max: 1.1, size: size * (0.6 + rng() * 0.8) });
+    const i = dustNext; dustNext = (dustNext + 1) % DUSTN;
+    Object.assign(dust[i], { x, y, z, vx: (rng() - 0.5) * 3, vy: 0.8 + rng() * 1.6, vz: (rng() - 0.5) * 3, life: 1.1 + rng() * 0.6, max: 1.7, size: size * (1.6 + rng() * 1.4) });
+    dSpin[i] = rng() * 6.28; dustGeo.attributes.aSpin.needsUpdate = true;
   }
   function burstConfetti(x, y, z, n = 20, colors = PALETTE) {
     for (let k = 0; k < n; k++) {
-      const it = spawn(confetti), i = confetti.items.indexOf(it);
+      const i = take(confetti), it = confetti.items[i];
       confetti.m.setColorAt(i, col.setHex(colors[k % colors.length]));
       Object.assign(it, { x, y, z, vx: (rng() - 0.5) * 10, vy: 6 + rng() * 8, vz: (rng() - 0.5) * 10, life: 2.5, rx: rng() * 6, ry: rng() * 6 });
     }
@@ -235,7 +328,7 @@ export function createCity(scene, cfg, rng, quality) {
   }
   function releaseResidents(x, y, z, n) {
     for (let k = 0; k < n; k++) {
-      const it = spawn(people), i = people.items.indexOf(it);
+      const i = take(people), it = people.items[i];
       people.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4]));
       balloons.m.setColorAt(i, col.setHex([0xff5a4f, 0xffc531, 0x3fa9ff, 0x22c6a3, 0x9b6bff][Math.floor(rng() * 5)]));
       Object.assign(it, { x: x + (rng() - 0.5) * 3, y: y + rng(), z: z + (rng() - 0.5) * 3, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
@@ -243,44 +336,53 @@ export function createCity(scene, cfg, rng, quality) {
     people.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = true;
   }
   function updateParticles(dt) {
-    for (const [i, it] of dust.items.entries()) {
-      if (it.life <= 0) continue; it.life -= dt; it.x += it.vx * dt; it.y += it.vy * dt; it.z += it.vz * dt; it.vy *= Math.exp(-2 * dt);
-      const k = Math.max(0, it.life) / it.max, s = it.size * Math.sin(Math.min(1, (1 - k) * 2.2 + 0.2) * Math.PI * 0.5) * (k < 0.3 ? k / 0.3 : 1);
-      dust.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat.identity(), one.setScalar(Math.max(0, s))));
+    for (let i = 0; i < DUSTN; i++) {
+      const it = dust[i];
+      if (it.life <= 0) { dAlpha[i] = 0; dSize[i] = 0; continue; }
+      it.life -= dt; it.x += it.vx * dt; it.y += it.vy * dt; it.z += it.vz * dt; it.vy *= Math.exp(-1.5 * dt); it.vx *= Math.exp(-2 * dt); it.vz *= Math.exp(-2 * dt);
+      const k = Math.max(0, it.life) / it.max;
+      dPos[i * 3] = it.x; dPos[i * 3 + 1] = it.y; dPos[i * 3 + 2] = it.z;
+      dSize[i] = it.size * (0.5 + (1 - k) * 0.9); dAlpha[i] = Math.min(1, k * 1.8) * 0.85;
     }
-    for (const [i, it] of confetti.items.entries()) {
-      if (it.life <= 0) continue; it.life -= dt; it.vy -= 14 * dt; it.vx *= Math.exp(-1.5 * dt); it.vz *= Math.exp(-1.5 * dt);
+    dustGeo.attributes.position.needsUpdate = dustGeo.attributes.aSize.needsUpdate = dustGeo.attributes.aAlpha.needsUpdate = true;
+    for (let i = 0; i < confetti.items.length; i++) {
+      const it = confetti.items[i]; if (it.life <= 0) continue;
+      it.life -= dt; it.vy -= 14 * dt; it.vx *= Math.exp(-1.5 * dt); it.vz *= Math.exp(-1.5 * dt);
       if (it.vy < -3) it.vy = -3; it.x += it.vx * dt; it.y = Math.max(0.05, it.y + it.vy * dt); it.z += it.vz * dt; it.rx += dt * 7; it.ry += dt * 5;
-      quat.setFromEuler(new THREE.Euler(it.rx, it.ry, 0));
-      confetti.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(it.life > 0.4 ? 1 : it.life / 0.4)));
+      quat.setFromEuler(eul.set(it.rx, it.ry, 0));
+      confetti.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(it.life > 0.4 ? 1 : Math.max(0, it.life) / 0.4)));
     }
-    for (const [i, it] of people.items.entries()) {
-      if (it.life <= 0) continue; it.life -= dt;
+    for (let i = 0; i < people.items.length; i++) {
+      const it = people.items[i]; if (it.life <= 0) continue;
+      it.life -= dt;
       it.x += (it.vx + Math.sin(it.life * 2 + it.ph) * 0.6) * dt; it.y += it.vy * dt; it.z += it.vz * dt;
-      const s = it.life < 0.5 ? it.life / 0.5 : Math.min(1, (it.max - it.life) * 4);
+      // residents close to the camera fade out so a balloon never fills the screen
+      const cam = blockMat.userData.uniforms.uCam.value, cd = Math.hypot(it.x - cam.x, it.y - cam.y, it.z - cam.z);
+      const s = Math.max(0, it.life < 0.5 ? it.life / 0.5 : Math.min(1, (it.max - it.life) * 4)) * THREE.MathUtils.smoothstep(cd, 7, 14);
       const sway = Math.sin(it.life * 4 + it.ph) * 0.25;
-      quat.setFromEuler(new THREE.Euler(0, 0, sway));
+      quat.setFromEuler(eul.set(0, 0, sway));
       people.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(s)));
+      strings.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway * 0.5, it.y + 0.75, it.z), quat.setFromEuler(eul.set(0, 0, sway * 0.6)), one.setScalar(s)));
       balloons.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway, it.y + 1.5, it.z), quat.identity(), one.set(s, s * 1.15, s)));
-      strings.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway * 0.5, it.y + 0.75, it.z), quat.setFromEuler(new THREE.Euler(0, 0, sway * 0.6)), one.setScalar(s)));
     }
-    for (const P of [dust, confetti, people, balloons, strings]) P.m.instanceMatrix.needsUpdate = true;
+    for (let i = 0; i < clouds.items.length; i++) {
+      const it = clouds.items[i]; it.x += it.v * dt; if (it.x > 230) it.x -= 460;
+      clouds.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat.identity(), one.set(it.s * 1.8, it.s * 0.7, it.s)));
+    }
+    for (const P of [confetti, people, balloons, strings, clouds]) P.m.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- breaking
   const rubbleCap = quality.rubble;
-  let rubbleCount = 0, clock = 0;
-  const events = []; // game.js drains these: { type, b, x, z, points, chain }
-  const intactLeft = () => buildings.filter((b) => b.state === 'intact').length;
+  const rubbleQueue = new Int32Array(MAXV); let rqHead = 0, rqTail = 0, rubbleCount = 0; // oldest rubble first
+  const events = []; // drained by game.js: { type, b, x, z, chain, hits }
+  let seaT = 0;
 
   function launch(i, vx, vy, vz) {
     vox.state[i] = 1; vox.vx[i] = vx; vox.vy[i] = vy; vox.vz[i] = vz;
     vox.w[i * 3] = (rng() - 0.5) * 12; vox.w[i * 3 + 1] = (rng() - 0.5) * 12; vox.w[i * 3 + 2] = (rng() - 0.5) * 12;
   }
-
-  /** Bites blocks within radius r of point p off building b, flung along dir. Returns blocks removed. */
-  function bite(b, p, r, dir, power = 1) {
-    if (b.state !== 'intact') return 0;
+  const biteAt = (b, p, r, dir, power) => {
     let n = 0;
     for (let i = b.start; i < b.start + b.total; i++) {
       if (vox.state[i] !== 0) continue;
@@ -288,8 +390,21 @@ export function createCity(scene, cfg, rng, quality) {
       if (dx * dx + dy * dy + dz * dz > r * r) continue;
       launch(i, dir.x * (5 + rng() * 6) * power + dx * 2, 3 + rng() * 6, dir.z * (5 + rng() * 6) * power + dz * 2); n++;
     }
+    return n;
+  };
+  const near = new THREE.Vector3();
+  /** Bites blocks within radius r of point p off building b, flung along dir. When that spot is already empty
+   *  (a hollow shell bitten before), it bites around the nearest standing block instead. Returns blocks removed. */
+  function bite(b, p, r, dir, power = 1) {
+    if (b.state !== 'intact') return 0;
+    let n = biteAt(b, p, r, dir, power);
+    if (!n) {
+      let best = -1, bd = Infinity;
+      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) { const d = (vox.px[i] - p.x) ** 2 + (vox.py[i] - p.y) ** 2 + (vox.pz[i] - p.z) ** 2; if (d < bd) bd = d, best = i; }
+      if (best >= 0) n = biteAt(b, near.set(vox.px[best], vox.py[best], vox.pz[best]), r, dir, power);
+    }
     b.alive -= n;
-    if (n) for (let k = 0; k < 2; k++) puff(p.x, p.y, p.z, 1.2);
+    if (n) { puff(p.x, p.y, p.z, 1.1); puff(p.x, Math.max(0.6, p.y - 1), p.z, 0.9); }
     if (b.alive / b.total < cfg.collapseAt) collapse(b, dir, 0);
     return n;
   }
@@ -297,29 +412,36 @@ export function createCity(scene, cfg, rng, quality) {
   /** Brings a building down: tall ones topple away from dir, the rest pancake. chain counts dominoes. */
   function collapse(b, dir, chain) {
     if (b.state !== 'intact') return;
-    const tall = b.h >= cfg.toppleMinHeight;
+    intact--;
     events.push({ type: 'collapse', b, x: b.cx, z: b.cz, chain });
     releaseResidents(b.cx, Math.min(b.h, 6), b.cz, 2 + Math.floor(rng() * 3));
-    if (tall) {
+    if (b.h >= cfg.toppleMinHeight) {
+      // fall away from Bonbon; if a neighbour stands within reach to the side, fall onto it (dominoes)
       const ax = Math.abs(dir.x) > Math.abs(dir.z);
-      const fx = ax ? Math.sign(dir.x) || 1 : 0, fz = ax ? 0 : Math.sign(dir.z) || 1;
+      let fx = ax ? Math.sign(dir.x) || 1 : 0, fz = ax ? 0 : Math.sign(dir.z) || 1;
+      const reaches = (dx, dz) => buildings.some((o) => o !== b && o.state === 'intact' && o.k <= b.k &&
+        Math.abs(o.cx - (b.cx + dx * (b.w / 2 + b.h * 0.6))) < o.w / 2 + b.h * 0.45 * Math.abs(dx) + 1 &&
+        Math.abs(o.cz - (b.cz + dz * (b.d / 2 + b.h * 0.6))) < o.d / 2 + b.h * 0.45 * Math.abs(dz) + 1);
+      if (!reaches(fx, fz)) for (const [dx, dz] of [[fz, fx], [-fz, -fx]]) if (reaches(dx, dz)) { fx = dx; fz = dz; break; }
       const pivot = new THREE.Vector3(fx > 0 ? b.x0 + b.w : fx < 0 ? b.x0 : b.cx, 0, fz > 0 ? b.z0 + b.d : fz < 0 ? b.z0 : b.cz);
       b.state = 'toppling';
+      // rotating about (fz, 0, -fx) by +angle tips the top towards +f (away from Bonbon)
       b.topple = { fx, fz, pivot, axis: new THREE.Vector3(fz, 0, -fx), angle: 0, angVel: 0.25, chain };
     } else {
       b.state = 'gone';
       for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) launch(i, (rng() - 0.5) * 3 + dir.x * 2, -rng() * 2, (rng() - 0.5) * 3 + dir.z * 2);
-      for (let k = 0; k < 6; k++) puff(b.cx + (rng() - 0.5) * b.w, 0.8, b.cz + (rng() - 0.5) * b.d, 2.2);
+      for (let k = 0; k < 7; k++) puff(b.cx + (rng() - 0.5) * b.w, 0.8 + rng() * b.h * 0.3, b.cz + (rng() - 0.5) * b.d, 1.6 + b.k * 0.3);
       b.alive = 0;
     }
   }
 
+  const fall = new THREE.Vector3();
   function updateTopples(dt) {
     for (const b of buildings) {
       if (b.state !== 'toppling') continue;
       const T = b.topple;
       T.angVel += (1.8 + 7 * Math.sin(T.angle)) * dt; T.angle = Math.min(Math.PI / 2, T.angle + T.angVel * dt);
-      qd.setFromAxisAngle(T.axis, -T.angle);
+      qd.setFromAxisAngle(T.axis, T.angle);
       for (let i = b.start; i < b.start + b.total; i++) {
         if (vox.state[i] !== 0) continue;
         v3.set(vox.ox[i] - T.pivot.x, vox.oy[i], vox.oz[i] - T.pivot.z).applyQuaternion(qd);
@@ -327,34 +449,31 @@ export function createCity(scene, cfg, rng, quality) {
         vox.q[i * 4] = qd.x; vox.q[i * 4 + 1] = qd.y; vox.q[i * 4 + 2] = qd.z; vox.q[i * 4 + 3] = qd.w;
         writeMatrix(i);
       }
+      blocks.instanceMatrix.needsUpdate = true;
       if (T.angle >= Math.PI / 2 - 0.05) {
         b.state = 'gone';
-        const speed = T.angVel;
         for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) {
           const r = Math.hypot(vox.px[i] - T.pivot.x, vox.pz[i] - T.pivot.z);
-          launch(i, T.fx * speed * r * 0.12 + (rng() - 0.5) * 3, 2 + rng() * 4, T.fz * speed * r * 0.12 + (rng() - 0.5) * 3);
+          launch(i, T.fx * T.angVel * r * 0.12 + (rng() - 0.5) * 3, 2 + rng() * 4, T.fz * T.angVel * r * 0.12 + (rng() - 0.5) * 3);
         }
         b.alive = 0;
-        // where it lands: everything under the fallen length comes down too
         const hits = new Set();
         for (let s = 1; s <= b.h + 1; s += 0.7) {
           const x = T.pivot.x + T.fx * s, z = T.pivot.z + T.fz * s;
           for (const o of buildings) if (o.state === 'intact' && x > o.x0 - 0.5 && x < o.x0 + o.w + 0.5 && z > o.z0 - 0.5 && z < o.z0 + o.d + 0.5) hits.add(o);
-          if (s % 3 < 0.7) puff(x, 0.6, z, 2.4);
+          if (s % 2.8 < 0.7) puff(x, 0.8, z, 2.2);
         }
         events.push({ type: 'land', b, x: T.pivot.x + T.fx * b.h * 0.6, z: T.pivot.z + T.fz * b.h * 0.6, chain: T.chain, hits: hits.size });
-        const fall = new THREE.Vector3(T.fx, 0, T.fz);
+        fall.set(T.fx, 0, T.fz);
         for (const o of hits) {
           if (o.k <= b.k) collapse(o, fall, T.chain + 1); // same size or smaller: knocked down
-          else bite(o, new THREE.Vector3(o.cx - T.fx * o.w / 2, Math.min(o.h - 1, b.h * 0.5), o.cz - T.fz * o.d / 2), 2.5 + b.k * 0.5, fall, 1.4); // bigger: dented
+          else bite(o, near.set(o.cx - T.fx * o.w / 2, Math.min(o.h - 1, b.h * 0.5), o.cz - T.fz * o.d / 2), 2.5 + b.k * 0.5, fall, 1.4); // bigger: dented
         }
       }
     }
   }
 
-  const kickR2 = 1;
   function updateBlocks(dt, monster) {
-    clock += dt;
     let dirty = false;
     const mx = monster.x, mz = monster.z, mr = monster.r * 0.8, mr2 = mr * mr;
     for (let i = 0; i < count; i++) {
@@ -362,39 +481,39 @@ export function createCity(scene, cfg, rng, quality) {
       if (st === 1) {
         vox.vy[i] -= GRAVITY * dt;
         vox.px[i] += vox.vx[i] * dt; vox.py[i] += vox.vy[i] * dt; vox.pz[i] += vox.vz[i] * dt;
-        const w = vox.w.subarray(i * 3, i * 3 + 3);
-        qd.setFromEuler(new THREE.Euler(w[0] * dt, w[1] * dt, w[2] * dt));
+        const w0 = i * 3;
+        qd.setFromEuler(eul.set(vox.w[w0] * dt, vox.w[w0 + 1] * dt, vox.w[w0 + 2] * dt));
         quat.set(vox.q[i * 4], vox.q[i * 4 + 1], vox.q[i * 4 + 2], vox.q[i * 4 + 3]).multiply(qd);
-        vox.q[i * 4] = quat.x; vox.q[i * 4 + 1] = quat.y; vox.q[i * 4 + 2] = quat.z; vox.q[i * 4 + 3] = quat.w;
         if (vox.py[i] < HALF) {
-          vox.py[i] = HALF; vox.vy[i] *= -0.28; vox.vx[i] *= 0.55; vox.vz[i] *= 0.55; w[0] *= 0.5; w[1] *= 0.5; w[2] *= 0.5;
+          vox.py[i] = HALF; vox.vy[i] *= -0.28; vox.vx[i] *= 0.55; vox.vz[i] *= 0.55; vox.w[w0] *= 0.5; vox.w[w0 + 1] *= 0.5; vox.w[w0 + 2] *= 0.5;
           if (Math.abs(vox.vy[i]) < 1.2 && vox.vx[i] * vox.vx[i] + vox.vz[i] * vox.vz[i] < 1) {
-            vox.state[i] = 2; vox.settledAt[i] = clock; rubbleCount++;
-            // lie flat on a face: keep only the yaw
-            const e = new THREE.Euler().setFromQuaternion(quat, 'YXZ'); quat.setFromEuler(new THREE.Euler(0, e.y, 0));
-            vox.q[i * 4] = quat.x; vox.q[i * 4 + 1] = quat.y; vox.q[i * 4 + 2] = quat.z; vox.q[i * 4 + 3] = quat.w;
+            vox.state[i] = 2; rubbleCount++; rubbleQueue[rqTail] = i; rqTail = (rqTail + 1) % MAXV;
+            eul.setFromQuaternion(quat, 'YXZ'); quat.setFromEuler(eul.set(0, eul.y, 0)); // lie flat, keep the yaw
           }
         }
+        vox.q[i * 4] = quat.x; vox.q[i * 4 + 1] = quat.y; vox.q[i * 4 + 2] = quat.z; vox.q[i * 4 + 3] = quat.w;
         writeMatrix(i); dirty = true;
       } else if (st === 2) {
+        if (!monster.moving) continue;
         const dx = vox.px[i] - mx, dz = vox.pz[i] - mz, d2 = dx * dx + dz * dz;
-        if (monster.moving && d2 < mr2 * kickR2) { // kicked by a foot
-          const d = Math.sqrt(d2) || 1; rubbleCount--;
-          launch(i, dx / d * (4 + rng() * 4), 2 + rng() * 3, dz / d * (4 + rng() * 4));
-        } else if (rubbleCount > rubbleCap && clock - vox.settledAt[i] > 6) { // tidy the oldest rubble away
-          vox.s[i] -= dt * 1.5;
-          if (vox.s[i] <= 0) { vox.s[i] = 0; vox.state[i] = 3; rubbleCount--; }
-          writeMatrix(i); dirty = true;
-        }
+        if (d2 < mr2) { const d = Math.sqrt(d2) || 1; rubbleCount--; launch(i, dx / d * (4 + rng() * 4), 2 + rng() * 3, dz / d * (4 + rng() * 4)); }
+      } else if (st === 4) {
+        vox.s[i] -= dt * 1.5;
+        if (vox.s[i] <= 0) { vox.s[i] = 0; vox.state[i] = 3; }
+        writeMatrix(i); dirty = true;
       }
+    }
+    // tidy away the oldest rubble while there is more than the device can keep
+    while (rubbleCount > rubbleCap && rqHead !== rqTail) {
+      const i = rubbleQueue[rqHead]; rqHead = (rqHead + 1) % MAXV;
+      if (vox.state[i] === 2) { vox.state[i] = 4; rubbleCount--; }
     }
     if (dirty) blocks.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- queries for game.js
-  /** Buildings whose footprint is within r of (x, z), with the closest point. */
-  function touching(x, z, r) {
-    const out = [];
+  function touching(x, z, r, out = []) {
+    out.length = 0;
     for (const b of buildings) {
       if (b.state !== 'intact') continue;
       const px = Math.max(b.x0, Math.min(x, b.x0 + b.w)), pz = Math.max(b.z0, Math.min(z, b.z0 + b.d));
@@ -415,22 +534,33 @@ export function createCity(scene, cfg, rng, quality) {
   }
   function crushTrees(x, z, r) {
     let n = 0;
-    for (const [i, t] of trees.entries()) if (t.alive && Math.hypot(t.x - x, t.z - z) < r + 0.6) {
-      t.alive = false; placeTree(i); n++;
-      burstConfetti(t.x, 2, t.z, 10, [0x4cc35a, 0x6fd64b, 0x2fb37a, 0xffc531]);
+    for (let i = 0; i < props.length; i++) {
+      const p = props[i];
+      if (!p.alive || Math.hypot(p.x - x, p.z - z) > r + 0.6) continue;
+      p.alive = false; placeProp(i); n++;
+      if (p.kind === 'tree') burstConfetti(p.x, 2, p.z, 10, [0x4cc35a, 0x6fd64b, 0x2fb37a, 0xffc531]); else { puff(p.x, 1, p.z, 0.8); burstConfetti(p.x, 3, p.z, 5, [0xfff1b8, 0x8f96b0]); }
     }
     return n;
   }
 
-  function update(dt, monster) { updateTopples(dt); updateBlocks(dt, monster); updateCars(dt); updateParticles(dt); }
-  /** Where the camera and Bonbon are, for the see-through cut. */
-  function setXray(cam, mon, r) { const u = blocks.material.userData.uniforms; u.uCam.value.copy(cam); u.uMon.value.copy(mon); u.uR.value = r; }
+  function update(dt, monster) {
+    seaT += dt; seaMat.uniforms.uT.value = seaT;
+    updateTopples(dt); updateBlocks(dt, monster); updateCars(dt); updateParticles(dt);
+  }
+  function setXray(cam, mon, r) { const u = blockMat.userData.uniforms; u.uCam.value.copy(cam); u.uMon.value.copy(mon); u.uR.value = r; }
 
   return {
     group, buildings, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees,
-    puff, burstConfetti, releaseResidents, intactLeft,
-    get blocksLeft() { let n = 0; for (const b of buildings) if (b.state === 'intact') n += b.alive; return n; },
-    totalBlocks, meshes: { blocks, crownMesh, carBody },
-    dispose() { scene.remove(group); group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); },
+    puff, burstConfetti, releaseResidents,
+    intactLeft: () => intact,
+    anyToppling: () => buildings.some((b) => b.state === 'toppling'),
+    totalBlocks, meshes: { blocks },
+    setDustScale(s) { dustMat.uniforms.uScale.value = s; },
+    dispose() {
+      scene.remove(group);
+      group.traverse((o) => { if (o.isInstancedMesh) o.dispose(); });
+      for (const d of disposables) d.dispose();
+      for (const t of [grassTex, plazaTex, roadTex, dustMat.uniforms.uTex.value]) t.dispose();
+    },
   };
 }
