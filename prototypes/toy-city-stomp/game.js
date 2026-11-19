@@ -9,6 +9,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.m
 import { createCity } from './city.js';
 import { createBonbon } from './bonbon.js';
 import { createArmy } from './army.js';
+import { MOVES, moveInfo, moveReady, buyMove } from './moves.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const LANG_NAMES = { en: 'English', ar: 'العربية', es: 'Español', vi: 'Tiếng Việt', hi: 'हिन्दी', bn: 'বাংলা', id: 'Indonesia' };
@@ -164,8 +165,9 @@ function startGame(mode) {
     <div class="pops" id="pops"></div>
     <div class="stick" id="stick" hidden><div class="knob" id="knob"></div></div>
     <div class="hint" id="hint"><div class="hand">👆</div><div class="hint-t gloss" id="hintT"></div></div>
-    <button class="skill" id="skill" hidden><span class="ring" id="ring"></span><span class="sk-ico">🌀</span></button>
+    <button class="skill" id="skill" hidden><span class="ring" id="ring"></span><span class="sk-ico" id="skIco">🌀</span></button>
     <div class="result" id="result" hidden></div>
+    <div class="shop" id="shop" hidden></div>
     <div class="langs" id="langs" hidden></div>`;
   const $ = (id) => hud.querySelector('#' + id);
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
@@ -205,18 +207,18 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, spirit: 0, dizzyT: 0, bossDone: false, bossShown: false, starsShown: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, bossDone: false, bossShown: false, starsShown: 0, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
     $('result').hidden = true; $('skill').hidden = true; $('hint').hidden = mode !== 'play';
     follow.init = false; follow.vx = follow.vz = 0;
-    S.spirit = spiritMax(); $('bossbar').hidden = true;
+    S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = null;
     updateHud();
   }
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin' };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -277,7 +279,7 @@ function startGame(mode) {
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
     for (const c of city.squashCars(S.x, S.z, 4 * S.scaleTarget)) score(PT.car, c.x, 1, c.z, '');
     for (let k = 0; k < 10; k++) city.puff(S.x + Math.cos(k) * 3 * S.scaleTarget, 0.6, S.z + Math.sin(k) * 3 * S.scaleTarget, 2.2);
-    if (S.stage === cfg.skill.unlockStage) setTimeout(() => { if (S && !S.finished) { banner(T('newMove'), 1.6); $('skill').hidden = false; } }, 900);
+    if (save.equipped === 'spin' && S.stage === (moveInfo(cfg, 'spin') || {}).stage) setTimeout(() => { if (S && !S.finished) { banner(T('newMove'), 1.6); refreshSkill(); } }, 900);
   }
 
   // ---------- input: the first finger steers (a floating stick); keyboard on desktop
@@ -322,22 +324,79 @@ function startGame(mode) {
   $('skill').onclick = (e) => { e.currentTarget.blur(); Sound.unlock(); useSkill(); };
 
   const dirV = new THREE.Vector3(), biteP = new THREE.Vector3(), touchList = [];
+  // ---------- moves: the big button plays the equipped move (moves.js) through these effects
+  const fx = {
+    x: () => S.x, z: () => S.z, sc: () => S.scale,
+    at(dist) { const d = dist * S.scale; return { x: S.x + Math.sin(S.yaw) * d, z: S.z + Math.cos(S.yaw) * d }; },
+    later(sec, fn) { S.acts.push({ at: S.clock + sec, fn }); },
+    spin() { S.spinT = 0.55; },
+    roar() { bon.roar(); Sound.roar(S.stage); },
+    /** Lifts Bonbon in an arc of height h (x size) over dur seconds, moving dist (x size) ahead, then onLand(). */
+    jump(dur, h, dist, onLand) { const p = fx.at(dist); S.jump = { t: 0, dur, h: h * Math.sqrt(S.scale), sx: S.x, sz: S.z, tx: p.x, tz: p.z, onLand }; bon.stomp(-0.8); },
+    /** Breaks what is within r of (x, z): bites buildings one class bigger than Bonbon could alone, squashes cars,
+     *  pops props, knocks out toy units and hurts the boss. */
+    blast(x, z, r, shakeAmt = 0, flavor = '') {
+      for (const h of city.touching(x, z, r, touchList)) {
+        if (h.b.k > S.stage + 2) continue;
+        dirV.set(h.px - x, 0, h.pz - z); if (dirV.lengthSq() < 0.01) dirV.set(Math.sin(S.yaw), 0, Math.cos(S.yaw)); dirV.normalize();
+        const n = city.bite(h.b, biteP.set(h.px, Math.min(h.b.h - 0.5, 1.5 * S.scale), h.pz), Math.max(2, r * 0.55), dirV, 1.6);
+        if (n) { hitCombo(false); score(n * PT.perVoxel, h.px, 2, h.pz); }
+      }
+      for (const c of city.squashCars(x, z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); }
+      if (city.crushTrees(x, z, r)) hitCombo();
+      army.hitArea(x, z, r);
+      const br = army.bossReach(); if (br && Math.hypot(br.x - x, br.z - z) < r + br.r) army.damageBoss(cfg.boss.skillDmg, 'skill');
+      for (let k = 0; k < 8; k++) city.puff(x + Math.cos(k * 0.8) * r * 0.7, 0.5, z + Math.sin(k * 0.8) * r * 0.7, 1.4);
+      if (flavor === 'bubble') city.burstConfetti(x, 2, z, 8, [0xbfeaff, 0xffffff, 0x8fd2ff]);
+      if (flavor === 'rainbow') city.burstConfetti(x, 2, z, 10, [0xff5a4f, 0xffc531, 0x6fd64b, 0x3fa9ff, 0x9b6bff]);
+      if (shakeAmt) shake(shakeAmt);
+      Sound.bite(3); buzz(shakeAmt > 0.2 ? 'thud' : 'tap');
+    },
+    /** Pulls toy units and cars in from r and knocks them out. */
+    pull(r) { army.hitArea(S.x, S.z, r); for (const c of city.squashCars(S.x, S.z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); } city.burstConfetti(S.x, 3, S.z, 14, [0xff5a4f, 0x3fa9ff]); },
+  };
   function useSkill() {
-    if (!S || S.finished || S.stage < cfg.skill.unlockStage || S.skillCd > 0) return;
-    S.skillCd = cfg.skill.cooldownSec; S.spinT = 0.55; bon.stomp(1.4); buzz('thud'); Sound.collapse(2);
-    shake(0.2);
-    const r = cfg.skill.radius * S.scale;
-    for (const h of city.touching(S.x, S.z, r, touchList)) {
-      if (h.b.k > S.stage + 1) continue;
-      dirV.set(h.px - S.x, 0, h.pz - S.z).normalize();
-      const n = city.bite(h.b, biteP.set(h.px, Math.min(h.b.h - 0.5, 1.5 * S.scale), h.pz), 2.2 * S.scale, dirV, 1.6);
-      if (n) { hitCombo(false); score(n * PT.perVoxel, h.px, 2, h.pz); }
+    if (!S || S.finished || S.skillCd > 0 || S.jump || S.dizzyT > 0) return;
+    const id = save.equipped;
+    if (!moveReady(cfg, id, save.owned, S.stage) || !MOVES[id]) return;
+    S.skillCd = moveInfo(cfg, id).cooldownSec; bon.stomp(1.2); bon.face('angry', 0.6); buzz('thud');
+    MOVES[id](fx);
+  }
+  /** Shows the big button with the equipped move once it can be used. */
+  function refreshSkill() {
+    const m = moveInfo(cfg, save.equipped), ok = m && moveReady(cfg, save.equipped, save.owned, S.stage);
+    $('skill').hidden = !ok || mode !== 'play';
+    if (m) $('skIco').textContent = m.icon;
+  }
+
+  // ---------- shop: every move as a card; buy with coins, choose which one sits on the big button
+  const canBuy = () => (cfg.moves || []).some((m) => m.price > 0 && !save.owned.includes(m.id) && save.coins >= m.price);
+  function openShop() { $('result').hidden = true; $('shop').hidden = false; renderShop(); }
+  function renderShop() {
+    const box = $('shop');
+    const card = (icon, name, label, cls, id) => `<button class="mcard ${cls}" data-id="${id}"><span class="mico">${icon}</span><span class="mname" dir="auto">${name}</span><span class="mtag gloss">${label}</span></button>`;
+    let html = `<div class="shead"><h2 class="out">${T('shop')}</h2><div class="coins gloss"><span class="coin-ico"></span><b>${save.coins}</b></div></div><div class="mgrid">`;
+    html += card('👣', T('m_stomp'), '✓', 'owned basic', 'stomp');
+    for (const m of cfg.moves || []) {
+      const owned = m.price === 0 || save.owned.includes(m.id), on = save.equipped === m.id;
+      const label = on ? T('inUse') : owned ? T('use') : `<span class="coin-ico"></span>${m.price}`;
+      html += card(m.icon, T('m_' + m.id), label, on ? 'on' : owned ? 'owned' : save.coins >= m.price ? 'afford' : 'lock', m.id);
     }
-    for (const c of city.squashCars(S.x, S.z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); }
-    if (city.crushTrees(S.x, S.z, r)) hitCombo();
-    army.hitArea(S.x, S.z, r);
-    { const br = army.bossReach(); if (br && Math.hypot(br.x - S.x, br.z - S.z) < r + br.r) army.damageBoss(cfg.boss.skillDmg, 'skill'); }
-    for (let k = 0; k < 12; k++) city.puff(S.x + Math.cos(k / 2) * r * 0.8, 0.5, S.z + Math.sin(k / 2) * r * 0.8, 1.6);
+    html += `</div><button class="again gloss out" id="shopPlay">${T('again')}</button>`;
+    box.innerHTML = html;
+    box.querySelectorAll('.mcard').forEach((b) => b.onclick = () => shopTap(b));
+    box.querySelector('#shopPlay').onclick = () => { Sound.unlock(); newRound(); };
+  }
+  function shopTap(b) {
+    const id = b.dataset.id, m = moveInfo(cfg, id);
+    if (!m) return;
+    const owned = m.price === 0 || save.owned.includes(id);
+    if (owned) { save.equipped = id; Sound.pop(); buzz('tick'); persist(); renderShop(); return; }
+    const r = buyMove(cfg, save, id);
+    if (r.ok) { Sound.win(); buzz('success'); persist(); renderShop(); const c = $('shop').querySelector(`[data-id="${id}"]`); if (c) c.classList.add('bought'); return; }
+    b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); Sound.boing(); buzz('error');
+    const rect = b.getBoundingClientRect(), rr = root.getBoundingClientRect();
+    pop(T('need').replace('{n}', r.need), (rect.left + rect.width / 2 - rr.left) / rr.width, (rect.top - rr.top) / rr.height, '#ff5a4f', 0.8);
   }
 
   // ---------- rules per step
@@ -350,6 +409,7 @@ function startGame(mode) {
     let mag = Math.min(1, Math.hypot(ix, iz));
     if (mag < 0.12) mag = 0;
     if (S.dizzyT > 0) { S.dizzyT -= dt; mag = 0; ix = iz = 0; S.idle = 0; }
+    if (S.jump) { mag = 0; ix = iz = 0; }
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
     if (!mag && S.dizzyT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
@@ -495,8 +555,9 @@ function startGame(mode) {
       <dl><dt>${T('time')}</dt><dd>${mmss}</dd><dt>${T('bestCombo')}</dt><dd>×${comboMult(S.bestCombo, CB)}</dd><dt><span class="coin-ico"></span></dt><dd>+${S.coins}</dd></dl>
       ${isBest ? `<div class="best">${T('best')}</div>` : ''}
     </div>
-    <button class="again gloss out" id="again">${T('again')}</button>`;
-    setTimeout(() => { if (!S.finished) return; r.hidden = false; r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; }, 1600);
+    <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
+    <button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">NEW!</span>' : ''}</button></div>`;
+    setTimeout(() => { if (!S.finished) return; r.hidden = false; r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; }, 1600);
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
@@ -564,13 +625,22 @@ function startGame(mode) {
     if (S.slowT > 0) { S.slowT -= raw; dt *= FX.slowmoScale; }
     if (mode === 'play' && !S.finished) {
       if (S.touched) S.time += raw;
-      steer(dt); contact(dt);
+      steer(dt); if (!S.jump) contact(dt);
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
       S.skillCd = Math.max(0, S.skillCd - raw);
       drainEvents(); sweep(dt);
     } else { city.events.length = 0; army.events.length = 0; } // after the finish (or in edit mode) falling blocks still look right but score nothing
     if (S.spinT > 0) { S.spinT -= dt; S.yaw += dt * Math.PI * 2 / 0.55; }
-    bon.root.position.set(S.x, 0, S.z); bon.root.rotation.y = S.yaw;
+    S.clock += dt;
+    for (let i = S.acts.length - 1; i >= 0; i--) if (S.acts[i].at <= S.clock) { const a = S.acts.splice(i, 1)[0]; if (!S.finished) a.fn(); }
+    let airY = 0;
+    if (S.jump) {
+      const J = S.jump; J.t += dt; const k = Math.min(1, J.t / J.dur);
+      S.x = THREE.MathUtils.lerp(J.sx, J.tx, k); S.z = THREE.MathUtils.lerp(J.sz, J.tz, k); airY = Math.sin(k * Math.PI) * J.h;
+      const lim = city.half + 2; S.x = THREE.MathUtils.clamp(S.x, -lim, lim); S.z = THREE.MathUtils.clamp(S.z, -lim, lim);
+      if (k >= 1) { S.jump = null; bon.stomp(1.6); Sound.land(); if (!S.finished) J.onLand(); }
+    }
+    bon.root.position.set(S.x, airY, S.z); bon.root.rotation.y = S.yaw;
     bon.update(dt, { moving: S.moving && !S.finished, speed: S.speed, lookAt });
     city.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, moving: S.moving && !S.finished });
     if (mode === 'play' && !S.finished) army.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, scale: S.scale, height: 2.8 * S.scale, stage: S.stage });
@@ -606,9 +676,10 @@ function startGame(mode) {
         if (best !== null) save.best = save.best === null ? best : Math.min(best, save.best);
         save.bestCombo = Math.max(combo, st.bestCombo || 0);
         if (picked) save.lang = picked;
+        if (!Array.isArray(save.owned)) save.owned = []; if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
-      saveLoaded = true; hudCache.coins = null; updateHud();
+      saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked) persist();
     }).catch(() => { saveLoaded = true; });
   }
@@ -623,7 +694,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get save() { return save; }, openShop, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

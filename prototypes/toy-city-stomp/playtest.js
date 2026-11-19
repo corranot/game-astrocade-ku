@@ -39,7 +39,7 @@ const server = http.createServer((q, s) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://localhost:${port}/?local&tier=0&speed=6`);
   await page.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
-  const g = (fn) => page.evaluate(fn);
+  const g = (fn, arg) => page.evaluate(fn, arg);
   check(await g(() => __game.lang) === (['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'].includes(lang.slice(0, 2)) ? lang.slice(0, 2) : 'en'), 'language follows the device: ' + lang);
   await page.waitForTimeout(1500);
   check(await g(() => __game.S.points > 0), 'autopilot breaks something before any touch');
@@ -78,6 +78,31 @@ const server = http.createServer((q, s) => {
   const { ms, reset } = await g(() => { const t = performance.now(); document.querySelector('#again').click(); const ms = performance.now() - t;
     return { ms, reset: { fin: __game.S.finished, stage: __game.S.stage, left: __game.city.intactLeft(), n: __game.city.buildings.length } }; });
   check(!reset.fin && reset.stage === 1 && reset.left === reset.n && ms < 100, `replay resets the round in ${ms.toFixed(0)} ms`);
+  // shop: a locked card refuses, a bought move goes on the big button and breaks things when used
+  {
+    const r1 = await g(() => { __game.save.coins = 100; __game.save.owned = []; __game.save.equipped = 'spin'; __game.openShop(); const c = document.querySelector('.mcard[data-id="flop"]'); c.click(); return { cls: c.className, owned: __game.save.owned.slice() }; });
+    check(r1.owned.length === 0 && /shake/.test(r1.cls), 'a move the coins do not cover stays locked and its card shakes');
+    await page.screenshot({ path: path.join(out, `07-shop-${lang}.png`) });
+    const r2 = await g(() => { __game.save.coins = 400; document.querySelector('.mcard[data-id="flop"]').click(); return { owned: __game.save.owned.slice(), eq: __game.save.equipped, coins: __game.save.coins }; });
+    check(r2.owned.includes('flop') && r2.eq === 'flop' && r2.coins === 250, `buying Belly Flop takes 150 coins and puts it on the button (${JSON.stringify(r2)})`);
+    await g(() => document.querySelector('#shopPlay').click());
+    const before = await g(() => ({ vis: !document.querySelector('#skill').hidden, pts: __game.S.points }));
+    check(before.vis, 'the big button shows the bought move from stage 1');
+    await g(() => { __game.S.touched = true; __game.useSkill(); });
+    await page.waitForTimeout(1500);
+    const after = await g(() => ({ pts: __game.S.points, air: !!__game.S.jump, cd: __game.S.skillCd }));
+    check(after.pts > before.pts && !after.air && after.cd > 0, `Belly Flop lands and breaks something (+${after.pts - before.pts} points)`);
+  }
+  // every move, one by one, on a fresh city: it must land, cool down and break something
+  for (const id of ['spin', 'flop', 'bubble', 'roar', 'jelly', 'magnet', 'rainbow', 'sneeze', 'moon']) {
+    const r = await page.evaluate((id) => { __game.newRound(); const S = __game.S; S.touched = true; S.idle = -999; while (S.stage < 3) __game.grow();
+      __game.save.owned = ['flop', 'bubble', 'roar', 'jelly', 'magnet', 'rainbow', 'sneeze', 'moon']; __game.save.equipped = id;
+      S.x = 10; S.z = -5; S.skillCd = 0; const p0 = S.points; __game.useSkill(); return { p0, cd: S.skillCd }; }, id);
+    await page.waitForFunction(() => !__game.S.jump, null, { timeout: 8000 }).catch(() => {}); // a landing that makes Bonbon grow plays in slow motion
+    await page.waitForTimeout(400);
+    const r2 = await g(() => ({ pts: __game.S.points, air: !!__game.S.jump }));
+    check(r.cd > 0 && r2.pts > r.p0 && !r2.air, `move ${id}: used, landed, +${r2.pts - r.p0} points`);
+  }
   check(errors.length === 0, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
