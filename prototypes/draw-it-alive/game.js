@@ -37,7 +37,7 @@ let cv, g, cfg, mode, raf = 0, last = 0, runs = 0;
 let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [], lang: null }, saveRead = false, muteTouched = false;
 let view = 'play', wall = null, gift = null, book = null; // 'play' a level, 'wall' the finished pictures, 'box' a surprise box, 'book' the stickers
 let lang = 'en', said = { key: '', t: 0 }; // the language shown; the command on screen and when it appeared
-let jarShown = 0, flyers = [], dropsSince = 0; // dropsSince: drops earned (less boxes opened) since this run started // drops in the jar as drawn, and drops on their way to it
+let jarShown = 0, flyers = [], dropsSince = 0, dropsMerged = false; // drops in the jar as drawn, drops on their way to it, drops earned (less boxes opened) before the stored count was merged
 let S = null, target = [], targetLen = 0, closed = false, back = null, bits = [];
 let pointerDown = false, touched = false, bound = false, press = null;
 let ac = null, lastTick = 0, timers = [];
@@ -165,7 +165,7 @@ function frameCard(ctx, c, won) {
 
 /** Draw one card's scene into ctx at card scale; won is the payoff time to show. */
 function cardScene(ctx, c, won) {
-  const s = c.s; s.won = won; s.t = wall.t;
+  const s = c.s; s.won = won; s.t = wall.t; s.done = s.lines.map(() => s.t - won); // on a card every part was drawn as the replay starts
   ctx.drawImage(cardBacks[s.i % LEVELS.length], 0, -CARD.top * CARD.k);
   if (!s.lines.length) { ctx.fillStyle = 'rgba(31,42,107,0.45)'; ctx.fillRect(0, 0, CARD.w, CARD.h); return; }
   ctx.save(); ctx.scale(CARD.k, CARD.k); ctx.translate(0, -CARD.top); const was = borderScale(CARD.border);
@@ -431,7 +431,7 @@ const celebrate = () => (S.i === 0 ? cfg.celebrateSeconds : cfg.celebrateLater);
 /** After a celebration: a surprise box when the jar is full, then the next level, or the wall at a chapter's end. */
 function finish() {
   const next = S.i + 1, go = next % CHAPTER === 0 ? () => openWall(chapterOf(S.i), next, true) : () => newLevel(next);
-  if (save.drops >= cfg.jarDrops && save.stickers.length < STICKERS.length) openBox(go); else go();
+  if (saveRead && save.drops >= cfg.jarDrops && save.stickers.length < STICKERS.length) openBox(go); else go();
 }
 
 // ---------- surprise box and sticker book ----------
@@ -655,6 +655,7 @@ function drawWallButton() {
 function draw() {
   if (view === 'wall') return drawWall();
   if (view === 'book') return drawBook();
+  if (view === 'box') { drawBox(); drawJar(); return; }
   const punch = S.won >= 0 && S.won < 0.3 ? 1 + Math.sin(S.won / 0.3 * Math.PI) * 0.035 : 1;
   g.setTransform(punch, 0, 0, punch, W / 2 * (1 - punch), H / 2 * (1 - punch));
   g.drawImage(back, 0, 0);
@@ -666,7 +667,6 @@ function draw() {
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
   drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawWords();
-  if (view === 'box') { drawBox(); drawJar(); }
 }
 
 /** The paint jar: drops of every colour piled up to how full it is; it glows when a box is due. */
@@ -717,7 +717,7 @@ function applySave(st) {
   if (!muteTouched && typeof st.muted === 'boolean') save.muted = st.muted;
   if (!save.lang && typeof st.lang === 'string' && cfg.strings[st.lang]) lang = save.lang = st.lang;
   if (Array.isArray(st.stickers)) for (const id of st.stickers) if (Number.isInteger(id) && id >= 0 && id < STICKERS.length && !save.stickers.includes(id)) save.stickers.push(id);
-  if (Number.isInteger(st.drops) && st.drops >= 0) { save.drops = Math.max(0, Math.min(99, st.drops + dropsSince)); jarShown = Math.min(cfg.jarDrops, save.drops); }
+  if (!dropsMerged && Number.isInteger(st.drops) && st.drops >= 0) { dropsMerged = true; save.drops = Math.max(0, Math.min(99, st.drops + dropsSince)); jarShown = Math.min(cfg.jarDrops, Math.max(0, save.drops - flyers.length)); } // drops still flying land on top
   if (Number.isInteger(st.level) && st.level > save.level) { save.level = st.level; if (!touched && view === 'play') newLevel(st.level); }
 }
 
@@ -741,9 +741,9 @@ function run(m) {
       },
     });
   } catch (e) { /* settings panel not offered here */ }
-  cancelAnimationFrame(raf); hush(); pointerDown = false; touched = false; press = null; flyers = []; dropsSince = 0; jarShown = Math.min(cfg.jarDrops, save.drops);
+  cancelAnimationFrame(raf); hush(); pointerDown = false; touched = false; press = null; flyers = []; jarShown = Math.min(cfg.jarDrops, save.drops);
   lang = save.lang || detectLang();
-  newLevel(mode === 'play' ? save.level : 0); // a second start resumes where the player is; edit mode shows level 1
+  if (mode !== 'play' || !((view === 'box' && gift) || (view === 'wall' && wall))) newLevel(mode === 'play' ? save.level : 0); // a second start resumes where the player is (an open box or wall stays: it leads on by itself); edit mode shows level 1
   if (mode === 'play') {
     bindInput();
     const read = (tries) => Promise.resolve().then(() => lib.getUserGameState()).then((r) => {

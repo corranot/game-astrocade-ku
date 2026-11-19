@@ -551,8 +551,9 @@ export const LEVELS = [
         const a = ease(S.age(0) / 1.1), r1 = [[100, 700], ...S.lines[0], [340, 700]], p = pointAt(r1, a);
         x = p[0]; y = p[1] - (a < 1 ? hop(a, 14, 20) : 0);
       }
-      if (w >= 0) {
-        const b = ease((w - 0.3) / 1.1), p = pointAt([[340, 700], ...S.lines[1], [585, 700]], b);
+      const wait = Math.max(0, 1.1 - (S.age(0) - w)); // the first crossing finishes before the second starts
+      if (w >= 0 && w > 0.3 + wait) {
+        const b = ease((w - 0.3 - wait) / 1.1), p = pointAt([[340, 700], ...S.lines[1], [585, 700]], b);
         x = p[0]; y = p[1] - (b < 1 ? hop(b, 14, 20) : 0);
       }
       chick(ctx, x, y, SUNNY, 1, S.mood, S.t, S.look);

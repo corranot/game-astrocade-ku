@@ -390,6 +390,44 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(live === 1, `one live card at a time on the wall (${live})`);
   ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
 
+  console.log('13. jar, box and wall survive late or stale saves and a second start');
+  const hostSave = (st) => `(() => { let l; Object.defineProperty(window, 'lib', { configurable: true, get: () => l, set: (v) => { l = v; v.getUserGameState = ${st}; } }); })()`;
+  // a stale stored count on a second start does not give back the drops a box cost
+  page = await openAt(720, 1280, hostSave("() => Promise.resolve({ state: { level: 3, drops: 6, stickers: [] } })"));
+  await page.waitForFunction(() => window.__game.save.drops === 6);
+  await page.evaluate(() => { const g = window.__game; g.openBox(() => g.newLevel(3)); window.run('play'); });
+  await page.waitForTimeout(400);
+  const dr13 = await page.evaluate(() => ({ d: window.__game.save.drops, st: window.__game.save.stickers.length }));
+  X;
+  // a save read that lands while drops fly to the jar does not overfill the jar
+  page = await open();
+  await drag(page, await target(page)); await settled(page);
+  await page.waitForFunction(() => window.__game.S.won > 0.55);
+  await page.evaluate(() => window.__game.applySave({ drops: 0 }));
+  await page.waitForTimeout(1500);
+  const jr = await page.evaluate(() => ({ jar: window.__game.jarShown, d: window.__game.save.drops }));
+  ok(jr.jar === Math.min(6, jr.d), `the jar shows the drops the player has (jar ${jr.jar}, drops ${jr.d})`);
+  // no box before the stored stickers are known
+  page = await openAt(720, 1280, hostSave('() => new Promise(() => {})'));
+  await page.evaluate(() => { window.__game.save.drops = 6; });
+  await drag(page, await target(page)); await settled(page);
+  let sawBox = false;
+  for (let t = 0; t < 40 && !sawBox; t++) { sawBox = await page.evaluate(() => window.__game.view === 'box'); if (await page.evaluate(() => window.__game.S.i === 1)) break; await page.waitForTimeout(150); }
+  ok(!sawBox, 'no surprise box while the stored stickers are unknown');
+  // a second start while a box is open keeps the box and what follows it
+  page = await open();
+  await page.evaluate(() => { const g = window.__game; g.openBox(() => g.openWall(0, 5, true)); window.run('play'); });
+  await page.waitForTimeout(200);
+  const v1 = await page.evaluate(() => window.__game.view);
+  await page.waitForFunction(() => window.__game.view !== 'box', null, { timeout: 9000 }).catch(() => {});
+  const v2 = await page.evaluate(() => window.__game.view);
+  ok(v1 === 'box' && v2 === 'wall', `a second start keeps the open box, which still leads to the chapter wall (${v1} then ${v2})`);
+  // a wall card with two parts replays the first part too
+  page = await open();
+  const age = await page.evaluate(() => { const g = window.__game; g.LEVELS.forEach((lv, n) => g.partsOf(lv).forEach((_, k) => { g.save.art[g.artKey(n, k)] = g.partsOf(lv)[k].target.map((q) => q.slice()); })); g.openWall(2, 15, true); const c = g.wall.cards.find((c) => c.s.i === 12); return c ? c.s.age(0) : -1; });
+  ok(age >= 0 && age < 10, `the two-bridge card replays the first crossing (age of part 1 on the card: ${age})`);
+  ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
+
   await browser.close(); server.close();
   console.log(failed ? `PLAYTEST FAIL (${failed})` : 'PLAYTEST PASS'); process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
