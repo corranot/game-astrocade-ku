@@ -205,6 +205,52 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   console.log(`  wall frame time median ${wt[75].toFixed(1)} ms, 95th ${wt[142].toFixed(1)} ms`);
   ok(wt[75] <= 22, 'the wall runs at a median of 22 ms or less at 4x slowdown');
 
+  console.log('7. input and save edge cases');
+  const openAt = async (w, h, init) => {
+    if (current) await current.context().close();
+    const pg = current = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage();
+    pg.errors = []; pg.on('pageerror', (e) => pg.errors.push(String(e)));
+    if (init) await pg.addInitScript(init);
+    await pg.goto(base); await pg.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3);
+    return pg;
+  };
+  // a quick second try far from a first wrong line is not cut off by the first line's lift timer
+  page = await open();
+  await drag(page, [[100, 300], [130, 300], [160, 300]]); await page.waitForTimeout(450);
+  await page.mouse.move(290, 700); await page.mouse.down(); await page.waitForTimeout(300); // a child puts the finger down, then starts to move
+  for (let x = 300; x <= 430; x += 10) { await page.mouse.move(x, 700); await page.waitForTimeout(60); }
+  await page.mouse.up(); await settled(page);
+  s = await state(page); ok(s.won >= 0, 'a quick second line after a wrong one is judged whole' + (s.won < 0 ? ' ' + JSON.stringify(s) : ''));
+  // a mouse released outside the canvas still ends the line
+  page = await openAt(1200, 1280);
+  const off = await page.evaluate(() => document.getElementById('game').getBoundingClientRect().left);
+  await page.mouse.move(off + 290, 700); await page.mouse.down(); await page.mouse.move(off + 360, 700, { steps: 4 }); await page.mouse.move(1150, 700, { steps: 4 }); await page.mouse.up();
+  await page.waitForTimeout(1200);
+  s = await state(page); ok(!s.pen && s.mood !== 'draw', 'a line released outside the game is judged, not stuck' + (s.pen ? ' ' + JSON.stringify(s) : ''));
+  // a narrow screen shows the scene letterboxed, not squashed
+  page = await openAt(360, 800);
+  const ar = await page.evaluate(() => { const r = document.getElementById('game').getBoundingClientRect(); return r.width / r.height; });
+  ok(Math.abs(ar - 9 / 16) < 0.01, `the scene keeps its shape on a narrow screen (${ar.toFixed(3)})`);
+  // a save read that fails first: nothing is written blind, and the win is written once the read succeeds
+  page = await openAt(720, 1280, () => { // the host's first read fails, the second works
+    window.__writes = []; let n = 0, l;
+    Object.defineProperty(window, 'lib', { configurable: true, get: () => l, set: (v) => { l = v; v.getUserGameState = () => (n++ ? Promise.resolve({ state: null }) : Promise.reject(new Error('busy'))); v.saveUserGameState = async (st) => { window.__writes.push(JSON.parse(JSON.stringify(st))); }; } });
+  });
+  await drag(page, await target(page)); await settled(page);
+  const early = await page.evaluate(() => window.__writes.length);
+  await page.waitForFunction(() => window.__writes.length > 0, null, { timeout: 9000 }).catch(() => {});
+  const wr = await page.evaluate(() => window.__writes);
+  ok(early === 0 && wr.length > 0 && wr[wr.length - 1].art && wr[wr.length - 1].art[0], `a win made while the save could not be read is written once it can (${early} blind writes, ${wr.length} later)`);
+  // only one card plays at a time on the wall, even when the player taps another
+  page = await open('&cfg=' + encodeURIComponent(JSON.stringify({ cardRestSeconds: 3 })));
+  await page.evaluate(() => { const g = window.__game; for (let n = 0; n < 5; n++) g.save.art[n] = [[100, 600], [300, 620], [500, 600]]; g.openWall(); });
+  await page.waitForTimeout(400);
+  const c2 = await page.evaluate(() => { const g = window.__game, p = g.cardAt(2); return [p.x + g.CARD.w / 2, p.y + g.CARD.h / 2]; });
+  await page.mouse.click(c2[0], c2[1]); await page.waitForTimeout(100);
+  const live = await page.evaluate(() => { const w = window.__game.wall; return w.cards.filter((c) => w.t - c.t0 < window.__game.cfg.cardRestSeconds).length; });
+  ok(live === 1, `one live card at a time on the wall (${live})`);
+  ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
+
   await browser.close(); server.close();
   console.log(failed ? `PLAYTEST FAIL (${failed})` : 'PLAYTEST PASS'); process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
