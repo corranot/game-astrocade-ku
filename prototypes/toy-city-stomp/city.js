@@ -349,13 +349,14 @@ export function createCity(scene, cfg, rng, quality) {
     }
     if (confetti.m.instanceColor) confetti.m.instanceColor.needsUpdate = true;
   }
-  function releaseResidents(x, y, z, n) {
-    y = 0.4;
+  function releaseResidents(x, y, z, n, ring = 0) {
+    y = 0.4; // they step out on the ground beside the building, hop for joy, then float off
     for (let k = 0; k < n; k++) {
       const i = take(people), it = people.items[i];
       people.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4]));
       balloons.m.setColorAt(i, col.setHex([0xff5a4f, 0xffc531, 0x3fa9ff, 0x22c6a3, 0x9b6bff][Math.floor(rng() * 5)]));
-      Object.assign(it, { hop: 0.9, y0: 0.4, x: x + (rng() - 0.5) * 3, y: y + rng(), z: z + (rng() - 0.5) * 3, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
+      const a = rng() * Math.PI * 2;
+      Object.assign(it, { hop: 0.9, y0: 0.4, x: x + Math.cos(a) * ring + (rng() - 0.5) * 2, y, z: z + Math.sin(a) * ring + (rng() - 0.5) * 2, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
     }
     people.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = true;
   }
@@ -419,7 +420,7 @@ export function createCity(scene, cfg, rng, quality) {
     }
     return n;
   };
-  const near = new THREE.Vector3();
+  const near = new THREE.Vector3(), nearB = new THREE.Vector3();
   /** Bites blocks within radius r of point p off building b, flung along dir. When that spot is already empty
    *  (a hollow shell bitten before), it bites around the nearest standing block instead. Returns blocks removed. */
   function bite(b, p, r, dir, power = 1, chain = 0) {
@@ -429,7 +430,7 @@ export function createCity(scene, cfg, rng, quality) {
     if (!n) {
       let best = -1, bd = Infinity;
       for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) { const d = (vox.px[i] - p.x) ** 2 + (vox.py[i] - p.y) ** 2 + (vox.pz[i] - p.z) ** 2; if (d < bd) bd = d, best = i; }
-      if (best >= 0) n = biteAt(b, near.set(vox.px[best], vox.py[best], vox.pz[best]), r, dir, power);
+      if (best >= 0) n = biteAt(b, nearB.set(vox.px[best], vox.py[best], vox.pz[best]), r, dir, power);
     }
     b.alive -= n;
     if (n) { puff(p.x, p.y, p.z, 1.1); puff(p.x, Math.max(0.6, p.y - 1), p.z, 0.9); }
@@ -450,7 +451,7 @@ export function createCity(scene, cfg, rng, quality) {
     if (b.state !== 'intact') return;
     intact--;
     events.push({ type: 'collapse', b, x: b.cx, z: b.cz, chain });
-    releaseResidents(b.cx, Math.min(b.h, 6), b.cz, 2 + Math.floor(rng() * 3));
+    releaseResidents(b.cx, 0, b.cz, 2 + Math.floor(rng() * 3), Math.max(b.w, b.d) / 2 + 1);
     if (b.h >= cfg.toppleMinHeight) {
       // fall away from Bonbon; if a neighbour stands within reach to the side, fall onto it (dominoes)
       const ax = Math.abs(dir.x) > Math.abs(dir.z);

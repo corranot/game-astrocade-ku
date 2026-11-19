@@ -208,13 +208,13 @@ function startGame(mode) {
     city = createCity(scene, cfg, rng, quality);
     if (army) army.dispose();
     army = createArmy(scene, cfg, rng, quality, city);
-    missions = createMissions(rng, !!save.tutorialDone, missionDone);
+    missions = createMissions(rng, !!save.tutorialDone, missionDone, levelOf);
     resize();
     S = {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100,
     };
     target = null; lookAt = null;
     bon.setStage(1); bon.setRainbow(false); bon.face('happy', 0); bon.root.position.set(S.x, 0, S.z); bon.root.scale.setScalar(G.baseScale); bon.resetTail();
@@ -244,7 +244,7 @@ function startGame(mode) {
     const ws = army ? army.stars : 0;
     if (hudCache.wanted !== ws) { hudCache.wanted = ws; $('wanted').textContent = ws ? '★'.repeat(ws) + '☆'.repeat(4 - ws) : ''; }
     if (army && army.boss.alive) { const bh = Math.round(army.boss.hp / cfg.boss.hp * 100) + '%'; if (hudCache.boss !== bh) { hudCache.boss = bh; $('bossHp').style.width = bh; } }
-    const mi = missions && missions.current, mk = mi ? mi.icon + mi.have + '/' + mi.n : '';
+    const mi = missions && !S.finished && missions.current, mk = mi ? mi.icon + mi.have + '/' + mi.n : '';
     if (hudCache.mission !== mk) {
       hudCache.mission = mk; $('mission').hidden = !mi || S.finished;
       if (mi) { $('miIco').textContent = mi.icon; $('miCount').textContent = mi.have + '/' + mi.n; $('miRw').textContent = missions.reward(mi); const el = $('mission'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
@@ -286,14 +286,21 @@ function startGame(mode) {
     if (m.tutorial && !missions.tutorial && !save.tutorialDone) { save.tutorialDone = true; persist(); }
     hudCache.mission = null; updateHud();
   }
+  /** Every car squash goes through here: points, combo, the car mission and the ice-cream secret. */
+  function squashCarsAt(x, z, r) {
+    for (const c of city.squashCars(x, z, r)) { carDown(c); mission('car'); hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
+  }
+  /** The current level of a "reach" mission event, so a new mission starts from where the player already is. */
+  function levelOf(ev) { return ev === 'grow' ? S.stage : ev === 'stars' ? (army ? army.stars : 0) : ev === 'combo' ? comboMult(S.combo, CB) : 0; }
   /** The secret: squash all three ice-cream trucks in one round for 15 s of Rainbow Mode (points x2, confetti). */
   function carDown(c) {
-    if (!c.icecream || S.finished) return;
-    S.trucks++;
+    if (!c.icecream || S.finished || S.rainbowUsed || S.truckSet.has(c)) return;
+    S.truckSet.add(c); S.trucks = S.truckSet.size;
     city.burstConfetti(c.x, 2, c.z, 14, [0xff9cc6, 0xfff0b3, 0xa8f0d8]);
-    if (S.trucks >= 3 && S.rainbowT <= 0) { S.rainbowT = 15; banner(T('rainbow'), 1.8); Sound.rainbow(); buzz('success'); bon.setRainbow(true); }
+    if (S.trucks >= 3) { S.rainbowUsed = true; S.rainbowT = 15; banner(T('rainbow'), 1.8); Sound.rainbow(); buzz('success'); bon.setRainbow(true); }
   }
-  const mission = (ev, n) => { if (missions && !S.finished && S.touched) { // the attract mode does not do the child's missions missions.on(ev, n); updateHud(); } };
+  // the attract mode (before the first touch) does not do the child's missions
+  const mission = (ev, n) => { if (missions && !S.finished && S.touched) { missions.on(ev, n); updateHud(); } };
   /** A bite only keeps the combo alive; a building down, a car squashed or a prop popped adds to it. */
   function hitCombo(counts = true) {
     S.comboT = CB.windowSec; if (!counts) return;
@@ -306,7 +313,7 @@ function startGame(mode) {
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success'); mission('grow', S.stage);
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
-    for (const c of city.squashCars(S.x, S.z, 4 * S.scaleTarget)) score(PT.car, c.x, 1, c.z, '');
+    squashCarsAt(S.x, S.z, 4 * S.scaleTarget);
     for (let k = 0; k < 10; k++) city.puff(S.x + Math.cos(k) * 3 * S.scaleTarget, 0.6, S.z + Math.sin(k) * 3 * S.scaleTarget, 2.2);
     const round = S;
     if (save.equipped === 'spin' && S.stage === (moveInfo(cfg, 'spin') || {}).stage) setTimeout(() => { if (S === round && !S.finished) { banner(T('newMove'), 1.6); refreshSkill(); } }, 900);
@@ -372,7 +379,7 @@ function startGame(mode) {
         const n = city.bite(h.b, biteP.set(h.px, Math.min(h.b.h - 0.5, 1.5 * S.scale), h.pz), Math.max(2, r * 0.55), dirV, 1.6);
         if (n) { hitCombo(false); score(n * PT.perVoxel, h.px, 2, h.pz); }
       }
-      for (const c of city.squashCars(x, z, r)) { carDown(c); mission('car'); hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); }
+      squashCarsAt(x, z, r);
       { const t = city.crushTrees(x, z, r); if (t) { mission('prop', t); hitCombo(); } }
       army.hitArea(x, z, r);
       const br = army.bossReach(); if (br && Math.hypot(br.x - x, br.z - z) < r + br.r) army.damageBoss(cfg.boss.skillDmg, 'skill');
@@ -383,7 +390,7 @@ function startGame(mode) {
       Sound.bite(3); buzz(shakeAmt > 0.2 ? 'thud' : 'tap');
     },
     /** Pulls toy units and cars in from r and knocks them out. */
-    pull(r) { army.hitArea(S.x, S.z, r); for (const c of city.squashCars(S.x, S.z, r)) { hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); } city.burstConfetti(S.x, 3, S.z, 14, [0xff5a4f, 0x3fa9ff]); },
+    pull(r) { army.hitArea(S.x, S.z, r); squashCarsAt(S.x, S.z, r); city.burstConfetti(S.x, 3, S.z, 14, [0xff5a4f, 0x3fa9ff]); },
   };
   function useSkill() {
     if (!S || S.finished || S.skillCd > 0 || S.jump || S.dizzyT > 0) return;
@@ -506,7 +513,7 @@ function startGame(mode) {
         if (S.attackT <= 0) { S.attackT = MC.attackSec; bon.stomp(1); bon.face('angry', 0.5); if (army.damageBoss(cfg.boss.hitDmg, 'hit')) { S.hitstopT = FX.hitstopSec; Sound.bite(4); buzz('tap'); } }
       }
     }
-    for (const c of city.squashCars(S.x, S.z, R * 0.9)) { carDown(c); mission('car'); hitCombo(); score(PT.car, c.x, 1, c.z, T('squash')); Sound.squash(); buzz('tap'); city.puff(c.x, 0.5, c.z, 1); }
+    squashCarsAt(S.x, S.z, R * 0.9);
     const t = city.crushTrees(S.x, S.z, R * 0.8); if (t) { mission('prop', t); hitCombo(); score(PT.tree * t, S.x, 1, S.z); Sound.pop(); }
   }
 
@@ -665,7 +672,7 @@ function startGame(mode) {
       if (S.touched) S.time += raw;
       steer(dt); if (!S.jump) contact(dt);
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
-      S.skillCd = Math.max(0, S.skillCd - raw); missions.update(raw);
+      S.skillCd = Math.max(0, S.skillCd - raw); if (missions.update(raw)) updateHud();
       if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0) bon.setRainbow(false); }
       S.jingleT -= raw; // an ice-cream truck nearby plays its tune now and then: a clue, never explained
       if (S.jingleT <= 0) { S.jingleT = 4; const t = city.iceTrucks().find((c) => Math.hypot(c.x - S.x, c.z - S.z) < 30 * Math.sqrt(S.scale)); if (t) Sound.jingle(); }
@@ -711,17 +718,20 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
-      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped;
+      const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped, tutorialBefore = save.tutorialDone;
       if (st) {
         Object.assign(save, st);
         save.coins = (st.coins || 0) + earned;
         if (best !== null) save.best = save.best === null ? best : Math.min(best, save.best);
         save.bestCombo = Math.max(combo, st.bestCombo || 0);
         if (picked) save.lang = picked;
+        save.tutorialDone = !!(st.tutorialDone || tutorialBefore);
         save.owned = [...new Set([...(Array.isArray(st.owned) ? st.owned : []), ...ownedBefore])]; if (equippedBefore !== 'spin') save.equipped = equippedBefore;
         if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }
+      // a player who did the tutorial before should not get it again just because the save arrived late
+      if (save.tutorialDone && missions && missions.tutorial && !S.touched) missions = createMissions(rng, true, missionDone, levelOf);
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length) persist();
     }).catch(() => { saveLoaded = true; });

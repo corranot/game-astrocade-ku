@@ -26,16 +26,20 @@ export const MISSIONS = {
  * Creates the mission tracker for one round. tutorialDone says whether the tutorial was finished before;
  * rng is the seeded random. onDone(mission) is called when one completes.
  */
-export function createMissions(rng, tutorialDone, onDone) {
+export function createMissions(rng, tutorialDone, onDone, levelOf = () => 0) {
   let step = tutorialDone ? -1 : 0, cur = null, waitT = 0, last = null;
+  // a "reach" mission already met (e.g. "grow to 2" when Bonbon is already 2) is skipped, never left stuck
+  const met = (m) => m.reach && levelOf(m.ev) >= m.n;
   function next() {
+    while (step >= 0 && step < MISSIONS.tutorial.length && met(MISSIONS.tutorial[step])) step++;
     if (step >= 0 && step < MISSIONS.tutorial.length) { cur = { ...MISSIONS.tutorial[step], tier: 0, tutorial: true, have: 0 }; return; }
     step = -1;
     let r = rng(), tier = 0;
     for (; tier < 2 && r > MISSIONS.odds[tier]; tier++) r -= MISSIONS.odds[tier];
-    const list = MISSIONS.tiers[tier].filter((m) => m !== last);
+    let list = MISSIONS.tiers[tier].filter((m) => m !== last && !met(m));
+    if (!list.length) list = MISSIONS.tiers[tier].filter((m) => !m.reach);
     const pick = list[Math.floor(rng() * list.length)];
-    last = pick; cur = { ...pick, tier, have: 0 };
+    last = pick; cur = { ...pick, tier, have: pick.reach ? levelOf(pick.ev) : 0 };
   }
   next();
   return {
@@ -52,6 +56,7 @@ export function createMissions(rng, tutorialDone, onDone) {
         waitT = 1.2; next(); onDone(done);
       }
     },
-    update(dt) { waitT = Math.max(0, waitT - dt); },
+    /** Returns true on the step the pause between missions ends (the card should show again). */
+    update(dt) { const was = waitT > 0; waitT = Math.max(0, waitT - dt); return was && waitT === 0; },
   };
 }

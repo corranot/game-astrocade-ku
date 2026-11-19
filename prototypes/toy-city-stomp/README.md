@@ -17,7 +17,9 @@ game (GDD and storyboard: artifact "Toy City Stomp", decisions K1–K6 all taken
   stars and an instant PLAY AGAIN, 7 languages with RTL for Arabic, sound made in code, save of coins and best time.
 - Toy army and wanted stars (army.js), the Wind-Up Robot boss (3 phases), Spirit (hits make Bonbon dizzy, never
   a game over), the shop with 10 moves (moves.js) on the result screen.
-- Not yet: missions, other cities, Rainbow Mode, edit-mode object editing (edit mode shows the city without gameplay).
+- Missions (missions.js: tutorial in the first round, then tiers 60/140/300), Rainbow Mode (three ice-cream trucks),
+  head turns and laughs, footprints, residents hop for joy, cracks before a fall, window glass sparkle.
+- Not yet: other cities, music and recorded sounds, title poster, edit-mode object editing.
 
 ## How to run
 
@@ -35,6 +37,7 @@ Artifact page: `node ../../tools/artifact-modules.js . <page.html>`, then publis
   cut), island, sea and sky props, flying and resting blocks, pancake and topple, cars, trees, lamps, residents, soft dust, confetti.
 - `army.js`: toy cars, foam tanks, bubble helicopters on the road grid, their shots, wanted stars, the boss.
 - `moves.js`: the nine button moves as short scripts, plus buy and ready rules.
+- `missions.js`: one mission at a time (icon and count), the tutorial order, tiers and rewards.
 - `bonbon.js`: the monster: head with jaw, claws, candy material (matte on low-end phones), ink outline, spring tail, squash and stretch, six faces.
 - `game_config.json`: every tunable value and the strings for 7 languages.
 

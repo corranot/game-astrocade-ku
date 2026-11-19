@@ -51,8 +51,8 @@ const server = http.createServer((q, s) => {
   const seen = { stage3: false, domino: false, grow1: null, dom1: null, units: 0, stars: 0, boss: false, bossShot: false, hurt: false, armyShot: false };
   const t0 = Date.now();
   while (Date.now() - t0 < 420000) {
-    const s = await g(() => ({ units: __game.army.units.length, stars: __game.army.stars, boss: __game.army.boss.alive, spirit: __game.S.spirit, stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
-    seen.units = Math.max(seen.units, s.units); seen.stars = Math.max(seen.stars, s.stars); if (s.spirit < 99) seen.hurt = true;
+    const s = await g(() => ({ cracked: __game.city.buildings.some((b) => b.cracked), units: __game.army.units.length, stars: __game.army.stars, boss: __game.army.boss.alive, spirit: __game.S.spirit, stage: __game.S.stage, fin: __game.S.finished, time: __game.S.time, left: __game.city.intactLeft(), dom: __game.S.chainShown, pts: __game.S.points }));
+    if (s.cracked) seen.cracked = true; seen.units = Math.max(seen.units, s.units); seen.stars = Math.max(seen.stars, s.stars); if (s.spirit < 99) seen.hurt = true;
     if (!seen.armyShot && s.units >= 3) { seen.armyShot = true; await page.screenshot({ path: path.join(out, `05-army-${lang}.png`) }); }
     if (s.boss) { seen.boss = true; if (!seen.bossShot) { seen.bossShot = true; await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, `06-boss-${lang}.png`) }); } }
     if (seen.grow1 === null && s.stage >= 2) seen.grow1 = s.time;
@@ -67,6 +67,7 @@ const server = http.createServer((q, s) => {
   check(end.stage >= 5, 'Bonbon grows to stage 5+ in one round (got ' + end.stage + ')');
   check(end.time > 60 && end.time < 300, 'autopilot round from the first touch (the shortest path; a child wanders) takes 60-300 game s: ' + end.time.toFixed(0) + ' s');
   check(seen.domino, 'at least one domino chain happens');
+  check(seen.cracked, 'badly hit buildings crack before they fall');
   check(seen.stars >= 2 && seen.units >= 2, `the toy army comes (most stars ${seen.stars}, most units at once ${seen.units})`);
   check(seen.hurt, 'army hits lower Spirit at least once');
   check(seen.boss && await g(() => __game.S.bossDone && !__game.army.boss.alive), 'the Wind-Up Robot appears, is beaten before the finish, and does not come back');
@@ -124,10 +125,20 @@ const server = http.createServer((q, s) => {
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(out, `09-rainbow-${lang}.png`) });
   }
-  // footprints and cracks exist after some play
+  // Rainbow Mode is once per round: squashing a truck again after it ends does not restart it
   {
-    const fx = await g(() => ({ cracked: __game.city.buildings.some((b) => b.cracked) }));
-    check(fx.cracked, 'a badly hit building cracks before it falls');
+    await g(() => { __game.S.rainbowT = 0.01; });
+    await page.waitForTimeout(1500); // trucks pop back after 5 game seconds (sped up here)
+    for (let k = 0; k < 3; k++) { await g(() => { const t = __game.city.iceTrucks()[0]; if (t) { __game.S.x = t.x; __game.S.z = t.z; } }); await page.waitForTimeout(250); }
+    const again = await g(() => __game.S.rainbowT);
+    check(again <= 0, `Rainbow Mode does not restart in the same round (${again.toFixed(1)} s)`);
+  }
+  // a tutorial "grow" step Bonbon already passed is skipped, not left stuck
+  {
+    const r = await g(() => { __game.save.tutorialDone = false; __game.newRound(); const S = __game.S; S.touched = true; S.idle = -999; __game.grow(); __game.missions.on('house', 3); const m = __game.missions; return { stage: S.stage, next: m.current ? m.current.icon : 'wait' }; });
+    await page.waitForFunction(() => __game.missions.current, null, { timeout: 8000 }).catch(() => {}); // after the short pause between missions
+    const nx = await g(() => __game.missions.current && __game.missions.current.icon);
+    check(r.stage >= 2 && nx === '🚗', `after houses, a grow-to-2 step already met is skipped (next: ${nx})`);
   }
   check(errors.length === 0, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
