@@ -185,3 +185,31 @@ export function front(ctx, grass, flower) {
   sticker(() => { tuft(ctx, 30, 22, grass); tuft(ctx, 200, 22, grass); tuft(ctx, 370, 22, grass); bloom(ctx, 112, 4, 13, flower); bloom(ctx, 292, 8, 12, ORANGE); });
   borderScale(was); ctx.restore();
 }
+
+/** Middle point of a path (mean of its points). */
+export function centroid(p) { let x = 0, y = 0; for (const q of p) { x += q[0]; y += q[1]; } return [x / p.length, y / p.length]; }
+
+/** Path p moved by (dx, dy) and scaled by k around (cx, cy). */
+export const moved = (p, cx, cy, k, dx = 0, dy = 0) => p.map((q) => [cx + (q[0] - cx) * k + dx, cy + (q[1] - cy) * k + dy]);
+
+/** Closed path through corner points, starting at the first one. */
+export const loop = (pts) => [...pts, pts[0]];
+
+// ---------- stickers: two sets of six, drawn at (x, y) with radius r ----------
+const eye = (ctx, x, y, r) => { ctx.fillStyle = NAVY; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); };
+export const STICKERS = [
+  // set 1: friends
+  (ctx, x, y, r) => { sticker(() => { blob(ctx, x, y + r * 0.1, r * 0.8, r * 0.75, SUNNY); shape(ctx, [[x + r * 0.5, y], [x + r * 0.95, y + r * 0.15], [x + r * 0.5, y + r * 0.3]], ORANGE); stick(ctx, [[x, y - r * 0.62], [x - r * 0.15, y - r * 0.9]], r * 0.14, SUNNY); }); face(ctx, x, y, r * 0.6, 'happy', 1, null); },
+  (ctx, x, y, r) => { sticker(() => { stick(ctx, [[x - r * 0.9, y + r * 0.6], [x + r * 0.6, y + r * 0.6], [x + r * 0.7, y]], r * 0.34, CORAL); blob(ctx, x - r * 0.15, y + r * 0.05, r * 0.6, r * 0.6, VIOLET); }); face(ctx, x + r * 0.7, y - r * 0.05, r * 0.4, 'happy', 1, null); },
+  (ctx, x, y, r) => { sticker(() => { shape(ctx, [[x + r * 0.5, y], [x + r * 0.95, y - r * 0.4], [x + r * 0.95, y + r * 0.4]], ORANGE); blob(ctx, x - r * 0.1, y, r * 0.7, r * 0.5, SKY); }); eye(ctx, x - r * 0.4, y - r * 0.1, r * 0.1); },
+  (ctx, x, y, r) => { sticker(() => { blob(ctx, x - r * 0.4, y - r * 0.45, r * 0.28, r * 0.28, MINT); blob(ctx, x + r * 0.4, y - r * 0.45, r * 0.28, r * 0.28, MINT); blob(ctx, x, y + r * 0.1, r * 0.85, r * 0.6, MINT); }); eye(ctx, x - r * 0.4, y - r * 0.45, r * 0.12); eye(ctx, x + r * 0.4, y - r * 0.45, r * 0.12); ctx.strokeStyle = NAVY; ctx.lineWidth = r * 0.08; ctx.beginPath(); ctx.arc(x, y + r * 0.05, r * 0.4, 0.3, Math.PI - 0.3); ctx.stroke(); },
+  (ctx, x, y, r) => { sticker(() => { blob(ctx, x - r * 0.3, y - r * 0.6, r * 0.18, r * 0.42, WHITE); blob(ctx, x + r * 0.3, y - r * 0.6, r * 0.18, r * 0.42, WHITE); blob(ctx, x, y + r * 0.15, r * 0.65, r * 0.6, WHITE); }); ctx.fillStyle = BLUSH; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + s * r * 0.3, y - r * 0.6, r * 0.08, r * 0.28, 0, 0, TAU); ctx.fill(); } face(ctx, x, y + r * 0.1, r * 0.5, 'happy', 1, null); },
+  (ctx, x, y, r) => { sticker(() => { shape(ctx, [[x - r * 0.7, y - r * 0.1], [x - r * 0.6, y - r * 0.85], [x - r * 0.15, y - r * 0.5]], ORANGE); shape(ctx, [[x + r * 0.7, y - r * 0.1], [x + r * 0.6, y - r * 0.85], [x + r * 0.15, y - r * 0.5]], ORANGE); blob(ctx, x, y + r * 0.05, r * 0.75, r * 0.62, ORANGE); }); face(ctx, x, y, r * 0.55, 'happy', 1, null); },
+  // set 2: treats
+  (ctx, x, y, r) => { sticker(() => { blob(ctx, x, y + r * 0.1, r * 0.7, r * 0.8, CORAL); shape(ctx, [[x - r * 0.4, y - r * 0.6], [x, y - r * 1], [x + r * 0.4, y - r * 0.6]], GRASS); }); ctx.fillStyle = '#FFF0B3'; for (const [a, b] of [[-0.3, 0], [0.3, 0.1], [0, 0.4], [-0.25, 0.55], [0.3, 0.6]]) { ctx.beginPath(); ctx.ellipse(x + a * r, y + b * r, r * 0.05, r * 0.08, 0, 0, TAU); ctx.fill(); } },
+  (ctx, x, y, r) => { sticker(() => { blob(ctx, x, y, r * 0.9, r * 0.8, ORANGE); blob(ctx, x, y - r * 0.05, r * 0.78, r * 0.66, BLUSH); }); ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.ellipse(x, y, r * 0.26, r * 0.22, 0, 0, TAU); ctx.fill(); ctx.lineCap = 'round'; ctx.lineWidth = r * 0.08; [SKY, SUNNY, WHITE, MINT].forEach((c, i) => { const a = i * 1.6 + 0.4; ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r * 0.45, y + Math.sin(a) * r * 0.4); ctx.lineTo(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.5); ctx.stroke(); }); },
+  (ctx, x, y, r) => { sticker(() => { shape(ctx, [[x - r * 0.45, y], [x + r * 0.45, y], [x, y + r * 0.95]], ORANGE); blob(ctx, x, y - r * 0.15, r * 0.55, r * 0.45, BLUSH); blob(ctx, x, y - r * 0.6, r * 0.38, r * 0.32, SKY); }); },
+  (ctx, x, y, r) => { sticker(() => { stick(ctx, [[x, y + r * 0.2], [x, y + r * 0.95]], r * 0.16, WHITE); blob(ctx, x, y - r * 0.25, r * 0.6, r * 0.6, VIOLET); }); ctx.strokeStyle = '#C9B6FF'; ctx.lineWidth = r * 0.12; ctx.beginPath(); ctx.arc(x, y - r * 0.25, r * 0.32, 0, 4.5); ctx.stroke(); },
+  (ctx, x, y, r) => { sticker(() => { box(ctx, x - r * 0.65, y - r * 0.1, r * 1.3, r * 0.8, r * 0.15, BLUSH); box(ctx, x - r * 0.7, y - r * 0.3, r * 1.4, r * 0.3, r * 0.15, WHITE); blob(ctx, x, y - r * 0.55, r * 0.2, r * 0.2, CORAL); }); },
+  (ctx, x, y, r) => { sticker(() => star(ctx, x, y, r * 0.9, SUNNY)); face(ctx, x, y + r * 0.05, r * 0.45, 'happy', 1, null); },
+];
