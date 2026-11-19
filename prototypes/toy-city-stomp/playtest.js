@@ -103,6 +103,32 @@ const server = http.createServer((q, s) => {
     const r2 = await g(() => ({ pts: __game.S.points, air: !!__game.S.jump }));
     check(r.cd > 0 && r2.pts > r.p0 && !r2.air, `move ${id}: used, landed, +${r2.pts - r.p0} points`);
   }
+  // missions: a fresh player gets the tutorial, starting with houses, and finishing missions pays coins
+  {
+    const m0 = await g(() => { __game.save.tutorialDone = false; __game.newRound(); const m = __game.missions.current; return { icon: m && m.icon, tut: __game.missions.tutorial }; });
+    check(m0.icon === '🏠' && m0.tut, `the first mission of a new player is the tutorial's houses (${m0.icon})`);
+    await g(() => { __game.S.touched = true; __game.S.idle = 99; });
+    await page.waitForFunction(() => __game.S.bonusCoins > 0, null, { timeout: 60000 }).catch(() => {});
+    const m1 = await g(() => ({ bonus: __game.S.bonusCoins, cur: __game.missions.current && __game.missions.current.icon }));
+    check(m1.bonus >= 60, `a finished mission pays coins (+${m1.bonus}), next one ${m1.cur}`);
+    await page.screenshot({ path: path.join(out, `08-mission-${lang}.png`) });
+  }
+  // Rainbow Mode: squash the three ice-cream trucks
+  {
+    for (let k = 0; k < 3; k++) {
+      await g(() => { const t = __game.city.iceTrucks()[0]; if (t) { __game.S.x = t.x; __game.S.z = t.z; } });
+      await page.waitForTimeout(300);
+    }
+    const rb = await g(() => ({ t: __game.S.rainbowT, trucks: __game.S.trucks }));
+    check(rb.trucks >= 3 && rb.t > 0, `three ice-cream trucks squashed start Rainbow Mode (${rb.trucks} trucks, ${rb.t.toFixed(1)} s left)`);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: path.join(out, `09-rainbow-${lang}.png`) });
+  }
+  // footprints and cracks exist after some play
+  {
+    const fx = await g(() => ({ cracked: __game.city.buildings.some((b) => b.cracked) }));
+    check(fx.cracked, 'a badly hit building cracks before it falls');
+  }
   check(errors.length === 0, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
