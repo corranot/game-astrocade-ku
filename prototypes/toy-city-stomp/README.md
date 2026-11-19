@@ -31,8 +31,8 @@ Artifact page: `node ../../tools/artifact-modules.js . <page.html>`, then publis
 - `index.html`: the HUD's CSS and `#app`; loads `game.js`.
 - `game.js`: `run(mode)`, renderer and camera, input, rules (bite, grow, combo, sweep, finish), HUD, sound, languages, save.
 - `city.js`: the city: one InstancedMesh for every block (toy-plastic shader with bevel edges and the see-through
-  cut), flying and resting blocks, pancake and topple, cars, trees, residents, dust, confetti.
-- `bonbon.js`: the monster: toon shading with ink outline, spring tail, squash and stretch, six faces.
+  cut), island, sea and sky props, flying and resting blocks, pancake and topple, cars, trees, lamps, residents, soft dust, confetti.
+- `bonbon.js`: the monster: head with jaw, claws, candy material (matte on low-end phones), ink outline, spring tail, squash and stretch, six faces.
 - `game_config.json`: every tunable value and the strings for 7 languages.
 
 ## Status and findings
