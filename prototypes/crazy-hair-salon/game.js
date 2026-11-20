@@ -15,14 +15,15 @@
  * Arabic right to left; the globe on the wall changes it). Tunable numbers live in game_config.json.
  */
 import { W, H, NAVY, WHITE, CORAL, SUNNY, MINT, SKY, VIOLET, ORANGE, SHADOW, rr, box, oval, star, drawSalon, drawChair, drawBody, drawHead, drawEars, CUSTOMERS, CUSTOMER_TYPES, ACCESSORIES, drawAcc, icon, pot, hand } from './art.js';
+import { loadSprites, ready, settled, drawBust, drawAccSprite, drawToolSprite, drawRoom } from './sprites.js';
 import { rng, COLORS, FREE_COLORS, colorOf, createHair, placeHair, stepHair, cutHair, trimToY, fillUnpainted, foamAt, paintAt, count, rinse, drawHair, encodeHair, hairFromCode } from './hair.js';
 
 const DEBUG = location.search.includes('local');
 const STEPS = ['wash', 'cut', 'dye', 'dry', 'deco'], STEP_ICONS = ['foam', 'scissors', 'brush', 'dryer', 'bow'];
-const HEAD = { x: 360, y: 560, R: 150 }, FIX = 1 / 60, BROWN = 10, FREE_ACC = 5, MAX_PIECES = 40;
+const HEAD = { x: 360, y: 600, R: 200 }, FIX = 1 / 60, BROWN = 10, FREE_ACC = 5, MAX_PIECES = 40;
 const MUTE = { x: 612, y: 22, s: 92 }, WALLB = { x: 506, y: 22, s: 92 }, CHECK = { x: 566, y: 724, s: 112 };
 const NEXT = { x: 290, y: 930, s: 140 }, BACK = { x: 300, y: 950, s: 120 }, LANGB = { x: 600, y: 30, s: 92 };
-const ORDER = { x: 528, y: 214, w: 172, h: 206 }, TRAY_Y = 856, CELL = { x: 30, y: 152, w: 216, h: 250, dx: 226, dy: 258 };
+const ORDER = { x: 560, y: 204, w: 142, h: 176 }, TRAY_Y = 856, CELL = { x: 30, y: 152, w: 216, h: 250, dx: 226, dy: 258 };
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const FONT = "system-ui, 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Bengali', sans-serif";
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, '#FF8FC7'];
@@ -32,7 +33,7 @@ let cv, g, cfg, mode, raf = 0, last = 0, acc = 0, runs = 0;
 let save = { n: 0, coins: 0, stars: 0, colors: [], acc: [], wall: [], fresh: null, muted: false, lang: null }, saveRead = false, merged = false, muteTouched = false;
 let view = 'play', S = null, lang = 'en', parts = [], back = null, photos = [], wallSel = -1, wallT = 0;
 let pen = null, penId = null, touched = false, bound = false, coinShown = 0, coinPulse = 0, shakeId = null, shakeT = 0, gain = null;
-let quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1; // RES: canvas pixels per game pixel, lowered on slow phones
+let quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, roomDrawn = false, bootT = 0; // RES: canvas pixels per game pixel, lowered on slow phones
 let ac = null, noiseBuf = null, dryNode = null, dryOn = false;
 const throttle = {};
 const every = (key, ms) => { const t = performance.now(); if (t - (throttle[key] || 0) < ms) return false; throttle[key] = t; return true; };
@@ -367,6 +368,7 @@ function sim(dt) {
 }
 
 function update(dt) {
+  bootT += dt; if (booting()) return;
   coinPulse = Math.max(0, coinPulse - dt); shakeT = Math.max(0, shakeT - dt);
   coinShown += (save.coins - coinShown) * Math.min(1, dt * 6); if (Math.abs(save.coins - coinShown) < 0.5) coinShown = save.coins;
   if (view === 'wall') { wallT += dt; moveParts(dt); return; }
@@ -405,14 +407,24 @@ function dashed(pts, color) {
 }
 
 function drawCustomer(s, c) {
-  drawChair(g, s.head.x, HEAD.y - 260, false);
-  drawBody(g, c); drawChair(g, s.head.x, HEAD.y - 260, true); drawHead(g, c);
+  if (!drawBust(g, s.order.type, c.mood, s.head.x, s.head.y, s.head.R)) { // the code stand-in while the painting loads
+    drawChair(g, s.head.x, HEAD.y - 260, false);
+    drawBody(g, c); drawChair(g, s.head.x, HEAD.y - 260, true); drawHead(g, c);
+  }
   drawHair(g, s.hair, s.head, quality < 2);
   drawEars(g, c);
-  for (const p of s.placed) { const [x, y, rot] = accPos(p.slot), age = s.t - p.t, k = age < 0.3 ? 0.5 + ease(age / 0.3) * 0.5 + Math.sin(age / 0.3 * Math.PI) * 0.2 : 1; drawAcc(g, p.id, x, y, 92 * k, rot); }
+  for (const p of s.placed) { const [x, y, rot] = accPos(p.slot), age = s.t - p.t, k = age < 0.3 ? 0.5 + ease(age / 0.3) * 0.5 + Math.sin(age / 0.3 * Math.PI) * 0.2 : 1; if (!drawAccSprite(g, p.id, x, y, 112 * k, rot)) drawAcc(g, p.id, x, y, 92 * k, rot); }
 }
 
+/** True while the room and this child are still on their way (never longer than 2.5 s). */
+const booting = () => bootT < 2.5 && !settled() && !(ready('salon_bg') && ready('kid_' + S.order.type));
+function drawLoading() {
+  g.setTransform(RES, 0, 0, RES, 0, 0); g.fillStyle = '#F3E8FF'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 3; i++) { const k = (Math.sin(bootT * 6 - i * 0.9) + 1) / 2; oval(g, 300 + i * 60, 640 - k * 30, 18, 18, CONFETTI[i]); }
+}
 function draw() {
+  if (!roomDrawn && ready('salon_bg')) { roomDrawn = drawRoom(back.getContext('2d'), W, H); photos = []; }
+  if (booting()) return drawLoading();
   if (view === 'wall') return drawWall();
   const s = S, c = { type: s.order.type, x: s.head.x, y: s.head.y, R: s.head.R, t: s.t, mood: moodOf(), blink: s.t % 3.7 < 0.12 ? 1 : 0, look: null };
   const ha = handShown() ? handAt() : null;
@@ -429,14 +441,18 @@ function draw() {
   if (!trayShown() && s.step < 4 && s.enter === 0) drawToolBadge();
   if (trayShown()) drawTray();
   if (checkShown()) drawCheck();
-  drawHud(); drawSteps(); drawOrder(); drawPrompt();
+  drawHud(); if (s.step < 5) drawSteps(); drawOrder(); drawPrompt();
   if (ha) hand(g, ha[0], ha[1], ha[2] && Math.sin(s.stepT * 10) > -0.3);
   if (s.step === 5) drawReveal();
 }
 
 /** The tool under the finger: shampoo, scissors (snapping), the brush in the chosen dye, the dryer. */
 function drawTool(x, y) {
-  const k = STEP_ICONS[S.step];
+  const k = STEP_ICONS[S.step], snap = Math.sin(S.t * 30) * 0.12;
+  if (S.step === 1 && drawToolSprite(g, 'scissors', x + 26, y - 30, 130, -0.5 + snap)) return;
+  if (S.step === 2 && drawToolSprite(g, 'brush', x + 34, y - 52, 120, 0.2)) { oval(g, x + 6, y - 14, 16, 12, colorOf(S.sel, 3)); return; }
+  if (S.step === 3 && drawToolSprite(g, 'dryer', x - 96, y + 84, 140, -0.75)) return;
+  if (S.step === 0 && drawToolSprite(g, 'foam', x + 34, y - 44, 110, 0.3)) return;
   if (S.step === 1) icon(g, 'scissors', x + 20, y - 30, 120, (Math.sin(S.t * 30) + 1) / 2);
   else if (S.step === 2) icon(g, 'brush', x + 16, y - 46, 110, colorOf(S.sel, 3));
   else if (S.step === 3) { g.save(); g.translate(x - 96, y + 84); g.rotate(-0.75); icon(g, 'dryer', 0, 0, 130); g.restore(); }
@@ -446,7 +462,7 @@ function drawTool(x, y) {
 function drawToolBadge() {
   const pulse = 1 + Math.sin(S.t * 4) * 0.04;
   oval(g, 360, 986, 66 * pulse, 66 * pulse, SHADOW); oval(g, 360, 980, 62 * pulse, 62 * pulse, WHITE, 5);
-  icon(g, STEP_ICONS[S.step], 360, 980, 92, S.step === 2 ? colorOf(S.sel, 3) : 0);
+  if (!drawToolSprite(g, STEP_ICONS[S.step], 360, 980, 96)) icon(g, STEP_ICONS[S.step], 360, 980, 92, S.step === 2 ? colorOf(S.sel, 3) : 0);
 }
 function drawTray() {
   box(g, 14, TRAY_Y + 6, W - 28, 216, 36, SHADOW); box(g, 14, TRAY_Y, W - 28, 216, 36, WHITE);
@@ -457,7 +473,7 @@ function drawTray() {
     const sel = it.k === 'col' && it.id === S.sel && !it.locked, want = it.k === 'col' ? S.order.cols.includes(it.id) : it.id === S.order.acc;
     if (sel) { oval(g, x, y, 54, 54, '#FFF3B0'); g.lineWidth = 6; g.strokeStyle = ORANGE; g.stroke(); }
     g.globalAlpha = it.locked ? 0.55 : 1;
-    if (it.k === 'col') pot(g, COLORS[it.id], x, y + 4, 92, it.id === 16); else drawAcc(g, it.id, x, y, 84, 0);
+    if (it.k === 'col') pot(g, COLORS[it.id], x, y + 4, 92, it.id === 16); else if (!drawAccSprite(g, it.id, x, y, 92, 0)) drawAcc(g, it.id, x, y, 84, 0);
     g.globalAlpha = 1;
     if (want && !it.locked) star(g, x + 36, y - 36, 15, SUNNY, 3);
     if (it.locked) { icon(g, 'lock', x + 30, y - 26, 44); box(g, x - 38, y + 30, 76, 30, 15, save.coins >= p ? MINT : NAVY); icon(g, 'coin', x - 20, y + 45, 24); words(String(p), x + 10, y + 46, 22, 46, WHITE); }
@@ -475,17 +491,18 @@ function pill(x, y, w, kind, value, pop = 0) {
 }
 function disc(b, kind) { const r = b.s / 2; oval(g, b.x + r, b.y + r + 5, r, r, SHADOW); oval(g, b.x + r, b.y + r, r, r, WHITE, 4); icon(g, kind, b.x + r, b.y + r, b.s * 0.8); }
 function drawHud() {
-  pill(22, 22, 210, 'coin', Math.round(coinShown), Math.sin(coinPulse * 12) * coinPulse);
-  pill(246, 22, 170, 'star', save.stars);
+  pill(22, 22, 190, 'coin', Math.round(coinShown), Math.sin(coinPulse * 12) * coinPulse);
   disc(WALLB, 'wall'); disc(MUTE, save.muted ? 'mute' : 'sound');
   if (save.wall.length) { oval(g, WALLB.x + 80, WALLB.y + 14, 18, 18, CORAL, 3); words(String(save.wall.length), WALLB.x + 80, WALLB.y + 15, 20, 30, WHITE); }
 }
 function drawSteps() {
   for (let i = 0; i < 5; i++) {
-    const x = 152 + i * 104, y = 166, cur = i === S.step, done = i < S.step, pop = cur && S.done >= 0 ? popIn(S.t - S.done) : 1, r = 40 * (cur ? 1.12 * pop : 1);
+    const x = 208 + i * 76, y = 160, cur = i === S.step, done = i < S.step, pop = cur && S.done >= 0 ? popIn(S.t - S.done) : 1, r = 31 * (cur ? 1.15 * pop : 1);
     oval(g, x, y + 5, r, r, SHADOW); oval(g, x, y, r, r, done ? MINT : cur ? WHITE : '#E9F1FF', 4);
     if (cur && S.step < 5) { g.beginPath(); g.arc(x, y, r + 1, -Math.PI / 2, -Math.PI / 2 + progress() * Math.PI * 2); g.lineWidth = 9; g.strokeStyle = ORANGE; g.lineCap = 'round'; g.stroke(); }
-    g.globalAlpha = done || cur ? 1 : 0.5; icon(g, done ? 'check' : STEP_ICONS[i], x, y, done ? 56 : cur ? 66 : 56, i === 2 ? colorOf(S.order.cols[0], 3) : 0); g.globalAlpha = 1;
+    g.globalAlpha = done || cur ? 1 : 0.55;
+    if (done) icon(g, 'check', x, y, 44); else if (!(i === 4 ? drawAccSprite(g, 'bow', x, y, r * 1.4) : drawToolSprite(g, STEP_ICONS[i], x, y, r * 1.5))) icon(g, STEP_ICONS[i], x, y, cur ? 52 : 44, i === 2 ? colorOf(S.order.cols[0], 3) : 0);
+    g.globalAlpha = 1;
   }
 }
 /** The order card: a little picture of the wanted hair (length, colours) and accessory. */
@@ -493,19 +510,19 @@ function drawOrder() {
   const { x, y, w, h } = ORDER, o = S.order, k = CUSTOMERS[o.type], wob = S.step === 0 && !S.used ? Math.sin(S.t * 5) * 0.04 : 0;
   g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(wob); g.translate(-x - w / 2, -y - h / 2);
   box(g, x, y + 7, w, h, 24, SHADOW); box(g, x, y, w, h, 24, WHITE); rr(g, x, y, w, h, 24); g.lineWidth = 5; g.strokeStyle = NAVY; g.stroke();
-  const cx = x + w / 2, cy = y + 86, fall = 26 + o.cut * 24;
+  const cx = x + w / 2, cy = y + 74, fall = 22 + o.cut * 18;
   for (const sd of [-1, 1]) { // the two falls of hair, top colour then bottom colour
-    rr(g, cx + sd * 40 - 15, cy - 20, 30, fall, 14); g.fillStyle = colorOf(o.cols[0], 2); g.fill(); g.lineWidth = 3; g.strokeStyle = NAVY; g.stroke();
-    if (o.cols.length > 1) { rr(g, cx + sd * 40 - 15, cy - 20 + fall / 2, 30, fall / 2, 14); g.fillStyle = colorOf(o.cols[1], 12); g.fill(); g.stroke(); }
+    rr(g, cx + sd * 33 - 13, cy - 16, 26, fall, 12); g.fillStyle = colorOf(o.cols[0], 2); g.fill(); g.lineWidth = 3; g.strokeStyle = NAVY; g.stroke();
+    if (o.cols.length > 1) { rr(g, cx + sd * 33 - 13, cy - 16 + fall / 2, 26, fall / 2, 12); g.fillStyle = colorOf(o.cols[1], 12); g.fill(); g.stroke(); }
   }
-  oval(g, cx, cy, 36, 35, k.fur, 4);
-  g.beginPath(); g.arc(cx, cy, 34, Math.PI + 0.25, -0.25); g.lineWidth = 18; g.strokeStyle = colorOf(o.cols[0], 1); g.stroke();
-  oval(g, cx - 12, cy + 6, 5, 6, NAVY); oval(g, cx + 12, cy + 6, 5, 6, NAVY);
-  g.beginPath(); g.arc(cx, cy + 12, 10, 0.2, Math.PI - 0.2); g.lineWidth = 3; g.strokeStyle = NAVY; g.stroke();
-  drawAcc(g, o.acc, cx + 30, cy - 38, 50, 0.3);
+  g.save(); rr(g, x + 4, y + 4, w - 8, h - 8, 20); g.clip();
+  if (!drawBust(g, o.type, 'happy', cx, cy, 30)) { oval(g, cx, cy, 30, 29, k.fur, 4); oval(g, cx - 10, cy + 5, 4, 5, NAVY); oval(g, cx + 10, cy + 5, 4, 5, NAVY); }
+  g.restore();
+  g.beginPath(); g.arc(cx, cy, 29, Math.PI + 0.25, -0.25); g.lineWidth = 16; g.strokeStyle = colorOf(o.cols[0], 1); g.stroke();
+  if (!drawAccSprite(g, o.acc, cx + 28, cy - 34, 46, 0.3)) drawAcc(g, o.acc, cx + 28, cy - 34, 42, 0.3);
   // the length: scissors beside a marker at the length line
-  icon(g, 'scissors', x + 34, y + h - 34, 44, 0.5);
-  for (let i = 0; i < 3; i++) { const on = i <= o.cut; box(g, x + 66 + i * 30, y + h - 46 + (2 - i) * 6, 22, 24 - (2 - i) * 6 + 6, 5, on ? ORANGE : '#E0E6F5'); }
+  if (!drawToolSprite(g, 'scissors', x + 30, y + h - 30, 40, -0.5)) icon(g, 'scissors', x + 30, y + h - 30, 40, 0.5);
+  for (let i = 0; i < 3; i++) { const on = i <= o.cut; box(g, x + 58 + i * 26, y + h - 42 + (2 - i) * 6, 19, 24 - (2 - i) * 6 + 6, 5, on ? ORANGE : '#E0E6F5'); }
   g.restore();
 }
 function drawPrompt() {
@@ -515,13 +532,13 @@ function drawPrompt() {
   if (S.step === 5) { key = 'p' + S.stars; color = ORANGE; }
   if (S.enter > 0.1) return;
   const age = S.step === 5 ? S.reveal : S.eek > 0 ? 0.9 - S.eek : S.stepT;
-  banner(T(key), S.step === 5 ? 360 : 268, 268, S.step === 5 ? 52 : 42, S.step === 5 ? 600 : 420, color, popIn(age));
+  banner(T(key), S.step === 5 ? 360 : 268, S.step === 5 ? 168 : 268, S.step === 5 ? 52 : 42, S.step === 5 ? 600 : 420, color, popIn(age));
 }
 function drawReveal() {
   const t = S.reveal;
   if (t < 0.2) { g.fillStyle = `rgba(255,255,255,${1 - t / 0.2})`; g.fillRect(0, 0, W, H); }
   for (let i = 0; i < 3; i++) {
-    const at = 0.45 + i * 0.28, age = t - at, x = 240 + i * 120, y = 830 - (i === 1 ? 18 : 0);
+    const at = 0.45 + i * 0.28, age = t - at, x = 240 + i * 120, y = 330 - (i === 1 ? 18 : 0);
     if (age < 0) continue;
     if (i < S.stars && !(S.rang & (1 << i))) { S.rang = (S.rang || 0) | (1 << i); SFX.star(i); }
     const k = popIn(age) * (i === 1 ? 1.2 : 1);
@@ -540,11 +557,12 @@ function drawReveal() {
 function photo(ph) {
   const c = document.createElement('canvas'); c.width = CELL.w; c.height = CELL.h; const q = c.getContext('2d');
   const gr = q.createLinearGradient(0, 0, 0, CELL.h); gr.addColorStop(0, '#FFF3F8'); gr.addColorStop(1, '#E6F7FF'); q.fillStyle = gr; q.fillRect(0, 0, CELL.w, CELL.h);
-  const k = 0.42; q.save(); q.translate(CELL.w / 2, 96); q.scale(k, k); q.translate(-HEAD.x, -HEAD.y);
+  const k = 0.36; q.save(); q.translate(CELL.w / 2, 92); q.scale(k, k); q.translate(-HEAD.x, -HEAD.y);
   const hair = hairFromCode(ph.h, HEAD.R, { points: cfg.points, seg: cfg.seg, minLen: cfg.minLen, maxLen: cfg.maxLen, seed: 5, stiff: cfg.stiffDry }, HEAD.x, HEAD.y);
   const cu = { type: ph.t, x: HEAD.x, y: HEAD.y, R: HEAD.R, t: 0, mood: ph.s === 3 ? 'wow' : 'giggle', blink: 0, look: [HEAD.x, HEAD.y + 200] };
-  drawBody(q, cu); drawHead(q, cu); drawHair(q, hair, { x: HEAD.x, y: HEAD.y, R: HEAD.R }, true); drawEars(q, cu);
-  ph.a.forEach((id, slot) => { if (!id) return; const a = [-Math.PI / 2, -Math.PI / 2 - 0.66, -Math.PI / 2 + 0.66][slot], r = HEAD.R + 22; drawAcc(q, id, HEAD.x + Math.cos(a) * r, HEAD.y + Math.sin(a) * r, 92, (a + Math.PI / 2) * 0.8); });
+  if (!drawBust(q, ph.t, cu.mood, HEAD.x, HEAD.y, HEAD.R)) { drawBody(q, cu); drawHead(q, cu); }
+  drawHair(q, hair, { x: HEAD.x, y: HEAD.y, R: HEAD.R }, true);
+  ph.a.forEach((id, slot) => { if (!id) return; const a = [-Math.PI / 2, -Math.PI / 2 - 0.66, -Math.PI / 2 + 0.66][slot], r = HEAD.R + 22, x = HEAD.x + Math.cos(a) * r, y = HEAD.y + Math.sin(a) * r, rot = (a + Math.PI / 2) * 0.8; if (!drawAccSprite(q, id, x, y, 112, rot)) drawAcc(q, id, x, y, 92, rot); });
   q.restore();
   for (let i = 0; i < 3; i++) star(q, CELL.w / 2 - 44 + i * 44, CELL.h - 26, 17, i < ph.s ? SUNNY : '#E0E6F5', 3);
   return c;
@@ -623,7 +641,8 @@ function run(m) {
   cv = document.getElementById('game') || document.body.appendChild(Object.assign(document.createElement('canvas'), { id: 'game' }));
   cv.width = Math.round(W * RES); cv.height = Math.round(H * RES); cv.style.touchAction = 'none';
   g = cv.getContext('2d', { alpha: false });
-  if (!back) { back = document.createElement('canvas'); back.width = W; back.height = H; const keep = g; g = back.getContext('2d'); drawSalon(g); g = keep; }
+  if (!back) { back = document.createElement('canvas'); back.width = W; back.height = H; drawSalon(back.getContext('2d')); }
+  loadSprites(cfg.sprites); bootT = 0;
   const slider = (key, min, max, step) => ({ key, type: 'slider', min, max, step });
   try {
     lib.showGameParameters({
@@ -655,11 +674,11 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   const read = window.__slowSave ? () => new Promise((r) => { window.__resolveSave = r; }) : none; // a test can hold the first read back
-  window.lib = { showGameParameters() {}, log() {}, getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
+  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
   window.__game = {
     get S() { return S; }, get save() { return save; }, set save(v) { save = v; }, get view() { return view; }, get cfg() { return cfg; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; },
     get quality() { return quality; }, set quality(q) { quality = q; }, get photos() { return photos.length; }, get parts() { return parts.length; }, get pen() { return pen; },
-    T, detectLang, applySave, newCustomer, finishStep, reveal, trayItems, pageItems, slotXY, accPos, guide, progress, scoreOf, washShare, cutShare, dyeShare, handAt, handShown, price,
+    booting, T, detectLang, applySave, newCustomer, finishStep, reveal, trayItems, pageItems, slotXY, accPos, guide, progress, scoreOf, washShare, cutShare, dyeShare, handAt, handShown, price,
     MUTE, WALLB, CHECK, NEXT, BACK, LANGB, ORDER, TRAY_Y, cellAt, CELL, COLORS, ACCESSORIES, wantedAt: (s, i) => wanted(s, i),
   };
   const q = new URLSearchParams(location.search);
