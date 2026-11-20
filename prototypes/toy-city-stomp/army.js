@@ -13,7 +13,7 @@ const UNITS = 12, SHOTS = 24;
  * Creates the army for one round. ctx functions come from game.js: puff, confetti (city effects).
  * Returns { update(dt, bon), heat(points), stars, units, boss, hitArea, hitBoss, events, dispose }.
  */
-export function createArmy(scene, cfg, rng, quality, city) {
+export function createArmy(scene, cfg, rng, quality, city, opts = {}) {
   const A = cfg.army, B = cfg.boss;
   const group = new THREE.Group(); scene.add(group);
   const disposables = [];
@@ -50,18 +50,38 @@ export function createArmy(scene, cfg, rng, quality, city) {
     const m = new THREE.Mesh(keep(geo), std(c, 0.25)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
     const hull = new THREE.Mesh(geo, inkMat); hull.scale.setScalar(1.012); m.add(hull); return m;
   };
-  const bTorso = bpart(new THREE.BoxGeometry(3.2, 3.2, 2.4), 0xb8c2d6, 0, 4.6, 0);
-  bpart(new THREE.BoxGeometry(2.2, 1.7, 2.0), 0xd5dbe8, 0, 7.0, 0);
+  // each city has its own robot: colours and a topper from game_config.themes[].boss (the Wind-Up Robot by default)
+  const hx = (v, d) => { const n = parseInt(String(v === undefined ? '' : v).replace('#', '').replace(/^0x/, ''), 16); return Number.isFinite(n) ? n : d; };
+  const BC = opts.boss || {}, P = { body: hx(BC.body, 0xb8c2d6), head: hx(BC.head, 0xd5dbe8), limb: hx(BC.limb, 0x8e99b0), accent: hx(BC.accent, 0xffc531), eye: hx(BC.eye, 0xff5a4f), fist: hx(BC.fist, 0xff5a4f), dark: 0x24123f };
+  const bTorso = bpart(new THREE.BoxGeometry(3.2, 3.2, 2.4), P.body, 0, 4.6, 0);
+  bpart(new THREE.BoxGeometry(2.2, 1.7, 2.0), P.head, 0, 7.0, 0);
   const eyesG = new THREE.Group(); eyesG.position.set(0, 7.1, 1.02); bossG.add(eyesG);
-  const eyeMat = keep(new THREE.MeshBasicMaterial({ color: 0xff5a4f }));
+  const eyeMat = keep(new THREE.MeshBasicMaterial({ color: P.eye }));
   for (const sx of [-0.5, 0.5]) { const m = new THREE.Mesh(keep(new THREE.BoxGeometry(0.42, 0.32, 0.05)), eyeMat); m.position.x = sx; eyesG.add(m); }
   bpart(new THREE.BoxGeometry(1.6, 0.25, 0.05), 0x24123f, 0, 6.55, 1.02);
-  bpart(new THREE.CylinderGeometry(0.9, 0.9, 0.3, 24), 0xffc531, 0, 4.8, 1.3).rotation.x = Math.PI / 2; // chest dial
-  const arms = [-1, 1].map((sx) => { const g = new THREE.Group(); g.position.set(2.1 * sx, 5.6, 0); bossG.add(g); bpart(new THREE.BoxGeometry(0.9, 2.6, 0.9), 0x8e99b0, 0, -1.2, 0, g); bpart(new THREE.BoxGeometry(1.2, 0.9, 1.2), 0xff5a4f, 0, -2.6, 0, g); return g; });
-  const legs = [-1, 1].map((sx) => { const g = new THREE.Group(); g.position.set(0.9 * sx, 3.0, 0); bossG.add(g); bpart(new THREE.BoxGeometry(1.1, 2.6, 1.2), 0x8e99b0, 0, -1.3, 0, g); bpart(new THREE.BoxGeometry(1.4, 0.5, 1.9), 0x24123f, 0, -2.75, 0.25, g); return g; });
+  bpart(new THREE.CylinderGeometry(0.9, 0.9, 0.3, 24), P.accent, 0, 4.8, 1.3).rotation.x = Math.PI / 2; // chest dial
+  const arms = [-1, 1].map((sx) => { const g = new THREE.Group(); g.position.set(2.1 * sx, 5.6, 0); bossG.add(g); bpart(new THREE.BoxGeometry(0.9, 2.6, 0.9), P.limb, 0, -1.2, 0, g); bpart(new THREE.BoxGeometry(1.2, 0.9, 1.2), P.fist, 0, -2.6, 0, g); return g; });
+  const legs = [-1, 1].map((sx) => { const g = new THREE.Group(); g.position.set(0.9 * sx, 3.0, 0); bossG.add(g); bpart(new THREE.BoxGeometry(1.1, 2.6, 1.2), P.limb, 0, -1.3, 0, g); bpart(new THREE.BoxGeometry(1.4, 0.5, 1.9), 0x24123f, 0, -2.75, 0.25, g); return g; });
   const key = new THREE.Group(); key.position.set(0, 4.8, -1.4); bossG.add(key);
-  bpart(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 10), 0xffc531, 0, 0, -0.5, key).rotation.x = Math.PI / 2;
-  bpart(new THREE.TorusGeometry(0.75, 0.25, 10, 20), 0xffc531, 0, 0, -1.3, key);
+  bpart(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 10), P.accent, 0, 0, -0.5, key).rotation.x = Math.PI / 2;
+  bpart(new THREE.TorusGeometry(0.75, 0.25, 10, 20), P.accent, 0, 0, -1.3, key);
+  // toppers: what makes each city's robot its own character
+  const top = BC.top;
+  if (top === 'duck') { // a rubber-duck beak and a curl of hair
+    bpart(new THREE.BoxGeometry(1.5, 0.45, 0.9), 0xff8a3d, 0, 6.75, 1.35);
+    bpart(new THREE.TorusGeometry(0.3, 0.1, 8, 14, Math.PI * 1.4), P.body, 0, 8.1, 0);
+  } else if (top === 'snow') { // carrot nose, top hat, scarf
+    bpart(new THREE.ConeGeometry(0.22, 1.0, 10), 0xff8a3d, 0, 6.95, 1.5).rotation.x = Math.PI / 2;
+    bpart(new THREE.CylinderGeometry(1.3, 1.3, 0.15, 24), P.dark, 0, 7.92, 0); bpart(new THREE.CylinderGeometry(0.85, 0.85, 1.1, 24), P.dark, 0, 8.5, 0);
+    bpart(new THREE.BoxGeometry(2.6, 0.45, 2.3), P.accent, 0, 6.05, 0);
+  } else if (top === 'lolly') { // a lollipop antenna
+    bpart(new THREE.CylinderGeometry(0.09, 0.09, 1.4, 8), 0xffffff, 0, 8.5, 0);
+    bpart(new THREE.CylinderGeometry(0.75, 0.75, 0.25, 24), P.accent, 0, 9.5, 0).rotation.x = Math.PI / 2;
+  } else if (top === 'spikes') { // dino plates down the back
+    for (let k = 0; k < 4; k++) bpart(new THREE.ConeGeometry(0.42, 0.9, 4), P.accent, 0, 7.9 - k * 1.25, -1.15 - (k ? 0.1 : -0.15)).rotation.x = -0.5;
+  } else if (top === 'antenna') { // two antennas with glowing tips
+    for (const sx of [-0.65, 0.65]) { bpart(new THREE.CylinderGeometry(0.07, 0.07, 1.1, 6), P.limb, sx, 8.35, 0); bpart(new THREE.SphereGeometry(0.25, 12, 8), P.eye, sx, 9.0, 0); }
+  }
 
   // ---------- state
   const units = [], shots = [], events = [];

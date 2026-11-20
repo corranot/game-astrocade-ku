@@ -255,6 +255,7 @@ function startGame(mode) {
     <div class="result" id="result" hidden></div>
     <div class="shop" id="shop" hidden></div>
     <div class="album" id="album" hidden></div>
+    <div class="album" id="gift" hidden></div>
     <div class="langs" id="langs" hidden></div>`;
   const $ = (id) => hud.querySelector('#' + id);
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
@@ -299,20 +300,23 @@ function startGame(mode) {
     if (city) city.dispose();
     // a new city every round: the first one (and the attract mode) is the tuned seed, then each finished city
     // moves the seed on, so the layout, colours and the clock tower's place change
-    const n = save.rounds || 0, ti = themeIndex();
-    rng = mulberry32(((cfg.seed || 1) + n * 7919) >>> 0);
+    // the Daily City: the same seed and city for every player today, picked from the map's 📅
+    const daily = wantDaily, day = today();
+    wantDaily = false;
+    const n = save.rounds || 0, ti = daily ? day % unlockedCount() : themeIndex();
+    rng = mulberry32(daily ? ((day * 7919 + 12345) >>> 0) : (((cfg.seed || 1) + n * 7919) >>> 0));
     const newSky = ti !== skyShown;
     if (newSky) { applySky(THEMES[ti]); skyShown = ti; }
-    city = createCity(scene, cfg, rng, quality, { shuffle: n > 0, theme: THEMES[ti] });
+    city = createCity(scene, cfg, rng, quality, { shuffle: n > 0 || daily, theme: THEMES[ti] });
     if (army) army.dispose();
-    army = createArmy(scene, cfg, rng, quality, city);
+    army = createArmy(scene, cfg, rng, quality, city, { boss: THEMES[ti].boss });
     missions = createMissions(rng, !!save.tutorialDone, missionDone, levelOf);
     resize();
     S = {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, daily, dailyBonus: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
     };
     const SA = (cfg.stickers && cfg.stickers.atCollapse) || [4, 22];
     S.stickerAt = SA[0] + Math.floor(rng() * (SA[1] - SA[0] + 1)); // the n-th building the child knocks down hides a sticker
@@ -323,13 +327,19 @@ function startGame(mode) {
     S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = hudCache.mission = null;
     updateHud();
-    if (newSky && ti > 0) banner(THEMES[ti].icon + ' ' + T('t_' + THEMES[ti].id), 1.8); // the name of a new city
+    if (daily) banner('📅 ' + T('daily'), 1.8);
+    else if (newSky && ti > 0) banner(THEMES[ti].icon + ' ' + T('t_' + THEMES[ti].id), 1.8); // the name of a new city
   }
+  let wantDaily = false;
+  /** This city's robot boss name. */
+  const bossName = () => { const b = S && THEMES[S.theme] && THEMES[S.theme].boss; return T(b && b.name ? b.name : 'boss'); };
+  /** Today as a whole day number in the player's own time zone (the Daily City seed and the daily gift). */
+  function today() { const d = new Date(); return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000); }
   const unlockedCount = () => Math.min(THEMES.length, Math.max(1, Number(save.unlocked) || 1));
   /** The city to play: the one picked on the map, never past the last one opened. */
   const themeIndex = () => Math.min(unlockedCount() - 1, Math.max(0, Number(save.theme) || 0));
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false, unlocked: 1, theme: 0, wardrobe: [], hat: 'none', skin: 'pink', stickers: [], threwCar: false };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false, unlocked: 1, theme: 0, wardrobe: [], hat: 'none', skin: 'pink', stickers: [], threwCar: false, lastDay: null, streak: 0, dailyDay: null, dailyBest: null };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -437,7 +447,7 @@ function startGame(mode) {
   }
   const onDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (e.target.closest && e.target.closest('button, .result, .langs, .shop, .album')) return;
+    if (e.target.closest && e.target.closest('button, .result, .langs, .shop, .album, #gift')) return;
     $('langs').hidden = true; // a tap in the game closes the settings
     if (input.id !== null) return; // a second finger does not steer
     input.id = e.pointerId; input.sx = e.clientX; input.sy = e.clientY; input.dx = input.dy = 0; input.t0 = performance.now(); input.ox = e.clientX; input.oy = e.clientY;
@@ -496,7 +506,7 @@ function startGame(mode) {
     box.innerHTML = `<button id="snd" class="snd">${Sound.muted ? '🔇' : '🔊'}</button>` +
       LANGS.map((l) => `<button data-l="${l}" class="${l === lang ? 'on' : ''}" lang="${l}">${LANG_NAMES[l]}</button>`).join('');
     box.querySelector('#snd').onclick = (ev) => { Sound.setMuted(!Sound.muted); save.muted = Sound.muted; persist(); ev.currentTarget.textContent = Sound.muted ? '🔇' : '🔊'; };
-    box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); $('bossName').textContent = T('boss'); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
+    box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); $('bossName').textContent = bossName(); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
   };
   $('skill').onclick = (e) => { e.currentTarget.blur(); Sound.unlock(); useSkill(); };
 
@@ -761,7 +771,7 @@ function startGame(mode) {
         mission('stars', e.stars);
         const w = $('wanted'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); Sound.combo(2 + e.stars); // the star row itself pops, no extra text
       } else if (e.type === 'bossIntro') {
-        banner(T('warn'), 1.8); $('bossName').textContent = T('boss'); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
+        banner(T('warn'), 1.8); $('bossName').textContent = bossName(); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
       } else if (e.type === 'bossLand') {
         shake(0.45); Sound.land(); for (let k = 0; k < 10; k++) city.puff(e.x + Math.cos(k) * 5, 0.8, e.z + Math.sin(k) * 5, 2.4);
       } else if (e.type === 'bossSlam') {
@@ -846,18 +856,24 @@ function startGame(mode) {
     if (counts) { save.coins += S.coins; save.bestCombo = Math.max(save.bestCombo, S.bestCombo); save.rounds = (save.rounds || 0) + 1; save.smashed = (save.smashed || 0) + blocks;
       // finishing the newest city opens the next one, which is picked for the next round
       const un = unlockedCount();
-      if (S.theme === un - 1 && un < THEMES.length) { save.unlocked = un + 1; save.theme = un; newCity = un; }
+      if (!S.daily && S.theme === un - 1 && un < THEMES.length) { save.unlocked = un + 1; save.theme = un; newCity = un; }
+      if (S.daily) {
+        const d = today();
+        if (save.dailyDay !== d) { save.dailyDay = d; save.dailyBest = sec; S.dailyBonus = (cfg.daily && cfg.daily.cityBonus) || 100; save.coins += S.dailyBonus; } // first today: bonus
+        else save.dailyBest = Math.min(save.dailyBest === null ? sec : save.dailyBest, sec);
+      }
       persist(); postScore(); }
     updateHud();
     const r = $('result');
     const mmss = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
     const goal = nextGoal();
     r.innerHTML = `<div class="card">
-      <h2 dir="auto">${T('flat')}</h2>
+      <h2 dir="auto">${S.daily ? '📅 ' + T('daily') : T('flat')}</h2>
       <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('')}</div>
       <div class="smash"><b class="out" id="blk" dir="ltr">0</b><span dir="auto">${T('smashed')}</span></div>
       <div class="chips" dir="ltr"><span>⏱ ${mmss}</span><span>🚗 ${S.cars}</span><span>🎈 ${city.rescued()}</span><span>🔥 ×${comboMult(S.bestCombo, CB)}</span></div>
-      <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${S.coins}</b></div>
+      <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${S.coins + S.dailyBonus}</b>${S.dailyBonus ? `<span class="dbonus">📅 +${S.dailyBonus}</span>` : ''}</div>
+      ${S.daily && counts && save.dailyBest !== null ? `<div class="total" dir="auto">${T('todayBest')} <b dir="ltr">${Math.floor(save.dailyBest / 60)}:${String(save.dailyBest % 60).padStart(2, '0')}</b></div>` : ''}
       ${counts ? `<div class="total" dir="auto">${T('total')} <b dir="ltr" id="tot">${fmt(save.smashed)}</b> 🧱</div>` : ''}
       ${isBest ? `<div class="best">${T('best')}</div>` : ''}
       ${goal ? `<div class="goal"><span class="gico">${goal.icon}</span><div class="gbar"><i style="width:${goal.p}%"></i></div><b dir="auto">${goal.text}</b></div>` : ''}
@@ -872,14 +888,33 @@ function startGame(mode) {
     }, 1600);
     S.newCity = newCity; renderMap();
   }
+  /** The daily gift: coming back on the next day grows a 7-day streak of coins; a missed day starts again. */
+  function dailyGift() {
+    if (mode !== 'play' || (new URLSearchParams(location.search).has('local') && !new URLSearchParams(location.search).has('daily'))) return; // dev runs skip it
+    const d = today(), last = Number.isFinite(save.lastDay) ? save.lastDay : null;
+    if (last === d) return;
+    save.streak = last === d - 1 ? (Number(save.streak) || 0) + 1 : 1; save.lastDay = d;
+    const R = (cfg.daily && cfg.daily.rewards) || [50, 80, 120, 160, 200, 260, 400], k = (save.streak - 1) % R.length, gift = R[k];
+    save.coins += gift; persist(); hudCache.coins = null; updateHud();
+    const box = $('gift');
+    box.innerHTML = `<div class="acard"><h2 class="out" dir="auto">🎁 ${T('dailyGift')}</h2><div class="gday out" dir="auto">${T('dayN').replace('{n}', save.streak)}</div>
+      <div class="gdays">${R.map((c, i) => `<span class="gd${i < k ? ' got' : i === k ? ' now' : ''}"><i>${i + 1}</i><b dir="ltr">${c}</b></span>`).join('')}</div>
+      <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${gift}</b></div><button class="again gloss out" id="giftOk">✓</button></div>`;
+    box.hidden = false; Sound.win(); buzz('success');
+    box.querySelector('#giftOk').onclick = () => { box.hidden = true; Sound.coin(3); };
+  }
   /** The city map under the result: open cities can be picked for the next round, the newest one pulses. */
   function renderMap() {
     const box = $('map'), nm = $('cityName');
     if (!box || !S.finished) return;
-    box.innerHTML = THEMES.map((t, i) => { const lock = i >= unlockedCount(); return `<button class="city gloss${i === themeIndex() ? ' on' : ''}${lock ? ' locked' : ''}${i === S.newCity ? ' new' : ''}" data-c="${i}"${lock ? ' disabled' : ''} aria-label="${T('t_' + t.id)}">${lock ? '🔒' : t.icon}</button>`; }).join('');
-    nm.textContent = (S.newCity >= 0 && S.newCity === themeIndex() ? T('newCity') + ' ' : '') + T('t_' + THEMES[themeIndex()].id);
+    const doneToday = save.dailyDay === today();
+    box.innerHTML = THEMES.map((t, i) => { const lock = i >= unlockedCount(); return `<button class="city gloss${!wantDaily && i === themeIndex() ? ' on' : ''}${lock ? ' locked' : ''}${i === S.newCity ? ' new' : ''}" data-c="${i}"${lock ? ' disabled' : ''} aria-label="${T('t_' + t.id)}">${lock ? '🔒' : t.icon}</button>`; }).join('')
+      + `<button class="city daily gloss${wantDaily ? ' on' : ''}${doneToday ? '' : ' new'}" data-daily="1" aria-label="${T('daily')}">📅</button>`;
+    nm.textContent = wantDaily ? '📅 ' + T('daily') : (S.newCity >= 0 && S.newCity === themeIndex() ? T('newCity') + ' ' : '') + T('t_' + THEMES[themeIndex()].id);
     box.querySelectorAll('.city:not(.locked)').forEach((b) => b.onclick = () => {
-      Sound.unlock(); Sound.pop(); save.theme = Number(b.dataset.c); persist(); renderMap();
+      Sound.unlock(); Sound.pop();
+      if (b.dataset.daily) wantDaily = !wantDaily; else { wantDaily = false; save.theme = Number(b.dataset.c); persist(); }
+      renderMap();
     });
   }
 
@@ -1032,7 +1067,7 @@ function startGame(mode) {
       if (save.tutorialDone && missions && missions.tutorial && !S.touched) missions = createMissions(rng, true, missionDone, levelOf);
       // nobody has touched yet: rebuild so a returning player sees the city after their last one
       if (save.rounds > 0 && roundsBefore === 0 && S && !S.touched && !S.finished) { const open = !$('langs').hidden; newRound(); $('langs').hidden = !open; }
-      saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
+      saveLoaded = true; dailyGift(); hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length || roundsBefore) persist();
       if (st && st.muted && !Sound.muted) Sound.setMuted(true);
       wearCostume();
@@ -1057,7 +1092,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

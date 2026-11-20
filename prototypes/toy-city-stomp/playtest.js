@@ -170,7 +170,7 @@ const server = http.createServer((q, s) => {
     const r = await g(() => { const s = __game.save; s.unlocked = 1; s.theme = 0; __game.newRound(); const S = __game.S; S.touched = true; __game.finish();
       return { un: s.unlocked, th: s.theme }; });
     await page.waitForFunction(() => !document.querySelector('#result').hidden, null, { timeout: 15000 }); // shown (and wired) after a short pause
-    const m = await g(() => { const cities = [...document.querySelectorAll('#map .city')]; const pick = cities[0]; pick.click();
+    const m = await g(() => { const cities = [...document.querySelectorAll('#map .city:not(.daily)')]; const pick = cities[0]; pick.click();
       return { n: cities.length, locked: cities.filter((c) => c.disabled).length, picked: __game.save.theme, name: document.querySelector('#cityName').textContent }; });
     const next = await g(() => { __game.save.theme = 1; document.querySelector('#again').click(); return { theme: __game.S.theme, sky: __game.skyTop }; });
     check(r.un === 2 && r.th === 1 && m.n === 6 && m.locked === 4 && m.picked === 0 && next.theme === 1 && next.sky !== '3f9dff',
@@ -247,6 +247,33 @@ const server = http.createServer((q, s) => {
         name: document.querySelector('#cityName').textContent, hat: __game.hatOn, theme: __game.save.theme }; });
     check(r.locked === 2 && r.on === 3 && r.name === 'Snow Town' && r.hat === 'party', `a late save fixes the city map (4 open, Snow Town picked, no fake NEW CITY) and keeps the hat picked now (${JSON.stringify(r)})`);
     await p3.close();
+  }
+  // daily gift: the next day grows the streak, a missed day starts again, the same day pays nothing (?local&daily turns it on)
+  {
+    const p5 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p5.goto(`http://localhost:${port}/?local&daily&tier=0`);
+    await p5.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    await p5.waitForFunction(() => !document.querySelector('#gift').hidden, null, { timeout: 8000 }).catch(() => {});
+    const r = await p5.evaluate(() => { const s = __game.save, d = __game.today(), out = { first: s.streak };
+      s.coins = 0; __game.dailyGift(); out.sameDay = s.coins;
+      s.lastDay = d - 1; s.streak = 6; __game.dailyGift(); out.day7 = [s.streak, s.coins];
+      s.lastDay = d - 3; s.coins = 0; __game.dailyGift(); out.missed = [s.streak, s.coins]; return out; });
+    check(r.first === 1 && r.sameDay === 0 && r.day7[0] === 7 && r.day7[1] === 400 && r.missed[0] === 1 && r.missed[1] === 50, `daily gift: day 1, nothing twice a day, day 7 pays 400, a missed day restarts (${JSON.stringify(r)})`);
+    await p5.close();
+  }
+  // the Daily City: picked on the map, today's seed, a bonus the first time today, never opens a city
+  {
+    const r = await g(async () => { const s = __game.save; s.unlocked = 2; s.theme = 1; s.dailyDay = null; s.coins = 0; __game.wantDaily = true; __game.newRound();
+      const S = __game.S, a = { daily: S.daily, theme: S.theme, day: __game.today() }; S.touched = true; S.time = 80; __game.finish();
+      a.after = { un: s.unlocked, bonus: S.dailyBonus, best: s.dailyBest, coins: s.coins };
+      __game.wantDaily = true; __game.newRound(); const S2 = __game.S; S2.touched = true; S2.time = 70; __game.finish(); a.again = { bonus: S2.dailyBonus, best: s.dailyBest }; s.dailyDay = null; return a; });
+    check(r.daily && r.theme === r.day % 2 && r.after.un === 2 && r.after.bonus === 100 && r.after.best === 80 && r.again.bonus === 0 && r.again.best === 70,
+      `Daily City: today's city, +100 once, best time kept, no city opened (${JSON.stringify(r)})`);
+  }
+  // each city's boss has its own name
+  {
+    const names = await g(() => { const s = __game.save; s.unlocked = 6; const out = []; for (let i = 0; i < 6; i++) { s.theme = i; __game.newRound(); out.push(__game.bossName()); } s.theme = 0; s.unlocked = 1; return out; });
+    check(new Set(names).size === 6, `every city has its own boss (${names.join(', ')})`);
   }
   // shaders are compiled before the first frame, for the target the scene really draws into (no first-frame stall)
   {
