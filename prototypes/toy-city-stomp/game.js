@@ -12,6 +12,8 @@ import { createBonbon } from './bonbon.js';
 import { createArmy } from './army.js';
 import { MOVES, moveInfo, moveReady, buyMove } from './moves.js';
 import { createMissions } from './missions.js';
+import { createMoveFx } from './movefx.js';
+import { toon } from './toon.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const LANG_NAMES = { en: 'English', ar: 'العربية', es: 'Español', vi: 'Tiếng Việt', hi: 'हिन्दी', bn: 'বাংলা', id: 'Indonesia' };
@@ -258,6 +260,35 @@ function startGame(mode) {
     <div class="album" id="gift" hidden></div>
     <div class="langs" id="langs" hidden></div>`;
   const $ = (id) => hud.querySelector('#' + id);
+  // ---------- icons: drawn icons (one atlas, asset 'icons') replace the emoji everywhere in the HUD. A watcher
+  // swaps every emoji that reaches the screen for its icon, so text built anywhere gets them; with no atlas the
+  // emoji stay as they are
+  const ICON_CELL = {"🌀": 0, "💥": 1, "🫧": 2, "📣": 3, "🍮": 4, "🧲": 5, "🌈": 6, "🤧": 7, "🌙": 8, "👣": 9, "⚙️": 10, "⚙": 10, "🔊": 11, "🔇": 12, "📖": 13, "🎁": 14, "📅": 15, "👆": 16, "🔒": 17, "❤": 18, "★": 19, "⭐": 19, "☆": 20, "🥇": 21, "🥈": 22, "🥉": 23, "⏱": 24, "🚗": 25, "🎈": 26, "🔥": 27, "🧱": 28, "🏠": 29, "⬆️": 30, "⬆": 30, "🏢": 31, "🌳": 32, "🪖": 33, "🎳": 34, "✨": 35, "🏙️": 36, "🏙": 36, "🍭": 37, "🏖️": 38, "🏖": 38, "❄️": 39, "❄": 39, "🌋": 40, "🛰️": 41, "🛰": 41, "🎩": 42, "✓": 43, "↻": 44, "🙂": 45, "🥳": 46, "🌸": 47, "😎": 48, "🍰": 49, "🤠": 50, "👑": 51, "🚁": 52, "👸": 54, "🧙": 55, "🦸": 56, "🐰": 57, "🦄": 58, "🍩": 59, "🦀": 60, "🐬": 61, "🧜": 62, "⛄": 63, "🐧": 64, "🎅": 65, "🦕": 66, "🦖": 67, "🐣": 68, "🤖": 69, "👾": 70, "🛸": 71};
+  let iconWatch = null;
+  const atlas = (() => { try { const a = lib.getAsset && lib.getAsset('icons'); return a && (a.url || (typeof a === 'string' ? a : '')); } catch (e) { return ''; } })();
+  // a key inside a longer emoji (a skin tone, a joined figure, a keycap) is left alone
+  const ICON_RE = new RegExp('(?:' + Object.keys(ICON_CELL).sort((a, b) => b.length - a.length).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\ufe0f?(?![\u200d\u20e3\u{1F3FB}-\u{1F3FF}])', 'gu');
+  function iconize(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) { ICON_RE.lastIndex = 0; if (ICON_RE.test(n.nodeValue)) hits.push(n); }
+    for (const n of hits) {
+      const frag = document.createDocumentFragment(); let last = 0; const s = n.nodeValue; ICON_RE.lastIndex = 0;
+      for (let m = ICON_RE.exec(s); m; m = ICON_RE.exec(s)) {
+        if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+        last = m.index + m[0].length; const c = ICON_CELL[m[0]] ?? ICON_CELL[m[0].replace(/\ufe0f/g, '')];
+        const i = document.createElement('i'); i.className = 'ic'; i.dataset.e = m[0]; i.setAttribute('aria-hidden', 'true');
+        i.style.setProperty('--i', c % 9); i.style.setProperty('--j', Math.floor(c / 9)); frag.appendChild(i);
+      }
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      n.parentNode.replaceChild(frag, n);
+    }
+  }
+  if (atlas) {
+    hud.style.setProperty('--atlas', `url("${atlas}")`); new Image().src = atlas; // fetched now, ready before the first icon shows
+    iconize(hud);
+    iconWatch = new MutationObserver((list) => { for (const r of list) { if (r.type === 'characterData') { if (r.target.parentNode) iconize(r.target.parentNode); } else for (const n of r.addedNodes) if (n.isConnected && (n.nodeType === 1 || n.nodeType === 3)) iconize(n.nodeType === 1 ? n : n.parentNode); } });
+    iconWatch.observe(hud, { childList: true, subtree: true, characterData: true });
+  }
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
   setDir();
 
@@ -293,6 +324,7 @@ function startGame(mode) {
   // ---------- state
   const G = cfg.growth, MC = cfg.monster, CB = cfg.combo, PT = cfg.points, FX = cfg.fx;
   const bon = createBonbon({ candy: quality.candy }); scene.add(bon.root);
+  const mfx = createMoveFx(scene);
   let rng, S, army = null, missions = null, target = null, lookAt = null;
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
@@ -327,6 +359,7 @@ function startGame(mode) {
     S.spirit = spiritMax(); $('bossbar').hidden = true; refreshSkill(); $('shop').hidden = true;
     hudCache.coins = hudCache.stage = hudCache.bar = hudCache.combo = hudCache.pct = hudCache.spirit = hudCache.wanted = hudCache.boss = hudCache.mission = null;
     updateHud();
+    eventsStart();
     if (daily) banner('📅 ' + T('daily'), 1.8);
     else if (newSky && ti > 0) banner(THEMES[ti].icon + ' ' + T('t_' + THEMES[ti].id), 1.8); // the name of a new city
   }
@@ -369,7 +402,7 @@ function startGame(mode) {
 
   /** Adds points (combo-multiplied) and fills the grow bar with the base points. */
   function score(base, x, y, z, label) {
-    const m = comboMult(S.combo, CB) * (1 + 0.5 * (army ? army.stars : 0)) * (S.rainbowT > 0 ? 2 : 1), p = Math.round(base * m); // more wanted, more points
+    const m = comboMult(S.combo, CB) * (1 + 0.5 * (army ? army.stars : 0)) * (S.rainbowT > 0 ? 2 : 1) * (S.feverT > 0 ? 2 : 1), p = Math.round(base * m); // more wanted, more points
     if (army && !S.finished) army.heat(base);
     S.points += p; S.xp += base; // the grow bar fills from base points, so a long combo does not end the round early
     S.coins = Math.floor(S.points * cfg.coinsPerPoint) + S.bonusCoins;
@@ -418,14 +451,92 @@ function startGame(mode) {
   /** A bite only keeps the combo alive; a building down, a car squashed or a prop popped adds to it. */
   function hitCombo(counts = true) {
     S.comboT = CB.windowSec; if (!counts) return;
-    S.combo++; S.bestCombo = Math.max(S.bestCombo, S.combo); mission('combo', comboMult(S.combo, CB));
+    S.combo++; S.bestCombo = Math.max(S.bestCombo, S.combo); mission('combo', comboMult(S.combo, CB)); feverCheck();
     if (S.combo >= CB.every && S.combo % CB.every === 0) { Sound.combo(S.combo / CB.every); const c = $('combo'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+  }
+
+  // ---------- surprises each round (game_config.events): a golden building to catch in time, a giant candy that
+  // makes Bonbon MEGA for a few seconds, and FEVER when the combo runs high
+  const EVC = cfg.events || {};
+  const stageScale = () => G.baseScale * Math.pow(G.scaleRatio, S.stage - 1);
+  const candyMesh = (() => {
+    const g = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.2, 8), toon({ color: 0xffffff })); stick.position.y = 1.1; g.add(stick);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.35, 28), toon({ color: 0xff5fa2 })); disc.rotation.x = Math.PI / 2; disc.position.y = 2.7; g.add(disc);
+    const swirl = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.14, 8, 24), toon({ color: 0xffffff })); swirl.position.set(0, 2.7, 0.19); g.add(swirl);
+    g.visible = false; scene.add(g); return g;
+  })();
+  const markers = { gold: null, candy: null };
+  function marker(kind, iconEmoji) {
+    if (!markers[kind]) { const el = document.createElement('div'); el.className = 'emark out'; el.innerHTML = '<span class="emi"></span><b></b>'; el.querySelector('.emi').textContent = iconEmoji; $('pops').appendChild(el); markers[kind] = el; }
+    return markers[kind];
+  }
+  function hideMarker(kind) { if (markers[kind]) { markers[kind].remove(); markers[kind] = null; } }
+  function placeMarker(kind, x, y, z, label) {
+    const el = markers[kind]; if (!el) return;
+    const [sx, sy] = screenOf(x, y, z), off = projV.z > 1 || sx < 0 || sx > 1 || sy < 0 || sy > 1;
+    // off screen: stick to the nearest edge so the child knows which way to go
+    el.style.left = (THREE.MathUtils.clamp(projV.z > 1 ? 1 - sx : sx, 0.08, 0.92) * 100) + '%'; el.style.top = (THREE.MathUtils.clamp(sy, 0.2, 0.86) * 100) + '%';
+    el.classList.toggle('edge', off); if (el._label !== label) { el._label = label; el.lastChild.textContent = label; } // text only when it changes (the icon watcher sees every write)
+  }
+  function eventsStart() {
+    const E = EVC.golden && EVC.golden.atSec || [16, 34];
+    S.goldenAt = E[0] + rng() * (E[1] - E[0]); S.golden = null; S.goldenT = 0; S.goldenPh = -1;
+    S.candyAt = (EVC.candy && EVC.candy.firstSec) || 30; S.candy = null; S.megaT = 0; S.feverT = 0; S.feverCd = 0;
+    candyMesh.visible = false; hideMarker('gold'); hideMarker('candy'); hud.classList.remove('fever');
+  }
+  function eventsUpdate(dt) {
+    if (!S.touched || S.finished) return;
+    // golden building: a standing building in view turns gold; knock it down before the countdown ends
+    if (!S.golden && S.goldenAt > 0 && S.time >= S.goldenAt) {
+      S.goldenAt = -1;
+      const b = city.nearest(S.x, S.z, (o) => o.k <= S.stage + 1 && o.k >= 2 && Math.hypot(o.cx - S.x, o.cz - S.z) > 6 * S.scale, 0.6);
+      if (b) { S.golden = b; S.goldenT = (EVC.golden && EVC.golden.timeSec) || 25; city.tintBuilding(b, 0xffc531); marker('gold', '⭐'); banner('⭐ ' + T('golden'), 1.8, 1); Sound.combo(4); }
+    }
+    if (S.golden) {
+      const b = S.golden;
+      if (b.state === 'intact') { // once it falls, drainEvents pays the reward (it runs after this in the frame)
+        S.goldenT -= dt; const ph = Math.floor(S.goldenT * 4) % 2; if (ph !== S.goldenPh) { S.goldenPh = ph; city.tintBuilding(b, ph ? 0xffb300 : 0xffd84f); } // a shimmer, repainted only when it flips
+        placeMarker('gold', b.cx, Math.min(b.h, 10) + 1.5, b.cz, String(Math.max(0, Math.ceil(S.goldenT))));
+        if (S.goldenT <= 0) { city.tintBuilding(b, null); S.golden = null; hideMarker('gold'); }
+      }
+    }
+    // the giant candy: shows up on the street ahead now and then; eating it makes Bonbon MEGA
+    const CC = EVC.candy || {};
+    if (!S.candy && S.megaT <= 0 && S.time >= S.candyAt) {
+      for (let a = 0; a < 8; a++) {
+        const ang = S.yaw + (a % 2 ? 1 : -1) * Math.ceil(a / 2) * 0.5, d = 11 * Math.sqrt(S.scale), x = S.x + Math.sin(ang) * d, z = S.z + Math.cos(ang) * d;
+        if (Math.abs(x) < city.half - 4 && Math.abs(z) < city.half - 4 && city.touching(x, z, 2, touchList).length === 0) { S.candy = { x, z }; break; }
+      }
+      S.candyAt = S.time + (S.candy ? 1e9 : 3); // tried again a little later when there was no free spot
+      if (S.candy) { candyMesh.visible = true; marker('candy', '🍭'); }
+    }
+    if (S.candy) {
+      const c = S.candy, sc = Math.max(1.2, Math.sqrt(S.scale)), t = performance.now() / 1000;
+      candyMesh.position.set(c.x, Math.sin(t * 3) * 0.3 * sc, c.z); candyMesh.rotation.y = t * 2; candyMesh.scale.setScalar(sc);
+      placeMarker('candy', c.x, 4 * sc, c.z, '');
+      if (Math.hypot(c.x - S.x, c.z - S.z) < (CC.pickRadius || 2.4) * sc + MC.radius * S.scale * 0.5) {
+        S.candy = null; candyMesh.visible = false; hideMarker('candy'); S.megaT = CC.megaSec || 8; S.candyAt = S.time + (CC.everySec || 50);
+        bon.setRainbow(true); banner('🍭 ' + T('mega'), 1.8, 1); Sound.rainbow(); buzz('success'); bon.roar(); mfx.ring(S.x, S.z, 0xff9cc6, 8 * S.scale, 0.6);
+      }
+    }
+    if (S.megaT > 0) { S.megaT -= dt; if (S.megaT <= 0 && S.rainbowT <= 0) bon.setRainbow(false); }
+    S.scaleTarget = stageScale() * (S.megaT > 0 ? (CC.scale || 1.35) : 1);
+    // fever: the combo keeps going after the meter is full
+    S.feverCd -= dt;
+    if (S.feverT > 0) { S.feverT -= dt; if (S.feverT <= 0) hud.classList.remove('fever'); }
+  }
+  /** FEVER when the combo passes the bar (not again until the cooldown is over). */
+  function feverCheck() {
+    const F = EVC.fever || {};
+    if (!S.touched || S.finished || mode !== 'play') return;
+    if (S.feverT <= 0 && S.feverCd <= 0 && S.combo >= (F.combo || 21)) { S.feverT = F.sec || 6; S.feverCd = (F.cooldownSec || 25) + S.feverT; hud.classList.add('fever'); banner('🔥 ' + T('fever'), 1.6, 1); Sound.combo(6); buzz('success'); }
   }
   function grow() {
     S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1); S.spirit += cfg.army.spirit.perStage;
     S.slowT = FX.slowmoSec; shake(0.35);
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success'); mission('grow', S.stage);
-    S.poseT = 0.9; // turns to face the player for a moment: the face shows, the view does not move
+    if (!S.jump && !bon.posing) S.poseT = 0.9; // turns to face the player for a moment (not in the middle of a move)
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
     squashCarsAt(S.x, S.z, 4 * S.scaleTarget);
@@ -442,7 +553,7 @@ function startGame(mode) {
     if (!S) return;
     // what the attract mode broke and earned before the first touch is not the child's: coins restart at 0, and
     // the blocks already down are left out of the count
-    if (!S.touched) { S.coins = 0; S.blocks0 = city.buildings.reduce((n, b) => n + (b.state === 'intact' ? 0 : b.total), 0); hudCache.coins = null; }
+    if (!S.touched) { S.coins = 0; S.points = 0; S.blocks0 = city.buildings.reduce((n, b) => n + (b.state === 'intact' ? 0 : b.total), 0); hudCache.coins = null; }
     S.touched = true; S.idle = 0; $('hint').hidden = true;
   }
   const onDown = (e) => {
@@ -487,7 +598,7 @@ function startGame(mode) {
     const tx = ok ? tgt.cx : THREE.MathUtils.clamp(car.x + ax / al * far, -lim, lim), tz = ok ? tgt.cz : THREE.MathUtils.clamp(car.z + az / al * far, -lim, lim);
     city.throwCar(car, tx, tz, 6 + 2 * S.scale);
     S.yaw = Math.atan2(car.x - S.x, car.z - S.z); bon.stomp(0.6); bon.face('roar', 0.5); Sound.boing(); buzz('tap');
-    S.thrown++; S.cars++; carDown(car); S.idle = 0; // counts as a car squashed (and an ice-cream truck for the secret) if (!save.threwCar) { save.threwCar = true; persist(); }
+    S.thrown++; S.cars++; carDown(car); S.idle = 0; if (!save.threwCar) { save.threwCar = true; persist(); } // counts as a car squashed (and an ice-cream truck for the secret)
   }
   const onKey = (e) => {
     const k = e.key.toLowerCase();
@@ -508,15 +619,29 @@ function startGame(mode) {
     box.querySelector('#snd').onclick = (ev) => { Sound.setMuted(!Sound.muted); save.muted = Sound.muted; persist(); ev.currentTarget.textContent = Sound.muted ? '🔇' : '🔊'; };
     box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); $('bossName').textContent = bossName(); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
   };
-  $('skill').onclick = (e) => { e.currentTarget.blur(); Sound.unlock(); useSkill(); };
+  // the move button answers the moment a finger lands on it, even while another finger is steering
+  // (phones send no click for a second finger)
+  $('skill').addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; e.preventDefault(); e.stopPropagation(); Sound.unlock(); wake(); useSkill(); });
+  $('skill').addEventListener('click', (e) => { if (e.detail === 0) { wake(); useSkill(); } }); // Enter or a screen reader's activate
 
   const dirV = new THREE.Vector3(), biteP = new THREE.Vector3(), touchList = [];
   // ---------- moves: the big button plays the equipped move (moves.js) through these effects
+  const mouthV = new THREE.Vector3(), beamTo = new THREE.Vector3();
   const fx = {
     x: () => S.x, z: () => S.z, sc: () => S.scale,
     at(dist) { const d = dist * S.scale; return { x: S.x + Math.sin(S.yaw) * d, z: S.z + Math.cos(S.yaw) * d }; },
     later(sec, fn) { S.acts.push({ at: S.clock + sec, fn }); },
     spin() { S.spinT = 0.55; },
+    /** Bonbon's body language for a move. */
+    pose(name, sec) { bon.pose(name, sec); },
+    /** Effects: a shock ring, a flying bubble or sneeze puff, the rainbow beam (see movefx.js). */
+    ring(x, z, color, r, dur, inward) { mfx.ring(x, z, color, r, dur, inward); },
+    ball(kind, x, y, z, vx, vy, vz, size, life) { mfx.ball(kind, x, y, z, vx, vy, vz, size, life); },
+    /** Where the mouth is (in front of the eyes, a little lower). */
+    mouth() { const e = bon.eyeWorld(mouthV); return { x: e.x + Math.sin(S.yaw) * 0.6 * S.scale, y: e.y - 0.45 * S.scale, z: e.z + Math.cos(S.yaw) * 0.6 * S.scale }; },
+    /** A rainbow beam from the eyes to the ground dist (x size) ahead. */
+    beam(dist, dur) { const p = fx.at(dist); mfx.beam(bon.eyeWorld(mouthV), beamTo.set(p.x, 0.5, p.z), 0.55 * S.scale, dur); },
+    fwd: () => ({ x: Math.sin(S.yaw), z: Math.cos(S.yaw) }),
     roar() { bon.roar(); Sound.roar(S.stage); },
     /** Lifts Bonbon in an arc of height h (x size) over dur seconds, moving dist (x size) ahead, then onLand(). */
     jump(dur, h, dist, onLand) { const p = fx.at(dist); S.jump = { t: 0, dur, h: h * Math.sqrt(S.scale), sx: S.x, sz: S.z, tx: p.x, tz: p.z, onLand }; bon.stomp(-0.8); },
@@ -524,7 +649,7 @@ function startGame(mode) {
      *  pops props, knocks out toy units and hurts the boss. */
     blast(x, z, r, shakeAmt = 0, flavor = '') {
       for (const h of city.touching(x, z, r, touchList)) {
-        if (h.b.k > S.stage + 2) continue;
+        if (h.b.k > S.stage + (S.megaT > 0 ? 4 : 2)) continue;
         dirV.set(h.px - x, 0, h.pz - z); if (dirV.lengthSq() < 0.01) dirV.set(Math.sin(S.yaw), 0, Math.cos(S.yaw)); dirV.normalize();
         const n = city.bite(h.b, biteP.set(h.px, Math.min(h.b.h - 0.5, 1.5 * S.scale), h.pz), Math.max(2, r * 0.55), dirV, 1.6);
         if (n) { hitCombo(false); score(n * PT.perVoxel, h.px, 2, h.pz); }
@@ -657,7 +782,7 @@ function startGame(mode) {
     // the bounce off a building too big to break slides back smoothly
     S.x += S.kbX * dt; S.z += S.kbZ * dt; const kd = Math.exp(-6 * dt); S.kbX *= kd; S.kbZ *= kd;
     S.moving = mag > 0;
-    const speed = MC.speed * (1 + MC.speedPerStage * (S.stage - 1)) * Math.sqrt(S.scale) * mag;
+    const speed = MC.speed * (1 + MC.speedPerStage * (S.stage - 1)) * Math.sqrt(S.scale) * mag * (S.megaT > 0 ? ((EVC.candy && EVC.candy.speed) || 1.3) : 1);
     S.speed = speed;
     if (mag) {
       const l = Math.hypot(ix, iz) || 1; fwd.set(ix / l, 0, iz / l);
@@ -679,7 +804,7 @@ function startGame(mode) {
       if (b.k <= S.stage - (cfg.crushBelow || 3)) { city.collapse(b, dirV.set(-nx, 0, -nz), 0); continue; } // small houses go flat underfoot
       S.x += nx * (R - h.d); S.z += nz * (R - h.d);
       lookAt = lookV.set(h.px, Math.min(b.h, 2 * S.scale), h.pz);
-      if (b.k > S.stage + 1) {
+      if (b.k > S.stage + (S.megaT > 0 ? 4 : 1)) {
         if (S.tooBigT <= 0) {
           S.tooBigT = 1.2; S.kbX = nx * 7 * Math.sqrt(S.scale); S.kbZ = nz * 7 * Math.sqrt(S.scale); bon.face('surprised', 0.8); bon.stomp(0.6); Sound.boing(); buzz('tap');
           S.avoidX = -nz; S.avoidZ = nx; S.avoidT = 1.2;
@@ -738,6 +863,10 @@ function startGame(mode) {
       if (e.type === 'collapse') {
         hitCombo();
         if (S.touched && ++S.collapses === S.stickerAt) giveSticker(e.x, e.z);
+        if (e.b === S.golden) { // caught in time
+          const GC = EVC.golden || {}, gain = (GC.coins || 80) + (GC.coinsPerClass || 25) * e.b.k; S.bonusCoins += gain; S.coins += gain; hudCache.coins = null; S.golden = null; hideMarker('gold');
+          city.burstConfetti(e.x, 4, e.z, 40, [0xffc531, 0xffe066, 0xffffff]); banner('⭐ +' + gain, 1.6, 1); Sound.win(); const [gx, gy] = screenOf(e.x, 3, e.z); flyCoins(gx, gy, 8);
+        }
         comic(T(e.chain > 0 || e.b.k >= 5 ? 'w_kaboom' : e.b.k >= 3 ? 'w_crash' : 'w_bonk'), e.x, Math.min(e.b.h, 8), e.z, 0.75 + 0.12 * e.b.k + (e.chain > 0 ? 0.25 : 0));
         const label = e.chain > 0 ? T('domino') + ' ×' + (e.chain + 1) : '';
         score(PT.perClass * e.b.k * e.b.k, e.x, Math.min(e.b.h, 8), e.z, label);
@@ -842,6 +971,7 @@ function startGame(mode) {
   }
   function finish() {
     army.clearAll();
+    hideMarker('gold'); hideMarker('candy'); candyMesh.visible = false; hud.classList.remove('fever'); if (S.megaT > 0 && S.rainbowT <= 0) bon.setRainbow(false); S.megaT = 0; S.scaleTarget = stageScale();
     S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true; $('skill').hidden = true;
     bon.face('win', 99); S.yaw = Math.atan2(camera.position.x - S.x, camera.position.z - S.z); Sound.win(); buzz('success');
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
@@ -869,7 +999,7 @@ function startGame(mode) {
     const goal = nextGoal();
     r.innerHTML = `<div class="card">
       <h2 dir="auto">${S.daily ? '📅 ' + T('daily') : T('flat')}</h2>
-      <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('')}</div>
+      <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">${i <= stars ? '★' : '☆'}</span>`).join('')}</div>
       <div class="smash"><b class="out" id="blk" dir="ltr">0</b><span dir="auto">${T('smashed')}</span></div>
       <div class="chips" dir="ltr"><span>⏱ ${mmss}</span><span>🚗 ${S.cars}</span><span>🎈 ${city.rescued()}</span><span>🔥 ×${comboMult(S.bestCombo, CB)}</span></div>
       <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${S.coins + S.dailyBonus}</b>${S.dailyBonus ? `<span class="dbonus">📅 +${S.dailyBonus}</span>` : ''}</div>
@@ -924,6 +1054,7 @@ function startGame(mode) {
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
+  let camOverride = null, frozen = false;
   const follow = { x: 0, z: 0, vx: 0, vz: 0, init: false };
   const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Adds screen shake for a big moment only; amounts are small and never stack past 0.6. */
@@ -945,6 +1076,7 @@ function startGame(mode) {
     const sh = S.trauma * S.trauma * FX.shakeMax * z, tt = performance.now() / 1000;
     camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 23) * sh * 0.35, Math.sin(tt * 19 + 1) * sh * 0.25, 0));
     camera.lookAt(camLook);
+    if (camOverride) { camera.position.copy(camOverride.p); camera.lookAt(camOverride.l); } // tests only: a fixed close-up
     city.setXray(camera.position, monV.set(S.x, 1.4 * S.scale, S.z), 1.6 * S.scale);
     sky.position.copy(camera.position);
     const span = 26 * z;
@@ -976,8 +1108,8 @@ function startGame(mode) {
     raf = requestAnimationFrame(frame);
     const raw = Math.min(0.11, (now - last) / 1000); last = now;
     fps = fps * 0.95 + (1 / Math.max(raw, 0.001)) * 0.05;
-    for (let k = 0; k < SIM; k++) simulate(raw);
-    updateCamera(raw); army.draw();
+    if (!frozen) for (let k = 0; k < SIM; k++) simulate(raw); // frozen: tests only, a still frame for close-ups
+    updateCamera(raw); army.draw(); mfx.update(raw);
     bannerT -= raw; if (bannerT <= 0) $('banner').classList.remove('show');
     const ring = S.skillCd > 0 ? Math.ceil(S.skillCd / (S.skillCdMax || 1) * 20) / 20 : 0;
     if (ring !== ringShown) { ringShown = ring; $('ring').style.setProperty('--p', ring); $('skill').classList.toggle('ready', ring === 0); }
@@ -994,8 +1126,8 @@ function startGame(mode) {
       steer(dt); if (!S.jump) contact(dt);
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
       S.skillCd = Math.max(0, S.skillCd - raw); if (missions.update(raw)) updateHud();
-      Sound.musicRate(army.boss.alive || army.stars >= 3 ? 1.08 : 1);
-      if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0) bon.setRainbow(false); }
+      Sound.musicRate(S.feverT > 0 || S.megaT > 0 ? 1.15 : army.boss.alive || army.stars >= 3 ? 1.08 : 1); eventsUpdate(raw);
+      if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0 && S.megaT <= 0) bon.setRainbow(false); }
       S.jingleT -= raw; // an ice-cream truck nearby plays its tune now and then: a clue, never explained
       if (S.jingleT <= 0) { S.jingleT = 4; const t = city.iceTrucks().find((c) => Math.hypot(c.x - S.x, c.z - S.z) < 30 * Math.sqrt(S.scale)); if (t) Sound.jingle(); }
       drainEvents(); sweep(dt);
@@ -1098,11 +1230,11 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
-      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
+      if (iconWatch) iconWatch.disconnect(); city.dispose(); army.dispose(); bon.dispose(); mfx.dispose(); candyMesh.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, fx, eventsUpdate: (dt) => eventsUpdate(dt), feverCheck: () => feverCheck(), freeze(v) { frozen = !!v; }, closeUp(p, l) { camOverride = p ? { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) } : null; }, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

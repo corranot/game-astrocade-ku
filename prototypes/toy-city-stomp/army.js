@@ -6,6 +6,7 @@
 // landing ring on the ground), then it unwinds into a shower of gears. Kid-safe: toys, foam, bubbles; nobody hurt.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 import { toon } from './toon.js';
+import { armyCar, tankHull, tankTurret as turretShape, heliBody as heliShape, heliTail as tailShape } from './shapes.js';
 
 const UNITS = 12, SHOTS = 24;
 
@@ -26,16 +27,16 @@ export function createArmy(scene, cfg, rng, quality, city, opts = {}) {
     group.add(m); return m;
   };
   // parts, one InstancedMesh each (a handful of draw calls for the whole army)
-  const carBody = inst(new THREE.BoxGeometry(1.8, 0.8, 1.1), std(0xff5a4f, 0.25), UNITS);
+  const baked = keep(toon({ color: 0xffffff, vertexColors: true })); // the detailed toy shapes carry their own colours
+  const carBody = inst(armyCar(), baked, UNITS);
   const carKey = inst(new THREE.TorusGeometry(0.32, 0.1, 8, 16), std(0xffc531, 0.2), UNITS);
-  const tankBody = inst(new THREE.BoxGeometry(2.2, 0.8, 1.6), std(0x6fd64b), UNITS);
-  const tankTurret = inst(new THREE.CylinderGeometry(0.55, 0.65, 0.5, 14), std(0x4cc35a), UNITS);
+  const tankBody = inst(tankHull(), baked, UNITS);
+  const tankTurret = inst(turretShape(), baked, UNITS);
   const barrelGeo = new THREE.CylinderGeometry(0.16, 0.16, 1.4, 10); barrelGeo.rotateZ(Math.PI / 2); barrelGeo.translate(0.8, 0, 0);
   const tankBarrel = inst(barrelGeo, std(0xffc531), UNITS);
-  const heliBody = inst(new THREE.SphereGeometry(0.85, 16, 12), std(0x3fa9ff, 0.2), UNITS);
+  const heliBody = inst(heliShape(), baked, UNITS);
   const heliRotor = inst(new THREE.BoxGeometry(3.2, 0.06, 0.3), std(0x24123f), UNITS, false);
-  const tailGeo = new THREE.CylinderGeometry(0.12, 0.2, 1.6, 8); tailGeo.rotateZ(Math.PI / 2); tailGeo.translate(-1.2, 0.1, 0);
-  const heliTail = inst(tailGeo, std(0x3fa9ff, 0.2), UNITS);
+  const heliTail = inst(tailShape(), baked, UNITS);
   const dartGeo = new THREE.CapsuleGeometry(0.18, 0.5, 4, 8); dartGeo.rotateZ(Math.PI / 2);
   const darts = inst(dartGeo, std(0xff9b54, 0.4), SHOTS, false);
   const bubbles = inst(new THREE.SphereGeometry(0.5, 14, 10), keep(toon({ color: 0xbfeaff, roughness: 0.05, transparent: true, opacity: 0.55 })), SHOTS, false);

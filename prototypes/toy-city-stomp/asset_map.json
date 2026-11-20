@@ -102,5 +102,15 @@
     "subtype": "effect",
     "type": "audio",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7T6B0XF190RG90R6RXWA4AX_037a8967-3fea-49d0-a65e-a8684d8b5dcb_dee5af7b-17c8-4fc9-a875-3d638a067697.mp3"
+  },
+  "icons": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795142874121_01M7VDMX09NPDQYFZMC9RK8H55.webp",
+    "type": "image",
+    "description": "UI icon atlas: 9 x 8 cells of 128 px (moves, HUD, missions, cities, costumes, stickers)",
+    "subtype": "ui",
+    "aspect_ratio": [
+      1152,
+      1024
+    ]
   }
 }

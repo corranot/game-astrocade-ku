@@ -188,7 +188,7 @@ const server = http.createServer((q, s) => {
     const before = await g(() => { const s = __game.save; s.stickers = []; s.theme = 0; __game.newRound(); const S = __game.S; S.touched = true; S.idle = -999;
       S.stickerAt = S.collapses + 1; const b = __game.city.buildings.find((x) => x.state === 'intact'); __game.city.collapse(b, { x: 0, z: 1 }, 0); return s.stickers.length; });
     await page.waitForFunction(() => __game.save.stickers.length > 0, null, { timeout: 8000 }).catch(() => {});
-    const r = await g(() => ({ got: __game.save.stickers.slice(), sticker: __game.S.newSticker, banner: document.querySelector('#banner').textContent }));
+    const r = await g(() => { const b = document.querySelector('#banner'), s = __game.S.newSticker; return { got: __game.save.stickers.slice(), sticker: s, banner: b.textContent + (b.querySelector(`[data-e="${s}"]`) ? s : '') }; });
     const al = await g(() => { __game.openAlbum(); const box = document.querySelector('#album'); const r = { open: !box.hidden, got: box.querySelectorAll('.slot.got').length, slots: box.querySelectorAll('.slot').length }; box.querySelector('#albumClose').click(); return { ...r, closed: box.hidden }; });
     check(before === 0 && r.got.length === 1 && r.got[0] === 'toy0' && r.sticker && r.banner.includes(r.sticker), `a building gives the first Toy Town sticker with a banner (${JSON.stringify(r)})`);
     check(al.open && al.got === 1 && al.slots === 18 && al.closed, `the sticker book shows 1 of 18 and closes (${JSON.stringify(al)})`);
@@ -289,6 +289,65 @@ const server = http.createServer((q, s) => {
     const r = await p4.evaluate(async () => { const n0 = __game.renderer.info.programs.length; for (let i = 0; i < 4; i++) await new Promise((res) => requestAnimationFrame(res)); return { before: n0, after: __game.renderer.info.programs.length }; });
     check(r.after - r.before <= 3, `shaders are ready before the first frames (${r.before} programs, ${r.after - r.before} more in the first frames)`);
     await p4.close();
+  }
+  // the move button works while another finger steers (phones send no click for a second finger)
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 405, height: 720 }, hasTouch: true, isMobile: true });
+    const p6 = await ctx2.newPage();
+    await p6.goto(`http://localhost:${port}/?local&tier=0`);
+    await p6.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    await p6.evaluate(() => { const S = __game.S; S.touched = true; S.idle = -999; while (S.stage < 3) __game.grow(); document.querySelector('#hint').hidden = true; });
+    await p6.waitForTimeout(3500); // the grow pose is over
+    const btn = await p6.evaluate(() => { const r = document.querySelector('#skill').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    const cdp = await ctx2.newCDPSession(p6);
+    const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i + 1 })) });
+    await touch('touchStart', [[150, 500]]); await touch('touchMove', [[150, 440]]); await p6.waitForTimeout(600);
+    const walking = await p6.evaluate(() => __game.S.moving);
+    await touch('touchStart', [[150, 440], btn]); await touch('touchEnd', [[150, 440]]); await p6.waitForTimeout(200);
+    const cd = await p6.evaluate(() => __game.S.skillCd); await touch('touchEnd', []);
+    check(walking && cd > 0, `the move button works with a second finger while walking (walking ${walking}, cooldown ${cd.toFixed(1)})`);
+    await ctx2.close();
+  }
+  // drawn icons replace the emoji everywhere in the HUD (shop, result, album)
+  {
+    const r = await g(async () => { __game.openShop(); await new Promise((res) => setTimeout(res, 100));
+      const hud = document.querySelector('.hud'), left = (hud.innerText.match(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu) || []);
+      const ic = hud.querySelectorAll('.ic').length, bg = getComputedStyle(hud.querySelector('.ic')).backgroundImage;
+      document.querySelector('#shop').hidden = true; return { left: left.slice(0, 5), ic, atlas: /icons|cloudfront/.test(bg) }; });
+    check(r.ic > 10 && r.left.length === 0 && r.atlas, `drawn icons replace the emoji (${r.ic} icons, emoji left: ${r.left.join(' ') || 'none'})`);
+  }
+  // surprises: the golden building pays when knocked down in time, the giant candy makes Bonbon MEGA, a long combo starts FEVER
+  {
+    const p7 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p7.goto(`http://localhost:${port}/?local&tier=0`);
+    await p7.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    const r = await p7.evaluate(async () => { const S = __game.S, w = (ms) => new Promise((res) => setTimeout(res, ms));
+      document.querySelector('#hint').hidden = true; S.touched = true; S.idle = -1e9; S.time = 20; S.goldenAt = 20.01; for (let i = 0; i < 40 && !S.golden; i++) await w(100);
+      const gold = S.golden, c0 = S.coins; if (gold) __game.city.collapse(gold, { x: 1, z: 0 }, 0); for (let i = 0; i < 40 && S.golden; i++) await w(100); await w(100);
+      const paid = S.coins - c0, cleared = !S.golden && !document.querySelector('.emark');
+      S.candyAt = S.time; for (let i = 0; i < 40 && !S.candy; i++) await w(100); const candy = !!S.candy; if (S.candy) { S.x = S.candy.x; S.z = S.candy.z; } for (let i = 0; i < 40 && S.megaT <= 0; i++) await w(100);
+      const mega = S.megaT > 0 && S.scaleTarget > S.scale * 0.99;
+      S.combo = 30; __game.feverCheck(); const fever = S.feverT > 0 && document.querySelector('.hud').classList.contains('fever');
+      S.feverT = 0.01; S.combo = 30; await w(200); __game.feverCheck(); const cool = S.feverT <= 0;
+      return { gold: !!gold, paid, cleared, candy, mega, fever, cool }; });
+    await p7.close();
+    check(r.gold && r.paid >= 80 && r.cleared && r.candy && r.mega && r.fever && r.cool, `surprises: golden building pays when knocked down (+${r.paid}), giant candy makes MEGA, combo starts FEVER and waits its cooldown (${JSON.stringify(r)})`);
+  }
+  // audit fixes: no FEVER before the first touch, a slow round shows empty stars, Bonbon is back to size after MEGA, a skin-toned emoji stays whole
+  {
+    const p8 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p8.goto(`http://localhost:${port}/?local&tier=0`);
+    await p8.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    const r = await p8.evaluate(async () => { const S = __game.S, w = (ms) => new Promise((res) => setTimeout(res, ms));
+      S.combo = 30; __game.feverCheck(); const attractFever = S.feverT > 0;
+      document.querySelector('#hint').hidden = true; S.touched = true; S.megaT = 5; __game.eventsUpdate(0.016); const big = S.scaleTarget;
+      S.time = 9999; __game.finish(); await w(600);
+      const empty = document.querySelectorAll('.stars .ic[data-e="☆"]').length, back = S.scaleTarget < big;
+      const d = document.createElement('div'); d.textContent = 'x👸🏽y'; document.querySelector('.hud').appendChild(d); await w(50);
+      const whole = d.textContent.includes('👸🏽') && !d.querySelector('.ic'); d.remove();
+      return { attractFever, empty, back, whole }; });
+    check(!r.attractFever && r.empty === 2 && r.back && r.whole, `audit fixes: no FEVER before the first touch, a 1-star round shows 2 empty stars, MEGA size ends at the finish, a skin-toned emoji stays whole (${JSON.stringify(r)})`);
+    await p8.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
