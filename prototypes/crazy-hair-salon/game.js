@@ -15,7 +15,8 @@
  * Arabic right to left; the globe on the wall changes it). Tunable numbers live in game_config.json.
  */
 import { W, H, NAVY, WHITE, CORAL, SUNNY, MINT, SKY, VIOLET, ORANGE, SHADOW, rr, box, oval, star, drawSalon, drawChair, drawBody, drawHead, drawEars, CUSTOMERS, CUSTOMER_TYPES, ACCESSORIES, drawAcc, icon, pot, hand } from './art.js';
-import { loadSprites, ready, settled, drawBust, drawAccSprite, drawToolSprite, drawRoom } from './sprites.js';
+import { PLUM, PINK, GREEN, glossDisc, glossPill, sphere, panel, rays, vignette } from './ui.js';
+import { loadSprites, ready, settled, drawWhole, drawBust, drawAccSprite, drawToolSprite, drawRoom } from './sprites.js';
 import { rng, COLORS, FREE_COLORS, colorOf, createHair, placeHair, stepHair, cutHair, trimToY, fillUnpainted, foamAt, paintAt, count, rinse, drawHair, encodeHair, hairFromCode } from './hair.js';
 
 const DEBUG = location.search.includes('local');
@@ -25,7 +26,7 @@ const MUTE = { x: 612, y: 22, s: 92 }, WALLB = { x: 506, y: 22, s: 92 }, CHECK =
 const NEXT = { x: 290, y: 930, s: 140 }, BACK = { x: 300, y: 950, s: 120 }, LANGB = { x: 600, y: 30, s: 92 };
 const ORDER = { x: 560, y: 204, w: 142, h: 176 }, TRAY_Y = 856, CELL = { x: 30, y: 152, w: 216, h: 250, dx: 226, dy: 258 };
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
-const FONT = "system-ui, 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Bengali', sans-serif";
+const FONT = "'Baloo 2', 'Baloo Da 2', 'Baloo Bhaijaan 2', system-ui, 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Bengali', sans-serif";
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, '#FF8FC7'];
 const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 
@@ -33,7 +34,7 @@ let cv, g, cfg, mode, raf = 0, last = 0, acc = 0, runs = 0;
 let save = { n: 0, coins: 0, stars: 0, colors: [], acc: [], wall: [], fresh: null, muted: false, lang: null }, saveRead = false, merged = false, muteTouched = false;
 let view = 'play', S = null, lang = 'en', parts = [], back = null, photos = [], wallSel = -1, wallT = 0;
 let pen = null, penId = null, touched = false, bound = false, coinShown = 0, coinPulse = 0, shakeId = null, shakeT = 0, gain = null;
-let quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, roomDrawn = false, bootT = 0; // RES: canvas pixels per game pixel, lowered on slow phones
+let vig = null, quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, roomDrawn = false, bootT = 0; // RES: canvas pixels per game pixel, lowered on slow phones
 let ac = null, noiseBuf = null, dryNode = null, dryOn = false;
 const throttle = {};
 const every = (key, ms) => { const t = performance.now(); if (t - (throttle[key] || 0) < ms) return false; throttle[key] = t; return true; };
@@ -50,17 +51,17 @@ const rtl = () => (cfg.rtl || []).includes(lang);
 /** Bold text centred on (x, y), shrunk until it fits maxW. */
 function words(str, x, y, size, maxW, color, ltr = false) {
   g.direction = rtl() && !ltr ? 'rtl' : 'ltr'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  let px = size; g.font = `bold ${px}px ${FONT}`;
-  while (px > 18 && g.measureText(str).width > maxW) { px -= 2; g.font = `bold ${px}px ${FONT}`; }
+  let px = size; g.font = `800 ${px}px ${FONT}`;
+  while (px > 18 && g.measureText(str).width > maxW) { px -= 2; g.font = `800 ${px}px ${FONT}`; }
   g.fillStyle = color; g.fillText(str, x, y); g.direction = 'ltr';
 }
-/** A white pill with words, centred on (x, y); pop scales it for a bounce. */
-function banner(str, x, y, size, maxW, color = NAVY, pop = 1) {
+/** A glossy pill with words, centred on (x, y); pop scales it for a bounce. */
+function banner(str, x, y, size, maxW, color = PLUM, pop = 1) {
   g.save(); g.translate(x, y); g.scale(pop, pop);
-  g.font = `bold ${size}px ${FONT}`;
-  const w = Math.min(maxW, g.measureText(str).width) + 60, h = size + 34;
-  box(g, -w / 2, -h / 2 + 6, w, h, h / 2, SHADOW); box(g, -w / 2, -h / 2, w, h, h / 2, WHITE);
-  words(str, 0, 2, size, maxW, color);
+  g.font = `800 ${size}px ${FONT}`;
+  const w = Math.min(maxW, g.measureText(str).width) + 64, h = size + 34;
+  glossPill(g, -w / 2, -h / 2, w, h, '#FFFFFF', '#FF9CC8');
+  words(str, 0, 4, size, maxW, color);
   g.restore();
 }
 const popIn = (age) => (age < 0.35 ? 0.6 + 0.4 * ease(age / 0.35) + Math.sin(Math.min(1, age / 0.35) * Math.PI) * 0.12 : 1);
@@ -146,7 +147,7 @@ function newCustomer(n, enter) {
   const order = makeOrder(n);
   S = {
     n, order, step: 0, stepT: 0, t: 0, enter: enter ? 1 : 0, jump: 0, idle: 0, used: false, rinse: -1, eek: 0, done: -1,
-    sel: order.cols[0], page: 0, placed: [], lastDeco: 0, reveal: -1, stars: 0, score: 0, gained: 0,
+    sel: order.cols[0], page: 0, placed: [], blobs: [], rub: 0, lastDeco: 0, reveal: -1, stars: 0, score: 0, gained: 0,
     head: { x: HEAD.x + (enter ? 560 : 0), y: HEAD.y, R: HEAD.R },
     hair: createHair(HEAD.R, { strands: cfg.strands, points: cfg.points, seg: cfg.seg, minLen: cfg.minLen, maxLen: cfg.maxLen, seed: 77 + n * 131 }),
   };
@@ -156,7 +157,9 @@ function newCustomer(n, enter) {
 }
 
 // ---------- progress of each step ----------
-const washShare = () => count(S.hair, (s, i) => s.foam[i]).share;
+/** How much is lathered: foam blobs on the painted mop, or foamed points on the strands. */
+const washShare = () => (S.hair.painted ? Math.min(1, S.blobs.length / cfg.foamBlobs) * cfg.foamGoal : count(S.hair, (s, i) => s.foam[i]).share);
+const onMop = (x, y) => ((x - S.head.x) / (S.head.R * 1.6)) ** 2 + ((y - S.head.y + S.head.R * 0.05) / (S.head.R * 1.5)) ** 2 < 1;
 const lineY = () => cfg.lines[S.order.cut];
 const cutShare = () => S.hair.strands.filter((s) => s.goal).length / S.hair.strands.length;
 /** Share of the hair the player can reach that is painted (hair hanging behind the tray is left out). */
@@ -185,7 +188,7 @@ function scoreOf() {
 
 function finishStep() {
   if (S.step === 4) return reveal();
-  if (S.step === 1) trimToY(S.hair, lineY(), cfg.cutMin, MAX_PIECES); // strands the scissors missed are tidied by themselves
+  if (S.step >= 1) trimToY(S.hair, lineY(), cfg.cutMin, MAX_PIECES, S.head); // strands the scissors missed, or that fell long later, are tidied by themselves
   if (S.step === 2 && dyeShare() >= cfg.dyeGoal) fillUnpainted(S.hair); // the last few spots the brush missed, and the ends behind the tray
   S.done = S.t; S.jump = 0.35; S.step++; S.stepT = 0; S.used = false; S.idle = 0; S.page = 0; pen = null; dryStop();
   SFX.step(); buzz('success'); burst(150 + S.step * 104 - 104, 166, 18, false);
@@ -194,6 +197,7 @@ function finishStep() {
 }
 
 function reveal() {
+  trimToY(S.hair, lineY(), cfg.cutMin, MAX_PIECES, S.head);
   const sc = scoreOf();
   S.step = 5; S.reveal = 0; S.stars = sc.stars; S.score = sc.v; S.gained = sc.stars * cfg.coinsPerStar; S.jump = 0.5; pen = null; dryStop();
   save.coins += S.gained; save.stars += sc.stars; save.n += 1; // counted up, never set from the chair: a late save can't make it go back
@@ -312,6 +316,10 @@ function gesture(first) {
   S.idle = 0;
   if (S.step === 0 && S.rinse < 0) {
     let got = 0; for (let k = 1; k <= n; k++) got += foamAt(h, px + (x - px) * k / n, py + (y - py) * k / n, cfg.foamRadius);
+    if (h.painted && onMop(x, y)) { // lather where the finger rubs the painted mop
+      S.rub += len; got += 1;
+      while (S.rub > 20 && S.blobs.length < cfg.foamBlobs * 1.3) { S.rub -= 20; S.blobs.push({ dx: x - S.head.x + (Math.random() - 0.5) * 50, dy: y - S.head.y + (Math.random() - 0.5) * 50, r: 14 + Math.random() * 14 }); }
+    }
     if (got) { S.used = true; if (every('squish', 90)) SFX.squish(); if (every('hap', 120)) buzz('tick'); if (Math.random() < 0.5) puff('bub', x, y, null, 1); }
     if (washShare() >= cfg.foamGoal) { S.rinse = 0; SFX.splash(); buzz('thud'); }
   } else if (S.step === 1 && !first) {
@@ -357,7 +365,9 @@ function sim(dt) {
   if (s.rinse >= 0 && s.step === 0) {
     s.rinse += dt; h.dirt = Math.max(0, 1 - s.rinse * 1.6); h.wild = Math.max(0.05, 1 - s.rinse * 1.5); h.wet = Math.min(1, s.rinse * 2); h.stiff = cfg.stiffWild + (cfg.stiffWet - cfg.stiffWild) * h.wet;
     if (Math.random() < 0.8) puff('drop', s.head.x + (Math.random() - 0.5) * 360, 330, '#7FD4FF', 2);
-    if ((Math.round(s.rinse / dt) % 3 === 0 && rinse(h, 1) && s.rinse > 0.9) || s.rinse > 2.5) {
+    if (s.blobs.length && Math.random() < 0.6) s.blobs.splice(Math.floor(Math.random() * s.blobs.length), 1); // lather pops away
+    if ((Math.round(s.rinse / dt) % 3 === 0 && rinse(h, 1) && s.rinse > 0.9 && !s.blobs.length) || s.rinse > 2.5) {
+      s.blobs.length = 0;
       for (const st of h.strands) { st.foam.fill(0); for (let i = 0; i < st.col.length; i++) if (st.col[i] === 0) st.col[i] = BROWN; }
       h.dirt = 0; h.wild = 0.05; s.rinse = -1; finishStep();
     } else if (Math.random() < 0.25) SFX.pop();
@@ -399,19 +409,27 @@ function handAt() {
 const handShown = () => mode === 'play' && S.step < 5 && S.enter === 0 && S.rinse < 0 && (S.n === 0 ? !S.used || S.idle > cfg.idleHand : S.idle > cfg.idleHand);
 /** The dotted cut line: straight across at the order's length. */
 function guide() { const y = lineY(), pts = []; for (let x = 110; x <= 610; x += 50) pts.push([x, y]); return pts; }
-function dashed(pts, color) {
+function dashed(pts, color) { // a glowing dotted guide
   if (pts.length < 2) return;
   g.save(); g.setLineDash([16, 14]); g.lineDashOffset = -S.t * 40; g.lineCap = 'round';
   g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
-  g.lineWidth = 12; g.strokeStyle = NAVY; g.stroke(); g.lineWidth = 6; g.strokeStyle = color; g.stroke(); g.restore();
+  g.lineWidth = 14; g.strokeStyle = 'rgba(255,95,162,0.55)'; g.stroke(); g.lineWidth = 6; g.strokeStyle = color; g.stroke(); g.restore();
 }
 
 function drawCustomer(s, c) {
+  if (s.step === 5) rays(g, s.head.x, s.head.y - 40, 520, s.reveal, Math.min(0.85, s.reveal * 2));
+  s.hair.painted = ready('messy_hair');
+  if (s.hair.painted && s.hair.dirt > 0) { const k = 1 + Math.sin(s.t * 2.2) * 0.012; drawWhole(g, 'messy_hair', s.head.x, s.head.y - s.head.R * 0.05, s.head.R * 3.3 * k, s.hair.dirt); } // the painted bed-head, behind the head
   if (!drawBust(g, s.order.type, c.mood, s.head.x, s.head.y, s.head.R)) { // the code stand-in while the painting loads
     drawChair(g, s.head.x, HEAD.y - 260, false);
     drawBody(g, c); drawChair(g, s.head.x, HEAD.y - 260, true); drawHead(g, c);
   }
   drawHair(g, s.hair, s.head, quality < 2);
+  if (s.blobs.length) { // lather on the painted mop: glossy bubbles
+    const b = new Path2D(); for (const o of s.blobs) { const x = s.head.x + o.dx, y = s.head.y + o.dy; b.moveTo(x + o.r, y); b.arc(x, y, o.r, 0, 7); }
+    g.fillStyle = 'rgba(255,255,255,0.93)'; g.fill(b); g.lineWidth = 3; g.strokeStyle = '#A8DDF5'; g.stroke(b);
+    g.fillStyle = 'rgba(255,255,255,1)'; for (const o of s.blobs) { g.beginPath(); g.arc(s.head.x + o.dx - o.r * 0.35, s.head.y + o.dy - o.r * 0.35, o.r * 0.22, 0, 7); g.fill(); }
+  }
   drawEars(g, c);
   for (const p of s.placed) { const [x, y, rot] = accPos(p.slot), age = s.t - p.t, k = age < 0.3 ? 0.5 + ease(age / 0.3) * 0.5 + Math.sin(age / 0.3 * Math.PI) * 0.2 : 1; if (!drawAccSprite(g, p.id, x, y, 112 * k, rot)) drawAcc(g, p.id, x, y, 92 * k, rot); }
 }
@@ -437,6 +455,7 @@ function draw() {
   if (s.step === 2 && s.order.cols.length > 1) dashed(S.hair.strands.filter((q) => q.len > 3).map((q) => [q.x[Math.floor(q.len / 2)], q.y[Math.floor(q.len / 2)]]).sort((a, b) => a[0] - b[0]), SUNNY);
   drawParts();
   g.setTransform(RES, 0, 0, RES, 0, 0);
+  if (quality < 2) { if (!vig) vig = vignette(W, H); g.drawImage(vig, 0, 0); }
   if (pen && s.step < 4) drawTool(pen.x, pen.y);
   if (!trayShown() && s.step < 4 && s.enter === 0) drawToolBadge();
   if (trayShown()) drawTray();
@@ -461,45 +480,44 @@ function drawTool(x, y) {
 /** The tool of the step, resting on a disc below the customer; a tap on it shows the hand. */
 function drawToolBadge() {
   const pulse = 1 + Math.sin(S.t * 4) * 0.04;
-  oval(g, 360, 986, 66 * pulse, 66 * pulse, SHADOW); oval(g, 360, 980, 62 * pulse, 62 * pulse, WHITE, 5);
+  glossDisc(g, 360, 980, 62 * pulse, '#FFFFFF', '#FF9CC8');
   if (!drawToolSprite(g, STEP_ICONS[S.step], 360, 980, 96)) icon(g, STEP_ICONS[S.step], 360, 980, 92, S.step === 2 ? colorOf(S.sel, 3) : 0);
 }
 function drawTray() {
-  box(g, 14, TRAY_Y + 6, W - 28, 216, 36, SHADOW); box(g, 14, TRAY_Y, W - 28, 216, 36, WHITE);
-  rr(g, 14, TRAY_Y, W - 28, 216, 36); g.lineWidth = 5; g.strokeStyle = NAVY; g.stroke();
+  panel(g, 14, TRAY_Y, W - 28, 216, 40);
   const { items, arrow } = pageItems(), p = price();
   items.forEach((it, j) => {
     let [x, y] = slotXY(j); if (shakeId === it.k + it.id && shakeT > 0) x += Math.sin(shakeT * 50) * 8;
     const sel = it.k === 'col' && it.id === S.sel && !it.locked, want = it.k === 'col' ? S.order.cols.includes(it.id) : it.id === S.order.acc;
-    if (sel) { oval(g, x, y, 54, 54, '#FFF3B0'); g.lineWidth = 6; g.strokeStyle = ORANGE; g.stroke(); }
+    if (sel) { g.beginPath(); g.arc(x, y, 52, 0, 7); g.fillStyle = 'rgba(255,95,162,0.16)'; g.fill(); g.lineWidth = 6; g.strokeStyle = PINK; g.stroke(); }
     g.globalAlpha = it.locked ? 0.55 : 1;
-    if (it.k === 'col') pot(g, COLORS[it.id], x, y + 4, 92, it.id === 16); else if (!drawAccSprite(g, it.id, x, y, 92, 0)) drawAcc(g, it.id, x, y, 84, 0);
+    if (it.k === 'col') sphere(g, x, y, 38, COLORS[it.id], it.id === 16); else if (!drawAccSprite(g, it.id, x, y, 92, 0)) drawAcc(g, it.id, x, y, 84, 0);
     g.globalAlpha = 1;
     if (want && !it.locked) star(g, x + 36, y - 36, 15, SUNNY, 3);
-    if (it.locked) { icon(g, 'lock', x + 30, y - 26, 44); box(g, x - 38, y + 30, 76, 30, 15, save.coins >= p ? MINT : NAVY); icon(g, 'coin', x - 20, y + 45, 24); words(String(p), x + 10, y + 46, 22, 46, WHITE); }
+    if (it.locked) { icon(g, 'lock', x + 30, y - 26, 44); glossPill(g, x - 40, y + 28, 80, 34, save.coins >= p ? GREEN : PLUM); icon(g, 'coin', x - 20, y + 45, 24); words(String(p), x + 12, y + 46, 22, 44, WHITE, true); }
   });
-  if (arrow) { const [x, y] = slotXY(11); oval(g, x, y, 44, 44, VIOLET, 5); icon(g, 'next', x + 3, y, 52); }
+  if (arrow) { const [x, y] = slotXY(11); glossDisc(g, x, y, 42, VIOLET); icon(g, 'next', x + 3, y, 50); }
 }
 function drawCheck() {
   const { x, y, s } = CHECK, pulse = 1 + Math.sin(S.t * 6) * 0.06;
-  oval(g, x + s / 2, y + s / 2 + 6, s / 2 * pulse, s / 2 * pulse, SHADOW); oval(g, x + s / 2, y + s / 2, s / 2 * pulse, s / 2 * pulse, MINT, 6); icon(g, 'check', x + s / 2, y + s / 2, 96);
+  glossDisc(g, x + s / 2, y + s / 2, s / 2 * pulse, GREEN); icon(g, 'check', x + s / 2, y + s / 2, 96);
 }
 function pill(x, y, w, kind, value, pop = 0) {
-  box(g, x, y + 6, w, 80, 40, SHADOW); box(g, x, y, w, 80, 40, WHITE); rr(g, x, y, w, 80, 40); g.lineWidth = 4; g.strokeStyle = NAVY; g.stroke();
+  glossPill(g, x, y, w, 80, '#FFFFFF', '#FF9CC8');
   if (kind === 'coin') icon(g, 'coin', x + 42, y + 40, 62 * (1 + pop * 0.3)); else star(g, x + 42, y + 40, 28, SUNNY, 4);
-  words(String(value), x + w / 2 + 22, y + 42, 40, w - 90, NAVY);
+  words(String(value), x + w / 2 + 22, y + 44, 42, w - 90, PLUM, true);
 }
-function disc(b, kind) { const r = b.s / 2; oval(g, b.x + r, b.y + r + 5, r, r, SHADOW); oval(g, b.x + r, b.y + r, r, r, WHITE, 4); icon(g, kind, b.x + r, b.y + r, b.s * 0.8); }
+function disc(b, kind) { const r = b.s / 2; glossDisc(g, b.x + r, b.y + r, r, '#FFFFFF', '#FF9CC8'); icon(g, kind, b.x + r, b.y + r, b.s * 0.74); }
 function drawHud() {
   pill(22, 22, 190, 'coin', Math.round(coinShown), Math.sin(coinPulse * 12) * coinPulse);
   disc(WALLB, 'wall'); disc(MUTE, save.muted ? 'mute' : 'sound');
-  if (save.wall.length) { oval(g, WALLB.x + 80, WALLB.y + 14, 18, 18, CORAL, 3); words(String(save.wall.length), WALLB.x + 80, WALLB.y + 15, 20, 30, WHITE); }
+  if (save.wall.length) { glossDisc(g, WALLB.x + 80, WALLB.y + 14, 18, PINK); words(String(save.wall.length), WALLB.x + 80, WALLB.y + 16, 22, 30, WHITE, true); }
 }
 function drawSteps() {
   for (let i = 0; i < 5; i++) {
     const x = 208 + i * 76, y = 160, cur = i === S.step, done = i < S.step, pop = cur && S.done >= 0 ? popIn(S.t - S.done) : 1, r = 31 * (cur ? 1.15 * pop : 1);
-    oval(g, x, y + 5, r, r, SHADOW); oval(g, x, y, r, r, done ? MINT : cur ? WHITE : '#E9F1FF', 4);
-    if (cur && S.step < 5) { g.beginPath(); g.arc(x, y, r + 1, -Math.PI / 2, -Math.PI / 2 + progress() * Math.PI * 2); g.lineWidth = 9; g.strokeStyle = ORANGE; g.lineCap = 'round'; g.stroke(); }
+    glossDisc(g, x, y, r, done ? GREEN : cur ? '#FFFFFF' : '#F1E9FF', cur ? '#FF9CC8' : '#FFFFFF');
+    if (cur && S.step < 5) { g.beginPath(); g.arc(x, y, r + 4, -Math.PI / 2, -Math.PI / 2 + progress() * Math.PI * 2); g.lineWidth = 8; g.strokeStyle = PINK; g.lineCap = 'round'; g.stroke(); }
     g.globalAlpha = done || cur ? 1 : 0.55;
     if (done) icon(g, 'check', x, y, 44); else if (!(i === 4 ? drawAccSprite(g, 'bow', x, y, r * 1.4) : drawToolSprite(g, STEP_ICONS[i], x, y, r * 1.5))) icon(g, STEP_ICONS[i], x, y, cur ? 52 : 44, i === 2 ? colorOf(S.order.cols[0], 3) : 0);
     g.globalAlpha = 1;
@@ -509,10 +527,10 @@ function drawSteps() {
 function drawOrder() {
   const { x, y, w, h } = ORDER, o = S.order, k = CUSTOMERS[o.type], wob = S.step === 0 && !S.used ? Math.sin(S.t * 5) * 0.04 : 0;
   g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(wob); g.translate(-x - w / 2, -y - h / 2);
-  box(g, x, y + 7, w, h, 24, SHADOW); box(g, x, y, w, h, 24, WHITE); rr(g, x, y, w, h, 24); g.lineWidth = 5; g.strokeStyle = NAVY; g.stroke();
+  panel(g, x, y, w, h, 24);
   const cx = x + w / 2, cy = y + 74, fall = 22 + o.cut * 18;
   for (const sd of [-1, 1]) { // the two falls of hair, top colour then bottom colour
-    rr(g, cx + sd * 33 - 13, cy - 16, 26, fall, 12); g.fillStyle = colorOf(o.cols[0], 2); g.fill(); g.lineWidth = 3; g.strokeStyle = NAVY; g.stroke();
+    rr(g, cx + sd * 33 - 13, cy - 16, 26, fall, 12); g.fillStyle = colorOf(o.cols[0], 2); g.fill(); g.lineWidth = 2; g.strokeStyle = 'rgba(70,30,15,0.35)'; g.stroke();
     if (o.cols.length > 1) { rr(g, cx + sd * 33 - 13, cy - 16 + fall / 2, 26, fall / 2, 12); g.fillStyle = colorOf(o.cols[1], 12); g.fill(); g.stroke(); }
   }
   g.save(); rr(g, x + 4, y + 4, w - 8, h - 8, 20); g.clip();
@@ -522,14 +540,14 @@ function drawOrder() {
   if (!drawAccSprite(g, o.acc, cx + 28, cy - 34, 46, 0.3)) drawAcc(g, o.acc, cx + 28, cy - 34, 42, 0.3);
   // the length: scissors beside a marker at the length line
   if (!drawToolSprite(g, 'scissors', x + 30, y + h - 30, 40, -0.5)) icon(g, 'scissors', x + 30, y + h - 30, 40, 0.5);
-  for (let i = 0; i < 3; i++) { const on = i <= o.cut; box(g, x + 58 + i * 26, y + h - 42 + (2 - i) * 6, 19, 24 - (2 - i) * 6 + 6, 5, on ? ORANGE : '#E0E6F5'); }
+  for (let i = 0; i < 3; i++) { const on = i <= o.cut; box(g, x + 58 + i * 26, y + h - 42 + (2 - i) * 6, 19, 24 - (2 - i) * 6 + 6, 6, on ? PINK : '#EADCF5'); }
   g.restore();
 }
 function drawPrompt() {
-  let key = STEPS[S.step] || 'p' + S.stars, color = NAVY;
+  let key = STEPS[S.step] || 'p' + S.stars, color = PLUM;
   if (S.step === 0 && S.rinse >= 0) key = 'rinse';
   if (S.eek > 0) { key = 'eek'; color = CORAL; }
-  if (S.step === 5) { key = 'p' + S.stars; color = ORANGE; }
+  if (S.step === 5) { key = 'p' + S.stars; color = PINK; }
   if (S.enter > 0.1) return;
   const age = S.step === 5 ? S.reveal : S.eek > 0 ? 0.9 - S.eek : S.stepT;
   banner(T(key), S.step === 5 ? 360 : 268, S.step === 5 ? 168 : 268, S.step === 5 ? 52 : 42, S.step === 5 ? 600 : 420, color, popIn(age));
@@ -542,12 +560,13 @@ function drawReveal() {
     if (age < 0) continue;
     if (i < S.stars && !(S.rang & (1 << i))) { S.rang = (S.rang || 0) | (1 << i); SFX.star(i); }
     const k = popIn(age) * (i === 1 ? 1.2 : 1);
-    star(g, x, y + 6, 46 * k, SHADOW, 0); star(g, x, y, 46 * k, i < S.stars ? SUNNY : '#E0E6F5', 6);
+    star(g, x, y + 7, 48 * k, 'rgba(90,30,80,0.22)', 0); star(g, x, y, 48 * k, i < S.stars ? SUNNY : '#EADCF5', 0);
+    if (i < S.stars) { g.save(); g.beginPath(); g.ellipse(x - 12 * k, y - 16 * k, 12 * k, 7 * k, -0.5, 0, 7); g.fillStyle = 'rgba(255,255,255,0.7)'; g.fill(); g.restore(); }
   }
-  if (t > 1.0) { const k = ease((t - 1.0) / 0.4); g.globalAlpha = Math.max(0, 1 - (t - 1.8) / 0.4); box(g, 40, 120 - 30 * k, 200, 70, 35, MINT); icon(g, 'coin', 80, 155 - 30 * k, 54); words('+' + S.gained, 160, 158 - 30 * k, 40, 120, WHITE, true); g.globalAlpha = 1; }
+  if (t > 1.0) { const k = ease((t - 1.0) / 0.4); g.globalAlpha = Math.max(0, 1 - (t - 1.8) / 0.4); glossPill(g, 40, 120 - 30 * k, 200, 70, GREEN); icon(g, 'coin', 80, 155 - 30 * k, 54); words('+' + S.gained, 160, 158 - 30 * k, 40, 120, WHITE, true); g.globalAlpha = 1; }
   if (t > 1.2) {
     const pulse = 1 + Math.sin(t * 6) * 0.06, r = NEXT.s / 2;
-    oval(g, NEXT.x + r, NEXT.y + r + 7, r * pulse, r * pulse, SHADOW); oval(g, NEXT.x + r, NEXT.y + r, r * pulse, r * pulse, CORAL, 7); icon(g, 'next', NEXT.x + r + 6, NEXT.y + r, 110);
+    glossDisc(g, NEXT.x + r, NEXT.y + r, r * pulse, PINK); icon(g, 'next', NEXT.x + r + 6, NEXT.y + r, 104);
     const left = 1 - Math.min(1, (t - 1.2) / (cfg.revealSeconds - 1.2)); g.beginPath(); g.arc(NEXT.x + r, NEXT.y + r, r + 10, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2); g.lineWidth = 8; g.strokeStyle = WHITE; g.stroke();
   }
 }
@@ -570,12 +589,12 @@ function photo(ph) {
 const cellAt = (i) => [CELL.x + (i % 3) * CELL.dx, CELL.y + Math.floor(i / 3) * CELL.dy];
 function drawWall() {
   g.setTransform(RES, 0, 0, RES, 0, 0); g.drawImage(back, 0, 0); g.fillStyle = 'rgba(255,240,246,0.88)'; g.fillRect(0, 0, W, H);
-  banner(T('wall'), 290, 76, 46, 420, VIOLET, popIn(wallT));
+  banner(T('wall'), 290, 76, 46, 420, PINK, popIn(wallT));
   disc(LANGB, 'globe');
   if (photos.length !== save.wall.length) photos = save.wall.map(photo);
   for (let i = 0; i < 9; i++) {
     const [x, y] = cellAt(i), ph = photos[i];
-    if (ph) { box(g, x - 8, y - 8, CELL.w + 16, CELL.h + 16, 18, WHITE); g.drawImage(ph, x, y); rr(g, x - 8, y - 8, CELL.w + 16, CELL.h + 16, 18); g.lineWidth = 4; g.strokeStyle = NAVY; g.stroke(); }
+    if (ph) { box(g, x - 8, y + 2, CELL.w + 16, CELL.h + 16, 18, 'rgba(90,30,80,0.18)'); box(g, x - 8, y - 8, CELL.w + 16, CELL.h + 16, 18, WHITE); g.drawImage(ph, x, y); rr(g, x - 8, y - 8, CELL.w + 16, CELL.h + 16, 18); g.lineWidth = 3; g.strokeStyle = '#FFB3D6'; g.stroke(); }
     else { box(g, x, y, CELL.w, CELL.h, 14, 'rgba(255,255,255,0.6)'); rr(g, x, y, CELL.w, CELL.h, 14); g.save(); g.setLineDash([14, 10]); g.lineWidth = 4; g.strokeStyle = '#B8C2E0'; g.stroke(); g.restore(); g.globalAlpha = 0.35; icon(g, 'camera', x + CELL.w / 2, y + CELL.h / 2, 90); g.globalAlpha = 1; }
   }
   disc(BACK, 'back');
@@ -643,6 +662,7 @@ function run(m) {
   g = cv.getContext('2d', { alpha: false });
   if (!back) { back = document.createElement('canvas'); back.width = W; back.height = H; drawSalon(back.getContext('2d')); }
   loadSprites(cfg.sprites); bootT = 0;
+  try { for (const f of ["800 40px 'Baloo 2'", "800 40px 'Baloo Da 2'", "800 40px 'Baloo Bhaijaan 2'"]) document.fonts.load(f); } catch (e) { /* fonts load when they can */ }
   const slider = (key, min, max, step) => ({ key, type: 'slider', min, max, step });
   try {
     lib.showGameParameters({

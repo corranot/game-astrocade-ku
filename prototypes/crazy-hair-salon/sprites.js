@@ -37,6 +37,10 @@ export function drawBust(g, kid, mood, x, y, R) {
   if (!c) {
     c = document.createElement('canvas'); c.width = Math.ceil(bw * k); c.height = Math.ceil(bh * k);
     const q = c.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(IMG[id], bx, by, bw, bh, 0, 0, c.width, c.height);
+    if (R > 60) { // the shoulders fade out instead of ending in a cut edge
+      const f = q.createLinearGradient(0, c.height * 0.8, 0, c.height); f.addColorStop(0, 'rgba(0,0,0,0)'); f.addColorStop(1, 'rgba(0,0,0,1)');
+      q.globalCompositeOperation = 'destination-out'; q.fillStyle = f; q.fillRect(0, c.height * 0.8, c.width, c.height * 0.2); q.globalCompositeOperation = 'source-over';
+    }
     if (BUSTS.size > 24) BUSTS.clear();
     BUSTS.set(key, c);
   }
@@ -51,6 +55,13 @@ function cell(g, id, n, x, y, s, rot = 0) {
   g.save(); g.translate(x, y); if (rot) g.rotate(rot);
   g.drawImage(IMG[id], bx, by, bw, bh, -bw * k / 2, -bh * k / 2, bw * k, bh * k);
   g.restore(); return true;
+}
+/** A whole image (crop box from the config) centred on (x, y) at width w, faded to alpha. False when not loaded. */
+export function drawWhole(g, id, x, y, w, alpha = 1) {
+  if (!ready(id) || !SP[id]) return false;
+  const [bx, by, bw, bh] = SP[id].cells[0], k = w / bw;
+  g.globalAlpha = alpha; g.drawImage(IMG[id], bx, by, bw, bh, x - w / 2, y - bh * k / 2, w, bh * k); g.globalAlpha = 1;
+  return true;
 }
 const ACC = ['bow', 'flower', 'starclip', 'crown', 'butterfly', 'heart', 'tiara', 'cherry'];
 const TOOLS = { foam: 0, scissors: 1, brush: 2, dryer: 3, bowl: 4, comb: 5 };
