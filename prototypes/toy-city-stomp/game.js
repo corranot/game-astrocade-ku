@@ -196,11 +196,42 @@ function startGame(mode) {
   if (sun.castShadow) { sun.shadow.mapSize.set(quality.shadow, quality.shadow); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.05; }
   scene.add(sun, sun.target);
 
+  // ---------- cel outline: the scene is drawn into a target, then one full-screen pass darkens a single pixel
+  // wherever depth jumps (the far side of every silhouette), so every object gets the same very thin ink line
+  const halfOk = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
+  const edgeRT = new THREE.WebGLRenderTarget(1, 1, { type: halfOk ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: tier >= 2 ? 4 : 0, depthTexture: new THREE.DepthTexture(1, 1, THREE.FloatType) });
+  const edgeMat = new THREE.ShaderMaterial({
+    depthTest: false, depthWrite: false,
+    uniforms: { tColor: { value: edgeRT.texture }, tDepth: { value: edgeRT.depthTexture }, uTexel: { value: new THREE.Vector2(1, 1) }, uNear: { value: 0.5 }, uFar: { value: 900 }, uInk: { value: new THREE.Color(0x24123f) }, uLine: { value: cfg.fx && cfg.fx.outline !== undefined ? cfg.fx.outline : 0.85 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 uTexel; uniform float uNear; uniform float uFar; uniform vec3 uInk; uniform float uLine; varying vec2 vUv;
+      // inverse view distance: it changes linearly across a flat surface on screen, so flat ground and walls give no line
+      float w(vec2 uv) { float z = texture2D(tDepth, uv).x; return (uFar - z * (uFar - uNear)) / (uNear * uFar); }
+      void main() {
+        vec4 c = texture2D(tColor, vUv);
+        float w0 = w(vUv), wl = w(vUv - vec2(uTexel.x, 0.0)), wr = w(vUv + vec2(uTexel.x, 0.0)), wd = w(vUv - vec2(0.0, uTexel.y)), wu = w(vUv + vec2(0.0, uTexel.y));
+        float lap = (wl + wr + wu + wd - 4.0 * w0) / w0; // > 0 on the far side of an edge: a one-pixel line
+        // silhouettes (far side, one pixel), plus a softer line on outer box corners (roof edges, block tops)
+        float e = max(smoothstep(0.025, 0.09, lap), 0.7 * smoothstep(0.05, 0.16, -lap));
+        float near = 1.0 / max(max(wl, wr), max(max(wu, wd), w0)); // the nearest of the five: lines fade out far away
+        e *= 1.0 - smoothstep(220.0, 380.0, near);
+        c.rgb = mix(c.rgb, uInk, e * uLine);
+        gl_FragColor = vec4(c.rgb, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const edgeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), edgeMat); edgeQuad.frustumCulled = false;
+  const edgeScene = new THREE.Scene(); edgeScene.add(edgeQuad);
+  const edgeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
   let city = null;
   function resize() {
     const r = root.getBoundingClientRect();
     const w = Math.max(1, r.width), h = Math.max(1, r.height);
     renderer.setSize(w, h, false);
+    const pr = renderer.getPixelRatio(), pw = Math.max(1, Math.round(w * pr)), ph = Math.max(1, Math.round(h * pr));
+    edgeRT.setSize(pw, ph); edgeMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     camera.aspect = w / h; camera.updateProjectionMatrix();
     root.style.setProperty('--u', (w / W).toString());
     if (city) city.setDustScale(h * renderer.getPixelRatio() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))));
@@ -874,7 +905,8 @@ function startGame(mode) {
     bannerT -= raw; if (bannerT <= 0) $('banner').classList.remove('show');
     const ring = S.skillCd > 0 ? Math.ceil(S.skillCd / (S.skillCdMax || 1) * 20) / 20 : 0;
     if (ring !== ringShown) { ringShown = ring; $('ring').style.setProperty('--p', ring); $('skill').classList.toggle('ready', ring === 0); }
-    renderer.render(scene, camera);
+    renderer.setRenderTarget(edgeRT); renderer.render(scene, camera); // tone mapping happens in the edge pass
+    renderer.setRenderTarget(null); renderer.render(edgeScene, edgeCam);
     if (mode === 'play' && SIM === 1) adaptQuality(raw);
   }
   function simulate(raw) {
@@ -978,11 +1010,11 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
-      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envRT.dispose();
+      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envRT.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

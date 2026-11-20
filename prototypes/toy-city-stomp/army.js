@@ -5,6 +5,7 @@
 // is nearly flat) the Wind-Up Robot drops in: three phases (walk and stomp, foam volleys, jump slam with a
 // landing ring on the ground), then it unwinds into a shower of gears. Kid-safe: toys, foam, bubbles; nobody hurt.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
+import { toon } from './toon.js';
 
 const UNITS = 12, SHOTS = 24;
 
@@ -18,7 +19,7 @@ export function createArmy(scene, cfg, rng, quality, city) {
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };
   const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s3 = new THREE.Vector3(), e = new THREE.Euler(), yAxis = new THREE.Vector3(0, 1, 0);
-  const std = (c, r = 0.35) => keep(new THREE.MeshStandardMaterial({ color: c, roughness: r }));
+  const std = (c, r = 0.35) => keep(toon({ color: c, roughness: r }));
   const inst = (geo, mat, n, shadow = true) => {
     const m = new THREE.InstancedMesh(keep(geo), mat, n); m.frustumCulled = false; m.castShadow = shadow; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     for (let i = 0; i < n; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0));
@@ -37,7 +38,7 @@ export function createArmy(scene, cfg, rng, quality, city) {
   const heliTail = inst(tailGeo, std(0x3fa9ff, 0.2), UNITS);
   const dartGeo = new THREE.CapsuleGeometry(0.18, 0.5, 4, 8); dartGeo.rotateZ(Math.PI / 2);
   const darts = inst(dartGeo, std(0xff9b54, 0.4), SHOTS, false);
-  const bubbles = inst(new THREE.SphereGeometry(0.5, 14, 10), keep(new THREE.MeshStandardMaterial({ color: 0xbfeaff, roughness: 0.05, transparent: true, opacity: 0.55 })), SHOTS, false);
+  const bubbles = inst(new THREE.SphereGeometry(0.5, 14, 10), keep(toon({ color: 0xbfeaff, roughness: 0.05, transparent: true, opacity: 0.55 })), SHOTS, false);
   const ring = new THREE.Mesh(keep(new THREE.RingGeometry(0.85, 1, 48)), keep(new THREE.MeshBasicMaterial({ color: 0xff5a4f, transparent: true, opacity: 0.75, depthWrite: false })));
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.25; ring.visible = false; group.add(ring);
 
@@ -47,7 +48,7 @@ export function createArmy(scene, cfg, rng, quality, city) {
   const inkMat = keep(new THREE.MeshBasicMaterial({ color: 0x24123f, side: THREE.BackSide }));
   const bpart = (geo, c, x, y, z, parent = bossG) => {
     const m = new THREE.Mesh(keep(geo), std(c, 0.25)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
-    const hull = new THREE.Mesh(geo, inkMat); hull.scale.setScalar(1.04); m.add(hull); return m;
+    const hull = new THREE.Mesh(geo, inkMat); hull.scale.setScalar(1.012); m.add(hull); return m;
   };
   const bTorso = bpart(new THREE.BoxGeometry(3.2, 3.2, 2.4), 0xb8c2d6, 0, 4.6, 0);
   bpart(new THREE.BoxGeometry(2.2, 1.7, 2.0), 0xd5dbe8, 0, 7.0, 0);

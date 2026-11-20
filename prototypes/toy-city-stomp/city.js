@@ -4,6 +4,7 @@
 // that float away on balloons; soft dust clouds and confetti; sea, beach, distant hills and clouds around it.
 // All gameplay randomness comes from the seeded rng passed in.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
+import { toon } from './toon.js';
 
 // the look of the first city (Toy Town); a theme from game_config.themes replaces any of these
 const TOY = {
@@ -25,10 +26,10 @@ function canvasTexture(size, draw, repeat = 1) {
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
-/** Block material: toy plastic (standard PBR, reflects the sky), bevel edges in the shader, and a see-through
+/** Block material: cel-shaded toy plastic (toon), soft bevel edges in the shader, and a see-through
  *  dither for blocks between the camera and Bonbon. */
 function blockMaterial() {
-  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0, envMapIntensity: 0.7 });
+  const m = toon({ color: 0xffffff, roughness: 0.38, metalness: 0, envMapIntensity: 0.7 });
   const uniforms = { uCam: { value: new THREE.Vector3() }, uMon: { value: new THREE.Vector3() }, uR: { value: 3 } };
   m.userData.uniforms = uniforms;
   m.onBeforeCompile = (s) => {
@@ -54,7 +55,7 @@ function blockMaterial() {
         float mx = max(a.x, max(a.y, a.z)), mn = min(a.x, min(a.y, a.z));
         float mid = a.x + a.y + a.z - mx - mn;
         float edge = smoothstep(0.76, 0.98, mid);
-        diffuseColor.rgb *= 1.0 - 0.32 * edge;
+        diffuseColor.rgb *= 1.0 - 0.14 * edge;
         diffuseColor.rgb += 0.05 * (1.0 - edge) * step(0.99, a.y);`);
   };
   return m;
@@ -113,16 +114,16 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     g.fillStyle = TH.road; g.fillRect(0, 0, n, n);
     for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; g.fillRect(Math.random() * n, Math.random() * n, 2, 2); }
   }, 1));
-  const island = new THREE.Mesh(keep(new THREE.CylinderGeometry(span * 0.78, span * 0.86, 2, 48)), keep(new THREE.MeshLambertMaterial({ color: hex(TH.sand) })));
+  const island = new THREE.Mesh(keep(new THREE.CylinderGeometry(span * 0.78, span * 0.86, 2, 48)), keep(toon({ color: hex(TH.sand) })));
   island.position.y = -1.05; island.receiveShadow = true; group.add(island);
-  const grass = new THREE.Mesh(keep(new THREE.CircleGeometry(span * 0.74, 64)), keep(new THREE.MeshLambertMaterial({ map: grassTex })));
+  const grass = new THREE.Mesh(keep(new THREE.CircleGeometry(span * 0.74, 64)), keep(toon({ map: grassTex })));
   grass.rotation.x = -Math.PI / 2; grass.position.y = -0.04; grass.receiveShadow = true; group.add(grass);
   const lotGeo = new THREE.PlaneGeometry(C.lotSize, C.lotSize); lotGeo.rotateX(-Math.PI / 2);
-  const roadMat = keep(new THREE.MeshLambertMaterial({ map: roadTex }));
+  const roadMat = keep(toon({ map: roadTex }));
   const roads = new THREE.Mesh(keep(new THREE.PlaneGeometry(span, span)), roadMat);
   roads.rotation.x = -Math.PI / 2; roads.position.y = -0.01; roads.receiveShadow = true; group.add(roads);
-  const plazas = new THREE.InstancedMesh(keep(lotGeo), keep(new THREE.MeshLambertMaterial({ map: plazaTex })), C.lots * C.lots);
-  const kerbs = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1)), keep(new THREE.MeshLambertMaterial({ color: 0xeeeae2 })), C.lots * C.lots * 4);
+  const plazas = new THREE.InstancedMesh(keep(lotGeo), keep(toon({ map: plazaTex })), C.lots * C.lots);
+  const kerbs = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1)), keep(toon({ color: 0xeeeae2 })), C.lots * C.lots * 4);
   plazaTex.repeat.set(C.lotSize / 3, C.lotSize / 3);
   const dashGeos = [];
   for (let i = 0; i < C.lots; i++) for (let j = 0; j < C.lots; j++) {
@@ -158,7 +159,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   const sea = new THREE.Mesh(keep(new THREE.PlaneGeometry(900, 900, 90, 90)), seaMat);
   sea.rotation.x = -Math.PI / 2; sea.position.y = -1.2; group.add(sea);
   const hillGeo = keep(new THREE.IcosahedronGeometry(1, 1));
-  const hills = new THREE.InstancedMesh(hillGeo, keep(new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true })), 14);
+  const hills = new THREE.InstancedMesh(hillGeo, keep(toon({ color: 0xffffff, flatShading: true })), 14);
   for (let i = 0; i < 14; i++) {
     const a = (i / 14) * Math.PI * 2 + rng() * 0.3, r = 230 + rng() * 60, s = 18 + rng() * 26;
     hills.setMatrixAt(i, mtx.compose(v3.set(Math.cos(a) * r, -s * 0.35, Math.sin(a) * r), quat.identity(), one.set(s * 1.6, s, s * 1.3)));
@@ -263,8 +264,8 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   const TREE = { round: [1, 1.1, 1.25, 1.1, 2], lolly: [1.6, 1, 1, 0.45, 2.7], palm: [2, 1.9, 0.45, 1.9, 3.1], cone: [1, 1.15, 1.9, 1.15, 2.4] }[TH.tree] || [1, 1.1, 1.25, 1.1, 2];
   const [trunkH, crX, crY, crZ, crH] = TREE; // trunk height factor, crown size, crown height
   const crownGeo = TH.tree === 'cone' ? new THREE.ConeGeometry(1, 1.4, 7) : TH.tree === 'lolly' ? new THREE.SphereGeometry(1, 14, 10) : new THREE.IcosahedronGeometry(1, 1);
-  const trunkMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8)), keep(new THREE.MeshLambertMaterial({ color: hex(TH.trunk) })), props.length);
-  const crownMesh = new THREE.InstancedMesh(keep(crownGeo), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, flatShading: true })), props.length);
+  const trunkMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8)), keep(toon({ color: hex(TH.trunk) })), props.length);
+  const crownMesh = new THREE.InstancedMesh(keep(crownGeo), keep(toon({ color: 0xffffff, roughness: 0.6, flatShading: true })), props.length);
   const lampHead = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.32, 10, 8)), keep(new THREE.MeshBasicMaterial({ color: 0xfff1b8 })), props.length);
   crownMesh.castShadow = true;
   for (const m of [trunkMesh, crownMesh, lampHead]) m.frustumCulled = false;
@@ -291,16 +292,16 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     cars.push({ horiz, p: -half + line * pitch + C.road / 2 + lane * 1.2, t: rng() * span - half, speed: (3 + rng() * 3) * lane, squash: 0, x: 0, z: 0, color: PALETTE[n % PALETTE.length] });
   }
   for (let n = 0; n < 3 && n < cars.length; n++) { const c = cars[(n * 3 + 1) % cars.length]; c.icecream = true; c.color = 0xff9cc6; }
-  const carBody = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(2.2, 0.8, 1.2)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })), cars.length);
-  const carTop = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.2, 0.6, 1.0)), keep(new THREE.MeshStandardMaterial({ color: 0xd9f3ff, roughness: 0.15 })), cars.length);
+  const carBody = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(2.2, 0.8, 1.2)), keep(toon({ color: 0xffffff, roughness: 0.3 })), cars.length);
+  const carTop = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.2, 0.6, 1.0)), keep(toon({ color: 0xd9f3ff, roughness: 0.15 })), cars.length);
   const wheelGeo = keep(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12)); wheelGeo.rotateX(Math.PI / 2);
-  const carWheels = new THREE.InstancedMesh(wheelGeo, keep(new THREE.MeshLambertMaterial({ color: 0x2a2140 })), cars.length * 4);
+  const carWheels = new THREE.InstancedMesh(wheelGeo, keep(toon({ color: 0x2a2140 })), cars.length * 4);
   carBody.castShadow = true;
   for (const m of [carBody, carTop, carWheels]) m.frustumCulled = false;
   cars.forEach((c, i) => carBody.setColorAt(i, col.setHex(c.color)));
   const coneGeo = new THREE.ConeGeometry(0.42, 1.0, 12); coneGeo.rotateX(Math.PI); coneGeo.translate(0, 0.5, 0);
-  const cones = new THREE.InstancedMesh(keep(coneGeo), keep(new THREE.MeshStandardMaterial({ color: 0xe8b46a, roughness: 0.6 })), cars.length);
-  const scoops = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.5, 14, 10)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })), cars.length);
+  const cones = new THREE.InstancedMesh(keep(coneGeo), keep(toon({ color: 0xe8b46a, roughness: 0.6 })), cars.length);
+  const scoops = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.5, 14, 10)), keep(toon({ color: 0xffffff, roughness: 0.4 })), cars.length);
   for (const m of [cones, scoops]) { m.frustumCulled = false; for (let i = 0; i < cars.length; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0)); }
   cars.forEach((c, i) => scoops.setColorAt(i, col.setHex([0xff9cc6, 0xfff0b3, 0xa8f0d8][i % 3])));
   group.add(carBody, carTop, carWheels, cones, scoops);
@@ -345,11 +346,11 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     group.add(m); return { m, items: Array.from({ length: n }, () => ({ life: 0 })), next: 0 };
   };
   const confetti = pool(quality.confetti, new THREE.BoxGeometry(0.35, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  const people = pool(24, new THREE.CapsuleGeometry(0.2, 0.32, 4, 8), new THREE.MeshToonMaterial({ color: 0xffffff }));
-  const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }));
+  const people = pool(24, new THREE.CapsuleGeometry(0.2, 0.32, 4, 8), toon({ color: 0xffffff }));
+  const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), toon({ color: 0xffffff, roughness: 0.2 }));
   const strings = pool(24, new THREE.CylinderGeometry(0.02, 0.02, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0x2a2140 }));
   const take = (P) => { const i = P.next; P.next = (P.next + 1) % P.items.length; return i; };
-  const clouds = pool(18, new THREE.IcosahedronGeometry(1, 2), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x6f7f8f }));
+  const clouds = pool(18, new THREE.IcosahedronGeometry(1, 2), toon({ color: 0xffffff, emissive: 0x6f7f8f }));
   clouds.items.forEach((it, i) => Object.assign(it, { life: 1, x: (rng() - 0.5) * 420, y: 45 + rng() * 25, z: -60 - rng() * 220, s: 6 + rng() * 9, v: 1 + rng() * 1.5 }));
 
   function puff(x, y, z, size = 1) {

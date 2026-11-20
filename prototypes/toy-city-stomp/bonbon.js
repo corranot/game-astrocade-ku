@@ -4,6 +4,7 @@
 // with an environment reflection on capable devices, smooth matte shading on low-end ones; thin ink outline either way.
 // Animated in code: walk, squash and stretch, jelly belly, jaw, look-at eyes, six faces.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
+import { toon } from './toon.js';
 
 const PINK = 0xff5fa2, PINK_D = 0xe8478a, SPOT = 0xff86bb, BELLY = 0xffe3ef, SPIKE = 0xffc531, INK = 0x3a1f3d, WHITE = 0xffffff, MOUTH = 0x8a1d48, TONGUE = 0xff7aa8;
 
@@ -15,9 +16,7 @@ export function createBonbon(opts = {}) {
   const mats = new Map();
   const mat = (c, gloss = 1) => {
     const key = c + ':' + gloss; if (mats.has(key)) return mats.get(key);
-    const m = opts.candy
-      ? new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.32, metalness: 0, clearcoat: gloss, clearcoatRoughness: 0.12, envMapIntensity: 0.9 })
-      : new THREE.MeshLambertMaterial({ color: c }); // smooth and cheap on low-end phones
+    const m = toon({ color: c }); // cel-shaded on every phone
     mats.set(key, m); return m;
   };
   const flat = (c) => { const k = 'b' + c; if (!mats.has(k)) mats.set(k, new THREE.MeshBasicMaterial({ color: c })); return mats.get(k); };
@@ -28,7 +27,7 @@ export function createBonbon(opts = {}) {
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const part = (geo, m, parent, outline = 0.045) => {
     const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; parent.add(mesh);
-    if (outline) { const hull = new THREE.Mesh(geo, inkMat); hull.scale.setScalar(1 + outline); mesh.add(hull); }
+    if (outline) { const hull = new THREE.Mesh(geo, inkMat); hull.scale.setScalar(1 + outline * 0.28); mesh.add(hull); } // a very thin ink line
     return mesh;
   };
   const sphere = G(new THREE.SphereGeometry(1, 28, 20));
