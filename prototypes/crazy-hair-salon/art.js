@@ -71,10 +71,10 @@ export function drawChair(g, cx, top, front) {
 
 // ---------- customers ----------
 export const CUSTOMERS = {
-  cat: { fur: '#FFB86B', belly: '#FFE7C7', cape: '#E8F6FF', dots: SKY },
-  bunny: { fur: '#FFF0F5', belly: '#FFD3E4', cape: '#FFF0F3', dots: CORAL },
-  monster: { fur: '#8EE07A', belly: '#D4F7C6', cape: '#F3EEFF', dots: VIOLET },
-  bear: { fur: '#C98B5A', belly: '#F0C9A3', cape: '#EAFBF3', dots: MINT },
+  maya: { fur: '#B9774F', belly: '#C98A62', cape: '#FFFFFF', dots: CORAL },
+  leo: { fur: '#F3C6A2', belly: '#F7D3B6', cape: '#FFFFFF', dots: SKY },
+  hana: { fur: '#F8D9C2', belly: '#FBE3D2', cape: '#FFFFFF', dots: VIOLET },
+  kofi: { fur: '#7B4A2E', belly: '#8C5838', cape: '#FFFFFF', dots: MINT },
 };
 export const CUSTOMER_TYPES = Object.keys(CUSTOMERS);
 
@@ -88,24 +88,8 @@ export function drawBody(g, c) {
   rr(g, cx - 92, y + 10, 184, 40, 20); ink(g, WHITE, 5); // the cape collar
 }
 
-/** Ears and horns: drawn after the hair, so they poke through it. */
-export function drawEars(g, c) {
-  const k = CUSTOMERS[c.type], { x, y, R } = c, wig = Math.sin(c.t * 3) * 0.05;
-  if (c.type === 'cat') for (const s of [-1, 1]) {
-    g.save(); g.translate(x + s * R * 0.62, y - R * 0.74); g.rotate(s * (0.35 + wig));
-    g.beginPath(); g.moveTo(-34, 22); g.lineTo(0, -58); g.lineTo(34, 22); g.closePath(); ink(g, k.fur, 5);
-    g.beginPath(); g.moveTo(-16, 12); g.lineTo(0, -32); g.lineTo(16, 12); g.closePath(); g.fillStyle = '#FF9EBB'; g.fill(); g.restore();
-  }
-  if (c.type === 'bunny') for (const s of [-1, 1]) {
-    g.save(); g.translate(x + s * R * 0.34, y - R * 0.86); g.rotate(s * (0.18 + wig * 2));
-    oval(g, 0, -86, 30, 96, k.fur, 5); oval(g, 0, -80, 14, 70, '#FFB3CF'); g.restore();
-  }
-  if (c.type === 'bear') for (const s of [-1, 1]) { oval(g, x + s * R * 0.74, y - R * 0.7, 38, 38, k.fur, 5); oval(g, x + s * R * 0.74, y - R * 0.7, 18, 18, k.belly); }
-  if (c.type === 'monster') {
-    g.save(); g.translate(x, y - R * 0.95); g.rotate(wig);
-    g.beginPath(); g.moveTo(-26, 16); g.quadraticCurveTo(-8, -40, 6, -78); g.quadraticCurveTo(20, -30, 26, 16); g.closePath(); ink(g, SUNNY, 5); g.restore();
-  }
-}
+/** Kept for callers: the children's ears are part of the head (drawHead), under the hair. */
+export function drawEars() {}
 
 /**
  * The head and face. c.mood picks the face: grumpy, happy, giggle, eek, wow, sleepy. c.look is the point the
@@ -113,10 +97,11 @@ export function drawEars(g, c) {
  */
 export function drawHead(g, c) {
   const k = CUSTOMERS[c.type], { x, y, R } = c;
+  for (const sd of [-1, 1]) oval(g, x + sd * R * 0.98, y + R * 0.1, R * 0.2, R * 0.26, k.fur, 5); // ears
   oval(g, x, y, R, R * 0.96, k.fur, 6);
   oval(g, x, y + R * 0.34, R * 0.62, R * 0.42, k.belly); // muzzle / cheeks area
   const mood = c.mood, lx = c.look ? Math.max(-1, Math.min(1, (c.look[0] - x) / 260)) : 0, ly = c.look ? Math.max(-1, Math.min(1, (c.look[1] - y) / 260)) : 0;
-  const eyes = c.type === 'monster' ? [[0, -0.05, 1.5]] : [[-0.36, -0.02, 1], [0.36, -0.02, 1]];
+  const eyes = [[-0.36, -0.02, 1], [0.36, -0.02, 1]];
   for (const [ex, ey, big] of eyes) {
     const cx = x + ex * R, cy = y + ey * R, r = 30 * big;
     if (mood === 'giggle' || c.blink > 0.5) { g.beginPath(); g.arc(cx, cy + 6, r * 0.7, Math.PI * 1.1, Math.PI * 1.9); g.lineWidth = 7; g.strokeStyle = NAVY; g.lineCap = 'round'; g.stroke(); continue; }
@@ -129,9 +114,7 @@ export function drawHead(g, c) {
   }
   oval(g, x - R * 0.62, y + R * 0.28, 22, 13, 'rgba(255,110,150,0.45)'); oval(g, x + R * 0.62, y + R * 0.28, 22, 13, 'rgba(255,110,150,0.45)');
   // nose
-  if (c.type === 'bear' || c.type === 'cat') oval(g, x, y + R * 0.2, 16, 11, c.type === 'bear' ? NAVY : '#FF7FA3', 0);
-  if (c.type === 'bunny') { g.beginPath(); g.moveTo(x - 12, y + R * 0.16); g.lineTo(x + 12, y + R * 0.16); g.lineTo(x, y + R * 0.28); g.closePath(); g.fillStyle = '#FF7FA3'; g.fill(); }
-  if (c.type === 'cat') for (const s of [-1, 1]) for (const d of [-8, 8]) { g.beginPath(); g.moveTo(x + s * R * 0.3, y + R * 0.32 + d); g.lineTo(x + s * R * 0.78, y + R * 0.26 + d * 1.6); g.lineWidth = 3; g.strokeStyle = NAVY; g.stroke(); }
+  oval(g, x, y + R * 0.2, 14, 10, 'rgba(120,60,40,0.35)'); // nose
   // mouth
   const my = y + R * 0.44;
   g.lineWidth = 7; g.strokeStyle = NAVY; g.lineCap = 'round';
@@ -142,7 +125,6 @@ export function drawHead(g, c) {
     g.save(); g.clip(); oval(g, x, my + 40, 22, 14, '#FF7FA3'); g.restore();
   } else if (mood === 'sleepy') { g.beginPath(); g.moveTo(x - 18, my + 4); g.lineTo(x + 18, my + 4); g.stroke(); }
   else { g.beginPath(); g.arc(x, my - 8, 30, Math.PI * 0.18, Math.PI * 0.82); g.stroke(); }
-  if (c.type === 'monster') for (const s of [-1, 1]) { g.beginPath(); g.moveTo(x + s * 18, my); g.lineTo(x + s * 30, my + 18); g.lineTo(x + s * 38, my - 2); g.closePath(); ink(g, WHITE, 3); }
 }
 
 // ---------- accessories ----------

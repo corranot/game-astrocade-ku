@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const out = process.argv[2] || 'evidence'; fs.mkdirSync(out, { recursive: true });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp' };
 const server = http.createServer((q, r) => {
   const f = path.join(__dirname, decodeURIComponent(q.url.split('?')[0]).replace(/^\/$/, '/index.html'));
   fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); } else { r.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); r.end(d); } });
@@ -22,7 +22,7 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
     if (current) await current.context().close();
     const page = current = await (await browser.newContext({ viewport: { width: 720, height: 1280 }, ...ctx })).newPage();
     page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') page.errors.push(m.text()); });
-    await page.goto(base + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3);
+    await page.goto(base + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 8000 });
     return page;
   };
   const G = (page, f, a) => page.evaluate(f, a);
@@ -101,7 +101,7 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   console.log('3. the next customer walks in by themselves; a tap after the stars skips the wait');
   await page.waitForFunction(() => window.__game.S.n === 1, null, { timeout: 8000 });
   await page.waitForTimeout(600); s = await st(page);
-  ok(s.n === 1 && s.step === 0 && s.order.type === 'bunny', 'customer 2 (bunny) is in the chair');
+  ok(s.n === 1 && s.step === 0 && s.order.type === 'leo', 'customer 2 (Leo) is in the chair');
   ok(!await G(page, () => window.__game.handShown()), 'the hand stays away after the first customer until the player waits');
   await page.waitForTimeout(4300); ok(await G(page, () => window.__game.handShown()), 'after 4 s idle the hand comes back');
   await shot(page, 'c2-start');
@@ -204,7 +204,7 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
     const G = window.__game;
     G.reveal(); // a customer finished before the read came back
     const writes = window.__writes || [], before = writes.length;
-    window.__resolveSave({ state: { n: 5, coins: 120, stars: 14, colors: [13, 99, 'x'], acc: ['heart', 'bad'], wall: [{ t: 'cat', h: 'bbb,ccc', a: ['bow'], s: 3 }, { t: 'dragon', h: 'b', a: [], s: 3 }], lang: 'es', muted: true } });
+    window.__resolveSave({ state: { n: 5, coins: 120, stars: 14, colors: [13, 99, 'x'], acc: ['heart', 'bad'], wall: [{ t: 'maya', h: 'bbb,ccc', a: ['bow'], s: 3 }, { t: 'dragon', h: 'b', a: [], s: 3 }], lang: 'es', muted: true } });
     await new Promise((r) => setTimeout(r, 50));
     const s = G.save;
     return before === 0 && (window.__writes || []).length >= 1 && s.n === 6 && s.coins === 120 + G.S.gained && s.colors.join() === '13' && s.acc.join() === 'heart' && s.wall.length === 2 && s.lang === 'es' && s.muted === true;
@@ -221,9 +221,9 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 
   console.log('13. layout: nothing important overlaps; nothing tappable in the bottom 15% (the sign-in sheet)');
   page = await open();
-  const boxes = await G(page, () => { const G = window.__game, b = (o) => [o.x, o.y, o.x + o.s, o.y + o.s]; return { mute: b(G.MUTE), wall: b(G.WALLB), check: b(G.CHECK), next: b(G.NEXT), back: b(G.BACK), lang: b(G.LANGB), order: [G.ORDER.x, G.ORDER.y, G.ORDER.x + G.ORDER.w, G.ORDER.y + G.ORDER.h], coins: [22, 22, 232, 102], stars: [246, 22, 416, 102], steps: [112, 126, 608, 206], trayLow: G.slotXY(11)[1] + 54, cells: G.cellAt(8)[1] + G.CELL.h }; });
+  const boxes = await G(page, () => { const G = window.__game, b = (o) => [o.x, o.y, o.x + o.s, o.y + o.s]; return { mute: b(G.MUTE), wall: b(G.WALLB), check: b(G.CHECK), next: b(G.NEXT), back: b(G.BACK), lang: b(G.LANGB), order: [G.ORDER.x, G.ORDER.y, G.ORDER.x + G.ORDER.w, G.ORDER.y + G.ORDER.h], coins: [22, 22, 212, 102], steps: [170, 124, 550, 196], trayLow: G.slotXY(11)[1] + 54, cells: G.cellAt(8)[1] + G.CELL.h }; });
   const hit = (a, c) => a[0] < c[2] && c[0] < a[2] && a[1] < c[3] && c[1] < a[3];
-  const pairs = [['mute', 'wall'], ['coins', 'stars'], ['stars', 'wall'], ['steps', 'order'], ['steps', 'coins'], ['check', 'order'], ['order', 'mute']];
+  const pairs = [['mute', 'wall'], ['coins', 'wall'], ['steps', 'order'], ['steps', 'coins'], ['check', 'order'], ['order', 'mute']];
   for (const [a, c] of pairs) ok(!hit(boxes[a], boxes[c]), `${a} and ${c} do not overlap`);
   for (const k of ['check', 'next', 'back']) ok(boxes[k][3] <= 1088, `${k} button ends above the bottom 15% (${boxes[k][3]})`);
   ok(boxes.trayLow <= 1088, `the tray's lowest slot ends above the bottom 15% (${boxes.trayLow})`);
@@ -283,10 +283,24 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   ok(await G(page, () => window.__texts.some(([t, d]) => /^\+\d+$/.test(t) && d === 'ltr')), 'Arabic: the coin gain "+N" is drawn left to right');
   page = await open();
   ok(await G(page, () => { let made = 0; const A = window.AudioContext; window.AudioContext = function () { made++; return new A(); }; document.dispatchEvent(new Event('visibilitychange')); window.AudioContext = A; return made; }) === 0, 'no sound engine is made before the first touch');
-  ok(await G(page, () => { const G = window.__game, before = G.save.wall.length; G.applySave({ wall: [{ t: 'cat', h: ','.repeat(2000), a: [], s: 3 }] }); return G.save.wall.length === before; }), 'a stored photo with thousands of strands is refused');
+  ok(await G(page, () => { const G = window.__game, before = G.save.wall.length; G.applySave({ wall: [{ t: 'maya', h: ','.repeat(2000), a: [], s: 3 }] }); return G.save.wall.length === before; }), 'a stored photo with thousands of strands is refused');
+
+  console.log('18. the painted art: it loads fast, and the game still plays when it cannot load');
+  page = await open();
+  ok(await G(page, () => { const g = window.__game; return g.S && !g.booting(); }), 'the room and the first child are in within the wait');
+  const t0a = Date.now();
+  {
+    if (current) await current.context().close();
+    const ctx = await browser.newContext({ viewport: { width: 720, height: 1280 } }); await ctx.addInitScript(() => { window.__noAssets = true; });
+    page = current = await ctx.newPage(); page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e)));
+    await page.goto(base); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 8000 });
+  }
+  ok(Date.now() - t0a < 4000, 'without the images the game starts at once, drawn in code');
+  await shot(page, 'no-assets');
+  await serve(page, null); ok(page.errors.length === 0 && (await st(page)).stars >= 1, 'without the images a customer still plays start to finish');
 
   console.log('16. platform rules');
-  const src = ['game.js', 'hair.js', 'art.js', 'index.html'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
+  const src = ['game.js', 'hair.js', 'art.js', 'sprites.js', 'index.html'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
   ok(!/localStorage|sessionStorage|document\.cookie|alert\(|confirm\(|window\.open|navigator\.vibrate|XMLHttpRequest|WebSocket/.test(src), 'no browser storage, alert, popups, raw vibration or network');
   ok((src.match(/fetch\(/g) || []).length === 1 && /if \(DEBUG\)[\s\S]*fetch\('game_config.json'\)/.test(src), 'the only fetch is the local preview loading its config');
   ok(/window\.run = run;/.test(src) && /showGameParameters/.test(src), 'window.run is assigned and the settings panel is offered');

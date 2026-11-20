@@ -14,7 +14,7 @@ finger, then the customer looks in the mirror and gives 1-3 stars.
 
 ## Features
 - Real swinging hair strands that fall when cut, take colour where painted and fluff when dried.
-- Four customers (cat, bunny, little monster, bear) with faces that react.
+- Four children (Maya, Leo, Hana, Kofi), painted close up, each with four moods that change as you work.
 - Coins from stars buy new dyes (lavender, mint, coral, rainbow) and accessories (heart, tiara, cherries); the next order asks for the new item.
 - The salon wall keeps photos of the last nine customers.
 - Leaderboard of total stars. Progress is saved.
@@ -25,6 +25,7 @@ finger, then the customer looks in the mirror and gives 1-3 stars.
 - `index.html` loads `game.js`.
 - `game.js` defines `run(mode)`: the five steps, orders and stars, the tray and shop, the wall, sound (Web Audio), save and leaderboard, languages; ends with `window.run = run;`.
 - `hair.js` the hair: strands of points (follow-the-leader with stiffness), cutting, foam, dye, drawing, and a compact copy for photos.
-- `art.js` everything drawn: the salon, customers, icons, accessories, paint pots, the helper hand.
+- `sprites.js` the painted art from `asset_map.json`: the salon room, the children's mood sheets (crop boxes and skull circles in `game_config.json` under `sprites`), accessories and tools.
+- `art.js` everything drawn in code: HUD icons, paint pots, the helper hand, and stand-ins used while an image cannot load.
 - `game_config.json` tunable numbers, all text in seven languages, and the leaderboard declaration.
-- `asset_map.json` empty: the game draws everything in code.
+- `asset_map.json` the seven painted images (room, four children, accessories, tools).
