@@ -1,0 +1,160 @@
+{
+ "ad-e2e-tiny-planet-chopper": "gallery",
+ "ad-meta-and-odd-things-hush": "control",
+ "ad-meta-and-odd-things-hush2": "control",
+ "agentic-gcm": "pydantic_ai",
+ "app-review-experiment": "treatment",
+ "app-review-play-exit": "on",
+ "appsflyer": "on",
+ "assets-compression-strategy": "control",
+ "astro-cards": "control",
+ "beam-web": {
+  "value": "stream",
+  "payload": {
+   "feed": {
+    "client_settings": {
+     "hide_play_count": true
+    },
+    "history_enabled": true,
+    "i2i_ratio": 0.5,
+    "mode": "serve",
+    "num_games_to_rank": 2000,
+    "num_games_to_rerank": 100,
+    "rerank": {
+     "timeout_ms": 300
+    },
+    "served_model": "modelEntity-2-seq20260916_02",
+    "timeout_ms": 800
+   },
+   "gallery": {
+    "client_settings": {
+     "hide_play_count": true
+    },
+    "head_rows": "recommended_trending",
+    "history_enabled": true,
+    "mode": "serve",
+    "num_games_to_rank": 5000,
+    "num_games_to_rerank": 100,
+    "rerank": {
+     "timeout_ms": 300
+    },
+    "served_model": "modelEntity-1-seq20260916_02",
+    "timeout_ms": 1000
+   }
+  }
+ },
+ "block-user": "on",
+ "cache-game-assets": "treatment",
+ "chunk-recovery": "retry",
+ "claude-46-smart-edit-enabled": "on",
+ "cold-game-feed-insert": "treatment",
+ "comment-ranking": "on",
+ "comment_translation": "treatment",
+ "community-playtest": "treatment",
+ "create-ds-experiment": "control",
+ "create-route-experiment": "treatment",
+ "creator-sharing": "on",
+ "creator-studio-new-metrics": "on",
+ "creator-studio-new-metrics-mobile": "on",
+ "d0-straight-to-feed": "control",
+ "datamodel_entity_read_cache": "treatment",
+ "debug_experiment_1": "treatment",
+ "design-system-experiment": "big-socials-yes-thumbnail",
+ "discovery-feed": "control",
+ "edge-collector-rn": "control",
+ "editor-games-feed-experiment": "control",
+ "enable-create-device-features-dialog": "on",
+ "enable-game-device-features": "on",
+ "enable-gcm-lib-llm": "on",
+ "enable-show-all-button": "treatment",
+ "enable-task-plan-mode": "on",
+ "enable-undo-wish": "on",
+ "enable-web-game-device-features": "on",
+ "feed-bottom-bar-abc-test": "back",
+ "feed-feedback-report": "on",
+ "feed-first-user-experience-experiment": "variant-b",
+ "feed-iframe-shell": "control",
+ "feed-on-ecs": "control",
+ "feed-redesign-experiment": "variant-c",
+ "feed-reload-no-history": "on",
+ "feed-share-count": "treatment",
+ "feed-share-icon": "control",
+ "feed-unified-share": "control",
+ "follow-feature": "on",
+ "force-update-config": {
+  "value": "on",
+  "payload": {
+   "android": {
+    "minVersion": "1.4.3"
+   },
+   "ios": {
+    "minVersion": "0.0.1"
+   }
+  }
+ },
+ "gallery-d0-hero": "control",
+ "gallery-d0-hero-app": "control",
+ "gallery-tags": "control",
+ "game-audio-layer": "on",
+ "game-screenshots": "treatment",
+ "gesture-logging-v2": "on",
+ "gpt-56-luna-fast-edit": "on",
+ "hide-usernames-on-mobile-gallery-experiment": "control",
+ "homepage-feed-variants-experiment": "gallery-v0-hybrid",
+ "include-technical-details-in-history": "on",
+ "leaderboard-share-experiment": "share-to-compete-dynamic-thumbnail",
+ "memory-recycle": "deferred",
+ "meta-conversions-enabled": "on",
+ "nav-bar-redesign": "treatment",
+ "nux-gate-screen": "control",
+ "nux-gate-screen-ios": "control",
+ "opus5-terra-smart-edit": "on",
+ "perf-improvements": {
+  "value": "on",
+  "payload": {
+   "backgroundFreeze": false,
+   "powervrCanvasCpuRasterExemptGameIds": [
+    "01M3XXVCGKNC1BR7PR90TTQPET",
+    "01KTW3CWDEAB2798T8KGQCPHYB",
+    "01M44D12FT4RPW7HBCE4Z3EE21"
+   ]
+  }
+ },
+ "play-without-reload-mobile": "on",
+ "play-without-reload-web": "control",
+ "push_global_holdout": "on",
+ "ranked_feed_list_cache": "treatment",
+ "recsys-gallery-gbdt-1": "gbdt",
+ "recsys-gallery-gbdt-2": "gate_row",
+ "recsys-use-gumbel-sort": "treatment",
+ "recsys-v0": "control",
+ "recsys-v0-pipelined": "control",
+ "remove-mockup": "remove-mockup",
+ "search": "typeahead",
+ "share-icon-experiment": "control",
+ "share-on-replay": "copylink",
+ "share-preview-card": "branded",
+ "share-prompt-after-playtime": "control",
+ "share-sheet-v2": "row",
+ "share-short-link": "on",
+ "show-analytics-link": "treatment",
+ "show-comments-button": "treatment",
+ "show-leaderboard-button": "control",
+ "show-new-home-feed": "treatment",
+ "show-thumbnail-in-feed-experiment": "treatment",
+ "skip-ui-polish-agent": "on",
+ "smart-model-trial-enabled": "on",
+ "social-button-variants-experiment": "three-icons",
+ "star-creator": "on",
+ "supress-back-button-android-gallery": "treatment",
+ "swipe-feed-variants-experiment": "control",
+ "theme-affinity-ordering": "treatment",
+ "top-picks-realtime-v2": "treatment",
+ "use-feed-path": "treatment",
+ "watchdog-after-inject": "on",
+ "web-auth-interstitial": "treatment",
+ "web-google-one-tap": "treatment",
+ "webview-seam-recycle": "control",
+ "weekly-leaderboard-2": "tabs-default-weekly",
+ "while-you-wait-panel-experiment": "treatment"
+}
