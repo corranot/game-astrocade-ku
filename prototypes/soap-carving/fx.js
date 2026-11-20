@@ -35,9 +35,9 @@ export function createFx(pile) {
       if (P.length > 400) return;
       P.push({ k: 'curl', x, y, z: 10 + r() * 14, vx, vy, vz: 160 + r() * 140, rot: r() * TAU, vr: (r() - 0.5) * 9, c, c2, wide: (5 + r() * 4) * size, pts: curlShape(r, (16 + r() * 16) * size, 1.2 + r() * 1.1), land: null });
     },
-    /** A chunk of soap (a canvas) falling from (x, y), its top-left corner. */
-    chunk(canvas, x, y, vx, vy, r) {
-      P.push({ k: 'chunk', canvas, x: x + canvas.width / 2, y: y + canvas.height / 2, z: 6, vx, vy, vz: 120 + r() * 60, rot: 0, vr: (r() - 0.5) * 3, bounced: 0 });
+    /** A chunk of soap (a canvas) falling from (x, y), its top-left corner, thrown up at vz. */
+    chunk(canvas, x, y, vx, vy, r, vz = 150) {
+      P.push({ k: 'chunk', canvas, x: x + canvas.width / 2, y: y + canvas.height / 2, z: 6, vx, vy, vz, rot: 0, vr: (r() - 0.5) * 3, bounced: 0 });
     },
     /** A small piece (crumb, glitter speck) dropped from height z; land(x, y) decides what happens when it lands. */
     speck(x, y, z, vx, vy, c, s, land) { if (P.length < 900) P.push({ k: 'speck', x, y, z, vx, vy, vz: 0, c, s, land }); },

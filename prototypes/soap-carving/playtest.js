@@ -251,6 +251,46 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   const keys = new Set(Object.keys(cfg.strings.en)); ok(LANGS.every((l) => Object.keys(cfg.strings[l]).length === keys.size), 'every language has every string');
   const used = [...code.matchAll(/T\('([a-zA-Z0-9]+)'\)/g)].map((m) => m[1]); ok(used.every((k) => keys.has(k)), 'every string the code asks for exists');
 
+  console.log('18. regressions found by the bug hunt');
+  page = await open('', {}, () => { window.__saved = { n: 6, coins: 0, stars: 18 }; });
+  await wait(page, () => window.__game.S.n === 6); await G(page, () => { window.__game.freeNext = true; window.__game.newOrder(6, false); }); await ready(page);
+  for (let k = 0; k < 3; k++) await drag(page, [[BAR.x - 20, BAR.y + 60 + k * 40], [BAR.x + 60, BAR.y + 60 + k * 40], [BAR.x + 130, BAR.y + 60 + k * 40]]);
+  await drag(page, Array.from({ length: 12 }, (_, j) => [BAR.x - 20 + (BAR.w + 40) * j / 11, BAR.y + BAR.h / 2])); // one cut through the middle
+  ok(await G(page, () => { const s = window.__game.S.soap; let n = 0, t = 0; for (let i = 0; i < s.m.length; i++) if (s.t[i]) { t++; n += s.m[i]; } return n < t; }), 'free carve: the knife can cut into the middle of the bar');
+  const out18 = () => G(page, () => { const s = window.__game.S.soap; let n = 0; for (let i = 0; i < s.m.length; i++) if (s.m[i] && !s.t[i]) n++; return n; });
+  const before18 = await out18();
+  const c18 = await G(page, () => window.__game.CHECK()); await page.mouse.click(c18.x + 56, c18.y + 56);
+  await wait(page, () => window.__game.S.step === 1);
+  ok(before18 > 1000 && await out18() > before18 * 0.8, 'free carve: ✔ keeps the shape the player carved (no trim)');
+  page = await open(); await ready(page);
+  await G(page, () => { const G = window.__game; G.finishCarve(); }); await wait(page, () => window.__game.S.step === 1); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.step === 2);
+  await drag(page, zig(360, 640, 160, 160, 12), 30);
+  const sb = await G(page, () => window.__game.SHELFB()); await page.mouse.click(sb.x + 46, sb.y + 46); await page.waitForTimeout(6500); await page.mouse.click(sb.x + 46, sb.y + 46); await page.waitForTimeout(300);
+  ok(await G(page, () => window.__game.S.step === 2), 'sparkle does not end by itself while the shelf is open');
+  for (let i = 0; i < 6; i++) { const [x, y] = await G(page, (i) => window.__game.slotXY(0, i % 3), i); await page.mouse.click(x, y); await page.waitForTimeout(1000); }
+  ok(await G(page, () => window.__game.S.step === 2), 'browsing the tray counts as activity');
+  const [gx, gy] = await G(page, () => window.__game.slotXY(1, 0)); await page.mouse.click(gx, gy); await page.mouse.click(360, 640);
+  const placed18 = await G(page, () => window.__game.S.gems.length);
+  const [sx18, sy18] = await G(page, () => window.__game.slotXY(0, 1)); await page.mouse.click(sx18, sy18);
+  await page.mouse.click(360, 640);
+  ok(placed18 === 1 && await G(page, () => window.__game.S.gems.length === 0), 'a tap on a placed gem removes it, whatever tool is held');
+  page = await open(); await ready(page); await drag(page, row(BAR.y + 12));
+  const r18 = await G(page, () => window.__game.S.soap.removedOut);
+  await G(page, () => window.run('edit')); await page.waitForTimeout(150); await G(page, () => window.run('play')); await page.waitForTimeout(150);
+  ok(await G(page, () => window.__game.S.soap.removedOut) === r18 && r18 > 0, 'run(edit) then run(play) keeps the soap in progress');
+  page = await open(); await ready(page);
+  await G(page, () => { window.__landed = []; const fx = window.__game.fx, bake = fx.bake; fx.bake = (p) => { if (p.k === 'chunk') window.__landed.push([p.x, p.y]); bake(p); }; });
+  for (let y = BAR.y - 10; y < BAR.y + BAR.h + 20; y += 12) await drag(page, [[BAR.x + 34, y], [BAR.x + 34, y + 14]], 10);
+  for (let x = BAR.x - 10; x < BAR.x + BAR.w + 20; x += 12) await drag(page, [[x, BAR.y + 30], [x + 14, BAR.y + 30]], 10);
+  await page.waitForTimeout(2000);
+  const landed = await G(page, () => window.__landed);
+  ok(landed.length > 0 && landed.every(([x, y]) => x < BAR.x || x > BAR.x + BAR.w || y > BAR.y + BAR.h), `chunks come to rest off the bar (${landed.map((p) => p.map(Math.round).join(',')).join(' ')})`);
+  page = await open(); await ready(page);
+  await G(page, () => { const G = window.__game; G.finishCarve(); }); await wait(page, () => window.__game.S.step === 1); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.step === 2);
+  await G(page, () => window.__game.finishSparkle()); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.2);
+  const sb2 = await G(page, () => window.__game.SHELFB()); await page.mouse.click(sb2.x + 46, sb2.y + 46); await page.waitForTimeout(200);
+  ok(await G(page, () => window.__game.view === 'shelf' && window.__game.coinShown === window.__game.save.coins && window.__game.save.coins > 0), 'opening the shelf during the bath shows the real coin total');
+
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');
   process.exit(failed ? 1 : 0);
