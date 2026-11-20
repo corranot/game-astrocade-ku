@@ -299,9 +299,20 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   await shot(page, 'no-assets');
   await serve(page, null); ok(page.errors.length === 0 && (await st(page)).stars >= 1, 'without the images a customer still plays start to finish');
 
+  console.log('19. the WebGL layer: painted locks follow the strands, and a slow device falls back to the 2D canvas');
+  page = await open('&keepgl');
+  await page.waitForFunction(() => document.getElementById('gl'), null, { timeout: 15000 });
+  ok(await G(page, () => !!document.getElementById('gl') && !!window.PIXI), 'PixiJS loads and its canvas sits under the 2D canvas');
+  await wash(page); await waitStep(page, 1); await cut(page); await waitStep(page, 2);
+  ok(page.errors.length === 0, 'washing and cutting with the WebGL layer: no errors ' + page.errors.join(' | '));
+  page = await open('&nogl'); await page.waitForTimeout(800);
+  ok(await G(page, () => !document.getElementById('gl')), 'with WebGL off (?nogl) the game draws in 2D only');
+  await serve(page, null); ok(page.errors.length === 0, 'a full customer without WebGL: no errors');
+
   console.log('16. platform rules');
-  const src = ['game.js', 'hair.js', 'art.js', 'sprites.js', 'index.html'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
+  const src = ['game.js', 'hair.js', 'art.js', 'sprites.js', 'ui.js', 'gl.js'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
   ok(!/localStorage|sessionStorage|document\.cookie|alert\(|confirm\(|window\.open|navigator\.vibrate|XMLHttpRequest|WebSocket/.test(src), 'no browser storage, alert, popups, raw vibration or network');
+  ok(/cdn\.jsdelivr\.net\/npm\/pixi\.js@8\.20\.1\//.test(fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')), 'the only library is PixiJS from jsDelivr, pinned');
   ok((src.match(/fetch\(/g) || []).length === 1 && /if \(DEBUG\)[\s\S]*fetch\('game_config.json'\)/.test(src), 'the only fetch is the local preview loading its config');
   ok(/window\.run = run;/.test(src) && /showGameParameters/.test(src), 'window.run is assigned and the settings panel is offered');
   const conf = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'), 'utf8'));

@@ -108,7 +108,7 @@ export function cutHair(h, ax, ay, bx, by, minLen, maxPieces, onCut) {
   let cut = 0, shortest = 99;
   for (const s of h.strands) for (let i = minLen; i < s.len; i++) {
     if (!crosses(ax, ay, bx, by, s.x[i], s.y[i], s.x[i + 1], s.y[i + 1])) continue;
-    if (h.pieces.length < maxPieces) h.pieces.push({ x: Float32Array.from(s.x.subarray(i, s.len + 1)), y: Float32Array.from(s.y.subarray(i, s.len + 1)), col: Uint8Array.from(s.col.subarray(i, s.len + 1)), vx: (s.x[i] - s.x[0]) * 0.6, vy: -60, life: 1.3 });
+    if (h.pieces.length < maxPieces) h.pieces.push({ i0: i, x: Float32Array.from(s.x.subarray(i, s.len + 1)), y: Float32Array.from(s.y.subarray(i, s.len + 1)), col: Uint8Array.from(s.col.subarray(i, s.len + 1)), vx: (s.x[i] - s.x[0]) * 0.6, vy: -60, life: 1.3 });
     if (onCut) onCut(s, (s.y[i] + s.y[i + 1]) / 2);
     s.len = i; for (let j = i + 1; j < s.foam.length; j++) s.foam[j] = 0;
     cut++; shortest = Math.min(shortest, i); break;
@@ -136,7 +136,7 @@ export function trimToY(h, lineY, minLen, maxPieces, head) {
       len = Math.max(minLen, Math.min(len, reach));
     }
     if (len >= s.len) continue;
-    if (h.pieces.length < maxPieces) h.pieces.push({ x: Float32Array.from(s.x.subarray(len, s.len + 1)), y: Float32Array.from(s.y.subarray(len, s.len + 1)), col: Uint8Array.from(s.col.subarray(len, s.len + 1)), vx: (s.x[len] - s.x[0]) * 0.6, vy: -40, life: 1.3 });
+    if (h.pieces.length < maxPieces) h.pieces.push({ i0: len, x: Float32Array.from(s.x.subarray(len, s.len + 1)), y: Float32Array.from(s.y.subarray(len, s.len + 1)), col: Uint8Array.from(s.col.subarray(len, s.len + 1)), vx: (s.x[len] - s.x[0]) * 0.6, vy: -40, life: 1.3 });
     s.len = len; s.goal = true; n++;
   }
   return n;
@@ -198,7 +198,7 @@ export function shade(c, k) {
  * the messy start carries twigs and leaves, and lather sits on the strands as bubbles. fine = false (slow phones)
  * keeps only the dark edge and the colour.
  */
-export function drawHair(g, h, head, fine) {
+export function drawHair(g, h, head, fine, capOnly, noCap) {
   const w = (28 + h.volume * 8 + h.wild * 6) * (1 - h.wet * 0.15); // messy hair is a little fuller
   g.lineCap = 'round'; g.lineJoin = 'bevel'; // bevel: the bends are gentle, and round joins cost a circle per point
   const all = new Path2D(), byCol = new Map();
@@ -216,17 +216,18 @@ export function drawHair(g, h, head, fine) {
     runs(s.x, s.y, s.col, 1, s.len);
   }
   for (const p of h.pieces) runs(p.x, p.y, p.col, 1, p.x.length - 1);
-  const shown = h.painted ? 1 - h.dirt : 1; // while a painted messy mop covers the start, the strands fade in under it
+  const shown = capOnly ? 0 : h.painted ? 1 - h.dirt : 1; // while a painted messy mop covers the start, the strands fade in under it
   g.globalAlpha = shown;
-  g.lineWidth = w + 6; for (const [c, p] of byCol) { g.strokeStyle = shade(c, -0.42); g.stroke(p); }
-  g.lineWidth = w; for (const [c, p] of byCol) { g.strokeStyle = fine ? texture(g, c) : c; g.stroke(p); }
-  if (fine) {
+  if (shown > 0) { g.lineWidth = w + 6; for (const [c, p] of byCol) { g.strokeStyle = shade(c, -0.42); g.stroke(p); } }
+  if (shown > 0) { g.lineWidth = w; for (const [c, p] of byCol) { g.strokeStyle = fine ? texture(g, c) : c; g.stroke(p); } }
+  if (fine && shown > 0) {
     g.lineWidth = w * 0.22; g.globalAlpha = 0.7 * shown; g.translate(-w * 0.16, -w * 0.08);
     for (const [c, p] of byCol) { g.strokeStyle = shade(c, 0.45); g.stroke(p); }
     g.translate(w * 0.16, w * 0.08);
   }
   g.globalAlpha = 1;
   // the scalp: hair from a middle parting down to the temples, framing the face, in the roots' commonest colour
+  if (noCap) return finishFoam(g, h, fine);
   const tally = new Map(); let capC = colorOf(h.strands[0].col[1], 1);
   for (const s of h.strands) { const c = colorOf(s.col[1], 1), n = (tally.get(c) || 0) + 1; tally.set(c, n); if (n > (tally.get(capC) || 0)) capC = c; }
   const { x: cx, y: cy, R } = head, o = R + 2 + h.volume * 6;
@@ -256,6 +257,10 @@ export function drawHair(g, h, head, fine) {
     });
     g.globalAlpha = 1;
   }
+  finishFoam(g, h, fine);
+}
+/** Lather bubbles on the strands (when there is no painted mop to carry the lather). */
+function finishFoam(g, h, fine) {
   if (h.painted) return; // with the painted mop, lather sits on the mop (game.js)
   const bub = new Path2D();
   for (const s of h.strands) for (let i = 1; i <= s.len; i++) if (s.foam[i]) { const r = 12 + ((i * 7 + s.len) % 5) * 2; bub.moveTo(s.x[i] + r, s.y[i]); bub.arc(s.x[i], s.y[i], r, 0, 7); }
