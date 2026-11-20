@@ -29,7 +29,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     return page;
   };
   const G = (page, f, a) => page.evaluate(f, a);
-  const st = (page) => G(page, () => { const S = window.__game.S; return { n: S.n, step: S.step, enter: S.enter, trim: !!S.trim, used: S.used, mood: S.mood, oopsT: S.oopsT, order: S.order, score: S.score, glit: S.glitCount, gems: S.gems.length, reveal: S.reveal && { t: S.reveal.t, coins: S.reveal.coins }, charm: S.charm && S.charm.state }; });
+  const st = (page) => G(page, () => { const S = window.__game.S; return { n: S.n, step: S.k, enter: S.enter, trim: !!S.trim, used: S.used, mood: S.mood, oopsT: S.oopsT, order: S.order, score: S.score, glit: S.glitCount, gems: S.gems.length, reveal: S.reveal && { t: S.reveal.t, coins: S.reveal.coins }, charm: S.charm && S.charm.state }; });
   const shot = (page, name) => page.screenshot({ path: path.join(out, name + '.jpg'), quality: 82 });
   const wait = (page, f, a, timeout = 12000) => page.waitForFunction(f, a, { timeout });
   const ready = (page) => wait(page, () => window.__game.S.enter <= 0 && !window.__game.S.trim);
@@ -37,11 +37,11 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   const drag = async (page, pts, ms = 16) => { await page.mouse.move(pts[0][0], pts[0][1]); await page.mouse.down(); for (const p of pts.slice(1)) { await page.mouse.move(p[0], p[1]); await page.waitForTimeout(ms); } await page.mouse.up(); };
   const row = (y) => Array.from({ length: 16 }, (_, j) => [BAR.x - 24 + (BAR.w + 48) * j / 15, y + (j % 2) * 6]);
   /** Carve the whole bar by careful strokes; returns the strokes taken. */
-  const carveAll = async (page) => { let k = 0; for (let y = BAR.y - 6; y < BAR.y + BAR.h + 12 && await G(page, () => window.__game.S.step === 0 && !window.__game.S.trim); y += 26) { await drag(page, row(y)); k++; } return k; };
+  const carveAll = async (page) => { let k = 0; for (let y = BAR.y - 6; y < BAR.y + BAR.h + 12 && await G(page, () => window.__game.S.k === 'carve' && !window.__game.S.trim); y += 26) { await drag(page, row(y)); k++; } return k; };
   /** Rub around the edges until smooth. */
   const smoothAll = async (page) => {
     let k = 0;
-    while (k < 12 && await G(page, () => window.__game.S.step === 1)) {
+    while (k < 12 && await G(page, () => window.__game.S.k === 'smooth')) {
       const pts = await G(page, () => { const S = window.__game.S, s = S.soap, c = window.__game.cfg.bar, e = S.edges, out = []; let cx = 0, cy = 0;
         for (let i = 0; i < e.length; i += 9) { const x = e[i] % s.w, y = (e[i] - x) / s.w; out.push([x, y]); cx += x; cy += y; }
         cx /= out.length; cy /= out.length; out.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
@@ -55,17 +55,19 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     await drag(page, zig(360, 640, 200, 220, 40), 30);
     for (let i = 0; i < gems; i++) { const [x, y] = await G(page, () => window.__game.slotXY(1, 0)); await page.mouse.click(x, y); await page.mouse.click(330 + i * 60, 620); }
   };
+  /** Jump past the making steps straight to carving. */
+  const toCarve = (page) => G(page, () => { const G = window.__game; while (G.isMake(G.S.k)) G.nextStep(); });
   const tapCheck = async (page) => { const c = await G(page, () => window.__game.CHECK()); await page.mouse.click(c.x + 56, c.y + 56); };
   /** One soap, start to bath, by real gestures. */
   const serve = async (page, name) => {
     await ready(page); const t0 = await G(page, () => window.__game.S.t);
     const strokes = await carveAll(page); if (name) await shot(page, name + '-1-carved');
-    await wait(page, () => window.__game.S.step === 1 && !window.__game.S.trim); await page.waitForTimeout(300); if (name) await shot(page, name + '-2-smooth');
+    await wait(page, () => window.__game.S.k === 'smooth' && !window.__game.S.trim); await page.waitForTimeout(300); if (name) await shot(page, name + '-2-smooth');
     const rubs = await smoothAll(page);
-    if (await G(page, () => window.__game.S.step === 1)) await tapCheck(page);
-    await wait(page, () => window.__game.S.step === 2); await page.waitForTimeout(300); if (name) await shot(page, name + '-3-sparkle');
+    if (await G(page, () => window.__game.S.k === 'smooth')) await tapCheck(page);
+    await wait(page, () => window.__game.S.k === 'sparkle'); await page.waitForTimeout(300); if (name) await shot(page, name + '-3-sparkle');
     await sparkleIt(page); if (name) await shot(page, name + '-4-sparkled');
-    await tapCheck(page); await wait(page, () => window.__game.S.step === 3);
+    await tapCheck(page); await wait(page, () => window.__game.S.k === 'bath');
     const t1 = await G(page, () => window.__game.S.t);
     return { strokes, rubs, secs: t1 - t0 };
   };
@@ -73,7 +75,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   console.log('1. the first frame is the bar, the dotted shape, the order and the moving hand, before any touch');
   let page = await open();
   let s = await st(page);
-  ok(s.n === 0 && s.step === 0 && s.order.shape === 'heart' && s.order.simple, 'order 1 is a heart at the carve step');
+  ok(s.n === 0 && s.step === 'carve' && s.order.shape === 'heart' && s.order.simple, 'order 1 is a heart at the carve step');
   const h1 = await G(page, () => window.__game.handAt()); await page.waitForTimeout(400); const h2 = await G(page, () => window.__game.handAt());
   ok(await G(page, () => window.__game.handShown()) && (h1[0] !== h2[0] || h1[1] !== h2[1]), 'the helper hand moves before any touch');
   await shot(page, '01-first-frame');
@@ -100,12 +102,12 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   console.log(`      carve strokes ${r1.strokes}, rub loops ${r1.rubs}, game seconds start→bath ${r1.secs.toFixed(1)}`);
   for (const [t, n] of [[0.35, '03-order1-5-bath-drop'], [1.6, '03-order1-6-bath-bars'], [3.6, '03-order1-7-bath-stars']]) { await wait(page, (t) => window.__game.S.reveal.t > t, t); await shot(page, n); }
   const w1 = await G(page, () => window.__writes || []);
-  ok(w1.length > 0 && w1[w1.length - 1].n === 1 && w1[w1.length - 1].shelf.length === 1 && w1[w1.length - 1].coins === 30, 'the save holds 1 soap, 30 coins and the shelf photo');
+  ok(w1.length > 0 && w1[w1.length - 1].n === 1 && w1[w1.length - 1].shelf.length === 1 && w1[w1.length - 1].coins === 30 + 2 * cfg.stepCoins, 'the save holds 1 soap, 30 coins + a coin per finished step, and the shelf photo');
   ok(w1.every((w) => JSON.stringify(w).length < 40000), 'save stays under 40 KB');
   const nx = await G(page, () => window.__game.NEXT); await page.mouse.click(nx.x, nx.y);
   await wait(page, () => window.__game.S.n === 1);
-  s = await st(page); ok(s.order.shape === 'star' && s.step === 0, 'the big ▶ brings order 2 (a star) at once');
-  await ready(page); await shot(page, '04-order2-start');
+  s = await st(page); ok(s.order.shape === 'star' && s.step === 'chop', 'the big ▶ brings order 2 (a star), made from scratch: it starts by chopping');
+  await ready(page); await page.waitForTimeout(300); await shot(page, '04-order2-start'); await toCarve(page);
 
   console.log('4. knife rules: the core stays, a fast slip inside the line says oops and costs Shape');
   const core0 = await G(page, () => { const s = window.__game.S.soap; let n = 0; for (let i = 0; i < s.m.length; i++) if (s.m[i] && s.sd[i] > 8) n++; return n; });
@@ -132,7 +134,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   page = await open('', {}, () => { window.__saved = { n: 4, coins: 0, stars: 12 }; });
   await wait(page, () => window.__game.S.n === 4); await ready(page);
   s = await st(page); ok(s.order.charm !== null && s.charm === 'hidden', 'order 5 hides a charm');
-  await carveAll(page);
+  await toCarve(page); await carveAll(page);
   await wait(page, () => window.__game.S.charm.state === 'out', null, 4000).catch(() => {});
   ok(await G(page, () => window.__game.S.charm.state === 'out'), 'the charm pops out');
   await page.waitForTimeout(300); await shot(page, '07-charm');
@@ -141,7 +143,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   console.log('7. a purchase is followed by an order asking for it');
   page = await open('', {}, () => { window.__saved = { n: 2, coins: 200, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page);
-  await G(page, () => { const G = window.__game; G.S.step = 2; G.S.edges = new Int32Array(0); });
+  await G(page, () => { const G = window.__game; G.S.si = G.S.steps.indexOf('sparkle'); G.S.k = 'sparkle'; G.S.edges = new Int32Array(0); });
   await page.waitForTimeout(100); await shot(page, '08-tray-locked');
   const [lx, ly] = await G(page, () => window.__game.slotXY(0, 3)); await page.mouse.click(lx, ly);
   ok(await G(page, () => window.__game.save.owned.glitters.includes('sky') && window.__game.save.coins === 150), 'tapping a locked glitter buys it for 50');
@@ -204,11 +206,17 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     ok(await G(page, () => window.__game.lang) === l, `${l}: the game speaks the device language`);
     await page.waitForTimeout(250); await shot(page, `lang-${l}-1-carve`);
     await G(page, () => { const G = window.__game; G.finishCarve(); });
-    await wait(page, () => window.__game.S.step === 1); await page.waitForTimeout(200); await shot(page, `lang-${l}-2-smooth`);
-    await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.step === 2); await page.waitForTimeout(200); await shot(page, `lang-${l}-3-sparkle`);
+    await wait(page, () => window.__game.S.k === 'smooth'); await page.waitForTimeout(200); await shot(page, `lang-${l}-2-smooth`);
+    await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.k === 'sparkle'); await page.waitForTimeout(200); await shot(page, `lang-${l}-3-sparkle`);
     await G(page, () => window.__game.finishSparkle()); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 3.6); await shot(page, `lang-${l}-4-bath`);
     await G(page, () => { window.__game.view = 'shelf'; }); await page.waitForTimeout(300); await shot(page, `lang-${l}-5-shelf`);
     ok(page.errors.length === 0, `${l}: no errors`);
+    page = await open('', { locale: l === 'en' ? 'en-US' : l }, () => { window.__saved = { n: 2, coins: 120, stars: 6 }; });
+    await wait(page, () => window.__game.S.n === 2); await ready(page); await page.waitForTimeout(400); await shot(page, `lang-${l}-6-chop`);
+    for (const [k, name] of [['stir', '7-stir'], ['pour', '8-pour'], ['stamp', '9-stamp']]) { await G(page, (k) => { const G = window.__game; while (G.S.k !== k) G.nextStep(); }, k); await page.waitForTimeout(700); await shot(page, `lang-${l}-${name}`); }
+    await G(page, () => { const G = window.__game; while (G.S.k !== 'bath') G.nextStep(); }); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.6);
+    await G(page, () => { window.__game.S.reveal.gift = true; window.__game.nextOrder(); }); await page.waitForTimeout(600); await shot(page, `lang-${l}-10-gift`);
+    ok(page.errors.length === 0 && await G(page, () => window.__game.view === 'gift'), `${l}: making, stamp and gift screens drawn`);
   }
   page = await open('', { locale: 'fr-FR' }); ok(await G(page, () => window.__game.lang) === 'en', 'an unknown locale falls back to English');
   page = await open(); await G(page, () => { window.__game.view = 'shelf'; }); await page.waitForTimeout(100);
@@ -221,7 +229,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   ok(await G(page, () => window.__game.freeOpen()), 'free carve is open');
   const fb = await G(page, () => window.__game.FREEB()); await page.mouse.click(fb.x + 150, fb.y + 40);
   ok(await G(page, () => window.__game.S.order.free && window.__game.view === 'play'), 'tapping it starts a free carve');
-  await ready(page); await shot(page, '11-free-carve');
+  await ready(page); await toCarve(page); await page.waitForTimeout(300); await shot(page, '11-free-carve');
 
   console.log('15. speed: carving with the CPU slowed 4×');
   page = await open(); await ready(page);
@@ -253,22 +261,22 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
 
   console.log('18. regressions found by the bug hunt');
   page = await open('', {}, () => { window.__saved = { n: 6, coins: 0, stars: 18 }; });
-  await wait(page, () => window.__game.S.n === 6); await G(page, () => { window.__game.freeNext = true; window.__game.newOrder(6, false); }); await ready(page);
+  await wait(page, () => window.__game.S.n === 6); await G(page, () => { window.__game.freeNext = true; window.__game.newOrder(6, false); }); await ready(page); await toCarve(page);
   for (let k = 0; k < 3; k++) await drag(page, [[BAR.x - 20, BAR.y + 60 + k * 40], [BAR.x + 60, BAR.y + 60 + k * 40], [BAR.x + 130, BAR.y + 60 + k * 40]]);
   await drag(page, Array.from({ length: 12 }, (_, j) => [BAR.x - 20 + (BAR.w + 40) * j / 11, BAR.y + BAR.h / 2])); // one cut through the middle
   ok(await G(page, () => { const s = window.__game.S.soap; let n = 0, t = 0; for (let i = 0; i < s.m.length; i++) if (s.t[i]) { t++; n += s.m[i]; } return n < t; }), 'free carve: the knife can cut into the middle of the bar');
   const out18 = () => G(page, () => { const s = window.__game.S.soap; let n = 0; for (let i = 0; i < s.m.length; i++) if (s.m[i] && !s.t[i]) n++; return n; });
   const before18 = await out18();
   const c18 = await G(page, () => window.__game.CHECK()); await page.mouse.click(c18.x + 56, c18.y + 56);
-  await wait(page, () => window.__game.S.step === 1);
+  await wait(page, () => window.__game.S.k === 'smooth');
   ok(before18 > 1000 && await out18() > before18 * 0.8, 'free carve: ✔ keeps the shape the player carved (no trim)');
   page = await open(); await ready(page);
-  await G(page, () => { const G = window.__game; G.finishCarve(); }); await wait(page, () => window.__game.S.step === 1); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.step === 2);
+  await G(page, () => { const G = window.__game; G.finishCarve(); }); await wait(page, () => window.__game.S.k === 'smooth'); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.k === 'sparkle');
   await drag(page, zig(360, 640, 160, 160, 12), 30);
   const sb = await G(page, () => window.__game.SHELFB()); await page.mouse.click(sb.x + 46, sb.y + 46); await page.waitForTimeout(6500); await page.mouse.click(sb.x + 46, sb.y + 46); await page.waitForTimeout(300);
-  ok(await G(page, () => window.__game.S.step === 2), 'sparkle does not end by itself while the shelf is open');
+  ok(await G(page, () => window.__game.S.k === 'sparkle'), 'sparkle does not end by itself while the shelf is open');
   for (let i = 0; i < 6; i++) { const [x, y] = await G(page, (i) => window.__game.slotXY(0, i % 3), i); await page.mouse.click(x, y); await page.waitForTimeout(1000); }
-  ok(await G(page, () => window.__game.S.step === 2), 'browsing the tray counts as activity');
+  ok(await G(page, () => window.__game.S.k === 'sparkle'), 'browsing the tray counts as activity');
   const [gx, gy] = await G(page, () => window.__game.slotXY(1, 0)); await page.mouse.click(gx, gy); await page.mouse.click(360, 640);
   const placed18 = await G(page, () => window.__game.S.gems.length);
   const [sx18, sy18] = await G(page, () => window.__game.slotXY(0, 1)); await page.mouse.click(sx18, sy18);
@@ -286,10 +294,59 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   const landed = await G(page, () => window.__landed);
   ok(landed.length > 0 && landed.every(([x, y]) => x < BAR.x || x > BAR.x + BAR.w || y > BAR.y + BAR.h), `chunks come to rest off the bar (${landed.map((p) => p.map(Math.round).join(',')).join(' ')})`);
   page = await open(); await ready(page);
-  await G(page, () => { const G = window.__game; G.finishCarve(); }); await wait(page, () => window.__game.S.step === 1); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.step === 2);
+  await G(page, () => { const G = window.__game; G.finishCarve(); }); await wait(page, () => window.__game.S.k === 'smooth'); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.k === 'sparkle');
   await G(page, () => window.__game.finishSparkle()); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.2);
   const sb2 = await G(page, () => window.__game.SHELFB()); await page.mouse.click(sb2.x + 46, sb2.y + 46); await page.waitForTimeout(200);
   ok(await G(page, () => window.__game.view === 'shelf' && window.__game.coinShown === window.__game.save.coins && window.__game.save.coins > 0), 'opening the shelf during the bath shows the real coin total');
+
+  console.log('19. the full recipe (soap 2 on): twelve steps, each its own gesture, by real touches');
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page);
+  ok(JSON.stringify(await G(page, () => window.__game.S.steps)) === JSON.stringify(['chop', 'color', 'stir', 'scent', 'pour', 'cool', 'pop', 'carve', 'smooth', 'stamp', 'sparkle', 'bath']), 'the recipe has 12 steps');
+  const k19 = () => G(page, () => window.__game.S.k), t19 = await G(page, () => window.__game.S.t), seen = [];
+  ok(await G(page, () => window.__game.handShown()), 'the hand shows the new gesture on the second soap');
+  for (let i = 0; i < 6 && await k19() === 'chop'; i++) { await page.mouse.click(360, 994); await page.waitForTimeout(260); }
+  await wait(page, () => window.__game.S.k === 'color'); seen.push('chop');
+  const b0 = await G(page, () => window.__game.S.make.base);
+  for (const [x, w] of [[260, 220], [260, 220], [460, 220]]) { await page.mouse.click(x, 994); await page.waitForTimeout(w); }
+  await wait(page, () => window.__game.S.k === 'stir'); seen.push('color');
+  for (let i = 0; i < 4 && await k19() === 'stir'; i++) await drag(page, Array.from({ length: 90 }, (_, j) => [360 + Math.cos(j / 8) * 110, 640 + Math.sin(j / 8) * 110]), 8);
+  await wait(page, () => window.__game.S.k === 'scent'); seen.push('stir');
+  await page.mouse.click(520, 994); await wait(page, () => window.__game.S.k === 'pour'); seen.push('scent');
+  ok(await G(page, () => window.__game.S.scent) === 'lemon', 'the flower tapped is the scent kept');
+  await page.waitForTimeout(600); await page.mouse.move(360, 650); await page.mouse.down();
+  await wait(page, () => window.__game.S.make.level > 0.9); await page.mouse.up();
+  ok(await G(page, () => window.__game.S.make.perfect), 'letting go in the green band is a perfect pour');
+  await wait(page, () => window.__game.S.k === 'cool'); seen.push('pour');
+  for (let i = 0; i < 12 && await k19() === 'cool'; i++) await drag(page, Array.from({ length: 12 }, (_, j) => [220 + (j % 2) * 280, 560 + (j % 2) * 20]), 14);
+  await wait(page, () => window.__game.S.k === 'pop'); seen.push('cool');
+  await drag(page, [[360, 520], [360, 600], [360, 700]], 30); await wait(page, () => window.__game.S.k === 'carve'); seen.push('pop');
+  await carveAll(page); await wait(page, () => window.__game.S.k === 'smooth' && !window.__game.S.trim); seen.push('carve');
+  await smoothAll(page); if (await k19() === 'smooth') await tapCheck(page); await wait(page, () => window.__game.S.k === 'stamp'); seen.push('smooth');
+  await page.mouse.click(330, 600); await page.mouse.click(400, 720);
+  ok(await G(page, () => window.__game.S.soap.emb.some((v) => v > 0.5) && window.__game.S.stamps.length === 2), 'stamps press into the soap');
+  await tapCheck(page); await wait(page, () => window.__game.S.k === 'sparkle'); seen.push('stamp');
+  await sparkleIt(page); await tapCheck(page); await wait(page, () => window.__game.S.k === 'bath'); seen.push('sparkle');
+  ok(seen.length === 11, 'every step was reached in order by its own gesture: ' + seen.join(' → '));
+  const t19b = await G(page, () => window.__game.S.t);
+  console.log(`      a test bot needs ${(t19b - t19).toFixed(0)} s of game time from chop to bath; a child takes longer`);
+  await wait(page, () => window.__game.S.reveal.t > 3.8);
+  const coins19 = await G(page, () => window.__game.save.coins);
+  ok(coins19 >= cfg.coinPerStar + 10 * cfg.stepCoins + cfg.perfectCoins, `coins: stars + a coin per step + the perfect pour (${coins19})`);
+  const entry19 = await G(page, () => window.__game.save.shelf[0]);
+  ok(entry19.st.length === 2, 'the shelf soap keeps its stamps');
+  const nx19 = await G(page, () => window.__game.NEXT); await page.mouse.click(nx19.x, nx19.y); await page.waitForTimeout(300);
+  ok(await G(page, () => window.__game.view === 'gift'), 'after the 3rd soap a gift box waits');
+  await shot(page, '12-gift');
+  const sb19 = await G(page, () => window.__game.SHELFB()); await page.mouse.click(sb19.x + 46, sb19.y + 46);
+  ok(await G(page, () => window.__game.view === 'gift' && window.__game.gift.taps === 1), 'the gift screen keeps every tap (the shelf button cannot skip it)');
+  for (let i = 0; i < 2; i++) { await page.mouse.click(360, 650); await page.waitForTimeout(150); }
+  await page.waitForTimeout(700); await shot(page, '13-gift-open');
+  const gift19 = await G(page, () => window.__game.gift.item);
+  ok(gift19 && gift19.k === 'stamps' && await G(page, (id) => window.__game.save.owned.stamps.includes(id) && window.__game.save.fresh.id === id, gift19.id), `three taps open it: a new stamp (${gift19 && gift19.id})`);
+  await page.mouse.click(360, 650); await wait(page, () => window.__game.view === 'play' && window.__game.S.n === 3);
+  ok(await G(page, () => window.__game.S.order.stamp) === gift19.id, 'and the next customer asks for it');
+  ok(page.errors.length === 0, 'no errors through the whole recipe');
 
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');
