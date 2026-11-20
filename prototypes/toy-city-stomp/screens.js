@@ -20,7 +20,9 @@ const offScreen = () => [...document.querySelectorAll('.result h2, .result .star
 /** Elements whose text is wider or taller than their box (cut off). */
 const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
   if (!el.offsetParent || !el.textContent.trim() || el.children.length) return false;
-  return el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 4;
+  // sideways overflow is always cut; tall glyphs (Baloo's) only are when the box or its parent clips
+  const clips = (n) => n && ['hidden', 'clip', 'auto', 'scroll'].includes(getComputedStyle(n).overflowY);
+  return el.scrollWidth > el.clientWidth + 2 || ((clips(el) || clips(el.parentElement)) && el.scrollHeight > el.clientHeight + 4);
 }).map((el) => (el.id || el.className) + ': ' + el.textContent.trim().slice(0, 30));
 
 (async () => {

@@ -51,10 +51,10 @@ export function createBonbon(opts = {}) {
   const jawMesh = part(sphere, mat(PINK_D), jaw); jawMesh.scale.set(0.48, 0.2, 0.5); jawMesh.position.set(0, -0.06, 0.28);
   const mouthIn = new THREE.Mesh(sphere, flat(MOUTH)); mouthIn.scale.set(0.42, 0.12, 0.44); mouthIn.position.set(0, -0.12, 0.47); head.add(mouthIn);
   const tongue = new THREE.Mesh(sphere, mat(TONGUE, 0.5)); tongue.scale.set(0.24, 0.07, 0.28); tongue.position.set(0, 0.06, 0.3); jaw.add(tongue);
-  const eyes = [], pupils = [];
+  const eyes = [], pupils = [], pupilMat = new THREE.MeshBasicMaterial({ color: 0x1a1030 });
   for (const s of [-1, 1]) {
     const eye = part(sphere, mat(WHITE, 0.8), head, 0.08); eye.scale.set(0.24, 0.27, 0.2); eye.position.set(0.3 * s, 0.22, 0.48);
-    const pupil = new THREE.Mesh(sphere, flat(0x1a1030)); pupil.scale.set(0.5, 0.5, 0.4); pupil.position.set(0, 0, 0.72); eye.add(pupil);
+    const pupil = new THREE.Mesh(sphere, pupilMat); pupil.scale.set(0.5, 0.5, 0.4); pupil.position.set(0, 0, 0.72); eye.add(pupil);
     const shine = new THREE.Mesh(sphere, flat(WHITE)); shine.scale.setScalar(0.32); shine.position.set(0.35, 0.4, 0.6); pupil.add(shine);
     eyes.push(eye); pupils.push(pupil);
   }
@@ -108,6 +108,7 @@ export function createBonbon(opts = {}) {
   }
   setStage(1);
 
+  let poseName = '', poseT = 0, poseDur = 1, wantJawOverride = 0, rainbowEyes = false;
   let headYaw = 0, laughT = 0, t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0, jawOpen = 0;
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
   function setFace(name, sec = 1) { faceName = name; faceTimer = sec; }
@@ -115,7 +116,7 @@ export function createBonbon(opts = {}) {
   function applyFace(dt) {
     const f = faceName;
     const wantJaw = f === 'roar' ? 0.75 : f === 'surprised' ? 0.45 : f === 'win' ? 0.4 : f === 'angry' ? 0.12 : f === 'dizzy' ? 0.3 : 0.18;
-    jawOpen += (wantJaw - jawOpen) * Math.min(1, dt * 14);
+    jawOpen += (Math.max(wantJaw, wantJawOverride) - jawOpen) * Math.min(1, dt * 14); wantJawOverride = 0;
     jaw.rotation.x = jawOpen;
     mouthIn.scale.y = 0.06 + jawOpen * 0.32;
     for (const b of brows) {
@@ -160,6 +161,37 @@ export function createBonbon(opts = {}) {
       a.rotation.x = atk ? -1.7 * atk : moving ? Math.sin(walkPhase + i * Math.PI) * 0.6 : Math.sin(t * 2 + i) * 0.1;
       a.rotation.z = (roarT > 0 ? 1.4 : 0.35) * -s;
     }
+    // a move's own body language, on top of the walk (k goes 0 -> 1 over the move)
+    if (poseT > 0) {
+      poseT -= dt; const k = 1 - Math.max(0, poseT) / poseDur, inOut = Math.sin(Math.min(1, k) * Math.PI);
+      const ease = (a, b2) => THREE.MathUtils.smoothstep(k, a, b2);
+      if (poseName === 'flop') { // leaps, tips forward onto the belly in the air, lands flat, pops back up
+        body.rotation.x = 1.25 * ease(0.1, 0.55) * (1 - ease(0.8, 1)); for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 1.7 * inOut; a.rotation.x = -0.4; }
+      } else if (poseName === 'spin') { // arms flung out like a spinning top, head back laughing
+        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 1.55; a.rotation.x = 0; } head.rotation.x -= 0.3 * inOut;
+      } else if (poseName === 'bubble') { // cheeks puffed, mouth open, head pushed forward
+        head.rotation.x += 0.25 * inOut; head.scale.set(1 + 0.12 * inOut, 1, 1 + 0.06 * inOut); wantJawOverride = 0.9 * inOut;
+      } else if (poseName === 'roar') { // leans back and opens wide, arms up
+        torso.rotation.x -= 0.25 * inOut; for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 2.0 * inOut; a.rotation.x = -0.6 * inOut; }
+      } else if (poseName === 'jelly') { // wobbles like jelly between hops
+        body.rotation.z = Math.sin(k * 40) * 0.12 * inOut; for (const [i, a] of arms.entries()) a.rotation.z = (i ? -1 : 1) * (0.6 + Math.sin(k * 30) * 0.5);
+      } else if (poseName === 'magnet') { // arms wide open to pull everything in, then a big hug
+        const open = 1 - ease(0.45, 0.6);
+        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * (1.7 * open + 0.15); a.rotation.x = -0.3 * open - 1.5 * (1 - open) * (1 - ease(0.85, 1)); }
+        torso.rotation.x += 0.25 * (1 - open) * (1 - ease(0.85, 1));
+      } else if (poseName === 'rainbow') { // head forward, eyes wide and glowing in rainbow colours
+        head.rotation.x += 0.2 * inOut; for (const e of eyes) e.scale.y = 0.27 + 0.08 * inOut;
+        pupilMat.color.setHSL((t * 2) % 1, 0.9, 0.55); rainbowEyes = true;
+      } else if (poseName === 'sneeze') { // ah... ah... (head and body back) CHOO! (snap forward, mouth open)
+        const back = ease(0, 0.55) * (1 - ease(0.55, 0.65)), snap = ease(0.55, 0.65) * (1 - ease(0.8, 1));
+        head.rotation.x += -0.7 * back + 0.6 * snap; torso.rotation.x += -0.3 * back + 0.35 * snap; wantJawOverride = 0.9 * snap;
+        for (const e of eyes) e.scale.y = 0.27 - 0.2 * back;
+      } else if (poseName === 'moon') { // arms up to the sky, legs tucked
+        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 2.7 * inOut; a.rotation.x = 0; } for (const l of legs) l.rotation.x = -0.6 * inOut;
+      }
+      if (poseT <= 0) { body.rotation.x = 0; head.scale.set(1, 1, 1); poseName = ''; }
+    }
+    if (rainbowEyes && poseName !== 'rainbow') { pupilMat.color.setHex(0x1a1030); rainbowEyes = false; }
     const look = state.lookAt;
     for (const p of pupils) {
       let lx = Math.sin(t * 0.7) * 0.12, ly = 0;
@@ -253,9 +285,14 @@ export function createBonbon(opts = {}) {
   return {
     root, update: (dt, s) => update(dt, s), setStage, face: setFace, setRainbow, setSkin, setHat, get hatOn() { for (const k in hats) if (hats[k].visible) return k; return 'none'; },
     stomp(strength = 1) { squashV -= 6 * strength; attackT = 0.3; },
+    /** Plays a move's body pose for sec seconds ('flop', 'spin', 'bubble', 'roar', 'jelly', 'magnet', 'rainbow', 'sneeze', 'moon'). */
+    pose(name, sec) { poseName = name; poseT = poseDur = sec; },
+    get posing() { return poseT > 0; },
+    /** Where the eyes are in the world (for the rainbow beam). */
+    eyeWorld(out) { return eyes[0].getWorldPosition(out).add(eyes[1].getWorldPosition(tmp2)).multiplyScalar(0.5); },
     roar() { roarT = 1.0; setFace('roar', 1.0); squashV += 5; },
     laugh() { laughT = 0.9; setFace('win', 1.0); },
     resetTail() { for (const s of tail) s.userData.pos.set(0, 0, 0), s.userData.vel.set(0, 0, 0); },
-    dispose() { for (const g of geos) g.dispose(); for (const m of mats.values()) m.dispose(); inkMat.dispose(); },
+    dispose() { for (const g of geos) g.dispose(); for (const m of mats.values()) m.dispose(); inkMat.dispose(); pupilMat.dispose(); },
   };
 }

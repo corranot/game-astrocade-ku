@@ -40,6 +40,8 @@ cars squash and pop back, and the little toy residents float away happily on bal
 - `city.js`: the island and city in a theme's colours: buildings made of blocks, collapse and dominoes, cars, trees, lamps, effects.
 - `bonbon.js`: the monster model, its animation, hats and skins.
 - `toon.js`: the cel-shading material shared by everything lit (the thin outline is an edge pass in `game.js`).
+- `movefx.js`: what the moves look like: shock rings, bubbles, sneeze puffs, the rainbow beam.
+- `shapes.js`: detailed toy shapes merged per kind: cars, little people, trees, toy tanks and helicopters.
 - `army.js`: toy army, wanted stars and the Wind-Up Robot boss.
 - `moves.js`: the button moves and the shop rules.
 - `missions.js`: missions and their rewards.
