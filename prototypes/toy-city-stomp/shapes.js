@@ -1,10 +1,9 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 // Detailed toy shapes built from parts and merged into one geometry each (one draw call per kind of thing):
 // cars with wheel arches, glass cabin, lights and hubcaps; little people; trees; toy tanks and helicopters.
 // Parts carry their colour as vertex colours; white parts take the instance colour (each car its own paint).
 /* global THREE */ // Three.js r187, set on window by index.html before run()
 
-const tmp = new THREE.Color();
+let tmp = null; // created lazily: THREE arrives from the CDN after module import
 /** Merges [geometry, colour, matrix?] parts into one non-indexed geometry with position, normal and colour. */
 export function mergeParts(parts) {
   const pos = [], nor = [], colArr = [];
@@ -12,7 +11,7 @@ export function mergeParts(parts) {
     const g = g0.index ? g0.toNonIndexed() : g0.clone();
     if (m) g.applyMatrix4(m);
     if (!g.attributes.normal) g.computeVertexNormals();
-    tmp.setHex(c);
+    (tmp ||= new THREE.Color()).setHex(c);
     const p = g.attributes.position, n = g.attributes.normal;
     for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); colArr.push(tmp.r, tmp.g, tmp.b); }
     g.dispose(); if (g0 !== g) g0.dispose();
