@@ -226,6 +226,8 @@ Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, 
 | `STEP_COINS` / `PERFECT_COINS` | 1 / 5 | 0–5 / 0–20 | micro rewards |
 | `GIFT_EVERY` / `GIFT_COINS` | 3 / 50 | 2–6 | the gift box |
 | `STAMP_SIZE` / `STAMP_MAX` | 104 px / 3 | 60–140 / 1–5 | |
+| `SMOOTH_CHECK_SECS` | 8 s | 4–20 | rubbing time after which ✓ shows even if rough spots remain (rough spots pulse as hints) |
+| `RIBBON_MAX` / `RIBBON_CELLS` | 150 px / 60 | 60–240 / 20–120 | a carve stroke grows one shaving ribbon on the blade; it breaks off on lift or at max length |
 
 ## 8. Acceptance Criteria
 

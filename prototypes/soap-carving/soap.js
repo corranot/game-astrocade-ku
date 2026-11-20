@@ -355,7 +355,7 @@ export function paint(S) {
   const x0 = Math.max(0, dx0 - R - 1 + mg), x1 = Math.min(cw - 1, dx1 + R + 1 + mg + Math.max(0, SX) + R);
   const y0 = Math.max(0, dy0 - R - 1 + mg), y1 = Math.min(ch - 1, dy1 + R + 1 + mg + D + SY + R);
   const bAt = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : b[y * w + x]), iw = 0.62 / w, ih = 0.38 / h;
-  const hAt = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : b[y * w + x] - emb[y * w + x] * 0.32); // the top's height, stamps pressed in
+  const hAt = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : b[y * w + x] - emb[y * w + x] * 0.5); // the top's height, stamps pressed in
   for (let cx = x0; cx <= x1; cx++) {
     const mx = cx - mg; let lastTop = -1e9;
     for (let k = 1; k <= D; k++) { const yy = y0 - mg - k; if (mx >= 0 && mx < w && yy >= 0 && yy < h && m[yy * w + mx]) { lastTop = yy; break; } }
@@ -370,7 +370,7 @@ export function paint(S) {
         const diff = Math.max(0, nx * lx + ny * ly + nz * lz), sh = Math.max(0, nx * hx + ny * hy + nz * hz);
         const gloss = 1 - 0.9 * rough[i] * Math.min(1, e * 3), sp2 = sh * sh, sp4 = sp2 * sp2, sp16 = sp4 * sp4 * sp4 * sp4, spec = sp16 * gloss * 300 * (0.3 + 0.7 * e); // sh^16
         const u = mx * iw + my * ih - 0.28, uu = 1 - u * u * 24, band = uu > 0 ? uu * uu * 24 : 0; // the soft sheen across the top
-        const shade = (0.5 + 0.62 * diff) * (1 - emb[i] * 0.1), a3 = i * 3, glow = 0.16 * e, chalk = 0.42 * ro;
+        const shade = (0.5 + 0.62 * diff) * (1 - emb[i] * 0.2), a3 = i * 3, glow = 0.16 * e, chalk = 0.42 * ro;
         let r0 = alb[a3] * (shade + glow), g0 = alb[a3 + 1] * (shade + glow), b0 = alb[a3 + 2] * (shade + glow);
         r0 += (250 - r0) * chalk; g0 += (246 - g0) * chalk; b0 += (240 - b0) * chalk;
         px[o] = r0 + spec + band; px[o + 1] = g0 + spec + band; px[o + 2] = b0 + spec + band; px[o + 3] = 255;
