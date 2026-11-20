@@ -305,23 +305,32 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   for (const m of [cones, scoops]) { m.frustumCulled = false; for (let i = 0; i < cars.length; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0)); }
   cars.forEach((c, i) => scoops.setColorAt(i, col.setHex([0xff9cc6, 0xfff0b3, 0xa8f0d8][i % 3])));
   group.add(carBody, carTop, carWheels, cones, scoops);
-  const yAxis = new THREE.Vector3(0, 1, 0), wheelPos = new THREE.Vector3();
+  const yAxis = new THREE.Vector3(0, 1, 0), xAxis = new THREE.Vector3(1, 0, 0), wheelPos = new THREE.Vector3();
   function updateCars(dt) {
     for (let i = 0; i < cars.length; i++) {
       const c = cars[i];
-      if (c.squash > 0) c.squash = Math.max(0, c.squash - dt); else { c.t += c.speed * dt; if (c.t > half) c.t -= span; if (c.t < -half) c.t += span; }
-      c.x = c.horiz ? c.t : c.p; c.z = c.horiz ? c.p : c.t;
+      let lift = 0, spin = 0;
+      if (c.fly) {
+        // thrown by Bonbon: an arc to the target, tumbling, then a crash where it lands
+        const f = c.fly; f.t += dt; const k = Math.min(1, f.t / f.dur);
+        c.x = f.x0 + (f.x1 - f.x0) * k; c.z = f.z0 + (f.z1 - f.z0) * k; lift = f.h * 4 * k * (1 - k); spin = k * Math.PI * 3;
+        if (k >= 1) { events.push({ type: 'carLand', x: c.x, z: c.z }); c.land = { x: c.x, z: c.z }; c.fly = null; c.squash = 5; }
+      } else {
+        if (c.squash > 0) c.squash = Math.max(0, c.squash - dt); else { c.land = null; c.t += c.speed * dt; if (c.t > half) c.t -= span; if (c.t < -half) c.t += span; }
+        if (c.land) { c.x = c.land.x; c.z = c.land.z; } else { c.x = c.horiz ? c.t : c.p; c.z = c.horiz ? c.p : c.t; } // flat where it landed, then back on its road
+      }
       const flat = c.squash > 0.4 ? 0.28 : c.squash > 0 ? 0.28 + (0.4 - c.squash) / 0.4 * 0.72 * (1 + Math.sin((0.4 - c.squash) * 30) * 0.3) : 1;
       quat.setFromAxisAngle(yAxis, c.horiz ? (c.speed > 0 ? 0 : Math.PI) : (c.speed > 0 ? -Math.PI / 2 : Math.PI / 2));
+      if (spin) quat.multiply(qd.setFromAxisAngle(xAxis, spin));
       const wide = c.squash > 0.4 ? 1.25 : 1;
-      carBody.setMatrixAt(i, mtx.compose(v3.set(c.x, 0.7 * flat, c.z), quat, one.set(wide, flat, wide)));
-      carTop.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.35 * flat, c.z), quat, one.set(wide, flat, wide)));
+      carBody.setMatrixAt(i, mtx.compose(v3.set(c.x, 0.7 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
+      carTop.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.35 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
       if (c.icecream) {
-        cones.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.65 * flat, c.z), quat, one.set(wide, flat, wide)));
-        scoops.setMatrixAt(i, mtx.compose(v3.set(c.x, (2.75 + Math.sin(seaT * 4 + i) * 0.08) * flat, c.z), quat, one.set(wide, flat, wide)));
+        cones.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.65 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
+        scoops.setMatrixAt(i, mtx.compose(v3.set(c.x, (2.75 + Math.sin(seaT * 4 + i) * 0.08) * flat + lift, c.z), quat, one.set(wide, flat, wide)));
       }
       for (let w = 0; w < 4; w++) {
-        wheelPos.set(w < 2 ? -0.7 : 0.7, 0.32 * flat, w % 2 ? -0.6 : 0.6).applyQuaternion(quat); wheelPos.x += c.x; wheelPos.z += c.z;
+        wheelPos.set(w < 2 ? -0.7 : 0.7, 0.32 * flat, w % 2 ? -0.6 : 0.6).applyQuaternion(quat); wheelPos.x += c.x; wheelPos.z += c.z; wheelPos.y += lift;
         carWheels.setMatrixAt(i * 4 + w, mtx.compose(wheelPos, quat, one.set(1, flat, 1)));
       }
     }
@@ -584,9 +593,17 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   }
   function squashCars(x, z, r) {
     const hit = [];
-    for (const c of cars) if (c.squash <= 0 && Math.hypot(c.x - x, c.z - z) < r + 1) { c.squash = 5; hit.push(c); }
+    for (const c of cars) if (c.squash <= 0 && !c.fly && Math.hypot(c.x - x, c.z - z) < r + 1) { c.squash = 5; hit.push(c); }
     return hit;
   }
+  /** The driving car nearest to (x, z) within r, or null (for Bonbon to pick up). */
+  function pickCar(x, z, r) {
+    let best = null, bd = r;
+    for (const c of cars) if (c.squash <= 0 && !c.fly) { const d = Math.hypot(c.x - x, c.z - z); if (d < bd) bd = d, best = c; }
+    return best;
+  }
+  /** Throws a car in an arc to (x1, z1); a 'carLand' event fires where it lands. */
+  function throwCar(c, x1, z1, h = 8, dur = 0.75) { c.fly = { t: 0, dur, x0: c.x, z0: c.z, x1, z1, h }; c.land = null; }
   function crushTrees(x, z, r) {
     let n = 0;
     for (let i = 0; i < props.length; i++) {
@@ -632,7 +649,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     start: { x: -half + C.road + centre * pitch + C.lotSize / 2, z: half - 1 }, // in front of the cottages lot
     /** Ice-cream trucks still driving, for the jingle. */
     iceTrucks: () => cars.filter((x) => x.icecream && x.squash <= 0),
-    group, buildings, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees,
+    group, buildings, cars, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees, pickCar, throwCar,
     puff, burstConfetti, releaseResidents, footprint,
     intactLeft: () => intact,
     rescued: () => rescued,

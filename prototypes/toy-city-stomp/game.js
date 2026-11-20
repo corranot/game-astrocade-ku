@@ -280,6 +280,17 @@ function startGame(mode) {
   const screenOf = (x, y, z) => { projV.set(x, y, z).project(camera); return [(projV.x + 1) / 2, (1 - projV.y) / 2]; };
   let bannerT = 0, bannerPrio = 0;
   /** A big word across the screen; a more important one (prio) is not covered by a lesser one while it shows. */
+  let comicAt = 0;
+  /** A comic-book word bursting where something broke (BONK / CRASH / KABOOM), sized by how big it was. */
+  function comic(word, x, y, z, size = 1) {
+    const now = performance.now(); if (now - comicAt < 220) return;
+    const [sx, sy] = screenOf(x, y, z); if (sx < 0.05 || sx > 0.95 || sy < 0.12 || sy > 0.9) return; // off screen: no word
+    comicAt = now; // one at a time, never a pile
+    const el = document.createElement('div'); el.className = 'comic out'; el.textContent = word; el.dir = 'auto';
+    el.style.left = (sx * 100) + '%'; el.style.top = (sy * 100) + '%';
+    el.style.setProperty('--s', size.toFixed(2)); el.style.setProperty('--r', ((Math.random() - 0.5) * 24).toFixed(1) + 'deg');
+    $('pops').appendChild(el); setTimeout(() => el.remove(), 900);
+  }
   function banner(text, sec = 1.4, prio = 0) { if (bannerT > 0 && prio < bannerPrio) return; bannerPrio = prio; const b = $('banner'); b.textContent = text; b.style.animationDuration = sec + 's'; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); bannerT = sec; }
   function flyCoins(x, y, n) {
     for (let i = 0; i < Math.min(n, 6); i++) {
@@ -311,7 +322,7 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
     };
     const SA = (cfg.stickers && cfg.stickers.atCollapse) || [4, 22];
     S.stickerAt = SA[0] + Math.floor(rng() * (SA[1] - SA[0] + 1)); // the n-th building the child knocks down hides a sticker
@@ -328,7 +339,7 @@ function startGame(mode) {
   /** The city to play: the one picked on the map, never past the last one opened. */
   const themeIndex = () => Math.min(unlockedCount() - 1, Math.max(0, Number(save.theme) || 0));
 
-  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false, unlocked: 1, theme: 0, wardrobe: [], hat: 'none', skin: 'pink', stickers: [] };
+  const save = { best: null, coins: 0, bestCombo: 0, lang: null, owned: [], equipped: 'spin', tutorialDone: false, rounds: 0, smashed: 0, muted: false, unlocked: 1, theme: 0, wardrobe: [], hat: 'none', skin: 'pink', stickers: [], threwCar: false };
   let saveLoaded = false;
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
@@ -414,6 +425,7 @@ function startGame(mode) {
     S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1); S.spirit += cfg.army.spirit.perStage;
     S.slowT = FX.slowmoSec; shake(0.35);
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success'); mission('grow', S.stage);
+    S.poseT = 0.9; // turns to face the player for a moment: the face shows, the view does not move
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
     squashCarsAt(S.x, S.z, 4 * S.scaleTarget);
@@ -438,7 +450,7 @@ function startGame(mode) {
     if (e.target.closest && e.target.closest('button, .result, .langs, .shop, .album')) return;
     $('langs').hidden = true; // a tap in the game closes the settings
     if (input.id !== null) return; // a second finger does not steer
-    input.id = e.pointerId; input.sx = e.clientX; input.sy = e.clientY; input.dx = input.dy = 0;
+    input.id = e.pointerId; input.sx = e.clientX; input.sy = e.clientY; input.dx = input.dy = 0; input.t0 = performance.now(); input.ox = e.clientX; input.oy = e.clientY;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* capture not available */ }
     wake();
     const r = root.getBoundingClientRect(), st = $('stick');
@@ -451,7 +463,30 @@ function startGame(mode) {
     if (l > STICK) { input.sx += input.dx * (1 - STICK / l); input.sy += input.dy * (1 - STICK / l); input.dx *= STICK / l; input.dy *= STICK / l; const r = root.getBoundingClientRect(); $('stick').style.left = (input.sx - r.left) + 'px'; $('stick').style.top = (input.sy - r.top) + 'px'; }
     $('knob').style.transform = `translate(${input.dx}px, ${input.dy}px)`;
   };
-  const onUp = (e) => { if (e.pointerId !== input.id) return; input.id = null; input.dx = input.dy = 0; $('stick').hidden = true; };
+  const onUp = (e) => {
+    if (e.pointerId !== input.id) return;
+    input.id = null; input.dx = input.dy = 0; $('stick').hidden = true;
+    if (performance.now() - input.t0 < 260 && Math.hypot(e.clientX - input.ox, e.clientY - input.oy) < 14) tapAt(e.clientX, e.clientY); // a quick tap, not a swipe
+  };
+  const tapRay = new THREE.Raycaster(), tapNdc = new THREE.Vector2(), tapPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8), tapHit = new THREE.Vector3();
+  /** A tap on a car near Bonbon: Bonbon picks it up and throws it at the nearest building it can break. */
+  function tapAt(cx, cy) {
+    if (!S || S.finished || S.jump || S.dizzyT > 0) return;
+    const r = root.getBoundingClientRect();
+    tapNdc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); tapRay.setFromCamera(tapNdc, camera);
+    if (!tapRay.ray.intersectPlane(tapPlane, tapHit)) return;
+    const reach = (cfg.throwCar && cfg.throwCar.reach || 12) * Math.sqrt(S.scale);
+    const car = city.pickCar(tapHit.x, tapHit.z, 2.6 + S.scale * 0.6);
+    if (!car || Math.hypot(car.x - S.x, car.z - S.z) > reach) return;
+    // the target is a building the child can see (on screen), so the crash is seen
+    const onScreen = (b) => { const [sx, sy] = screenOf(b.cx, Math.min(b.h, 6) * 0.5, b.cz); return sx > 0.12 && sx < 0.88 && sy > 0.15 && sy < 0.85; };
+    const tgt = city.nearest(car.x, car.z, (b) => b.k <= S.stage + 2 && Math.hypot(b.cx - S.x, b.cz - S.z) > 4 * S.scale && onScreen(b));
+    const far = 18 * S.scale, tx = tgt && Math.hypot(tgt.cx - car.x, tgt.cz - car.z) < far * 2.2 ? tgt.cx : car.x + Math.sin(S.yaw) * far;
+    const tz = tgt && Math.hypot(tgt.cx - car.x, tgt.cz - car.z) < far * 2.2 ? tgt.cz : car.z + Math.cos(S.yaw) * far;
+    city.throwCar(car, tx, tz, 6 + 2 * S.scale);
+    S.yaw = Math.atan2(car.x - S.x, car.z - S.z); bon.stomp(0.6); bon.face('roar', 0.5); Sound.boing(); buzz('tap');
+    S.thrown++; S.idle = 0; if (!save.threwCar) { save.threwCar = true; persist(); }
+  }
   const onKey = (e) => {
     const k = e.key.toLowerCase();
     if (e.type === 'keydown') { if (k === ' ') { e.preventDefault(); useSkill(); } input.keys.add(k); wake(); } else input.keys.delete(k);
@@ -599,6 +634,11 @@ function startGame(mode) {
     if (mag < 0.12) mag = 0;
     if (S.dizzyT > 0) { S.dizzyT -= dt; mag = 0; ix = iz = 0; S.idle = 0; }
     if (S.jump) { mag = 0; ix = iz = 0; }
+    if (S.poseT > 0) {
+      S.poseT -= dt; mag = 0; ix = iz = 0;
+      let d = Math.atan2(camera.position.x - S.x, camera.position.z - S.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 9);
+      if (S.poseT <= 0) S.idle = 0;
+    }
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
     if (!mag && S.dizzyT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
@@ -696,12 +736,16 @@ function startGame(mode) {
       if (e.type === 'collapse') {
         hitCombo();
         if (S.touched && ++S.collapses === S.stickerAt) giveSticker(e.x, e.z);
+        comic(T(e.chain > 0 || e.b.k >= 5 ? 'w_kaboom' : e.b.k >= 3 ? 'w_crash' : 'w_bonk'), e.x, Math.min(e.b.h, 8), e.z, 0.75 + 0.12 * e.b.k + (e.chain > 0 ? 0.25 : 0));
         const label = e.chain > 0 ? T('domino') + ' ×' + (e.chain + 1) : '';
         score(PT.perClass * e.b.k * e.b.k, e.x, Math.min(e.b.h, 8), e.z, label);
         mission(e.b.h >= cfg.toppleMinHeight ? 'tower' : 'house'); if (S.rainbowT > 0) city.burstConfetti(e.x, 3, e.z, 18, [0xff5a4f, 0xffc531, 0x6fd64b, 0x3fa9ff, 0x9b6bff]); if (e.chain > 0) mission('domino', e.chain + 1);
         Sound.collapse(e.b.k); if (e.b.k >= 3) shake(0.1 + e.b.k * 0.05); S.hitstopT = FX.hitstopSec; buzz(e.b.k >= 3 ? 'thud' : 'tap');
         const [sx, sy] = screenOf(e.x, 2, e.z); flyCoins(sx, sy, e.b.k + 1); setTimeout(() => Sound.coin(e.b.k), 300);
         if (e.chain > 0) { bon.laugh(); if (e.chain + 1 > S.chainShown) { S.chainShown = e.chain + 1; banner(T('domino') + ' ×' + (e.chain + 1) + '!', 1.2); } }
+      } else if (e.type === 'carLand') {
+        fx.blast(e.x, e.z, 3.4 * S.scale, 0.3); comic(T('w_kaboom'), e.x, 3, e.z, 1.2);
+        Sound.collapse(3); buzz('thud'); city.burstConfetti(e.x, 2, e.z, 14); mission('car');
       } else if (e.type === 'glass') { Sound.glass(e.n);
       } else if (e.type === 'creak') { Sound.creak(); bon.face('surprised', 0.4);
       } else if (e.type === 'land') {
@@ -923,6 +967,12 @@ function startGame(mode) {
       S.jingleT -= raw; // an ice-cream truck nearby plays its tune now and then: a clue, never explained
       if (S.jingleT <= 0) { S.jingleT = 4; const t = city.iceTrucks().find((c) => Math.hypot(c.x - S.x, c.z - S.z) < 30 * Math.sqrt(S.scale)); if (t) Sound.jingle(); }
       drainEvents(); sweep(dt);
+      // until the child has thrown a car once, a finger now and then points at a car Bonbon could pick up
+      if (!save.threwCar && S.touched && S.stage >= 2 && (S.carTipT -= raw) <= 0) {
+        S.carTipT = 4;
+        const c = city.pickCar(S.x, S.z, (cfg.throwCar && cfg.throwCar.reach || 12) * Math.sqrt(S.scale) * 0.8);
+        if (c) { const [sx, sy] = screenOf(c.x, 2.4, c.z); pop('👆', sx, sy, '#fff', 1.4); }
+      }
     } else { city.events.length = 0; army.events.length = 0; } // after the finish (or in edit mode) falling blocks still look right but score nothing
     if (S.spinT > 0) { S.spinT -= dt; S.yaw += dt * Math.PI * 2 / 0.55; }
     S.clock += dt;
@@ -1014,7 +1064,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },
