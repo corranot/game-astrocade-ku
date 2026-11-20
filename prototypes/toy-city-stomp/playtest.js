@@ -290,6 +290,24 @@ const server = http.createServer((q, s) => {
     check(r.after - r.before <= 3, `shaders are ready before the first frames (${r.before} programs, ${r.after - r.before} more in the first frames)`);
     await p4.close();
   }
+  // the move button works while another finger steers (phones send no click for a second finger)
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 405, height: 720 }, hasTouch: true, isMobile: true });
+    const p6 = await ctx2.newPage();
+    await p6.goto(`http://localhost:${port}/?local&tier=0`);
+    await p6.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    await p6.evaluate(() => { const S = __game.S; S.touched = true; S.idle = -999; while (S.stage < 3) __game.grow(); document.querySelector('#hint').hidden = true; });
+    await p6.waitForTimeout(3500); // the grow pose is over
+    const btn = await p6.evaluate(() => { const r = document.querySelector('#skill').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    const cdp = await ctx2.newCDPSession(p6);
+    const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i + 1 })) });
+    await touch('touchStart', [[150, 500]]); await touch('touchMove', [[150, 440]]); await p6.waitForTimeout(600);
+    const walking = await p6.evaluate(() => __game.S.moving);
+    await touch('touchStart', [[150, 440], btn]); await touch('touchEnd', [[150, 440]]); await p6.waitForTimeout(200);
+    const cd = await p6.evaluate(() => __game.S.skillCd); await touch('touchEnd', []);
+    check(walking && cd > 0, `the move button works with a second finger while walking (walking ${walking}, cooldown ${cd.toFixed(1)})`);
+    await ctx2.close();
+  }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
     const p2 = await browser.newPage({ viewport: { width: 405, height: 720 } });

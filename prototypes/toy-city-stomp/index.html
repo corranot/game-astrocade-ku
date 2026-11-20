@@ -5,8 +5,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Toy City Stomp: Giant Monster Smash</title>
+<!-- the cute rounded Baloo family: one look in Latin/Vietnamese, Devanagari, Bengali and Arabic -->
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/600.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/600.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/600.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/800.css">
 <style>
-html,body{margin:0;height:100%;background:#8fd2ff;overflow:hidden;font-family:"Arial Rounded MT Bold","Nunito","Segoe UI","Noto Sans","Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Arabic",system-ui,sans-serif}
+html,body{margin:0;height:100%;background:#8fd2ff;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Arial Rounded MT Bold","Nunito","Noto Sans","Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Arabic",system-ui,sans-serif}
+button{font-family:inherit}
 body{display:flex;align-items:center;justify-content:center}
 #app{position:relative;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;--u:1;--ink:#24123f}
 #scene{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -181,6 +189,22 @@ body{display:flex;align-items:center;justify-content:center}
 .dbonus{margin-inline-start:calc(var(--u)*12px);font-size:calc(var(--u)*26px);color:#22c6a3}
 .city.daily{background:linear-gradient(#e3fff6,#a8f0d8) !important}
 .city.daily.on{background:linear-gradient(#fff3b0,#ffc531) !important;animation:none}
+/* Baloo has tall line boxes: keep lines tight so the HUD and the result card stay their size */
+.hud{line-height:1.15}
+.result{gap:calc(var(--u)*20px)}
+.result h2{line-height:1.05}
+.result .stars{font-size:calc(var(--u)*66px);line-height:1.15}
+.result .smash b{font-size:calc(var(--u)*74px);line-height:1.15}
+.result .smash span,.result .total,.result .best{line-height:1.2}
+.result .chips{margin:calc(var(--u)*8px) 0 calc(var(--u)*4px)}
+.result .goal{margin-top:calc(var(--u)*6px)}
+.result .board{margin-top:calc(var(--u)*4px)}
+.result .again{padding:calc(var(--u)*14px) calc(var(--u)*64px)}
+.result .toshop{padding:calc(var(--u)*8px) calc(var(--u)*40px)}
+.result .toalbum{height:calc(var(--u)*76px)}
+.result .map{margin-bottom:calc(var(--u)*-14px)}
+.result .cityname{margin-bottom:calc(var(--u)*-10px)}
+.heart,.stars span,.mico{line-height:1.2}
 </style>
 </head>
 <body>

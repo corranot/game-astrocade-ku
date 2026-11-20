@@ -12,6 +12,7 @@ import { createBonbon } from './bonbon.js';
 import { createArmy } from './army.js';
 import { MOVES, moveInfo, moveReady, buyMove } from './moves.js';
 import { createMissions } from './missions.js';
+import { createMoveFx } from './movefx.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const LANG_NAMES = { en: 'English', ar: 'العربية', es: 'Español', vi: 'Tiếng Việt', hi: 'हिन्दी', bn: 'বাংলা', id: 'Indonesia' };
@@ -293,6 +294,7 @@ function startGame(mode) {
   // ---------- state
   const G = cfg.growth, MC = cfg.monster, CB = cfg.combo, PT = cfg.points, FX = cfg.fx;
   const bon = createBonbon({ candy: quality.candy }); scene.add(bon.root);
+  const mfx = createMoveFx(scene);
   let rng, S, army = null, missions = null, target = null, lookAt = null;
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
@@ -425,7 +427,7 @@ function startGame(mode) {
     S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1); S.spirit += cfg.army.spirit.perStage;
     S.slowT = FX.slowmoSec; shake(0.35);
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success'); mission('grow', S.stage);
-    S.poseT = 0.9; // turns to face the player for a moment: the face shows, the view does not move
+    if (!S.jump && !bon.posing) S.poseT = 0.9; // turns to face the player for a moment (not in the middle of a move)
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
     squashCarsAt(S.x, S.z, 4 * S.scaleTarget);
@@ -508,15 +510,28 @@ function startGame(mode) {
     box.querySelector('#snd').onclick = (ev) => { Sound.setMuted(!Sound.muted); save.muted = Sound.muted; persist(); ev.currentTarget.textContent = Sound.muted ? '🔇' : '🔊'; };
     box.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lang = save.lang = b.dataset.l; setDir(); $('bossName').textContent = bossName(); hudCache.combo = null; updateHud(); box.hidden = true; persist(); });
   };
-  $('skill').onclick = (e) => { e.currentTarget.blur(); Sound.unlock(); useSkill(); };
+  // the move button answers the moment a finger lands on it, even while another finger is steering
+  // (phones send no click for a second finger)
+  $('skill').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); Sound.unlock(); wake(); useSkill(); });
 
   const dirV = new THREE.Vector3(), biteP = new THREE.Vector3(), touchList = [];
   // ---------- moves: the big button plays the equipped move (moves.js) through these effects
+  const mouthV = new THREE.Vector3(), beamTo = new THREE.Vector3();
   const fx = {
     x: () => S.x, z: () => S.z, sc: () => S.scale,
     at(dist) { const d = dist * S.scale; return { x: S.x + Math.sin(S.yaw) * d, z: S.z + Math.cos(S.yaw) * d }; },
     later(sec, fn) { S.acts.push({ at: S.clock + sec, fn }); },
     spin() { S.spinT = 0.55; },
+    /** Bonbon's body language for a move. */
+    pose(name, sec) { bon.pose(name, sec); },
+    /** Effects: a shock ring, a flying bubble or sneeze puff, the rainbow beam (see movefx.js). */
+    ring(x, z, color, r, dur, inward) { mfx.ring(x, z, color, r, dur, inward); },
+    ball(kind, x, y, z, vx, vy, vz, size, life) { mfx.ball(kind, x, y, z, vx, vy, vz, size, life); },
+    /** Where the mouth is (in front of the eyes, a little lower). */
+    mouth() { const e = bon.eyeWorld(mouthV); return { x: e.x + Math.sin(S.yaw) * 0.6 * S.scale, y: e.y - 0.45 * S.scale, z: e.z + Math.cos(S.yaw) * 0.6 * S.scale }; },
+    /** A rainbow beam from the eyes to the ground dist (x size) ahead. */
+    beam(dist, dur) { const p = fx.at(dist); mfx.beam(bon.eyeWorld(mouthV), beamTo.set(p.x, 0.5, p.z), 0.55 * S.scale, dur); },
+    fwd: () => ({ x: Math.sin(S.yaw), z: Math.cos(S.yaw) }),
     roar() { bon.roar(); Sound.roar(S.stage); },
     /** Lifts Bonbon in an arc of height h (x size) over dur seconds, moving dist (x size) ahead, then onLand(). */
     jump(dur, h, dist, onLand) { const p = fx.at(dist); S.jump = { t: 0, dur, h: h * Math.sqrt(S.scale), sx: S.x, sz: S.z, tx: p.x, tz: p.z, onLand }; bon.stomp(-0.8); },
@@ -977,7 +992,7 @@ function startGame(mode) {
     const raw = Math.min(0.11, (now - last) / 1000); last = now;
     fps = fps * 0.95 + (1 / Math.max(raw, 0.001)) * 0.05;
     for (let k = 0; k < SIM; k++) simulate(raw);
-    updateCamera(raw); army.draw();
+    updateCamera(raw); army.draw(); mfx.update(raw);
     bannerT -= raw; if (bannerT <= 0) $('banner').classList.remove('show');
     const ring = S.skillCd > 0 ? Math.ceil(S.skillCd / (S.skillCdMax || 1) * 20) / 20 : 0;
     if (ring !== ringShown) { ringShown = ring; $('ring').style.setProperty('--p', ring); $('skill').classList.toggle('ready', ring === 0); }
@@ -1098,11 +1113,11 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
-      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
+      city.dispose(); army.dispose(); bon.dispose(); mfx.dispose(); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, fx, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

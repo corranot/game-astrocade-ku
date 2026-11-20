@@ -12,6 +12,10 @@ const title = (page.match(/<title>([^<]*)<\/title>/) || [, 'Game'])[1];
 const style = (page.match(/<style>([\s\S]*?)<\/style>/) || [, ''])[1];
 const importMap = (page.match(/<script type="importmap">[\s\S]*?<\/script>/) || [''])[0]; // bare imports such as 'three'
 const libLoader = (page.match(/<script type="module" data-lib>[\s\S]*?<\/script>/) || [''])[0]; // puts libraries on window
+// web fonts: artifacts load stylesheets only from Google Fonts, so data-font links become one Google Fonts link
+const fontFamilies = [...page.matchAll(/<link[^>]*data-font[^>]*@fontsource\/([a-z0-9-]+)@/g)].map((m) => m[1]);
+const fontLink = fontFamilies.length ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${[...new Set(fontFamilies)].map((f) => 'family=' + f.split('-').map((w) => /^\d+$/.test(w) ? w : w[0].toUpperCase() + w.slice(1)).join('+') + ':wght@600;800').join('&')}&display=swap">` : '';
+if (page.includes('data-font') && !fontLink) { console.error('index.html has data-font links this tool could not read'); process.exit(1); }
 // a page that uses an import map or a library loader must have them copied, or the artifact waits forever
 if (!style) { console.error('index.html has no <style> block'); process.exit(1); }
 if (page.includes('importmap') && !importMap) { console.error('index.html has an import map this tool could not read (expects <script type="importmap">)'); process.exit(1); }
@@ -21,6 +25,7 @@ delete cfg.persistent_storage_config; // the host keeps this key out of window.g
 const key = 'save-' + path.basename(path.resolve(dir));
 
 const html = `<title>${title}</title>
+${fontLink}
 <style>${style}</style>
 <div id="app"></div>
 ${importMap}
