@@ -1,0 +1,142 @@
+{
+ "strands": 40,
+ "points": 28,
+ "seg": 22,
+ "minLen": 24,
+ "maxLen": 27,
+ "cutMin": 3,
+ "cutGoal": 0.9,
+ "foamRadius": 62,
+ "foamGoal": 0.7,
+ "brushRadius": 50,
+ "dyeGoal": 0.92,
+ "dyeCheckAt": 0.5,
+ "dryRadius": 200,
+ "dryPower": 1600,
+ "drySeconds": 2.6,
+ "decoMax": 3,
+ "decoAuto": 5,
+ "revealSeconds": 4.2,
+ "idleHand": 4,
+ "unlockBase": 50,
+ "unlockStep": 10,
+ "coinsPerStar": 10,
+ "confetti": 90,
+ "slowFrameMs": 22,
+ "rtl": [
+  "ar"
+ ],
+ "strings": {
+  "en": {
+   "wash": "Wash the hair!",
+   "rinse": "Rinse!",
+   "cut": "Cut on the line!",
+   "dye": "Paint the hair!",
+   "dry": "Hold to dry!",
+   "deco": "Decorate!",
+   "p3": "WOW! Perfect!",
+   "p2": "So pretty!",
+   "p1": "Nice try!",
+   "eek": "Eek! Too short!",
+   "wall": "My Salon",
+   "lang": "English"
+  },
+  "ar": {
+   "wash": "اغسل الشعر!",
+   "rinse": "اشطف!",
+   "cut": "قص على الخط!",
+   "dye": "لوّن الشعر!",
+   "dry": "اضغط للتجفيف!",
+   "deco": "زيّن!",
+   "p3": "واو! رائع!",
+   "p2": "جميل جدًا!",
+   "p1": "محاولة جيدة!",
+   "eek": "آه! قصير جدًا!",
+   "wall": "صالوني",
+   "lang": "العربية"
+  },
+  "es": {
+   "wash": "¡Lava el pelo!",
+   "rinse": "¡Enjuaga!",
+   "cut": "¡Corta en la línea!",
+   "dye": "¡Pinta el pelo!",
+   "dry": "¡Mantén para secar!",
+   "deco": "¡Decora!",
+   "p3": "¡GUAU! ¡Perfecto!",
+   "p2": "¡Qué bonito!",
+   "p1": "¡Buen intento!",
+   "eek": "¡Ay! ¡Muy corto!",
+   "wall": "Mi salón",
+   "lang": "Español"
+  },
+  "vi": {
+   "wash": "Gội đầu nào!",
+   "rinse": "Xả nước!",
+   "cut": "Cắt theo vạch!",
+   "dye": "Tô màu tóc!",
+   "dry": "Giữ để sấy!",
+   "deco": "Trang trí!",
+   "p3": "WOW! Tuyệt vời!",
+   "p2": "Đẹp quá!",
+   "p1": "Cố lên nhé!",
+   "eek": "Ối! Ngắn quá!",
+   "wall": "Tiệm của tôi",
+   "lang": "Tiếng Việt"
+  },
+  "hi": {
+   "wash": "बाल धोओ!",
+   "rinse": "पानी डालो!",
+   "cut": "लाइन पर काटो!",
+   "dye": "बाल रंगो!",
+   "dry": "दबाकर सुखाओ!",
+   "deco": "सजाओ!",
+   "p3": "वाह! बढ़िया!",
+   "p2": "बहुत सुंदर!",
+   "p1": "अच्छी कोशिश!",
+   "eek": "उफ़! बहुत छोटा!",
+   "wall": "मेरा सैलून",
+   "lang": "हिन्दी"
+  },
+  "bn": {
+   "wash": "চুল ধোও!",
+   "rinse": "পানি ঢালো!",
+   "cut": "দাগে কাটো!",
+   "dye": "চুল রাঙাও!",
+   "dry": "চেপে শুকাও!",
+   "deco": "সাজাও!",
+   "p3": "ওয়াও! দারুণ!",
+   "p2": "খুব সুন্দর!",
+   "p1": "ভালো চেষ্টা!",
+   "eek": "উফ! খুব ছোট!",
+   "wall": "আমার সেলুন",
+   "lang": "বাংলা"
+  },
+  "id": {
+   "wash": "Cuci rambutnya!",
+   "rinse": "Bilas!",
+   "cut": "Potong di garis!",
+   "dye": "Warnai rambutnya!",
+   "dry": "Tahan untuk keringkan!",
+   "deco": "Hias!",
+   "p3": "WAH! Sempurna!",
+   "p2": "Cantik sekali!",
+   "p1": "Bagus, coba lagi!",
+   "eek": "Aduh! Kependekan!",
+   "wall": "Salonku",
+   "lang": "Indonesia"
+  }
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ },
+ "lines": [
+  630,
+  700,
+  760
+ ],
+ "stiffWild": 0.1,
+ "stiffWet": 0.12,
+ "stiffDry": 0.16
+}
