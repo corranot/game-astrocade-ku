@@ -61,8 +61,22 @@ export function createArmy(scene, cfg, rng, quality, city, opts = {}) {
   for (const sx of [-0.5, 0.5]) { const m = new THREE.Mesh(keep(new THREE.BoxGeometry(0.42, 0.32, 0.05)), eyeMat); m.position.x = sx; eyesG.add(m); }
   bpart(new THREE.BoxGeometry(1.6, 0.25, 0.05), 0x24123f, 0, 6.55, 1.02);
   bpart(new THREE.CylinderGeometry(0.9, 0.9, 0.3, 24), P.accent, 0, 4.8, 1.3).rotation.x = Math.PI / 2; // chest dial
-  const arms = [-1, 1].map((sx) => { const g = new THREE.Group(); g.position.set(2.1 * sx, 5.6, 0); bossG.add(g); bpart(new THREE.BoxGeometry(0.9, 2.6, 0.9), P.limb, 0, -1.2, 0, g); bpart(new THREE.BoxGeometry(1.2, 0.9, 1.2), P.fist, 0, -2.6, 0, g); return g; });
-  const legs = [-1, 1].map((sx) => { const g = new THREE.Group(); g.position.set(0.9 * sx, 3.0, 0); bossG.add(g); bpart(new THREE.BoxGeometry(1.1, 2.6, 1.2), P.limb, 0, -1.3, 0, g); bpart(new THREE.BoxGeometry(1.4, 0.5, 1.9), 0x24123f, 0, -2.75, 0.25, g); return g; });
+  // jointed like a real toy robot: ball shoulder, upper arm, ball elbow, forearm, fist; hip, thigh, ball knee, shin, foot
+  const ballGeo = new THREE.SphereGeometry(0.55, 14, 10);
+  const arms = [-1, 1].map((sx) => {
+    const g = new THREE.Group(); g.position.set(2.1 * sx, 5.6, 0); bossG.add(g);
+    bpart(ballGeo, P.accent, 0, 0, 0, g); bpart(new THREE.BoxGeometry(0.85, 1.2, 0.85), P.limb, 0, -0.75, 0, g);
+    const el = new THREE.Group(); el.position.y = -1.45; g.add(el); bpart(ballGeo, P.accent, 0, 0, 0, el).scale.setScalar(0.85);
+    bpart(new THREE.BoxGeometry(0.8, 1.05, 0.8), P.limb, 0, -0.6, 0, el); bpart(new THREE.BoxGeometry(1.2, 0.9, 1.2), P.fist, 0, -1.35, 0, el);
+    g.userData.elbow = el; return g;
+  });
+  const legs = [-1, 1].map((sx) => {
+    const g = new THREE.Group(); g.position.set(0.9 * sx, 3.0, 0); bossG.add(g);
+    bpart(new THREE.BoxGeometry(1.05, 1.25, 1.15), P.limb, 0, -0.62, 0, g);
+    const kn = new THREE.Group(); kn.position.y = -1.35; g.add(kn); bpart(ballGeo, P.accent, 0, 0, 0, kn).scale.setScalar(0.9);
+    bpart(new THREE.BoxGeometry(1.0, 1.05, 1.1), P.limb, 0, -0.6, 0, kn); bpart(new THREE.BoxGeometry(1.4, 0.5, 1.9), 0x24123f, 0, -1.4, 0.25, kn);
+    g.userData.knee = kn; return g;
+  });
   const key = new THREE.Group(); key.position.set(0, 4.8, -1.4); bossG.add(key);
   bpart(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 10), P.accent, 0, 0, -0.5, key).rotation.x = Math.PI / 2;
   bpart(new THREE.TorusGeometry(0.75, 0.25, 10, 20), P.accent, 0, 0, -1.3, key);
@@ -249,6 +263,8 @@ export function createArmy(scene, cfg, rng, quality, city, opts = {}) {
     const walk = boss.act === 'idle' && boss.y === 0 ? Math.sin(boss.t * 5) : 0;
     legs[0].rotation.x = walk * 0.4; legs[1].rotation.x = -walk * 0.4;
     arms[0].rotation.x = -walk * 0.4 + (boss.act === 'stomp' ? -2.2 : 0); arms[1].rotation.x = walk * 0.4 + (boss.act === 'stomp' ? -2.2 : 0);
+    for (const [i, l] of legs.entries()) { const w = i ? -walk : walk; l.userData.knee.rotation.x = Math.max(0, -w) * 0.7 + 0.05; } // the knee folds as the leg swings forward
+    for (const a of arms) a.userData.elbow.rotation.x = boss.act === 'stomp' ? -1.1 : -0.35 - Math.abs(walk) * 0.25; // elbows bent like a boxer, folded to hammer down
     bTorso.rotation.y = boss.phase === 2 ? Math.sin(boss.t * 3) * 0.15 : 0;
     if (!boss.down) key.rotation.z += dt * (2 + boss.phase);
     eyeMat.color.setHex(boss.down ? 0x8e99b0 : boss.phase === 3 ? 0xff2a6d : 0xff5a4f);

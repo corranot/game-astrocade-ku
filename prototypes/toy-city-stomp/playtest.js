@@ -308,7 +308,7 @@ const server = http.createServer((q, s) => {
     await p6.goto(`http://localhost:${port}/?local&tier=0`);
     await p6.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
     await p6.evaluate(() => { const S = __game.S; S.touched = true; S.idle = -999; while (S.stage < 3) __game.grow(); document.querySelector('#hint').hidden = true; });
-    await p6.waitForTimeout(3500); // the grow pose is over
+    await p6.waitForFunction(() => __game.S.poseT <= 0 && !__game.posing && !__game.S.jump && __game.S.slowT <= 0, null, { timeout: 30000 }); // the grow pose is over (slow machines take longer)
     const btn = await p6.evaluate(() => { const r = document.querySelector('#skill').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
     const cdp = await ctx2.newCDPSession(p6);
     const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i + 1 })) });
@@ -359,6 +359,26 @@ const server = http.createServer((q, s) => {
       return { attractFever, empty, back, whole }; });
     check(!r.attractFever && r.empty === 2 && r.back && r.whole, `audit fixes: no FEVER before the first touch, a 1-star round shows 2 empty stars, MEGA size ends at the finish, a skin-toned emoji stays whole (${JSON.stringify(r)})`);
     await p8.close();
+  }
+  // tahap 9: the loading screen goes once the game draws; tapping Bonbon tickles it; left alone it waves; growing plays a framed shot with letterbox bars
+  {
+    const p9 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p9.goto(`http://localhost:${port}/?local&tier=0`);
+    await p9.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    const loadGone = await p9.waitForFunction(() => !document.getElementById('load'), null, { timeout: 20000 }).then(() => true, () => false);
+    const r = await p9.evaluate(async () => { const S = __game.S, w = (ms) => new Promise((res) => setTimeout(res, ms));
+      document.querySelector('#hint').hidden = true; S.touched = true; S.idle = 0;
+      const v = new THREE.Vector3(S.x, 1.5 * S.scale, S.z).project(__game.camera), rc = document.getElementById('app').getBoundingClientRect();
+      __game.tapAt(rc.left + (v.x + 1) / 2 * rc.width, rc.top + (1 - v.y) / 2 * rc.height); const tickle = __game.posing;
+      for (let i = 0; i < 40 && __game.posing; i++) await w(100);
+      S.idle = 2.5; await w(400); const wave = S.fidgeted && __game.posing;
+      for (let i = 0; i < 40 && __game.posing; i++) await w(100);
+      S.idle = -99; __game.grow(); const shot = __game.cine.kind; let bars = false;
+      for (let i = 0; i < 30 && !bars; i++) { await w(100); bars = document.querySelector('.hud').classList.contains('cine'); }
+      for (let i = 0; i < 60 && __game.cine.kind; i++) await w(100);
+      return { tickle, wave, shot, bars, ended: !__game.cine.kind && !document.querySelector('.hud').classList.contains('cine') }; });
+    check(loadGone && r.tickle && r.wave && r.shot === 'grow' && r.bars && r.ended, `tahap 9: loading screen goes, a tap tickles Bonbon, it waves when left alone, growing plays a framed shot with bars that ends (${JSON.stringify({ loadGone, ...r })})`);
+    await p9.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {

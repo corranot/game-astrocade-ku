@@ -214,10 +214,83 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes bob{50%{transform:translateY(calc(var(--u)*-10px))}}
 .hud.fever::before{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 calc(var(--u)*80px) calc(var(--u)*20px) rgba(255,140,120,.6);animation:fever .5s ease-in-out infinite alternate;will-change:opacity}
 @keyframes fever{from{opacity:.45}to{opacity:1}}
+/* loading screen: drawn in CSS so it shows the instant the page opens, before three.js and the fonts arrive */
+#load{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vmin;overflow:hidden;background:radial-gradient(circle at 50% 38%,#c9ecff 0,#8fd2ff 45%,#6bb8f5 100%);transition:opacity .45s,transform .45s}
+#load.out{opacity:0;transform:scale(1.08);pointer-events:none}
+#load .cl{position:absolute;background:#fff;border-radius:999px;opacity:.9;animation:ldrift 14s linear infinite}
+#load .cl::before,#load .cl::after{content:"";position:absolute;background:#fff;border-radius:50%}
+#load .cl::before{width:55%;height:160%;left:15%;bottom:20%}#load .cl::after{width:40%;height:120%;right:12%;bottom:25%}
+@keyframes ldrift{from{transform:translateX(-30vmin)}to{transform:translateX(130vmin)}}
+#load h1{margin:0;display:flex;flex-wrap:wrap;justify-content:center;max-width:92vmin;font-size:min(13vmin,74px);line-height:1;font-weight:800;color:#fff;letter-spacing:.02em;--o:min(.9vmin,5px);text-shadow:var(--o) 0 0 #24123f,calc(var(--o)*-1) 0 0 #24123f,0 var(--o) 0 #24123f,0 calc(var(--o)*-1) 0 #24123f,var(--o) var(--o) 0 #24123f,calc(var(--o)*-1) var(--o) 0 #24123f,var(--o) calc(var(--o)*-1) 0 #24123f,calc(var(--o)*-1) calc(var(--o)*-1) 0 #24123f,0 calc(var(--o)*2.4) 0 #24123f}
+#load h1 span{display:inline-block;animation:lbounce 1.2s ease-in-out infinite;animation-delay:calc(var(--i)*.07s)}
+#load h1 .w{display:inline-flex;white-space:nowrap;margin:0 .14em;font-weight:inherit}#load h1 .p{color:#ff5fa2}#load h1 .y{color:#ffc531}
+@keyframes lbounce{0%,60%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-.22em) rotate(-4deg)}}
+#load .stagel{position:relative;width:min(70vmin,400px);height:min(52vmin,300px)}
+#load .bon{position:absolute;left:4%;bottom:6%;width:52%;animation:lhop .9s cubic-bezier(.3,0,.4,1) infinite;transform-origin:50% 100%}
+@keyframes lhop{0%{transform:translateY(0) scale(1.12,.86)}12%{transform:translateY(0) scale(.92,1.1)}50%{transform:translateY(-26%) scale(.96,1.05)}88%{transform:translateY(0) scale(1,1)}100%{transform:translateY(0) scale(1.12,.86)}}
+#load .bon .eye{animation:lblink 3.4s infinite}
+@keyframes lblink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+#load .tower{position:absolute;right:4%;bottom:6%;width:34%;display:flex;flex-direction:column-reverse;align-items:center}
+#load .blk{width:70%;aspect-ratio:1.25;border:min(.8vmin,5px) solid #24123f;border-radius:14%;margin-top:-2%;box-shadow:inset 0 -18% 0 rgba(0,0,0,.18),inset 0 12% 0 rgba(255,255,255,.5);animation:lshake .9s infinite;background:var(--c)}
+#load .blk:nth-child(2){width:62%;animation-delay:.03s}#load .blk:nth-child(3){width:54%;animation-delay:.06s}#load .blk:nth-child(4){width:46%;animation-delay:.09s}
+#load .blk.fly{animation:lfly .8s cubic-bezier(.2,.6,.4,1) forwards}
+@keyframes lshake{0%,100%{transform:translateX(0) rotate(0)}4%{transform:translateX(-6%) rotate(-5deg)}9%{transform:translateX(5%) rotate(4deg)}14%{transform:translateX(0) rotate(0)}}
+@keyframes lfly{to{transform:translate(var(--fx),-260%) rotate(var(--fr));opacity:0}}
+#load .ground{position:absolute;left:0;right:0;bottom:0;height:7%;border-radius:999px;background:#7bd06a;border:min(.8vmin,5px) solid #24123f}
+#load .puff{position:absolute;left:24%;bottom:4%;width:14%;aspect-ratio:1;border-radius:50%;background:#fff;opacity:0;animation:lpuff .9s infinite}
+#load .puff.b{left:12%;animation-delay:.02s;width:10%}
+@keyframes lpuff{0%{opacity:.9;transform:scale(.3)}40%{opacity:0;transform:scale(1.4) translateY(-30%)}100%{opacity:0}}
+#load .lbar{position:relative;width:min(74vmin,420px);height:min(7vmin,40px);border:min(.9vmin,5px) solid #24123f;border-radius:999px;background:#fff;box-shadow:0 min(1vmin,6px) 0 #24123f}
+#load .lbar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:999px;background:repeating-linear-gradient(-45deg,#ff5fa2 0 12px,#ff86bb 12px 24px);background-size:34px 100%;animation:lstripe .6s linear infinite;box-shadow:inset 0 30% 0 rgba(255,255,255,.35)}
+@keyframes lstripe{to{background-position:34px 0}}
+#load .lbar b{position:absolute;top:50%;width:min(11vmin,62px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb3d4,#ff5fa2 60%,#e8478a);border:min(.8vmin,5px) solid #24123f;display:grid;place-items:center;color:#fff;font-size:min(3.8vmin,22px);font-weight:800;left:0;--o:min(.4vmin,2px);text-shadow:var(--o) 0 0 #24123f,calc(var(--o)*-1) 0 0 #24123f,0 var(--o) 0 #24123f,0 calc(var(--o)*-1) 0 #24123f}
+.lb{position:absolute;inset:0;pointer-events:none}
+.lb::before,.lb::after{content:"";position:absolute;left:0;right:0;height:0;background:#24123f;transition:height .35s ease}
+.lb::before{top:0}.lb::after{bottom:0}
+.hud.cine .lb::before,.hud.cine .lb::after{height:8%}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="load" aria-hidden="true">
+<i class="cl" style="top:9%;width:24vmin;height:7vmin;animation-delay:-3s"></i><i class="cl" style="top:22%;width:16vmin;height:5vmin;animation-delay:-9s;animation-duration:19s"></i><i class="cl" style="top:80%;width:20vmin;height:6vmin;animation-delay:-6s;animation-duration:23s"></i>
+<h1><b class="w"><span style="--i:0">T</span><span style="--i:1">O</span><span style="--i:2">Y</span></b><b class="w"><span style="--i:4">C</span><span style="--i:5">I</span><span style="--i:6">T</span><span style="--i:7">Y</span></b><b class="w"><span class="p" style="--i:9">S</span><span class="p" style="--i:10">T</span><span class="p" style="--i:11">O</span><span class="p" style="--i:12">M</span><span class="p" style="--i:13">P</span><span class="y" style="--i:14">!</span></b></h1>
+<div class="stagel"><div class="ground"></div><i class="puff"></i><i class="puff b"></i>
+<svg class="bon" viewBox="0 0 200 190"><g stroke="#24123f" stroke-width="6" stroke-linejoin="round">
+<path d="M150 150 q38 6 42 -22 q-14 12 -36 6z" fill="#e8478a"/>
+<path d="M58 34 l10 -22 l10 22z M84 24 l12 -22 l10 24z M110 28 l14 -18 l6 26z M132 44 l18 -12 l-2 26z" fill="#ffc531"/>
+<ellipse cx="100" cy="112" rx="66" ry="62" fill="#ff5fa2"/>
+<ellipse cx="100" cy="130" rx="40" ry="38" fill="#ffe3ef" stroke-width="0"/>
+<ellipse cx="62" cy="176" rx="22" ry="11" fill="#e8478a"/><ellipse cx="138" cy="176" rx="22" ry="11" fill="#e8478a"/>
+<path d="M40 112 q-22 6 -20 26 q12 -4 24 -12z M160 112 q22 6 20 26 q-12 -4 -24 -12z" fill="#ff5fa2"/>
+<ellipse cx="100" cy="70" rx="56" ry="46" fill="#ff5fa2"/>
+<g class="eye" style="transform-origin:76px 62px"><ellipse cx="76" cy="62" rx="15" ry="17" fill="#fff"/><circle cx="80" cy="64" r="8" fill="#1a1030" stroke-width="0"/><circle cx="83" cy="60" r="3" fill="#fff" stroke-width="0"/></g>
+<g class="eye" style="transform-origin:124px 62px"><ellipse cx="124" cy="62" rx="15" ry="17" fill="#fff"/><circle cx="128" cy="64" r="8" fill="#1a1030" stroke-width="0"/><circle cx="131" cy="60" r="3" fill="#fff" stroke-width="0"/></g>
+<path d="M80 90 q20 22 40 0 z" fill="#8a1d48"/><path d="M90 92 l4 7 l4 -7z M104 92 l4 7 l4 -7z" fill="#fff" stroke-width="2"/>
+<ellipse cx="58" cy="86" rx="9" ry="5" fill="#ff9cc6" stroke-width="0"/><ellipse cx="142" cy="86" rx="9" ry="5" fill="#ff9cc6" stroke-width="0"/>
+</g></svg>
+<div class="tower"><i class="blk" style="--c:#3fa9ff"></i><i class="blk" style="--c:#ffc531"></i><i class="blk" style="--c:#6fd64b"></i><i class="blk" style="--c:#ff5a4f"></i></div></div>
+<div class="lbar"><i></i><b>0</b></div>
+</div>
+<script>
+// the loading screen follows the real steps (fonts, three.js, the game, its first frames) and creeps between them
+(function () {
+  var el = document.getElementById('load'), bar = el.querySelector('.lbar i'), knob = el.querySelector('.lbar b'), blocks = el.querySelectorAll('.blk');
+  var shown = 0, target = 6, cap = 22, finished = false, flown = 0;
+  function step(v) { if (v > target) target = v; cap = Math.max(cap, Math.min(97, v + 16)); }
+  window.__load = { step: step, done: function () { step(100); cap = 100; finished = true; } };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { step(25); });
+  addEventListener('three-ready', function () { step(55); });
+  function tick() {
+    target += (cap - target) * 0.012; shown += (target - shown) * (finished ? 0.3 : 0.1);
+    var p = Math.min(100, shown); bar.style.width = p + '%'; knob.style.left = p + '%'; knob.textContent = Math.floor(p);
+    while (flown < 4 && p >= 100 - (4 - flown) * 22) { var b = blocks[blocks.length - 1 - (flown++ % blocks.length)]; b.style.setProperty('--fx', (Math.random() * 160 - 40) + '%'); b.style.setProperty('--fr', (Math.random() * 500 - 250) + 'deg'); b.classList.add('fly'); (function (x) { setTimeout(function () { x.classList.remove('fly'); }, 850); })(b); } // the block flies off, then the tower is built again
+    if (finished && p > 99.5) { el.classList.add('out'); setTimeout(function () { el.remove(); }, 500); return; }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
 <script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" } }</script>
 <script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
 <script type="module" src="./game.js"></script>

@@ -95,11 +95,15 @@ export function heliTail() {
 
 /** A little toy person: torso and legs (white: takes the shirt colour), arms up cheering. Head is separate. */
 export function personBody() {
-  return mergeParts([
-    [new THREE.CapsuleGeometry(0.16, 0.18, 4, 10), 0xffffff, M(0, 0.02, 0)],
-    [new THREE.CapsuleGeometry(0.06, 0.16, 3, 6), 0x55607a, M(0.07, -0.26, 0)], [new THREE.CapsuleGeometry(0.06, 0.16, 3, 6), 0x55607a, M(-0.07, -0.26, 0)],
-    [new THREE.CapsuleGeometry(0.05, 0.18, 3, 6), 0xffffff, M(0.2, 0.18, 0, 0, 0, -0.7)], [new THREE.CapsuleGeometry(0.05, 0.18, 3, 6), 0xffffff, M(-0.2, 0.18, 0, 0, 0, 0.7)],
-  ]);
+  return mergeParts([[new THREE.CapsuleGeometry(0.16, 0.18, 4, 10), 0xffffff, M(0, 0.02, 0)], [new THREE.CylinderGeometry(0.15, 0.16, 0.08, 10), 0x55607a, M(0, -0.14, 0)]]);
+}
+/** One arm hanging from the shoulder (origin): upper arm, forearm and a round hand. */
+export function personArm() {
+  return mergeParts([[new THREE.CapsuleGeometry(0.05, 0.12, 3, 6), 0xffffff, M(0, -0.09, 0)], [new THREE.CapsuleGeometry(0.045, 0.1, 3, 6), 0xffffff, M(0, -0.22, 0.01)], [new THREE.SphereGeometry(0.058, 8, 6), 0xffffff, M(0, -0.31, 0.015)]]);
+}
+/** One leg hanging from the hip (origin): trouser leg and a shoe pointing forward. */
+export function personLeg() {
+  return mergeParts([[new THREE.CapsuleGeometry(0.062, 0.14, 3, 6), 0x55607a, M(0, -0.1, 0)], [new THREE.CapsuleGeometry(0.055, 0.08, 3, 6), 0x2a2140, M(0, -0.22, 0.04, Math.PI / 2, 0, 0)]]);
 }
 /** The head with a little cap of hair. */
 export function personHead() {
