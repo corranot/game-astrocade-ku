@@ -15,7 +15,7 @@
 import { PLUM, PINK, GREEN, tint, glossDisc, glossPill, panel, rays, vignette, roundRect } from './ui.js';
 import { loadSprites, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
 import { rng, makeSoap, markDirty, carve, trimRows, carvedShare, sponge, edgeCells, meanRough, takeIslands, islandSprite, shapeScore, sparkleScore, verdict, soapCount, encodeMask, decodeMask, marbleAlbedo, attachPaint, paint, stamp as pressStamp } from './soap.js';
-import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide } from './make.js';
+import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide, landAt, fillCentre } from './make.js';
 import { createFx } from './fx.js';
 
 const DEBUG = location.search.includes('local');
@@ -267,6 +267,7 @@ function spawnCurl(cx, cy, dirx, diry) {
 function carveAlong(ax, ay, bx, by, dt) {
   const s = S.soap, step = cfg.knifeStep, d = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(d / step));
   S.speed = S.speed * 0.6 + (dt > 0 ? d / dt : 0) * 0.4;
+  if (d > 2) { const want = Math.max(-0.45, Math.min(0.45, Math.sin(Math.atan2(by - ay, bx - ax) + Math.PI / 4) * 0.45)); S.lean = (S.lean || 0) * 0.7 + want * 0.3; } // the blade leans into the stroke
   const fastNow = S.speed > cfg.insideSpeed && !S.order.free;
   let removed = 0, skid = 0, nick = 0, lx = ax, ly = ay;
   for (let i = 1; i <= n; i++) {
@@ -462,7 +463,7 @@ function giftTap() {
 }
 
 // ---------- layout ----------
-const MUTE = () => ({ x: mx(612, 92), y: 22, s: 92 }), SHELFB = () => ({ x: mx(512, 92), y: 22, s: 92 });
+const MUTE = () => ({ x: mx(612, 92), y: 18, s: 92 }), SHELFB = () => ({ x: mx(512, 92), y: 18, s: 92 }); // centred on the HUD line y 64, like the coin pill
 const CHECK = () => ({ x: mx(564, 112), y: 740, s: 112 });
 const NEXT = { x: 360, y: 1028, r: 56 };
 /** The icons of the current part of the recipe (making, or finishing) and where step k's icon sits. */
@@ -509,18 +510,20 @@ function down(p, touch) {
   pen = { x: tp[0], y: tp[1], px: tp[0], py: tp[1], t: performance.now(), touch, fx: p[0], fy: p[1] };
   gesture(0);
 }
-function move(p) {
+/** The finger moved to p at time ts (the event's own time: several events can arrive in one frame on fast screens). */
+function move(p, ts = performance.now()) {
   if (!pen) return;
-  const tp = tipOf(p, pen.touch), now = performance.now(), dt = Math.max(1, now - pen.t) / 1000;
+  const tp = tipOf(p, pen.touch), now = ts, dt = Math.max(1 / 240, (now - pen.t) / 1000);
   pen.px = pen.x; pen.py = pen.y; pen.x = tp[0]; pen.y = tp[1]; pen.fx = p[0]; pen.fy = p[1]; pen.t = now; S.idle = 0; S.lastAct = S.t;
   if (DEBUG) { const a = performance.now(); gesture(dt); const pr = window.__prof; if (pr) { pr.g = (pr.g || 0) + performance.now() - a; pr.ge = (pr.ge || 0) + 1; } } else gesture(dt);
 }
 function up() { if (pen && S && S.k === 'carve' && S.dirtyIsl) dropIslands(); if (S && isMake(S.k)) makeUp(S); pen = null; }
 function gesture(dt) {
-  if (isMake(S.k)) makeMove(S, pen.px, pen.py, pen.x, pen.y);
+  if (isMake(S.k)) makeMove(S, pen.px, pen.py, pen.x, pen.y, dt);
   else if (S.k === 'carve') carveAlong(pen.px, pen.py, pen.x, pen.y, dt);
   else if (S.k === 'smooth') {
     const d = Math.hypot(pen.x - pen.px, pen.y - pen.py), [cx, cy] = barXY(pen.x, pen.y);
+    S.rubD = (S.rubD || 0) + d; if (d > 1) S.rubDir = Math.atan2(pen.y - pen.py, pen.x - pen.px); // the squash follows the distance rubbed per frame
     const took = sponge(S.soap, cx, cy, cfg.spongeR, cfg.spongeRate, Math.min(0.06, d / 500));
     if (took > 0) {
       S.stepUsed = true;
@@ -532,9 +535,9 @@ function gesture(dt) {
   } else if (S.k === 'sparkle') {
     if (!every('shake', 35)) return;
     const gl = cfg.glitters[S.glitSel] || cfg.glitters[0];
-    for (let k = 0; k < (quality ? 6 : 10); k++) {
-      const a = R() * TAU, rr = R() * 40, x = pen.x + Math.cos(a) * rr, y = pen.y + 24 + Math.sin(a) * rr;
-      fx.speck(x, y, 40 + R() * 20, 0, 0, gl.c, 5, (lx, ly) => landGlitter(lx, ly, gl.c));
+    for (let k = 0; k < (quality ? 6 : 10); k++) { // out of the mouth, MOUTH_UP above the finger, scattering as it falls
+      const a = R() * TAU, sp = Math.sqrt(R()) * 110; // spread evenly over a disc, not bunched in the middle
+      fx.speck(pen.x + (R() - 0.5) * 8, pen.y + (R() - 0.5) * 8, MOUTH_UP, Math.cos(a) * sp, Math.sin(a) * sp, gl.c, 5, (lx, ly) => landGlitter(lx, ly, gl.c));
     }
     if (every('shim', 120)) SFX.shimmer();
     if (every('tick', 160)) buzz('tick');
@@ -597,7 +600,7 @@ function shelfTap(p) {
 function bindInput() {
   if (cv.__bound) return; cv.__bound = true;
   cv.addEventListener('pointerdown', (e) => { if (mode !== 'play' || penId !== null) return; penId = e.pointerId; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } down(point(e), e.pointerType !== 'mouse'); });
-  cv.addEventListener('pointermove', (e) => { if (e.pointerId !== penId || mode !== 'play') return; const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : []; if (evs.length > 1) for (const c of evs) move(point(c)); else move(point(e)); });
+  cv.addEventListener('pointermove', (e) => { if (e.pointerId !== penId || mode !== 'play') return; const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : []; if (evs.length > 1) for (const c of evs) move(point(c), c.timeStamp); else move(point(e), e.timeStamp); });
   const end = (e) => { if (e.pointerId !== penId) return; penId = null; up(); startAudio(); };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend().catch(() => {}); else ac.resume().catch(() => {}); });
@@ -616,6 +619,7 @@ function update(dt) {
   S.t += dt; S.oopsT += dt;
   if (S.pileFade > 0) S.pileFade = Math.max(0, S.pileFade - dt * 2);
   if (S.charm && S.charm.state === 'out') S.charm.t += dt;
+  S.rub = (S.rub || 0) * 0.7 + ((S.rubD || 0) / Math.max(dt, 1e-3)) * 0.3; S.rubD = 0; // the sponge springs back when the finger rests
   if (S.enter > 0) { S.enter = Math.max(0, S.enter - dt); return; }
   if (S.moodT > 0 && (S.moodT -= dt) <= 0 && S.k !== 'bath') S.mood = 'calm';
   if (view === 'gift') { gift.t += dt; if (gift.open >= 0) gift.open += dt; gift.hit = (gift.hit ?? 1) + dt; }
@@ -688,18 +692,20 @@ function drawWork() {
   for (const gm of S.gems) { const s = 62 * popIn(gm.t) + gw; g.fillStyle = 'rgba(92,52,70,0.25)'; g.beginPath(); g.ellipse(b.x + gm.x + 4, b.y + gm.y + 8, s * 0.4, s * 0.22, 0, 0, TAU); g.fill(); if (!drawCellAt(g, 'gems_sheet', gemCell(gm.id), b.x + gm.x, b.y + gm.y + oy, s, 62)) { glossDisc(g, b.x + gm.x, b.y + gm.y, s / 2.4, '#FF4D6D'); } }
   if (S.k === 'carve' && !S.order.free) drawOutline(oy);
   const sa = S.stampAnim; // the stamp lifting off after a press
-  if (sa && sa.t < 0.45) { const k = sa.t / 0.45; stampTool(sa.x, sa.y - k * 50, sa.shape, 1 - k * 0.3); }
+  if (sa && sa.t < 0.45) { const k = Math.max(0, (sa.t - 0.1) / 0.35); stampTool(sa.x, sa.y, sa.shape, 1 - k * 0.3, k * 60); } // pressed for a beat, then lifted
 }
 /** "Perfect pour!" at eye level after a pour that stopped in the green band. */
 function drawPerfect() { const a = perfectAge(S); if (a >= 0 && a < 1.3 && isMake(S.k)) banner(T('perfect'), 360, 470, 44, 560, '#1E9E5A', popIn(a)); }
 /** A rubber stamp: a wooden knob, a pink base and the picture it presses. */
-function stampTool(x, y, shape, a = 1) {
+function stampTool(x, y, shape, a = 1, lift = 0) {
   g.save(); g.globalAlpha = a;
-  g.fillStyle = 'rgba(92,52,70,0.2)'; g.beginPath(); g.ellipse(x + 6, y + 10, 46, 20, 0, 0, TAU); g.fill();
-  g.fillStyle = '#FF8FC0'; roundRect(g, x - 44, y - 30, 88, 44, 14); g.fill(); g.lineWidth = 4; g.strokeStyle = '#FFFFFF'; g.stroke();
-  g.fillStyle = '#E7B377'; g.beginPath(); g.ellipse(x, y - 52, 26, 30, 0, 0, TAU); g.fill(); g.strokeStyle = '#FFFFFF'; g.stroke();
-  g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.ellipse(x - 8, y - 62, 8, 10, -0.4, 0, TAU); g.fill();
-  g.save(); g.translate(x - 16, y - 24); g.scale(0.32, 0.32); g.fillStyle = '#FFFFFF'; g.fill(pathOf(shape)); g.restore();
+  const sh = 1 - Math.min(1, lift / 60) * 0.5; // the shadow shrinks as the stamp rises off the soap
+  g.fillStyle = `rgba(92,52,70,${0.22 * sh})`; g.beginPath(); g.ellipse(x + 6, y + 10, 48 * sh + 10, 22 * sh + 6, 0, 0, TAU); g.fill();
+  y -= lift;
+  g.fillStyle = '#FF8FC0'; roundRect(g, x - 44, y - 22, 88, 44, 14); g.fill(); g.lineWidth = 4; g.strokeStyle = '#FFFFFF'; g.stroke(); // the face, centred on (x, y)
+  g.fillStyle = '#E7B377'; g.beginPath(); g.ellipse(x, y - 46, 26, 30, 0, 0, TAU); g.fill(); g.strokeStyle = '#FFFFFF'; g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.ellipse(x - 8, y - 56, 8, 10, -0.4, 0, TAU); g.fill();
+  g.save(); g.translate(x - 16, y - 16); g.scale(0.32, 0.32); g.fillStyle = '#FFFFFF'; g.fill(pathOf(shape)); g.restore();
   g.restore();
 }
 /** A charm that just came out: it jumps up shining, then flies to the shelf button. Drawn above the HUD. */
@@ -720,16 +726,39 @@ function drawOutline(oy) {
   g.setLineDash([14 * lw, 11 * lw]); g.lineDashOffset = -S.t * 30 * lw; g.strokeStyle = PLUM; g.lineWidth = 5 * lw; g.stroke(p);
   g.restore(); g.setLineDash([]);
 }
+// ---------- tools: each is drawn from the point where it works ----------
+/** Points measured on the painted tools (fractions of the sprite's box): the knife's tip and heel, the shaker's mouth. */
+const KNIFE = { cell: 0, size: 150, tip: [0.98, 0.01], heel: [0.04, 0.93] }, SHAKER = { cell: 2, size: 112, mouth: [0.484, 0.0] }, MOUTH_UP = 40;
+/** Offset of a tools-sheet point (u, v) from the centre of the cell drawn at size s. */
+function cellOffset(cell, s, u, v) { const [, , bw, bh] = cfg.sprites.tools_sheet.cells[cell], k = s / Math.max(bw, bh); return [(u - 0.5) * bw * k, (v - 0.5) * bh * k]; }
+/** Draw a tool so its point (u, v) lands exactly on (x, y), turned by rot around that point. False while loading. */
+function drawAnchored(gc, cell, s, u, v, x, y, rot, sx = 1, sy = 1) {
+  const c = cellCanvas('tools_sheet', cell, s); if (!c) return false;
+  const [ox, oy] = cellOffset(cell, s, u, v);
+  gc.save(); gc.translate(x, y); gc.rotate(rot); gc.scale(sx, sy); gc.drawImage(c, -c.width / 2 - ox, -c.height / 2 - oy); gc.restore(); return true;
+}
+/** The knife with its tip on the cut point (x, y); it leans a little with the stroke. */
+function drawKnife(gc, x, y, lean) {
+  if (!drawAnchored(gc, KNIFE.cell, KNIFE.size, KNIFE.tip[0], KNIFE.tip[1], x, y, lean)) { gc.strokeStyle = '#C0C8D8'; gc.lineWidth = 10; gc.beginPath(); gc.moveTo(x, y); gc.lineTo(x - 60, y + 60); gc.stroke(); }
+}
+/** The glitter shaker upside down, its mouth MOUTH_UP above the spot (x, y) the glitter falls on; wob shakes it. */
+function drawShaker(gc, x, y, wob) {
+  if (!drawAnchored(gc, SHAKER.cell, SHAKER.size, SHAKER.mouth[0], SHAKER.mouth[1], x, y - MOUTH_UP, Math.PI * 0.86 + wob)) glossDisc(gc, x, y - MOUTH_UP - 34, 34, '#FF9CC8');
+}
 function drawTool() {
   let x, y;
   if (pen) { x = pen.x; y = pen.y; }
   else if (handShown()) { const h = handAt(); x = h[0]; y = h[1]; }
   else return;
   if (isMake(S.k)) { if (pen) drawMakeTool(g, S, x, y); return; }
-  if (S.k === 'stamp') { const st = cfg.stamps[S.stampSel] || cfg.stamps[0]; if (!S.stampAnim || S.stampAnim.t >= 0.45) stampTool(x, y - 20, st.shape); return; }
-  if (S.k === 'carve') { const ok = drawCell(g, 'tools_sheet', 0, x - 55, y + 55, 150, 0); if (!ok) { g.strokeStyle = '#C0C8D8'; g.lineWidth = 10; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 60, y - 60); g.stroke(); } }
-  else if (S.k === 'smooth') { if (!drawCell(g, 'tools_sheet', 1, x, y, 118, -0.2)) glossDisc(g, x, y, 44, '#FFE066'); }
-  else if (S.k === 'sparkle' && S.gemSel < 0) { if (!drawCell(g, 'tools_sheet', 2, x + 6, y - 46 + Math.sin(S.t * 30) * (pen ? 4 : 0), 112, Math.PI * 0.85)) glossDisc(g, x, y - 40, 34, '#FF9CC8'); }
+  if (S.k === 'stamp') { const st = cfg.stamps[S.stampSel] || cfg.stamps[0]; if (!S.stampAnim || S.stampAnim.t >= 0.45) stampTool(x, y, st.shape); return; }
+  if (S.k === 'carve') drawKnife(g, x, y, S.lean || 0);
+  else if (S.k === 'smooth') { // the sponge squashes along the way it is rubbed
+    const v = Math.min(1, (S.rub || 0) / 1500), a = S.rubDir || 0;
+    g.save(); g.translate(x, y); g.rotate(a); g.scale(1 + 0.14 * v, 1 - 0.12 * v); g.rotate(-a - 0.2);
+    if (!drawCell(g, 'tools_sheet', 1, 0, 0, 118)) glossDisc(g, 0, 0, 44, '#FFE066');
+    g.restore();
+  } else if (S.k === 'sparkle' && S.gemSel < 0) drawShaker(g, x, y, pen ? Math.sin(S.t * 28) * 0.18 : 0);
 }
 function coinIcon(x, y, r) {
   const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r); gr.addColorStop(0, '#FFF6B0'); gr.addColorStop(0.6, '#FFC928'); gr.addColorStop(1, '#E59A00');
@@ -1093,7 +1122,7 @@ function run(m) {
   cv.style.cssText = 'display:block;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));touch-action:none;margin:auto';
   cv.width = Math.round(W * RES); cv.height = Math.round(H * RES);
   g = cv.getContext('2d');
-  initMake({ cfg: () => cfg, get fx() { return fx; }, SFX, buzz, burst, R, reward, done: () => nextStep(), roundRect, tint, mx, every, mix, shake: (v) => { shake = Math.max(shake, v); } });
+  initMake({ cfg: () => cfg, get fx() { return fx; }, SFX, buzz, burst, R, reward, drawKnife, done: () => nextStep(), roundRect, tint, mx, every, mix, shake: (v) => { shake = Math.max(shake, v); } });
   if (!fx) { tables = [0, 1].map(() => Object.assign(document.createElement('canvas'), { width: W, height: H })); fx = createFx(tables[0]); ti = 0; }
   loadSprites(cfg.sprites); bootT = 0;
   try { for (const f of ["800 40px 'Baloo 2'", "800 40px 'Baloo Da 2'", "800 40px 'Baloo Bhaijaan 2'"]) document.fonts.load(f); } catch (e) { /* fonts load when they can */ }
@@ -1133,7 +1162,7 @@ if (DEBUG) {
   window.__game = {
     get S() { return S; }, get save() { return save; }, set save(v) { save = v; }, get view() { return view; }, set view(v) { view = v; }, get cfg() { return cfg; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; },
     get quality() { return quality; }, set quality(q) { quality = q; }, get fx() { return fx; }, get pen() { return pen; }, get coinShown() { return coinShown; }, set coinShown(v) { coinShown = v; },
-    booting, T, detectLang, applySave, nextStep, fillShare, potSide, giftDots, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
+    booting, T, detectLang, applySave, nextStep, fillShare, potSide, giftDots, landAt, fillCentre, drawKnife, drawShaker, MOUTH_UP, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
     MUTE, SHELFB, CHECK, NEXT, ORDER, slotXY, SHELF_CELL, SHOP_XY, LANGB, FREEB, BOWL, freeOpen, set freeNext(v) { freeNext = v; },
   };
   const q = new URLSearchParams(location.search);

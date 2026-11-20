@@ -318,7 +318,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   await wait(page, () => window.__game.S.make.level > 0.9); await page.mouse.up();
   ok(await G(page, () => window.__game.S.make.perfect), 'letting go in the green band is a perfect pour');
   await wait(page, () => window.__game.S.k === 'cool'); seen.push('pour');
-  for (let i = 0; i < 12 && await k19() === 'cool'; i++) await drag(page, Array.from({ length: 12 }, (_, j) => [220 + (j % 2) * 280, 560 + (j % 2) * 20]), 14);
+  for (let y = BAR.y + 20; y < BAR.y + BAR.h && await k19() === 'cool'; y += 40) await drag(page, Array.from({ length: 12 }, (_, j) => [BAR.x - 10 + j * 36, y + (j % 2) * 12]), 14); // rubbing row by row, as the hand shows
   await wait(page, () => window.__game.S.k === 'pop'); seen.push('cool');
   await drag(page, [[360, 520], [360, 600], [360, 700]], 30); await wait(page, () => window.__game.S.k === 'carve'); seen.push('pop');
   await carveAll(page); await wait(page, () => window.__game.S.k === 'smooth' && !window.__game.S.trim); seen.push('carve');
@@ -376,6 +376,55 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   for (let i = 0; i < 3; i++) { await page.mouse.click(360, 650); await page.waitForTimeout(150); }
   ok(await G(page, () => window.__game.save.giftDue === false), 'opening it clears the due gift');
   ok(await G(page, () => { const G = window.__game, b = G.potSide(); return b.x - b.r >= 0 && b.x + b.r <= 720; }), 'the pot beside the mould stays on screen');
+
+  console.log('21. precision: every tool works exactly where it is drawn; the HUD sits on one line');
+  page = await open(); await ready(page);
+  const tip = await G(page, () => {
+    const G = window.__game, c = document.createElement('canvas'); c.width = c.height = 400; const q = c.getContext('2d'), res = [];
+    for (const lean of [-0.4, 0, 0.4]) { // the opaque pixel furthest along the blade must be the cut point
+      q.clearRect(0, 0, 400, 400); G.drawKnife(q, 200, 200, lean);
+      const d = q.getImageData(0, 0, 400, 400).data, dir = [Math.cos(-Math.PI / 4 + lean), Math.sin(-Math.PI / 4 + lean)]; let best = -1e9, at = null;
+      for (let y = 0; y < 400; y++) for (let x = 0; x < 400; x++) if (d[(y * 400 + x) * 4 + 3] > 60) { const v = (x - 200) * dir[0] + (y - 200) * dir[1]; if (v > best) { best = v; at = [x, y]; } }
+      res.push(Math.hypot(at[0] - 200, at[1] - 200));
+    }
+    q.clearRect(0, 0, 400, 400); G.drawShaker(q, 200, 260, Math.PI * 0.14); // held straight upside down: the middle of its lowest row is the mouth
+    const d = q.getImageData(0, 0, 400, 400).data; let low = null;
+    for (let y = 399; y >= 0 && !low; y--) { const xs = []; for (let x = 0; x < 400; x++) if (d[(y * 400 + x) * 4 + 3] > 60) xs.push(x); if (xs.length) low = [Math.round((xs[0] + xs[xs.length - 1]) / 2), y]; }
+    return { knife: res, mouth: low, mouthWant: [200, 260 - G.MOUTH_UP] };
+  });
+  ok(tip.knife.every((v) => v <= 3), `the knife's tip is the cut point at every lean (${tip.knife.map((v) => v.toFixed(1)).join(', ')} px)`);
+  ok(Math.abs(tip.mouth[1] - tip.mouthWant[1]) <= 3 && Math.abs(tip.mouth[0] - tip.mouthWant[0]) <= 4, `the shaker's mouth hangs right above the glitter spot (${tip.mouth} vs ${tip.mouthWant})`);
+  const hud = await G(page, () => { const G = window.__game, m = G.MUTE(), s = G.SHELFB(), gb = G.GIFTB(); return [m.y + m.s / 2, s.y + s.s / 2, gb.y + gb.h / 2, 64]; });
+  ok(hud.every((v) => v === 64), `coin pill, gift pill, shelf and sound buttons share one centre line (${hud.join(', ')})`);
+  await toCarve(page);
+  await G(page, () => window.__game.S.k === 'carve');
+  await page.mouse.move(BAR.x + 10, BAR.y + 30); await page.mouse.down(); await page.mouse.move(BAR.x + 40, BAR.y + 30, { steps: 3 });
+  ok(await G(page, (b) => { const s = window.__game.S.soap; return !s.m[30 * s.w + 38] && !s.m[30 * s.w + 12]; }, BAR), 'the knife removes soap at the finger, where its tip is drawn');
+  await page.mouse.up();
+
+  console.log('22. pointer bursts (several events per frame, as on 120 Hz screens) and RTL pouring');
+  const burst = (page, pts, per) => G(page, async ({ pts, per }) => { // `per` events sent back to back, then a frame's pause
+    const cv = document.getElementById('game'), r = cv.getBoundingClientRect(), k = r.width / 720;
+    const ev = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { pointerId: 9, pointerType: 'touch', isPrimary: true, bubbles: true, clientX: r.left + x * k, clientY: r.top + y * k }));
+    ev('pointerdown', pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) { ev('pointermove', pts[i][0], pts[i][1]); if (i % per === 0) await new Promise((res) => requestAnimationFrame(res)); }
+    ev('pointerup', pts[pts.length - 1][0], pts[pts.length - 1][1]);
+  }, { pts, per });
+  page = await open(); await ready(page);
+  await burst(page, Array.from({ length: 40 }, (_, j) => [BAR.x + 60 + j * 4, BAR.y + BAR.h / 2]), 4); // 4 px apart, 4 events a frame: about 1,000 px/s
+  ok(await G(page, () => window.__game.S.speed < 1500 && window.__game.S.soap.nicks === 0), 'a slow stroke sent in bursts is measured as slow (no false slip)');
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'stir');
+  await burst(page, Array.from({ length: 160 }, (_, j) => [360 + Math.cos(j / 16) * 100, 640 + Math.sin(j / 16) * 100]), 4); // 1.6 turns
+  ok(await G(page, () => window.__game.makeProgress() > 1.5 / window.__game.cfg.stirTurns), 'stirring counts the spoon\'s turns, however the events arrive');
+  await burst(page, Array.from({ length: 120 }, (_, j) => [360 + Math.cos(Math.sin(j / 3) * 0.7) * 100, 640 + Math.sin(Math.sin(j / 3) * 0.7) * 100]), 2); // back and forth
+  ok(await G(page, () => window.__game.makeProgress() > 2.5 / window.__game.cfg.stirTurns), 'stirring back and forth counts too');
+  await toStep(page, 'cool');
+  for (let y = BAR.y + 20; y < BAR.y + BAR.h; y += 36) await burst(page, [[BAR.x - 10, y], [BAR.x + BAR.w + 10, y]], 1); // long swipes, two events each
+  ok(await G(page, () => window.__game.S.k !== 'cool'), 'cooling counts the whole length of a fast swipe');
+  page = await open('', { locale: 'ar' }, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour');
+  ok(await G(page, () => { const a = window.__game.landAt(), b = window.__game.fillCentre(); return Math.abs(a[0] - b[0]) < 1 && Math.abs(a[1] - b[1]) < 1; }), 'in Arabic the mould fills from where the stream lands');
 
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');

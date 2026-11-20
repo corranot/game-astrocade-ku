@@ -35,7 +35,7 @@ const BAR = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
         await wait(() => window.__game.S.k === 'stir'); for (let i = 0; i < 5 && await k0() === 'stir'; i++) await drag(Array.from({ length: 90 }, (_, j) => [360 + Math.cos(j / 8) * 110, 640 + Math.sin(j / 8) * 110]));
         await wait(() => window.__game.S.k === 'scent'); await p.mouse.click(360, 994);
         await wait(() => window.__game.S.k === 'pour'); await p.waitForTimeout(600); await p.mouse.move(360, 650); await p.mouse.down(); await wait(() => window.__game.S.make.level > 0.9); await p.mouse.up();
-        await wait(() => window.__game.S.k === 'cool'); for (let i = 0; i < 12 && await k0() === 'cool'; i++) await drag(Array.from({ length: 12 }, (_, j) => [220 + (j % 2) * 280, 560]));
+        await wait(() => window.__game.S.k === 'cool'); for (let y = BAR.y + 20; y < BAR.y + BAR.h && await k0() === 'cool'; y += 40) await drag(Array.from({ length: 12 }, (_, j) => [BAR.x - 10 + j * 36, y]));
         await wait(() => window.__game.S.k === 'pop'); await drag([[360, 520], [360, 640], [360, 720]]);
       }
     }
