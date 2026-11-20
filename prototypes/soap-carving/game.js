@@ -79,9 +79,50 @@ const persist = () => { if (mode === 'play' && saveRead) Promise.resolve().then(
 const submitScore = () => { if (mode === 'play' && saveRead) Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(save.stars)).catch(() => {}); };
 
 // ---------- sound (synthesized; starts on the first touch) ----------
+// ---------- recorded sounds from the asset map; the synthesized ones stay as the fallback ----------
+const REC = {}; let recAsked = false, musicNode = null, pourNode = null;
+function loadRecorded() {
+  if (recAsked || !ac) return; recAsked = true;
+  for (const id of Object.keys(cfg.sounds || {})) {
+    let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map */ }
+    if (!a || !a.url) continue;
+    fetch(a.url).then((r) => r.arrayBuffer()).then((b) => new Promise((res, rej) => ac.decodeAudioData(b, res, rej)))
+      .then((buf) => { REC[id] = buf; if (id === 'music_studio') music(true); }).catch(() => { /* the synthesized sound plays instead */ });
+  }
+}
+/**
+ * Play recorded sound id from its measured start (cfg.sounds: skip, gain). len > 0 plays a slice of that length,
+ * from a random place when random. Returns whether the recording exists (true even when muted, so the fallback stays quiet).
+ */
+function rec(id, { vol = 1, rate = 1, len = 0, random = false } = {}) {
+  const buf = REC[id]; if (!buf) return false; if (!live()) return true;
+  const c = cfg.sounds[id], s = ac.createBufferSource(), v = ac.createGain(), t = ac.currentTime, g = c.gain * vol;
+  const room = Math.max(0, buf.duration - c.skip - (len || 0)), off = c.skip + (random ? Math.random() * room : 0);
+  s.buffer = buf; s.playbackRate.value = rate; v.gain.setValueAtTime(g, t);
+  if (len) { v.gain.setValueAtTime(g, t + len * 0.7); v.gain.linearRampToValueAtTime(0.0001, t + len); } // a soft end, no click
+  s.connect(v).connect(ac.destination); s.start(t, off, len || undefined);
+  return true;
+}
+/** The studio music, quiet under everything, while the sound is on. */
+function music(on) {
+  if (musicNode && (!on || save.muted)) { try { musicNode.stop(); } catch (e) { /* stopped */ } musicNode = null; }
+  if (!on || musicNode || save.muted || !REC.music_studio || !live()) return;
+  const s = ac.createBufferSource(), v = ac.createGain(); s.buffer = REC.music_studio; s.loop = true;
+  v.gain.value = cfg.sounds.music_studio.gain * 0.22; s.connect(v).connect(ac.destination); s.start(0, cfg.sounds.music_studio.skip); musicNode = s;
+}
+/** The pour sound runs exactly while the pot pours. Returns whether a recording is used. */
+function pourLoop(on) {
+  if (!REC.sfx_pour) return false;
+  if (!on || !live()) { if (pourNode) { try { pourNode.stop(); } catch (e) { /* stopped */ } pourNode = null; } return true; }
+  if (pourNode) return true;
+  const s = ac.createBufferSource(), v = ac.createGain(); s.buffer = REC.sfx_pour; s.loop = true;
+  v.gain.value = cfg.sounds.sfx_pour.gain * 0.8; s.connect(v).connect(ac.destination); s.start(0, cfg.sounds.sfx_pour.skip); pourNode = s;
+  return true;
+}
 function startAudio() {
   if (!ac) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) { ac = new AC(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0), r = rng(9); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; } }
-  if (ac && ac.state === 'suspended' && !document.hidden) ac.resume().catch(() => {});
+  if (ac && ac.state === 'suspended' && !document.hidden) ac.resume().then(() => music(true)).catch(() => {});
+  loadRecorded(); music(true);
 }
 const live = () => ac && !save.muted && ac.state === 'running';
 function beep(freq, len, type = 'sine', vol = 0.1, slide = 0, delay = 0) {
@@ -101,16 +142,19 @@ function hiss(len, vol, freq, q = 1, type = 'bandpass', delay = 0) {
 }
 const tune = (notes, gap, len = 0.22, vol = 0.09) => notes.forEach((f, i) => beep(f, len, 'triangle', vol, 0, i * gap / 1000));
 const SFX = {
-  crunch: (sp) => { const k = Math.min(1, sp / 1600); hiss(0.07 + k * 0.03, 0.22, 900 + k * 1500 + Math.random() * 300, 1.4); hiss(0.04, 0.1, 4200, 2, 'bandpass', 0.015); beep(140 + Math.random() * 40, 0.04, 'triangle', 0.05, -40); },
+  crunch: (sp) => rec('sfx_carve', { len: 0.16, random: true, rate: 0.9 + Math.min(1, sp / 1600) * 0.3, vol: 0.9 }) || SFX.crunchSynth(sp),
+  crunchSynth: (sp) => { const k = Math.min(1, sp / 1600); hiss(0.07 + k * 0.03, 0.22, 900 + k * 1500 + Math.random() * 300, 1.4); hiss(0.04, 0.1, 4200, 2, 'bandpass', 0.015); beep(140 + Math.random() * 40, 0.04, 'triangle', 0.05, -40); },
   curl: () => beep(2600 + Math.random() * 900, 0.03, 'sine', 0.025, 600),
   skid: () => { beep(1500, 0.09, 'sine', 0.04, 500); hiss(0.08, 0.05, 6000, 3); },
   thud: () => { beep(110, 0.25, 'sine', 0.2, -60); hiss(0.18, 0.12, 400, 0.8, 'lowpass'); beep(70, 0.2, 'triangle', 0.1, -20, 0.12); },
   oops: () => { beep(520, 0.12, 'triangle', 0.09, -120); beep(380, 0.18, 'triangle', 0.09, -100, 0.11); },
-  squeak: () => { beep(1100 + Math.random() * 400, 0.07, 'sine', 0.035, 450); hiss(0.07, 0.05, 3000, 1.5); },
+  squeak: () => rec('sfx_squeak', { len: 0.22, random: true, rate: 0.95 + Math.random() * 0.12 }) || SFX.squeakSynth(),
+  squeakSynth: () => { beep(1100 + Math.random() * 400, 0.07, 'sine', 0.035, 450); hiss(0.07, 0.05, 3000, 1.5); },
   pop: () => beep(700 + Math.random() * 600, 0.05, 'sine', 0.05, 500),
   shimmer: () => { for (let i = 0; i < 3; i++) beep(2200 + Math.random() * 1800, 0.08, 'triangle', 0.025, 0, i * 0.03); },
   clink: () => { beep(2400, 0.18, 'sine', 0.07); beep(3300, 0.14, 'sine', 0.05, 0, 0.02); },
-  plop: () => { beep(320, 0.18, 'sine', 0.16, -220); hiss(0.4, 0.12, 1800, 0.6); },
+  plop: () => rec('sfx_plop') || SFX.plopSynth(),
+  plopSynth: () => { beep(320, 0.18, 'sine', 0.16, -220); hiss(0.4, 0.12, 1800, 0.6); },
   step: () => tune([659, 880, 1175], 80, 0.18, 0.08),
   pick: () => beep(990, 0.06, 'triangle', 0.07),
   no: () => { beep(220, 0.12, 'square', 0.05); beep(180, 0.14, 'square', 0.05, 0, 0.1); },
@@ -118,16 +162,22 @@ const SFX = {
   fill: (k) => tune([523 + k * 120, 659 + k * 120, 784 + k * 120], 60, 0.14, 0.06),
   star: (k) => beep(880 + k * 220, 0.28, 'triangle', 0.1),
   coin: () => { beep(1568, 0.05, 'square', 0.03); beep(2093, 0.09, 'square', 0.03, 0, 0.05); },
-  wow: () => { tune([523, 659, 784, 1047, 1319], 95, 0.3, 0.09); hiss(0.4, 0.05, 6000, 0.5); },
+  wow: () => rec('sfx_win') || SFX.wowSynth(),
+  wowSynth: () => { tune([523, 659, 784, 1047, 1319], 95, 0.3, 0.09); hiss(0.4, 0.05, 6000, 0.5); },
   charm: () => tune([1047, 1319, 1568, 2093], 70, 0.2, 0.08),
   swish: () => hiss(0.22, 0.08, 700 + Math.random() * 300, 0.8),
   crackle: () => { hiss(0.05, 0.09, 5200, 3); hiss(0.04, 0.06, 7000, 3, 'bandpass', 0.05); },
   pour: () => hiss(0.16, 0.08, 1100 + Math.random() * 400, 0.7),
+  chop: () => rec('sfx_chop', { rate: 0.95 + Math.random() * 0.1 }) || SFX.crunchSynth(1200),
+  glitter: () => rec('sfx_glitter', { len: 0.3, random: true }) || SFX.shimmer(),
+  plopSmall: () => rec('sfx_plop', { len: 0.35, vol: 0.5, rate: 1.3 }) || beep(320, 0.12, 'sine', 0.1, -200),
+  shutter: () => { hiss(0.05, 0.2, 3000, 0.7); beep(1800, 0.03, 'square', 0.04, 0, 0.04); },
+  pourLoop,
   stamp: () => { beep(160, 0.16, 'sine', 0.16, -60); hiss(0.1, 0.1, 900, 0.8); beep(1200, 0.06, 'triangle', 0.04, 0, 0.12); },
 };
 function fizz(on) {
   if (fizzNode) { try { fizzNode.stop(); } catch (e) { /* stopped */ } fizzNode = null; }
-  if (!on || !live()) return;
+  if (!on || !live() || REC.sfx_plop) return; // the recorded plop carries its own fizz
   const s = ac.createBufferSource(), f = ac.createBiquadFilter(), v = ac.createGain(), t = ac.currentTime;
   s.buffer = noiseBuf; s.loop = true; f.type = 'highpass'; f.frequency.value = 3500;
   v.gain.setValueAtTime(0.0001, t); v.gain.exponentialRampToValueAtTime(0.05, t + 0.3); v.gain.exponentialRampToValueAtTime(0.001, t + 2.6);
@@ -353,10 +403,15 @@ function nextStep() {
   S.idle = 0; S.stepUsed = false; S.lastAct = S.t; pen = null; SFX.step(); buzz('success');
   burst(x, y, 12, false);
   if (S.make) S.make.stepT = 0;
+  pourLoop(false);
   if (S.k !== 'bath') reward(x, y, cfg.stepCoins);
   if (S.k === 'smooth') { S.edges = edgeCells(S.soap); S.rough = meanRough(S.soap, S.edges); }
   if (S.k === 'bath') startReveal(); else persist(); // coins and learned gestures are kept even if the player leaves mid-soap
 }
+/** Today as a number YYYYMMDD in the player's own time zone. */
+const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+/** A word of praise at eye level, with a chime and sparkles. */
+function praise(key) { S.praise = { key, t: 0 }; SFX.fill(2); buzz('success'); burst(cfg.bar.x + cfg.bar.w / 2, cfg.bar.y + cfg.bar.h / 2, 18, false); }
 /** n coins flying from (x, y) to the counter: a small reward the player sees land. */
 function reward(x, y, n) {
   if (!n || mode !== 'play') return;
@@ -416,6 +471,8 @@ function startReveal() {
   save.shelf.unshift(entry); if (save.shelf.length > 12) save.shelf.length = 12;
   if (save.fresh && ((save.fresh.k === 'marbles' && S.order.marble === save.fresh.id) || (save.fresh.k === 'glitters' && S.order.glitter === save.fresh.id) || (save.fresh.k === 'gems' && S.order.gem === save.fresh.id) || (save.fresh.k === 'stamps' && S.order.stamp === save.fresh.id))) save.fresh = null;
   if (save.n % cfg.giftEvery === 0) save.giftDue = true; // every few soaps a gift box; saved, so a reload cannot lose it
+  const day = today(); if (save.day && day > save.day) save.giftDue = true; // and the first soap of a new day (a clock turned back pays nothing)
+  save.day = Math.max(save.day || 0, day);
   persist(); submitScore();
   fizz(true);
 }
@@ -435,6 +492,8 @@ function stepReveal(dt) {
     if (at(2.6 + S.score.stars * 0.28 + 0.1) && S.score.stars >= 2) { SFX.wow(); burst(360, 300, cfg.confetti * (S.score.stars === 3 ? 1 : 0.5), true); buzz('success'); }
   }
   if (at(3.4)) { const n = Math.min(12, Math.ceil(rv.coins / 5)); for (let i = 0; i < n; i++) coinsFlying.push({ x: 360 + (R() - 0.5) * 80, y: 300, t: -i * 0.06, v: rv.coins / n }); rv.paid = true; }
+  if (at(3.9)) { rv.flash = 0; SFX.shutter(); buzz('tap'); } // a photo for the shelf
+  if (rv.flash !== undefined) rv.flash += dt;
   if (t > 3.4 + cfg.revealSeconds && view === 'play') nextOrder(); // stars and coins take 3.4 s, then the soap is shown off
 }
 const starXY = (i) => [360 + (i - 1) * 110, 196];
@@ -488,7 +547,7 @@ const tipOf = (p, touch) => (touch && (S.k === 'carve' || S.k === 'smooth') ? [p
 function down(p, touch) {
   startAudio(); touched = true; S.idle = 0;
   if (view === 'photo') { view = 'shelf'; photoSel = -1; SFX.pick(); return; }
-  if (inDisc(MUTE(), p)) { save.muted = !save.muted; muteTouched = true; if (save.muted) fizz(false); SFX.pick(); persist(); return; }
+  if (inDisc(MUTE(), p)) { save.muted = !save.muted; muteTouched = true; if (save.muted) { fizz(false); pourLoop(false); } music(!save.muted); SFX.pick(); persist(); return; }
   if (view === 'gift') return giftTap(); // the gift screen holds every tap until the box is opened and closed
   if (inDisc(SHELFB(), p)) { view = view === 'shelf' ? 'play' : 'shelf'; pen = null; SFX.pick(); return; }
   if (view === 'shelf') return shelfTap(p);
@@ -539,7 +598,7 @@ function gesture(dt) {
       const a = R() * TAU, sp = Math.sqrt(R()) * 110; // spread evenly over a disc, not bunched in the middle
       fx.speck(pen.x + (R() - 0.5) * 8, pen.y + (R() - 0.5) * 8, MOUTH_UP, Math.cos(a) * sp, Math.sin(a) * sp, gl.c, 5, (lx, ly) => landGlitter(lx, ly, gl.c));
     }
-    if (every('shim', 120)) SFX.shimmer();
+    if (every('shim', 200)) SFX.glitter();
     if (every('tick', 160)) buzz('tick');
   }
 }
@@ -619,6 +678,7 @@ function update(dt) {
   S.t += dt; S.oopsT += dt;
   if (S.pileFade > 0) S.pileFade = Math.max(0, S.pileFade - dt * 2);
   if (S.charm && S.charm.state === 'out') S.charm.t += dt;
+  if (S.praise) S.praise.t += dt;
   S.rub = (S.rub || 0) * 0.7 + ((S.rubD || 0) / Math.max(dt, 1e-3)) * 0.3; S.rubD = 0; // the sponge springs back when the finger rests
   if (S.enter > 0) { S.enter = Math.max(0, S.enter - dt); return; }
   if (S.moodT > 0 && (S.moodT -= dt) <= 0 && S.k !== 'bath') S.mood = 'calm';
@@ -629,7 +689,9 @@ function update(dt) {
   if (isMake(S.k)) makeUpdate(S, dt);
   else if (S.k === 'carve') {
     if ((S.islandT += dt) > 0.25 && S.dirtyIsl) { S.islandT = 0; dropIslands(); }
-    if (carvedShare(S.soap) >= (S.order.free ? 2 : cfg.carveDone)) finishCarve();
+    const cs = carvedShare(S.soap);
+    if (!S.order.free) { if (cs >= 0.5 && !S.mile) { S.mile = 1; praise('great'); } else if (cs >= 0.8 && S.mile === 1) { S.mile = 2; praise('almost'); } }
+    if (cs >= (S.order.free ? 2 : cfg.carveDone)) finishCarve();
   } else if (S.k === 'smooth') {
     if (every('rough', 150)) S.rough = meanRough(S.soap, S.edges);
     if (S.rough <= cfg.smoothDone) finishSmooth();
@@ -694,8 +756,11 @@ function drawWork() {
   const sa = S.stampAnim; // the stamp lifting off after a press
   if (sa && sa.t < 0.45) { const k = Math.max(0, (sa.t - 0.1) / 0.35); stampTool(sa.x, sa.y, sa.shape, 1 - k * 0.3, k * 60); } // pressed for a beat, then lifted
 }
-/** "Perfect pour!" at eye level after a pour that stopped in the green band. */
-function drawPerfect() { const a = perfectAge(S); if (a >= 0 && a < 1.3 && isMake(S.k)) banner(T('perfect'), 360, 470, 44, 560, '#1E9E5A', popIn(a)); }
+/** "Perfect pour!" and the carving praise, at eye level. */
+function drawPerfect() {
+  const a = perfectAge(S); if (a >= 0 && a < 1.3 && isMake(S.k)) banner(T('perfect'), 360, 470, 44, 560, '#1E9E5A', popIn(a));
+  const p = S.praise; if (p && p.t < 1.1 && S.k === 'carve') { g.globalAlpha = Math.min(1, (1.1 - p.t) * 4); banner(T(p.key), 360, 470, 44, 560, '#1E9E5A', popIn(p.t)); g.globalAlpha = 1; }
+}
 /** A rubber stamp: a wooden knob, a pink base and the picture it presses. */
 function stampTool(x, y, shape, a = 1, lift = 0) {
   g.save(); g.globalAlpha = a;
@@ -1001,6 +1066,18 @@ function drawResult() {
       }
     }
   }
+  if (rv.flash !== undefined && rv.flash < 1.3) { // the flash, then the photo card flies to the shelf button
+    const f = rv.flash; if (f < 0.35) { g.fillStyle = `rgba(255,255,255,${0.85 * (1 - f / 0.35)})`; g.fillRect(0, 0, W, H); }
+    const th = save.shelf[0] && THUMBS.get(save.shelf[0]);
+    if (th && f > 0.15) {
+      const k = ease((f - 0.35) / 0.9), sb = SHELFB(), x = BOWL.x + (sb.x + 46 - BOWL.x) * Math.max(0, k), y = BOWL.y + (sb.y + 46 - BOWL.y) * Math.max(0, k), sc = 1.2 - Math.max(0, k) * 0.9;
+      g.save(); g.translate(x, y); g.rotate(-0.12 + Math.max(0, k) * 0.5); g.scale(sc, sc);
+      g.fillStyle = 'rgba(92,52,70,0.25)'; roundRect(g, -84, -94, 176, 196, 14); g.fill();
+      g.fillStyle = '#FFFFFF'; roundRect(g, -90, -100, 180, 200, 14); g.fill();
+      g.fillStyle = '#E9F7FF'; roundRect(g, -78, -88, 156, 156, 8); g.fill(); g.drawImage(th, -th.width / 2, -10 - th.height / 2);
+      g.restore();
+    }
+  }
   if (t > 1.5) { const p = 1 + Math.sin(t * 5) * 0.06; g.save(); g.translate(NEXT.x, NEXT.y); g.scale(p, p); glossDisc(g, 0, 0, NEXT.r, GREEN); g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-14, -22); g.lineTo(24, 0); g.lineTo(-14, 22); g.closePath(); g.fill(); g.restore(); }
 }
 
@@ -1101,6 +1178,7 @@ function applySave(st) {
   merged = true;
   const n0 = int(st.n, 0, 1e6) || 0, before = save.n;
   save.n = n0 + save.n; save.coins = (int(st.coins, 0, 1e7) || 0) + save.coins; save.stars = (int(st.stars, 0, 1e7) || 0) + save.stars; save.buys = (int(st.buys, 0, 1000) || 0) + save.buys; save.gifts = (int(st.gifts, 0, 1e5) || 0) + save.gifts; if (st.giftDue === true) save.giftDue = true;
+  if (int(st.day, 20200101, 21001231)) save.day = Math.max(save.day || 0, st.day);
   const ow = st.owned && typeof st.owned === 'object' ? st.owned : {};
   for (const k of ['marbles', 'glitters', 'gems', 'stamps']) if (Array.isArray(ow[k])) for (const id of ow[k]) if (cfg[k].some((x) => x.id === id && x.shop) && !save.owned[k].includes(id)) save.owned[k].push(id);
   if (Array.isArray(st.shelf)) for (const e of st.shelf.slice(0, 12)) { const c = cleanEntry(e); if (c && save.shelf.length < 12) save.shelf.push(c); }
@@ -1138,7 +1216,7 @@ function run(m) {
       },
     });
   } catch (e) { /* settings panel not offered here */ }
-  cancelAnimationFrame(raf); pen = null; penId = null; makeStop(S); // a pour or stir in progress lost its finger
+  cancelAnimationFrame(raf); pen = null; penId = null; makeStop(S); pourLoop(false); // a pour or stir in progress lost its finger
   lang = save.lang || detectLang();
   // a soap in progress is kept through edit runs; edit mode only shows it, with no input
   if (!S || (S.edit && mode === 'play')) { view = 'play'; fx.clear(); newOrder(mode === 'play' ? save.n : 0, false); S.edit = mode !== 'play'; }
@@ -1158,11 +1236,11 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   const read = window.__slowSave ? () => new Promise((r) => { window.__resolveSave = r; }) : window.__saved ? async () => ({ state: window.__saved }) : none;
-  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
+  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : /^(sfx|music)_/.test(id) ? { url: './' + id + '.mp3', type: 'audio' } : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
   window.__game = {
     get S() { return S; }, get save() { return save; }, set save(v) { save = v; }, get view() { return view; }, set view(v) { view = v; }, get cfg() { return cfg; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; },
     get quality() { return quality; }, set quality(q) { quality = q; }, get fx() { return fx; }, get pen() { return pen; }, get coinShown() { return coinShown; }, set coinShown(v) { coinShown = v; },
-    booting, T, detectLang, applySave, nextStep, fillShare, potSide, giftDots, landAt, fillCentre, drawKnife, drawShaker, MOUTH_UP, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
+    booting, T, detectLang, applySave, nextStep, fillShare, potSide, giftDots, landAt, fillCentre, sounds: () => Object.keys(REC), get musicOn() { return !!musicNode; }, today, drawKnife, drawShaker, MOUTH_UP, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
     MUTE, SHELFB, CHECK, NEXT, ORDER, slotXY, SHELF_CELL, SHOP_XY, LANGB, FREEB, BOWL, freeOpen, set freeNext(v) { freeNext = v; },
   };
   const q = new URLSearchParams(location.search);
