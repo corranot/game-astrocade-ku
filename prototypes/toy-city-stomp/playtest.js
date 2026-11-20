@@ -203,6 +203,33 @@ const server = http.createServer((q, s) => {
     const t = await g(() => ({ b0: __game.S.blocks0, coins: __game.S.coins, touched: __game.S.touched }));
     check(t.touched && t.b0 >= pre && t.coins < 40, `the first touch starts the child's count: ${t.b0} blocks already down left out (>= ${pre}), coins ${t.coins} (the 40 from before are gone), touched ${t.touched}`);
   }
+  // switching cities rebuilds the sky's reflections without leaving the old ones on the GPU
+  {
+    const t = await g(async () => { const s = __game.save; s.unlocked = 6; const counts = [];
+      for (const th of [1, 0, 1, 0, 1]) { s.theme = th; __game.newRound(); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); counts.push(__game.textures); }
+      s.theme = 0; s.unlocked = 1; return counts; });
+    check(t[4] <= t[0], `switching cities does not pile up GPU textures (${t.join(' -> ')})`);
+  }
+  // a save that arrives after a city was finished: the map shows what is really open, a hat picked now stays on
+  {
+    const p3 = await browser.newPage({ viewport: { width: 405, height: 720 }, locale: 'en' });
+    await p3.addInitScript(() => {
+      window.lib = { showGameParameters() {}, log() {}, getAsset: () => undefined, haptics: { play() {}, start() {}, stop() {} }, shouldUseTouchControls: () => false,
+        getUserGameState: () => new Promise((r) => { window.__deliver = r; }), saveUserGameState: async () => {},
+        addPlayerScoreToLeaderboard: async () => ({}), getTopNEntriesFromLeaderboard: async () => ({}) };
+      addEventListener('load', async () => { window.gameConfig = await (await fetch('./game_config.json')).json(); window.run('play'); });
+    });
+    await p3.goto(`http://localhost:${port}/?speed=6`);
+    await p3.waitForFunction(() => window.__game && window.__game.S && window.__deliver, null, { timeout: 30000 });
+    await p3.evaluate(() => { const S = __game.S; S.touched = true; __game.finish(); const s = __game.save; s.coins = 500; s.wardrobe = ['party']; s.hat = 'party'; __game.wear(); });
+    await p3.waitForFunction(() => !document.querySelector('#result').hidden, null, { timeout: 15000 });
+    const r = await p3.evaluate(async () => { window.__deliver({ state: { rounds: 5, unlocked: 4, theme: 3, hat: 'crown', wardrobe: ['crown'], coins: 50 } });
+      await new Promise((res) => setTimeout(res, 200));
+      return { locked: document.querySelectorAll('#map .city.locked').length, on: [...document.querySelectorAll('#map .city')].findIndex((c) => c.classList.contains('on')),
+        name: document.querySelector('#cityName').textContent, hat: __game.hatOn, theme: __game.save.theme }; });
+    check(r.locked === 2 && r.on === 3 && r.name === 'Snow Town' && r.hat === 'party', `a late save fixes the city map (4 open, Snow Town picked, no fake NEW CITY) and keeps the hat picked now (${JSON.stringify(r)})`);
+    await p3.close();
+  }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
     const p2 = await browser.newPage({ viewport: { width: 405, height: 720 } });

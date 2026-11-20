@@ -167,15 +167,15 @@ function startGame(mode) {
   const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 32, 16), skyMat);
   scene.add(sky);
   // reflections for the plastic and the candy: a small scene of sky plus two soft light panels, prefiltered once
-  let envTex = null;
+  let envRT = null;
   function makeEnv() {
-    if (envTex) envTex.dispose();
+    if (envRT) envRT.dispose(); // the whole render target: its cube texture and framebuffers
     const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
     const envSky = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), skyMat); envScene.add(envSky);
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     panel.position.set(4, 6, 3); panel.lookAt(0, 0, 0); envScene.add(panel);
     const p2 = panel.clone(); p2.position.set(-6, 3, -2); p2.lookAt(0, 0, 0); p2.scale.setScalar(0.6); envScene.add(p2);
-    envTex = pm.fromScene(envScene, 0.02).texture; scene.environment = envTex;
+    envRT = pm.fromScene(envScene, 0.02); scene.environment = envRT.texture;
     panel.geometry.dispose(); panel.material.dispose(); envSky.geometry.dispose(); pm.dispose();
   }
   makeEnv();
@@ -280,7 +280,7 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '',
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
     };
     const SA = (cfg.stickers && cfg.stickers.atCollapse) || [4, 22];
     S.stickerAt = SA[0] + Math.floor(rng() * (SA[1] - SA[0] + 1)); // the n-th building the child knocks down hides a sticker
@@ -404,7 +404,7 @@ function startGame(mode) {
   }
   const onDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (e.target.closest && e.target.closest('button, .result, .langs')) return;
+    if (e.target.closest && e.target.closest('button, .result, .langs, .shop, .album')) return;
     $('langs').hidden = true; // a tap in the game closes the settings
     if (input.id !== null) return; // a second finger does not steer
     input.id = e.pointerId; input.sx = e.clientX; input.sy = e.clientY; input.dx = input.dy = 0;
@@ -498,7 +498,9 @@ function startGame(mode) {
   function wearCostume() {
     const h = costume(save.hat), s = costume(save.skin);
     bon.setHat(h && h.kind === 'hat' && ownsLook(h) ? h.id : 'none');
-    if (s && s.kind === 'skin' && ownsLook(s)) bon.setSkin(parseInt(s.color.slice(1), 16), parseInt(s.dark.slice(1), 16)); else bon.setSkin();
+    const hx = (v) => { const n = parseInt(String(v || '').replace('#', '').replace(/^0x/, ''), 16); return Number.isFinite(n) ? n : null; };
+    const c = s && s.kind === 'skin' && ownsLook(s) ? hx(s.color) : null;
+    if (c !== null) bon.setSkin(c, hx(s.dark) ?? c); else bon.setSkin();
   }
   let shopTab = 'moves';
   function openShop() { $('result').hidden = true; $('shop').hidden = false; renderShop(); }
@@ -794,16 +796,24 @@ function startGame(mode) {
       ${goal ? `<div class="goal"><span class="gico">${goal.icon}</span><div class="gbar"><i style="width:${goal.p}%"></i></div><b dir="auto">${goal.text}</b></div>` : ''}
       <ol class="board" id="board" hidden></ol>
     </div>
-    <div class="map" id="map">${THEMES.map((t, i) => { const lock = i >= unlockedCount(); return `<button class="city gloss${i === themeIndex() ? ' on' : ''}${lock ? ' locked' : ''}${i === newCity ? ' new' : ''}" data-c="${i}"${lock ? ' disabled' : ''} aria-label="${T('t_' + t.id)}">${lock ? '🔒' : t.icon}</button>`; }).join('')}</div>
-    <div class="cityname out" id="cityName" dir="auto">${newCity >= 0 ? T('newCity') + ' ' : ''}${T('t_' + THEMES[themeIndex()].id)}</div>
+    <div class="map" id="map"></div>
+    <div class="cityname out" id="cityName" dir="auto"></div>
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
     <div class="row3"><button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button>
     <button class="toalbum gloss" id="toAlbum" aria-label="${T('album')}">📖${S.newSticker ? `<span class="badge">${S.newSticker}</span>` : ''}</button></div></div>`;
     setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); $('langs').hidden = true; countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; r.querySelector('#toAlbum').onclick = () => { Sound.unlock(); openAlbum(); };
-      r.querySelectorAll('.city:not(.locked)').forEach((b) => b.onclick = () => {
-        Sound.unlock(); Sound.pop(); save.theme = Number(b.dataset.c); persist();
-        r.querySelectorAll('.city').forEach((x) => x.classList.toggle('on', x === b)); r.querySelector('#cityName').textContent = T('t_' + THEMES[themeIndex()].id);
-      }); }, 1600);
+    }, 1600);
+    S.newCity = newCity; renderMap();
+  }
+  /** The city map under the result: open cities can be picked for the next round, the newest one pulses. */
+  function renderMap() {
+    const box = $('map'), nm = $('cityName');
+    if (!box || !S.finished) return;
+    box.innerHTML = THEMES.map((t, i) => { const lock = i >= unlockedCount(); return `<button class="city gloss${i === themeIndex() ? ' on' : ''}${lock ? ' locked' : ''}${i === S.newCity ? ' new' : ''}" data-c="${i}"${lock ? ' disabled' : ''} aria-label="${T('t_' + t.id)}">${lock ? '🔒' : t.icon}</button>`; }).join('');
+    nm.textContent = (S.newCity >= 0 && S.newCity === themeIndex() ? T('newCity') + ' ' : '') + T('t_' + THEMES[themeIndex()].id);
+    box.querySelectorAll('.city:not(.locked)').forEach((b) => b.onclick = () => {
+      Sound.unlock(); Sound.pop(); save.theme = Number(b.dataset.c); persist(); renderMap();
+    });
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
@@ -925,7 +935,7 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
-      const roundsBefore = save.rounds || 0, smashedBefore = save.smashed || 0, unlockedBefore = unlockedCount(), themeBefore = save.theme, wardrobeBefore = save.wardrobe.slice(), stickersBefore = save.stickers.slice();
+      const roundsBefore = save.rounds || 0, smashedBefore = save.smashed || 0, unlockedBefore = unlockedCount(), themeBefore = save.theme, wardrobeBefore = save.wardrobe.slice(), stickersBefore = save.stickers.slice(), hatBefore = save.hat, skinBefore = save.skin;
       const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped, tutorialBefore = save.tutorialDone;
       if (st) {
         Object.assign(save, st);
@@ -938,6 +948,7 @@ function startGame(mode) {
         if (!moveInfo(cfg, save.equipped)) save.equipped = 'spin';
         save.unlocked = Math.max(Number(st.unlocked) || 1, unlockedBefore); if (unlockedBefore > (Number(st.unlocked) || 1)) save.theme = themeBefore;
         save.stickers = [...new Set([...(Array.isArray(st.stickers) ? st.stickers : []), ...stickersBefore])];
+        if (hatBefore !== 'none') save.hat = hatBefore; if (skinBefore !== 'pink') save.skin = skinBefore; // picked this session: keep wearing it
         save.wardrobe = [...new Set([...(Array.isArray(st.wardrobe) ? st.wardrobe : []), ...wardrobeBefore])];
         save.rounds = (Number(st.rounds) || 0) + roundsBefore; save.smashed = (Number(st.smashed) || 0) + smashedBefore;
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
@@ -945,11 +956,16 @@ function startGame(mode) {
       // a player who did the tutorial before should not get it again just because the save arrived late
       if (save.tutorialDone && missions && missions.tutorial && !S.touched) missions = createMissions(rng, true, missionDone, levelOf);
       // nobody has touched yet: rebuild so a returning player sees the city after their last one
-      if (save.rounds > 0 && roundsBefore === 0 && S && !S.touched && !S.finished) newRound();
+      if (save.rounds > 0 && roundsBefore === 0 && S && !S.touched && !S.finished) { const open = !$('langs').hidden; newRound(); $('langs').hidden = !open; }
       saveLoaded = true; hudCache.coins = null; updateHud(); if (S && !S.finished) refreshSkill();
       if (earned > 0 || picked || ownedBefore.length || roundsBefore) persist();
       if (st && st.muted && !Sound.muted) Sound.setMuted(true);
       wearCostume();
+      if (S && S.finished) {
+        // a city finished before the save arrived: a "new" city that was already open is not new
+        if (S.newCity >= 0 && st && (Number(st.unlocked) || 1) > S.newCity) S.newCity = -1;
+        renderMap(); if (!$('shop').hidden) renderShop();
+      }
       // a city finished before the save arrived: show and post the real all-time total
       if (roundsBefore && S && S.finished) { const t = document.querySelector('#tot'); if (t) t.textContent = fmt(save.smashed); postScore(); }
       { const ts = document.querySelector('#toShop'); if (ts && S.finished && canBuy() && !ts.querySelector('.badge')) ts.insertAdjacentHTML('beforeend', '<span class="badge">!</span>'); }
@@ -962,11 +978,11 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
-      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envTex.dispose();
+      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envRT.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },
