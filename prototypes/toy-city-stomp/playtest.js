@@ -230,7 +230,7 @@ const server = http.createServer((q, s) => {
     const word = await page.waitForFunction(() => document.querySelector('.comic'), null, { timeout: 5000 }).then(() => g(() => document.querySelector('.comic').textContent)).catch(() => '');
     await page.waitForTimeout(600);
     const r = await g((p0) => ({ thrown: __game.S.thrown, landed: !!window.__car.land, pts: __game.S.points - p0 }), p0);
-    check(r.thrown === 1 && r.landed && r.pts > 0 && word, `tapping a car throws it; it lands with "${word}" and breaks things (+${r.pts})`);
+    check(r.thrown === 1 && r.landed && r.pts > 0 && word, `tapping a car throws it; it lands with "${word}" and breaks things (+${r.pts}) ${JSON.stringify(r)}`);
   }
   // switching cities rebuilds the sky's reflections without leaving the old ones on the GPU
   {
@@ -374,6 +374,7 @@ const server = http.createServer((q, s) => {
       S.idle = 2.5; await w(400); const wave = S.fidgeted && __game.posing;
       for (let i = 0; i < 40 && __game.posing; i++) await w(100);
       S.idle = -99; __game.grow(); const shot = __game.cine.kind; let bars = false;
+      __game.cine.kind = ''; __game.startCine('grow', S.x, S.z, 6); // a longer shot, so a slow test machine still sees its bars
       for (let i = 0; i < 30 && !bars; i++) { await w(100); bars = document.querySelector('.hud').classList.contains('cine'); }
       for (let i = 0; i < 60 && __game.cine.kind; i++) await w(100);
       return { tickle, wave, shot, bars, ended: !__game.cine.kind && !document.querySelector('.hud').classList.contains('cine') }; });
@@ -388,6 +389,26 @@ const server = http.createServer((q, s) => {
     const ok = await pw.waitForFunction(() => !document.getElementById('load') && document.querySelector('#app button[aria-label="Retry"]'), null, { timeout: 20000 }).then(() => true, () => false);
     check(ok, `with no WebGL the loading screen goes and a retry button shows (${ok})`);
     await pw.close();
+  }
+  // Bonbon is always in the frame: while playing and during every cinematic shot (feet, chest and head on screen, never behind the camera)
+  {
+    const pv = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await pv.goto(`http://localhost:${port}/?local&tier=0&speed=3`);
+    await pv.waitForFunction(() => window.__game && window.__game.S && !document.getElementById('load'), null, { timeout: 30000 });
+    await pv.evaluate(() => { window.__vis = {}; const S = __game.S; S.touched = true; document.querySelector('#hint').hidden = true; const v = new THREE.Vector3();
+      window.__visT = setInterval(() => { const S = __game.S; let w = 0; for (const h of [0.4, 1.5, 2.6]) { v.set(S.x, h * S.scale + (S.airY || 0), S.z).project(__game.camera); w = Math.max(w, Math.abs(v.x), Math.abs(v.y), v.z > 1 ? 9 : 0); }
+        const k = __game.cine.kind || (S.jump ? 'jump' : 'play'); window.__vis[k] = Math.max(window.__vis[k] || 0, +w.toFixed(2)); }, 100); });
+    const step = async (js, ms) => { await pv.evaluate(js); await pv.waitForTimeout(ms); };
+    await step('__game.grow()', 3000);
+    await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("boss", S.x - 40, S.z - 30, 2.4); })()', 3200);
+    await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("boss", S.x + 10, S.z + 45, 2.4); })()', 3200);
+    await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("collapse", S.x + 9, S.z - 28, 1.3); })()', 2200);
+    await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("mega", S.x, S.z, 1.4); })()', 2200);
+    await step('(() => { const S = __game.S; __game.cine.kind = ""; S.jump = { sx: S.x, sz: S.z, tx: S.x, tz: S.z - 6, t: 0, dur: 6, h: 12 * Math.sqrt(S.scale), onLand() {} }; })()', 3500); // a moon-high jump
+    await step('__game.S.idle = 99', 3500);
+    const vis = await pv.evaluate(() => { clearInterval(window.__visT); return window.__vis; });
+    check(Object.values(vis).every((w) => w <= 1) && vis.play !== undefined && vis.jump !== undefined, `Bonbon stays on screen while playing and in every shot (furthest from centre: ${JSON.stringify(vis)})`);
+    await pv.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
