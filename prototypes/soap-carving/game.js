@@ -16,7 +16,7 @@ import { PLUM, PINK, GREEN, tint, glossDisc, glossPill, panel, rays, vignette, r
 import { loadSprites, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
 import { rng, makeSoap, markDirty, carve, trimRows, carvedShare, sponge, edgeCells, meanRough, takeIslands, islandSprite, shapeScore, sparkleScore, verdict, soapCount, encodeMask, decodeMask, marbleAlbedo, attachPaint, paint, stamp as pressStamp } from './soap.js';
 import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide, landAt, fillCentre } from './make.js';
-import { createFx } from './fx.js';
+import { createFx, ribbonShape, strokeCurl } from './fx.js';
 
 const DEBUG = location.search.includes('local');
 const W = 720, H = 1280, TAU = Math.PI * 2, LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
@@ -263,7 +263,7 @@ function newOrder(n, enter) {
     n, order: o, steps: n === 0 ? SHORT : FULL, si: 0, k: n === 0 ? 'carve' : FULL[0], soap, fit, make: null, stamps: [], stampAnim: null, scent: null,
     stampSel: Math.max(0, cfg.stamps.findIndex((x) => x.id === o.stamp)), enter: enter ? 0.7 : 0, t: 0, idle: 0, used: false, stepUsed: false, shaveAcc: 0, islandT: 0, dirtyIsl: false,
     score: { shape: 0, smooth: 0, sparkle: 0, v: 0, stars: 0 }, edges: null, rough: 1, trim: null, glitLayer: glit, specks: [], glitCount: 0,
-    gems: [], gemSel: -1, glitSel: owns('glitters', o.glitter) ? cfg.glitters.findIndex((x) => x.id === o.glitter) : 0, lastAct: 0, added: false,
+    gems: [], gemSel: -1, glitSel: owns('glitters', o.glitter) ? cfg.glitters.findIndex((x) => x.id === o.glitter) : ['honey', 'gold'].includes(o.marble) ? 2 : 1, lastAct: 0, added: false, // glitSel: a glitter that stands out on this soap
     charm: o.charm === null ? null : placeCharm(soap, n, o.charm), mood: 'calm', moodT: 0, reveal: null, photo: null, oopsT: 9, pileFade: enter ? 1 : 0, speed: 0, done: false,
   };
   if (isMake(S.k)) S.make = makeState(S);
@@ -327,7 +327,10 @@ function carveAlong(ax, ay, bx, by, dt) {
     if (res.removed) {
       S.shaveAcc += res.removed;
       const dx = (bx - ax) / (d || 1), dy = (by - ay) / (d || 1);
-      while (S.shaveAcc >= cfg.shaveEvery) { S.shaveAcc -= cfg.shaveEvery; spawnCurl(res.cx, res.cy, dx, dy); }
+      while (S.shaveAcc >= cfg.shaveEvery * 2) { S.shaveAcc -= cfg.shaveEvery * 2; spawnCurl(res.cx, res.cy, dx, dy); } // small curls fly off; the main shaving grows on the blade
+      const rb = S.ribbon || (S.ribbon = { len: 0, c: albAt(res.cx, res.cy) });
+      rb.len = Math.min(cfg.ribbonMax, rb.len + res.removed / cfg.ribbonCells); rb.back = Math.atan2(-dy, -dx) - 0.6;
+      if (rb.len >= cfg.ribbonMax) dropRibbon(); // a full shaving breaks off by itself
       if (R() < 0.03) { const sx = cfg.bar.x + res.cx, sy = cfg.bar.y + res.cy, [tx, ty] = landing(sx, sy, dx, dy); fx.speck(sx, sy, 0, (tx - sx) / 0.42, (ty - sy) / 0.42, albAt(res.cx, res.cy), 7 + R() * 4); const q = fx.P[fx.P.length - 1]; if (q) q.vz = 190; } // crumbs
     }
   }
@@ -378,7 +381,7 @@ function finishCarve() {
   if (S.trim) return;
   if (S.dirtyIsl) dropIslands();
   const sh = shapeScore(S.soap); S.score.shape = S.order.free ? 1 : sh.shape;
-  pen = null;
+  dropRibbon(); pen = null;
   if (S.order.free) { if (S.charm && S.charm.state === 'hidden') popCharm(); nextStep(); return; } // the player's shape stays as carved
   S.trim = { y: -1, t: 0 }; SFX.step();
 }
@@ -405,8 +408,19 @@ function nextStep() {
   if (S.make) S.make.stepT = 0;
   pourLoop(false);
   if (S.k !== 'bath') reward(x, y, cfg.stepCoins);
-  if (S.k === 'smooth') { S.edges = edgeCells(S.soap); S.rough = meanRough(S.soap, S.edges); }
+  if (S.k === 'smooth') {
+    S.edges = edgeCells(S.soap); S.rough = meanRough(S.soap, S.edges); S.rubT = 0; roughSpots();
+    for (let i = fx.P.length - 1; i >= 0; i--) { const q = fx.P[i]; if (q.k === 'curl' || q.k === 'chunk') { fx.P.splice(i, 1); fx.bake(q); } } // scraps still in the air go with the old table
+    ti = 1 - ti; freshTable(tables[ti]); fx.setPile(tables[ti]); S.pileFade = 1; SFX.swish(); // the scraps are swept off the table
+  }
   if (S.k === 'bath') startReveal(); else persist(); // coins and learned gestures are kept even if the player leaves mid-soap
+}
+/** Edge cells still rough (sampled), for the chalky hint and the helper hand. */
+function roughSpots() {
+  const s = S.soap, out = []; let sx = 0, sy = 0;
+  for (let i = 0; i < S.edges.length; i += 5) { const c = S.edges[i]; if (s.m[c] && s.rough[c] > 0.3) { const x = c % s.w, y = (c - x) / s.w; out.push([x, y, (x * 7 + y * 13) % 10 / 10]); sx += x; sy += y; } }
+  const mx0 = sx / out.length, my0 = sy / out.length; // the spot nearest the middle: the middle itself may be smooth soap
+  S.spots = out; S.spotC = out.length ? out.reduce((b, q) => Math.hypot(q[0] - mx0, q[1] - my0) < Math.hypot(b[0] - mx0, b[1] - my0) ? q : b) : null;
 }
 /** Today as a number YYYYMMDD in the player's own time zone. */
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
@@ -432,18 +446,23 @@ function stampShape(shape, size) {
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { let s = 0, c = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const xx = x + i, yy = y + j; if (xx >= 0 && yy >= 0 && xx < size && yy < size) { s += m[yy * size + xx]; c++; } } out[y * size + x] = s / c; }
   STAMPS.set(key, out); return out;
 }
+/** The middle of the soap that is left (cells). */
+function soapCentre(s) { let x = 0, y = 0, n = 0; for (let i = 0; i < s.m.length; i += 7) if (s.m[i]) { x += i % s.w; y += Math.floor(i / s.w); n++; } return n ? [x / n, y / n] : [s.w / 2, s.h / 2]; }
 function stampTap(p) {
-  const s = S.soap, [cx, cy] = barXY(p[0], p[1]);
+  const s = S.soap; let [cx, cy] = barXY(p[0], p[1]);
   if (cx < 0 || cy < 0 || cx >= s.w || cy >= s.h || !s.m[(cy | 0) * s.w + (cx | 0)]) return;
   if (S.stamps.length >= cfg.stampMax) { wiggle = { k: 'stampsfull', t: 0 }; SFX.no(); return; }
-  const st = cfg.stamps[S.stampSel] || cfg.stamps[0];
-  pressStamp(s, stampShape(st.shape, cfg.stampSize), cfg.stampSize, cx, cy);
+  const st = cfg.stamps[S.stampSel] || cfg.stamps[0], sh = stampShape(st.shape, cfg.stampSize), z = cfg.stampSize;
+  const on = (x, y) => { let a = 0, n = 0; for (let j = 0; j < z; j += 6) for (let i = 0; i < z; i += 6) if (sh[j * z + i] > 0.5) { n++; const X = Math.round(x - z / 2 + i), Y = Math.round(y - z / 2 + j); if (X >= 0 && Y >= 0 && X < s.w && Y < s.h && s.m[Y * s.w + X]) a++; } return n ? a / n : 0; };
+  for (let k = 0; k < 24 && on(cx, cy) < 0.95; k++) { const c = S.soapC || (S.soapC = soapCentre(s)); cx += (c[0] - cx) * 0.12; cy += (c[1] - cy) * 0.12; } // nudged inward so the whole picture lands on soap
+  p = [cfg.bar.x + cx, cfg.bar.y + cy];
+  pressStamp(s, sh, z, cx, cy);
   S.stamps.push({ id: st.id, x: cx, y: cy }); S.stampAnim = { x: p[0], y: p[1], t: 0, shape: st.shape };
   S.stepUsed = true; S.lastAct = S.t; SFX.stamp(); buzz('thud'); burst(p[0], p[1], 10, false); shake = Math.max(shake, 0.12);
 }
 const checkShown = () => mode === 'play' && view === 'play' && S.enter <= 0 && !S.trim && (
   (S.k === 'carve' && carvedShare(S.soap) >= (S.order.free ? 0.15 : cfg.carveCheck)) ||
-  (S.k === 'smooth' && S.rough <= cfg.smoothCheck) || (S.k === 'sparkle' && S.added) || (S.k === 'stamp' && S.stamps.length > 0));
+  (S.k === 'smooth' && (S.rough <= cfg.smoothCheck || S.rubT > cfg.smoothCheckSecs)) || (S.k === 'sparkle' && S.added) || (S.k === 'stamp' && S.stamps.length > 0));
 
 // ---------- the bath reveal ----------
 function startReveal() {
@@ -486,7 +505,7 @@ function stepReveal(dt) {
   if (t > 0.8 && every('ring', 900)) fx.ring(BOWL.x, BOWL.y, 150 + R() * 30, 1.4);
   if (S.order.free) { if (at(1.0)) { setMood('wow', 9); SFX.wow(); burst(360, 520, cfg.confetti, true); } }
   else {
-    if (at(1.0)) setMood(S.score.stars >= 3 ? 'wow' : S.score.stars === 2 ? 'happy' : 'calm', 9);
+    if (at(1.0)) setMood(S.score.stars >= 2 ? 'happy' : 'calm', 9);
     for (let i = 0; i < 3; i++) if (at(1.1 + i * 0.45)) { rv.bars = i + 1; SFX.fill(i); }
     for (let i = 0; i < S.score.stars; i++) if (at(2.6 + i * 0.28)) { rv.stars = i + 1; SFX.star(i); buzz('tap'); burst(starXY(i)[0], starXY(i)[1], 10, false); }
     if (at(2.6 + S.score.stars * 0.28 + 0.1) && S.score.stars >= 2) { SFX.wow(); burst(360, 300, cfg.confetti * (S.score.stars === 3 ? 1 : 0.5), true); buzz('success'); }
@@ -545,7 +564,7 @@ function point(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r
 /** Where the tool works: a touch works a little above the finger, so the finger never hides it. */
 const tipOf = (p, touch) => (touch && (S.k === 'carve' || S.k === 'smooth') ? [p[0], p[1] - 56] : p);
 function down(p, touch) {
-  startAudio(); touched = true; S.idle = 0;
+  startAudio(); touched = true; S.idle = 0; S.ribbon = null; // a new touch starts with a clean blade
   if (view === 'photo') { view = 'shelf'; photoSel = -1; SFX.pick(); return; }
   if (inDisc(MUTE(), p)) { save.muted = !save.muted; muteTouched = true; if (save.muted) { fizz(false); pourLoop(false); } music(!save.muted); SFX.pick(); persist(); return; }
   if (view === 'gift') return giftTap(); // the gift screen holds every tap until the box is opened and closed
@@ -576,7 +595,20 @@ function move(p, ts = performance.now()) {
   pen.px = pen.x; pen.py = pen.y; pen.x = tp[0]; pen.y = tp[1]; pen.fx = p[0]; pen.fy = p[1]; pen.t = now; S.idle = 0; S.lastAct = S.t;
   if (DEBUG) { const a = performance.now(); gesture(dt); const pr = window.__prof; if (pr) { pr.g = (pr.g || 0) + performance.now() - a; pr.ge = (pr.ge || 0) + 1; } } else gesture(dt);
 }
-function up() { if (pen && S && S.k === 'carve' && S.dirtyIsl) dropIslands(); if (S && isMake(S.k)) makeUp(S); pen = null; }
+function up() { if (pen && S && S.k === 'carve') { if (S.dirtyIsl) dropIslands(); dropRibbon(); } if (S && isMake(S.k)) makeUp(S); pen = null; }
+/** The shaving on the blade breaks off and falls to the pile. */
+function dropRibbon() {
+  const rb = S && S.ribbon; S.ribbon = null; if (!rb || rb.len < 18 || !pen) return;
+  const sh = ribbonShape(rb.len, rb.back, 9 + Math.min(5, rb.len / 30)), inner = S.soap.inner, c2 = `rgb(${inner[0] * 0.78 | 0},${inner[1] * 0.78 | 0},${inner[2] * 0.78 | 0})`;
+  const [tx, ty] = landing(pen.x, pen.y, -Math.cos(rb.back), -Math.sin(rb.back)), T = 0.5;
+  fx.curl(pen.x, pen.y, (tx - pen.x) / T, (ty - pen.y) / T, rb.c, c2, R, 1, sh); SFX.curl();
+}
+/** The shaving still on the blade, peeling back from the tip. */
+function drawRibbon() {
+  const rb = S.ribbon; if (!rb || !pen || S.k !== 'carve' || rb.len < 6) return;
+  const inner = S.soap.inner, c2 = `rgb(${inner[0] * 0.78 | 0},${inner[1] * 0.78 | 0},${inner[2] * 0.78 | 0})`;
+  strokeCurl(g, { pts: ribbonShape(rb.len, rb.back, 0).pts, rot: 0, c: rb.c, c2, wide: 9 + Math.min(5, rb.len / 30) }, pen.x, pen.y, 1);
+}
 function gesture(dt) {
   if (isMake(S.k)) makeMove(S, pen.px, pen.py, pen.x, pen.y, dt);
   else if (S.k === 'carve') carveAlong(pen.px, pen.py, pen.x, pen.y, dt);
@@ -605,10 +637,10 @@ function gesture(dt) {
 function landGlitter(x, y, c) {
   if (!S || S.k !== 'sparkle') return;
   const [cx, cy] = barXY(x, y), s = S.soap, i = (cy | 0) * s.w + (cx | 0);
-  if (cx >= 0 && cy >= 0 && cx < s.w && cy < s.h && s.m[i]) {
+  if (cx >= 0 && cy >= 0 && cx < s.w && cy < s.h && s.m[i] && s.emb[i] < 0.3) { // glitter keeps off the stamped picture
     const q = S.glitLayer.getContext('2d'), gx = cx + cfg.margin, gy = cy + cfg.margin;
-    const z = 3 + R() * 2.5; q.fillStyle = 'rgba(74,35,102,0.35)'; q.beginPath(); q.moveTo(gx + 1, gy - z + 1); q.lineTo(gx + z * 0.8 + 1, gy + 1); q.lineTo(gx + 1, gy + z + 1); q.lineTo(gx - z * 0.8 + 1, gy + 1); q.fill();
-    q.fillStyle = c; q.beginPath(); q.moveTo(gx, gy - z); q.lineTo(gx + z * 0.8, gy); q.lineTo(gx, gy + z); q.lineTo(gx - z * 0.8, gy); q.fill();
+    const z = 3.5 + R() * 3, st = (ox, oy) => { q.beginPath(); q.moveTo(gx + ox, gy - z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy + z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx - z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy - z + oy); q.fill(); };
+    q.fillStyle = 'rgba(74,35,102,0.35)'; st(1, 1); q.fillStyle = c; st(0, 0); // a little four-point star with a shadow
     q.fillStyle = 'rgba(255,255,255,0.95)'; q.fillRect(gx - 0.8, gy - z * 0.6, 1.6, 1.6);
     S.glitCount++; S.added = true; S.stepUsed = true; if (S.specks.length < 1500) S.specks.push([x, y]);
   } else if (R() < 0.25) { const q = fx.pile.getContext('2d'); q.fillStyle = c; q.fillRect(x - 1.5, y - 1.5, 3, 3); }
@@ -690,10 +722,11 @@ function update(dt) {
   else if (S.k === 'carve') {
     if ((S.islandT += dt) > 0.25 && S.dirtyIsl) { S.islandT = 0; dropIslands(); }
     const cs = carvedShare(S.soap);
-    if (!S.order.free) { if (cs >= 0.5 && !S.mile) { S.mile = 1; praise('great'); } else if (cs >= 0.8 && S.mile === 1) { S.mile = 2; praise('almost'); } }
+    if (!S.order.free && !S.trim) { if (cs >= 0.5 && !S.mile) { S.mile = 1; praise('great'); } else if (cs >= 0.8 && S.mile === 1) { S.mile = 2; praise('almost'); } }
     if (cs >= (S.order.free ? 2 : cfg.carveDone)) finishCarve();
   } else if (S.k === 'smooth') {
-    if (every('rough', 150)) S.rough = meanRough(S.soap, S.edges);
+    if (every('rough', 150)) { S.rough = meanRough(S.soap, S.edges); roughSpots(); }
+    if (pen) S.rubT += dt;
     if (S.rough <= cfg.smoothDone) finishSmooth();
   } else if (S.k === 'stamp') {
     if (S.stampAnim) S.stampAnim.t += dt;
@@ -731,7 +764,7 @@ function draw() {
   else if (isMake(S.k)) { paint(S.soap); drawMake(g, S); }
   else drawWork();
   fx.draw(g);
-  if (S.k !== 'bath' && view === 'play') drawTool();
+  if (S.k !== 'bath' && view === 'play') { drawRibbon(); drawTool(); }
   g.setTransform(RES, 0, 0, RES, 0, 0);
   drawChrome();
   if (view === 'play') {
@@ -753,6 +786,9 @@ function drawWork() {
   const gw = wiggle && wiggle.k === 'gemsfull' ? Math.sin(wiggle.t * 40) * 5 : 0;
   for (const gm of S.gems) { const s = 62 * popIn(gm.t) + gw; g.fillStyle = 'rgba(92,52,70,0.25)'; g.beginPath(); g.ellipse(b.x + gm.x + 4, b.y + gm.y + 8, s * 0.4, s * 0.22, 0, 0, TAU); g.fill(); if (!drawCellAt(g, 'gems_sheet', gemCell(gm.id), b.x + gm.x, b.y + gm.y + oy, s, 62)) { glossDisc(g, b.x + gm.x, b.y + gm.y, s / 2.4, '#FF4D6D'); } }
   if (S.k === 'carve' && !S.order.free) drawOutline(oy);
+  if (S.k === 'smooth' && S.spots) { // chalky dust that pulses where the edge is still rough
+    for (const [x, y, ph] of S.spots) { const a = 0.45 + 0.4 * Math.sin(S.t * 5 + ph * 6); g.fillStyle = `rgba(255,255,255,${a})`; g.fillRect(b.x + x - 2, b.y + y - 2, 4, 4); }
+  }
   const sa = S.stampAnim; // the stamp lifting off after a press
   if (sa && sa.t < 0.45) { const k = Math.max(0, (sa.t - 0.1) / 0.35); stampTool(sa.x, sa.y, sa.shape, 1 - k * 0.3, k * 60); } // pressed for a beat, then lifted
 }
@@ -870,7 +906,7 @@ function drawHud() {
 /** HUD, step row, prompt and order card: drawn into one layer, again only when what they show changes. */
 function drawChrome() {
   const live = S.enter > 0 || S.oopsT < 1.1 || S.t - (S.promptAt || 0) < 0.4 || coinPulse > 0 || wiggle || coinsFlying.length || view !== 'play' || S.k === 'bath';
-  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue].join('|');
+  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue, ready('gift_box')].join('|'); // a sprite that arrives redraws the layer
   if (live) { drawHud(); if (view === 'play' && S.k !== 'bath') { drawSteps(); drawPrompt(); drawOrder(); } chromeKey = ''; return; }
   if (key !== chromeKey) {
     chromeKey = key;
@@ -918,6 +954,7 @@ function stepIcon(k, x, y, r) {
 function giftIcon(x, y, r, hit) {
   const sq = hit < 0.25 ? 1 + Math.sin(hit / 0.25 * Math.PI) * 0.15 : 1;
   g.save(); g.translate(x, y); g.scale(1 / sq, sq);
+  if (drawCellAt(g, 'gift_box', 0, 0, -r * 0.1, r * 2.5, r > 60 ? 380 : 60)) { g.restore(); return; } // the painted box; drawn in code until it arrives
   g.fillStyle = 'rgba(92,52,70,0.2)'; roundRect(g, -r + 4, -r * 0.6 + 8, r * 2, r * 1.6, r * 0.2); g.fill();
   g.fillStyle = '#FF5FA2'; roundRect(g, -r, -r * 0.6, r * 2, r * 1.6, r * 0.2); g.fill();
   g.fillStyle = '#FF86BC'; roundRect(g, -r * 1.1, -r * 0.85, r * 2.2, r * 0.5, r * 0.15); g.fill();
@@ -1010,6 +1047,7 @@ function handAt() {
     for (let yy = 16; yy < b.h - 16; yy += 12) { const row = yy * b.w; let n = 0; for (let x = 10; x < b.w - 10; x += 8) if (S.soap.m[row + x] && S.soap.sd[row + x] < -cfg.knifeR) n++; if (n > 6) { y = b.y + yy; break; } }
     return [b.x + 30 + (b.w - 60) * ease(t), y];
   }
+  if (S.k === 'smooth' && S.spotC) { const a = Math.sin(t * TAU * 2); return [b.x + S.spotC[0] + a * 30, b.y + S.spotC[1] + Math.cos(t * TAU) * 20]; } // rub where it is still rough
   if (S.k === 'smooth') { const a = Math.sin(t * TAU * 2), y = b.y + f.oy + 30 * f.s; return [b.x + f.ox + 10 * f.s + a * 26, y + Math.cos(t * TAU) * 20]; }
   const [x, y] = [b.x + b.w / 2 + Math.sin(t * TAU) * 60, b.y + b.h * 0.42];
   return [x, y];
@@ -1051,15 +1089,22 @@ function drawResult() {
   if (t > 0.9) {
     const k = ease((t - 0.9) / 0.4), y0 = 856 + (1 - k) * 300;
     panel(g, 20, y0, 680, 118, 30);
-    const face = cellCanvas('customer_' + S.order.customer, MOOD[S.mood] ?? 0, 120), fxp = mx(30, 100);
-    if (face) { g.save(); roundRect(g, fxp, y0 + 6, 100, 106, 20); g.clip(); g.drawImage(face, Math.round(fxp + 50 - face.width / 2), y0 + 4); g.restore(); }
+    const face = cellCanvas('customer_' + S.order.customer, MOOD[S.mood] ?? 0, 170), fxp = mx(24, 120);
+    if (face) { g.save(); roundRect(g, fxp, y0 - 46, 120, 160, 24); g.clip(); g.drawImage(face, Math.round(fxp + 60 - face.width / 2), y0 - 50); g.restore(); } // the customer leans up out of the panel
+    if (t > 1.2 && !S.order.free) { // what they say, in a bubble above their head (a free soap has its own banner)
+      const say = T(S.score.stars >= 2 ? 'love' : 'thanks'), bx = rtl() ? fxp - 20 : fxp + 120, pop = popIn(t - 1.2);
+      g.save(); g.translate(bx + (rtl() ? -110 : 110), y0 - 70); g.scale(pop, pop);
+      g.font = `800 30px ${FONT}`; const bw = Math.min(300, g.measureText(say).width) + 44;
+      glossPill(g, -bw / 2, -30, bw, 60, '#FFFFFF', '#FF9CC8'); g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(rtl() ? 40 : -40, 26); g.lineTo(rtl() ? 70 : -70, 50); g.lineTo(rtl() ? 16 : -16, 28); g.fill();
+      words(say, 0, 2, 30, 300, PLUM); g.restore();
+    }
     if (S.order.free) words(T('thanks'), 400, y0 + 60, 40, 480, PLUM);
     else {
       const vals = [S.score.shape, S.score.smooth, S.score.sparkle], keys = ['shape', 'smoothBar', 'sparkleBar'], cols = ['#FF5FA2', '#3EC5FF', '#FFC928'];
       for (let i = 0; i < 3; i++) {
-        const by = y0 + 22 + i * 32, bx = mx(140, 540), fill = i < rv.bars ? ease((t - 1.1 - i * 0.45) / 0.4) * vals[i] : 0;
+        const by = y0 + 22 + i * 32, bx = mx(156, 524), fill = i < rv.bars ? ease((t - 1.1 - i * 0.45) / 0.4) * vals[i] : 0;
         g.textAlign = rtl() ? 'right' : 'left'; g.direction = rtl() ? 'rtl' : 'ltr'; g.font = `800 22px ${FONT}`; g.fillStyle = PLUM; g.textBaseline = 'middle';
-        g.fillText(T(keys[i]), rtl() ? bx + 540 : bx, by + 2); g.direction = 'ltr';
+        g.fillText(T(keys[i]), rtl() ? bx + 524 : bx, by + 2); g.direction = 'ltr';
         const tx = mx(270, 400);
         g.fillStyle = 'rgba(74,35,102,0.12)'; roundRect(g, tx, by - 10, 400, 22, 11); g.fill();
         if (fill > 0) { g.fillStyle = cols[i]; roundRect(g, rtl() ? tx + 400 - 400 * fill : tx, by - 10, Math.max(22, 400 * fill), 22, 11); g.fill(); g.fillStyle = 'rgba(255,255,255,0.45)'; roundRect(g, rtl() ? tx + 400 - 400 * fill + 6 : tx + 6, by - 7, Math.max(10, 400 * fill - 12), 6, 3); g.fill(); }
@@ -1077,6 +1122,12 @@ function drawResult() {
       g.fillStyle = '#E9F7FF'; roundRect(g, -78, -88, 156, 156, 8); g.fill(); g.drawImage(th, -th.width / 2, -10 - th.height / 2);
       g.restore();
     }
+  }
+  if (t > 1.5) { // a peek at the next order: its shape in its colour, gold when it is a golden soap
+    const no = makeOrder(save.n), nx = mx(470, 150), ny = 990, mb = MARBLE(no.marble), pop = popIn(t - 1.5);
+    g.save(); g.translate(nx + 75, ny + 45); g.scale(pop, pop); glossPill(g, -75, -40, 150, 80, no.golden ? '#FFE27A' : '#FFFFFF', '#FF9CC8');
+    if (no.shape !== 'free') { g.save(); g.translate(-28, -28); g.scale(0.56, 0.56); g.fillStyle = mb.kind === 'layers' ? '#FFB3E0' : mb.base; g.fill(pathOf(no.shape)); g.lineWidth = 6; g.strokeStyle = '#FFFFFF'; g.stroke(pathOf(no.shape)); g.restore(); }
+    g.restore();
   }
   if (t > 1.5) { const p = 1 + Math.sin(t * 5) * 0.06; g.save(); g.translate(NEXT.x, NEXT.y); g.scale(p, p); glossDisc(g, 0, 0, NEXT.r, GREEN); g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-14, -22); g.lineTo(24, 0); g.lineTo(-14, 22); g.closePath(); g.fill(); g.restore(); }
 }
@@ -1200,7 +1251,7 @@ function run(m) {
   cv.style.cssText = 'display:block;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));touch-action:none;margin:auto';
   cv.width = Math.round(W * RES); cv.height = Math.round(H * RES);
   g = cv.getContext('2d');
-  initMake({ cfg: () => cfg, get fx() { return fx; }, SFX, buzz, burst, R, reward, drawKnife, done: () => nextStep(), roundRect, tint, mx, every, mix, shake: (v) => { shake = Math.max(shake, v); } });
+  initMake({ cfg: () => cfg, get fx() { return fx; }, SFX, buzz, burst, R, drawCellAt, stopSign: (x, y) => banner(T('stop'), x, y, 26, 160, '#FFFFFF', 1 + Math.sin(S.t * 14) * 0.08, '#FF5F7E'), reward, drawKnife, done: () => nextStep(), roundRect, tint, mx, every, mix, shake: (v) => { shake = Math.max(shake, v); } });
   if (!fx) { tables = [0, 1].map(() => Object.assign(document.createElement('canvas'), { width: W, height: H })); fx = createFx(tables[0]); ti = 0; }
   loadSprites(cfg.sprites); bootT = 0;
   try { for (const f of ["800 40px 'Baloo 2'", "800 40px 'Baloo Da 2'", "800 40px 'Baloo Bhaijaan 2'"]) document.fonts.load(f); } catch (e) { /* fonts load when they can */ }

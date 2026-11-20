@@ -247,7 +247,8 @@
    "perfect": "Perfect pour!",
    "gift": "Tap the gift!",
    "great": "Great job!",
-   "almost": "Almost there!"
+   "almost": "Almost there!",
+   "stop": "STOP!"
   },
   "ar": {
    "carve": "انحت خارج الخط!",
@@ -283,7 +284,8 @@
    "perfect": "صبّ مثالي!",
    "gift": "المس الهدية!",
    "great": "عمل رائع!",
-   "almost": "اقتربت!"
+   "almost": "اقتربت!",
+   "stop": "توقف!"
   },
   "es": {
    "carve": "¡Talla fuera de la línea!",
@@ -319,7 +321,8 @@
    "perfect": "¡Vertido perfecto!",
    "gift": "¡Toca el regalo!",
    "great": "¡Muy bien!",
-   "almost": "¡Casi listo!"
+   "almost": "¡Casi listo!",
+   "stop": "¡ALTO!"
   },
   "vi": {
    "carve": "Khắc ngoài đường kẻ!",
@@ -355,7 +358,8 @@
    "perfect": "Rót hoàn hảo!",
    "gift": "Chạm hộp quà!",
    "great": "Giỏi lắm!",
-   "almost": "Sắp xong rồi!"
+   "almost": "Sắp xong rồi!",
+   "stop": "DỪNG!"
   },
   "hi": {
    "carve": "रेखा के बाहर काटो!",
@@ -391,7 +395,8 @@
    "perfect": "एकदम सही डाला!",
    "gift": "तोहफ़ा छुओ!",
    "great": "बहुत बढ़िया!",
-   "almost": "बस थोड़ा और!"
+   "almost": "बस थोड़ा और!",
+   "stop": "रुको!"
   },
   "bn": {
    "carve": "দাগের বাইরে কাটো!",
@@ -427,7 +432,8 @@
    "perfect": "দারুণ ঢালা!",
    "gift": "উপহার ছোঁও!",
    "great": "দারুণ হয়েছে!",
-   "almost": "প্রায় হয়ে গেছে!"
+   "almost": "প্রায় হয়ে গেছে!",
+   "stop": "থামো!"
   },
   "id": {
    "carve": "Ukir di luar garis!",
@@ -463,7 +469,8 @@
    "perfect": "Tuangan sempurna!",
    "gift": "Ketuk hadiahnya!",
    "great": "Hebat!",
-   "almost": "Sedikit lagi!"
+   "almost": "Sedikit lagi!",
+   "stop": "STOP!"
   }
  },
  "persistent_storage_config": {
@@ -727,6 +734,41 @@
      290
     ]
    ]
+  },
+  "soap_cube": {
+   "cells": [
+    [
+     0,
+     0,
+     845,
+     866
+    ]
+   ]
+  },
+  "gift_box": {
+   "cells": [
+    [
+     0,
+     0,
+     835,
+     880
+    ]
+   ]
+  },
+  "pot_flat": {
+   "cells": [
+    [
+     0,
+     0,
+     1005,
+     801
+    ]
+   ],
+   "centre": [
+    0.5,
+    0.4994
+   ],
+   "opening": 0.3557
   }
  },
  "chopCubes": 5,
@@ -806,5 +848,8 @@
    "skip": 0,
    "gain": 0.5
   }
- }
+ },
+ "smoothCheckSecs": 8,
+ "ribbonMax": 150,
+ "ribbonCells": 60
 }

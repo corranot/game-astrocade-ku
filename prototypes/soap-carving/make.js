@@ -9,7 +9,7 @@
 export const MAKE_STEPS = ['chop', 'color', 'stir', 'scent', 'pour', 'cool', 'pop'];
 const TAU = Math.PI * 2;
 const POT = { x: 360, y: 640, r: 196, liquid: 160 };
-const POT_SIDE = { x: 600, y: 520, r: 96 }; // beside the mould, fully on screen in both reading directions
+const POT_SIDE = { x: 588, y: 520, r: 106 }; // beside the mould, fully on screen in both reading directions
 const FC = 10, FR = 12; // the frost grid over the mould: cooling is done where the finger rubbed
 const SCENTS = [{ id: 'lavender', c: '#B57BFF', c2: '#E3CCFF' }, { id: 'rose', c: '#FF6FA8', c2: '#FFD0E2' }, { id: 'lemon', c: '#FFD23F', c2: '#FFF3B0' }];
 let C = null; // { cfg, fx, SFX, buzz, burst, R, reward, done, glossDisc, roundRect, tint, PLUM, mx }
@@ -140,7 +140,9 @@ function finishPour(S) {
 }
 function popOut(S) {
   const M = S.make; if (M.popT >= 0) return;
-  M.popT = 0; C.SFX.thud(); C.buzz('thud'); C.shake(0.3); C.burst(C.cfg().bar.x + C.cfg().bar.w / 2, C.cfg().bar.y + C.cfg().bar.h / 2, 24, false);
+  M.popT = 0; C.SFX.plopSmall(); C.SFX.thud(); C.buzz('thud'); C.shake(0.3);
+  const b = C.cfg().bar; C.burst(b.x + b.w / 2, b.y + b.h / 2, 24, false);
+  for (let i = 0; i < 14; i++) C.fx.foam(b.x + C.R() * b.w, b.y + b.h + 10 + C.R() * 20, 8 + C.R() * 12, 0.7 + C.R() * 0.4); // a puff of dust where it lands
 }
 
 // ---------- time ----------
@@ -226,6 +228,8 @@ export function makeProgress(S) {
 let POT_IMG = null, CUBE_IMG = null, MOULD_IMG = null;
 /** The pot, drawn once at full size; smaller pots are this picture scaled. */
 function potBody(g, x, y, r) {
+  const sp = C.cfg().sprites.pot_flat; // the painted pot, scaled so its measured opening frames the liquid exactly
+  if (sp) { const k = (r * (POT.liquid + 8) / POT.r) / (sp.opening * sp.cells[0][2]); if (C.drawCellAt(g, 'pot_flat', 0, x, y, sp.cells[0][2] * k, 600)) return; }
   if (!POT_IMG) { const R = POT.r, c = document.createElement('canvas'); c.width = c.height = Math.ceil(R * 2.7); potDraw(c.getContext('2d'), c.width / 2, c.height / 2, R); POT_IMG = c; }
   const k = r / POT.r, w = POT_IMG.width * k; g.drawImage(POT_IMG, x - w / 2, y - w / 2, w, w);
 }
@@ -269,6 +273,9 @@ function liquid(g, S, x, y, r) {
 }
 /** A cube of soap base: one picture made once, drawn at size s. */
 function cube(g, x, y, s, a = 1) {
+  if (a < 1) g.globalAlpha = a;
+  const painted = C.drawCellAt(g, 'soap_cube', 0, x, y, s * 1.12, 100); // the painted glycerin cube when it has arrived
+  g.globalAlpha = 1; if (painted) return;
   if (!CUBE_IMG) { const c = document.createElement('canvas'); c.width = c.height = 100; cubeDraw(c.getContext('2d'), 46, 44, 84); CUBE_IMG = c; }
   const k = s / 84; g.globalAlpha = a; g.drawImage(CUBE_IMG, x - 46 * k, y - 44 * k, 100 * k, 100 * k); g.globalAlpha = 1;
 }
@@ -318,7 +325,7 @@ function mould(g, S, lift = 0, alpha = 1) {
     q.fillStyle = 'rgba(92,52,70,0.22)'; C.roundRect(q, b.x - pad + 8, b.y - pad + 14, b.w + pad * 2, b.h + pad * 2, b.r + pad); q.fill();
     const gr = q.createLinearGradient(b.x - pad, b.y - pad, b.x + b.w + pad, b.y + b.h + pad); gr.addColorStop(0, '#FFB7D5'); gr.addColorStop(1, '#F27BB0');
     q.fillStyle = gr; C.roundRect(q, b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, b.r + pad); q.fill(); q.lineWidth = 5; q.strokeStyle = '#FFFFFF'; q.stroke();
-    q.fillStyle = '#E2669F'; C.roundRect(q, b.x, b.y, b.w, b.h, b.r); q.fill(); // the cavity
+    q.fillStyle = '#FCE4EF'; C.roundRect(q, b.x, b.y, b.w, b.h, b.r); q.fill(); q.strokeStyle = 'rgba(226,102,159,0.35)'; q.lineWidth = 6; q.stroke(); // the empty cavity, pale so it does not look full
     q.fillStyle = 'rgba(255,255,255,0.35)'; C.roundRect(q, b.x - pad + 14, b.y - pad + 6, b.w + pad * 2 - 28, 8, 4); q.fill();
     MOULD_IMG = c;
   }
@@ -337,11 +344,13 @@ function mould(g, S, lift = 0, alpha = 1) {
   g.restore();
 }
 function gauge(g, S) {
-  const M = S.make, b = C.cfg().bar, cfg = C.cfg(), x = C.mx(b.x - 56, 30) + (M.lowT > 0 ? Math.sin(M.lowT * 50) * 6 : 0), y0 = b.y + 20, h = b.h - 40;
-  g.fillStyle = 'rgba(255,255,255,0.9)'; C.roundRect(g, x, y0, 30, h, 15); g.fill(); g.lineWidth = 4; g.strokeStyle = '#FFFFFF'; g.stroke();
-  g.fillStyle = M.lowT > 0 && Math.sin(M.lowT * 20) > 0 ? 'rgba(59,209,111,0.95)' : 'rgba(59,209,111,0.45)'; g.fillRect(x + 3, y0 + h * (1 - cfg.pourHi), 24, h * (cfg.pourHi - cfg.pourLo)); // the target band
-  g.fillStyle = M.level > cfg.pourHi ? '#FF5F7E' : M.base; const lv = Math.min(1, M.level); C.roundRect(g, x + 5, y0 + h * (1 - lv), 20, h * lv, 10); g.fill();
-  g.strokeStyle = '#2FAE5C'; g.lineWidth = 4; for (const v of [cfg.pourLo, cfg.pourHi]) { g.beginPath(); g.moveTo(x - 8, y0 + h * (1 - v)); g.lineTo(x + 38, y0 + h * (1 - v)); g.stroke(); }
+  const M = S.make, b = C.cfg().bar, cfg = C.cfg(), x = C.mx(b.x - 62, 44) + (M.lowT > 0 ? Math.sin(M.lowT * 50) * 6 : 0), y0 = b.y + 20, h = b.h - 40;
+  g.fillStyle = 'rgba(255,255,255,0.95)'; C.roundRect(g, x, y0, 44, h, 22); g.fill(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke();
+  const inBand = M.level >= cfg.pourLo && M.level <= cfg.pourHi;
+  g.fillStyle = (M.lowT > 0 && Math.sin(M.lowT * 20) > 0) || (inBand && Math.sin(M.t * 18) > 0) ? 'rgba(59,209,111,0.95)' : 'rgba(59,209,111,0.5)'; g.fillRect(x + 4, y0 + h * (1 - cfg.pourHi), 36, h * (cfg.pourHi - cfg.pourLo)); // the target band
+  g.fillStyle = M.level > cfg.pourHi ? '#FF5F7E' : C.tint(M.base, -0.15); const lv = Math.min(1, M.level); C.roundRect(g, x + 7, y0 + h * (1 - lv), 30, h * lv, 15); g.fill();
+  g.strokeStyle = '#2FAE5C'; g.lineWidth = 5; for (const v of [cfg.pourLo, cfg.pourHi]) { g.beginPath(); g.moveTo(x - 10, y0 + h * (1 - v)); g.lineTo(x + 54, y0 + h * (1 - v)); g.stroke(); }
+  if (inBand && M.pouring) C.stopSign(x + 22, y0 + h * (1 - cfg.pourHi) - 40); // "STOP!" over the band while it is time to let go
 }
 /** Everything of the making steps under the HUD. */
 export function drawMake(g, S) {
@@ -354,7 +363,9 @@ export function drawMake(g, S) {
     for (const p of M.petals) { if (p.t >= 0.5 || p.t < 0) continue; const t = p.t / 0.5, x = p.sx + (POT.x + Math.cos(p.a) * p.r - p.sx) * t, y = p.sy + (POT.y + Math.sin(p.a) * p.r - p.sy) * t - Math.sin(t * Math.PI) * 120; g.fillStyle = p.c; g.beginPath(); g.ellipse(x, y, 11, 6, p.rot, 0, TAU); g.fill(); }
   } else {
     const lift = k === 'pop' && M.popT >= 0 ? -ease(M.popT / 0.5) * 120 : 0, a = k === 'pop' && M.popT >= 0 ? 1 - ease(M.popT / 0.5) : 1;
-    if (k === 'pop' && M.popT >= 0) { const sq = 1 + Math.sin(Math.min(1, M.popT / 0.5) * Math.PI) * 0.06; g.save(); g.translate(b.x + b.w / 2, b.y + b.h); g.scale(1 / sq, sq); g.translate(-(b.x + b.w / 2), -(b.y + b.h)); g.drawImage(S.soap.canvas, b.x - C.cfg().margin, b.y - C.cfg().margin); g.restore(); }
+    if (k === 'pop' && M.popT >= 0) { // the bar drops out of the mould, squashes and bounces
+      const t = M.popT, drop = t < 0.18 ? -36 * (1 - t / 0.18) : Math.abs(Math.sin((t - 0.18) * 14)) * -10 * Math.max(0, 1 - (t - 0.18) / 0.37), sq = t < 0.18 ? 1.04 : 1 - 0.07 * Math.exp(-(t - 0.18) * 9) * Math.cos((t - 0.18) * 30);
+      g.save(); g.translate(b.x + b.w / 2, b.y + b.h + drop); g.scale(1 / sq, sq); g.translate(-(b.x + b.w / 2), -(b.y + b.h)); g.drawImage(S.soap.canvas, b.x - C.cfg().margin, b.y - C.cfg().margin); g.restore(); }
     mould(g, S, lift, a);
     if (k === 'pour') {
       const pm = ease(M.move), px = POT.x + (potSide().x - POT.x) * pm, py = POT.y + (POT_SIDE.y - POT.y) * pm, pr = POT.r + (POT_SIDE.r - POT.r) * pm;

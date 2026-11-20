@@ -444,6 +444,41 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     ok(await G(page, () => window.__game.save.giftDue) === want, `${label}: ${want ? 'the first soap of the day opens a gift box' : 'no daily gift'}`);
   }
 
+  console.log('24. a stamp tapped at the very edge of the soap');
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'stamp');
+  const edge24 = await G(page, () => { const G = window.__game, s = G.S.soap, y = s.h >> 1; let x = 0; while (x < s.w && !s.m[y * s.w + x]) x++; return [G.cfg.bar.x + x + 3, G.cfg.bar.y + y]; });
+  const e24 = page.errors.length; await page.mouse.click(edge24[0], edge24[1]); await page.waitForTimeout(200);
+  const st24 = await G(page, () => window.__game.S.stamps[0] || null);
+  ok(page.errors.length === e24 && st24 && st24.x > edge24[0] - BAR.x + 20, `it lands moved inward, whole on the soap (${st24 ? (st24.x | 0) : 'none'} vs tap ${edge24[0] - BAR.x})` + (page.errors.length > e24 ? ': ' + page.errors.slice(e24).join(' | ') : ''));
+
+  console.log('25. the third bug hunt: state, hints and the preview stay true');
+  page = await open(); await ready(page);
+  ok(await G(page, () => typeof window.__game.S.lastAct === 'number' && window.__game.S.added === false), 'a new soap starts with every field set (no field lost to a comment)');
+  await page.mouse.move(BAR.x + 40, BAR.y + 30); await page.mouse.down(); await page.mouse.move(BAR.x + 60, BAR.y + 32);
+  await G(page, () => { window.__game.S.ribbon = { len: 120, c: '#fff', back: 0 }; window.__game.finishCarve(); });
+  ok(await G(page, () => !window.__game.S.ribbon), 'when carving ends mid-stroke the shaving on the blade breaks off');
+  await page.mouse.up();
+  await wait(page, () => window.__game.S.k === 'smooth' && !window.__game.S.trim);
+  ok(await G(page, () => { const S = window.__game.S; return !!S.spotC && S.spots.some((q) => Math.hypot(q[0] - S.spotC[0], q[1] - S.spotC[1]) < 1); }), 'the smoothing hand aims at a real rough spot, not the middle of the soap');
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'carve'); await wait(page, () => window.__game.S.enter <= 0);
+  await drag(page, row(BAR.y + 20)); await drag(page, row(BAR.y + 50));
+  ok(await G(page, () => { const G = window.__game; G.S.ribbon = { len: 120, c: '#fff', back: 0 }; return true; }), 'a shaving is left on the blade');
+  await page.mouse.move(BAR.x + 40, BAR.y + 100); await page.mouse.down();
+  ok(await G(page, () => { const r = window.__game.S.ribbon; return !r || r.len < 60; }), 'a new touch starts with a clean blade (the old shaving is not carried over)');
+  await page.mouse.up(); await drag(page, row(BAR.y + 80));
+  ok(await G(page, () => { const G = window.__game; G.nextStep(); return G.fx.P.filter((q) => q.k === 'curl' || q.k === 'chunk').length; }) === 0, 'the sweep into smoothing takes the shavings still in the air too');
+  for (const l of ['en', 'ar']) {
+    page = await open('', { locale: l }); await ready(page);
+    const ps = await G(page, () => { const G = window.__game, q = G.potSide(), sp = G.cfg.sprites.pot_flat, w = q.r * (168 / 196) / sp.opening; return [q.x - w / 2, q.x + w / 2]; });
+    ok(ps[0] >= 0 && ps[1] <= 720, `${l}: the pot beside the mould is whole on screen (${ps[0] | 0}–${ps[1] | 0})`);
+  }
+  page = await open(); await ready(page); await G(page, () => { const G = window.__game; while (G.S.k !== 'bath') G.nextStep(); });
+  await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.7);
+  await G(page, () => { window.__game.freeNext = true; }); await page.waitForTimeout(100);
+  ok(await G(page, () => { const r = window.__game.S.reveal; return !r.next || r.next.free; }), 'the next-order peek follows a change made during the reveal');
+
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');
   process.exit(failed ? 1 : 0);
