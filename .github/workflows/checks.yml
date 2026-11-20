@@ -25,7 +25,7 @@ jobs:
 
   bundle:
     name: Each game starts as an Astrocade bundle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest is 26.04, which Playwright 1.56 cannot install Chromium on
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
