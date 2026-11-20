@@ -151,7 +151,7 @@ function startGame(mode) {
 
   // ---------- renderer, sky, light, reflections
   const canvas = document.createElement('canvas'); canvas.id = 'scene'; root.appendChild(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: tier >= 2, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }); // smoothing happens in the scene target
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.dpr));
   renderer.shadowMap.enabled = quality.shadow > 0; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.0; // keeps toy colours saturated
@@ -166,28 +166,14 @@ function startGame(mode) {
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 32, 16), skyMat);
   scene.add(sky);
-  // reflections for the plastic and the candy: a small scene of sky plus two soft light panels, prefiltered once
-  let envRT = null;
-  function makeEnv() {
-    if (envRT) envRT.dispose(); // the whole render target: its cube texture and framebuffers
-    const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
-    const envSky = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), skyMat); envScene.add(envSky);
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    panel.position.set(4, 6, 3); panel.lookAt(0, 0, 0); envScene.add(panel);
-    const p2 = panel.clone(); p2.position.set(-6, 3, -2); p2.lookAt(0, 0, 0); p2.scale.setScalar(0.6); envScene.add(p2);
-    envRT = pm.fromScene(envScene, 0.02); scene.environment = envRT.texture;
-    panel.geometry.dispose(); panel.material.dispose(); envSky.geometry.dispose(); pm.dispose();
-  }
-  makeEnv();
   // ---------- cities: Toy Town first, then themed cities that open one after another (game_config.themes)
   const THEMES = Array.isArray(cfg.themes) && cfg.themes.length ? cfg.themes : [{ id: 'toy', icon: '🏙️' }];
   const TOY_SKY = ['#3f9dff', '#8fd2ff', '#cdeeff'];
   let skyShown = -1;
-  /** Sky, fog and reflections for a city. */
+  /** Sky and fog for a city. */
   function applySky(t) {
     const s = t.sky || TOY_SKY, u = skyMat.uniforms;
     u.uTop.value.set(s[0]); u.uMid.value.set(s[1]); u.uBot.value.set(s[2]); scene.fog.color.set(t.horizon || s[2]);
-    makeEnv();
   }
   const camera = new THREE.PerspectiveCamera(50, W / H, 0.5, 900);
   scene.add(new THREE.HemisphereLight(0xeaf6ff, 0xffd9a8, 1.25));
@@ -211,6 +197,10 @@ function startGame(mode) {
         vec4 c = texture2D(tColor, vUv);
         float w0 = w(vUv), wl = w(vUv - vec2(uTexel.x, 0.0)), wr = w(vUv + vec2(uTexel.x, 0.0)), wd = w(vUv - vec2(0.0, uTexel.y)), wu = w(vUv + vec2(0.0, uTexel.y));
         float lap = (wl + wr + wu + wd - 4.0 * w0) / w0; // > 0 on the far side of an edge: a one-pixel line
+        // the see-through checker in front of Bonbon: every neighbour is on the other layer, which is no edge
+        float nearer = step(w0 * 1.03, wl) + step(w0 * 1.03, wr) + step(w0 * 1.03, wu) + step(w0 * 1.03, wd);
+        float farther = step(wl, w0 * 0.97) + step(wr, w0 * 0.97) + step(wu, w0 * 0.97) + step(wd, w0 * 0.97);
+        if (nearer > 3.5 || farther > 3.5) lap = 0.0;
         // silhouettes (far side, one pixel), plus a softer line on outer box corners (roof edges, block tops)
         float e = max(smoothstep(0.025, 0.09, lap), 0.7 * smoothstep(0.05, 0.16, -lap));
         float near = 1.0 / max(max(wl, wr), max(max(wu, wd), w0)); // the nearest of the five: lines fade out far away
@@ -223,14 +213,14 @@ function startGame(mode) {
   });
   const edgeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), edgeMat); edgeQuad.frustumCulled = false;
   const edgeScene = new THREE.Scene(); edgeScene.add(edgeQuad);
-  const edgeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const edgeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), edgeSize = new THREE.Vector2();
 
   let city = null;
   function resize() {
     const r = root.getBoundingClientRect();
     const w = Math.max(1, r.width), h = Math.max(1, r.height);
     renderer.setSize(w, h, false);
-    const pr = renderer.getPixelRatio(), pw = Math.max(1, Math.round(w * pr)), ph = Math.max(1, Math.round(h * pr));
+    const buf = renderer.getDrawingBufferSize(edgeSize), pw = Math.max(1, buf.x), ph = Math.max(1, buf.y);
     edgeRT.setSize(pw, ph); edgeMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     camera.aspect = w / h; camera.updateProjectionMatrix();
     root.style.setProperty('--u', (w / W).toString());
@@ -284,7 +274,7 @@ function startGame(mode) {
   /** A comic-book word bursting where something broke (BONK / CRASH / KABOOM), sized by how big it was. */
   function comic(word, x, y, z, size = 1) {
     const now = performance.now(); if (now - comicAt < 220) return;
-    const [sx, sy] = screenOf(x, y, z); if (sx < 0.05 || sx > 0.95 || sy < 0.12 || sy > 0.9) return; // off screen: no word
+    const [sx, sy] = screenOf(x, y, z); if (projV.z > 1 || sx < 0.05 || sx > 0.95 || sy < 0.12 || sy > 0.9) return; // off screen or behind: no word
     comicAt = now; // one at a time, never a pile
     const el = document.createElement('div'); el.className = 'comic out'; el.textContent = word; el.dir = 'auto';
     el.style.left = (sx * 100) + '%'; el.style.top = (sy * 100) + '%';
@@ -481,11 +471,13 @@ function startGame(mode) {
     // the target is a building the child can see (on screen), so the crash is seen
     const onScreen = (b) => { const [sx, sy] = screenOf(b.cx, Math.min(b.h, 6) * 0.5, b.cz); return sx > 0.12 && sx < 0.88 && sy > 0.15 && sy < 0.85; };
     const tgt = city.nearest(car.x, car.z, (b) => b.k <= S.stage + 2 && Math.hypot(b.cx - S.x, b.cz - S.z) > 4 * S.scale && onScreen(b));
-    const far = 18 * S.scale, tx = tgt && Math.hypot(tgt.cx - car.x, tgt.cz - car.z) < far * 2.2 ? tgt.cx : car.x + Math.sin(S.yaw) * far;
-    const tz = tgt && Math.hypot(tgt.cx - car.x, tgt.cz - car.z) < far * 2.2 ? tgt.cz : car.z + Math.cos(S.yaw) * far;
+    // no building in view: throw it away from the camera (into the scene, never at the player), onto the island
+    const far = 18 * S.scale, ok = tgt && Math.hypot(tgt.cx - car.x, tgt.cz - car.z) < far * 2.2;
+    const ax = car.x - camera.position.x, az = car.z - camera.position.z, al = Math.hypot(ax, az) || 1, lim = city.half - 2;
+    const tx = ok ? tgt.cx : THREE.MathUtils.clamp(car.x + ax / al * far, -lim, lim), tz = ok ? tgt.cz : THREE.MathUtils.clamp(car.z + az / al * far, -lim, lim);
     city.throwCar(car, tx, tz, 6 + 2 * S.scale);
     S.yaw = Math.atan2(car.x - S.x, car.z - S.z); bon.stomp(0.6); bon.face('roar', 0.5); Sound.boing(); buzz('tap');
-    S.thrown++; S.idle = 0; if (!save.threwCar) { save.threwCar = true; persist(); }
+    S.thrown++; S.cars++; carDown(car); S.idle = 0; // counts as a car squashed (and an ice-cream truck for the secret) if (!save.threwCar) { save.threwCar = true; persist(); }
   }
   const onKey = (e) => {
     const k = e.key.toLowerCase();
@@ -641,7 +633,7 @@ function startGame(mode) {
     }
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
-    if (!mag && S.dizzyT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
+    if (!mag && S.dizzyT <= 0 && S.poseT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
       const bossAt = army.bossReach();
       if (bossAt) target = { cx: bossAt.x, cz: bossAt.z, state: 'intact', boss: true };
       else if (!target || target.state !== 'intact' || target.boss) target = city.nearest(S.x, S.z, (b) => b.k <= S.stage + 1, 0.8); // prefers what lies ahead, as a child dragging up
@@ -930,7 +922,7 @@ function startGame(mode) {
     const med = [...frameTimes].sort((a, b) => a - b)[frameTimes.length >> 1];
     if (med > 1 / 42 && tier > 0) {
       tier--; quality = tiers[tier]; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tiers[tier].dpr)); resize();
-      if (tier < 2) city.meshes.blocks.castShadow = false;
+      if (tier < 2) { city.meshes.blocks.castShadow = false; if (edgeRT.samples) { edgeRT.samples = 0; edgeRT.dispose(); } } // the 4x target is rebuilt without MSAA
       if (tier === 0) { sun.castShadow = false; renderer.shadowMap.enabled = false; }
       frameTimes.length = 0;
     }
@@ -998,7 +990,8 @@ function startGame(mode) {
   window.addEventListener('resize', onResize);
   newRound();
   wearCostume();
-  renderer.compile(scene, camera); // compile shaders now so the first hit does not stall
+  renderer.setRenderTarget(edgeRT); renderer.compile(scene, camera); renderer.setRenderTarget(null); // compile now, for the target the scene draws into, so the first frame does not stall
+  renderer.compile(edgeScene, edgeCam);
 
   try {
     lib.showGameParameters({
@@ -1060,7 +1053,7 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
-      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); envRT.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
+      city.dispose(); army.dispose(); bon.dispose(); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {

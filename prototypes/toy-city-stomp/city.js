@@ -47,7 +47,7 @@ function blockMaterial() {
         vec3 seg = uMon - uCam; float tt = clamp(dot(vWorld - uCam, seg) / dot(seg, seg), 0.0, 1.0);
         float dd = length(vWorld - (uCam + seg * tt));
         if (tt < 0.9 && dd < uR * (0.35 + 0.65 * tt)) {
-          vec2 cell = floor(gl_FragCoord.xy / 2.0);
+          vec2 cell = floor(gl_FragCoord.xy); // a one-pixel checker: the outline pass recognises it and draws no line there
           if (mod(cell.x + cell.y, 2.0) < 1.0 || dd < uR * 0.55 * tt) discard;
         }`)
       .replace('#include <color_fragment>', `#include <color_fragment>

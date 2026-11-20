@@ -248,6 +248,15 @@ const server = http.createServer((q, s) => {
     check(r.locked === 2 && r.on === 3 && r.name === 'Snow Town' && r.hat === 'party', `a late save fixes the city map (4 open, Snow Town picked, no fake NEW CITY) and keeps the hat picked now (${JSON.stringify(r)})`);
     await p3.close();
   }
+  // shaders are compiled before the first frame, for the target the scene really draws into (no first-frame stall)
+  {
+    const p4 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p4.goto(`http://localhost:${port}/?local&tier=1`);
+    await p4.waitForFunction(() => window.__game && window.__game.renderer, null, { timeout: 30000 });
+    const r = await p4.evaluate(async () => { const n0 = __game.renderer.info.programs.length; for (let i = 0; i < 4; i++) await new Promise((res) => requestAnimationFrame(res)); return { before: n0, after: __game.renderer.info.programs.length }; });
+    check(r.after - r.before <= 3, `shaders are ready before the first frames (${r.before} programs, ${r.after - r.before} more in the first frames)`);
+    await p4.close();
+  }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
     const p2 = await browser.newPage({ viewport: { width: 405, height: 720 } });
