@@ -25,7 +25,7 @@ jobs:
 
   bundle:
     name: Each game starts as an Astrocade bundle
-    runs-on: ubuntu-24.04 # ubuntu-latest is 26.04, which Playwright 1.56 cannot install Chromium on
+    runs-on: ubuntu-latest # Ubuntu 26.04: needs Playwright 1.61 or newer
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
       - name: Playwright with Chromium
         run: |
           npm init -y >/dev/null
-          npm install --no-save playwright@1.56.1 esbuild@0.24.0
+          npm install --no-save playwright@1.64.1 esbuild@0.24.0 # same pin as docs/engine-reference/web
           npx playwright install --with-deps chromium
       - name: Start every game from its bundle
         run: |
