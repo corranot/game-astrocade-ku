@@ -322,16 +322,32 @@ const server = http.createServer((q, s) => {
     await p7.goto(`http://localhost:${port}/?local&tier=0`);
     await p7.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
     const r = await p7.evaluate(async () => { const S = __game.S, w = (ms) => new Promise((res) => setTimeout(res, ms));
-      document.querySelector('#hint').hidden = true; S.touched = true; S.idle = -1e9; S.time = 20; S.goldenAt = 20.2; await w(500);
-      const gold = S.golden, c0 = S.coins; if (gold) __game.city.collapse(gold, { x: 1, z: 0 }, 0); await w(400);
+      document.querySelector('#hint').hidden = true; S.touched = true; S.idle = -1e9; S.time = 20; S.goldenAt = 20.01; for (let i = 0; i < 40 && !S.golden; i++) await w(100);
+      const gold = S.golden, c0 = S.coins; if (gold) __game.city.collapse(gold, { x: 1, z: 0 }, 0); for (let i = 0; i < 40 && S.golden; i++) await w(100); await w(100);
       const paid = S.coins - c0, cleared = !S.golden && !document.querySelector('.emark');
-      S.candyAt = S.time; await w(400); const candy = !!S.candy; if (S.candy) { S.x = S.candy.x; S.z = S.candy.z; } await w(400);
+      S.candyAt = S.time; for (let i = 0; i < 40 && !S.candy; i++) await w(100); const candy = !!S.candy; if (S.candy) { S.x = S.candy.x; S.z = S.candy.z; } for (let i = 0; i < 40 && S.megaT <= 0; i++) await w(100);
       const mega = S.megaT > 0 && S.scaleTarget > S.scale * 0.99;
       S.combo = 30; __game.feverCheck(); const fever = S.feverT > 0 && document.querySelector('.hud').classList.contains('fever');
       S.feverT = 0.01; S.combo = 30; await w(200); __game.feverCheck(); const cool = S.feverT <= 0;
       return { gold: !!gold, paid, cleared, candy, mega, fever, cool }; });
     await p7.close();
     check(r.gold && r.paid >= 80 && r.cleared && r.candy && r.mega && r.fever && r.cool, `surprises: golden building pays when knocked down (+${r.paid}), giant candy makes MEGA, combo starts FEVER and waits its cooldown (${JSON.stringify(r)})`);
+  }
+  // audit fixes: no FEVER before the first touch, a slow round shows empty stars, Bonbon is back to size after MEGA, a skin-toned emoji stays whole
+  {
+    const p8 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p8.goto(`http://localhost:${port}/?local&tier=0`);
+    await p8.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    const r = await p8.evaluate(async () => { const S = __game.S, w = (ms) => new Promise((res) => setTimeout(res, ms));
+      S.combo = 30; __game.feverCheck(); const attractFever = S.feverT > 0;
+      document.querySelector('#hint').hidden = true; S.touched = true; S.megaT = 5; __game.eventsUpdate(0.016); const big = S.scaleTarget;
+      S.time = 9999; __game.finish(); await w(600);
+      const empty = document.querySelectorAll('.stars .ic[data-e="☆"]').length, back = S.scaleTarget < big;
+      const d = document.createElement('div'); d.textContent = 'x👸🏽y'; document.querySelector('.hud').appendChild(d); await w(50);
+      const whole = d.textContent.includes('👸🏽') && !d.querySelector('.ic'); d.remove();
+      return { attractFever, empty, back, whole }; });
+    check(!r.attractFever && r.empty === 2 && r.back && r.whole, `audit fixes: no FEVER before the first touch, a 1-star round shows 2 empty stars, MEGA size ends at the finish, a skin-toned emoji stays whole (${JSON.stringify(r)})`);
+    await p8.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {

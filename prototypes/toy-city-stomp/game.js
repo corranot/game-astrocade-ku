@@ -264,8 +264,10 @@ function startGame(mode) {
   // swaps every emoji that reaches the screen for its icon, so text built anywhere gets them; with no atlas the
   // emoji stay as they are
   const ICON_CELL = {"🌀": 0, "💥": 1, "🫧": 2, "📣": 3, "🍮": 4, "🧲": 5, "🌈": 6, "🤧": 7, "🌙": 8, "👣": 9, "⚙️": 10, "⚙": 10, "🔊": 11, "🔇": 12, "📖": 13, "🎁": 14, "📅": 15, "👆": 16, "🔒": 17, "❤": 18, "★": 19, "⭐": 19, "☆": 20, "🥇": 21, "🥈": 22, "🥉": 23, "⏱": 24, "🚗": 25, "🎈": 26, "🔥": 27, "🧱": 28, "🏠": 29, "⬆️": 30, "⬆": 30, "🏢": 31, "🌳": 32, "🪖": 33, "🎳": 34, "✨": 35, "🏙️": 36, "🏙": 36, "🍭": 37, "🏖️": 38, "🏖": 38, "❄️": 39, "❄": 39, "🌋": 40, "🛰️": 41, "🛰": 41, "🎩": 42, "✓": 43, "↻": 44, "🙂": 45, "🥳": 46, "🌸": 47, "😎": 48, "🍰": 49, "🤠": 50, "👑": 51, "🚁": 52, "👸": 54, "🧙": 55, "🦸": 56, "🐰": 57, "🦄": 58, "🍩": 59, "🦀": 60, "🐬": 61, "🧜": 62, "⛄": 63, "🐧": 64, "🎅": 65, "🦕": 66, "🦖": 67, "🐣": 68, "🤖": 69, "👾": 70, "🛸": 71};
+  let iconWatch = null;
   const atlas = (() => { try { const a = lib.getAsset && lib.getAsset('icons'); return a && (a.url || (typeof a === 'string' ? a : '')); } catch (e) { return ''; } })();
-  const ICON_RE = new RegExp(Object.keys(ICON_CELL).sort((a, b) => b.length - a.length).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + '|\ufe0f', 'g');
+  // a key inside a longer emoji (a skin tone, a joined figure, a keycap) is left alone
+  const ICON_RE = new RegExp('(?:' + Object.keys(ICON_CELL).sort((a, b) => b.length - a.length).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\ufe0f?(?![\u200d\u20e3\u{1F3FB}-\u{1F3FF}])', 'gu');
   function iconize(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
     for (let n = walker.nextNode(); n; n = walker.nextNode()) { ICON_RE.lastIndex = 0; if (ICON_RE.test(n.nodeValue)) hits.push(n); }
@@ -273,7 +275,7 @@ function startGame(mode) {
       const frag = document.createDocumentFragment(); let last = 0; const s = n.nodeValue; ICON_RE.lastIndex = 0;
       for (let m = ICON_RE.exec(s); m; m = ICON_RE.exec(s)) {
         if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
-        last = m.index + m[0].length; const c = ICON_CELL[m[0]]; if (c === undefined) continue; // a lone variation selector
+        last = m.index + m[0].length; const c = ICON_CELL[m[0]] ?? ICON_CELL[m[0].replace(/\ufe0f/g, '')];
         const i = document.createElement('i'); i.className = 'ic'; i.dataset.e = m[0]; i.setAttribute('aria-hidden', 'true');
         i.style.setProperty('--i', c % 9); i.style.setProperty('--j', Math.floor(c / 9)); frag.appendChild(i);
       }
@@ -284,8 +286,8 @@ function startGame(mode) {
   if (atlas) {
     hud.style.setProperty('--atlas', `url("${atlas}")`); new Image().src = atlas; // fetched now, ready before the first icon shows
     iconize(hud);
-    new MutationObserver((list) => { for (const r of list) { if (r.type === 'characterData') { if (r.target.parentNode) iconize(r.target.parentNode); } else for (const n of r.addedNodes) if (n.nodeType === 1 || n.nodeType === 3) iconize(n.nodeType === 1 ? n : n.parentNode || hud); } })
-      .observe(hud, { childList: true, subtree: true, characterData: true });
+    iconWatch = new MutationObserver((list) => { for (const r of list) { if (r.type === 'characterData') { if (r.target.parentNode) iconize(r.target.parentNode); } else for (const n of r.addedNodes) if (n.isConnected && (n.nodeType === 1 || n.nodeType === 3)) iconize(n.nodeType === 1 ? n : n.parentNode); } });
+    iconWatch.observe(hud, { childList: true, subtree: true, characterData: true });
   }
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
   setDir();
@@ -475,11 +477,11 @@ function startGame(mode) {
     const [sx, sy] = screenOf(x, y, z), off = projV.z > 1 || sx < 0 || sx > 1 || sy < 0 || sy > 1;
     // off screen: stick to the nearest edge so the child knows which way to go
     el.style.left = (THREE.MathUtils.clamp(projV.z > 1 ? 1 - sx : sx, 0.08, 0.92) * 100) + '%'; el.style.top = (THREE.MathUtils.clamp(sy, 0.2, 0.86) * 100) + '%';
-    el.classList.toggle('edge', off); el.querySelector('b').textContent = label;
+    el.classList.toggle('edge', off); if (el._label !== label) { el._label = label; el.lastChild.textContent = label; } // text only when it changes (the icon watcher sees every write)
   }
   function eventsStart() {
     const E = EVC.golden && EVC.golden.atSec || [16, 34];
-    S.goldenAt = E[0] + rng() * (E[1] - E[0]); S.golden = null; S.goldenT = 0;
+    S.goldenAt = E[0] + rng() * (E[1] - E[0]); S.golden = null; S.goldenT = 0; S.goldenPh = -1;
     S.candyAt = (EVC.candy && EVC.candy.firstSec) || 30; S.candy = null; S.megaT = 0; S.feverT = 0; S.feverCd = 0;
     candyMesh.visible = false; hideMarker('gold'); hideMarker('candy'); hud.classList.remove('fever');
   }
@@ -494,7 +496,7 @@ function startGame(mode) {
     if (S.golden) {
       const b = S.golden;
       if (b.state === 'intact') { // once it falls, drainEvents pays the reward (it runs after this in the frame)
-        S.goldenT -= dt; if (Math.floor(S.goldenT * 4) % 2 === 0) city.tintBuilding(b, 0xffd84f); else city.tintBuilding(b, 0xffb300); // a shimmer
+        S.goldenT -= dt; const ph = Math.floor(S.goldenT * 4) % 2; if (ph !== S.goldenPh) { S.goldenPh = ph; city.tintBuilding(b, ph ? 0xffb300 : 0xffd84f); } // a shimmer, repainted only when it flips
         placeMarker('gold', b.cx, Math.min(b.h, 10) + 1.5, b.cz, String(Math.max(0, Math.ceil(S.goldenT))));
         if (S.goldenT <= 0) { city.tintBuilding(b, null); S.golden = null; hideMarker('gold'); }
       }
@@ -527,6 +529,7 @@ function startGame(mode) {
   /** FEVER when the combo passes the bar (not again until the cooldown is over). */
   function feverCheck() {
     const F = EVC.fever || {};
+    if (!S.touched || S.finished || mode !== 'play') return;
     if (S.feverT <= 0 && S.feverCd <= 0 && S.combo >= (F.combo || 21)) { S.feverT = F.sec || 6; S.feverCd = (F.cooldownSec || 25) + S.feverT; hud.classList.add('fever'); banner('🔥 ' + T('fever'), 1.6, 1); Sound.combo(6); buzz('success'); }
   }
   function grow() {
@@ -550,7 +553,7 @@ function startGame(mode) {
     if (!S) return;
     // what the attract mode broke and earned before the first touch is not the child's: coins restart at 0, and
     // the blocks already down are left out of the count
-    if (!S.touched) { S.coins = 0; S.blocks0 = city.buildings.reduce((n, b) => n + (b.state === 'intact' ? 0 : b.total), 0); hudCache.coins = null; }
+    if (!S.touched) { S.coins = 0; S.points = 0; S.blocks0 = city.buildings.reduce((n, b) => n + (b.state === 'intact' ? 0 : b.total), 0); hudCache.coins = null; }
     S.touched = true; S.idle = 0; $('hint').hidden = true;
   }
   const onDown = (e) => {
@@ -595,7 +598,7 @@ function startGame(mode) {
     const tx = ok ? tgt.cx : THREE.MathUtils.clamp(car.x + ax / al * far, -lim, lim), tz = ok ? tgt.cz : THREE.MathUtils.clamp(car.z + az / al * far, -lim, lim);
     city.throwCar(car, tx, tz, 6 + 2 * S.scale);
     S.yaw = Math.atan2(car.x - S.x, car.z - S.z); bon.stomp(0.6); bon.face('roar', 0.5); Sound.boing(); buzz('tap');
-    S.thrown++; S.cars++; carDown(car); S.idle = 0; // counts as a car squashed (and an ice-cream truck for the secret) if (!save.threwCar) { save.threwCar = true; persist(); }
+    S.thrown++; S.cars++; carDown(car); S.idle = 0; if (!save.threwCar) { save.threwCar = true; persist(); } // counts as a car squashed (and an ice-cream truck for the secret)
   }
   const onKey = (e) => {
     const k = e.key.toLowerCase();
@@ -618,7 +621,8 @@ function startGame(mode) {
   };
   // the move button answers the moment a finger lands on it, even while another finger is steering
   // (phones send no click for a second finger)
-  $('skill').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); Sound.unlock(); wake(); useSkill(); });
+  $('skill').addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; e.preventDefault(); e.stopPropagation(); Sound.unlock(); wake(); useSkill(); });
+  $('skill').addEventListener('click', (e) => { if (e.detail === 0) { wake(); useSkill(); } }); // Enter or a screen reader's activate
 
   const dirV = new THREE.Vector3(), biteP = new THREE.Vector3(), touchList = [];
   // ---------- moves: the big button plays the equipped move (moves.js) through these effects
@@ -967,7 +971,7 @@ function startGame(mode) {
   }
   function finish() {
     army.clearAll();
-    hideMarker('gold'); hideMarker('candy'); candyMesh.visible = false; hud.classList.remove('fever'); if (S.megaT > 0 && S.rainbowT <= 0) bon.setRainbow(false); S.megaT = 0;
+    hideMarker('gold'); hideMarker('candy'); candyMesh.visible = false; hud.classList.remove('fever'); if (S.megaT > 0 && S.rainbowT <= 0) bon.setRainbow(false); S.megaT = 0; S.scaleTarget = stageScale();
     S.finished = true; S.moving = false; S.combo = 0; $('hint').hidden = true; $('stick').hidden = true; $('skill').hidden = true;
     bon.face('win', 99); S.yaw = Math.atan2(camera.position.x - S.x, camera.position.z - S.z); Sound.win(); buzz('success');
     city.burstConfetti(S.x, 6 * S.scale, S.z, 60);
@@ -995,7 +999,7 @@ function startGame(mode) {
     const goal = nextGoal();
     r.innerHTML = `<div class="card">
       <h2 dir="auto">${S.daily ? '📅 ' + T('daily') : T('flat')}</h2>
-      <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('')}</div>
+      <div class="stars out">${[1, 2, 3].map((i) => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${0.3 + i * 0.25}s">${i <= stars ? '★' : '☆'}</span>`).join('')}</div>
       <div class="smash"><b class="out" id="blk" dir="ltr">0</b><span dir="auto">${T('smashed')}</span></div>
       <div class="chips" dir="ltr"><span>⏱ ${mmss}</span><span>🚗 ${S.cars}</span><span>🎈 ${city.rescued()}</span><span>🔥 ×${comboMult(S.bestCombo, CB)}</span></div>
       <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${S.coins + S.dailyBonus}</b>${S.dailyBonus ? `<span class="dbonus">📅 +${S.dailyBonus}</span>` : ''}</div>
@@ -1123,7 +1127,7 @@ function startGame(mode) {
       S.comboT -= raw; if (S.comboT <= 0 && S.combo) { S.combo = 0; updateHud(); }
       S.skillCd = Math.max(0, S.skillCd - raw); if (missions.update(raw)) updateHud();
       Sound.musicRate(S.feverT > 0 || S.megaT > 0 ? 1.15 : army.boss.alive || army.stars >= 3 ? 1.08 : 1); eventsUpdate(raw);
-      if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0) bon.setRainbow(false); }
+      if (S.rainbowT > 0) { S.rainbowT -= raw; if (S.rainbowT <= 0 && S.megaT <= 0) bon.setRainbow(false); }
       S.jingleT -= raw; // an ice-cream truck nearby plays its tune now and then: a clue, never explained
       if (S.jingleT <= 0) { S.jingleT = 4; const t = city.iceTrucks().find((c) => Math.hypot(c.x - S.x, c.z - S.z) < 30 * Math.sqrt(S.scale)); if (t) Sound.jingle(); }
       drainEvents(); sweep(dt);
@@ -1226,7 +1230,7 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('contextmenu', noMenu); document.removeEventListener('visibilitychange', onVis); Sound.stopMusic(); window.removeEventListener('resize', onResize);
-      city.dispose(); army.dispose(); bon.dispose(); mfx.dispose(); candyMesh.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
+      if (iconWatch) iconWatch.disconnect(); city.dispose(); army.dispose(); bon.dispose(); mfx.dispose(); candyMesh.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); sky.geometry.dispose(); skyMat.dispose(); edgeRT.dispose(); edgeMat.dispose(); edgeQuad.geometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {

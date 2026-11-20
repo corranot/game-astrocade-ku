@@ -177,6 +177,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     q: new Float32Array(MAXV * 4), w: new Float32Array(MAXV * 3), s: new Float32Array(MAXV),
     state: new Uint8Array(MAXV), // 0 standing, 1 flying, 2 rubble, 3 gone, 4 shrinking away
     b: new Int32Array(MAXV), slot: new Int32Array(MAXV), // slot: this block's place in the rubble queue
+    dark: new Uint8Array(MAXV), // a cracked block (drawn darker)
     col: new Uint32Array(MAXV), // block colour, so windows can sparkle and cracks can darken
   };
   let count = 0;
@@ -302,6 +303,8 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   carBody.castShadow = true;
   for (const m of [carBody, carTop, carTrim, carWheels]) m.frustumCulled = false;
   cars.forEach((c, i) => carBody.setColorAt(i, col.setHex(c.color)));
+  // white instance colours on the other parts too, so the shared material keeps one shader variant
+  col.setHex(0xffffff); for (const m of [carTop, carTrim]) for (let i = 0; i < cars.length; i++) m.setColorAt(i, col); for (let i = 0; i < cars.length * 4; i++) carWheels.setColorAt(i, col);
   const coneGeo = new THREE.ConeGeometry(0.42, 1.0, 12); coneGeo.rotateX(Math.PI); coneGeo.translate(0, 0.5, 0);
   const cones = new THREE.InstancedMesh(keep(coneGeo), keep(toon({ color: 0xe8b46a, roughness: 0.6 })), cars.length);
   const scoops = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.5, 14, 10)), keep(toon({ color: 0xffffff, roughness: 0.4 })), cars.length);
@@ -470,7 +473,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     // cracks first: once a building is badly hit, some of its blocks darken and it creaks before it falls
     if (!b.cracked && b.alive / b.total < 0.8 && b.alive / b.total >= cfg.collapseAt) {
       b.cracked = true; let lo = Infinity, hi = -1;
-      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0 && rng() < 0.22) { blocks.setColorAt(i, col.setHex(vox.col[i]).multiplyScalar(0.62)); lo = Math.min(lo, i); hi = Math.max(hi, i); }
+      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0 && rng() < 0.22) { blocks.setColorAt(i, col.setHex(vox.col[i]).multiplyScalar(0.62)); vox.dark[i] = 1; lo = Math.min(lo, i); hi = Math.max(hi, i); }
       if (hi >= 0) { cMin = Math.min(cMin, lo); cMax = Math.max(cMax, hi); } // uploaded once per frame with every other crack
       events.push({ type: 'creak', b });
     }
@@ -658,7 +661,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     intactLeft: () => intact,
     /** Paints a standing building's blocks one colour (windows a pale shade), or back to their own with null. */
     tintBuilding(b, color) {
-      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) { blocks.setColorAt(i, col.setHex(color === null ? vox.col[i] : vox.col[i] === WINDOW ? 0xfff6c8 : color)); cMin = Math.min(cMin, i); cMax = Math.max(cMax, i); }
+      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) { blocks.setColorAt(i, col.setHex(color === null ? vox.col[i] : vox.col[i] === WINDOW ? 0xfff6c8 : color)); if (vox.dark[i]) col.multiplyScalar(0.62), blocks.setColorAt(i, col); cMin = Math.min(cMin, i); cMax = Math.max(cMax, i); }
     },
     rescued: () => rescued,
     anyToppling: () => buildings.some((b) => b.state === 'toppling'),
