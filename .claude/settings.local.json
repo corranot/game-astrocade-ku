@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'AUTO META-PROMPTING: Sebelum mengeksekusi pesan user di atas, ubah dulu ketikan santai user menjadi cetak biru teknis / meta-prompt terbaik berdasarkan ASTROCADE.md (3-second hook, juice, 60 FPS, Ponytail, Leanrea, dll apabila relevan). Tampilkan meta-prompt tersebut secara super ringkas (gaya Caveman, maks 4 baris) lalu LANGSUNG eksekusi tanpa bertanya lagi.'"
+            "command": "echo 'AUTO META-PROMPTING: Sebelum mengeksekusi pesan user di atas, ubah dulu ketikan santai user menjadi cetak biru teknis / meta-prompt terbaik berdasarkan ASTROCADE.md (3-second hook, juice, 60 FPS, Ponytail, Leanrea, what i don't know that i don't know, dll apabila relevan). Tampilkan meta-prompt tersebut secara super ringkas (gaya Caveman, maks 4 baris) lalu LANGSUNG eksekusi tanpa bertanya lagi.'"
           }
         ]
       }
