@@ -18,7 +18,7 @@ export function rng(seed) {
 }
 
 /** Hair colours. 0 is the messy starting colour; 1-12 are free dyes; 13-16 are bought; 16 is the rainbow. */
-export const COLORS = ['#9A8775', '#FF6FB5', '#FF4040', '#FF9F1C', '#FFD23F', '#9BE564', '#22C55E', '#14B8A6', '#3B82F6', '#8B5CF6', '#8B5A2B', '#33334A', '#FFE38F', '#C4B5FD', '#6EF0C2', '#FF7F6B', 'rainbow'];
+export const COLORS = ['#C8954F', '#FF6FB5', '#FF4040', '#FF9F1C', '#FFD23F', '#9BE564', '#22C55E', '#14B8A6', '#3B82F6', '#8B5CF6', '#8B5A2B', '#33334A', '#FFE38F', '#C4B5FD', '#6EF0C2', '#FF7F6B', 'rainbow'];
 export const FREE_COLORS = 12, RAINBOW = 16;
 const RAIN = ['#FF4040', '#FF9F1C', '#FFD23F', '#22C55E', '#3B82F6', '#8B5CF6'];
 /** The CSS colour of colour index c at point i of a strand. */
@@ -40,7 +40,7 @@ export function createHair(R, o) {
     for (let i = 0; i < n; i++) {
       dir += (rand() - 0.5) * 0.9 + (Math.PI / 2 - dir) * 0.12; // outward, bending down, every strand its own tangle
       s.x[i] = s.ax + Math.cos(dir) * o.seg * i; s.y[i] = s.ay + Math.sin(dir) * o.seg * i;
-      const f = 220 + rand() * 380, fa = a + (rand() - 0.5) * 0.9 + Math.sin(i * 0.9 + k) * 0.9; // bed-head: each strand puffs out in loose curls
+      const f = 260 + rand() * 420, fa = a + (rand() - 0.5) * 0.7 + Math.sin(i * 1.3 + k * 0.7) * 1.4; // bed-head: each strand puffs out in loose curls
       s.fx[i] = Math.cos(fa) * f; s.fy[i] = Math.sin(fa) * f - 200;
     }
     strands.push(s);
@@ -127,10 +127,14 @@ export function fillUnpainted(h) {
 }
 
 /** Trim every strand that reaches below the line y (and is not marked done) at the line; the ends fall. Returns how many were trimmed. */
-export function trimToY(h, lineY, minLen, maxPieces) {
+export function trimToY(h, lineY, minLen, maxPieces, head) {
   let n = 0;
   for (const s of h.strands) {
     let len = s.len; for (let i = minLen; i <= s.len; i++) if (s.y[i] > lineY + (s.goal ? 40 : 0)) { len = i; break; } // a strand counted as done is still tidied if it fell long
+    if (head) { // and one curled up out of sight: no longer than the way round the head to the side, then down to the line
+      const arc = head.R * (Math.cos(s.a) < 0 ? s.a + Math.PI : -s.a), reach = Math.ceil((arc + Math.max(0, lineY + 40 - head.y)) / h.seg) + 1;
+      len = Math.max(minLen, Math.min(len, reach));
+    }
     if (len >= s.len) continue;
     if (h.pieces.length < maxPieces) h.pieces.push({ x: Float32Array.from(s.x.subarray(len, s.len + 1)), y: Float32Array.from(s.y.subarray(len, s.len + 1)), col: Uint8Array.from(s.col.subarray(len, s.len + 1)), vx: (s.x[len] - s.x[0]) * 0.6, vy: -40, life: 1.3 });
     s.len = len; s.goal = true; n++;
@@ -166,7 +170,20 @@ export function rinse(h, rate) {
   return !left;
 }
 
-const SHADES = new Map();
+const SHADES = new Map(), PATTERNS = new Map();
+/** A repeating painted hair texture in colour c: fine wavy streaks, lighter and darker, mostly up and down. */
+function texture(g, c) {
+  let p = PATTERNS.get(c); if (p) return p;
+  const t = document.createElement('canvas'); t.width = 96; t.height = 160; const q = t.getContext('2d'), r = rng(c.length * 977 + parseInt(c.slice(1), 16) % 997);
+  q.fillStyle = c; q.fillRect(0, 0, 96, 160); q.lineCap = 'round';
+  for (let k = 0; k < 18; k++) {
+    const x0 = r() * 96, lite = k % 3 === 0, a = 0.07 + r() * 0.1, wv = 1 + r() * 2, ph = r() * 6;
+    q.strokeStyle = lite ? `rgba(255,255,255,${a + 0.05})` : shade(c, -0.3); q.globalAlpha = lite ? 1 : a; q.lineWidth = 2 + r() * 3;
+    for (const dx of [-96, 0, 96]) { q.beginPath(); for (let y = -4; y <= 164; y += 8) q.lineTo(x0 + dx + Math.sin(y / 160 * Math.PI * 2 + ph) * wv, y); q.stroke(); }
+  }
+  q.globalAlpha = 1;
+  p = g.createPattern(t, 'repeat'); PATTERNS.set(c, p); return p;
+}
 /** Colour c (#rrggbb) moved toward black (k < 0) or white (k > 0). */
 export function shade(c, k) {
   const key = c + k; let v = SHADES.get(key); if (v) return v;
@@ -182,7 +199,7 @@ export function shade(c, k) {
  * keeps only the dark edge and the colour.
  */
 export function drawHair(g, h, head, fine) {
-  const w = (28 + h.volume * 8) * (1 - h.wet * 0.15);
+  const w = (28 + h.volume * 8 + h.wild * 6) * (1 - h.wet * 0.15); // messy hair is a little fuller
   g.lineCap = 'round'; g.lineJoin = 'bevel'; // bevel: the bends are gentle, and round joins cost a circle per point
   const all = new Path2D(), byCol = new Map();
   /** Each run of one colour along a strand becomes one polyline: far cheaper to fill than a cap per segment. */
@@ -199,15 +216,16 @@ export function drawHair(g, h, head, fine) {
     runs(s.x, s.y, s.col, 1, s.len);
   }
   for (const p of h.pieces) runs(p.x, p.y, p.col, 1, p.x.length - 1);
+  const shown = h.painted ? 1 - h.dirt : 1; // while a painted messy mop covers the start, the strands fade in under it
+  g.globalAlpha = shown;
   g.lineWidth = w + 6; for (const [c, p] of byCol) { g.strokeStyle = shade(c, -0.42); g.stroke(p); }
-  g.lineWidth = w; for (const [c, p] of byCol) { g.strokeStyle = c; g.stroke(p); }
+  g.lineWidth = w; for (const [c, p] of byCol) { g.strokeStyle = fine ? texture(g, c) : c; g.stroke(p); }
   if (fine) {
-    g.lineWidth = 2.5; g.strokeStyle = 'rgba(60,30,20,0.2)';
-    g.translate(w * 0.24, 0); g.stroke(all); g.translate(-w * 0.48, 0); g.stroke(all); g.translate(w * 0.24, 0);
-    g.lineWidth = w * 0.26; g.translate(-w * 0.16, -w * 0.08);
+    g.lineWidth = w * 0.22; g.globalAlpha = 0.7 * shown; g.translate(-w * 0.16, -w * 0.08);
     for (const [c, p] of byCol) { g.strokeStyle = shade(c, 0.45); g.stroke(p); }
     g.translate(w * 0.16, w * 0.08);
   }
+  g.globalAlpha = 1;
   // the scalp: hair from a middle parting down to the temples, framing the face, in the roots' commonest colour
   const tally = new Map(); let capC = colorOf(h.strands[0].col[1], 1);
   for (const s of h.strands) { const c = colorOf(s.col[1], 1), n = (tally.get(c) || 0) + 1; tally.set(c, n); if (n > (tally.get(capC) || 0)) capC = c; }
@@ -218,6 +236,7 @@ export function drawHair(g, h, head, fine) {
   cap.bezierCurveTo(cx - 0.8 * R, cy - 0.18 * R, cx - 0.5 * R, cy - 0.62 * R, cx, cy - 0.6 * R);
   cap.bezierCurveTo(cx + 0.5 * R, cy - 0.62 * R, cx + 0.8 * R, cy - 0.18 * R, cx + Math.cos(0.06) * o, cy + Math.sin(0.06) * o);
   cap.closePath();
+  g.save(); g.translate(0, 9); g.lineWidth = 16; g.strokeStyle = 'rgba(70,30,15,0.22)'; g.stroke(cap); g.restore(); // the hair's soft shadow on the forehead
   g.fillStyle = capC; g.fill(cap); g.lineWidth = 5; g.strokeStyle = shade(capC, -0.42); g.stroke(cap);
   if (fine) { // combed lines from the parting, and a sheen
     const comb = new Path2D();
@@ -225,7 +244,7 @@ export function drawHair(g, h, head, fine) {
     g.lineWidth = 3; g.strokeStyle = shade(capC, -0.22); g.stroke(comb);
     g.beginPath(); g.arc(cx, cy, R - 4, -2.4, -1.75); g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = 10; g.stroke();
   }
-  if (h.dirt > 0) { // twigs and leaves stuck in the messy start
+  if (h.dirt > 0 && !h.painted) { // twigs and leaves stuck in the messy start
     g.globalAlpha = h.dirt;
     h.strands.forEach((s, k) => {
       if (k % 4 || s.len < 10) return;
@@ -237,6 +256,7 @@ export function drawHair(g, h, head, fine) {
     });
     g.globalAlpha = 1;
   }
+  if (h.painted) return; // with the painted mop, lather sits on the mop (game.js)
   const bub = new Path2D();
   for (const s of h.strands) for (let i = 1; i <= s.len; i++) if (s.foam[i]) { const r = 12 + ((i * 7 + s.len) % 5) * 2; bub.moveTo(s.x[i] + r, s.y[i]); bub.arc(s.x[i], s.y[i], r, 0, 7); }
   g.fillStyle = 'rgba(255,255,255,0.95)'; g.fill(bub);
