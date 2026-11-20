@@ -757,5 +757,6 @@
    "shape": "duck",
    "shop": true
   }
- ]
+ ],
+ "coolDone": 0.9
 }
