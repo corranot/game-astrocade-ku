@@ -20,6 +20,9 @@ cars squash and pop back, and the little toy residents float away happily on bal
   city on the map after a round; each round builds a new layout.
 - Dress Bonbon up: hats and candy colours in the shop's LOOKS tab.
 - Each city hides three special residents. Find one per round and fill the sticker book.
+- Every city has its own robot boss (wind-up, gummy, rubber duck, snow, dino, mega).
+- Come back each day: a daily gift that grows over a 7-day streak, and the Daily City (📅 on the map), the same
+  city for everyone today, with a coin bonus the first time and today's best time.
 
 ## Features
 
