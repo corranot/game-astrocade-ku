@@ -9,7 +9,7 @@
 import { NAVY, W } from './art.js';
 
 const EDGE = 40; // hair stays this far inside the screen's sides, where a finger can reach it
-const CX = new Float32Array(64), CY = new Float32Array(64); // the correction each point got this step
+const CX = new Float32Array(256), CY = new Float32Array(256); // the correction each point got this step
 
 /** Seeded random numbers (mulberry32): the same seed always makes the same customer. */
 export function rng(seed) {
@@ -18,7 +18,7 @@ export function rng(seed) {
 }
 
 /** Hair colours. 0 is the messy starting colour; 1-12 are free dyes; 13-16 are bought; 16 is the rainbow. */
-export const COLORS = ['#9A8775', '#FF6FB5', '#FF4040', '#FF9F1C', '#FFD23F', '#9BE564', '#22C55E', '#14B8A6', '#3B82F6', '#8B5CF6', '#8B5A2B', '#33334A', '#FFF1B8', '#C4B5FD', '#6EF0C2', '#FF7F6B', 'rainbow'];
+export const COLORS = ['#9A8775', '#FF6FB5', '#FF4040', '#FF9F1C', '#FFD23F', '#9BE564', '#22C55E', '#14B8A6', '#3B82F6', '#8B5CF6', '#8B5A2B', '#33334A', '#FFE38F', '#C4B5FD', '#6EF0C2', '#FF7F6B', 'rainbow'];
 export const FREE_COLORS = 12, RAINBOW = 16;
 const RAIN = ['#FF4040', '#FF9F1C', '#FFD23F', '#22C55E', '#3B82F6', '#8B5CF6'];
 /** The CSS colour of colour index c at point i of a strand. */
@@ -33,7 +33,7 @@ export function createHair(R, o) {
   for (let k = 0; k < o.strands; k++) {
     const a = -Math.PI + 0.22 + (k + 0.5) / o.strands * (Math.PI - 0.44) + (rand() - 0.5) * 0.05;
     const side = Math.cos(a) < 0 ? -1 : 1, tx = side * -Math.sin(a), ty = side * Math.cos(a), rx = Math.cos(a) * 0.3 + tx, ry = Math.sin(a) * 0.3 + ty, rl = Math.hypot(rx, ry);
-    const n = o.points, s = { a, dx: rx / rl, dy: ry / rl, ax: Math.cos(a) * (R - 10), ay: Math.sin(a) * (R - 12), len: Math.round(o.minLen + rand() * (o.maxLen - o.minLen)),
+    const n = Math.min(255, o.points), s = { a, dx: rx / rl, dy: ry / rl, ax: Math.cos(a) * (R - 10), ay: Math.sin(a) * (R - 12), len: Math.round(o.minLen + rand() * (o.maxLen - o.minLen)),
       x: new Float32Array(n), y: new Float32Array(n), px: new Float32Array(n), py: new Float32Array(n), fx: new Float32Array(n), fy: new Float32Array(n),
       col: new Uint8Array(n), foam: new Uint8Array(n), mark: new Uint8Array(n), goal: false, over: false };
     let dir = a;
@@ -130,8 +130,7 @@ export function fillUnpainted(h) {
 export function trimToY(h, lineY, minLen, maxPieces) {
   let n = 0;
   for (const s of h.strands) {
-    if (s.goal) continue;
-    let len = s.len; for (let i = minLen; i <= s.len; i++) if (s.y[i] > lineY) { len = i; break; }
+    let len = s.len; for (let i = minLen; i <= s.len; i++) if (s.y[i] > lineY + (s.goal ? 40 : 0)) { len = i; break; } // a strand counted as done is still tidied if it fell long
     if (len >= s.len) continue;
     if (h.pieces.length < maxPieces) h.pieces.push({ x: Float32Array.from(s.x.subarray(len, s.len + 1)), y: Float32Array.from(s.y.subarray(len, s.len + 1)), col: Uint8Array.from(s.col.subarray(len, s.len + 1)), vx: (s.x[len] - s.x[0]) * 0.6, vy: -40, life: 1.3 });
     s.len = len; s.goal = true; n++;
@@ -173,15 +172,23 @@ export function rinse(h, rate) {
  */
 export function drawHair(g, h, head, fine) {
   const w = (19 + h.volume * 7) * (1 - h.wet * 0.15);
-  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.lineCap = 'round'; g.lineJoin = 'bevel'; // bevel: the bends are gentle, and round joins cost a circle per point
   // strands: one outline path, then one path per colour
   const out = new Path2D(), byCol = new Map();
-  const seg = (path, ax, ay, bx, by) => { path.moveTo(ax, ay); path.lineTo(bx, by); };
+  /** Each run of one colour along a strand becomes one polyline: far cheaper to fill than a cap per segment. */
+  const runs = (xs, ys, cols, from, to) => {
+    let i = from;
+    while (i <= to) {
+      const c = colorOf(cols[i], i); let p = byCol.get(c); if (!p) byCol.set(c, (p = new Path2D()));
+      p.moveTo(xs[i - 1], ys[i - 1]);
+      while (i <= to && colorOf(cols[i], i) === c) { p.lineTo(xs[i], ys[i]); i++; }
+    }
+  };
   for (const s of h.strands) {
     out.moveTo(s.x[0], s.y[0]); for (let i = 1; i <= s.len; i++) out.lineTo(s.x[i], s.y[i]);
-    for (let i = 1; i <= s.len; i++) { const c = colorOf(s.col[i], i); let p = byCol.get(c); if (!p) byCol.set(c, (p = new Path2D())); seg(p, s.x[i - 1], s.y[i - 1], s.x[i], s.y[i]); }
+    runs(s.x, s.y, s.col, 1, s.len);
   }
-  for (const p of h.pieces) for (let i = 1; i < p.x.length; i++) { const c = colorOf(p.col[i], i); let q = byCol.get(c); if (!q) byCol.set(c, (q = new Path2D())); seg(q, p.x[i - 1], p.y[i - 1], p.x[i], p.y[i]); }
+  for (const p of h.pieces) runs(p.x, p.y, p.col, 1, p.x.length - 1);
   g.strokeStyle = NAVY; g.lineWidth = w + 7; g.stroke(out);
   for (const p of h.pieces) { g.globalAlpha = Math.min(1, p.life * 1.5); g.beginPath(); for (let i = 0; i < p.x.length; i++) g.lineTo(p.x[i], p.y[i]); g.stroke(); }
   g.globalAlpha = 1; g.lineWidth = w;

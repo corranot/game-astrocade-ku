@@ -167,9 +167,9 @@ export function drawAcc(g, id, x, y, s, rot = 0) {
     oval(g, 0, 2, 8, 30, NAVY);
   } else if (id === 'heart') { heart(g, 0, 4, 64, '#FF4F8B', 6); oval(g, -14, -10, 9, 6, 'rgba(255,255,255,0.7)'); }
   else if (id === 'tiara') {
-    g.beginPath(); g.moveTo(-56, 26); g.quadraticCurveTo(0, -10, 56, 26); g.lineWidth = 12; g.strokeStyle = '#C9D1E0'; g.stroke();
-    for (const [dx, h] of [[-30, 24], [0, 40], [30, 24]]) { g.beginPath(); g.moveTo(dx - 12, 14 - (dx ? 0 : 6)); g.lineTo(dx, 14 - h); g.lineTo(dx + 12, 14 - (dx ? 0 : 6)); g.closePath(); ink(g, '#E6ECF7', 5); }
-    oval(g, 0, -10, 9, 9, SKY, 3);
+    g.beginPath(); g.moveTo(-56, 26); g.quadraticCurveTo(0, -10, 56, 26); g.lineWidth = 18; g.strokeStyle = NAVY; g.stroke(); g.lineWidth = 10; g.strokeStyle = '#FF8FC7'; g.stroke();
+    for (const [dx, h] of [[-30, 24], [0, 40], [30, 24]]) { g.beginPath(); g.moveTo(dx - 12, 14 - (dx ? 0 : 6)); g.lineTo(dx, 14 - h); g.lineTo(dx + 12, 14 - (dx ? 0 : 6)); g.closePath(); ink(g, SUNNY, 5); }
+    oval(g, 0, -10, 9, 9, SKY, 3); oval(g, -30, -2, 6, 6, CORAL, 3); oval(g, 30, -2, 6, 6, MINT, 3);
   } else if (id === 'cherry') {
     g.beginPath(); g.moveTo(-18, 10); g.quadraticCurveTo(-6, -40, 14, -50); g.moveTo(22, 14); g.quadraticCurveTo(18, -30, 14, -50); g.lineWidth = 6; g.strokeStyle = '#2E9E5B'; g.stroke();
     oval(g, -22, 20, 22, 22, '#E8304A', 6); oval(g, 24, 22, 22, 22, '#E8304A', 6); oval(g, -28, 12, 6, 5, 'rgba(255,255,255,0.7)');

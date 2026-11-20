@@ -32,7 +32,7 @@ let cv, g, cfg, mode, raf = 0, last = 0, acc = 0, runs = 0;
 let save = { n: 0, coins: 0, stars: 0, colors: [], acc: [], wall: [], fresh: null, muted: false, lang: null }, saveRead = false, merged = false, muteTouched = false;
 let view = 'play', S = null, lang = 'en', parts = [], back = null, photos = [], wallSel = -1, wallT = 0;
 let pen = null, penId = null, touched = false, bound = false, coinShown = 0, coinPulse = 0, shakeId = null, shakeT = 0, gain = null;
-let quality = 0, frameTimes = [], slow = 0, fast = 0;
+let quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1; // RES: canvas pixels per game pixel, lowered on slow phones
 let ac = null, noiseBuf = null, dryNode = null, dryOn = false;
 const throttle = {};
 const every = (key, ms) => { const t = performance.now(); if (t - (throttle[key] || 0) < ms) return false; throttle[key] = t; return true; };
@@ -47,8 +47,8 @@ function detectLang() {
 }
 const rtl = () => (cfg.rtl || []).includes(lang);
 /** Bold text centred on (x, y), shrunk until it fits maxW. */
-function words(str, x, y, size, maxW, color) {
-  g.direction = rtl() ? 'rtl' : 'ltr'; g.textAlign = 'center'; g.textBaseline = 'middle';
+function words(str, x, y, size, maxW, color, ltr = false) {
+  g.direction = rtl() && !ltr ? 'rtl' : 'ltr'; g.textAlign = 'center'; g.textBaseline = 'middle';
   let px = size; g.font = `bold ${px}px ${FONT}`;
   while (px > 18 && g.measureText(str).width > maxW) { px -= 2; g.font = `bold ${px}px ${FONT}`; }
   g.fillStyle = color; g.fillText(str, x, y); g.direction = 'ltr';
@@ -68,7 +68,7 @@ const popIn = (age) => (age < 0.35 ? 0.6 + 0.4 * ease(age / 0.35) + Math.sin(Mat
 const buzz = (kind) => { try { lib.haptics.play(kind); } catch (e) { /* no vibration here */ } };
 /** Write the save, only after the player's stored save was read, so it can never be overwritten blind. */
 const persist = () => { if (mode === 'play' && saveRead) Promise.resolve().then(() => lib.saveUserGameState(save)).catch(() => {}); };
-const submitScore = () => { if (mode === 'play') Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(save.stars)).catch(() => {}); };
+const submitScore = () => { if (mode === 'play' && saveRead) Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(save.stars)).catch(() => {}); };
 
 // ---------- sound (synthesized; starts on the first touch) ----------
 function startAudio() {
@@ -189,14 +189,15 @@ function finishStep() {
   S.done = S.t; S.jump = 0.35; S.step++; S.stepT = 0; S.used = false; S.idle = 0; S.page = 0; pen = null; dryStop();
   SFX.step(); buzz('success'); burst(150 + S.step * 104 - 104, 166, 18, false);
   if (S.step === 2) S.sel = S.order.cols[0];
-  if (S.step === 1) for (const s of S.hair.strands) if (s.y[s.len] <= lineY() + 40) s.goal = true; // already short enough
+  if (S.step === 1) for (const s of S.hair.strands) { let low = 0; for (let i = 1; i <= s.len; i++) low = Math.max(low, s.y[i]); if (low <= lineY() + 40) s.goal = true; } // already short enough, even where it curls
 }
 
 function reveal() {
   const sc = scoreOf();
   S.step = 5; S.reveal = 0; S.stars = sc.stars; S.score = sc.v; S.gained = sc.stars * cfg.coinsPerStar; S.jump = 0.5; pen = null; dryStop();
-  save.coins += S.gained; save.stars += sc.stars; save.n = S.n + 1;
-  save.wall.unshift({ t: S.order.type, h: encodeHair(S.hair), a: S.placed.map((p) => p.id), s: sc.stars });
+  save.coins += S.gained; save.stars += sc.stars; save.n += 1; // counted up, never set from the chair: a late save can't make it go back
+  const slots = [null, null, null]; for (const p of S.placed) slots[p.slot] = p.id;
+  save.wall.unshift({ t: S.order.type, h: encodeHair(S.hair), a: slots, s: sc.stars });
   if (save.wall.length > 9) save.wall.length = 9;
   photos = []; persist(); submitScore();
   SFX.flash(); setTimeout(() => SFX.wow(), 250); buzz('success');
@@ -259,7 +260,7 @@ function trayTap(j) {
   const it = items[j]; if (!it) return;
   S.used = true; S.idle = 0;
   if (it.locked) {
-    if (save.coins < price()) { shakeId = it.k + it.id; shakeT = 0.5; coinPulse = 0.8; SFX.no(); buzz('error'); return; }
+    if (save.coins < price() || !saveRead) { shakeId = it.k + it.id; shakeT = 0.5; coinPulse = 0.8; SFX.no(); buzz('error'); return; }
     save.coins -= price(); (it.k === 'col' ? save.colors : save.acc).push(it.id); save.fresh = { k: it.k, id: it.id };
     const [x, y] = slotXY(j); burst(x, y, 30, true); SFX.unlock(); buzz('success'); persist();
   }
@@ -317,7 +318,7 @@ function gesture(first) {
     const r = cutHair(h, px, py, x, y, cfg.cutMin, MAX_PIECES, (s, cy) => { if (cy < lineY() - 70) { s.over = true; over = true; } if (cy <= lineY() + 40) s.goal = true; });
     if (r.cut) {
       S.used = true; if (every('snip', 70)) SFX.snip(); if (every('hap', 60)) buzz('tick');
-      if (over && every('eek', 900)) { S.eek = 0.9; SFX.eek(); buzz('warning'); }
+      if (over && every('eek', 900)) { S.eek = 0.9; S.eeks = (S.eeks || 0) + 1; SFX.eek(); buzz('warning'); }
       if (cutShare() >= cfg.cutGoal) finishStep();
     }
   } else if (S.step === 2) {
@@ -334,7 +335,8 @@ function bindInput() {
   cv.addEventListener('pointermove', (e) => { if (e.pointerId === penId) move(point(e)); });
   const end = (e) => { if (e.pointerId !== penId) return; penId = null; up(); startAudio(); };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { dryStop(); if (ac) ac.suspend().catch(() => {}); } else startAudio(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { pen = null; penId = null; dryStop(); if (ac) ac.suspend().catch(() => {}); } else if (ac) startAudio(); });
+  cv.addEventListener('lostpointercapture', (e) => { if (e.pointerId === penId) { penId = null; up(); } });
 }
 
 // ---------- simulation ----------
@@ -387,9 +389,9 @@ function handAt() {
   const t = S.stepT;
   if (S.step === 0) return [300 + Math.sin(t * 5) * 90, 450 + Math.cos(t * 2.5) * 30, true];
   if (S.step === 1) { const gd = guide(), k = (t % 1.8) / 1.8; if (gd.length < 2) return [360, 700, true]; const i = Math.min(gd.length - 2, Math.floor(k * (gd.length - 1))), f = k * (gd.length - 1) - i; return [gd[i][0] + (gd[i + 1][0] - gd[i][0]) * f, gd[i][1] + (gd[i + 1][1] - gd[i][1]) * f, true]; }
-  if (S.step === 2) { const ph = t % 2.6; if (ph < 0.8) { const [x, y] = slotXY(0); return [x, y, ph > 0.45]; } return [250 + (ph - 0.8) / 1.8 * 220, 500 + Math.sin(ph * 6) * 60, true]; }
+  if (S.step === 2) { const ph = t % 2.6; if (ph < 0.8) { const { items } = pageItems(), j = items.findIndex((it) => it.id === S.order.cols[0]); const [x, y] = slotXY(j >= 0 ? j : 11); return [x, y, ph > 0.45]; } return [250 + (ph - 0.8) / 1.8 * 220, 500 + Math.sin(ph * 6) * 60, true]; }
   if (S.step === 3) return [360 + Math.sin(t * 2) * 50, 440, true];
-  if (S.step === 4) { const [x, y] = slotXY(0); return [x, y, t % 1.2 > 0.6]; }
+  if (S.step === 4) { const j = pageItems().items.findIndex((it) => it.id === S.order.acc); const [x, y] = slotXY(Math.max(0, j)); return [x, y, t % 1.2 > 0.6]; }
   return null;
 }
 const handShown = () => mode === 'play' && S.step < 5 && S.enter === 0 && S.rinse < 0 && (S.n === 0 ? !S.used || S.idle > cfg.idleHand : S.idle > cfg.idleHand);
@@ -416,13 +418,13 @@ function draw() {
   const ha = handShown() ? handAt() : null;
   c.look = pen ? [pen.x, pen.y] : ha ? [ha[0], ha[1]] : [360 + Math.sin(s.t * 0.7) * 120, 700];
   const punch = s.step === 5 && s.reveal < 0.3 ? 1 + Math.sin(s.reveal / 0.3 * Math.PI) * 0.03 : 1;
-  g.setTransform(punch, 0, 0, punch, W / 2 * (1 - punch), H / 2 * (1 - punch));
+  g.setTransform(punch * RES, 0, 0, punch * RES, RES * W / 2 * (1 - punch), RES * H / 2 * (1 - punch));
   g.drawImage(back, 0, 0);
   drawCustomer(s, c);
   if (s.step === 1 && mode === 'play') dashed(guide(), WHITE);
   if (s.step === 2 && s.order.cols.length > 1) dashed(S.hair.strands.filter((q) => q.len > 3).map((q) => [q.x[Math.floor(q.len / 2)], q.y[Math.floor(q.len / 2)]]).sort((a, b) => a[0] - b[0]), SUNNY);
   drawParts();
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(RES, 0, 0, RES, 0, 0);
   if (pen && s.step < 4) drawTool(pen.x, pen.y);
   if (!trayShown() && s.step < 4 && s.enter === 0) drawToolBadge();
   if (trayShown()) drawTray();
@@ -521,11 +523,11 @@ function drawReveal() {
   for (let i = 0; i < 3; i++) {
     const at = 0.45 + i * 0.28, age = t - at, x = 240 + i * 120, y = 830 - (i === 1 ? 18 : 0);
     if (age < 0) continue;
-    if (age < 0.02 && i < S.stars) SFX.star(i);
+    if (i < S.stars && !(S.rang & (1 << i))) { S.rang = (S.rang || 0) | (1 << i); SFX.star(i); }
     const k = popIn(age) * (i === 1 ? 1.2 : 1);
     star(g, x, y + 6, 46 * k, SHADOW, 0); star(g, x, y, 46 * k, i < S.stars ? SUNNY : '#E0E6F5', 6);
   }
-  if (t > 1.0) { const k = ease((t - 1.0) / 0.4); g.globalAlpha = Math.max(0, 1 - (t - 1.8) / 0.4); box(g, 40, 120 - 30 * k, 200, 70, 35, MINT); icon(g, 'coin', 80, 155 - 30 * k, 54); words('+' + S.gained, 160, 158 - 30 * k, 40, 120, WHITE); g.globalAlpha = 1; }
+  if (t > 1.0) { const k = ease((t - 1.0) / 0.4); g.globalAlpha = Math.max(0, 1 - (t - 1.8) / 0.4); box(g, 40, 120 - 30 * k, 200, 70, 35, MINT); icon(g, 'coin', 80, 155 - 30 * k, 54); words('+' + S.gained, 160, 158 - 30 * k, 40, 120, WHITE, true); g.globalAlpha = 1; }
   if (t > 1.2) {
     const pulse = 1 + Math.sin(t * 6) * 0.06, r = NEXT.s / 2;
     oval(g, NEXT.x + r, NEXT.y + r + 7, r * pulse, r * pulse, SHADOW); oval(g, NEXT.x + r, NEXT.y + r, r * pulse, r * pulse, CORAL, 7); icon(g, 'next', NEXT.x + r + 6, NEXT.y + r, 110);
@@ -542,14 +544,14 @@ function photo(ph) {
   const hair = hairFromCode(ph.h, HEAD.R, { points: cfg.points, seg: cfg.seg, minLen: cfg.minLen, maxLen: cfg.maxLen, seed: 5, stiff: cfg.stiffDry }, HEAD.x, HEAD.y);
   const cu = { type: ph.t, x: HEAD.x, y: HEAD.y, R: HEAD.R, t: 0, mood: ph.s === 3 ? 'wow' : 'giggle', blink: 0, look: [HEAD.x, HEAD.y + 200] };
   drawBody(q, cu); drawHead(q, cu); drawHair(q, hair, { x: HEAD.x, y: HEAD.y, R: HEAD.R }, true); drawEars(q, cu);
-  ph.a.forEach((id, slot) => { const a = [-Math.PI / 2, -Math.PI / 2 - 0.66, -Math.PI / 2 + 0.66][slot], r = HEAD.R + 22; drawAcc(q, id, HEAD.x + Math.cos(a) * r, HEAD.y + Math.sin(a) * r, 92, (a + Math.PI / 2) * 0.8); });
+  ph.a.forEach((id, slot) => { if (!id) return; const a = [-Math.PI / 2, -Math.PI / 2 - 0.66, -Math.PI / 2 + 0.66][slot], r = HEAD.R + 22; drawAcc(q, id, HEAD.x + Math.cos(a) * r, HEAD.y + Math.sin(a) * r, 92, (a + Math.PI / 2) * 0.8); });
   q.restore();
   for (let i = 0; i < 3; i++) star(q, CELL.w / 2 - 44 + i * 44, CELL.h - 26, 17, i < ph.s ? SUNNY : '#E0E6F5', 3);
   return c;
 }
 const cellAt = (i) => [CELL.x + (i % 3) * CELL.dx, CELL.y + Math.floor(i / 3) * CELL.dy];
 function drawWall() {
-  g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(back, 0, 0); g.fillStyle = 'rgba(255,240,246,0.88)'; g.fillRect(0, 0, W, H);
+  g.setTransform(RES, 0, 0, RES, 0, 0); g.drawImage(back, 0, 0); g.fillStyle = 'rgba(255,240,246,0.88)'; g.fillRect(0, 0, W, H);
   banner(T('wall'), 290, 76, 46, 420, VIOLET, popIn(wallT));
   disc(LANGB, 'globe');
   if (photos.length !== save.wall.length) photos = save.wall.map(photo);
@@ -575,20 +577,23 @@ function wallTap(p) {
 }
 
 // ---------- speed watch ----------
-/** Quality steps down after two slow seconds and back up after five fast ones. */
+/** Fewer canvas pixels for each quality step: drawing thick hair is what costs on a slow phone. */
+function setRes(k) { if (k === RES) return; RES = k; cv.width = Math.round(W * k); cv.height = Math.round(H * k); }
+/** Quality steps down after two slow half-seconds and back up after five fast ones. */
 function watchSpeed(dt) {
-  frameTimes.push(dt); if (frameTimes.length < 60) return;
-  const mid = frameTimes.sort((a, b) => a - b)[30] * 1000; frameTimes = [];
+  frameTimes.push(dt); if (frameTimes.length < 30) return;
+  const mid = frameTimes.sort((a, b) => a - b)[15] * 1000; frameTimes = [];
   if (mid > cfg.slowFrameMs + quality * 5) { fast = 0; if (++slow >= 2 && quality < 2) { quality++; slow = 0; } }
   else if (mid < 18) { slow = 0; if (++fast >= 5 && quality > 0) { quality--; fast = 0; } }
   else slow = fast = 0;
+  setRes([1, 0.8, 0.62][quality]);
 }
 function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
   if (dt > 0 && dt < 0.25) watchSpeed(dt);
-  update(dt); draw();
-  if (DEBUG) window.__frames = (window.__frames || 0) + 1;
+  if (DEBUG) { const a = performance.now(); update(dt); const b = performance.now(); draw(); const c = performance.now(); const p = (window.__prof = window.__prof || { u: 0, d: 0, n: 0 }); p.u += b - a; p.d += c - b; p.n++; window.__frames = (window.__frames || 0) + 1; }
+  else { update(dt); draw(); }
 }
 
 // ---------- save ----------
@@ -601,7 +606,7 @@ function applySave(st) {
   save.n = n0 + save.n; save.coins = (int(st.coins, 0, 1e7) || 0) + save.coins; save.stars = (int(st.stars, 0, 1e7) || 0) + save.stars;
   if (Array.isArray(st.colors)) for (const c of st.colors) if (int(c, FREE_COLORS + 1, COLORS.length - 1) && !save.colors.includes(c)) save.colors.push(c);
   if (Array.isArray(st.acc)) for (const a of st.acc) if (ACCESSORIES.indexOf(a) >= FREE_ACC && !save.acc.includes(a)) save.acc.push(a);
-  if (Array.isArray(st.wall)) for (const ph of st.wall) if (ph && CUSTOMER_TYPES.includes(ph.t) && typeof ph.h === 'string' && ph.h.length < 3000 && Array.isArray(ph.a) && ph.a.every((a) => ACCESSORIES.includes(a)) && int(ph.s, 1, 3)) save.wall.push({ t: ph.t, h: ph.h, a: ph.a.slice(0, 3), s: ph.s });
+  if (Array.isArray(st.wall)) for (const ph of st.wall) if (ph && CUSTOMER_TYPES.includes(ph.t) && typeof ph.h === 'string' && ph.h.length < 3000 && ph.h.split(',').length <= 90 && Array.isArray(ph.a) && ph.a.length <= 3 && ph.a.every((a) => a === null || ACCESSORIES.includes(a)) && int(ph.s, 1, 3)) save.wall.push({ t: ph.t, h: ph.h, a: ph.a.slice(0, 3), s: ph.s });
   if (save.wall.length > 9) save.wall.length = 9;
   photos = [];
   if (st.fresh && (st.fresh.k === 'col' || st.fresh.k === 'acc') && !save.fresh) save.fresh = { k: st.fresh.k, id: st.fresh.id };
@@ -616,7 +621,7 @@ function run(m) {
   const me = ++runs;
   mode = m; cfg = window.gameConfig;
   cv = document.getElementById('game') || document.body.appendChild(Object.assign(document.createElement('canvas'), { id: 'game' }));
-  cv.width = W; cv.height = H; cv.style.touchAction = 'none';
+  cv.width = Math.round(W * RES); cv.height = Math.round(H * RES); cv.style.touchAction = 'none';
   g = cv.getContext('2d', { alpha: false });
   if (!back) { back = document.createElement('canvas'); back.width = W; back.height = H; const keep = g; g = back.getContext('2d'); drawSalon(g); g = keep; }
   const slider = (key, min, max, step) => ({ key, type: 'slider', min, max, step });
@@ -631,14 +636,14 @@ function run(m) {
       },
     });
   } catch (e) { /* settings panel not offered here */ }
-  cancelAnimationFrame(raf); pen = null; penId = null; touched = false; dryStop(); parts = [];
+  cancelAnimationFrame(raf); pen = null; penId = null; dryStop(); parts = [];
   lang = save.lang || detectLang();
-  if (mode !== 'play' || !S) { view = 'play'; newCustomer(mode === 'play' ? save.n : 0, false); }
+  if (mode !== 'play' || !S || S.edit) { view = 'play'; newCustomer(mode === 'play' ? save.n : 0, false); S.edit = mode !== 'play'; }
   if (mode === 'play') {
     bindInput();
     const read = (tries) => Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (me !== runs) return;
-      applySave(r && r.state); saveRead = true; persist();
+      applySave(r && r.state); saveRead = true; persist(); submitScore();
     }).catch(() => { if (me === runs) setTimeout(() => read(tries + 1), Math.min(30000, 4000 * tries)); }); // keep trying: writing blind could erase the player's save
     if (!saveRead) read(1);
   }

@@ -127,7 +127,7 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   await wash(page); await waitStep(page, 1); await page.waitForTimeout(600);
   const y = await G(page, () => window.__game.guide()[0][1]);
   await swipe(page, row(y - 140, 50, 670).map((p) => [p[0], y - 140]));
-  s = await st(page); ok(s.eek > 0, 'a cut far above the line makes the customer say eek');
+  ok(await G(page, () => window.__game.S.eeks > 0), 'a cut far above the line makes the customer say eek');
   await shot(page, 'eek');
   ok(await G(page, () => window.__game.S.hair.strands.some((q) => q.over)), 'the strands cut too short are marked');
   await cut(page); // the strands rooted too low to reach still need the line
@@ -249,6 +249,41 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   await page.mouse.up();
   console.log(`     median frame ${ms.toFixed(1)} ms at 4x slower CPU (quality level ${await G(page, () => window.__game.quality)})`);
   ok(ms < 34, 'median frame under 34 ms (30 FPS) even at 4x slower CPU');
+
+  console.log('17. regressions from the bug hunt (each failed before its fix)');
+  {
+    if (current) await current.context().close();
+    const ctx = await browser.newContext({ viewport: { width: 720, height: 1280 } }); await ctx.addInitScript(() => { window.__slowSave = true; });
+    page = current = await ctx.newPage(); page.errors = []; await page.goto(base); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3);
+  }
+  await page.mouse.click(700, 1250); // touched before the stored save arrives
+  ok(await G(page, async () => { const G = window.__game; window.__resolveSave({ state: { n: 5, coins: 0, stars: 0 } }); await new Promise((r) => setTimeout(r, 30)); G.reveal(); return G.save.n; }) === 6, 'a returning player who tapped before the save arrived: finishing a customer counts up from the stored 5 to 6');
+  page = await open();
+  await G(page, () => { window.__game.save.n = 7; window.run('edit'); window.run('play'); });
+  ok((await st(page)).n === 7, 'play, edit, play: the chair holds the player\'s customer 8, not the first one');
+  const lows = [];
+  for (const n of [1, 2, 4, 5]) {
+    page = await open(); await G(page, (n) => window.__game.newCustomer(n, false), n);
+    await wash(page); await waitStep(page, 1); await cut(page); await waitStep(page, 2); await page.waitForTimeout(1500);
+    lows.push(await G(page, () => { const G = window.__game; let m = 0; for (const s of G.S.hair.strands) for (let i = 1; i <= s.len; i++) m = Math.max(m, s.y[i]); return Math.round(m) - G.cfg.lines[G.S.order.cut]; }));
+  }
+  ok(lows.every((d) => d <= 120), `after the cut no strand hangs far below the line, 4 customers (${lows} px below)`);
+  await dye(page); await waitStep(page, 3); await dry(page); await waitStep(page, 4);
+  const tapAcc = async (id) => { const j = await G(page, (id) => window.__game.pageItems().items.findIndex((it) => it.id === id), id); const [x, y] = await G(page, (j) => window.__game.slotXY(j), j); await page.mouse.click(x, y); await page.waitForTimeout(150); };
+  await tapAcc('bow'); await tapAcc('flower');
+  const [bx, by] = await G(page, () => window.__game.accPos(window.__game.S.placed[0].slot)); await page.mouse.click(bx, by); await page.waitForTimeout(150);
+  await tapAcc('crown');
+  const placed = await G(page, () => window.__game.S.placed.map((p) => [p.slot, p.id]));
+  await G(page, () => window.__game.reveal());
+  const photoA = await G(page, () => window.__game.save.wall[0].a);
+  ok(placed.every(([slot, id]) => photoA[slot] === id), `the photo keeps each accessory where it sat (${JSON.stringify(placed)} -> ${JSON.stringify(photoA)})`);
+  page = await open('', { locale: 'ar-SA' });
+  await G(page, () => { const c = window.CanvasRenderingContext2D.prototype, f = c.fillText; window.__texts = []; c.fillText = function (t, x, y) { window.__texts.push([t, this.direction]); return f.apply(this, arguments); }; window.__game.reveal(); });
+  await page.waitForTimeout(1500);
+  ok(await G(page, () => window.__texts.some(([t, d]) => /^\+\d+$/.test(t) && d === 'ltr')), 'Arabic: the coin gain "+N" is drawn left to right');
+  page = await open();
+  ok(await G(page, () => { let made = 0; const A = window.AudioContext; window.AudioContext = function () { made++; return new A(); }; document.dispatchEvent(new Event('visibilitychange')); window.AudioContext = A; return made; }) === 0, 'no sound engine is made before the first touch');
+  ok(await G(page, () => { const G = window.__game, before = G.save.wall.length; G.applySave({ wall: [{ t: 'cat', h: ','.repeat(2000), a: [], s: 3 }] }); return G.save.wall.length === before; }), 'a stored photo with thousands of strands is refused');
 
   console.log('16. platform rules');
   const src = ['game.js', 'hair.js', 'art.js', 'index.html'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
