@@ -245,7 +245,9 @@
    "pop": "Swipe down!",
    "stamp": "Press a stamp!",
    "perfect": "Perfect pour!",
-   "gift": "Tap the gift!"
+   "gift": "Tap the gift!",
+   "great": "Great job!",
+   "almost": "Almost there!"
   },
   "ar": {
    "carve": "انحت خارج الخط!",
@@ -279,7 +281,9 @@
    "pop": "اسحب للأسفل!",
    "stamp": "اضغط الختم!",
    "perfect": "صبّ مثالي!",
-   "gift": "المس الهدية!"
+   "gift": "المس الهدية!",
+   "great": "عمل رائع!",
+   "almost": "اقتربت!"
   },
   "es": {
    "carve": "¡Talla fuera de la línea!",
@@ -313,7 +317,9 @@
    "pop": "¡Desliza hacia abajo!",
    "stamp": "¡Pon un sello!",
    "perfect": "¡Vertido perfecto!",
-   "gift": "¡Toca el regalo!"
+   "gift": "¡Toca el regalo!",
+   "great": "¡Muy bien!",
+   "almost": "¡Casi listo!"
   },
   "vi": {
    "carve": "Khắc ngoài đường kẻ!",
@@ -347,7 +353,9 @@
    "pop": "Vuốt xuống!",
    "stamp": "Đóng con dấu!",
    "perfect": "Rót hoàn hảo!",
-   "gift": "Chạm hộp quà!"
+   "gift": "Chạm hộp quà!",
+   "great": "Giỏi lắm!",
+   "almost": "Sắp xong rồi!"
   },
   "hi": {
    "carve": "रेखा के बाहर काटो!",
@@ -381,7 +389,9 @@
    "pop": "नीचे स्वाइप करो!",
    "stamp": "मुहर लगाओ!",
    "perfect": "एकदम सही डाला!",
-   "gift": "तोहफ़ा छुओ!"
+   "gift": "तोहफ़ा छुओ!",
+   "great": "बहुत बढ़िया!",
+   "almost": "बस थोड़ा और!"
   },
   "bn": {
    "carve": "দাগের বাইরে কাটো!",
@@ -415,7 +425,9 @@
    "pop": "নিচে টানো!",
    "stamp": "সিল লাগাও!",
    "perfect": "দারুণ ঢালা!",
-   "gift": "উপহার ছোঁও!"
+   "gift": "উপহার ছোঁও!",
+   "great": "দারুণ হয়েছে!",
+   "almost": "প্রায় হয়ে গেছে!"
   },
   "id": {
    "carve": "Ukir di luar garis!",
@@ -449,7 +461,9 @@
    "pop": "Usap ke bawah!",
    "stamp": "Tekan capnya!",
    "perfect": "Tuangan sempurna!",
-   "gift": "Ketuk hadiahnya!"
+   "gift": "Ketuk hadiahnya!",
+   "great": "Hebat!",
+   "almost": "Sedikit lagi!"
   }
  },
  "persistent_storage_config": {
@@ -758,5 +772,39 @@
    "shop": true
   }
  ],
- "coolDone": 0.9
+ "coolDone": 0.9,
+ "sounds": {
+  "sfx_carve": {
+   "skip": 0.081,
+   "gain": 2.09
+  },
+  "sfx_squeak": {
+   "skip": 0.035,
+   "gain": 0.53
+  },
+  "sfx_plop": {
+   "skip": 0.507,
+   "gain": 0.5
+  },
+  "sfx_chop": {
+   "skip": 0.523,
+   "gain": 0.5
+  },
+  "sfx_pour": {
+   "skip": 0,
+   "gain": 2.5
+  },
+  "sfx_glitter": {
+   "skip": 0.104,
+   "gain": 0.69
+  },
+  "sfx_win": {
+   "skip": 0.0,
+   "gain": 0.5
+  },
+  "music_studio": {
+   "skip": 0,
+   "gain": 0.5
+  }
+ }
 }

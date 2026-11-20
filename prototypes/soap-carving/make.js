@@ -57,7 +57,7 @@ export function makeDown(S, p) {
     hit.cut = true; const [x, y] = cubeXY(hit.j, n);
     M.chops.push({ x, y, t: 0, j: hit.j }); // the knife comes down first; the quarters leave once it has cut
     for (let i = 0; i < 4; i++) M.bits.push({ sx: x + (i % 2 - 0.5) * 22, sy: y + (i > 1 ? 11 : -11), tx: POT.x + (C.R() - 0.5) * 150, ty: POT.y + (C.R() - 0.5) * 130, t: -0.12 - i * 0.06, s: 40 });
-    C.SFX.crunch(1200); C.buzz('tap'); C.burst(x, y, 6, false); C.shake(0.12);
+    C.SFX.chop(); C.buzz('tap'); C.burst(x, y, 6, false); C.shake(0.12);
     return true;
   }
   if (k === 'color') {
@@ -152,7 +152,7 @@ export function makeUpdate(S, dt) {
   for (const b of M.bits) {
     b.t += dt; if (b.in) continue;
     if (b.t < 0.45) { flying++; continue; }
-    b.in = true; M.melts.push({ x: b.tx, y: b.ty, s: b.s * 0.9, t: 0, rot: C.R() * TAU }); if (C.every('plop', 90)) { C.SFX.plop(); C.fx.ring(b.tx, b.ty, 26, 0.7); }
+    b.in = true; M.melts.push({ x: b.tx, y: b.ty, s: b.s * 0.9, t: 0, rot: C.R() * TAU }); if (C.every('plop', 90)) { C.SFX.plopSmall(); C.fx.ring(b.tx, b.ty, 26, 0.7); }
   }
   for (const m of M.melts) { m.t += dt; if (m.t < 1.6) melting++; molten += Math.min(1, m.t / 1.6); } // the pieces shrink as they melt
   M.melt = Math.min(1, molten / (M.cubes.length * 4));
@@ -188,9 +188,10 @@ export function makeUpdate(S, dt) {
     if (M.lowT > 0) M.lowT -= dt;
     if (M.pouring) {
       M.level += dt * cfg.pourRate;
-      if (C.every('pourS', 120)) { C.SFX.pour(); C.buzz('tick'); const [lx, ly] = landAt(); C.fx.ring(lx, ly, 18 + C.R() * 10, 0.6); }
+      if (C.every('pourS', 120)) { if (!C.SFX.pourLoop(true)) C.SFX.pour(); C.buzz('tick'); const [lx, ly] = landAt(); C.fx.ring(lx, ly, 18 + C.R() * 10, 0.6); }
       if (M.level >= 1.04) { M.spillT = 0.6; C.SFX.oops(); finishPour(S); }
     }
+    if (!M.pouring) C.SFX.pourLoop(false);
     if (M.spillT > 0) M.spillT -= dt;
     if (M.doneAt !== undefined && M.stepT >= M.doneAt) C.done();
   } else if (k === 'cool') {

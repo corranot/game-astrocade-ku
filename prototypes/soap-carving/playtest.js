@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const out = process.argv[2] || 'evidence'; fs.mkdirSync(out, { recursive: true });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.mp3': 'audio/mpeg' };
 const server = http.createServer((q, r) => {
   const f = path.join(__dirname, decodeURIComponent(q.url.split('?')[0]).replace(/^\/$/, '/index.html'));
   fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); } else { r.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); r.end(d); } });
@@ -425,6 +425,24 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   page = await open('', { locale: 'ar' }, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour');
   ok(await G(page, () => { const a = window.__game.landAt(), b = window.__game.fillCentre(); return Math.abs(a[0] - b[0]) < 1 && Math.abs(a[1] - b[1]) < 1; }), 'in Arabic the mould fills from where the stream lands');
+
+  console.log('23. recorded sounds, the daily gift, praise while carving');
+  page = await open(); await ready(page);
+  await page.mouse.click(40, 700); await wait(page, () => window.__game.sounds().length === Object.keys(window.__game.cfg.sounds).length, null, 15000).catch(() => {});
+  ok(await G(page, () => window.__game.sounds().length === Object.keys(window.__game.cfg.sounds).length), 'every recorded sound loads from the asset map after the first touch: ' + (await G(page, () => window.__game.sounds().join(' '))));
+  ok(await G(page, () => window.__game.musicOn), 'the studio music plays');
+  const mu = await G(page, () => window.__game.MUTE()); await page.mouse.click(mu.x + 46, mu.y + 46);
+  ok(await G(page, () => !window.__game.musicOn && window.__game.save.muted), 'the sound button stops the music');
+  await page.mouse.click(mu.x + 46, mu.y + 46);
+  for (let y = BAR.y; y < BAR.y + BAR.h && await G(page, () => window.__game.carvedShare() < 0.55); y += 26) await drag(page, row(y));
+  const pr23 = await G(page, () => ({ share: window.__game.carvedShare(), mile: window.__game.S.mile, key: window.__game.S.praise && window.__game.S.praise.key }));
+  ok(pr23.share >= 0.5 && pr23.mile >= 1 && ['great', 'almost'].includes(pr23.key), `carving past half brings praise (${(pr23.share * 100).toFixed(0)}% carved: ${pr23.key})`);
+  for (const [label, dayShift, want] of [['a new day', -1, true], ['the clock turned back', +1, false]]) {
+    page = await open('', {}, (d) => { const t = new Date(); t.setDate(t.getDate() + d); window.__saved = { n: 1, coins: 0, stars: 3, day: t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate() }; }, dayShift);
+    await wait(page, () => window.__game.S.n === 1); await ready(page);
+    await G(page, () => { const G = window.__game; while (G.S.k !== 'bath') G.nextStep(); });
+    ok(await G(page, () => window.__game.save.giftDue) === want, `${label}: ${want ? 'the first soap of the day opens a gift box' : 'no daily gift'}`);
+  }
 
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');
