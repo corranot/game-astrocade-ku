@@ -122,6 +122,28 @@ marbles, glitter and gems; the soap joins the player's shelf. A carve takes 45�
 - Prompts of 2–4 words per step in 7 languages (en, ar RTL, es, vi, hi, bn, id), 🌐 on the shelf screen.
   Baloo font family (Latin/Vietnamese, Bengali, Devanagari, Arabic).
 
+### 3.12 Long recipe (added 2026-11-20, owner's request: p75 session ≥ 10 min)
+- Soap 1 stays short (Carve → Smooth → Sparkle → Bath), so carving happens on the very first touch.
+- Every later soap is made from scratch first. Each step uses its own gesture, so the hands keep changing:
+  | Step | Gesture | Done when |
+  |---|---|---|
+  | Chop | tap the soap-base cubes in the tray (a tap anywhere on the tray chops the next one) | all `CHOP_CUBES` chopped and landed in the pot |
+  | Color | tap the two colour bottles (base, swirl) | `COLOR_DROPS` drops landed |
+  | Stir | drag in circles in the pot; the soap's own marble swirls in | `STIR_TURNS` turns |
+  | Scent | tap one of 3 flowers (lavender, rose, lemon); kept with the soap | 0.9 s after the tap |
+  | Pour | hold anywhere; the mould fills and a gauge rises; let go | let go at ≥ `POUR_MIN`; in [`POUR_LO`, `POUR_HI`] = **Perfect pour** (+`PERFECT_COINS`); past 1.04 it spills and stops by itself (no fail) |
+  | Cool | rub over the mould; frost sparkles, the wet shine fades | `COOL_DIST` px rubbed |
+  | Pop | swipe down (or tap 3 times) on the mould | the mould lifts away and the bar drops out |
+  | … Carve, Smooth | as 3.3, 3.4 | |
+  | Stamp | pick a stamp in the tray, tap the soap: the picture is pressed in (engraved by the same lighting as the bevel) | ✔ after one stamp; by itself `SPARKLE_AUTO` s after the last, or 1.2 s after `STAMP_MAX` |
+  | … Sparkle, Bath | as 3.5, 3.6 | |
+- Every finished step pays `STEP_COINS` (a coin flies to the counter): a reward every 5–25 s.
+- The step row shows the icons of the current part (7 for making, 5 for finishing) with a progress ring.
+- The helper hand teaches each gesture until the player has done it once (`learned`, saved), and after `IDLE_HAND` s idle.
+- **Gift box** every `GIFT_EVERY` soaps: after the bath, the next tap shows a wrapped box; 3 taps burst it open and it
+  holds the next locked thing (taking turns: stamps, glitter, gems, marbles), or `GIFT_COINS` when all are owned. The
+  next order asks for it. A pill in the HUD shows how many soaps are left to the next box.
+
 ## 4. Formulas
 
 Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, `B` = band of cells within
@@ -143,6 +165,10 @@ Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, 
   cells left beyond the band (`excess = 0.0167`) → `shape = 0.90 − 0.025 = 0.875`; mean roughness 0.06 →
   `smooth = 0.94`; 14 specks per 1,000 cells and 1 gem → `sparkle = 0.778 × 0.6 + 0.5 × 0.4 = 0.667`;
   `v = 0.481 + 0.235 + 0.133 = 0.849` → **2 stars** (one more gem: `sparkle = 0.867`, `v = 0.889` → 3 stars).
+- **Session length (design estimate, not measured):** time per soap at a child's pace ≈ chop 6 + color 5 + stir 10 +
+  scent 3 + pour 5 + cool 6 + pop 3 + carve 30 + smooth 12 + stamp 8 + sparkle 10 + bath 8 ≈ **106 s** (a test bot needs
+  36 s of game time from chop to bath). A 10-minute session is then ≈ 6 soaps = 2 gift boxes, each unlocking something
+  the next order asks for. The real p75 is decided by players and can only be read from Astrocade analytics.
 - **Bevel lighting per edge pixel:** `light = clamp(0.5 + 0.5 × dot(n, L), 0, 1)` with `n` the edge normal from
   the mask gradient and `L = normalize(−1, −1.4)`; drawn as two offset rims (approximation, no per-pixel loop).
 
@@ -194,6 +220,12 @@ Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, 
 | `PRICE_BASE` / `PRICE_STEP` | 50 / 10 | — | |
 | `IDLE_HAND` | 4 s | 1–10 | |
 | `BEVEL_PX` | 6 px | 2–12 | |
+| `CHOP_CUBES` / `COLOR_DROPS` / `STIR_TURNS` | 5 / 3 / 5 | 3–8 / 2–5 / 2–8 | length of the making steps |
+| `POUR_RATE` / `POUR_MIN` / `POUR_LO` / `POUR_HI` | 0.42 /s / 0.6 / 0.86 / 0.98 | — | fill speed and the perfect band |
+| `COOL_DIST` | 5,000 px | 1,500–9,000 | rubbing to cool |
+| `STEP_COINS` / `PERFECT_COINS` | 1 / 5 | 0–5 / 0–20 | micro rewards |
+| `GIFT_EVERY` / `GIFT_COINS` | 3 / 50 | 2–6 | the gift box |
+| `STAMP_SIZE` / `STAMP_MAX` | 104 px / 3 | 60–140 / 1–5 | |
 
 ## 8. Acceptance Criteria
 
@@ -222,8 +254,14 @@ Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, 
     verified until the owner checks.
 13. A bug hunt by a fresh subagent; every confirmed bug gets a test that fails without its fix.
 
+**Long recipe (3.12)**
+14. From soap 2 on, all 12 steps are reached in order by their own gesture; a perfect pour pays its bonus; stamps press
+    into the soap and stay on the shelf photo; a gift box comes every 3 soaps and its item is asked for next
+    (`playtest.js` part 19, `soak.js`).
+
 **Targets after publishing (Astrocade analytics, not testable here)**
 - Significant plays (≥ 30 s) ≥ 80%, median FPS Optimal (≥ 40), first touch ≤ 3 s, 0-interaction ≤ 6%.
+- Session p75 ≥ 10 min (owner's target, 2026-11-20).
 
 ---
 

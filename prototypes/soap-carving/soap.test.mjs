@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Unit tests of the soap rules (GDD §4, §5) on fixed masks. Run: node soap.test.mjs
-import { makeSoap, carve, trimRows, takeIslands, shapeScore, sparkleScore, verdict, edgeCells, meanRough, sponge, encodeMask, decodeMask, carvedShare, signedDistance } from './soap.js';
+import { makeSoap, stamp, carve, trimRows, takeIslands, shapeScore, sparkleScore, verdict, edgeCells, meanRough, sponge, encodeMask, decodeMask, carvedShare, signedDistance } from './soap.js';
 
 let failed = 0;
 const ok = (c, what) => { console.log((c ? '  ok  ' : '  FAIL ') + what); if (!c) failed++; };
@@ -77,6 +77,14 @@ console.log('auto-trim, smoothing');
   ok(e.length > 0 && near(meanRough(S, e), 1, 0.05), 'trimmed edges are rough');
   for (let k = 0; k < 400; k++) sponge(S, 30 + (k * 7) % 40, k % 2 ? 31 : 68, 6, 2.2, 0.05), sponge(S, k % 2 ? 31 : 68, 30 + (k * 7) % 40, 6, 2.2, 0.05);
   ok(meanRough(S, e) < 0.1, 'sponging smooths the edges');
+}
+
+console.log('stamps');
+{
+  const S = square(30, 69), sh = new Float32Array(20 * 20).fill(1);
+  ok(stamp(S, sh, 20, 50, 50) === 400 && S.emb[50 * W + 50] === 1, 'a stamp presses its cells into the soap');
+  for (let i = 0; i < W * H; i++) if (!S.t[i]) S.m[i] = 0;
+  ok(stamp(S, sh, 20, 30, 50) === 200, 'only soap cells take the stamp');
 }
 
 console.log('compact save');

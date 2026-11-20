@@ -61,7 +61,7 @@ export function makeSoap(w, h, bar, tpl, k) {
   }
   return {
     w, h, k, m, bar: Uint8Array.from(bar), t: tpl, sd, anchor, outside, inT,
-    rough: new Float32Array(n), cut: new Uint8Array(n), removedOut: 0, nicks: 0,
+    rough: new Float32Array(n), cut: new Uint8Array(n), emb: new Float32Array(n), removedOut: 0, nicks: 0,
     dirty: [0, 0, w - 1, h - 1], hs: new Float32Array(n), b: new Float32Array(n), img: null, canvas: null,
   };
 }
@@ -186,6 +186,23 @@ export function takeIslands(S, before) {
     markDirty(S, c.x0 - 1, c.y0 - 1, c.x1 + 1, c.y1 + 1);
   }
   return out.sort((a, b) => b.cells.length - a.cells.length);
+}
+
+/**
+ * Press a stamp into the soap: shape = a size x size grid of 0..1 (1 = raised part of the stamp), centred on
+ * cell (x, y). The pressed cells sink (emb), which the paint turns into an engraved picture. Returns cells pressed.
+ */
+export function stamp(S, shape, size, x, y) {
+  const { w, h, m, emb } = S, x0 = Math.round(x - size / 2), y0 = Math.round(y - size / 2);
+  let n = 0;
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
+    const v = shape[j * size + i], cx = x0 + i, cy = y0 + j;
+    if (!v || cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+    const k = cy * w + cx; if (!m[k]) continue;
+    if (v > emb[k]) { emb[k] = v; n++; }
+  }
+  if (n) markDirty(S, x0 - 2, y0 - 2, x0 + size + 2, y0 + size + 2);
+  return n;
 }
 
 // ---------- scores (GDD §4) ----------
@@ -332,12 +349,13 @@ export function paint(S) {
   if (!S.dirty || !S.img) return 0;
   const [dx0, dy0, dx1, dy1] = S.dirty; S.dirty = null;
   blurRegion(S, dx0, dy0, dx1, dy1);
-  const { w, h, m, b, rough, cut, alb, inner, noise } = S, R = S.k.bevel, D = S.k.depth, mg = S.k.margin;
+  const { w, h, m, b, rough, cut, alb, inner, noise, emb } = S, R = S.k.bevel, D = S.k.depth, mg = S.k.margin;
   const SX = S.k.shadowX, SY = S.k.shadowY, cw = S.canvas.width, ch = S.canvas.height, px = S.img.data;
   // pixels whose look may have changed: blur reach + normals, the wall below, the shadow below-right
   const x0 = Math.max(0, dx0 - R - 1 + mg), x1 = Math.min(cw - 1, dx1 + R + 1 + mg + Math.max(0, SX) + R);
   const y0 = Math.max(0, dy0 - R - 1 + mg), y1 = Math.min(ch - 1, dy1 + R + 1 + mg + D + SY + R);
   const bAt = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : b[y * w + x]), iw = 0.62 / w, ih = 0.38 / h;
+  const hAt = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : b[y * w + x] - emb[y * w + x] * 0.32); // the top's height, stamps pressed in
   for (let cx = x0; cx <= x1; cx++) {
     const mx = cx - mg; let lastTop = -1e9;
     for (let k = 1; k <= D; k++) { const yy = y0 - mg - k; if (mx >= 0 && mx < w && yy >= 0 && yy < h && m[yy * w + mx]) { lastTop = yy; break; } }
@@ -346,13 +364,13 @@ export function paint(S) {
       if (inside && m[i]) { // ---- top face
         lastTop = my;
         const bv = b[i], tt = clamp01((bv - 0.5) * 2), e = 1 - tt, ro = rough[i] * e;
-        let nx = -(bAt(mx + 1, my) - bAt(mx - 1, my)) * 5.5, ny = -(bAt(mx, my + 1) - bAt(mx, my - 1)) * 5.5, nz = 1;
+        let nx = -(hAt(mx + 1, my) - hAt(mx - 1, my)) * 5.5, ny = -(hAt(mx, my + 1) - hAt(mx, my - 1)) * 5.5, nz = 1;
         if (ro > 0) { nx += noise[i * 2] * ro * 2.2; ny += noise[i * 2 + 1] * ro * 2.2; }
         const nl = 1 / Math.sqrt(nx * nx + ny * ny + nz * nz); nx *= nl; ny *= nl; nz *= nl;
         const diff = Math.max(0, nx * lx + ny * ly + nz * lz), sh = Math.max(0, nx * hx + ny * hy + nz * hz);
         const gloss = 1 - 0.9 * rough[i] * Math.min(1, e * 3), sp2 = sh * sh, sp4 = sp2 * sp2, sp16 = sp4 * sp4 * sp4 * sp4, spec = sp16 * gloss * 300 * (0.3 + 0.7 * e); // sh^16
         const u = mx * iw + my * ih - 0.28, uu = 1 - u * u * 24, band = uu > 0 ? uu * uu * 24 : 0; // the soft sheen across the top
-        const shade = 0.5 + 0.62 * diff, a3 = i * 3, glow = 0.16 * e, chalk = 0.42 * ro;
+        const shade = (0.5 + 0.62 * diff) * (1 - emb[i] * 0.1), a3 = i * 3, glow = 0.16 * e, chalk = 0.42 * ro;
         let r0 = alb[a3] * (shade + glow), g0 = alb[a3 + 1] * (shade + glow), b0 = alb[a3 + 2] * (shade + glow);
         r0 += (250 - r0) * chalk; g0 += (246 - g0) * chalk; b0 += (240 - b0) * chalk;
         px[o] = r0 + spec + band; px[o + 1] = g0 + spec + band; px[o + 2] = b0 + spec + band; px[o + 3] = 255;

@@ -25,24 +25,40 @@ const BAR = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   const drag = async (pts) => { await p.mouse.move(pts[0][0], pts[0][1]); await p.mouse.down(); for (const q of pts.slice(1)) { await p.mouse.move(q[0], q[1]); await p.waitForTimeout(14); } await p.mouse.up(); };
   const perOrder = [];
   for (let k = 0; k < N; k++) {
-    await wait(() => window.__game.S.enter <= 0 && window.__game.S.step === 0);
+    await wait(() => window.__game.S.enter <= 0 && window.__game.view === 'play');
+    if (await G(() => window.__game.isMake(window.__game.S.k))) {
+      if (k % 2) await G(() => { const G = window.__game; while (G.isMake(G.S.k)) G.nextStep(); });
+      else { // the making steps by real touches
+        const k0 = () => G(() => window.__game.S.k);
+        for (let i = 0; i < 8 && await k0() === 'chop'; i++) { await p.mouse.click(360, 994); await p.waitForTimeout(240); }
+        await wait(() => window.__game.S.k === 'color'); for (const x of [260, 260, 460]) { await p.mouse.click(x, 994); await p.waitForTimeout(220); }
+        await wait(() => window.__game.S.k === 'stir'); for (let i = 0; i < 5 && await k0() === 'stir'; i++) await drag(Array.from({ length: 90 }, (_, j) => [360 + Math.cos(j / 8) * 110, 640 + Math.sin(j / 8) * 110]));
+        await wait(() => window.__game.S.k === 'scent'); await p.mouse.click(360, 994);
+        await wait(() => window.__game.S.k === 'pour'); await p.waitForTimeout(600); await p.mouse.move(360, 650); await p.mouse.down(); await wait(() => window.__game.S.make.level > 0.9); await p.mouse.up();
+        await wait(() => window.__game.S.k === 'cool'); for (let i = 0; i < 12 && await k0() === 'cool'; i++) await drag(Array.from({ length: 12 }, (_, j) => [220 + (j % 2) * 280, 560]));
+        await wait(() => window.__game.S.k === 'pop'); await drag([[360, 520], [360, 640], [360, 720]]);
+      }
+    }
+    await wait(() => window.__game.S.enter <= 0 && window.__game.S.k === 'carve');
     const c0 = await G(() => window.__canvases);
     let curls = 0;
-    for (let y = BAR.y; y < BAR.y + BAR.h + 10 && await G(() => window.__game.S.step === 0 && !window.__game.S.trim); y += (k % 2 ? 26 : 60)) {
+    for (let y = BAR.y; y < BAR.y + BAR.h + 10 && await G(() => window.__game.S.k === 'carve' && !window.__game.S.trim); y += (k % 2 ? 26 : 60)) {
       await drag(Array.from({ length: 14 }, (_, j) => [BAR.x - 20 + (BAR.w + 40) * j / 13, y]));
       curls = Math.max(curls, await G(() => window.__game.fx.P.filter((q) => q.k === 'curl').length + window.__game.S.shaveAcc));
     }
-    if (await G(() => window.__game.S.step === 0 && !window.__game.S.trim)) await G(() => window.__game.finishCarve());
-    await wait(() => window.__game.S.step === 1);
+    if (await G(() => window.__game.S.k === 'carve' && !window.__game.S.trim)) await G(() => window.__game.finishCarve());
+    await wait(() => window.__game.S.k === 'smooth');
     await drag(Array.from({ length: 30 }, (_, j) => [BAR.x + 60 + (j % 2) * 220, BAR.y + 80 + j * 9]));
-    await G(() => window.__game.S.step === 1 && window.__game.finishSmooth());
-    await wait(() => window.__game.S.step === 2);
+    await G(() => window.__game.S.k === 'smooth' && window.__game.finishSmooth());
+    if (await G(() => window.__game.S.k === 'stamp')) { await p.mouse.click(340, 640); await G(() => window.__game.S.k === 'stamp' && window.__game.nextStep()); }
+    await wait(() => window.__game.S.k === 'sparkle');
     await drag(Array.from({ length: 20 }, (_, j) => [300 + (j % 2) * 120, 520 + j * 8]));
     await G(() => window.__game.finishSparkle());
     await wait(() => window.__game.S.reveal && window.__game.S.reveal.t > 1.6);
     const info = await G(() => ({ n: window.__game.save.n, coins: window.__game.save.coins, shelf: window.__game.save.shelf.length, fx: window.__game.fx.P.length, size: JSON.stringify((window.__writes || []).slice(-1)[0] || {}).length, glit: window.__game.S.glitCount }));
     perOrder.push({ ...info, curls, canvases: (await G(() => window.__canvases)) - c0 });
-    const nx = await G(() => window.__game.NEXT); await p.mouse.click(nx.x, nx.y);
+    const nx = await G(() => window.__game.NEXT); await p.mouse.click(nx.x, nx.y); await p.waitForTimeout(150);
+    if (await G(() => window.__game.view === 'gift')) { for (let i = 0; i < 4; i++) { await p.mouse.click(360, 650); await p.waitForTimeout(300); } await p.waitForTimeout(700); await p.mouse.click(360, 650); perOrder[perOrder.length - 1].gift = true; }
   }
   console.log(perOrder.map((o, i) => `  #${i + 1} coins ${o.coins} shelf ${o.shelf} fx ${o.fx} canvases ${o.canvases} curls ${o.curls} glitter ${o.glit} save ${o.size}B`).join('\n'));
   ok(errs.length === 0, 'no errors in ' + N + ' soaps' + (errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''));
@@ -53,6 +69,7 @@ const BAR = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   ok(Math.max(...perOrder.map((o) => o.fx)) < 900, 'particles stay capped');
   ok(Math.max(...perOrder.map((o) => o.size)) < 40000, 'the save stays under 40 KB');
   const cv = perOrder.map((o) => o.canvases).slice(1);
+  ok(perOrder.filter((o) => o.gift).length === Math.floor(N / 3), 'a gift box every 3 soaps');
   ok(Math.max(...cv) - Math.min(...cv) < 40, `canvases made per soap stay level (${Math.min(...cv)}–${Math.max(...cv)})`);
   ok(await G(() => typeof window.__game.save.coins === 'number' && window.__game.S.n === window.__game.save.n), 'the next soap is soap ' + N);
   await b.close(); server.close();
