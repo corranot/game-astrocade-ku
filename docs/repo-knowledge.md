@@ -14,6 +14,7 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 | `fizzy-bath-bomb-maker` | Kanvas 2D, satu `game.js` modul | Contoh i18n: `T()`, `detectLang()`, `rtl()/mx()/hx()` (game.js:57-69); jalur tata letak `LANE` + perekam kotak untuk uji tumpang tindih 18 layar × 7 bahasa; pesanan, buku resep, sistem kasihan, set emas; cadangan emoji/bunyi sintetis | `playtest.js` 13 cek |
 | `pinata-maker` | Three 0.187 lewat `import()` dinamis dari 4 CDN dengan `?retry=`; kanvas `gl` + kanvas HUD | `scene.js` `seen()` untuk uji keterlihatan; tabel `SOUND_FIX` (lewati diam awal, atur volume); kualitas 0.5 saat FPS rendah | `playtest.js`, `soak.js`, `look.js` (`__saveFails`) |
 | `draw-it-alive` | Kanvas 2D, modul `art.js` / `levels.js` (20 level, dicerminkan jadi 40) / `game.js` | Kit stiker; baca simpanan diulang; `contrast.js` (jarak Lab < 22 dari latar) | `playtest.js` 167 cek, `soak.js` 40 level |
+| `soap-carving` | Kanvas 2D multi-modul: `soap` (masker sel + SDF + cat per piksel 2.5D), `make` (7 langkah membuat), `fx`, `ui`, `sprites`, `game` | Rekaman suara lewat `lib.getAsset` + cadangan synth; kecepatan gestur dari `e.timeStamp` event gabungan; `drawAnchored` titik kerja alat; meja ganda bergantian untuk tumpukan serutan; layer HUD di-cache per kunci; hadiah harian `YYYYMMDD` | `playtest.js` 25 bagian, `soak.js` 14, `soap.test.mjs` |
 | `toy-city-stomp` | Three r187 multi-modul: `game, city, bonbon, army, moves, missions, movefx, shapes, toon` | Import map cdnjs + `<script type="module" data-lib>` + event `three-ready`; `run()` mengantre mode, tombol coba lagi 10 dtk, try/catch `startGame`; layar loading `window.__load`; toon 3 pita + garis tepi kedalaman; atlas ikon 9×8×128 + `MutationObserver` pengganti emoji (warna kulit/ZWJ dibiarkan); Baloo 2 / Baloo Da 2 / Baloo Bhaijaan 2 (`data-font`); tier kualitas 0–3 turun otomatis bila median frame > 1/42 dtk; `?tier` `?speed`; gabung koin bila simpanan datang terlambat, tulis menunggu `saveLoaded`; papan skor tambah lalu ambil 3 teratas, nama dipotong per huruf + `dir=auto`; Kota Harian dari nomor hari; mode demo tidak menyimpan; rig bersendi; kamera sinematik dengan penjaga keterlihatan | `playtest.js` (impor 9 modul tanpa THREE, kenyamanan kamera, shader sebelum frame pertama, tekstur GPU saat ganti kota, Bonbon selalu di layar, tanpa WebGL), `screens.js` 7 bahasa |
 
 ## 3. Alat di `tools/`
@@ -42,7 +43,7 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 - **`studio-tests/`**: uji untuk skill dan agen studio itu sendiri (`/skill-test`, `/skill-improve`); `catalog.yaml` belum pernah dijalankan.
 
 ## 5. GitHub Actions
-- `auto-merge-claude.yml`: tiap PR dari `corranot` langsung ditandai siap lalu di-squash-merge. **Tidak ada CI uji.**
+- `checks.yml` (pengganti `auto-merge-claude.yml` sejak 2026-11-20): `ci-checks.sh` + uji bundel tiap game; bila lulus, PR pemilik ditandai siap lalu di-squash-merge (±2 mnt). Branch kerja lalu perlu `git merge -s ours origin/main` (isi sama) sebelum push berikutnya.
 - `auto-sync-all.yml` (harian 02:00 UTC): merge upstream lalu klon ulang skill ponytail/caveman/leanrea. **Rusak:** URL klon hanya `https://github.com` tanpa nama repo (gagal diam-diam karena pengaman `if`), email bot salah bentuk, dan merge upstream langsung ke `main`.
 - `CODEOWNERS` dan `FUNDING.yml` masih milik upstream.
 
@@ -62,7 +63,8 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 7. Tepi hadiah harian (jam mundur, NaN, hari ke-8+, muncul di tengah ronde).
 8. Pemborosan per frame (tulis DOM, alokasi array) → `addUpdateRange`, tulis hanya saat berubah.
 9. Alarm palsu alat (`\btrend` vs `setRenderTarget`).
-10. Input (klik kanan, jari kedua, ketukan tembus toko).
+10. Input (klik kanan, jari kedua, ketukan tembus toko, kecepatan dari `performance.now()` pada event gabungan).
+11. Petunjuk/pratinjau basi (tangan ke rata-rata bukan sasaran nyata, intip pesanan di-cache, benda di jari terbawa ke sentuhan baru).
 
 ## 8. Dibereskan 2026-11-20 dan yang masih terbuka
 Dibereskan:
