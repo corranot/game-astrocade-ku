@@ -635,14 +635,14 @@ function watchSpeed(dt) {
   if (mid > cfg.slowFrameMs + quality * 5) { fast = 0; if (++slow >= 2 && quality < 2) { quality++; slow = 0; } }
   else if (mid < 18) { slow = 0; if (++fast >= 5 && quality > 0) { quality--; fast = 0; } }
   else slow = fast = 0;
-  if (glOn() && quality === 2 && mid > 70 && ++glSlow >= 3) stopGL(); // a phone without a real GPU: back to the 2D canvas
+  if (glOn() && mid > 70) { if (++glSlow >= 2) stopGL(); } else glSlow = 0; // no real GPU here: back to the 2D canvas
   setRes([1, 0.8, 0.62][quality]);
 }
 function frame(now) {
   raf = requestAnimationFrame(frame);
   if (stageEl) startGL(stageEl, cv, W, H);
-  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  if (dt > 0 && dt < 0.25) watchSpeed(dt);
+  const rawDt = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, rawDt); last = now;
+  if (rawDt > 0 && rawDt < 1) watchSpeed(rawDt); // very slow frames count too: they are what the fallback is for
   if (DEBUG) { const a = performance.now(); update(dt); const b = performance.now(); draw(); const c = performance.now(); const p = (window.__prof = window.__prof || { u: 0, d: 0, n: 0 }); p.u += b - a; p.d += c - b; p.n++; window.__frames = (window.__frames || 0) + 1; }
   else { update(dt); draw(); }
 }

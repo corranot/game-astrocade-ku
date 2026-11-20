@@ -16,7 +16,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   const browser = await chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 720, height: 1280 } })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html?local&cfg=${encodeURIComponent(JSON.stringify({ revealSeconds: 2 }))}`);
+  await page.goto(`http://127.0.0.1:${server.address().port}/index.html?local&nogl&cfg=${encodeURIComponent(JSON.stringify({ revealSeconds: 2 }))}`);
   await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3);
   // count sounds that are started, so feedback lost in later customers shows up
   await page.evaluate(() => { window.__snd = 0; for (const k of ['createOscillator', 'createBufferSource']) { const o = AudioContext.prototype[k]; AudioContext.prototype[k] = function () { window.__snd++; return o.call(this); }; } });

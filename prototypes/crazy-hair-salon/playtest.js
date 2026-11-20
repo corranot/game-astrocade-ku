@@ -15,14 +15,15 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 
 (async () => {
   await new Promise((r) => server.listen(0, r));
-  const base = `http://127.0.0.1:${server.address().port}/index.html?local`;
+  const base = `http://127.0.0.1:${server.address().port}/index.html?local`, glBase = base;
+  // the headless browser draws WebGL in software (a few frames a second): the 2D path runs the rules, part 19 the WebGL one
   const browser = await chromium.launch();
   let current = null; // one game page at a time: pages left open keep running and slow the frame checks
   const open = async (extra = '', ctx = {}) => {
     if (current) await current.context().close();
     const page = current = await (await browser.newContext({ viewport: { width: 720, height: 1280 }, ...ctx })).newPage();
     page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') page.errors.push(m.text()); });
-    await page.goto(base + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 8000 });
+    await page.goto(base + (extra.includes('gl') ? '' : '&nogl') + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 8000 });
     return page;
   };
   const G = (page, f, a) => page.evaluate(f, a);
@@ -288,6 +289,10 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   console.log('18. the painted art: it loads fast, and the game still plays when it cannot load');
   page = await open();
   ok(await G(page, () => { const g = window.__game; return g.S && !g.booting(); }), 'the room and the first child are in within the wait');
+  page = await open('&slowgl'); // WebGL on, no keep: software WebGL is too slow here, so the game must fall back to 2D by itself
+  await page.waitForFunction(() => document.getElementById('gl'), null, { timeout: 15000 });
+  await page.waitForFunction(() => !document.getElementById('gl'), null, { timeout: 30000 }).catch(() => {});
+  ok(await G(page, () => !document.getElementById('gl')), 'a device too slow for WebGL falls back to the 2D canvas within seconds');
   const t0a = Date.now();
   {
     if (current) await current.context().close();
