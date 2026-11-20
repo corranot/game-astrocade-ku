@@ -1,1 +1,114 @@
-{}
+{
+ "salon_bg": {
+  "animation": null,
+  "aspect_ratio": [
+   1024,
+   1536
+  ],
+  "compression_suggestion": "original",
+  "description": "Cozy kids hair salon interior with a bulb-lit round mirror, striped pastel walls, shelves of bottles and plants, a pink salon chair on a pink rug. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Cozy kids hair salon interior with a bulb-lit round mirror, striped pastel walls, shelves of bottles and plants, a pink salon chair on a pink rug. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "background",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7XHDKQJ102KKR66SEBZ9P_4dd060cf-dc92-4650-864c-329a878a7a9c_95867eab-8ccb-47d9-94cf-b57f4c3ba12b.webp"
+ },
+ "kid_maya": {
+  "animation": null,
+  "aspect_ratio": [
+   909,
+   1236
+  ],
+  "compression_suggestion": "original",
+  "description": "Expression sheet 2x2 of the same girl, warm brown skin, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Expression sheet 2x2 of the same girl, warm brown skin, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "character",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7XMM4WFX1N444EJJ7S5F4_1b78f017-3a7c-41dd-b4ba-8bb608ac76a7_e9bcf206-322f-436c-9600-56ae0541e585.webp"
+ },
+ "kid_leo": {
+  "animation": null,
+  "aspect_ratio": [
+   945,
+   1399
+  ],
+  "compression_suggestion": "original",
+  "description": "Expression sheet 2x2 of the same boy, light skin with freckles, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Expression sheet 2x2 of the same boy, light skin with freckles, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "character",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7XQGKTXP2H9JGY5F91HTY_79444e34-428b-4891-a8e5-8d8dd5575c19_4cd83db7-4ca8-475f-b1fa-5d59c783ed49.webp"
+ },
+ "kid_hana": {
+  "animation": null,
+  "aspect_ratio": [
+   922,
+   1323
+  ],
+  "compression_suggestion": "original",
+  "description": "Expression sheet 2x2 of the same girl, East Asian features, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Expression sheet 2x2 of the same girl, East Asian features, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "character",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7XT8R4EM9SXJVJHYH9Q2K_ef76176b-b3d3-461d-90b4-0a26a2952be1_4b75716f-3594-46c0-8599-f0e8db797a79.webp"
+ },
+ "kid_kofi": {
+  "animation": null,
+  "aspect_ratio": [
+   812,
+   943
+  ],
+  "compression_suggestion": "original",
+  "description": "Expression sheet 2x2 of the same boy, deep brown skin, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Expression sheet 2x2 of the same boy, deep brown skin, bald head (hair added in game), white salon cape: grumpy, happy, surprised, delighted. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "character",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7XXY2T38A6C6F4H23JC32_4d1ea69c-55e1-421e-a73a-f4da5e8abab7_3afb5827-eba0-4b5f-b8ff-82238cfdb02d.webp"
+ },
+ "accessories_sheet": {
+  "animation": null,
+  "aspect_ratio": [
+   872,
+   1363
+  ],
+  "compression_suggestion": "original",
+  "description": "Sprite sheet 2x4 of hair accessories: bow, flower clip, star clip, crown, butterfly clip, heart clip, tiara, cherries. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Sprite sheet 2x4 of hair accessories: bow, flower clip, star clip, crown, butterfly clip, heart clip, tiara, cherries. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "object",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7Y07RMS89EN3CSXPW242B_4e2ac787-43ef-4244-8fa3-e5a3c409f71b_3ad95126-7890-4b60-b34a-aba541f48409.webp"
+ },
+ "tools_sheet": {
+  "animation": null,
+  "aspect_ratio": [
+   1355,
+   888
+  ],
+  "compression_suggestion": "original",
+  "description": "Sprite sheet 3x2 of salon tools: shampoo bottle, scissors, dye brush, hair dryer, dye bowl, comb. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Sprite sheet 3x2 of salon tools: shampoo bottle, scissors, dye brush, hair dryer, dye bowl, comb. Soft painted 2D mobile makeover game art, semi-realistic cartoon style, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, clean crisp edges, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+  "subtype": "object",
+  "type": "image",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W7Y29EWBY3Y56AT0YRM6XH_6e979bdb-369f-4ce7-80e3-19e6be3b635b_eb2cd2d9-02d5-4232-9a0c-b5ed5d5abf6d.webp"
+ }
+}

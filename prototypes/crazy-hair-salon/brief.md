@@ -4,6 +4,8 @@
 ## In your words
 - "bikin game baru aja pake rekomendasi terbaik berdasarkan data, apa ya kira2?"
 - "jangan rub it away lagi, nanti malah saling bersaing buat dapetin traffic"
+- After play: "game kita masih kalah jauh banget secara visual keseluruhan sama ini : https://www.astrocade.com/games/diy-beauty-salon/01M6J7K826JG0GJKKJMPVYE4M0"
+- After play (answer): "Ganti karakter manusia" (human children, painted art from the AI image generator)
 
 **Pitch:** A wild-haired cute customer plops into your chair: wash, snip, dye, blow-dry and decorate their hair with one finger, then watch them gasp in the mirror. *(inferred (strong))*
 
@@ -18,7 +20,7 @@
 **Intent:** soft or no failure *(provisional)*
 
 ## Look and references
-- Look: bright glossy kawaii 2D drawn on canvas; chunky round customers (cat, bunny, little monster, bear) with big shiny eyes and expressive mouths; pastel salon (mint, peach, lilac); hair in saturated colours with a thin outline and a highlight streak; signature detail: dozens of springy strands that sway when the customer bobs. Every figure drawn, no emoji, no plain circles. *(guessed)*
+- Look: soft painted, semi-realistic cartoon (generated art, one style sentence for every image): a cosy bulb-lit salon room; four children (Maya, Leo, Hana, Kofi) close up, each with 4 painted moods; painted accessories and tools. The hair stays simulated strands, drawn as painted locks (dark edge, grooves, sheen) with an arched hairline. HUD kept small. If an image cannot load, the code-drawn stand-in plays instead.
 - References: Poké Ice Cream Rolls (a different gesture per step, demo hand only the first time, a shelf of results), Dress up Showdown (a judged reveal at the end), Lip Art Studio (many free colours, very little text). Structure only, not their themes. *(inferred (strong))*
 - View: 2D · Camera: fixed front portrait of the customer in the chair, 720×1280. *(guessed)*
 

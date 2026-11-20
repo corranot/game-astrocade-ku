@@ -6,7 +6,7 @@
  * segments the finger crossed and drops the rest of the strand as a falling piece; dyeing and foam are per point.
  * Drawing batches segments by colour so a full head is a handful of strokes.
  */
-import { NAVY, W } from './art.js';
+import { W } from './art.js';
 
 const EDGE = 40; // hair stays this far inside the screen's sides, where a finger can reach it
 const CX = new Float32Array(256), CY = new Float32Array(256); // the correction each point got this step
@@ -40,7 +40,7 @@ export function createHair(R, o) {
     for (let i = 0; i < n; i++) {
       dir += (rand() - 0.5) * 0.9 + (Math.PI / 2 - dir) * 0.12; // outward, bending down, every strand its own tangle
       s.x[i] = s.ax + Math.cos(dir) * o.seg * i; s.y[i] = s.ay + Math.sin(dir) * o.seg * i;
-      const f = 250 + rand() * 650, fa = a + (rand() - 0.5) * 2.4;
+      const f = 220 + rand() * 380, fa = a + (rand() - 0.5) * 0.9 + Math.sin(i * 0.9 + k) * 0.9; // bed-head: each strand puffs out in loose curls
       s.fx[i] = Math.cos(fa) * f; s.fy[i] = Math.sin(fa) * f - 200;
     }
     strands.push(s);
@@ -166,15 +166,25 @@ export function rinse(h, rate) {
   return !left;
 }
 
+const SHADES = new Map();
+/** Colour c (#rrggbb) moved toward black (k < 0) or white (k > 0). */
+export function shade(c, k) {
+  const key = c + k; let v = SHADES.get(key); if (v) return v;
+  const n = parseInt(c.slice(1), 16), t = k < 0 ? 0 : 255, a = Math.abs(k);
+  const ch = (x) => Math.round(x + (t - x) * a);
+  v = `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`; SHADES.set(key, v); return v;
+}
+
 /**
- * Draw the hair: a coloured cap over the scalp, strands outlined in navy and filled by colour, a light streak,
- * dirt specks while unwashed, and foam bubbles. fine = false skips the streak and bubble outlines (slow phones).
+ * Draw the hair as painted locks: each colour run is stroked dark and wide, then in its own colour; with fine on,
+ * two thin grooves and a sheen make each strand read as a lock. The scalp gets a band in each strand's root colour,
+ * the messy start carries twigs and leaves, and lather sits on the strands as bubbles. fine = false (slow phones)
+ * keeps only the dark edge and the colour.
  */
 export function drawHair(g, h, head, fine) {
-  const w = (19 + h.volume * 7) * (1 - h.wet * 0.15);
+  const w = (28 + h.volume * 8) * (1 - h.wet * 0.15);
   g.lineCap = 'round'; g.lineJoin = 'bevel'; // bevel: the bends are gentle, and round joins cost a circle per point
-  // strands: one outline path, then one path per colour
-  const out = new Path2D(), byCol = new Map();
+  const all = new Path2D(), byCol = new Map();
   /** Each run of one colour along a strand becomes one polyline: far cheaper to fill than a cap per segment. */
   const runs = (xs, ys, cols, from, to) => {
     let i = from;
@@ -185,36 +195,52 @@ export function drawHair(g, h, head, fine) {
     }
   };
   for (const s of h.strands) {
-    out.moveTo(s.x[0], s.y[0]); for (let i = 1; i <= s.len; i++) out.lineTo(s.x[i], s.y[i]);
+    all.moveTo(s.x[0], s.y[0]); for (let i = 1; i <= s.len; i++) all.lineTo(s.x[i], s.y[i]);
     runs(s.x, s.y, s.col, 1, s.len);
   }
   for (const p of h.pieces) runs(p.x, p.y, p.col, 1, p.x.length - 1);
-  g.strokeStyle = NAVY; g.lineWidth = w + 7; g.stroke(out);
-  for (const p of h.pieces) { g.globalAlpha = Math.min(1, p.life * 1.5); g.beginPath(); for (let i = 0; i < p.x.length; i++) g.lineTo(p.x[i], p.y[i]); g.stroke(); }
-  g.globalAlpha = 1; g.lineWidth = w;
-  for (const [c, p] of byCol) { g.strokeStyle = c; g.stroke(p); }
-  // the cap: a thick band over the scalp in each strand's root colour
-  const cap = new Map();
-  for (const s of h.strands) { const c = colorOf(s.col[1], 1); let p = cap.get(c); if (!p) cap.set(c, (p = new Path2D())); const r = head.R - 14; p.moveTo(head.x + Math.cos(s.a - 0.06) * r, head.y + Math.sin(s.a - 0.06) * r); p.arc(head.x, head.y, r, s.a - 0.06, s.a + 0.06); }
-  g.lineWidth = 46 + h.volume * 10; g.lineCap = 'butt';
-  for (const [c, p] of cap) { g.strokeStyle = c; g.stroke(p); }
-  g.lineCap = 'round';
-  g.beginPath(); g.arc(head.x, head.y, head.R + 9 + h.volume * 5, -Math.PI + 0.2, -0.2); g.lineWidth = 6; g.strokeStyle = NAVY; g.stroke();
-  if (fine) { // the shine streak
-    const hi = new Path2D();
-    for (const s of h.strands) for (let i = 2; i <= Math.min(s.len, 8); i++) { hi.moveTo(s.x[i - 1] - 4, s.y[i - 1] - 3); hi.lineTo(s.x[i] - 4, s.y[i] - 3); }
-    g.strokeStyle = h.dirt > 0.5 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.45)'; g.lineWidth = 4; g.stroke(hi);
-    g.beginPath(); g.arc(head.x, head.y, head.R - 6, -2.4, -1.5); g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 8; g.stroke();
+  g.lineWidth = w + 6; for (const [c, p] of byCol) { g.strokeStyle = shade(c, -0.42); g.stroke(p); }
+  g.lineWidth = w; for (const [c, p] of byCol) { g.strokeStyle = c; g.stroke(p); }
+  if (fine) {
+    g.lineWidth = 2.5; g.strokeStyle = 'rgba(60,30,20,0.2)';
+    g.translate(w * 0.24, 0); g.stroke(all); g.translate(-w * 0.48, 0); g.stroke(all); g.translate(w * 0.24, 0);
+    g.lineWidth = w * 0.26; g.translate(-w * 0.16, -w * 0.08);
+    for (const [c, p] of byCol) { g.strokeStyle = shade(c, 0.45); g.stroke(p); }
+    g.translate(w * 0.16, w * 0.08);
   }
-  if (h.dirt > 0) { // specks and leaves of the messy start
-    g.fillStyle = `rgba(107,84,68,${h.dirt})`; g.beginPath();
-    for (const s of h.strands) for (let i = 4; i <= s.len; i += 7) { g.moveTo(s.x[i] + 4, s.y[i]); g.arc(s.x[i], s.y[i], 4, 0, 7); }
-    g.fill();
+  // the scalp: hair from a middle parting down to the temples, framing the face, in the roots' commonest colour
+  const tally = new Map(); let capC = colorOf(h.strands[0].col[1], 1);
+  for (const s of h.strands) { const c = colorOf(s.col[1], 1), n = (tally.get(c) || 0) + 1; tally.set(c, n); if (n > (tally.get(capC) || 0)) capC = c; }
+  const { x: cx, y: cy, R } = head, o = R + 2 + h.volume * 6;
+  const cap = new Path2D(); // the skull's top half, with a soft arched hairline
+  cap.moveTo(cx + Math.cos(0.06) * o, cy + Math.sin(0.06) * o);
+  cap.arc(cx, cy, o, 0.06, Math.PI - 0.06, true);
+  cap.bezierCurveTo(cx - 0.8 * R, cy - 0.18 * R, cx - 0.5 * R, cy - 0.62 * R, cx, cy - 0.6 * R);
+  cap.bezierCurveTo(cx + 0.5 * R, cy - 0.62 * R, cx + 0.8 * R, cy - 0.18 * R, cx + Math.cos(0.06) * o, cy + Math.sin(0.06) * o);
+  cap.closePath();
+  g.fillStyle = capC; g.fill(cap); g.lineWidth = 5; g.strokeStyle = shade(capC, -0.42); g.stroke(cap);
+  if (fine) { // combed lines from the parting, and a sheen
+    const comb = new Path2D();
+    for (const sd of [-1, 1]) for (let k = 0; k < 4; k++) { const t = k / 3; comb.moveTo(cx + sd * 0.04 * R, cy - (0.72 + t * 0.22) * R); comb.quadraticCurveTo(cx + sd * (0.55 + t * 0.3) * R, cy - (0.8 - t * 0.05) * R, cx + sd * (0.88 + t * 0.08) * R, cy - (0.02 + t * 0.25) * R); }
+    g.lineWidth = 3; g.strokeStyle = shade(capC, -0.22); g.stroke(comb);
+    g.beginPath(); g.arc(cx, cy, R - 4, -2.4, -1.75); g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = 10; g.stroke();
+  }
+  if (h.dirt > 0) { // twigs and leaves stuck in the messy start
+    g.globalAlpha = h.dirt;
+    h.strands.forEach((s, k) => {
+      if (k % 4 || s.len < 10) return;
+      const i = 6 + (k % 3) * 3, x = s.x[i], y = s.y[i], a = Math.atan2(s.y[i + 1] - y, s.x[i + 1] - x) + (k % 2 ? 0.9 : -0.9);
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 42, y + Math.sin(a) * 42); g.lineWidth = 5; g.strokeStyle = '#7A4E2D'; g.stroke();
+      g.save(); g.translate(x + Math.cos(a) * 30, y + Math.sin(a) * 30); g.rotate(a + 0.8);
+      g.beginPath(); g.ellipse(0, 0, 15, 7, 0, 0, 7); g.fillStyle = '#5DBB4A'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#2E7D32'; g.stroke();
+      g.beginPath(); g.moveTo(-12, 0); g.lineTo(12, 0); g.lineWidth = 1.5; g.stroke(); g.restore();
+    });
+    g.globalAlpha = 1;
   }
   const bub = new Path2D();
   for (const s of h.strands) for (let i = 1; i <= s.len; i++) if (s.foam[i]) { const r = 12 + ((i * 7 + s.len) % 5) * 2; bub.moveTo(s.x[i] + r, s.y[i]); bub.arc(s.x[i], s.y[i], r, 0, 7); }
-  g.fillStyle = '#FFFFFF'; g.fill(bub);
-  if (fine) { g.strokeStyle = '#9FDDF7'; g.lineWidth = 3; g.stroke(bub); }
+  g.fillStyle = 'rgba(255,255,255,0.95)'; g.fill(bub);
+  if (fine) { g.strokeStyle = '#A8DDF5'; g.lineWidth = 3; g.stroke(bub); }
 }
 
 /** A compact copy of the hair for the save: each strand's colours as letters, its length by the string's length. */
