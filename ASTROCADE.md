@@ -33,7 +33,7 @@ User berkomunikasi dengan bahasa Indonesia santai dan memiliki workflow kreatif 
 
 ---
 
-## MEMORI PENGETAHUAN STUDIO (DIRINGKAS ULANG 2026-11-18; TERUS BERTAMBAH)
+## MEMORI PENGETAHUAN STUDIO (peta repo lengkap, alat, sistem studio, temuan usang: `docs/repo-knowledge.md`)
 
 ### 0. Kesalahan yang sudah pernah terjadi (baca ini dulu, jangan diulang)
 Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu aturannya.
@@ -95,13 +95,12 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 
 ### 6. Kelas bug yang harus dicek di tiap game
 - Simpanan ditulis sebelum simpanan pemain selesai dibaca (progres tertimpa kosong): tahan tulis sampai baca berhasil; baca gagal diulang.
-- Pustaka CDN gagal dimuat membuat layar mati: coba ulang sendiri dan pada tiap ketukan.
-- Penghitung waktu tingkat modul tidak direset tiap putaran (bunyi hilang di putaran kedua).
+- Pustaka CDN gagal dimuat membuat layar mati: coba ulang sendiri dan pada tiap ketukan; WebGL gagal → tombol coba lagi, bukan loader macet. Penghitung waktu tingkat modul direset tiap putaran.
 - Tombol digambar dengan satu syarat, bisa diketuk dengan syarat lain: pakai satu fungsi untuk keduanya. Jangan ada tombol tak terlihat yang masih aktif.
 - `run()` kedua: input di mode edit, panggung ganda, benda dari scene lama.
 - Benda yang dilepas dari grup (`scene.attach`) tidak ikut terhapus; tekstur dan geometri yang dibuat tiap putaran harus dibuang atau dipakai ulang.
-- Daftar kosong ke pemilih acak menghasilkan `undefined`; pecahan 6 × 1/6 tidak pernah genap 1; simpanan lama tanpa kolom baru; mainan tersimpan dobel kalau simpanan datang terlambat.
-- Ketukan yang meleset harus tetap berefek (kertas atau stiker terdekat; lubang donat).
+- Ketukan yang meleset harus tetap berefek (kertas atau stiker terdekat; lubang donat). Daftar kosong ke pemilih acak → `undefined`; 6 × 1/6 tidak pernah genap 1; simpanan lama tanpa kolom baru.
+- 3D (Toy City Stomp, 9 tahap): mode demo sebelum sentuhan pertama tidak menghitung/menyimpan apa pun; shot kamera menjaga pahlawan di layar (arah orbit dikunci di awal, penjaga tepi, ikut naik saat lompat) dan diuji tiap 0,1 dtk; ganti kota/tier membuang render target, MSAA, tekstur (uji jumlah tekstur); shader dikompilasi untuk target yang benar-benar digambar; tidak ada tulis DOM/alokasi tiap frame.
 - Hari kalender: tanggal angka `YYYYMMDD` dibanding lebih besar (bukan "24 jam lalu"); hadiah bukan di hari pertama; jam yang dimundurkan tidak membayar.
 - Simpanan yang datang terlambat atau basi (Draw It Alive, 19 bug dari 3 pemburu): jumlah yang bisa dibelanjakan digabung sekali per halaman, bukan tiap baca; tampilan tidak menghitung yang masih terbang; hadiah acak menunggu simpanan terbaca (stiker dobel); baca gagal diulang terus, jangan menulis buta; `run()` kedua tidak menutup layar kotak/dinding yang sedang membawa alur.
 - Input: jari kedua yang jauh mewarisi timer jari pertama; tanpa `setPointerCapture` tetikus yang lepas di luar kanvas membuat garis macet; bunyi mulai di `pointerup` juga (HP); kanvas pakai `width:min(100vw,100vh*9/16)` atau adegan gepeng di layar sempit.
@@ -119,10 +118,11 @@ Semua terjadi di sesi Pinata Maker 2026-11-18. Tiap butir: apa yang salah, lalu 
 
 ### 8. Cara kerja bareng user
 - Alur: user minta rekomendasi → daftar berprioritas → "kerjakan semuanya bertahap" → kerjakan semua, kabari per tahap. User mencoba di artifact dan di draft Astrocade; publish menunggu kata user. Jangan menjanjikan "tanpa bug" atau "audit bersih" tanpa syarat di bagian 5. Riset backend ±30 halaman per cek kecuali diminta gali dalam.
-- **User mengetes di artifact, bukan lewat berkas kiriman** (aturan user 2026-11-18). Buat halamannya dengan `node tools/single-file.js <folder game> <keluaran.html> [modul berurutan]` (menggabung modul, `lib` tiruan dengan simpanan di browser), lalu terbitkan dengan alat Artifact; berkas yang sama diterbitkan ulang ke URL yang sama. Game beraset: aset jadi data URI (gambar diperkecil 384 px), `fetch` data URI ditangani sendiri.
+- **User mengetes di artifact, bukan lewat berkas kiriman** (aturan user 2026-11-18). Game 2D: `node tools/single-file.js <folder game> <keluaran.html> [modul berurutan]`; game Three multi-modul: `node tools/artifact-modules.js <folder> <out.html>` dan modul + `icons.webp` diterbitkan lewat `files` (`check-artifact.js` hanya untuk 2D). Halaman 2D dibuat (menggabung modul, `lib` tiruan dengan simpanan di browser), lalu terbitkan dengan alat Artifact; berkas yang sama diterbitkan ulang ke URL yang sama. Game beraset: aset jadi data URI (gambar diperkecil 384 px), `fetch` data URI ditangani sendiri.
 - Sesi cloud: perintah shell yang menggabung `git` dengan heredoc besar, atau memuat `rm -rf`, bisa ditolak; tulis skrip suntingan ke berkas di scratchpad lalu jalankan, bukti baru ke folder baru (pemeriksa keamanan juga menolak heredoc Python panjang yang dicampur `$` dan `&&`, walau tanpa `rm`). Push paksa ditolak. Hook berhenti meminta commit + push; repo menggabung PR otomatis dalam hitungan detik.
 
 ### 9. Game yang sudah dibuat
+- **Toy City Stomp: Giant Monster Smash** (3D kaiju anak, tahap 1–9) — draft `01M7T76RT3XB9F68N8FGRWHRWG` (pribadi, belum thumbnail/publish); artifact `https://claude.ai/artifact/DkvRUke9JCtMAs6tANffYc`; sumber `prototypes/toy-city-stomp/` (`playtest.js`, `screens.js` 7 bahasa); bukti `production/qa/evidence/toy-city-stomp/`. Belum: uji HP sungguhan, FPS nyata.
 - **Pinata Maker: Smash Party** — draft Astrocade `01M7QHXBYRP167NRSCKP8M33V7` (belum publish, belum ada thumbnail; draft sudah versi bersih); sumber `prototypes/pinata-maker/` (`game.js`, `scene.js`, `playtest.js` 13 uji, `soak.js`, `look.js`); bukti `production/qa/evidence/pinata-maker/`. User menyatakan aman setelah perbaikan dekorasi (2026-11-18).
 - **Fizzy Bath Bomb Maker: DIY ASMR** — publik `01M7PTJ29PVDBSQ2H2Z9FF7SD1`, 160 plays di hari pertama; draft sudah versi bersih (playtest 13/13), update dikirim 2026-11-18 dan menunggu tinjauan; pemain masih disajikan versi lama `01M7PW01…` sampai lolos. Sumber `prototypes/fizzy-bath-bomb-maker/`. Belum mendapat audit bagian 5 penuh.
 - **Draw It Alive: Draw the Missing Part** (judul sejak 2026-11-19; gambar bagian yang hilang; coretan pemain jadi bagiannya dan dianimasikan) — draft Astrocade `01M7S3R108GQ3T2VKX5P9412MT` (pribadi, belum thumbnail GIF dari user); artifact `https://claude.ai/artifact/KMkQSAiiX4NGiAp3ScPx94` versi 12; sumber `prototypes/draw-it-alive/` (`art.js` kit stiker + 24 stiker, `levels.js` 20 level, `game.js`, `playtest.js` 167 cek, `soak.js` 40 level); bukti `production/qa/evidence/draw-it-alive/` (satu set terbaru, termasuk `lang-*` 7 bahasa). Isi (2026-11-19): 4 bab × 5 level (9 level dua coretan lewat `parts`), level 21–40 dicerminkan; dinding per bab, gembok terbuka saat diketuk; stoples tetes (1 bintang = 1 tetes, 6 = kotak) → 4 set × 6 stiker tanpa dobel → buku 2×2; hadiah harian +3 tetes; kartu dinding besar; teks pendek 7 bahasa; bintang 3/2/1 = pertama kali/setelah mencoba/dibantu. Rancangan yang disetujui: tempat milik pemain tumbuh dari gambarnya; bintang tidak pernah jadi gerbang; tidak ada apa pun sebelum coretan pertama. Belum: thumbnail dan publish (kata user), uji HP sungguhan, terjemahan ar/hi/bn/vi oleh penutur, adegan baru (update hari ke-5).
