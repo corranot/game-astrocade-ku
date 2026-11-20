@@ -204,7 +204,7 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
     const G = window.__game;
     G.reveal(); // a customer finished before the read came back
     const writes = window.__writes || [], before = writes.length;
-    window.__resolveSave({ state: { n: 5, coins: 120, stars: 14, colors: [13, 99, 'x'], acc: ['heart', 'bad'], wall: [{ t: 'cat', h: 'bbb,ccc', a: ['bow'], s: 3 }, { t: 'dragon', h: 'b', a: [], s: 3 }], lang: 'es', muted: true } });
+    window.__resolveSave({ state: { n: 5, coins: 120, stars: 14, colors: [13, 99, 'x'], acc: ['heart', 'bad'], wall: [{ t: 'maya', h: 'bbb,ccc', a: ['bow'], s: 3 }, { t: 'dragon', h: 'b', a: [], s: 3 }], lang: 'es', muted: true } });
     await new Promise((r) => setTimeout(r, 50));
     const s = G.save;
     return before === 0 && (window.__writes || []).length >= 1 && s.n === 6 && s.coins === 120 + G.S.gained && s.colors.join() === '13' && s.acc.join() === 'heart' && s.wall.length === 2 && s.lang === 'es' && s.muted === true;
@@ -283,7 +283,7 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   ok(await G(page, () => window.__texts.some(([t, d]) => /^\+\d+$/.test(t) && d === 'ltr')), 'Arabic: the coin gain "+N" is drawn left to right');
   page = await open();
   ok(await G(page, () => { let made = 0; const A = window.AudioContext; window.AudioContext = function () { made++; return new A(); }; document.dispatchEvent(new Event('visibilitychange')); window.AudioContext = A; return made; }) === 0, 'no sound engine is made before the first touch');
-  ok(await G(page, () => { const G = window.__game, before = G.save.wall.length; G.applySave({ wall: [{ t: 'cat', h: ','.repeat(2000), a: [], s: 3 }] }); return G.save.wall.length === before; }), 'a stored photo with thousands of strands is refused');
+  ok(await G(page, () => { const G = window.__game, before = G.save.wall.length; G.applySave({ wall: [{ t: 'maya', h: ','.repeat(2000), a: [], s: 3 }] }); return G.save.wall.length === before; }), 'a stored photo with thousands of strands is refused');
 
   console.log('18. the painted art: it loads fast, and the game still plays when it cannot load');
   page = await open();
