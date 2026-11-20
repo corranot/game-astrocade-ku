@@ -16,12 +16,17 @@ cars squash and pop back, and the little toy residents float away happily on bal
 - At full size the Wind-Up Robot drops in. Beat it and flatten the city to finish.
 - Tap the big button for your move. Earn coins and buy new moves in the shop.
 - Missions give extra coins. Find the secret of the ice-cream trucks.
+- Flatten a city to open the next one: Toy Town, Candy Town, Beach Town, Snow Town, Dino Valley, Robot City. Pick any open
+  city on the map after a round; each round builds a new layout.
+- Dress Bonbon up: hats and candy colours in the shop's LOOKS tab.
+- Each city hides three special residents. Find one per round and fill the sticker book.
 
 ## Features
 
 - Full 3D toy diorama with a sea horizon, a glossy candy monster, buildings that turn see-through when they hide Bonbon.
 - Combo ×10, dominoes, cracks and glass, dust, confetti, recorded sounds and music.
-- 10 moves, 3 mission tiers, a boss with three phases, Rainbow Mode.
+- 10 moves, 3 mission tiers, a boss with three phases, Rainbow Mode, 6 themed cities, 13 costumes, 18 stickers.
+- Result screen: blocks smashed, all-time total, the next move to save for, and the top 3 by all-time blocks smashed.
 - 7 languages (English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian), picked from the device.
 - Touch or mouse and keyboard, picked automatically; quality adjusts itself on slower phones.
 
@@ -29,10 +34,10 @@ cars squash and pop back, and the little toy residents float away happily on bal
 
 - `index.html`: page, HUD styles, import map for Three.js; loads `game.js`.
 - `game.js`: `run(mode)`, renderer, camera, input, rules, HUD, sound, languages, save, shop.
-- `city.js`: the island and city: buildings made of blocks, collapse and dominoes, cars, trees, lamps, effects.
-- `bonbon.js`: the monster model and its animation.
+- `city.js`: the island and city in a theme's colours: buildings made of blocks, collapse and dominoes, cars, trees, lamps, effects.
+- `bonbon.js`: the monster model, its animation, hats and skins.
 - `army.js`: toy army, wanted stars and the Wind-Up Robot boss.
 - `moves.js`: the button moves and the shop rules.
 - `missions.js`: missions and their rewards.
-- `game_config.json`: every tunable number and all texts in 7 languages; declares the leaderboard.
+- `game_config.json`: every tunable number, the city themes, costumes and stickers, and all texts in 7 languages; declares the leaderboard.
 - `asset_map.json`: music and sound effects.

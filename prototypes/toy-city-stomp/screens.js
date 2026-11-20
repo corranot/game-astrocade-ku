@@ -1,5 +1,5 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Screens in all 7 languages: play (HUD, mission card), result and shop, saved to
+// Screens in all 7 languages: play (HUD, mission card), result (city map), shop (moves, looks) and sticker book, saved to
 // production/qa/evidence/toy-city-stomp/ (overwrites the previous set). Reports any HUD text cut off.
 // Usage: node screens.js
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -11,6 +11,11 @@ const server = http.createServer((q, s) => {
   const f = path.join(__dirname, q.url.split('?')[0] === '/' ? 'index.html' : q.url.split('?')[0]);
   fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'content-type': types[path.extname(f)] || 'text/plain' }); s.end(d); });
 }).listen(0);
+
+/** Result-screen parts that fall outside the screen (a card too tall pushes the title or the buttons off). */
+const offScreen = () => [...document.querySelectorAll('.result h2, .result .stars, .result #again, .result #toShop, .result #toAlbum, .result #map')].filter((el) => {
+  const r = el.getBoundingClientRect(); return r.top < 0 || r.bottom > innerHeight;
+}).map((el) => 'off screen: ' + (el.id || el.className));
 
 /** Elements whose text is wider or taller than their box (cut off). */
 const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
@@ -34,10 +39,18 @@ const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
     await page.evaluate(() => { __game.save.coins = 300; __game.save.rounds = 4; __game.save.smashed = 12000; __game.finish(); });
     await page.waitForTimeout(3300);
     await page.screenshot({ path: path.join(out, `${lang}-2-result.png`) });
-    cut = cut.concat(await page.evaluate(cutOff));
+    cut = cut.concat(await page.evaluate(cutOff), await page.evaluate(offScreen));
     await page.evaluate(() => __game.openShop());
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(out, `${lang}-3-shop.png`) });
+    cut = cut.concat(await page.evaluate(cutOff));
+    await page.evaluate(() => document.querySelector('[data-tab=looks]').click());
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(out, `${lang}-4-looks.png`) });
+    cut = cut.concat(await page.evaluate(cutOff));
+    await page.evaluate(() => { __game.save.stickers = ['toy0', 'toy2', 'candy1', 'snow0']; __game.save.unlocked = 4; __game.openAlbum(); });
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: path.join(out, `${lang}-5-album.png`) });
     cut = cut.concat(await page.evaluate(cutOff));
     console.log((cut.length ? 'CUT  ' : 'ok   ') + lang + (cut.length ? ': ' + [...new Set(cut)].join(' | ') : ''));
     if (cut.length) problems.push(lang);

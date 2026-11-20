@@ -191,6 +191,54 @@ export function createBonbon(opts = {}) {
   let rainbow = false;
   const bodyMats = [...mats.values()].filter((m) => m.color && (m.color.getHex() === PINK || m.color.getHex() === PINK_D));
   const baseCol = bodyMats.map((m) => m.color.getHex()), hue = new THREE.Color();
+  const isDark = baseCol.map((h) => h === PINK_D);
+  /** A skin: the body colour and its darker shade (jaw, legs, tail rings). */
+  function setSkin(c = PINK, d = PINK_D) { bodyMats.forEach((m, i) => { baseCol[i] = isDark[i] ? d : c; if (!rainbow) m.color.setHex(baseCol[i]); }); }
+
+  // costumes on the head, built the first time they are worn (simple shapes with the same ink outline)
+  const hats = {}, hatSpot = new THREE.Group(); hatSpot.position.set(0, 0.52, -0.08); hatSpot.scale.setScalar(1.3); head.add(hatSpot);
+  let propeller = null;
+  function makeHat(id) {
+    const g = new THREE.Group(), ring = (r, n, y, geo, m, s = 1) => { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, p = part(geo, m, g, 0.06); p.position.set(Math.cos(a) * r, y, Math.sin(a) * r); p.scale.setScalar(s); } };
+    if (id === 'party') {
+      const cone = part(G(new THREE.ConeGeometry(0.3, 0.72, 18)), mat(0x3fa9ff, 0.8), g, 0.06); cone.position.y = 0.34; cone.rotation.z = -0.15;
+      const pom = part(sphere, mat(0xffc531), g, 0.06); pom.scale.setScalar(0.12); pom.position.set(0.1, 0.72, 0);
+      ring(0.24, 6, 0.16, sphere, mat(0xffffff, 0.6), 0.06);
+    } else if (id === 'crown') {
+      const band = part(G(new THREE.CylinderGeometry(0.36, 0.34, 0.2, 20)), mat(0xffc531, 1), g, 0.05); band.position.y = 0.08;
+      ring(0.3, 6, 0.28, G(new THREE.ConeGeometry(0.08, 0.22, 8)), mat(0xffc531, 1));
+      ring(0.355, 6, 0.08, sphere, mat(0xff4f7d, 1), 0.05);
+    } else if (id === 'cowboy') {
+      const brim = part(G(new THREE.CylinderGeometry(0.66, 0.66, 0.05, 28)), mat(0xc4834a, 0.4), g, 0.04); brim.position.y = 0.02;
+      const top = part(G(new THREE.CylinderGeometry(0.28, 0.35, 0.36, 22)), mat(0xc4834a, 0.4), g, 0.05); top.position.y = 0.2;
+      const band = part(G(new THREE.CylinderGeometry(0.355, 0.355, 0.07, 22)), mat(0x6b3d1f, 0.4), g, 0); band.position.y = 0.06;
+    } else if (id === 'chef') {
+      const tube = part(G(new THREE.CylinderGeometry(0.3, 0.3, 0.32, 22)), mat(0xffffff, 0.5), g, 0.05); tube.position.y = 0.14;
+      const puff = part(sphere, mat(0xffffff, 0.5), g, 0.05); puff.scale.set(0.42, 0.3, 0.42); puff.position.y = 0.42;
+    } else if (id === 'flower') {
+      const f = new THREE.Group(); f.position.set(0.32, 0.02, 0.1); f.rotation.z = -0.5; g.add(f);
+      const mid = part(sphere, mat(0xffc531), f, 0.06); mid.scale.setScalar(0.1);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, p = part(sphere, mat(0xff86c8, 0.7), f, 0.06); p.scale.set(0.12, 0.05, 0.12); p.position.set(Math.cos(a) * 0.17, 0, Math.sin(a) * 0.17); }
+    } else if (id === 'shades') {
+      for (const s of [-1, 1]) { const l = part(G(new THREE.BoxGeometry(0.3, 0.18, 0.05)), mat(0x241238, 1), g, 0.06); l.position.set(0.3 * s, 0.22, 0.7); }
+      const br = part(G(new THREE.BoxGeometry(0.2, 0.04, 0.04)), mat(0x241238, 1), g, 0); br.position.set(0, 0.26, 0.72);
+    } else if (id === 'propeller') {
+      const cap = part(G(new THREE.SphereGeometry(0.36, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2)), mat(0xff5a4f, 0.8), g, 0.05); cap.scale.y = 0.7;
+      const stick = part(G(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 6)), mat(0xffc531), g, 0); stick.position.y = 0.32;
+      propeller = new THREE.Group(); propeller.position.y = 0.44; g.add(propeller);
+      for (const col of [0x3fa9ff, 0x22c6a3]) { const b = part(G(new THREE.BoxGeometry(0.62, 0.025, 0.11)), mat(col, 0.8), propeller, 0.05); b.rotation.y = col === 0x3fa9ff ? 0 : Math.PI / 2; }
+    }
+    (id === 'shades' ? head : hatSpot).add(g);
+    return g;
+  }
+  /** Wears one costume on the head ('none' or an unknown id takes it off). */
+  function setHat(id) {
+    for (const k in hats) hats[k].visible = false;
+    if (!id || id === 'none') return;
+    if (!hats[id]) hats[id] = makeHat(id);
+    hats[id].visible = true;
+  }
+
   /** Rainbow Mode: the body cycles through the rainbow and glows a little. */
   function setRainbow(on) {
     rainbow = on;
@@ -199,11 +247,12 @@ export function createBonbon(opts = {}) {
   const _update = update;
   update = function (dt, state) {
     _update(dt, state);
+    if (propeller && propeller.parent.visible) propeller.rotation.y += dt * 14;
     if (rainbow) bodyMats.forEach((m, i) => { m.color.copy(hue.setHSL((t * 0.35 + i * 0.12) % 1, 0.85, 0.62)); if (m.emissive) m.emissive.copy(hue).multiplyScalar(0.25); });
   };
 
   return {
-    root, update: (dt, s) => update(dt, s), setStage, face: setFace, setRainbow,
+    root, update: (dt, s) => update(dt, s), setStage, face: setFace, setRainbow, setSkin, setHat, get hatOn() { for (const k in hats) if (hats[k].visible) return k; return 'none'; },
     stomp(strength = 1) { squashV -= 6 * strength; attackT = 0.3; },
     roar() { roarT = 1.0; setFace('roar', 1.0); squashV += 5; },
     laugh() { laughT = 0.9; setFace('win', 1.0); },

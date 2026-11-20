@@ -165,6 +165,34 @@ const server = http.createServer((q, s) => {
     const nx = await g(() => __game.missions.current && __game.missions.current.icon);
     check(r.stage >= 2 && nx === '🚗', `after houses, a grow-to-2 step already met is skipped (next: ${nx})`);
   }
+  // themed cities: finishing the newest city opens the next one and picks it; the map can pick an older one
+  {
+    const r = await g(() => { const s = __game.save; s.unlocked = 1; s.theme = 0; __game.newRound(); const S = __game.S; S.touched = true; __game.finish();
+      return { un: s.unlocked, th: s.theme }; });
+    await page.waitForFunction(() => !document.querySelector('#result').hidden, null, { timeout: 15000 }); // shown (and wired) after a short pause
+    const m = await g(() => { const cities = [...document.querySelectorAll('#map .city')]; const pick = cities[0]; pick.click();
+      return { n: cities.length, locked: cities.filter((c) => c.disabled).length, picked: __game.save.theme, name: document.querySelector('#cityName').textContent }; });
+    const next = await g(() => { __game.save.theme = 1; document.querySelector('#again').click(); return { theme: __game.S.theme, sky: __game.skyTop }; });
+    check(r.un === 2 && r.th === 1 && m.n === 6 && m.locked === 4 && m.picked === 0 && next.theme === 1 && next.sky !== '3f9dff',
+      `finishing Toy Town opens Candy Town and picks it; the map shows 6 cities (4 locked) and picks another (${JSON.stringify({ ...r, ...m, ...next })})`);
+  }
+  // costumes: a hat bought in the LOOKS tab is worn; one the coins do not cover refuses
+  {
+    const r = await g(() => { const s = __game.save; s.coins = 200; s.wardrobe = []; s.hat = 'none'; __game.openShop(); document.querySelector('[data-tab=looks]').click();
+      document.querySelector('[data-look=crown]').click(); const refused = !s.wardrobe.includes('crown') && s.coins === 200;
+      document.querySelector('[data-look=party]').click(); return { refused, owned: s.wardrobe.slice(), hat: s.hat, coins: s.coins, worn: __game.hatOn }; });
+    check(r.refused && r.owned.includes('party') && r.hat === 'party' && r.coins === 80 && r.worn === 'party', `buying the party hat (120) puts it on Bonbon; the crown (420) refuses (${JSON.stringify(r)})`);
+  }
+  // sticker book: the n-th building knocked down after the first touch gives this city's next sticker
+  {
+    const before = await g(() => { const s = __game.save; s.stickers = []; s.theme = 0; __game.newRound(); const S = __game.S; S.touched = true; S.idle = -999;
+      S.stickerAt = S.collapses + 1; const b = __game.city.buildings.find((x) => x.state === 'intact'); __game.city.collapse(b, { x: 0, z: 1 }, 0); return s.stickers.length; });
+    await page.waitForFunction(() => __game.save.stickers.length > 0, null, { timeout: 8000 }).catch(() => {});
+    const r = await g(() => ({ got: __game.save.stickers.slice(), sticker: __game.S.newSticker, banner: document.querySelector('#banner').textContent }));
+    const al = await g(() => { __game.openAlbum(); const box = document.querySelector('#album'); const r = { open: !box.hidden, got: box.querySelectorAll('.slot.got').length, slots: box.querySelectorAll('.slot').length }; box.querySelector('#albumClose').click(); return { ...r, closed: box.hidden }; });
+    check(before === 0 && r.got.length === 1 && r.got[0] === 'toy0' && r.sticker && r.banner.includes(r.sticker), `a building gives the first Toy Town sticker with a banner (${JSON.stringify(r)})`);
+    check(al.open && al.got === 1 && al.slots === 18 && al.closed, `the sticker book shows 1 of 18 and closes (${JSON.stringify(al)})`);
+  }
   // the settings close at a new round; what the attract mode broke before the first touch is not the child's
   {
     const r = await g(() => { document.querySelector('#gear').click(); const open = !document.querySelector('#langs').hidden; __game.newRound(); return { open, closed: document.querySelector('#langs').hidden }; });
@@ -174,6 +202,33 @@ const server = http.createServer((q, s) => {
     await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height * 0.6); await page.mouse.down(); await page.mouse.up();
     const t = await g(() => ({ b0: __game.S.blocks0, coins: __game.S.coins, touched: __game.S.touched }));
     check(t.touched && t.b0 >= pre && t.coins < 40, `the first touch starts the child's count: ${t.b0} blocks already down left out (>= ${pre}), coins ${t.coins} (the 40 from before are gone), touched ${t.touched}`);
+  }
+  // switching cities rebuilds the sky's reflections without leaving the old ones on the GPU
+  {
+    const t = await g(async () => { const s = __game.save; s.unlocked = 6; const counts = [];
+      for (const th of [1, 0, 1, 0, 1]) { s.theme = th; __game.newRound(); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); counts.push(__game.textures); }
+      s.theme = 0; s.unlocked = 1; return counts; });
+    check(t[4] <= t[0], `switching cities does not pile up GPU textures (${t.join(' -> ')})`);
+  }
+  // a save that arrives after a city was finished: the map shows what is really open, a hat picked now stays on
+  {
+    const p3 = await browser.newPage({ viewport: { width: 405, height: 720 }, locale: 'en' });
+    await p3.addInitScript(() => {
+      window.lib = { showGameParameters() {}, log() {}, getAsset: () => undefined, haptics: { play() {}, start() {}, stop() {} }, shouldUseTouchControls: () => false,
+        getUserGameState: () => new Promise((r) => { window.__deliver = r; }), saveUserGameState: async () => {},
+        addPlayerScoreToLeaderboard: async () => ({}), getTopNEntriesFromLeaderboard: async () => ({}) };
+      addEventListener('load', async () => { window.gameConfig = await (await fetch('./game_config.json')).json(); window.run('play'); });
+    });
+    await p3.goto(`http://localhost:${port}/?speed=6`);
+    await p3.waitForFunction(() => window.__game && window.__game.S && window.__deliver, null, { timeout: 30000 });
+    await p3.evaluate(() => { const S = __game.S; S.touched = true; __game.finish(); const s = __game.save; s.coins = 500; s.wardrobe = ['party']; s.hat = 'party'; __game.wear(); });
+    await p3.waitForFunction(() => !document.querySelector('#result').hidden, null, { timeout: 15000 });
+    const r = await p3.evaluate(async () => { window.__deliver({ state: { rounds: 5, unlocked: 4, theme: 3, hat: 'crown', wardrobe: ['crown'], coins: 50 } });
+      await new Promise((res) => setTimeout(res, 200));
+      return { locked: document.querySelectorAll('#map .city.locked').length, on: [...document.querySelectorAll('#map .city')].findIndex((c) => c.classList.contains('on')),
+        name: document.querySelector('#cityName').textContent, hat: __game.hatOn, theme: __game.save.theme }; });
+    check(r.locked === 2 && r.on === 3 && r.name === 'Snow Town' && r.hat === 'party', `a late save fixes the city map (4 open, Snow Town picked, no fake NEW CITY) and keeps the hat picked now (${JSON.stringify(r)})`);
+    await p3.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
