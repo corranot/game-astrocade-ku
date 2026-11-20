@@ -19,10 +19,10 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   const base = `http://127.0.0.1:${server.address().port}/index.html?local`;
   const browser = await chromium.launch();
   let current = null; // one game page at a time: pages left open keep running and slow the frame checks
-  const open = async (extra = '', ctx = {}, init) => {
+  const open = async (extra = '', ctx = {}, init, arg) => {
     if (current) await current.context().close();
     const c = await browser.newContext({ viewport: { width: 720, height: 1280 }, ...ctx });
-    if (init) await c.addInitScript(init);
+    if (init) await c.addInitScript(init, arg);
     const page = current = await c.newPage();
     page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') page.errors.push(m.text()); });
     await page.goto(base + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 10000 });
@@ -215,7 +215,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     await wait(page, () => window.__game.S.n === 2); await ready(page); await page.waitForTimeout(400); await shot(page, `lang-${l}-6-chop`);
     for (const [k, name] of [['stir', '7-stir'], ['pour', '8-pour'], ['stamp', '9-stamp']]) { await G(page, (k) => { const G = window.__game; while (G.S.k !== k) G.nextStep(); }, k); await page.waitForTimeout(700); await shot(page, `lang-${l}-${name}`); }
     await G(page, () => { const G = window.__game; while (G.S.k !== 'bath') G.nextStep(); }); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.6);
-    await G(page, () => { window.__game.S.reveal.gift = true; window.__game.nextOrder(); }); await page.waitForTimeout(600); await shot(page, `lang-${l}-10-gift`);
+    await G(page, () => { window.__game.save.giftDue = true; window.__game.nextOrder(); }); await page.waitForTimeout(600); await shot(page, `lang-${l}-10-gift`);
     ok(page.errors.length === 0 && await G(page, () => window.__game.view === 'gift'), `${l}: making, stamp and gift screens drawn`);
   }
   page = await open('', { locale: 'fr-FR' }); ok(await G(page, () => window.__game.lang) === 'en', 'an unknown locale falls back to English');
@@ -347,6 +347,35 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   await page.mouse.click(360, 650); await wait(page, () => window.__game.view === 'play' && window.__game.S.n === 3);
   ok(await G(page, () => window.__game.S.order.stamp) === gift19.id, 'and the next customer asks for it');
   ok(page.errors.length === 0, 'no errors through the whole recipe');
+
+  console.log('20. regressions found by the second bug hunt');
+  const toStep = (page, k) => G(page, (k) => { const G = window.__game; while (G.S.k !== k) G.nextStep(); }, k);
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour');
+  await page.mouse.move(360, 650); await page.mouse.down(); await page.waitForTimeout(1500);
+  ok(await G(page, () => window.__game.S.make.level > 0.3), 'holding before the pot arrives still pours');
+  await page.mouse.up();
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour'); await page.waitForTimeout(700);
+  await page.mouse.move(360, 650); await page.mouse.down(); await wait(page, () => window.__game.S.make.level > 0.45); await page.mouse.up();
+  ok(await G(page, () => window.__game.S.k === 'pour' && window.__game.S.make.lowT > 0), 'letting go too early shows and sounds a hint');
+  ok(await G(page, () => window.__game.fillShare(0.55) < 0.8 && window.__game.fillShare(window.__game.cfg.pourLo) >= 0.99), 'the mould looks full only when the level reaches the green band');
+  await page.mouse.move(360, 650); await page.mouse.down(); await wait(page, () => window.__game.S.make.level > 0.7);
+  await G(page, () => window.run('play')); await page.waitForTimeout(300); await page.mouse.up();
+  ok(await G(page, () => !window.__game.S.make.pouring), 'a second run() mid-pour stops the pouring');
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2); await ready(page);
+  const w20 = await G(page, () => (window.__writes || []).length); await toStep(page, 'color');
+  ok(await G(page, (w) => (window.__writes || []).length > w && window.__writes[window.__writes.length - 1].learned.includes('chop'), w20), 'a finished step is saved at once (coins and learned gestures)');
+  await toStep(page, 'bath'); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 0.5);
+  ok(await G(page, () => window.__game.save.giftDue === true && window.__game.giftDots() === window.__game.cfg.giftEvery), 'the gift is due and saved; its dots show full');
+  const saved20 = await G(page, () => JSON.parse(JSON.stringify(window.__game.save)));
+  page = await open('', {}, (st) => { window.__saved = st; }, saved20);
+  await wait(page, () => window.__game.view === 'gift');
+  ok(true, 'a reload with a gift due opens the gift box');
+  for (let i = 0; i < 3; i++) { await page.mouse.click(360, 650); await page.waitForTimeout(150); }
+  ok(await G(page, () => window.__game.save.giftDue === false), 'opening it clears the due gift');
+  ok(await G(page, () => { const G = window.__game, b = G.potSide(); return b.x - b.r >= 0 && b.x + b.r <= 720; }), 'the pot beside the mould stays on screen');
 
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');
