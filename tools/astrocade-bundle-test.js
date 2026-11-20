@@ -32,10 +32,16 @@ const outer = `<!doctype html><html><body style="margin:0"><iframe id="g" style=
   await p.setContent(outer);
   const f = p.frames().find((x) => x !== p.mainFrame());
   let started = false;
-  for (let i = 0; i < 40 && !started; i++) { await p.waitForTimeout(500); started = await f.evaluate(() => !!(window.__game && window.__game.S)).catch(() => false); }
+  for (let i = 0; i < 40 && !started; i++) { await p.waitForTimeout(500); started = await f.evaluate(() => { // the game's debug hook is set, or a canvas on screen has been drawn on
+    if (window.__game) return true;
+    // never getContext() here: a context of the wrong type would stop the game creating its own (WebGL fails)
+    for (const c of document.querySelectorAll('canvas')) { if (!c.width || !c.getBoundingClientRect().width) continue;
+      try { if (c.toDataURL('image/png').length > 6000) return true; } catch (e) { return true; } } // a blank canvas encodes tiny; a tainted one has drawn CDN images
+    return false; }).catch(() => false); }
   if (started) await p.waitForTimeout(3000);
   const errs = await f.evaluate(() => window.__errs).catch(() => ['frame not reachable']);
+  const canvases = started ? undefined : await f.evaluate(() => [...document.querySelectorAll('canvas')].map((c) => { let n = -1; try { n = c.toDataURL('image/png').length; } catch (e) { n = 'tainted'; } return `${c.id || '?'} ${c.width}x${c.height} shown ${Math.round(c.getBoundingClientRect().width)} png ${n}`; })).catch(() => ['frame not reachable']);
   if (shot) await p.screenshot({ path: shot });
-  console.log(JSON.stringify({ bundleKB: Math.round(bundle.length / 1024), started, errors: [...new Set([...errs, ...console_])] }, null, 1));
+  console.log(JSON.stringify({ bundleKB: Math.round(bundle.length / 1024), started, errors: [...new Set([...errs, ...console_])], canvases }, null, 1)); // canvases: only when it did not start, to see why
   await b.close();
 })();

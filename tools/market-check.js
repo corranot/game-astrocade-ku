@@ -97,6 +97,8 @@ function report(dir, prev) {
   } else if (f) say(`${Object.keys(f).length} flag tersimpan, ${Object.keys(f).filter((k) => FEED_FLAG.test(k)).length} menyangkut feed. Perbandingan mulai cek berikutnya.`);
 
   const feed = read(dir, 'feed.json'), pfeed = prev && read(prev, 'feed.json');
+  if (!feed || !Object.keys(feed).length) say('\n**Feed kosong:** halaman tamu tidak memuat baris `v3/feed` kali ini (sesekali terjadi). Ulangi cek sebelum menyimpulkan apa pun dari Players\' Choice atau Discover More.');
+  if (pfeed && !Object.keys(pfeed).length) say('_Cek sebelumnya feed-nya kosong, jadi semua game di bawah tertulis BARU._');
   for (const [cat, label] of [['top_picks', "Players' Choice"], ['trending', 'Discover More']]) {
     const now = (feed && feed[cat]) || [], was = new Set(((pfeed && pfeed[cat]) || []).map((g) => g.id));
     say(`\n## ${label} (yang dimuat halaman tamu, ${now.length} game; diacak per sesi)`);

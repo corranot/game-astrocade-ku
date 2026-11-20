@@ -10,9 +10,10 @@ Thumbs.db
 Desktop.ini
 
 # === Claude Code Local ===
-.claude/settings.local.json
+# .claude/settings.local.json is tracked on purpose in this fork: cloud sessions start from a fresh clone and
+# need its hooks (read ASTROCADE.md, caveman/ponytail, meta-prompt). Keep secrets out of it.
 CLAUDE.local.md
-project.local.yaml
+# project.local.yaml is tracked on purpose for the same reason (the fork's mode choices).
 production/session-logs/
 # Ephemeral per-session checkpoint; never committed.
 production/session-state/
