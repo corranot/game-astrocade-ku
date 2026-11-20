@@ -5,6 +5,7 @@
 // All gameplay randomness comes from the seeded rng passed in.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 import { toon } from './toon.js';
+import { cityCar, personBody, personHead, treeCrown } from './shapes.js';
 
 // the look of the first city (Toy Town); a theme from game_config.themes replaces any of these
 const TOY = {
@@ -263,9 +264,9 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   }
   const TREE = { round: [1, 1.1, 1.25, 1.1, 2], lolly: [1.6, 1, 1, 0.45, 2.7], palm: [2, 1.9, 0.45, 1.9, 3.1], cone: [1, 1.15, 1.9, 1.15, 2.4] }[TH.tree] || [1, 1.1, 1.25, 1.1, 2];
   const [trunkH, crX, crY, crZ, crH] = TREE; // trunk height factor, crown size, crown height
-  const crownGeo = TH.tree === 'cone' ? new THREE.ConeGeometry(1, 1.4, 7) : TH.tree === 'lolly' ? new THREE.SphereGeometry(1, 14, 10) : new THREE.IcosahedronGeometry(1, 1);
+  const crownGeo = treeCrown(TH.tree === 'cone' || TH.tree === 'palm' || TH.tree === 'lolly' ? TH.tree : 'round'); // bushy, stacked, fronds or a ball
   const trunkMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8)), keep(toon({ color: hex(TH.trunk) })), props.length);
-  const crownMesh = new THREE.InstancedMesh(keep(crownGeo), keep(toon({ color: 0xffffff, roughness: 0.6, flatShading: true })), props.length);
+  const crownMesh = new THREE.InstancedMesh(keep(crownGeo), keep(toon({ color: 0xffffff, vertexColors: true })), props.length);
   const lampHead = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.32, 10, 8)), keep(new THREE.MeshBasicMaterial({ color: 0xfff1b8 })), props.length);
   crownMesh.castShadow = true;
   for (const m of [trunkMesh, crownMesh, lampHead]) m.frustumCulled = false;
@@ -292,19 +293,21 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     cars.push({ horiz, p: -half + line * pitch + C.road / 2 + lane * 1.2, t: rng() * span - half, speed: (3 + rng() * 3) * lane, squash: 0, x: 0, z: 0, color: PALETTE[n % PALETTE.length] });
   }
   for (let n = 0; n < 3 && n < cars.length; n++) { const c = cars[(n * 3 + 1) % cars.length]; c.icecream = true; c.color = 0xff9cc6; }
-  const carBody = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(2.2, 0.8, 1.2)), keep(toon({ color: 0xffffff, roughness: 0.3 })), cars.length);
-  const carTop = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.2, 0.6, 1.0)), keep(toon({ color: 0xd9f3ff, roughness: 0.15 })), cars.length);
-  const wheelGeo = keep(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12)); wheelGeo.rotateX(Math.PI / 2);
-  const carWheels = new THREE.InstancedMesh(wheelGeo, keep(toon({ color: 0x2a2140 })), cars.length * 4);
+  // a toy car: rounded body with wheel arches (each car its own paint), glass cabin, lights and bumpers, hubcaps
+  const CAR = cityCar(), carMat = keep(toon({ color: 0xffffff, vertexColors: true }));
+  const carBody = new THREE.InstancedMesh(keep(CAR.body), carMat, cars.length);
+  const carTop = new THREE.InstancedMesh(keep(CAR.glass), carMat, cars.length);
+  const carTrim = new THREE.InstancedMesh(keep(CAR.trim), carMat, cars.length);
+  const carWheels = new THREE.InstancedMesh(keep(CAR.wheel), carMat, cars.length * 4);
   carBody.castShadow = true;
-  for (const m of [carBody, carTop, carWheels]) m.frustumCulled = false;
+  for (const m of [carBody, carTop, carTrim, carWheels]) m.frustumCulled = false;
   cars.forEach((c, i) => carBody.setColorAt(i, col.setHex(c.color)));
   const coneGeo = new THREE.ConeGeometry(0.42, 1.0, 12); coneGeo.rotateX(Math.PI); coneGeo.translate(0, 0.5, 0);
   const cones = new THREE.InstancedMesh(keep(coneGeo), keep(toon({ color: 0xe8b46a, roughness: 0.6 })), cars.length);
   const scoops = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.5, 14, 10)), keep(toon({ color: 0xffffff, roughness: 0.4 })), cars.length);
   for (const m of [cones, scoops]) { m.frustumCulled = false; for (let i = 0; i < cars.length; i++) m.setMatrixAt(i, mtx.makeScale(0, 0, 0)); }
   cars.forEach((c, i) => scoops.setColorAt(i, col.setHex([0xff9cc6, 0xfff0b3, 0xa8f0d8][i % 3])));
-  group.add(carBody, carTop, carWheels, cones, scoops);
+  group.add(carBody, carTop, carTrim, carWheels, cones, scoops);
   const yAxis = new THREE.Vector3(0, 1, 0), xAxis = new THREE.Vector3(1, 0, 0), wheelPos = new THREE.Vector3();
   function updateCars(dt) {
     for (let i = 0; i < cars.length; i++) {
@@ -323,18 +326,18 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       quat.setFromAxisAngle(yAxis, c.horiz ? (c.speed > 0 ? 0 : Math.PI) : (c.speed > 0 ? -Math.PI / 2 : Math.PI / 2));
       if (spin) quat.multiply(qd.setFromAxisAngle(xAxis, spin));
       const wide = c.squash > 0.4 ? 1.25 : 1;
-      carBody.setMatrixAt(i, mtx.compose(v3.set(c.x, 0.7 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
-      carTop.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.35 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
+      mtx.compose(v3.set(c.x, lift, c.z), quat, one.set(wide, flat, wide)); // the car's parts are modelled from the ground up
+      carBody.setMatrixAt(i, mtx); carTop.setMatrixAt(i, mtx); carTrim.setMatrixAt(i, mtx);
       if (c.icecream) {
-        cones.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.65 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
-        scoops.setMatrixAt(i, mtx.compose(v3.set(c.x, (2.75 + Math.sin(seaT * 4 + i) * 0.08) * flat + lift, c.z), quat, one.set(wide, flat, wide)));
+        cones.setMatrixAt(i, mtx.compose(v3.set(c.x, 1.36 * flat + lift, c.z), quat, one.set(wide, flat, wide)));
+        scoops.setMatrixAt(i, mtx.compose(v3.set(c.x, (2.46 + Math.sin(seaT * 4 + i) * 0.08) * flat + lift, c.z), quat, one.set(wide, flat, wide)));
       }
       for (let w = 0; w < 4; w++) {
-        wheelPos.set(w < 2 ? -0.7 : 0.7, 0.32 * flat, w % 2 ? -0.6 : 0.6).applyQuaternion(quat); wheelPos.x += c.x; wheelPos.z += c.z; wheelPos.y += lift;
+        const wa = CAR.wheelAt[w]; wheelPos.set(wa[0], wa[1] * flat, wa[2]).applyQuaternion(quat); wheelPos.x += c.x; wheelPos.z += c.z; wheelPos.y += lift;
         carWheels.setMatrixAt(i * 4 + w, mtx.compose(wheelPos, quat, one.set(1, flat, 1)));
       }
     }
-    carBody.instanceMatrix.needsUpdate = carTop.instanceMatrix.needsUpdate = carWheels.instanceMatrix.needsUpdate = cones.instanceMatrix.needsUpdate = scoops.instanceMatrix.needsUpdate = true;
+    carBody.instanceMatrix.needsUpdate = carTop.instanceMatrix.needsUpdate = carTrim.instanceMatrix.needsUpdate = carWheels.instanceMatrix.needsUpdate = cones.instanceMatrix.needsUpdate = scoops.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- dust (soft points), confetti, residents with balloons, clouds
@@ -355,7 +358,8 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     group.add(m); return { m, items: Array.from({ length: n }, () => ({ life: 0 })), next: 0 };
   };
   const confetti = pool(quality.confetti, new THREE.BoxGeometry(0.35, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  const people = pool(24, new THREE.CapsuleGeometry(0.2, 0.32, 4, 8), toon({ color: 0xffffff }));
+  const people = pool(24, personBody(), toon({ color: 0xffffff, vertexColors: true }));
+  const heads = pool(24, personHead(), toon({ color: 0xffffff, vertexColors: true }));
   const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), toon({ color: 0xffffff, roughness: 0.2 }));
   const strings = pool(24, new THREE.CylinderGeometry(0.02, 0.02, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0x2a2140 }));
   const take = (P) => { const i = P.next; P.next = (P.next + 1) % P.items.length; return i; };
@@ -381,12 +385,12 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     y = 0.4; // they step out on the ground beside the building, hop for joy, then float off
     for (let k = 0; k < n; k++) {
       const i = take(people), it = people.items[i];
-      people.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4]));
+      people.m.setColorAt(i, col.setHex(PALETTE[(i + k) % PALETTE.length])); heads.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4])); // shirt, skin
       balloons.m.setColorAt(i, col.setHex([0xff5a4f, 0xffc531, 0x3fa9ff, 0x22c6a3, 0x9b6bff][Math.floor(rng() * 5)]));
       const a = rng() * Math.PI * 2;
       Object.assign(it, { hop: 0.9, y0: 0.4, x: x + Math.cos(a) * ring + (rng() - 0.5) * 2, y, z: z + Math.sin(a) * ring + (rng() - 0.5) * 2, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
     }
-    people.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = true;
+    people.m.instanceColor.needsUpdate = heads.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = true;
   }
   function updateParticles(dt) {
     for (let i = 0; i < DUSTN; i++) {
@@ -415,7 +419,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       const s = Math.max(0, it.life < 0.5 ? it.life / 0.5 : Math.min(1, (it.max - it.life) * 4)) * THREE.MathUtils.smoothstep(cd, 7, 14);
       const sway = Math.sin(it.life * 4 + it.ph) * 0.25;
       quat.setFromEuler(eul.set(0, 0, sway));
-      people.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(s)));
+      people.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(s))); heads.m.setMatrixAt(i, mtx);
       strings.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway * 0.5, it.y + 0.75, it.z), quat.setFromEuler(eul.set(0, 0, sway * 0.6)), one.setScalar(s)));
       balloons.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway, it.y + 1.5, it.z), quat.identity(), one.set(s, s * 1.15, s)));
     }
@@ -423,7 +427,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       const it = clouds.items[i]; it.x += it.v * dt; if (it.x > 230) it.x -= 460;
       clouds.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat.identity(), one.set(it.s * 1.8, it.s * 0.7, it.s)));
     }
-    for (const P of [confetti, people, balloons, strings, clouds]) P.m.instanceMatrix.needsUpdate = true;
+    for (const P of [confetti, people, heads, balloons, strings, clouds]) P.m.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- breaking

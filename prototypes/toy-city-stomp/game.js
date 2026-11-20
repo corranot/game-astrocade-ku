@@ -966,6 +966,7 @@ function startGame(mode) {
   }
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
+  let camOverride = null, frozen = false;
   const follow = { x: 0, z: 0, vx: 0, vz: 0, init: false };
   const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Adds screen shake for a big moment only; amounts are small and never stack past 0.6. */
@@ -987,6 +988,7 @@ function startGame(mode) {
     const sh = S.trauma * S.trauma * FX.shakeMax * z, tt = performance.now() / 1000;
     camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 23) * sh * 0.35, Math.sin(tt * 19 + 1) * sh * 0.25, 0));
     camera.lookAt(camLook);
+    if (camOverride) { camera.position.copy(camOverride.p); camera.lookAt(camOverride.l); } // tests only: a fixed close-up
     city.setXray(camera.position, monV.set(S.x, 1.4 * S.scale, S.z), 1.6 * S.scale);
     sky.position.copy(camera.position);
     const span = 26 * z;
@@ -1018,7 +1020,7 @@ function startGame(mode) {
     raf = requestAnimationFrame(frame);
     const raw = Math.min(0.11, (now - last) / 1000); last = now;
     fps = fps * 0.95 + (1 / Math.max(raw, 0.001)) * 0.05;
-    for (let k = 0; k < SIM; k++) simulate(raw);
+    if (!frozen) for (let k = 0; k < SIM; k++) simulate(raw); // frozen: tests only, a still frame for close-ups
     updateCamera(raw); army.draw(); mfx.update(raw);
     bannerT -= raw; if (bannerT <= 0) $('banner').classList.remove('show');
     const ring = S.skillCd > 0 ? Math.ceil(S.skillCd / (S.skillCdMax || 1) * 20) / 20 : 0;
@@ -1144,7 +1146,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, fx, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, fx, freeze(v) { frozen = !!v; }, closeUp(p, l) { camOverride = p ? { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) } : null; }, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },
