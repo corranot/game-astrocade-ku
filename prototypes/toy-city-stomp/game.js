@@ -301,9 +301,9 @@ function startGame(mode) {
     // a new city every round: the first one (and the attract mode) is the tuned seed, then each finished city
     // moves the seed on, so the layout, colours and the clock tower's place change
     // the Daily City: the same seed and city for every player today, picked from the map's 📅
-    const daily = wantDaily, day = today();
+    const daily = wantDaily, day = today(); // the day is fixed when the round starts (a round across midnight stays yesterday's)
     wantDaily = false;
-    const n = save.rounds || 0, ti = daily ? day % unlockedCount() : themeIndex();
+    const n = save.rounds || 0, ti = daily ? day % THEMES.length : themeIndex(); // the same city for every player today, open or not
     rng = mulberry32(daily ? ((day * 7919 + 12345) >>> 0) : (((cfg.seed || 1) + n * 7919) >>> 0));
     const newSky = ti !== skyShown;
     if (newSky) { applySky(THEMES[ti]); skyShown = ti; }
@@ -316,7 +316,7 @@ function startGame(mode) {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
       time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
-      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, daily, dailyBonus: 0, theme: ti, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
+      scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, daily, dailyBonus: 0, theme: ti, day, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
     };
     const SA = (cfg.stickers && cfg.stickers.atCollapse) || [4, 22];
     S.stickerAt = SA[0] + Math.floor(rng() * (SA[1] - SA[0] + 1)); // the n-th building the child knocks down hides a sticker
@@ -330,7 +330,7 @@ function startGame(mode) {
     if (daily) banner('📅 ' + T('daily'), 1.8);
     else if (newSky && ti > 0) banner(THEMES[ti].icon + ' ' + T('t_' + THEMES[ti].id), 1.8); // the name of a new city
   }
-  let wantDaily = false;
+  let wantDaily = false, giftWaiting = false;
   /** This city's robot boss name. */
   const bossName = () => { const b = S && THEMES[S.theme] && THEMES[S.theme].boss; return T(b && b.name ? b.name : 'boss'); };
   /** Today as a whole day number in the player's own time zone (the Daily City seed and the daily gift). */
@@ -858,7 +858,7 @@ function startGame(mode) {
       const un = unlockedCount();
       if (!S.daily && S.theme === un - 1 && un < THEMES.length) { save.unlocked = un + 1; save.theme = un; newCity = un; }
       if (S.daily) {
-        const d = today();
+        const d = S.day;
         if (save.dailyDay !== d) { save.dailyDay = d; save.dailyBest = sec; S.dailyBonus = (cfg.daily && cfg.daily.cityBonus) || 100; save.coins += S.dailyBonus; } // first today: bonus
         else save.dailyBest = Math.min(save.dailyBest === null ? sec : save.dailyBest, sec);
       }
@@ -884,24 +884,29 @@ function startGame(mode) {
     <div class="endbtns"><button class="again gloss out" id="again">${T('again')}</button>
     <div class="row3"><button class="toshop gloss" id="toShop"><span class="coin-ico"></span> ${T('shop')}${canBuy() ? '<span class="badge">!</span>' : ''}</button>
     <button class="toalbum gloss" id="toAlbum" aria-label="${T('album')}">📖${S.newSticker ? `<span class="badge">${S.newSticker}</span>` : ''}</button></div></div>`;
-    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); $('langs').hidden = true; countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; r.querySelector('#toAlbum').onclick = () => { Sound.unlock(); openAlbum(); };
+    setTimeout(() => { if (!S.finished) return; r.hidden = false; hud.classList.add('ended'); $('langs').hidden = true; if (giftWaiting) dailyGift(); countUp(r.querySelector('#blk'), blocks); r.querySelector('#again').onclick = () => { Sound.unlock(); newRound(); }; r.querySelector('#toShop').onclick = () => { Sound.unlock(); openShop(); }; r.querySelector('#toAlbum').onclick = () => { Sound.unlock(); openAlbum(); };
     }, 1600);
     S.newCity = newCity; renderMap();
   }
   /** The daily gift: coming back on the next day grows a 7-day streak of coins; a missed day starts again. */
   function dailyGift() {
     if (mode !== 'play' || (new URLSearchParams(location.search).has('local') && !new URLSearchParams(location.search).has('daily'))) return; // dev runs skip it
-    const d = today(), last = Number.isFinite(save.lastDay) ? save.lastDay : null;
-    if (last === d) return;
-    save.streak = last === d - 1 ? (Number(save.streak) || 0) + 1 : 1; save.lastDay = d;
-    const R = (cfg.daily && cfg.daily.rewards) || [50, 80, 120, 160, 200, 260, 400], k = (save.streak - 1) % R.length, gift = R[k];
+    // mid-round the card waits for the result screen (it would cover the game while the clock runs)
+    if (S && S.touched && !S.finished) { giftWaiting = true; return; }
+    giftWaiting = false;
+    const d = today(), lv = Number(save.lastDay), last = Number.isFinite(lv) ? Math.floor(lv) : null;
+    if (last !== null && last >= d) return; // already today, or a clock set back: nothing to pay
+    const streak = Math.max(0, Math.floor(Number(save.streak)) || 0);
+    save.streak = last === d - 1 ? streak + 1 : 1; save.lastDay = d;
+    // the gift grows for 7 days, then stays at the top while the streak lasts
+    const R = (cfg.daily && cfg.daily.rewards) || [50, 80, 120, 160, 200, 260, 400], k = Math.min(save.streak, R.length) - 1, gift = Number(R[k]) || 0;
     save.coins += gift; persist(); hudCache.coins = null; updateHud();
     const box = $('gift');
     box.innerHTML = `<div class="acard"><h2 class="out" dir="auto">🎁 ${T('dailyGift')}</h2><div class="gday out" dir="auto">${T('dayN').replace('{n}', save.streak)}</div>
       <div class="gdays">${R.map((c, i) => `<span class="gd${i < k ? ' got' : i === k ? ' now' : ''}"><i>${i + 1}</i><b dir="ltr">${c}</b></span>`).join('')}</div>
       <div class="earn"><span class="coin-ico"></span><b dir="ltr">+${gift}</b></div><button class="again gloss out" id="giftOk">✓</button></div>`;
-    box.hidden = false; Sound.win(); buzz('success');
-    box.querySelector('#giftOk').onclick = () => { box.hidden = true; Sound.coin(3); };
+    box.hidden = false; buzz('success');
+    box.querySelector('#giftOk').onclick = () => { box.hidden = true; Sound.unlock(); Sound.win(); }; // sound needs the tap that unlocks audio
   }
   /** The city map under the result: open cities can be picked for the next round, the newest one pulses. */
   function renderMap() {
@@ -1045,6 +1050,7 @@ function startGame(mode) {
     Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
       if (!alive) return;
       const st = r && r.state;
+      const dayMarks = { lastDay: save.lastDay, streak: save.streak, dailyDay: save.dailyDay, dailyBest: save.dailyBest };
       const roundsBefore = save.rounds || 0, smashedBefore = save.smashed || 0, unlockedBefore = unlockedCount(), themeBefore = save.theme, wardrobeBefore = save.wardrobe.slice(), stickersBefore = save.stickers.slice(), hatBefore = save.hat, skinBefore = save.skin;
       const earned = save.coins, best = save.best, combo = save.bestCombo, picked = save.lang, ownedBefore = save.owned.slice(), equippedBefore = save.equipped, tutorialBefore = save.tutorialDone;
       if (st) {
@@ -1060,6 +1066,10 @@ function startGame(mode) {
         save.stickers = [...new Set([...(Array.isArray(st.stickers) ? st.stickers : []), ...stickersBefore])];
         if (hatBefore !== 'none') save.hat = hatBefore; if (skinBefore !== 'pink') save.skin = skinBefore; // picked this session: keep wearing it
         save.wardrobe = [...new Set([...(Array.isArray(st.wardrobe) ? st.wardrobe : []), ...wardrobeBefore])];
+        // day marks set this session before the save arrived are newer: keep them (no second gift or bonus)
+        if (Number(dayMarks.lastDay) > (Number(st.lastDay) || -1)) { save.lastDay = dayMarks.lastDay; save.streak = dayMarks.streak; }
+        if (Number(dayMarks.dailyDay) > (Number(st.dailyDay) || -1)) { save.dailyDay = dayMarks.dailyDay; save.dailyBest = dayMarks.dailyBest; }
+        else if (Number(dayMarks.dailyDay) === Number(st.dailyDay) && dayMarks.dailyBest !== null) save.dailyBest = Math.min(Number(st.dailyBest) || Infinity, dayMarks.dailyBest);
         save.rounds = (Number(st.rounds) || 0) + roundsBefore; save.smashed = (Number(st.smashed) || 0) + smashedBefore;
         if (save.lang && LANGS.includes(save.lang)) { lang = save.lang; setDir(); }
       }

@@ -73,12 +73,12 @@ export function createArmy(scene, cfg, rng, quality, city, opts = {}) {
   } else if (top === 'snow') { // carrot nose, top hat, scarf
     bpart(new THREE.ConeGeometry(0.22, 1.0, 10), 0xff8a3d, 0, 6.95, 1.5).rotation.x = Math.PI / 2;
     bpart(new THREE.CylinderGeometry(1.3, 1.3, 0.15, 24), P.dark, 0, 7.92, 0); bpart(new THREE.CylinderGeometry(0.85, 0.85, 1.1, 24), P.dark, 0, 8.5, 0);
-    bpart(new THREE.BoxGeometry(2.6, 0.45, 2.3), P.accent, 0, 6.05, 0);
+    bpart(new THREE.BoxGeometry(3.5, 0.55, 2.7), P.accent, 0, 6.2, 0); bpart(new THREE.BoxGeometry(0.6, 1.4, 0.3), P.accent, 0.9, 5.4, 1.35); // scarf and its loose end
   } else if (top === 'lolly') { // a lollipop antenna
-    bpart(new THREE.CylinderGeometry(0.09, 0.09, 1.4, 8), 0xffffff, 0, 8.5, 0);
-    bpart(new THREE.CylinderGeometry(0.75, 0.75, 0.25, 24), P.accent, 0, 9.5, 0).rotation.x = Math.PI / 2;
+    bpart(new THREE.CylinderGeometry(0.09, 0.09, 0.8, 8), 0xffffff, 1.0, 8.15, 0);
+    bpart(new THREE.CylinderGeometry(0.65, 0.65, 0.25, 24), P.accent, 1.0, 8.85, 0).rotation.x = Math.PI / 2; // low and to the side, so it shows under the boss bar
   } else if (top === 'spikes') { // dino plates down the back
-    for (let k = 0; k < 4; k++) bpart(new THREE.ConeGeometry(0.42, 0.9, 4), P.accent, 0, 7.9 - k * 1.25, -1.15 - (k ? 0.1 : -0.15)).rotation.x = -0.5;
+    for (let k = 0; k < 3; k++) bpart(new THREE.ConeGeometry(0.42, 0.9, 4), P.accent, 0, 7.9 - k * 1.25, -1.15 - (k ? 0.1 : -0.15)).rotation.x = -0.5; // above the wind-up key
   } else if (top === 'antenna') { // two antennas with glowing tips
     for (const sx of [-0.65, 0.65]) { bpart(new THREE.CylinderGeometry(0.07, 0.07, 1.1, 6), P.limb, sx, 8.35, 0); bpart(new THREE.SphereGeometry(0.25, 12, 8), P.eye, sx, 9.0, 0); }
   }

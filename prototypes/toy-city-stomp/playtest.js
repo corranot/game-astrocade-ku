@@ -257,8 +257,14 @@ const server = http.createServer((q, s) => {
     const r = await p5.evaluate(() => { const s = __game.save, d = __game.today(), out = { first: s.streak };
       s.coins = 0; __game.dailyGift(); out.sameDay = s.coins;
       s.lastDay = d - 1; s.streak = 6; __game.dailyGift(); out.day7 = [s.streak, s.coins];
-      s.lastDay = d - 3; s.coins = 0; __game.dailyGift(); out.missed = [s.streak, s.coins]; return out; });
-    check(r.first === 1 && r.sameDay === 0 && r.day7[0] === 7 && r.day7[1] === 400 && r.missed[0] === 1 && r.missed[1] === 50, `daily gift: day 1, nothing twice a day, day 7 pays 400, a missed day restarts (${JSON.stringify(r)})`);
+      s.lastDay = d - 3; s.coins = 0; __game.dailyGift(); out.missed = [s.streak, s.coins];
+      s.lastDay = d - 1; s.streak = 7; s.coins = 0; __game.dailyGift(); out.day8 = s.coins; // stays at the top after a week
+      s.lastDay = d + 1; s.coins = 0; __game.dailyGift(); out.future = s.coins; // a clock set back pays nothing
+      s.lastDay = d - 1; s.streak = -3; s.coins = 10; __game.dailyGift(); out.corrupt = s.coins; // a broken streak never makes NaN
+      document.querySelector('#gift').hidden = true; const S = __game.S; S.touched = true; S.finished = false; s.lastDay = d - 1; s.streak = 1; s.coins = 0; __game.dailyGift();
+      out.midRound = { shown: !document.querySelector('#gift').hidden, coins: s.coins }; S.finished = true; return out; });
+    check(r.first === 1 && r.sameDay === 0 && r.day7[0] === 7 && r.day7[1] === 400 && r.missed[0] === 1 && r.missed[1] === 50 && r.day8 === 400 && r.future === 0 && r.corrupt === 60 && !r.midRound.shown && r.midRound.coins === 0,
+      `daily gift: day 1, once a day, day 7-8 pay 400, a missed day restarts, a clock set back pays nothing, a broken streak gives day 1, never mid-round (${JSON.stringify(r)})`);
     await p5.close();
   }
   // the Daily City: picked on the map, today's seed, a bonus the first time today, never opens a city
@@ -267,7 +273,7 @@ const server = http.createServer((q, s) => {
       const S = __game.S, a = { daily: S.daily, theme: S.theme, day: __game.today() }; S.touched = true; S.time = 80; __game.finish();
       a.after = { un: s.unlocked, bonus: S.dailyBonus, best: s.dailyBest, coins: s.coins };
       __game.wantDaily = true; __game.newRound(); const S2 = __game.S; S2.touched = true; S2.time = 70; __game.finish(); a.again = { bonus: S2.dailyBonus, best: s.dailyBest }; s.dailyDay = null; return a; });
-    check(r.daily && r.theme === r.day % 2 && r.after.un === 2 && r.after.bonus === 100 && r.after.best === 80 && r.again.bonus === 0 && r.again.best === 70,
+    check(r.daily && r.theme === r.day % 6 && r.after.un === 2 && r.after.bonus === 100 && r.after.best === 80 && r.again.bonus === 0 && r.again.best === 70,
       `Daily City: today's city, +100 once, best time kept, no city opened (${JSON.stringify(r)})`);
   }
   // each city's boss has its own name
