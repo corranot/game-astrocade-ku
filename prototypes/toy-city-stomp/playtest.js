@@ -15,6 +15,17 @@ const server = http.createServer((q, s) => {
 (async () => {
   const port = server.address().port, fails = [];
   const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
+  // Astrocade bundles every module into one script that runs before three.js arrives from the CDN: importing a
+  // module must not touch THREE (a top-level new THREE.Color() broke the draft once)
+  {
+    const bad = [], url = require('url');
+    globalThis.window = globalThis; // game.js registers window.run when imported
+    for (const f of ['toon', 'shapes', 'movefx', 'moves', 'missions', 'bonbon', 'army', 'city', 'game']) {
+      try { await import(url.pathToFileURL(path.join(__dirname, f + '.js')).href); } catch (e) { bad.push(`${f}.js: ${e.message}`); }
+    }
+    delete globalThis.window; delete globalThis.run;
+    check(bad.length === 0, `no module touches THREE when imported (${bad.join('; ') || 'all 9 load'})`);
+  }
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   // screen comfort, on its own page at normal speed: hold a wandering drag with a big Bonbon, record the camera
   {
