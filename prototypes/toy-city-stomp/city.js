@@ -5,9 +5,16 @@
 // All gameplay randomness comes from the seeded rng passed in.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 
-const PALETTE = [0x3fa9ff, 0x22c6a3, 0xffc531, 0x9b6bff, 0xff9b54, 0xff6f91, 0x5ad1ff, 0xb8e05a];
-const ROOF = [0xff5a4f, 0xff7a45, 0xe8475f];
-const WINDOW = 0xcff0ff, DOOR = 0x8a5a3c, TRIM = 0xfff6e0, AWNING = [0xff5a4f, 0x22c6a3, 0x3fa9ff, 0xffc531];
+// the look of the first city (Toy Town); a theme from game_config.themes replaces any of these
+const TOY = {
+  palette: [0x3fa9ff, 0x22c6a3, 0xffc531, 0x9b6bff, 0xff9b54, 0xff6f91, 0x5ad1ff, 0xb8e05a], roof: [0xff5a4f, 0xff7a45, 0xe8475f],
+  awning: [0xff5a4f, 0x22c6a3, 0x3fa9ff, 0xffc531], window: 0xcff0ff, trim: 0xfff6e0, door: 0x8a5a3c,
+  grass: ['#8fdc6a', '#84d35f', '#9be57a', '#7fcf5a', '#a6ea86'], plaza: ['#f6e7cf', '#efd6b6'], road: '#9aa3b5', sand: 0xf5dfa6,
+  hills: [0x7fd36a, 0x6cc7a0, 0x9adf72], crown: [0x4cc35a, 0x6fd64b, 0x2fb37a], trunk: 0x9a6a3f, tree: 'round',
+  sea: [[0.35, 0.86, 0.95], [0.16, 0.6, 0.95]], horizon: 0xcdeeff,
+};
+/** Hex number from a config value ("#ff00aa", "0xff00aa" or a number). */
+const hex = (v) => typeof v === 'number' ? v : parseInt(String(v).replace('#', '').replace(/^0x/, ''), 16);
 const GRAVITY = 32, HALF = 0.48;
 
 /** A canvas texture drawn once (the browser's own 2D canvas; no image files). */
@@ -84,6 +91,8 @@ function dustMaterial() {
  */
 export function createCity(scene, cfg, rng, quality, opts = {}) {
   const C = cfg.city, classes = cfg.classes;
+  const TH = { ...TOY, ...(opts.theme || {}) }, cl = (v) => [].concat(v).map(hex);
+  const PALETTE = cl(TH.palette), ROOF = cl(TH.roof), AWNING = cl(TH.awning), WINDOW = hex(TH.window), TRIM = hex(TH.trim), DOOR = hex(TH.door);
   const pitch = C.lotSize + C.road, span = C.lots * pitch + C.road, half = span / 2;
   const group = new THREE.Group(); scene.add(group);
   const disposables = [];
@@ -92,19 +101,19 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
 
   // ---------- island, sea, beach, grass, plazas, roads, kerbs
   const grassTex = keep(canvasTexture(256, (g, n) => {
-    g.fillStyle = '#8fdc6a'; g.fillRect(0, 0, n, n);
-    for (let i = 0; i < 900; i++) { g.fillStyle = ['#84d35f', '#9be57a', '#7fcf5a', '#a6ea86'][i % 4]; g.fillRect(Math.random() * n, Math.random() * n, 2 + Math.random() * 3, 2 + Math.random() * 3); }
+    g.fillStyle = TH.grass[0]; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < 900; i++) { g.fillStyle = TH.grass[1 + i % (TH.grass.length - 1)]; g.fillRect(Math.random() * n, Math.random() * n, 2 + Math.random() * 3, 2 + Math.random() * 3); }
   }, span / 8));
   const plazaTex = keep(canvasTexture(128, (g, n) => {
     const s = n / 4;
-    for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#f6e7cf' : '#efd6b6'; g.fillRect(x * s, y * s, s, s); }
+    for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) { g.fillStyle = TH.plaza[(x + y) % 2]; g.fillRect(x * s, y * s, s, s); }
     g.strokeStyle = 'rgba(160,120,80,0.25)'; g.lineWidth = 2; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, n); g.moveTo(0, i * s); g.lineTo(n, i * s); g.stroke(); }
   }, 1));
   const roadTex = keep(canvasTexture(128, (g, n) => {
-    g.fillStyle = '#9aa3b5'; g.fillRect(0, 0, n, n);
+    g.fillStyle = TH.road; g.fillRect(0, 0, n, n);
     for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; g.fillRect(Math.random() * n, Math.random() * n, 2, 2); }
   }, 1));
-  const island = new THREE.Mesh(keep(new THREE.CylinderGeometry(span * 0.78, span * 0.86, 2, 48)), keep(new THREE.MeshLambertMaterial({ color: 0xf5dfa6 })));
+  const island = new THREE.Mesh(keep(new THREE.CylinderGeometry(span * 0.78, span * 0.86, 2, 48)), keep(new THREE.MeshLambertMaterial({ color: hex(TH.sand) })));
   island.position.y = -1.05; island.receiveShadow = true; group.add(island);
   const grass = new THREE.Mesh(keep(new THREE.CircleGeometry(span * 0.74, 64)), keep(new THREE.MeshLambertMaterial({ map: grassTex })));
   grass.rotation.x = -Math.PI / 2; grass.position.y = -0.04; grass.receiveShadow = true; group.add(grass);
@@ -133,11 +142,11 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
 
   // sea with gentle waves, distant hills
   const seaMat = keep(new THREE.ShaderMaterial({
-    uniforms: { uT: { value: 0 }, uFog: { value: new THREE.Color(0xcdeeff) } },
+    uniforms: { uT: { value: 0 }, uFog: { value: new THREE.Color(hex(TH.horizon)) }, uShallow: { value: new THREE.Vector3(...TH.sea[0]) }, uDeep: { value: new THREE.Vector3(...TH.sea[1]) } },
     vertexShader: `uniform float uT; varying vec3 vW; void main() { vec3 p = position; vec4 w = modelMatrix * vec4(p, 1.0);
       w.y += sin(w.x * 0.15 + uT * 1.2) * 0.12 + cos(w.z * 0.13 + uT) * 0.12; vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform float uT; uniform vec3 uFog; varying vec3 vW; void main() {
-      float r = length(vW.xz); vec3 shallow = vec3(0.35, 0.86, 0.95), deep = vec3(0.16, 0.6, 0.95);
+    fragmentShader: `uniform float uT; uniform vec3 uFog; uniform vec3 uShallow; uniform vec3 uDeep; varying vec3 vW; void main() {
+      float r = length(vW.xz); vec3 shallow = uShallow, deep = uDeep;
       vec3 c = mix(shallow, deep, smoothstep(${(span * 0.8).toFixed(1)}, ${(span * 1.4).toFixed(1)}, r));
       float sp = sin(vW.x * 0.9 + uT * 2.0) * sin(vW.z * 0.8 - uT * 1.6); c += smoothstep(0.92, 1.0, sp) * 0.35;
       float foam = smoothstep(${(span * 0.86).toFixed(1)}, ${(span * 0.8).toFixed(1)}, r); c = mix(c, vec3(1.0), foam * 0.6);
@@ -153,7 +162,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   for (let i = 0; i < 14; i++) {
     const a = (i / 14) * Math.PI * 2 + rng() * 0.3, r = 230 + rng() * 60, s = 18 + rng() * 26;
     hills.setMatrixAt(i, mtx.compose(v3.set(Math.cos(a) * r, -s * 0.35, Math.sin(a) * r), quat.identity(), one.set(s * 1.6, s, s * 1.3)));
-    hills.setColorAt(i, col.setHex([0x7fd36a, 0x6cc7a0, 0x9adf72][i % 3]));
+    hills.setColorAt(i, col.setHex(cl(TH.hills)[i % cl(TH.hills).length]));
   }
   group.add(hills);
 
@@ -251,16 +260,19 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     const x = -half + C.road + i * pitch + C.lotSize / 2, z = -half + j * pitch + C.road / 2 - 1.9;
     props.push({ kind: 'lamp', x: x - 3, z, alive: true, s: 1 }, { kind: 'lamp', x: x + 3, z: z + 3.8, alive: true, s: 1 });
   }
-  const trunkMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8)), keep(new THREE.MeshLambertMaterial({ color: 0x9a6a3f })), props.length);
-  const crownMesh = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1, 1)), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, flatShading: true })), props.length);
+  const TREE = { round: [1, 1.1, 1.25, 1.1, 2], lolly: [1.6, 1, 1, 0.45, 2.7], palm: [2, 1.9, 0.45, 1.9, 3.1], cone: [1, 1.15, 1.9, 1.15, 2.4] }[TH.tree] || [1, 1.1, 1.25, 1.1, 2];
+  const [trunkH, crX, crY, crZ, crH] = TREE; // trunk height factor, crown size, crown height
+  const crownGeo = TH.tree === 'cone' ? new THREE.ConeGeometry(1, 1.4, 7) : TH.tree === 'lolly' ? new THREE.SphereGeometry(1, 14, 10) : new THREE.IcosahedronGeometry(1, 1);
+  const trunkMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 8)), keep(new THREE.MeshLambertMaterial({ color: hex(TH.trunk) })), props.length);
+  const crownMesh = new THREE.InstancedMesh(keep(crownGeo), keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, flatShading: true })), props.length);
   const lampHead = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.32, 10, 8)), keep(new THREE.MeshBasicMaterial({ color: 0xfff1b8 })), props.length);
   crownMesh.castShadow = true;
   for (const m of [trunkMesh, crownMesh, lampHead]) m.frustumCulled = false;
   const placeProp = (i) => {
     const p = props[i], s = p.alive ? p.s : 0;
     if (p.kind === 'tree') {
-      trunkMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 0.7 * s, p.z), quat.identity(), one.setScalar(s)));
-      crownMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 2 * s, p.z), quat.identity(), one.set(1.1 * s, 1.25 * s, 1.1 * s)));
+      trunkMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 0.7 * trunkH * s, p.z), quat.identity(), one.set(s, trunkH * s, s)));
+      crownMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, crH * s, p.z), quat.identity(), one.set(crX * s, crY * s, crZ * s)));
       lampHead.setMatrixAt(i, mtx.makeScale(0, 0, 0));
     } else {
       trunkMesh.setMatrixAt(i, mtx.compose(v3.set(p.x, 1.6 * s, p.z), quat.identity(), one.set(0.35 * s, 2.3 * s, 0.35 * s)));
@@ -269,7 +281,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     }
     trunkMesh.instanceMatrix.needsUpdate = crownMesh.instanceMatrix.needsUpdate = lampHead.instanceMatrix.needsUpdate = true;
   };
-  props.forEach((p, i) => { trunkMesh.setColorAt(i, col.setHex(p.kind === 'tree' ? 0xffffff : 0x8f96b0)); crownMesh.setColorAt(i, col.setHex([0x4cc35a, 0x6fd64b, 0x2fb37a][i % 3])); placeProp(i); });
+  props.forEach((p, i) => { trunkMesh.setColorAt(i, col.setHex(p.kind === 'tree' ? 0xffffff : 0x8f96b0)); crownMesh.setColorAt(i, col.setHex(cl(TH.crown)[i % cl(TH.crown).length])); placeProp(i); });
   group.add(trunkMesh, crownMesh, lampHead);
 
   // ---------- cars
@@ -580,7 +592,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       const p = props[i];
       if (!p.alive || Math.hypot(p.x - x, p.z - z) > r + 0.6) continue;
       p.alive = false; placeProp(i); n++;
-      if (p.kind === 'tree') burstConfetti(p.x, 2, p.z, 10, [0x4cc35a, 0x6fd64b, 0x2fb37a, 0xffc531]); else { puff(p.x, 1, p.z, 0.8); burstConfetti(p.x, 3, p.z, 5, [0xfff1b8, 0x8f96b0]); }
+      if (p.kind === 'tree') burstConfetti(p.x, 2, p.z, 10, [...cl(TH.crown), 0xffc531]); else { puff(p.x, 1, p.z, 0.8); burstConfetti(p.x, 3, p.z, 5, [0xfff1b8, 0x8f96b0]); }
     }
     return n;
   }
