@@ -25,6 +25,7 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 | `astrocade-bundle-test.js <dir> [png]` | Bundel esbuild 0.24 IIFE dalam iframe srcdoc dengan `lib` host, laporkan `started` + error | Wajib sebelum tiap `save_draft` |
 | `astrocade-upload-set.sh <dir> <out>` | Set unggah bersih: buang header prototipe, `README.upload.md` → `README.md`, tolak kata alur kerja, `node --check` | Sebelum unggah |
 | `market-check.js [--report|--selftest]` | Tangkap astrotopper + flag beranda + feed ke `production/market/<UTC>/`, beda dengan cek sebelumnya | Saat "cek backend" |
+| `competitor-check.js <id> <folder>` | Main satu game Astrocade sebagai tamu: tangkapan layar awal, ketuk, seret + `stack.json` (pustaka, ukuran kode, daftar aset, `disableRemix`) dari context-nya | Sebelum memilih genre atau menggambar (ASTROCADE.md §0.13, §0.18) |
 
 ## 4. Sistem studio (`.claude/`)
 - **49 agen** (`.claude/agents/`, daftar di `.claude/docs/agent-roster.md`): tingkat 1 opus (creative-director, technical-director, producer), tingkat 2 kepala bagian, tingkat 3 spesialis, set khusus Godot/Unity/Unreal. **Tidak ada agen Web/Astrocade.** Semua agen bertanya "May I write…" kecuali berkas baru di jalur yang ditentukan skill pemanggil.
