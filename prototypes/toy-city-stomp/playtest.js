@@ -316,6 +316,23 @@ const server = http.createServer((q, s) => {
       document.querySelector('#shop').hidden = true; return { left: left.slice(0, 5), ic, atlas: /icons|cloudfront/.test(bg) }; });
     check(r.ic > 10 && r.left.length === 0 && r.atlas, `drawn icons replace the emoji (${r.ic} icons, emoji left: ${r.left.join(' ') || 'none'})`);
   }
+  // surprises: the golden building pays when knocked down in time, the giant candy makes Bonbon MEGA, a long combo starts FEVER
+  {
+    const p7 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p7.goto(`http://localhost:${port}/?local&tier=0`);
+    await p7.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
+    const r = await p7.evaluate(async () => { const S = __game.S, w = (ms) => new Promise((res) => setTimeout(res, ms));
+      document.querySelector('#hint').hidden = true; S.touched = true; S.idle = -1e9; S.time = 20; S.goldenAt = 20.2; await w(500);
+      const gold = S.golden, c0 = S.coins; if (gold) __game.city.collapse(gold, { x: 1, z: 0 }, 0); await w(400);
+      const paid = S.coins - c0, cleared = !S.golden && !document.querySelector('.emark');
+      S.candyAt = S.time; await w(400); const candy = !!S.candy; if (S.candy) { S.x = S.candy.x; S.z = S.candy.z; } await w(400);
+      const mega = S.megaT > 0 && S.scaleTarget > S.scale * 0.99;
+      S.combo = 30; __game.feverCheck(); const fever = S.feverT > 0 && document.querySelector('.hud').classList.contains('fever');
+      S.feverT = 0.01; S.combo = 30; await w(200); __game.feverCheck(); const cool = S.feverT <= 0;
+      return { gold: !!gold, paid, cleared, candy, mega, fever, cool }; });
+    await p7.close();
+    check(r.gold && r.paid >= 80 && r.cleared && r.candy && r.mega && r.fever && r.cool, `surprises: golden building pays when knocked down (+${r.paid}), giant candy makes MEGA, combo starts FEVER and waits its cooldown (${JSON.stringify(r)})`);
+  }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
     const p2 = await browser.newPage({ viewport: { width: 405, height: 720 } });

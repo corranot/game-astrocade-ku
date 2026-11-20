@@ -656,6 +656,10 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     group, buildings, cars, half, span, events, update, setXray, bite, collapse, touching, nearest, squashCars, crushTrees, pickCar, throwCar,
     puff, burstConfetti, releaseResidents, footprint,
     intactLeft: () => intact,
+    /** Paints a standing building's blocks one colour (windows a pale shade), or back to their own with null. */
+    tintBuilding(b, color) {
+      for (let i = b.start; i < b.start + b.total; i++) if (vox.state[i] === 0) { blocks.setColorAt(i, col.setHex(color === null ? vox.col[i] : vox.col[i] === WINDOW ? 0xfff6c8 : color)); cMin = Math.min(cMin, i); cMax = Math.max(cMax, i); }
+    },
     rescued: () => rescued,
     anyToppling: () => buildings.some((b) => b.state === 'toppling'),
     totalBlocks, meshes: { blocks },

@@ -207,6 +207,12 @@ body{display:flex;align-items:center;justify-content:center}
 .heart,.stars span,.mico{line-height:1.2}
 /* drawn icons from the atlas (9 x 8 cells); size follows the text around them */
 .ic{display:inline-block;width:1.2em;height:1.2em;vertical-align:-0.25em;background-image:var(--atlas);background-repeat:no-repeat;background-size:900% 800%;background-position:calc(var(--i) * 12.5%) calc(var(--j) * 100% / 7);font-style:normal}
+.emark{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;font-weight:900;color:#ffe14d;font-size:calc(var(--u)*34px);--o:calc(var(--u)*3px);pointer-events:none;animation:bob 0.8s ease-in-out infinite}
+.emark .emi{font-size:calc(var(--u)*54px)}
+.emark.edge{opacity:.85;transform:translate(-50%,-100%) scale(.8)}
+@keyframes bob{50%{margin-top:calc(var(--u)*-10px)}}
+.hud.fever::before{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 calc(var(--u)*60px) calc(var(--u)*14px) rgba(255,90,170,.55);animation:fever .5s ease-in-out infinite alternate}
+@keyframes fever{to{box-shadow:inset 0 0 calc(var(--u)*90px) calc(var(--u)*24px) rgba(255,200,60,.6)}}
 </style>
 </head>
 <body>
