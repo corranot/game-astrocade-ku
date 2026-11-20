@@ -89,6 +89,7 @@ marbles, glitter and gems; the soap joins the player's shelf. A carve takes 45â€
   the result (wow / happy / ok); three bars fill one by one with sounds; stars pop; coins fly to the counter.
 - A photo of the soap (the mask rendered with its look, on a clean card) goes to the shelf.
 - â–¶ (big, centre) or a tap after 1.5 s brings the next customer; otherwise after `REVEAL_SECONDS`.
+  *Built:* counted from when the stars and coins finish (3.4 s), so the celebration is never cut short.
 
 ### 3.7 Orders and progression
 - Order = `{ customer, shape, marble, charm?, glitterWanted? }`.

@@ -157,7 +157,7 @@ export function meanRough(S, edges) {
 /**
  * Pieces cut loose from the main body (4-connected; the body is the part holding the deepest template cell).
  * They are removed from the soap and returned as { cells: Int32Array, x0, y0, x1, y1 }, biggest first.
- * In free carve (no shape) the body is the biggest piece. before(list), if given, sees them while still painted.
+ * before(list), if given, sees them while still painted.
  */
 export function takeIslands(S, before) {
   const { w, h, m } = S, n = w * h;
@@ -175,12 +175,9 @@ export function takeIslands(S, before) {
     }
     return { cells: q.slice(0, qt), x0, y0, x1, y1 };
   };
-  let comps = [];
-  if (S.free) { for (let s = 0; s < n; s++) if (m[s] && !seen[s]) comps.push(flood(s, 1)); comps.sort((a, b) => b.cells.length - a.cells.length); comps.shift(); }
-  else {
-    if (m[S.anchor]) flood(S.anchor, 1); // the body: usually the only piece, so one fill and one scan
-    for (let s = 0; s < n; s++) if (m[s] && !seen[s]) comps.push(flood(s, 2));
-  }
+  const comps = [];
+  if (m[S.anchor]) flood(S.anchor, 1); // the body: usually the only piece, so one fill and one scan
+  for (let s = 0; s < n; s++) if (m[s] && !seen[s]) comps.push(flood(s, 2));
   const out = comps;
   if (!out.length) return out;
   if (before) { paint(S); before(out); }
