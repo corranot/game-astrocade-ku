@@ -1,80 +1,1282 @@
 {
   "seed": 20261119,
-  "city": { "lots": 6, "lotSize": 13, "road": 5, "cars": 9, "trees": 26 },
+  "city": {
+    "lots": 6,
+    "lotSize": 13,
+    "road": 5,
+    "cars": 9,
+    "trees": 26
+  },
   "classes": [
-    { "w": 3, "d": 3, "h": 3, "roof": 2, "hp": 1 },
-    { "w": 4, "d": 4, "h": 5, "roof": 0, "hp": 1 },
-    { "w": 5, "d": 5, "h": 9, "roof": 0, "hp": 1.2 },
-    { "w": 6, "d": 6, "h": 14, "roof": 0, "hp": 1.4 },
-    { "w": 7, "d": 7, "h": 20, "roof": 3, "hp": 1.6 }
+    {
+      "w": 3,
+      "d": 3,
+      "h": 3,
+      "roof": 2,
+      "hp": 1
+    },
+    {
+      "w": 4,
+      "d": 4,
+      "h": 5,
+      "roof": 0,
+      "hp": 1
+    },
+    {
+      "w": 5,
+      "d": 5,
+      "h": 9,
+      "roof": 0,
+      "hp": 1.2
+    },
+    {
+      "w": 6,
+      "d": 6,
+      "h": 14,
+      "roof": 0,
+      "hp": 1.4
+    },
+    {
+      "w": 7,
+      "d": 7,
+      "h": 20,
+      "roof": 3,
+      "hp": 1.6
+    }
   ],
   "collapseAt": 0.45,
   "toppleMinHeight": 9,
   "crushBelow": 3,
-  "growth": { "base": 150, "ratio": 1.7, "stages": 8, "baseScale": 1.7, "scaleRatio": 1.25 },
-  "monster": { "speed": 6, "speedPerStage": 0.12, "radius": 1.1, "attackSec": 0.48, "biteRadius": 1.45 },
-  "combo": { "windowSec": 3.5, "every": 3, "max": 10 },
-  "points": { "perClass": 10, "perVoxel": 1, "car": 15, "tree": 3 },
-  "fx": { "shakeMax": 0.5, "slowmoScale": 0.3, "slowmoSec": 0.9, "hitstopSec": 0.05 },
-  "throwCar": { "reach": 12 },
-  "events": { "golden": { "atSec": [16, 34], "timeSec": 25, "coins": 80, "coinsPerClass": 25 }, "candy": { "firstSec": 30, "everySec": 50, "megaSec": 8, "scale": 1.35, "speed": 1.3, "pickRadius": 2.4 }, "fever": { "combo": 21, "sec": 6, "cooldownSec": 25 } },
-  "daily": { "rewards": [50, 80, 120, 160, 200, 260, 400], "cityBonus": 100 },
-  "idleAutoplaySec": 4,
-  "skill": { "unlockStage": 3, "cooldownSec": 6, "radius": 4.5 },
-  "army": {
-    "heatPerPoint": 0.1, "stars": [15, 90, 220, 450], "decaySec": 6, "maxUnits": [0, 2, 4, 7, 10], "spawnSec": 2.2,
-    "car": { "speed": 7, "dmg": 3, "points": 30 },
-    "tank": { "speed": 4, "range": 13, "fireSec": 2.4, "dmg": 5, "points": 60 },
-    "heli": { "speed": 6, "fireSec": 2.8, "dmg": 4, "points": 80 },
-    "spirit": { "base": 100, "perStage": 20, "perKill": 5, "dizzySec": 2, "loseGrowFrac": 0.1 }
+  "growth": {
+    "base": 150,
+    "ratio": 1.7,
+    "stages": 8,
+    "baseScale": 1.7,
+    "scaleRatio": 1.25
   },
-  "boss": { "hp": 120, "atStage": 8, "orCityBelow": 0.15, "hitDmg": 4, "skillDmg": 12, "dominoDmg": 15, "stompDmg": 10, "dartDmg": 5, "slamDmg": 15, "points": 2000 },
+  "monster": {
+    "speed": 6,
+    "speedPerStage": 0.12,
+    "radius": 1.1,
+    "attackSec": 0.48,
+    "biteRadius": 1.45
+  },
+  "combo": {
+    "windowSec": 3.5,
+    "every": 3,
+    "max": 10
+  },
+  "points": {
+    "perClass": 10,
+    "perVoxel": 1,
+    "car": 15,
+    "tree": 3
+  },
+  "fx": {
+    "shakeMax": 0.5,
+    "slowmoScale": 0.3,
+    "slowmoSec": 0.9,
+    "hitstopSec": 0.05
+  },
+  "throwCar": {
+    "reach": 12
+  },
+  "events": {
+    "golden": {
+      "atSec": [
+        16,
+        34
+      ],
+      "timeSec": 25,
+      "coins": 80,
+      "coinsPerClass": 25
+    },
+    "candy": {
+      "firstSec": 30,
+      "everySec": 50,
+      "megaSec": 8,
+      "scale": 1.35,
+      "speed": 1.3,
+      "pickRadius": 2.4
+    },
+    "fever": {
+      "combo": 21,
+      "sec": 6,
+      "cooldownSec": 25
+    }
+  },
+  "daily": {
+    "rewards": [
+      50,
+      80,
+      120,
+      160,
+      200,
+      260,
+      400
+    ],
+    "cityBonus": 100
+  },
+  "idleAutoplaySec": 4,
+  "skill": {
+    "unlockStage": 3,
+    "cooldownSec": 6,
+    "radius": 4.5
+  },
+  "army": {
+    "heatPerPoint": 0.1,
+    "stars": [
+      15,
+      90,
+      220,
+      450
+    ],
+    "decaySec": 6,
+    "maxUnits": [
+      0,
+      2,
+      4,
+      7,
+      10
+    ],
+    "spawnSec": 2.2,
+    "car": {
+      "speed": 7,
+      "dmg": 3,
+      "points": 30
+    },
+    "tank": {
+      "speed": 4,
+      "range": 13,
+      "fireSec": 2.4,
+      "dmg": 5,
+      "points": 60
+    },
+    "heli": {
+      "speed": 6,
+      "fireSec": 2.8,
+      "dmg": 4,
+      "points": 80
+    },
+    "spirit": {
+      "base": 100,
+      "perStage": 20,
+      "perKill": 5,
+      "dizzySec": 2,
+      "loseGrowFrac": 0.1
+    }
+  },
+  "boss": {
+    "hp": 120,
+    "atStage": 8,
+    "orCityBelow": 0.15,
+    "hitDmg": 4,
+    "skillDmg": 12,
+    "dominoDmg": 15,
+    "stompDmg": 10,
+    "dartDmg": 5,
+    "slamDmg": 15,
+    "points": 2000
+  },
   "moves": [
-    { "id": "spin", "icon": "🌀", "price": 0, "cooldownSec": 6, "stage": 3 },
-    { "id": "flop", "icon": "💥", "price": 150, "cooldownSec": 7 },
-    { "id": "bubble", "icon": "🫧", "price": 250, "cooldownSec": 7 },
-    { "id": "roar", "icon": "📣", "price": 400, "cooldownSec": 8 },
-    { "id": "jelly", "icon": "🍮", "price": 600, "cooldownSec": 8 },
-    { "id": "magnet", "icon": "🧲", "price": 850, "cooldownSec": 9 },
-    { "id": "rainbow", "icon": "🌈", "price": 1150, "cooldownSec": 9 },
-    { "id": "sneeze", "icon": "🤧", "price": 1500, "cooldownSec": 12 },
-    { "id": "moon", "icon": "🌙", "price": 1900, "cooldownSec": 12 }
+    {
+      "id": "spin",
+      "icon": "🌀",
+      "price": 0,
+      "cooldownSec": 6,
+      "stage": 3
+    },
+    {
+      "id": "flop",
+      "icon": "💥",
+      "price": 150,
+      "cooldownSec": 7
+    },
+    {
+      "id": "bubble",
+      "icon": "🫧",
+      "price": 250,
+      "cooldownSec": 7
+    },
+    {
+      "id": "roar",
+      "icon": "📣",
+      "price": 400,
+      "cooldownSec": 8
+    },
+    {
+      "id": "jelly",
+      "icon": "🍮",
+      "price": 600,
+      "cooldownSec": 8
+    },
+    {
+      "id": "magnet",
+      "icon": "🧲",
+      "price": 850,
+      "cooldownSec": 9
+    },
+    {
+      "id": "rainbow",
+      "icon": "🌈",
+      "price": 1150,
+      "cooldownSec": 9
+    },
+    {
+      "id": "sneeze",
+      "icon": "🤧",
+      "price": 1500,
+      "cooldownSec": 12
+    },
+    {
+      "id": "moon",
+      "icon": "🌙",
+      "price": 1900,
+      "cooldownSec": 12
+    }
   ],
-  "starsTimeSec": [180, 270],
+  "starsTimeSec": [
+    180,
+    270
+  ],
   "coinsPerPoint": 0.004,
   "costumes": [
-    {"id": "none", "kind": "hat", "icon": "🙂", "price": 0},
-    {"id": "party", "kind": "hat", "icon": "🥳", "price": 120},
-    {"id": "flower", "kind": "hat", "icon": "🌸", "price": 160},
-    {"id": "shades", "kind": "hat", "icon": "😎", "price": 220},
-    {"id": "chef", "kind": "hat", "icon": "🍰", "price": 260},
-    {"id": "cowboy", "kind": "hat", "icon": "🤠", "price": 340},
-    {"id": "crown", "kind": "hat", "icon": "👑", "price": 420},
-    {"id": "propeller", "kind": "hat", "icon": "🚁", "price": 520},
-    {"id": "pink", "kind": "skin", "color": "#ff5fa2", "dark": "#e8478a", "price": 0},
-    {"id": "mint", "kind": "skin", "color": "#3fd6a8", "dark": "#22b98a", "price": 180},
-    {"id": "lemon", "kind": "skin", "color": "#ffd23f", "dark": "#f0b400", "price": 180},
-    {"id": "grape", "kind": "skin", "color": "#a77bff", "dark": "#8a5cf0", "price": 240},
-    {"id": "ocean", "kind": "skin", "color": "#3fa9ff", "dark": "#2186e8", "price": 240},
-    {"id": "choco", "kind": "skin", "color": "#b5703f", "dark": "#93542a", "price": 300}
+    {
+      "id": "none",
+      "kind": "hat",
+      "icon": "🙂",
+      "price": 0
+    },
+    {
+      "id": "party",
+      "kind": "hat",
+      "icon": "🥳",
+      "price": 120
+    },
+    {
+      "id": "flower",
+      "kind": "hat",
+      "icon": "🌸",
+      "price": 160
+    },
+    {
+      "id": "shades",
+      "kind": "hat",
+      "icon": "😎",
+      "price": 220
+    },
+    {
+      "id": "chef",
+      "kind": "hat",
+      "icon": "🍰",
+      "price": 260
+    },
+    {
+      "id": "cowboy",
+      "kind": "hat",
+      "icon": "🤠",
+      "price": 340
+    },
+    {
+      "id": "crown",
+      "kind": "hat",
+      "icon": "👑",
+      "price": 420
+    },
+    {
+      "id": "propeller",
+      "kind": "hat",
+      "icon": "🚁",
+      "price": 520
+    },
+    {
+      "id": "pink",
+      "kind": "skin",
+      "color": "#ff5fa2",
+      "dark": "#e8478a",
+      "price": 0
+    },
+    {
+      "id": "mint",
+      "kind": "skin",
+      "color": "#3fd6a8",
+      "dark": "#22b98a",
+      "price": 180
+    },
+    {
+      "id": "lemon",
+      "kind": "skin",
+      "color": "#ffd23f",
+      "dark": "#f0b400",
+      "price": 180
+    },
+    {
+      "id": "grape",
+      "kind": "skin",
+      "color": "#a77bff",
+      "dark": "#8a5cf0",
+      "price": 240
+    },
+    {
+      "id": "ocean",
+      "kind": "skin",
+      "color": "#3fa9ff",
+      "dark": "#2186e8",
+      "price": 240
+    },
+    {
+      "id": "choco",
+      "kind": "skin",
+      "color": "#b5703f",
+      "dark": "#93542a",
+      "price": 300
+    }
   ],
-  "stickers": {"atCollapse": [4, 22], "sets": {"toy": ["👸", "🧙", "🦸"], "candy": ["🐰", "🦄", "🍩"], "beach": ["🦀", "🐬", "🧜"], "snow": ["⛄", "🐧", "🎅"], "dino": ["🦕", "🦖", "🐣"], "robot": ["🤖", "👾", "🛸"]}},
+  "stickers": {
+    "atCollapse": [
+      4,
+      22
+    ],
+    "sets": {
+      "toy": [
+        "👸",
+        "🧙",
+        "🦸"
+      ],
+      "candy": [
+        "🐰",
+        "🦄",
+        "🍩"
+      ],
+      "beach": [
+        "🦀",
+        "🐬",
+        "🧜"
+      ],
+      "snow": [
+        "⛄",
+        "🐧",
+        "🎅"
+      ],
+      "dino": [
+        "🦕",
+        "🦖",
+        "🐣"
+      ],
+      "robot": [
+        "🤖",
+        "👾",
+        "🛸"
+      ]
+    }
+  },
   "themes": [
-    {"id": "toy", "icon": "🏙️"},
-    {"id": "candy", "boss": {"name": "b_candy", "body": "#ff9ecf", "head": "#ffc8e6", "limb": "#c9a7ff", "accent": "#fff0a0", "eye": "#ff4f7d", "fist": "#8fe8cc", "top": "lolly"}, "icon": "🍭", "palette": ["#ff9ecf", "#ffc8e6", "#8fe8cc", "#fff0a0", "#c9a7ff", "#ffb38a", "#8fe3ff", "#ff7aa8"], "roof": ["#7a4a2e", "#ff4f7d", "#ffffff"], "awning": ["#ff4f7d", "#ffffff", "#8fe8cc", "#c9a7ff"], "window": "#fff4fb", "trim": "#ffffff", "door": "#7a4a2e", "grass": ["#ffc6e0", "#ffb8d8", "#ffd3e8", "#ffe0ef", "#ffbcd6"], "plaza": ["#fff4d6", "#ffe1ef"], "road": "#c9a6d9", "sand": "#ffe3f0", "hills": ["#ff9ecf", "#c9a7ff", "#a8f0d8"], "crown": ["#ff5fa2", "#7fe0c4", "#ffd84f", "#b98cff"], "trunk": "#ffffff", "tree": "lolly", "sea": [[0.55, 0.9, 0.98], [0.5, 0.62, 1.0]], "sky": ["#9a8cff", "#ffc4e6", "#ffe6f2"], "horizon": "#ffe6f2"},
-    {"id": "beach", "boss": {"name": "b_beach", "body": "#ffd54f", "head": "#ffe082", "limb": "#5ad1ff", "accent": "#ff8a65", "eye": "#2a2140", "fist": "#ff7096", "top": "duck"}, "icon": "🏖️", "palette": ["#ffffff", "#5ad1ff", "#ff8a65", "#ffd54f", "#4dd0b6", "#ff7096", "#8fd3ff", "#fff1c1"], "roof": ["#2fb3e0", "#ff7a45", "#22c6a3"], "awning": ["#2fb3e0", "#ffffff", "#ff7096", "#ffd54f"], "window": "#bff3ff", "trim": "#ffffff", "door": "#c28a52", "grass": ["#f7e2a6", "#f2d892", "#fbe9b8", "#efd08a", "#fff0c6"], "plaza": ["#fff7e3", "#e9f8ff"], "road": "#b5c4d0", "sand": "#fff0c4", "hills": ["#7fd36a", "#f2d892", "#6cc7a0"], "crown": ["#3fbf6a", "#2fa85a", "#6fd64b"], "trunk": "#c28a52", "tree": "palm", "sea": [[0.3, 0.95, 0.95], [0.05, 0.62, 0.95]], "sky": ["#2f8cff", "#7fd6ff", "#dff7ff"], "horizon": "#dff7ff"},
-    {"id": "snow", "boss": {"name": "b_snow", "body": "#f4f9ff", "head": "#ffffff", "limb": "#a8d8ff", "accent": "#ff6f6f", "eye": "#3a5bff", "fist": "#ff6f6f", "top": "snow"}, "icon": "❄️", "palette": ["#e8f4ff", "#a8d8ff", "#ff6f6f", "#7fb4ff", "#ffd166", "#9be7c4", "#c8b6ff", "#ffffff"], "roof": ["#ffffff", "#f2f8ff", "#e6f1ff"], "awning": ["#ff6f6f", "#ffffff", "#7fb4ff", "#9be7c4"], "window": "#ffe9a8", "trim": "#ffffff", "door": "#8a5a3c", "grass": ["#f4f9ff", "#e3eefc", "#ffffff", "#eaf3ff", "#dde9fb"], "plaza": ["#eef5ff", "#dde9fb"], "road": "#aab6cc", "sand": "#ffffff", "hills": ["#ffffff", "#e3f0ff", "#cfe4ff"], "crown": ["#2f8f6a", "#3aa37a", "#26805f"], "trunk": "#8a5a3c", "tree": "cone", "sea": [[0.45, 0.78, 0.92], [0.2, 0.45, 0.82]], "sky": ["#6aa8ff", "#bfe0ff", "#eef6ff"], "horizon": "#eef6ff"},
-    {"id": "dino", "boss": {"name": "b_dino", "body": "#8bd450", "head": "#a6e070", "limb": "#6b8e23", "accent": "#ffb347", "eye": "#ff5a4f", "fist": "#ffb347", "top": "spikes"}, "icon": "🌋", "palette": ["#8bd450", "#ffb347", "#d98c5f", "#6fcf97", "#f2c94c", "#bb6bd9", "#56ccf2", "#eb8a5c"], "roof": ["#6b8e23", "#9b5d2e", "#d9534f"], "awning": ["#d9534f", "#f2c94c", "#6fcf97", "#56ccf2"], "window": "#fff2c4", "trim": "#f3e3c0", "door": "#7a5230", "grass": ["#7fcf4f", "#74c444", "#8bd85c", "#6bbb3e", "#97e06a"], "plaza": ["#e8d6a8", "#d9c08a"], "road": "#a69a86", "sand": "#e8cf94", "hills": ["#5fa04e", "#8a6d4b", "#6fb35a"], "crown": ["#2e8b3d", "#3fae4a", "#1f7a35"], "trunk": "#7a5230", "tree": "palm", "sea": [[0.35, 0.85, 0.8], [0.1, 0.55, 0.7]], "sky": ["#4fa3ff", "#ffd59a", "#fff0d6"], "horizon": "#fff0d6"},
-    {"id": "robot", "boss": {"name": "b_robot", "body": "#9aa8bf", "head": "#c5d0e0", "limb": "#3d5afe", "accent": "#69f0ae", "eye": "#00e5ff", "fist": "#ff4081", "top": "antenna"}, "icon": "🛰️", "palette": ["#9aa8bf", "#5ad1ff", "#b388ff", "#69f0ae", "#ffd740", "#ff6e9c", "#7c8cff", "#c5d0e0"], "roof": ["#3d5afe", "#ff4081", "#00bfa5"], "awning": ["#3d5afe", "#69f0ae", "#ff4081", "#ffd740"], "window": "#80ffea", "trim": "#e0e7f2", "door": "#5b6478", "grass": ["#7fd9c4", "#6fcfb8", "#8fe3d0", "#66c7b0", "#9be8d6"], "plaza": ["#d8e0ec", "#c3cfe0"], "road": "#6f7a90", "sand": "#c9d3e3", "hills": ["#7c8cff", "#9aa8bf", "#5ad1ff"], "crown": ["#00e5ff", "#69f0ae", "#b388ff"], "trunk": "#9aa8bf", "tree": "round", "sea": [[0.4, 0.8, 1.0], [0.25, 0.35, 0.95]], "sky": ["#3d4cff", "#9f8cff", "#e3e0ff"], "horizon": "#e3e0ff"}
+    {
+      "id": "toy",
+      "icon": "🏙️"
+    },
+    {
+      "id": "candy",
+      "boss": {
+        "name": "b_candy",
+        "body": "#ff9ecf",
+        "head": "#ffc8e6",
+        "limb": "#c9a7ff",
+        "accent": "#fff0a0",
+        "eye": "#ff4f7d",
+        "fist": "#8fe8cc",
+        "top": "lolly"
+      },
+      "icon": "🍭",
+      "palette": [
+        "#ff9ecf",
+        "#ffc8e6",
+        "#8fe8cc",
+        "#fff0a0",
+        "#c9a7ff",
+        "#ffb38a",
+        "#8fe3ff",
+        "#ff7aa8"
+      ],
+      "roof": [
+        "#7a4a2e",
+        "#ff4f7d",
+        "#ffffff"
+      ],
+      "awning": [
+        "#ff4f7d",
+        "#ffffff",
+        "#8fe8cc",
+        "#c9a7ff"
+      ],
+      "window": "#fff4fb",
+      "trim": "#ffffff",
+      "door": "#7a4a2e",
+      "grass": [
+        "#ffc6e0",
+        "#ffb8d8",
+        "#ffd3e8",
+        "#ffe0ef",
+        "#ffbcd6"
+      ],
+      "plaza": [
+        "#fff4d6",
+        "#ffe1ef"
+      ],
+      "road": "#c9a6d9",
+      "sand": "#ffe3f0",
+      "hills": [
+        "#ff9ecf",
+        "#c9a7ff",
+        "#a8f0d8"
+      ],
+      "crown": [
+        "#ff5fa2",
+        "#7fe0c4",
+        "#ffd84f",
+        "#b98cff"
+      ],
+      "trunk": "#ffffff",
+      "tree": "lolly",
+      "sea": [
+        [
+          0.55,
+          0.9,
+          0.98
+        ],
+        [
+          0.5,
+          0.62,
+          1.0
+        ]
+      ],
+      "sky": [
+        "#9a8cff",
+        "#ffc4e6",
+        "#ffe6f2"
+      ],
+      "horizon": "#ffe6f2"
+    },
+    {
+      "id": "beach",
+      "boss": {
+        "name": "b_beach",
+        "body": "#ffd54f",
+        "head": "#ffe082",
+        "limb": "#5ad1ff",
+        "accent": "#ff8a65",
+        "eye": "#2a2140",
+        "fist": "#ff7096",
+        "top": "duck"
+      },
+      "icon": "🏖️",
+      "palette": [
+        "#ffffff",
+        "#5ad1ff",
+        "#ff8a65",
+        "#ffd54f",
+        "#4dd0b6",
+        "#ff7096",
+        "#8fd3ff",
+        "#fff1c1"
+      ],
+      "roof": [
+        "#2fb3e0",
+        "#ff7a45",
+        "#22c6a3"
+      ],
+      "awning": [
+        "#2fb3e0",
+        "#ffffff",
+        "#ff7096",
+        "#ffd54f"
+      ],
+      "window": "#bff3ff",
+      "trim": "#ffffff",
+      "door": "#c28a52",
+      "grass": [
+        "#f7e2a6",
+        "#f2d892",
+        "#fbe9b8",
+        "#efd08a",
+        "#fff0c6"
+      ],
+      "plaza": [
+        "#fff7e3",
+        "#e9f8ff"
+      ],
+      "road": "#b5c4d0",
+      "sand": "#fff0c4",
+      "hills": [
+        "#7fd36a",
+        "#f2d892",
+        "#6cc7a0"
+      ],
+      "crown": [
+        "#3fbf6a",
+        "#2fa85a",
+        "#6fd64b"
+      ],
+      "trunk": "#c28a52",
+      "tree": "palm",
+      "sea": [
+        [
+          0.3,
+          0.95,
+          0.95
+        ],
+        [
+          0.05,
+          0.62,
+          0.95
+        ]
+      ],
+      "sky": [
+        "#2f8cff",
+        "#7fd6ff",
+        "#dff7ff"
+      ],
+      "horizon": "#dff7ff"
+    },
+    {
+      "id": "snow",
+      "boss": {
+        "name": "b_snow",
+        "body": "#f4f9ff",
+        "head": "#ffffff",
+        "limb": "#a8d8ff",
+        "accent": "#ff6f6f",
+        "eye": "#3a5bff",
+        "fist": "#ff6f6f",
+        "top": "snow"
+      },
+      "icon": "❄️",
+      "palette": [
+        "#e8f4ff",
+        "#a8d8ff",
+        "#ff6f6f",
+        "#7fb4ff",
+        "#ffd166",
+        "#9be7c4",
+        "#c8b6ff",
+        "#ffffff"
+      ],
+      "roof": [
+        "#ffffff",
+        "#f2f8ff",
+        "#e6f1ff"
+      ],
+      "awning": [
+        "#ff6f6f",
+        "#ffffff",
+        "#7fb4ff",
+        "#9be7c4"
+      ],
+      "window": "#ffe9a8",
+      "trim": "#ffffff",
+      "door": "#8a5a3c",
+      "grass": [
+        "#f4f9ff",
+        "#e3eefc",
+        "#ffffff",
+        "#eaf3ff",
+        "#dde9fb"
+      ],
+      "plaza": [
+        "#eef5ff",
+        "#dde9fb"
+      ],
+      "road": "#aab6cc",
+      "sand": "#ffffff",
+      "hills": [
+        "#ffffff",
+        "#e3f0ff",
+        "#cfe4ff"
+      ],
+      "crown": [
+        "#2f8f6a",
+        "#3aa37a",
+        "#26805f"
+      ],
+      "trunk": "#8a5a3c",
+      "tree": "cone",
+      "sea": [
+        [
+          0.45,
+          0.78,
+          0.92
+        ],
+        [
+          0.2,
+          0.45,
+          0.82
+        ]
+      ],
+      "sky": [
+        "#6aa8ff",
+        "#bfe0ff",
+        "#eef6ff"
+      ],
+      "horizon": "#eef6ff"
+    },
+    {
+      "id": "dino",
+      "boss": {
+        "name": "b_dino",
+        "body": "#8bd450",
+        "head": "#a6e070",
+        "limb": "#6b8e23",
+        "accent": "#ffb347",
+        "eye": "#ff5a4f",
+        "fist": "#ffb347",
+        "top": "spikes"
+      },
+      "icon": "🌋",
+      "palette": [
+        "#8bd450",
+        "#ffb347",
+        "#d98c5f",
+        "#6fcf97",
+        "#f2c94c",
+        "#bb6bd9",
+        "#56ccf2",
+        "#eb8a5c"
+      ],
+      "roof": [
+        "#6b8e23",
+        "#9b5d2e",
+        "#d9534f"
+      ],
+      "awning": [
+        "#d9534f",
+        "#f2c94c",
+        "#6fcf97",
+        "#56ccf2"
+      ],
+      "window": "#fff2c4",
+      "trim": "#f3e3c0",
+      "door": "#7a5230",
+      "grass": [
+        "#7fcf4f",
+        "#74c444",
+        "#8bd85c",
+        "#6bbb3e",
+        "#97e06a"
+      ],
+      "plaza": [
+        "#e8d6a8",
+        "#d9c08a"
+      ],
+      "road": "#a69a86",
+      "sand": "#e8cf94",
+      "hills": [
+        "#5fa04e",
+        "#8a6d4b",
+        "#6fb35a"
+      ],
+      "crown": [
+        "#2e8b3d",
+        "#3fae4a",
+        "#1f7a35"
+      ],
+      "trunk": "#7a5230",
+      "tree": "palm",
+      "sea": [
+        [
+          0.35,
+          0.85,
+          0.8
+        ],
+        [
+          0.1,
+          0.55,
+          0.7
+        ]
+      ],
+      "sky": [
+        "#4fa3ff",
+        "#ffd59a",
+        "#fff0d6"
+      ],
+      "horizon": "#fff0d6"
+    },
+    {
+      "id": "robot",
+      "boss": {
+        "name": "b_robot",
+        "body": "#9aa8bf",
+        "head": "#c5d0e0",
+        "limb": "#3d5afe",
+        "accent": "#69f0ae",
+        "eye": "#00e5ff",
+        "fist": "#ff4081",
+        "top": "antenna"
+      },
+      "icon": "🛰️",
+      "palette": [
+        "#9aa8bf",
+        "#5ad1ff",
+        "#b388ff",
+        "#69f0ae",
+        "#ffd740",
+        "#ff6e9c",
+        "#7c8cff",
+        "#c5d0e0"
+      ],
+      "roof": [
+        "#3d5afe",
+        "#ff4081",
+        "#00bfa5"
+      ],
+      "awning": [
+        "#3d5afe",
+        "#69f0ae",
+        "#ff4081",
+        "#ffd740"
+      ],
+      "window": "#80ffea",
+      "trim": "#e0e7f2",
+      "door": "#5b6478",
+      "grass": [
+        "#7fd9c4",
+        "#6fcfb8",
+        "#8fe3d0",
+        "#66c7b0",
+        "#9be8d6"
+      ],
+      "plaza": [
+        "#d8e0ec",
+        "#c3cfe0"
+      ],
+      "road": "#6f7a90",
+      "sand": "#c9d3e3",
+      "hills": [
+        "#7c8cff",
+        "#9aa8bf",
+        "#5ad1ff"
+      ],
+      "crown": [
+        "#00e5ff",
+        "#69f0ae",
+        "#b388ff"
+      ],
+      "trunk": "#9aa8bf",
+      "tree": "round",
+      "sea": [
+        [
+          0.4,
+          0.8,
+          1.0
+        ],
+        [
+          0.25,
+          0.35,
+          0.95
+        ]
+      ],
+      "sky": [
+        "#3d4cff",
+        "#9f8cff",
+        "#e3e0ff"
+      ],
+      "horizon": "#e3e0ff"
+    }
   ],
   "strings": {
-    "en": { "golden": "GOLDEN BUILDING!", "mega": "MEGA BONBON!", "fever": "FEVER!", "b_candy": "GUMMY ROBOT", "b_beach": "RUBBER DUCK ROBOT", "b_snow": "SNOW ROBOT", "b_dino": "DINO ROBOT", "b_robot": "MEGA ROBOT", "daily": "DAILY CITY", "todayBest": "Today's best", "dailyGift": "DAILY GIFT", "dayN": "DAY {n}!", "w_bonk": "BONK!", "w_crash": "CRASH!", "w_kaboom": "KABOOM!", "sticker": "NEW STICKER!", "album": "STICKER BOOK", "tabMoves": "MOVES", "tabLooks": "LOOKS", "t_toy": "Toy Town", "t_candy": "Candy Town", "t_beach": "Beach Town", "t_snow": "Snow Town", "t_dino": "Dino Valley", "t_robot": "Robot City", "newCity": "NEW CITY!", "smashed": "BLOCKS SMASHED", "total": "All-time", "missionDone": "MISSION DONE!", "rainbow": "RAINBOW MODE!", "m_stomp": "Stomp", "m_spin": "Tail Spin", "m_flop": "Belly Flop", "m_bubble": "Bubble Breath", "m_roar": "Storm Roar", "m_jelly": "Jelly Bounce", "m_magnet": "Magnet Hug", "m_rainbow": "Rainbow Eyes", "m_sneeze": "Giant Sneeze", "m_moon": "Moon Jump", "shop": "SHOP", "use": "USE", "inUse": "IN USE", "need": "NEED {n} MORE", "buy": "BUY", "growTo3": "Grow to 3", "warn": "WATCH OUT!", "boss": "WIND-UP ROBOT", "bossDown": "ROBOT UNWOUND!", "dizzy": "DIZZY!", "wanted": "WANTED", "swipe": "Swipe!", "grow": "GROW!", "tooBig": "TOO BIG!", "combo": "COMBO", "domino": "DOMINO", "flat": "CITY FLATTENED!", "again": "PLAY AGAIN", "newMove": "NEW MOVE!", "spin": "TAIL SPIN", "best": "NEW BEST!", "city": "City", "time": "Time", "bestCombo": "Best combo", "squash": "SQUASH!", "bonk": "BONK!" },
-    "id": { "golden": "GEDUNG EMAS!", "mega": "BONBON MEGA!", "fever": "DEMAM!", "b_candy": "ROBOT JELI", "b_beach": "ROBOT BEBEK KARET", "b_snow": "ROBOT SALJU", "b_dino": "ROBOT DINO", "b_robot": "ROBOT RAKSASA", "daily": "KOTA HARIAN", "todayBest": "Terbaik hari ini", "dailyGift": "HADIAH HARIAN", "dayN": "HARI KE-{n}!", "w_bonk": "BONK!", "w_crash": "BRAK!", "w_kaboom": "DUAR!", "sticker": "STIKER BARU!", "album": "BUKU STIKER", "tabMoves": "JURUS", "tabLooks": "KOSTUM", "t_toy": "Kota Mainan", "t_candy": "Kota Permen", "t_beach": "Kota Pantai", "t_snow": "Kota Salju", "t_dino": "Lembah Dino", "t_robot": "Kota Robot", "newCity": "KOTA BARU!", "smashed": "BLOK HANCUR", "total": "Total", "missionDone": "MISI SELESAI!", "rainbow": "MODE PELANGI!", "m_stomp": "Injak", "m_spin": "Putar Ekor", "m_flop": "Hentakan Perut", "m_bubble": "Napas Gelembung", "m_roar": "Auman Badai", "m_jelly": "Pantul Jeli", "m_magnet": "Pelukan Magnet", "m_rainbow": "Mata Pelangi", "m_sneeze": "Bersin Raksasa", "m_moon": "Lompat Bulan", "shop": "TOKO", "use": "PAKAI", "inUse": "DIPAKAI", "need": "BUTUH {n} LAGI", "buy": "BELI", "growTo3": "Tumbuh ke 3", "warn": "AWAS!", "boss": "ROBOT KUNCI", "bossDown": "ROBOT KEHABISAN PER!", "dizzy": "PUSING!", "wanted": "DICARI", "swipe": "Geser!", "grow": "TUMBUH!", "tooBig": "TERLALU BESAR!", "combo": "KOMBO", "domino": "DOMINO", "flat": "KOTA RATA!", "again": "MAIN LAGI", "newMove": "JURUS BARU!", "spin": "PUTAR EKOR", "best": "REKOR BARU!", "city": "Kota", "time": "Waktu", "bestCombo": "Kombo terbaik", "squash": "PENYOK!", "bonk": "BONK!" },
-    "ar": { "golden": "مبنى ذهبي!", "mega": "بونبون العملاق!", "fever": "حماس!", "b_candy": "روبوت الهلام", "b_beach": "روبوت البطة", "b_snow": "روبوت الثلج", "b_dino": "روبوت الديناصور", "b_robot": "الروبوت العملاق", "daily": "مدينة اليوم", "todayBest": "أفضل وقت اليوم", "dailyGift": "هدية يومية", "dayN": "اليوم {n}!", "w_bonk": "بونك!", "w_crash": "كراش!", "w_kaboom": "كابوم!", "sticker": "ملصق جديد!", "album": "كتاب الملصقات", "tabMoves": "الحركات", "tabLooks": "الأزياء", "t_toy": "مدينة الألعاب", "t_candy": "مدينة الحلوى", "t_beach": "مدينة الشاطئ", "t_snow": "مدينة الثلج", "t_dino": "وادي الديناصورات", "t_robot": "مدينة الروبوتات", "newCity": "مدينة جديدة!", "smashed": "مكعبات محطمة", "total": "المجموع", "missionDone": "تمت المهمة!", "rainbow": "وضع قوس قزح!", "m_stomp": "دوس", "m_spin": "دوران الذيل", "m_flop": "ضربة البطن", "m_bubble": "نفس الفقاعات", "m_roar": "زئير العاصفة", "m_jelly": "قفزة الهلام", "m_magnet": "عناق المغناطيس", "m_rainbow": "عيون قوس قزح", "m_sneeze": "عطسة عملاقة", "m_moon": "قفزة القمر", "shop": "المتجر", "use": "استخدم", "inUse": "مستخدم", "need": "تحتاج {n} أخرى", "buy": "اشترِ", "growTo3": "اكبر إلى ٣", "warn": "انتبه!", "boss": "الروبوت الزنبركي", "bossDown": "توقف الروبوت!", "dizzy": "دائخ!", "wanted": "مطلوب", "swipe": "اسحب!", "grow": "اكبر!", "tooBig": "كبير جدًا!", "combo": "كومبو", "domino": "دومينو", "flat": "المدينة سُوّيت!", "again": "العب مجددًا", "newMove": "حركة جديدة!", "spin": "دوران الذيل", "best": "رقم قياسي!", "city": "المدينة", "time": "الوقت", "bestCombo": "أفضل كومبو", "squash": "انسحق!", "bonk": "بونك!" },
-    "es": { "golden": "¡EDIFICIO DORADO!", "mega": "¡MEGA BONBON!", "fever": "¡FIEBRE!", "b_candy": "ROBOT GOMINOLA", "b_beach": "ROBOT PATITO", "b_snow": "ROBOT DE NIEVE", "b_dino": "ROBOT DINO", "b_robot": "MEGA ROBOT", "daily": "CIUDAD DEL DÍA", "todayBest": "Mejor de hoy", "dailyGift": "REGALO DIARIO", "dayN": "¡DÍA {n}!", "w_bonk": "¡BONK!", "w_crash": "¡CRAC!", "w_kaboom": "¡BUM!", "sticker": "¡PEGATINA NUEVA!", "album": "ÁLBUM DE PEGATINAS", "tabMoves": "MOVIMIENTOS", "tabLooks": "DISFRACES", "t_toy": "Ciudad Juguete", "t_candy": "Ciudad Dulce", "t_beach": "Ciudad Playa", "t_snow": "Ciudad Nieve", "t_dino": "Valle Dino", "t_robot": "Ciudad Robot", "newCity": "¡CIUDAD NUEVA!", "smashed": "BLOQUES ROTOS", "total": "Total", "missionDone": "¡MISIÓN LISTA!", "rainbow": "¡MODO ARCOÍRIS!", "m_stomp": "Pisotón", "m_spin": "Giro de Cola", "m_flop": "Panzazo", "m_bubble": "Aliento Burbuja", "m_roar": "Rugido Tormenta", "m_jelly": "Rebote Gelatina", "m_magnet": "Abrazo Imán", "m_rainbow": "Ojos Arcoíris", "m_sneeze": "Estornudo Gigante", "m_moon": "Salto Lunar", "shop": "TIENDA", "use": "USAR", "inUse": "EN USO", "need": "FALTAN {n}", "buy": "COMPRAR", "growTo3": "Crece a 3", "warn": "¡CUIDADO!", "boss": "ROBOT DE CUERDA", "bossDown": "¡ROBOT SIN CUERDA!", "dizzy": "¡MAREADO!", "wanted": "BUSCADO", "swipe": "¡Desliza!", "grow": "¡CRECE!", "tooBig": "¡MUY GRANDE!", "combo": "COMBO", "domino": "DOMINÓ", "flat": "¡CIUDAD APLASTADA!", "again": "JUGAR OTRA VEZ", "newMove": "¡NUEVO MOVIMIENTO!", "spin": "GIRO DE COLA", "best": "¡NUEVO RÉCORD!", "city": "Ciudad", "time": "Tiempo", "bestCombo": "Mejor combo", "squash": "¡PLAF!", "bonk": "¡BONK!" },
-    "vi": { "golden": "TÒA NHÀ VÀNG!", "mega": "SIÊU BONBON!", "fever": "CUỒNG NHIỆT!", "b_candy": "RÔ-BỐT KẸO DẺO", "b_beach": "RÔ-BỐT VỊT CAO SU", "b_snow": "RÔ-BỐT TUYẾT", "b_dino": "RÔ-BỐT KHỦNG LONG", "b_robot": "SIÊU RÔ-BỐT", "daily": "THÀNH PHỐ HÔM NAY", "todayBest": "Tốt nhất hôm nay", "dailyGift": "QUÀ HẰNG NGÀY", "dayN": "NGÀY {n}!", "w_bonk": "BỐP!", "w_crash": "RẦM!", "w_kaboom": "BÙM!", "sticker": "NHÃN DÁN MỚI!", "album": "SỔ NHÃN DÁN", "tabMoves": "CHIÊU", "tabLooks": "TRANG PHỤC", "t_toy": "Phố Đồ Chơi", "t_candy": "Phố Kẹo", "t_beach": "Phố Biển", "t_snow": "Phố Tuyết", "t_dino": "Thung Lũng Khủng Long", "t_robot": "Phố Rô-bốt", "newCity": "THÀNH PHỐ MỚI!", "smashed": "KHỐI ĐÃ PHÁ", "total": "Tổng", "missionDone": "XONG NHIỆM VỤ!", "rainbow": "CHẾ ĐỘ CẦU VỒNG!", "m_stomp": "Dậm", "m_spin": "Quật Đuôi", "m_flop": "Đập Bụng", "m_bubble": "Hơi Thở Bong Bóng", "m_roar": "Gầm Bão", "m_jelly": "Bật Thạch", "m_magnet": "Ôm Nam Châm", "m_rainbow": "Mắt Cầu Vồng", "m_sneeze": "Hắt Xì Khổng Lồ", "m_moon": "Nhảy Mặt Trăng", "shop": "CỬA HÀNG", "use": "DÙNG", "inUse": "ĐANG DÙNG", "need": "CẦN THÊM {n}", "buy": "MUA", "growTo3": "Lớn tới 3", "warn": "CẨN THẬN!", "boss": "RÔ-BỐT LÊN DÂY", "bossDown": "RÔ-BỐT HẾT DÂY CÓT!", "dizzy": "CHÓNG MẶT!", "wanted": "TRUY NÃ", "swipe": "Vuốt!", "grow": "LỚN LÊN!", "tooBig": "QUÁ TO!", "combo": "COMBO", "domino": "DOMINO", "flat": "PHÁ SẠCH THÀNH PHỐ!", "again": "CHƠI LẠI", "newMove": "CHIÊU MỚI!", "spin": "QUẬT ĐUÔI", "best": "KỶ LỤC MỚI!", "city": "Thành phố", "time": "Thời gian", "bestCombo": "Combo cao nhất", "squash": "BẸP!", "bonk": "BỐP!" },
-    "hi": { "golden": "सोने की इमारत!", "mega": "मेगा बोनबोन!", "fever": "जोश!", "b_candy": "जेली रोबोट", "b_beach": "बत्तख रोबोट", "b_snow": "बर्फ़ रोबोट", "b_dino": "डायनो रोबोट", "b_robot": "मेगा रोबोट", "daily": "आज का शहर", "todayBest": "आज का सबसे अच्छा", "dailyGift": "रोज़ का तोहफ़ा", "dayN": "दिन {n}!", "w_bonk": "धप!", "w_crash": "धड़ाम!", "w_kaboom": "धमाका!", "sticker": "नया स्टिकर!", "album": "स्टिकर बुक", "tabMoves": "चालें", "tabLooks": "पोशाक", "t_toy": "खिलौना नगर", "t_candy": "कैंडी नगर", "t_beach": "समुद्र तट नगर", "t_snow": "बर्फ़ नगर", "t_dino": "डायनो घाटी", "t_robot": "रोबोट नगर", "newCity": "नया शहर!", "smashed": "ब्लॉक तोड़े", "total": "कुल", "missionDone": "मिशन पूरा!", "rainbow": "इंद्रधनुष मोड!", "m_stomp": "पैर पटक", "m_spin": "पूँछ घुमाओ", "m_flop": "पेट पटक", "m_bubble": "बुलबुला साँस", "m_roar": "तूफ़ानी दहाड़", "m_jelly": "जेली उछाल", "m_magnet": "चुंबक झप्पी", "m_rainbow": "इंद्रधनुष आँखें", "m_sneeze": "बड़ी छींक", "m_moon": "चाँद छलांग", "shop": "दुकान", "use": "लगाओ", "inUse": "लगा है", "need": "{n} और चाहिए", "buy": "खरीदो", "growTo3": "3 तक बढ़ो", "warn": "सावधान!", "boss": "चाबी वाला रोबोट", "bossDown": "रोबोट की चाबी खत्म!", "dizzy": "चक्कर!", "wanted": "वांटेड", "swipe": "स्वाइप करो!", "grow": "बड़े बनो!", "tooBig": "बहुत बड़ा!", "combo": "कॉम्बो", "domino": "डोमिनो", "flat": "शहर सपाट!", "again": "फिर खेलो", "newMove": "नई चाल!", "spin": "पूँछ घुमाओ", "best": "नया रिकॉर्ड!", "city": "शहर", "time": "समय", "bestCombo": "सबसे बड़ा कॉम्बो", "squash": "पिचक!", "bonk": "धड़ाम!" },
-    "bn": { "golden": "সোনার বাড়ি!", "mega": "মেগা বনবন!", "fever": "উন্মাদনা!", "b_candy": "জেলি রোবট", "b_beach": "হাঁস রোবট", "b_snow": "বরফ রোবট", "b_dino": "ডাইনো রোবট", "b_robot": "মেগা রোবট", "daily": "আজকের শহর", "todayBest": "আজকের সেরা", "dailyGift": "রোজকার উপহার", "dayN": "দিন {n}!", "w_bonk": "ধপ!", "w_crash": "ধপাস!", "w_kaboom": "বুম!", "sticker": "নতুন স্টিকার!", "album": "স্টিকার বই", "tabMoves": "চাল", "tabLooks": "পোশাক", "t_toy": "খেলনা শহর", "t_candy": "ক্যান্ডি শহর", "t_beach": "সৈকত শহর", "t_snow": "বরফ শহর", "t_dino": "ডাইনো উপত্যকা", "t_robot": "রোবট শহর", "newCity": "নতুন শহর!", "smashed": "ব্লক ভাঙা", "total": "মোট", "missionDone": "মিশন শেষ!", "rainbow": "রংধনু মোড!", "m_stomp": "পা দাপানো", "m_spin": "লেজ ঘোরাও", "m_flop": "পেট আছাড়", "m_bubble": "বুদবুদ নিঃশ্বাস", "m_roar": "ঝড়ের গর্জন", "m_jelly": "জেলি লাফ", "m_magnet": "চুম্বক জড়ানো", "m_rainbow": "রংধনু চোখ", "m_sneeze": "বিশাল হাঁচি", "m_moon": "চাঁদ লাফ", "shop": "দোকান", "use": "লাগাও", "inUse": "লাগানো", "need": "আরও {n} লাগবে", "buy": "কেনো", "growTo3": "৩ পর্যন্ত বড় হও", "warn": "সাবধান!", "boss": "চাবির রোবট", "bossDown": "রোবটের দম শেষ!", "dizzy": "মাথা ঘোরে!", "wanted": "ওয়ান্টেড", "swipe": "সোয়াইপ করো!", "grow": "বড় হও!", "tooBig": "অনেক বড়!", "combo": "কম্বো", "domino": "ডমিনো", "flat": "শহর সমান!", "again": "আবার খেলো", "newMove": "নতুন চাল!", "spin": "লেজ ঘোরাও", "best": "নতুন রেকর্ড!", "city": "শহর", "time": "সময়", "bestCombo": "সেরা কম্বো", "squash": "চ্যাপ্টা!", "bonk": "ধপাস!" }
+    "en": {
+      "golden": "GOLDEN BUILDING!",
+      "mega": "MEGA BONBON!",
+      "fever": "FEVER!",
+      "b_candy": "GUMMY ROBOT",
+      "b_beach": "RUBBER DUCK ROBOT",
+      "b_snow": "SNOW ROBOT",
+      "b_dino": "DINO ROBOT",
+      "b_robot": "MEGA ROBOT",
+      "daily": "DAILY CITY",
+      "todayBest": "Today's best",
+      "dailyGift": "DAILY GIFT",
+      "dayN": "DAY {n}!",
+      "w_bonk": "BONK!",
+      "w_crash": "CRASH!",
+      "w_kaboom": "KABOOM!",
+      "sticker": "NEW STICKER!",
+      "album": "STICKER BOOK",
+      "tabMoves": "MOVES",
+      "tabLooks": "LOOKS",
+      "t_toy": "Toy Town",
+      "t_candy": "Candy Town",
+      "t_beach": "Beach Town",
+      "t_snow": "Snow Town",
+      "t_dino": "Dino Valley",
+      "t_robot": "Robot City",
+      "newCity": "NEW CITY!",
+      "smashed": "BLOCKS SMASHED",
+      "total": "All-time",
+      "missionDone": "MISSION DONE!",
+      "rainbow": "RAINBOW MODE!",
+      "m_stomp": "Stomp",
+      "m_spin": "Tail Spin",
+      "m_flop": "Belly Flop",
+      "m_bubble": "Bubble Breath",
+      "m_roar": "Storm Roar",
+      "m_jelly": "Jelly Bounce",
+      "m_magnet": "Magnet Hug",
+      "m_rainbow": "Rainbow Eyes",
+      "m_sneeze": "Giant Sneeze",
+      "m_moon": "Moon Jump",
+      "shop": "SHOP",
+      "use": "USE",
+      "inUse": "IN USE",
+      "need": "NEED {n} MORE",
+      "buy": "BUY",
+      "growTo3": "Grow to 3",
+      "warn": "WATCH OUT!",
+      "boss": "WIND-UP ROBOT",
+      "bossDown": "ROBOT UNWOUND!",
+      "dizzy": "DIZZY!",
+      "wanted": "WANTED",
+      "swipe": "Swipe!",
+      "grow": "GROW!",
+      "tooBig": "TOO BIG!",
+      "combo": "COMBO",
+      "domino": "DOMINO",
+      "flat": "CITY FLATTENED!",
+      "again": "PLAY AGAIN",
+      "newMove": "NEW MOVE!",
+      "spin": "TAIL SPIN",
+      "best": "NEW BEST!",
+      "city": "City",
+      "time": "Time",
+      "bestCombo": "Best combo",
+      "squash": "SQUASH!",
+      "bonk": "BONK!"
+    },
+    "id": {
+      "golden": "GEDUNG EMAS!",
+      "mega": "BONBON MEGA!",
+      "fever": "DEMAM!",
+      "b_candy": "ROBOT JELI",
+      "b_beach": "ROBOT BEBEK KARET",
+      "b_snow": "ROBOT SALJU",
+      "b_dino": "ROBOT DINO",
+      "b_robot": "ROBOT RAKSASA",
+      "daily": "KOTA HARIAN",
+      "todayBest": "Terbaik hari ini",
+      "dailyGift": "HADIAH HARIAN",
+      "dayN": "HARI KE-{n}!",
+      "w_bonk": "BONK!",
+      "w_crash": "BRAK!",
+      "w_kaboom": "DUAR!",
+      "sticker": "STIKER BARU!",
+      "album": "BUKU STIKER",
+      "tabMoves": "JURUS",
+      "tabLooks": "KOSTUM",
+      "t_toy": "Kota Mainan",
+      "t_candy": "Kota Permen",
+      "t_beach": "Kota Pantai",
+      "t_snow": "Kota Salju",
+      "t_dino": "Lembah Dino",
+      "t_robot": "Kota Robot",
+      "newCity": "KOTA BARU!",
+      "smashed": "BLOK HANCUR",
+      "total": "Total",
+      "missionDone": "MISI SELESAI!",
+      "rainbow": "MODE PELANGI!",
+      "m_stomp": "Injak",
+      "m_spin": "Putar Ekor",
+      "m_flop": "Hentakan Perut",
+      "m_bubble": "Napas Gelembung",
+      "m_roar": "Auman Badai",
+      "m_jelly": "Pantul Jeli",
+      "m_magnet": "Pelukan Magnet",
+      "m_rainbow": "Mata Pelangi",
+      "m_sneeze": "Bersin Raksasa",
+      "m_moon": "Lompat Bulan",
+      "shop": "TOKO",
+      "use": "PAKAI",
+      "inUse": "DIPAKAI",
+      "need": "BUTUH {n} LAGI",
+      "buy": "BELI",
+      "growTo3": "Tumbuh ke 3",
+      "warn": "AWAS!",
+      "boss": "ROBOT KUNCI",
+      "bossDown": "ROBOT KEHABISAN PER!",
+      "dizzy": "PUSING!",
+      "wanted": "DICARI",
+      "swipe": "Geser!",
+      "grow": "TUMBUH!",
+      "tooBig": "TERLALU BESAR!",
+      "combo": "KOMBO",
+      "domino": "DOMINO",
+      "flat": "KOTA RATA!",
+      "again": "MAIN LAGI",
+      "newMove": "JURUS BARU!",
+      "spin": "PUTAR EKOR",
+      "best": "REKOR BARU!",
+      "city": "Kota",
+      "time": "Waktu",
+      "bestCombo": "Kombo terbaik",
+      "squash": "PENYOK!",
+      "bonk": "BONK!"
+    },
+    "ar": {
+      "golden": "مبنى ذهبي!",
+      "mega": "بونبون العملاق!",
+      "fever": "حماس!",
+      "b_candy": "روبوت الهلام",
+      "b_beach": "روبوت البطة",
+      "b_snow": "روبوت الثلج",
+      "b_dino": "روبوت الديناصور",
+      "b_robot": "الروبوت العملاق",
+      "daily": "مدينة اليوم",
+      "todayBest": "أفضل وقت اليوم",
+      "dailyGift": "هدية يومية",
+      "dayN": "اليوم {n}!",
+      "w_bonk": "بونك!",
+      "w_crash": "كراش!",
+      "w_kaboom": "كابوم!",
+      "sticker": "ملصق جديد!",
+      "album": "كتاب الملصقات",
+      "tabMoves": "الحركات",
+      "tabLooks": "الأزياء",
+      "t_toy": "مدينة الألعاب",
+      "t_candy": "مدينة الحلوى",
+      "t_beach": "مدينة الشاطئ",
+      "t_snow": "مدينة الثلج",
+      "t_dino": "وادي الديناصورات",
+      "t_robot": "مدينة الروبوتات",
+      "newCity": "مدينة جديدة!",
+      "smashed": "مكعبات محطمة",
+      "total": "المجموع",
+      "missionDone": "تمت المهمة!",
+      "rainbow": "وضع قوس قزح!",
+      "m_stomp": "دوس",
+      "m_spin": "دوران الذيل",
+      "m_flop": "ضربة البطن",
+      "m_bubble": "نفس الفقاعات",
+      "m_roar": "زئير العاصفة",
+      "m_jelly": "قفزة الهلام",
+      "m_magnet": "عناق المغناطيس",
+      "m_rainbow": "عيون قوس قزح",
+      "m_sneeze": "عطسة عملاقة",
+      "m_moon": "قفزة القمر",
+      "shop": "المتجر",
+      "use": "استخدم",
+      "inUse": "مستخدم",
+      "need": "تحتاج {n} أخرى",
+      "buy": "اشترِ",
+      "growTo3": "اكبر إلى ٣",
+      "warn": "انتبه!",
+      "boss": "الروبوت الزنبركي",
+      "bossDown": "توقف الروبوت!",
+      "dizzy": "دائخ!",
+      "wanted": "مطلوب",
+      "swipe": "اسحب!",
+      "grow": "اكبر!",
+      "tooBig": "كبير جدًا!",
+      "combo": "كومبو",
+      "domino": "دومينو",
+      "flat": "المدينة سُوّيت!",
+      "again": "العب مجددًا",
+      "newMove": "حركة جديدة!",
+      "spin": "دوران الذيل",
+      "best": "رقم قياسي!",
+      "city": "المدينة",
+      "time": "الوقت",
+      "bestCombo": "أفضل كومبو",
+      "squash": "انسحق!",
+      "bonk": "بونك!"
+    },
+    "es": {
+      "golden": "¡EDIFICIO DORADO!",
+      "mega": "¡MEGA BONBON!",
+      "fever": "¡FIEBRE!",
+      "b_candy": "ROBOT GOMINOLA",
+      "b_beach": "ROBOT PATITO",
+      "b_snow": "ROBOT DE NIEVE",
+      "b_dino": "ROBOT DINO",
+      "b_robot": "MEGA ROBOT",
+      "daily": "CIUDAD DEL DÍA",
+      "todayBest": "Mejor de hoy",
+      "dailyGift": "REGALO DIARIO",
+      "dayN": "¡DÍA {n}!",
+      "w_bonk": "¡BONK!",
+      "w_crash": "¡CRAC!",
+      "w_kaboom": "¡BUM!",
+      "sticker": "¡PEGATINA NUEVA!",
+      "album": "ÁLBUM DE PEGATINAS",
+      "tabMoves": "MOVIMIENTOS",
+      "tabLooks": "DISFRACES",
+      "t_toy": "Ciudad Juguete",
+      "t_candy": "Ciudad Dulce",
+      "t_beach": "Ciudad Playa",
+      "t_snow": "Ciudad Nieve",
+      "t_dino": "Valle Dino",
+      "t_robot": "Ciudad Robot",
+      "newCity": "¡CIUDAD NUEVA!",
+      "smashed": "BLOQUES ROTOS",
+      "total": "Total",
+      "missionDone": "¡MISIÓN LISTA!",
+      "rainbow": "¡MODO ARCOÍRIS!",
+      "m_stomp": "Pisotón",
+      "m_spin": "Giro de Cola",
+      "m_flop": "Panzazo",
+      "m_bubble": "Aliento Burbuja",
+      "m_roar": "Rugido Tormenta",
+      "m_jelly": "Rebote Gelatina",
+      "m_magnet": "Abrazo Imán",
+      "m_rainbow": "Ojos Arcoíris",
+      "m_sneeze": "Estornudo Gigante",
+      "m_moon": "Salto Lunar",
+      "shop": "TIENDA",
+      "use": "USAR",
+      "inUse": "EN USO",
+      "need": "FALTAN {n}",
+      "buy": "COMPRAR",
+      "growTo3": "Crece a 3",
+      "warn": "¡CUIDADO!",
+      "boss": "ROBOT DE CUERDA",
+      "bossDown": "¡ROBOT SIN CUERDA!",
+      "dizzy": "¡MAREADO!",
+      "wanted": "BUSCADO",
+      "swipe": "¡Desliza!",
+      "grow": "¡CRECE!",
+      "tooBig": "¡MUY GRANDE!",
+      "combo": "COMBO",
+      "domino": "DOMINÓ",
+      "flat": "¡CIUDAD APLASTADA!",
+      "again": "JUGAR OTRA VEZ",
+      "newMove": "¡NUEVO MOVIMIENTO!",
+      "spin": "GIRO DE COLA",
+      "best": "¡NUEVO RÉCORD!",
+      "city": "Ciudad",
+      "time": "Tiempo",
+      "bestCombo": "Mejor combo",
+      "squash": "¡PLAF!",
+      "bonk": "¡BONK!"
+    },
+    "vi": {
+      "golden": "TÒA NHÀ VÀNG!",
+      "mega": "SIÊU BONBON!",
+      "fever": "CUỒNG NHIỆT!",
+      "b_candy": "RÔ-BỐT KẸO DẺO",
+      "b_beach": "RÔ-BỐT VỊT CAO SU",
+      "b_snow": "RÔ-BỐT TUYẾT",
+      "b_dino": "RÔ-BỐT KHỦNG LONG",
+      "b_robot": "SIÊU RÔ-BỐT",
+      "daily": "THÀNH PHỐ HÔM NAY",
+      "todayBest": "Tốt nhất hôm nay",
+      "dailyGift": "QUÀ HẰNG NGÀY",
+      "dayN": "NGÀY {n}!",
+      "w_bonk": "BỐP!",
+      "w_crash": "RẦM!",
+      "w_kaboom": "BÙM!",
+      "sticker": "NHÃN DÁN MỚI!",
+      "album": "SỔ NHÃN DÁN",
+      "tabMoves": "CHIÊU",
+      "tabLooks": "TRANG PHỤC",
+      "t_toy": "Phố Đồ Chơi",
+      "t_candy": "Phố Kẹo",
+      "t_beach": "Phố Biển",
+      "t_snow": "Phố Tuyết",
+      "t_dino": "Thung Lũng Khủng Long",
+      "t_robot": "Phố Rô-bốt",
+      "newCity": "THÀNH PHỐ MỚI!",
+      "smashed": "KHỐI ĐÃ PHÁ",
+      "total": "Tổng",
+      "missionDone": "XONG NHIỆM VỤ!",
+      "rainbow": "CHẾ ĐỘ CẦU VỒNG!",
+      "m_stomp": "Dậm",
+      "m_spin": "Quật Đuôi",
+      "m_flop": "Đập Bụng",
+      "m_bubble": "Hơi Thở Bong Bóng",
+      "m_roar": "Gầm Bão",
+      "m_jelly": "Bật Thạch",
+      "m_magnet": "Ôm Nam Châm",
+      "m_rainbow": "Mắt Cầu Vồng",
+      "m_sneeze": "Hắt Xì Khổng Lồ",
+      "m_moon": "Nhảy Mặt Trăng",
+      "shop": "CỬA HÀNG",
+      "use": "DÙNG",
+      "inUse": "ĐANG DÙNG",
+      "need": "CẦN THÊM {n}",
+      "buy": "MUA",
+      "growTo3": "Lớn tới 3",
+      "warn": "CẨN THẬN!",
+      "boss": "RÔ-BỐT LÊN DÂY",
+      "bossDown": "RÔ-BỐT HẾT DÂY CÓT!",
+      "dizzy": "CHÓNG MẶT!",
+      "wanted": "TRUY NÃ",
+      "swipe": "Vuốt!",
+      "grow": "LỚN LÊN!",
+      "tooBig": "QUÁ TO!",
+      "combo": "COMBO",
+      "domino": "DOMINO",
+      "flat": "PHÁ SẠCH THÀNH PHỐ!",
+      "again": "CHƠI LẠI",
+      "newMove": "CHIÊU MỚI!",
+      "spin": "QUẬT ĐUÔI",
+      "best": "KỶ LỤC MỚI!",
+      "city": "Thành phố",
+      "time": "Thời gian",
+      "bestCombo": "Combo cao nhất",
+      "squash": "BẸP!",
+      "bonk": "BỐP!"
+    },
+    "hi": {
+      "golden": "सोने की इमारत!",
+      "mega": "मेगा बोनबोन!",
+      "fever": "जोश!",
+      "b_candy": "जेली रोबोट",
+      "b_beach": "बत्तख रोबोट",
+      "b_snow": "बर्फ़ रोबोट",
+      "b_dino": "डायनो रोबोट",
+      "b_robot": "मेगा रोबोट",
+      "daily": "आज का शहर",
+      "todayBest": "आज का सबसे अच्छा",
+      "dailyGift": "रोज़ का तोहफ़ा",
+      "dayN": "दिन {n}!",
+      "w_bonk": "धप!",
+      "w_crash": "धड़ाम!",
+      "w_kaboom": "धमाका!",
+      "sticker": "नया स्टिकर!",
+      "album": "स्टिकर बुक",
+      "tabMoves": "चालें",
+      "tabLooks": "पोशाक",
+      "t_toy": "खिलौना नगर",
+      "t_candy": "कैंडी नगर",
+      "t_beach": "समुद्र तट नगर",
+      "t_snow": "बर्फ़ नगर",
+      "t_dino": "डायनो घाटी",
+      "t_robot": "रोबोट नगर",
+      "newCity": "नया शहर!",
+      "smashed": "ब्लॉक तोड़े",
+      "total": "कुल",
+      "missionDone": "मिशन पूरा!",
+      "rainbow": "इंद्रधनुष मोड!",
+      "m_stomp": "पैर पटक",
+      "m_spin": "पूँछ घुमाओ",
+      "m_flop": "पेट पटक",
+      "m_bubble": "बुलबुला साँस",
+      "m_roar": "तूफ़ानी दहाड़",
+      "m_jelly": "जेली उछाल",
+      "m_magnet": "चुंबक झप्पी",
+      "m_rainbow": "इंद्रधनुष आँखें",
+      "m_sneeze": "बड़ी छींक",
+      "m_moon": "चाँद छलांग",
+      "shop": "दुकान",
+      "use": "लगाओ",
+      "inUse": "लगा है",
+      "need": "{n} और चाहिए",
+      "buy": "खरीदो",
+      "growTo3": "3 तक बढ़ो",
+      "warn": "सावधान!",
+      "boss": "चाबी वाला रोबोट",
+      "bossDown": "रोबोट की चाबी खत्म!",
+      "dizzy": "चक्कर!",
+      "wanted": "वांटेड",
+      "swipe": "स्वाइप करो!",
+      "grow": "बड़े बनो!",
+      "tooBig": "बहुत बड़ा!",
+      "combo": "कॉम्बो",
+      "domino": "डोमिनो",
+      "flat": "शहर सपाट!",
+      "again": "फिर खेलो",
+      "newMove": "नई चाल!",
+      "spin": "पूँछ घुमाओ",
+      "best": "नया रिकॉर्ड!",
+      "city": "शहर",
+      "time": "समय",
+      "bestCombo": "सबसे बड़ा कॉम्बो",
+      "squash": "पिचक!",
+      "bonk": "धड़ाम!"
+    },
+    "bn": {
+      "golden": "সোনার বাড়ি!",
+      "mega": "মেগা বনবন!",
+      "fever": "উন্মাদনা!",
+      "b_candy": "জেলি রোবট",
+      "b_beach": "হাঁস রোবট",
+      "b_snow": "বরফ রোবট",
+      "b_dino": "ডাইনো রোবট",
+      "b_robot": "মেগা রোবট",
+      "daily": "আজকের শহর",
+      "todayBest": "আজকের সেরা",
+      "dailyGift": "রোজকার উপহার",
+      "dayN": "দিন {n}!",
+      "w_bonk": "ধপ!",
+      "w_crash": "ধপাস!",
+      "w_kaboom": "বুম!",
+      "sticker": "নতুন স্টিকার!",
+      "album": "স্টিকার বই",
+      "tabMoves": "চাল",
+      "tabLooks": "পোশাক",
+      "t_toy": "খেলনা শহর",
+      "t_candy": "ক্যান্ডি শহর",
+      "t_beach": "সৈকত শহর",
+      "t_snow": "বরফ শহর",
+      "t_dino": "ডাইনো উপত্যকা",
+      "t_robot": "রোবট শহর",
+      "newCity": "নতুন শহর!",
+      "smashed": "ব্লক ভাঙা",
+      "total": "মোট",
+      "missionDone": "মিশন শেষ!",
+      "rainbow": "রংধনু মোড!",
+      "m_stomp": "পা দাপানো",
+      "m_spin": "লেজ ঘোরাও",
+      "m_flop": "পেট আছাড়",
+      "m_bubble": "বুদবুদ নিঃশ্বাস",
+      "m_roar": "ঝড়ের গর্জন",
+      "m_jelly": "জেলি লাফ",
+      "m_magnet": "চুম্বক জড়ানো",
+      "m_rainbow": "রংধনু চোখ",
+      "m_sneeze": "বিশাল হাঁচি",
+      "m_moon": "চাঁদ লাফ",
+      "shop": "দোকান",
+      "use": "লাগাও",
+      "inUse": "লাগানো",
+      "need": "আরও {n} লাগবে",
+      "buy": "কেনো",
+      "growTo3": "৩ পর্যন্ত বড় হও",
+      "warn": "সাবধান!",
+      "boss": "চাবির রোবট",
+      "bossDown": "রোবটের দম শেষ!",
+      "dizzy": "মাথা ঘোরে!",
+      "wanted": "ওয়ান্টেড",
+      "swipe": "সোয়াইপ করো!",
+      "grow": "বড় হও!",
+      "tooBig": "অনেক বড়!",
+      "combo": "কম্বো",
+      "domino": "ডমিনো",
+      "flat": "শহর সমান!",
+      "again": "আবার খেলো",
+      "newMove": "নতুন চাল!",
+      "spin": "লেজ ঘোরাও",
+      "best": "নতুন রেকর্ড!",
+      "city": "শহর",
+      "time": "সময়",
+      "bestCombo": "সেরা কম্বো",
+      "squash": "চ্যাপ্টা!",
+      "bonk": "ধপাস!"
+    }
   },
-  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  },
+  "cine": {
+    "_": "short cinematic shots: the camera eases in, frames the moment with letterbox bars, eases back",
+    "bossSec": 2.4,
+    "collapseSec": 1.3,
+    "growSec": 1.5,
+    "megaSec": 1.4,
+    "collapseEverySec": 9,
+    "collapseMinClass": 5
+  },
+  "react": {
+    "_": "Bonbon reacts to the child: a wave when left alone, a giggle when its body is tapped, turns and points at a tapped spot, flexes on combos",
+    "fidgetSec": 2.2,
+    "lookSec": 1.6
+  }
 }

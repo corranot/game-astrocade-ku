@@ -114,6 +114,7 @@ let app = null, pendingMode = null;
 /** Three.js could not be loaded (no connection): one big retry button instead of a blank screen. */
 function showRetry() {
   const root = document.getElementById('app') || document.body;
+  if (window.__load) window.__load.done();
   root.innerHTML = '<button style="position:absolute;inset:0;margin:auto;width:40%;aspect-ratio:1;border-radius:50%;border:6px solid #24123f;background:#22c6a3;color:#fff;font-size:12vmin;cursor:pointer" aria-label="Retry">↻</button>';
   root.querySelector('button').onclick = () => location.reload();
 }
@@ -128,12 +129,13 @@ function run(mode) {
     return;
   }
   if (app) app.destroy();
-  app = startGame(mode === 'edit' ? 'edit' : 'play');
+  try { app = startGame(mode === 'edit' ? 'edit' : 'play'); } catch (e) { app = null; console.error(e); showRetry(); return; } // no WebGL, out of memory: a retry button, never a stuck loading screen
   window.__game = app.debug;
 }
 
 function startGame(mode) {
   const cfg = window.gameConfig || {};
+  if (window.__load) window.__load.step(75);
   const root = document.getElementById('app') || document.body;
   root.innerHTML = '';
   const isTouch = (() => { try { return lib.shouldUseTouchControls(); } catch (e) { return matchMedia('(pointer: coarse)').matches; } })();
@@ -289,6 +291,7 @@ function startGame(mode) {
     iconWatch = new MutationObserver((list) => { for (const r of list) { if (r.type === 'characterData') { if (r.target.parentNode) iconize(r.target.parentNode); } else for (const n of r.addedNodes) if (n.isConnected && (n.nodeType === 1 || n.nodeType === 3)) iconize(n.nodeType === 1 ? n : n.parentNode); } });
     iconWatch.observe(hud, { childList: true, subtree: true, characterData: true });
   }
+  const lbox = document.createElement('div'); lbox.className = 'lb'; hud.prepend(lbox); // letterbox bars for cinematic shots, under the HUD
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
   setDir();
 
@@ -326,10 +329,12 @@ function startGame(mode) {
   const bon = createBonbon({ candy: quality.candy }); scene.add(bon.root);
   const mfx = createMoveFx(scene);
   let rng, S, army = null, missions = null, target = null, lookAt = null;
+  const CN = cfg.cine || {}, cine = { kind: '', t0: 0, dur: 0, x: 0, z: 0 }; let lastCollapseCine = -99; // cinematic shot state (see startCine)
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
   function newRound() {
     if (city) city.dispose();
+    cine.kind = ''; lastCollapseCine = -99; hud.classList.remove('cine'); // no shot carries into a new city
     // a new city every round: the first one (and the attract mode) is the tuned seed, then each finished city
     // moves the seed on, so the layout, colours and the clock tower's place change
     // the Daily City: the same seed and city for every player today, picked from the map's 📅
@@ -346,7 +351,7 @@ function startGame(mode) {
     resize();
     S = {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
-      time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, trauma: 0, finished: false, idle: 0, touched: false,
+      time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, lookT: 0, turnT: 0, lookP: new THREE.Vector3(), fidgeted: false, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
       scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, daily, dailyBonus: 0, theme: ti, day, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
     };
@@ -452,7 +457,7 @@ function startGame(mode) {
   function hitCombo(counts = true) {
     S.comboT = CB.windowSec; if (!counts) return;
     S.combo++; S.bestCombo = Math.max(S.bestCombo, S.combo); mission('combo', comboMult(S.combo, CB)); feverCheck();
-    if (S.combo >= CB.every && S.combo % CB.every === 0) { Sound.combo(S.combo / CB.every); const c = $('combo'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+    if (S.combo >= CB.every && S.combo % CB.every === 0) { if (!bon.posing && !S.jump) bon.pose('flex', 0.9); bon.face('excited', 1); Sound.combo(S.combo / CB.every); const c = $('combo'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
   }
 
   // ---------- surprises each round (game_config.events): a golden building to catch in time, a giant candy that
@@ -491,7 +496,7 @@ function startGame(mode) {
     if (!S.golden && S.goldenAt > 0 && S.time >= S.goldenAt) {
       S.goldenAt = -1;
       const b = city.nearest(S.x, S.z, (o) => o.k <= S.stage + 1 && o.k >= 2 && Math.hypot(o.cx - S.x, o.cz - S.z) > 6 * S.scale, 0.6);
-      if (b) { S.golden = b; S.goldenT = (EVC.golden && EVC.golden.timeSec) || 25; city.tintBuilding(b, 0xffc531); marker('gold', '⭐'); banner('⭐ ' + T('golden'), 1.8, 1); Sound.combo(4); }
+      if (b) { bon.face('surprised', 0.8); S.lookT = 1.4; S.lookP.set(b.cx, Math.min(b.h, 8), b.cz); S.golden = b; S.goldenT = (EVC.golden && EVC.golden.timeSec) || 25; city.tintBuilding(b, 0xffc531); marker('gold', '⭐'); banner('⭐ ' + T('golden'), 1.8, 1); Sound.combo(4); }
     }
     if (S.golden) {
       const b = S.golden;
@@ -517,7 +522,7 @@ function startGame(mode) {
       placeMarker('candy', c.x, 4 * sc, c.z, '');
       if (Math.hypot(c.x - S.x, c.z - S.z) < (CC.pickRadius || 2.4) * sc + MC.radius * S.scale * 0.5) {
         S.candy = null; candyMesh.visible = false; hideMarker('candy'); S.megaT = CC.megaSec || 8; S.candyAt = S.time + (CC.everySec || 50);
-        bon.setRainbow(true); banner('🍭 ' + T('mega'), 1.8, 1); Sound.rainbow(); buzz('success'); bon.roar(); mfx.ring(S.x, S.z, 0xff9cc6, 8 * S.scale, 0.6);
+        bon.setRainbow(true); if (S.touched) startCine('mega', S.x, S.z, CN.megaSec); banner('🍭 ' + T('mega'), 1.8, 1); Sound.rainbow(); buzz('success'); bon.roar(); mfx.ring(S.x, S.z, 0xff9cc6, 8 * S.scale, 0.6);
       }
     }
     if (S.megaT > 0) { S.megaT -= dt; if (S.megaT <= 0 && S.rainbowT <= 0) bon.setRainbow(false); }
@@ -530,13 +535,14 @@ function startGame(mode) {
   function feverCheck() {
     const F = EVC.fever || {};
     if (!S.touched || S.finished || mode !== 'play') return;
-    if (S.feverT <= 0 && S.feverCd <= 0 && S.combo >= (F.combo || 21)) { S.feverT = F.sec || 6; S.feverCd = (F.cooldownSec || 25) + S.feverT; hud.classList.add('fever'); banner('🔥 ' + T('fever'), 1.6, 1); Sound.combo(6); buzz('success'); }
+    if (S.feverT <= 0 && S.feverCd <= 0 && S.combo >= (F.combo || 21)) { bon.face('excited', F.sec || 6); S.feverT = F.sec || 6; S.feverCd = (F.cooldownSec || 25) + S.feverT; hud.classList.add('fever'); banner('🔥 ' + T('fever'), 1.6, 1); Sound.combo(6); buzz('success'); }
   }
   function grow() {
     S.stage++; S.scaleTarget = G.baseScale * Math.pow(G.scaleRatio, S.stage - 1); S.spirit += cfg.army.spirit.perStage;
     S.slowT = FX.slowmoSec; shake(0.35);
     bon.setStage(S.stage); bon.roar(); Sound.roar(S.stage); buzz('success'); mission('grow', S.stage);
     if (!S.jump && !bon.posing) S.poseT = 0.9; // turns to face the player for a moment (not in the middle of a move)
+    if (S.touched) startCine('grow', S.x, S.z, CN.growSec);
     banner(T('grow'));
     city.crushTrees(S.x, S.z, 4 * S.scaleTarget);
     squashCarsAt(S.x, S.z, 4 * S.scaleTarget);
@@ -588,7 +594,14 @@ function startGame(mode) {
     if (!tapRay.ray.intersectPlane(tapPlane, tapHit)) return;
     const reach = (cfg.throwCar && cfg.throwCar.reach || 12) * Math.sqrt(S.scale);
     const car = city.pickCar(tapHit.x, tapHit.z, 2.6 + S.scale * 0.6);
-    if (!car || Math.hypot(car.x - S.x, car.z - S.z) > reach) return;
+    if (!car || Math.hypot(car.x - S.x, car.z - S.z) > reach) { // nothing to throw: a tap on Bonbon tickles it, elsewhere it looks and points
+      const tx0 = (cx - r.left) / r.width, ty0 = (cy - r.top) / r.height;
+      if (tapRay.intersectObject(bon.root, true).length) { // the tap lands on Bonbon's own body
+        if (!bon.posing) { bon.pose('tickle', 1.1); bon.laugh(); Sound.boing(); buzz('tap'); pop('❤', tx0 + 0.05, ty0 - 0.06, '#ff5fa2', 1); S.idle = 0; }
+        return;
+      }
+      S.lookT = (cfg.react && cfg.react.lookSec) || 1.6; S.lookP.set(tapHit.x, 1.5, tapHit.z); S.turnT = 0.9; if (!bon.posing) bon.pose('point', 0.9); return;
+    }
     // the target is a building the child can see (on screen), so the crash is seen
     const onScreen = (b) => { const [sx, sy] = screenOf(b.cx, Math.min(b.h, 6) * 0.5, b.cz); return sx > 0.12 && sx < 0.88 && sy > 0.15 && sy < 0.85; };
     const tgt = city.nearest(car.x, car.z, (b) => b.k <= S.stage + 2 && Math.hypot(b.cx - S.x, b.cz - S.z) > 4 * S.scale && onScreen(b));
@@ -766,6 +779,8 @@ function startGame(mode) {
       let d = Math.atan2(camera.position.x - S.x, camera.position.z - S.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 9);
       if (S.poseT <= 0) S.idle = 0;
     }
+    if (cine.kind === 'boss' && hud.classList.contains('cine')) { mag = 0; ix = iz = 0; } // the boss shot turns the view: no steering against it for those two seconds
+    S.turnT -= dt; if (!mag && S.turnT > 0) { let d = Math.atan2(S.lookP.x - S.x, S.lookP.z - S.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 8); } // turns to point at a tapped spot
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
     if (!mag && S.dizzyT <= 0 && S.poseT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
@@ -871,6 +886,7 @@ function startGame(mode) {
         const label = e.chain > 0 ? T('domino') + ' ×' + (e.chain + 1) : '';
         score(PT.perClass * e.b.k * e.b.k, e.x, Math.min(e.b.h, 8), e.z, label);
         mission(e.b.h >= cfg.toppleMinHeight ? 'tower' : 'house'); if (S.rainbowT > 0) city.burstConfetti(e.x, 3, e.z, 18, [0xff5a4f, 0xffc531, 0x6fd64b, 0x3fa9ff, 0x9b6bff]); if (e.chain > 0) mission('domino', e.chain + 1);
+        if (S.touched && (e.b.k >= (CN.collapseMinClass || 5) || e.chain >= 2) && S.time - lastCollapseCine > (CN.collapseEverySec || 9)) { lastCollapseCine = S.time; startCine('collapse', e.x, e.z, CN.collapseSec); }
         Sound.collapse(e.b.k); if (e.b.k >= 3) shake(0.1 + e.b.k * 0.05); S.hitstopT = FX.hitstopSec; buzz(e.b.k >= 3 ? 'thud' : 'tap');
         const [sx, sy] = screenOf(e.x, 2, e.z); flyCoins(sx, sy, e.b.k + 1); setTimeout(() => Sound.coin(e.b.k), 300);
         if (e.chain > 0) { bon.laugh(); if (e.chain + 1 > S.chainShown) { S.chainShown = e.chain + 1; banner(T('domino') + ' ×' + (e.chain + 1) + '!', 1.2); } }
@@ -900,6 +916,7 @@ function startGame(mode) {
         mission('stars', e.stars);
         const w = $('wanted'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); Sound.combo(2 + e.stars); // the star row itself pops, no extra text
       } else if (e.type === 'bossIntro') {
+        if (S.touched) startCine('boss', army.boss.x, army.boss.z, CN.bossSec); bon.face('surprised', 1.2);
         banner(T('warn'), 1.8); $('bossName').textContent = bossName(); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
       } else if (e.type === 'bossLand') {
         shake(0.45); Sound.land(); for (let k = 0; k < 10; k++) city.puff(e.x + Math.cos(k) * 5, 0.8, e.z + Math.sin(k) * 5, 2.4);
@@ -1055,6 +1072,14 @@ function startGame(mode) {
 
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
   let camOverride = null, frozen = false;
+  // cinematic shots: the camera eases from the play view to a framed shot and back, with letterbox bars
+  const cineP = new THREE.Vector3(), cineL = new THREE.Vector3();
+  /** Starts a shot ('boss', 'collapse', 'grow', 'mega') around world point x, z, unless one is playing or motion is reduced. */
+  function startCine(kind, x, z, dur) {
+    if (calm || !dur || camOverride) return;
+    if (cine.kind && performance.now() / 1000 - cine.t0 < cine.dur && kind !== 'boss') return;
+    Object.assign(cine, { kind, t0: performance.now() / 1000, dur, x, z });
+  }
   const follow = { x: 0, z: 0, vx: 0, vz: 0, init: false };
   const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Adds screen shake for a big moment only; amounts are small and never stack past 0.6. */
@@ -1072,6 +1097,20 @@ function startGame(mode) {
     // frame, leaving the sky and what lies ahead (a boss, the next towers) in view
     camPos.set(follow.x + 0.8 * z, 8.6 * z, follow.z + 16 * z);
     camLook.set(follow.x, 3.4 * z, follow.z - 14 * z);
+    if (cine.kind) { // blend toward the framed shot (eases in over the first quarter, out over the last)
+      const k = (performance.now() / 1000 - cine.t0) / cine.dur, b = THREE.MathUtils.smoothstep(k, 0, 0.25) * (1 - THREE.MathUtils.smoothstep(k, 0.72, 1));
+      if (k >= 1 || S.finished) { cine.kind = ''; hud.classList.remove('cine'); }
+      else {
+        const fx = Math.sin(S.yaw), fz = Math.cos(S.yaw);
+        if (cine.kind === 'boss') { const bs = army.boss.scale || 1, dx = S.x - cine.x, dz = S.z - cine.z, dl = Math.hypot(dx, dz) || 1, d = (15 - k * 4) * bs;
+          cineP.set(cine.x + dx / dl * d + dz / dl * 4 * bs, 5.5 * bs, cine.z + dz / dl * d - dx / dl * 4 * bs); cineL.set(cine.x, 5 * bs, cine.z); }
+        else if (cine.kind === 'collapse') { cineP.lerpVectors(camPos, cineL.set(cine.x, 3 * z, cine.z), 0.32); cineP.x += Math.sin(k * 2) * 3 * z; cineL.set(cine.x, 2.5 * z, cine.z); }
+        else if (cine.kind === 'grow') { cineP.set(S.x + fx * 8 * z - fz * 2.5 * z, 3.4 * z, S.z + fz * 8 * z + fx * 2.5 * z); cineL.set(S.x, 1.8 * z, S.z); }
+        else { const m = 1.35 * z; cineP.set(S.x + fx * 10 * m + fz * 4 * m, 1.3 * m, S.z + fz * 10 * m - fx * 4 * m); cineL.set(S.x, 2.8 * m, S.z); } // mega: a low hero angle from the front
+        camPos.lerp(cineP, b); camLook.lerp(cineL, b);
+        hud.classList.toggle('cine', b > 0.05);
+      }
+    }
     S.trauma = Math.max(0, S.trauma - dt * 2.2);
     const sh = S.trauma * S.trauma * FX.shakeMax * z, tt = performance.now() / 1000;
     camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 23) * sh * 0.35, Math.sin(tt * 19 + 1) * sh * 0.25, 0));
@@ -1101,12 +1140,13 @@ function startGame(mode) {
   }
 
   // ---------- loop
-  let last = performance.now(), raf = 0, alive = true, fps = 0, ringShown = -1;
+  let last = performance.now(), raf = 0, alive = true, fps = 0, ringShown = -1, drawn = 0;
   const SIM = Math.max(1, Math.min(8, +(params.get('speed') || 1))); // test runs only: more steps per frame
   function frame(now) {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
     const raw = Math.min(0.11, (now - last) / 1000); last = now;
+    if (++drawn === 3 && window.__load) window.__load.done(); // two frames on screen: the loading screen can go
     fps = fps * 0.95 + (1 / Math.max(raw, 0.001)) * 0.05;
     if (!frozen) for (let k = 0; k < SIM; k++) simulate(raw); // frozen: tests only, a still frame for close-ups
     updateCamera(raw); army.draw(); mfx.update(raw);
@@ -1149,7 +1189,10 @@ function startGame(mode) {
       if (k >= 1) { S.jump = null; bon.stomp(1.6); Sound.land(); if (!S.finished) J.onLand(); }
     }
     bon.root.position.set(S.x, airY, S.z); bon.root.rotation.y = S.yaw;
-    bon.update(dt, { moving: S.moving && !S.finished, speed: S.speed, lookAt });
+    S.lookT -= dt;
+    // left alone for a moment: Bonbon waves at the child (once each time)
+    if (S.idle < 0.5) S.fidgeted = false; else if (S.touched && !S.fidgeted && S.idle > ((cfg.react && cfg.react.fidgetSec) || 2.2) && !bon.posing && !S.jump && !S.finished) { S.fidgeted = true; bon.pose('wave', 1.4); bon.face('happy', 1.4); }
+    bon.update(dt, { moving: S.moving && !S.finished, speed: S.speed, lookAt: lookAt || (S.lookT > 0 ? S.lookP : null) });
     city.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, moving: S.moving && !S.finished });
     if (mode === 'play' && S.finished) army.settle(dt);
     if (mode === 'play' && !S.finished) army.update(dt, { x: S.x, z: S.z, r: MC.radius * S.scale, scale: S.scale, size: S.scaleTarget, height: 2.8 * S.scale, stage: S.stage });
@@ -1234,7 +1277,7 @@ function startGame(mode) {
       renderer.dispose(); renderer.forceContextLoss(); root.innerHTML = '';
     },
     debug: {
-      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, fx, eventsUpdate: (dt) => eventsUpdate(dt), feverCheck: () => feverCheck(), freeze(v) { frozen = !!v; }, closeUp(p, l) { camOverride = p ? { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) } : null; }, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
+      get S() { return S; }, get city() { return city; }, get army() { return army; }, get missions() { return missions; }, get save() { return save; }, openShop, openAlbum, fx, eventsUpdate: (dt) => eventsUpdate(dt), feverCheck: () => feverCheck(), startCine: (...a) => startCine(...a), get cine() { return cine; }, get posing() { return bon.posing; }, freeze(v) { frozen = !!v; }, closeUp(p, l) { camOverride = p ? { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) } : null; }, bossName: () => bossName(), dailyGift: () => dailyGift(), today: () => today(), get wantDaily() { return wantDaily; }, set wantDaily(v) { wantDaily = v; }, wear: () => wearCostume(), get skyTop() { return skyMat.uniforms.uTop.value.getHexString(); }, get textures() { return renderer.info.memory.textures; }, edgeMat, comic: (...a) => comic(...a), tapAt: (x, y) => tapAt(x, y), screenOfCar: (c) => { const [sx, sy] = screenOf(c.x, 0.8, c.z); const r = root.getBoundingClientRect(); return [r.left + sx * r.width, r.top + sy * r.height]; }, get hatOn() { return bon.hatOn; }, get tier() { return tier; }, get fps() { return fps; }, get lang() { return lang; },
       setLang(l) { lang = l; setDir(); }, T, Sound, newRound, finish, useSkill, input, renderer, camera,
       grow() { S.xp = xpFor(S.stage, G); score(0, S.x, 1, S.z); },
     },

@@ -5,7 +5,7 @@
 // All gameplay randomness comes from the seeded rng passed in.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 import { toon } from './toon.js';
-import { cityCar, personBody, personHead, treeCrown } from './shapes.js';
+import { cityCar, personBody, personHead, personArm, personLeg, treeCrown } from './shapes.js';
 
 // the look of the first city (Toy Town); a theme from game_config.themes replaces any of these
 const TOY = {
@@ -363,6 +363,10 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   const confetti = pool(quality.confetti, new THREE.BoxGeometry(0.35, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: 0xffffff }));
   const people = pool(24, personBody(), toon({ color: 0xffffff, vertexColors: true }));
   const heads = pool(24, personHead(), toon({ color: 0xffffff, vertexColors: true }));
+  // limbs are their own instances, each turned at its shoulder or hip: residents wave, cheer and kick as they float off
+  const personMat = toon({ color: 0xffffff, vertexColors: true }), armGeo = personArm(), legGeo = personLeg();
+  const limbs = [pool(24, armGeo, personMat), pool(24, armGeo.clone(), personMat), pool(24, legGeo, personMat), pool(24, legGeo.clone(), personMat)];
+  const JOINT = [[-0.2, 0.17], [0.2, 0.17], [-0.075, -0.15], [0.075, -0.15]], limbM = new THREE.Matrix4(), baseM = new THREE.Matrix4(), limbAng = new Float32Array(8), jq = new THREE.Quaternion(), je = new THREE.Euler();
   const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), toon({ color: 0xffffff, roughness: 0.2 }));
   const strings = pool(24, new THREE.CylinderGeometry(0.02, 0.02, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0x2a2140 }));
   const take = (P) => { const i = P.next; P.next = (P.next + 1) % P.items.length; return i; };
@@ -388,12 +392,12 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
     y = 0.4; // they step out on the ground beside the building, hop for joy, then float off
     for (let k = 0; k < n; k++) {
       const i = take(people), it = people.items[i];
-      people.m.setColorAt(i, col.setHex(PALETTE[(i + k) % PALETTE.length])); heads.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4])); // shirt, skin
+      people.m.setColorAt(i, col.setHex(PALETTE[(i + k) % PALETTE.length])); heads.m.setColorAt(i, col.setHex([0xffd2a1, 0xc68a5c, 0xffe0bd, 0x8d5a3b][k % 4])); limbs[0].m.setColorAt(i, col); limbs[1].m.setColorAt(i, col); // shirt, skin (bare arms)
       balloons.m.setColorAt(i, col.setHex([0xff5a4f, 0xffc531, 0x3fa9ff, 0x22c6a3, 0x9b6bff][Math.floor(rng() * 5)]));
       const a = rng() * Math.PI * 2;
       Object.assign(it, { hop: 0.9, y0: 0.4, x: x + Math.cos(a) * ring + (rng() - 0.5) * 2, y, z: z + Math.sin(a) * ring + (rng() - 0.5) * 2, vx: (rng() - 0.5) * 1.5, vy: 2.2 + rng(), vz: (rng() - 0.5) * 1.5, life: 4.5, max: 4.5, ph: rng() * 6 });
     }
-    people.m.instanceColor.needsUpdate = heads.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = true;
+    people.m.instanceColor.needsUpdate = heads.m.instanceColor.needsUpdate = balloons.m.instanceColor.needsUpdate = limbs[0].m.instanceColor.needsUpdate = limbs[1].m.instanceColor.needsUpdate = true;
   }
   function updateParticles(dt) {
     for (let i = 0; i < DUSTN; i++) {
@@ -422,7 +426,16 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       const s = Math.max(0, it.life < 0.5 ? it.life / 0.5 : Math.min(1, (it.max - it.life) * 4)) * THREE.MathUtils.smoothstep(cd, 7, 14);
       const sway = Math.sin(it.life * 4 + it.ph) * 0.25;
       quat.setFromEuler(eul.set(0, 0, sway));
-      people.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(s))); heads.m.setMatrixAt(i, mtx);
+      people.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(s))); heads.m.setMatrixAt(i, mtx); baseM.copy(mtx);
+      // on the ground: both arms up and kicking for joy; in the air: the right hand holds the string, the left waves, legs dangle
+      const w = it.life * 9 + it.ph, ground = it.hop > 0;
+      const sw = Math.sin(w), sa = Math.sin(w * 0.8), sl = Math.sin(w * 0.35), A = limbAng; // x, z per limb, filled in place (no garbage per frame)
+      if (ground) { A[0] = -2.6 + sw * 0.3; A[1] = 0.3; A[2] = -2.6 - sw * 0.3; A[3] = -0.3; A[4] = Math.max(0, sw) * -0.7; A[5] = 0.05; A[6] = Math.max(0, -sw) * -0.7; A[7] = -0.05; }
+      else { A[0] = -1.2 + sa * 0.9; A[1] = 0.7 + sa * 0.3; A[2] = -2.9; A[3] = -0.15; A[4] = sl * 0.45; A[5] = 0.06; A[6] = -sl * 0.45; A[7] = -0.06; }
+      for (let k = 0; k < 4; k++) {
+        jq.setFromEuler(je.set(A[k * 2], 0, A[k * 2 + 1]));
+        limbs[k].m.setMatrixAt(i, limbM.compose(v3.set(JOINT[k][0], JOINT[k][1], 0), jq, one.setScalar(1)).premultiply(baseM));
+      }
       strings.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway * 0.5, it.y + 0.75, it.z), quat.setFromEuler(eul.set(0, 0, sway * 0.6)), one.setScalar(s)));
       balloons.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway, it.y + 1.5, it.z), quat.identity(), one.set(s, s * 1.15, s)));
     }
@@ -430,7 +443,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       const it = clouds.items[i]; it.x += it.v * dt; if (it.x > 230) it.x -= 460;
       clouds.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat.identity(), one.set(it.s * 1.8, it.s * 0.7, it.s)));
     }
-    for (const P of [confetti, people, heads, balloons, strings, clouds]) P.m.instanceMatrix.needsUpdate = true;
+    for (const P of [confetti, people, heads, balloons, strings, clouds, ...limbs]) P.m.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- breaking

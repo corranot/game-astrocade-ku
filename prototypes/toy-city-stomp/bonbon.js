@@ -5,6 +5,7 @@
 // Animated in code: walk, squash and stretch, jelly belly, jaw, look-at eyes, six faces.
 /* global THREE */ // Three.js r187, loaded by index.html (import map) and set on window before run()
 import { toon } from './toon.js';
+import { mergeParts } from './shapes.js';
 
 const PINK = 0xff5fa2, PINK_D = 0xe8478a, SPOT = 0xff86bb, BELLY = 0xffe3ef, SPIKE = 0xffc531, INK = 0x3a1f3d, WHITE = 0xffffff, MOUTH = 0x8a1d48, TONGUE = 0xff7aa8;
 
@@ -33,16 +34,16 @@ export function createBonbon(opts = {}) {
   const sphere = G(new THREE.SphereGeometry(1, 28, 20));
 
   // body: pear of two spheres, belly plate, spots
-  const torso = new THREE.Group(); torso.position.y = 1.2; body.add(torso);
+  const torso = new THREE.Group(); torso.position.y = 1.32; body.add(torso);
   const upper = part(sphere, mat(PINK), torso); upper.scale.set(0.92, 0.95, 0.85); upper.position.y = 0.25;
-  const lower = part(sphere, mat(PINK), torso); lower.scale.set(1.08, 0.95, 1.0); lower.position.y = -0.25;
+  const lower = part(sphere, mat(PINK), torso); lower.scale.set(1.08, 0.85, 1.0); lower.position.y = -0.25;
   const belly = part(sphere, mat(BELLY, 0.6), torso, 0); belly.scale.set(0.78, 1.0, 0.42); belly.position.set(0, -0.1, 0.66);
   for (const [x, y, z, s] of [[-0.75, 0.1, -0.4, 0.2], [0.8, -0.3, -0.3, 0.16], [-0.4, 0.55, -0.62, 0.13], [0.35, -0.5, -0.82, 0.18]]) {
     const sp = part(sphere, mat(SPOT, 0.4), torso, 0); sp.position.set(x, y, z); sp.scale.set(s, s, s * 0.45); sp.lookAt(x * 3, y * 3, z * 3);
   }
 
   // head with snout, jaw, teeth, nostrils, eyes
-  const head = new THREE.Group(); head.position.set(0, 2.1, 0.22); body.add(head);
+  const head = new THREE.Group(); head.position.set(0, 2.22, 0.22); body.add(head);
   const skull = part(sphere, mat(PINK), head); skull.scale.set(0.72, 0.66, 0.7);
   const snout = part(sphere, mat(PINK), head); snout.scale.set(0.56, 0.36, 0.5); snout.position.set(0, -0.12, 0.5);
   for (const s of [-1, 1]) { const n = new THREE.Mesh(sphere, flat(INK)); n.scale.setScalar(0.045); n.position.set(0.14 * s, -0.04, 0.97); head.add(n); }
@@ -64,21 +65,43 @@ export function createBonbon(opts = {}) {
   const starGeo = G(new THREE.OctahedronGeometry(0.12));
   for (let i = 0; i < 4; i++) { const st = new THREE.Mesh(starGeo, flat(SPIKE)); st.position.set(Math.cos(i * 1.57) * 0.7, 0, Math.sin(i * 1.57) * 0.7); dizzy.add(st); }
 
-  // arms with claws, legs with toes
-  const clawGeo = G(new THREE.ConeGeometry(0.06, 0.18, 8));
+  // a jointed rig: shoulder > elbow > wrist > three fingers and a thumb; hip > knee > ankle > three toes. Each joint
+  // is its own group, so poses bend at the right place and the walk rolls heel to toe
+  const cap = (r, len, down) => { const g = G(new THREE.CapsuleGeometry(r, len, 6, 12)); g.translate(0, -down, 0); return g; };
+  const upperArmGeo = cap(0.17, 0.2, 0.17), foreArmGeo = cap(0.145, 0.16, 0.15), thumbGeo = cap(0.06, 0.05, 0.06);
+  const mx = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
+  const handFingersGeo = G(mergeParts([-1, 0, 1].map((k) => [cap(0.055, 0.07, 0.07), 0xffffff, mx(k * 0.075, 0, 0, 0, 0, k * 0.18)])));
+  const handClawsGeo = G(mergeParts([-1, 0, 1].map((k) => [new THREE.ConeGeometry(0.045, 0.12, 8), 0xffffff, mx(k * 0.075, 0, 0, 0, 0, k * 0.18).multiply(mx(0, -0.2, 0.02, Math.PI * 0.92))])));
+  const toesGeo = G(mergeParts([-1, 0, 1].map((k) => [new THREE.SphereGeometry(1, 14, 10), 0xffffff, mx(k * 0.15, 0, 0.02 - Math.abs(k) * 0.04, 0, 0, 0, 0.1, 0.09, 0.12)])));
+  const toeClawsGeo = G(mergeParts([-1, 0, 1].map((k) => [new THREE.ConeGeometry(0.045, 0.12, 8), 0xffffff, mx(k * 0.15, 0, 0.14 - Math.abs(k) * 0.04, Math.PI / 2)])));
   const arms = [-1, 1].map((s) => {
-    const a = new THREE.Group(); a.position.set(0.82 * s, 1.55, 0.35); body.add(a);
-    const g = G(new THREE.CapsuleGeometry(0.17, 0.32, 6, 12)); g.translate(0, -0.25, 0);
-    part(g, mat(PINK), a);
-    for (let k = -1; k <= 1; k++) { const c = new THREE.Mesh(clawGeo, mat(WHITE, 0.3)); c.position.set(k * 0.08, -0.6, 0.08); c.rotation.x = Math.PI * 0.85; a.add(c); }
+    const a = new THREE.Group(); a.position.set(0.9 * s, 1.72, 0.4); body.add(a);
+    part(upperArmGeo, mat(PINK), a);
+    const elbow = new THREE.Group(); elbow.position.y = -0.38; a.add(elbow);
+    part(foreArmGeo, mat(PINK), elbow);
+    const wrist = new THREE.Group(); wrist.position.y = -0.34; elbow.add(wrist);
+    const palm = part(sphere, mat(PINK), wrist, 0); palm.scale.set(0.17, 0.13, 0.15); palm.position.y = -0.06; palm.castShadow = false;
+    // the three fingers curl together, so they are one mesh (and their claws another): few draw calls for a lot of detail
+    const fg = new THREE.Group(); fg.position.set(0, -0.13, 0.06); wrist.add(fg);
+    const small = (geo, m) => { const x = new THREE.Mesh(geo, m); fg.add(x); return x; };
+    small(handFingersGeo, mat(PINK)); small(handClawsGeo, mat(WHITE, 0.3));
+    const th = new THREE.Group(); th.position.set(-0.13 * s, -0.07, 0.08); th.rotation.z = -0.9 * s; wrist.add(th);
+    th.add(new THREE.Mesh(thumbGeo, mat(PINK)));
+    const fingers = [fg, th];
+    a.userData = { s, elbow, wrist, fingers, lag: 0, lagV: 0, prevX: 0 };
     return a;
   });
+  const thighGeo = cap(0.3, 0.08, 0.1), shinGeo = cap(0.23, 0.06, 0.12);
   const legs = [-1, 1].map((s) => {
-    const l = new THREE.Group(); l.position.set(0.52 * s, 0.62, 0.05); body.add(l);
-    const g = G(new THREE.CapsuleGeometry(0.32, 0.25, 6, 12)); g.translate(0, -0.2, 0);
-    part(g, mat(PINK_D), l);
-    const foot = part(sphere, mat(PINK_D), l); foot.scale.set(0.36, 0.2, 0.46); foot.position.set(0, -0.5, 0.16);
-    for (let k = -1; k <= 1; k++) { const c = new THREE.Mesh(clawGeo, mat(WHITE, 0.3)); c.position.set(k * 0.14, -0.55, 0.58); c.rotation.x = Math.PI / 2; l.add(c); }
+    const l = new THREE.Group(); l.position.set(0.56 * s, 0.7, 0.05); body.add(l);
+    part(thighGeo, mat(PINK_D), l);
+    const knee = new THREE.Group(); knee.position.y = -0.24; l.add(knee);
+    part(shinGeo, mat(PINK_D), knee);
+    const ankle = new THREE.Group(); ankle.position.y = -0.27; knee.add(ankle);
+    const foot = part(sphere, mat(PINK_D), ankle); foot.scale.set(0.33, 0.15, 0.4); foot.position.set(0, -0.05, 0.12);
+    const toes = new THREE.Group(); toes.position.set(0, -0.06, 0.42); ankle.add(toes);
+    toes.add(new THREE.Mesh(toesGeo, mat(PINK_D)), new THREE.Mesh(toeClawsGeo, mat(WHITE, 0.3)));
+    l.userData = { s, knee, ankle, toes };
     return l;
   });
 
@@ -101,8 +124,8 @@ export function createBonbon(opts = {}) {
       const f = i / (n - 1), a = -0.6 + f * 2.2; // from the crown over the back
       const s = part(spikeGeo, mat(SPIKE, 0.8), spikes, 0.08);
       const onHead = a < 0.15;
-      if (onHead) { s.position.set(0, 2.1 + Math.cos(a + 0.6) * 0.68, 0.22 - Math.sin(a + 0.6) * 0.5); s.rotation.x = -(a + 0.6) * 0.8; }
-      else { s.position.set(0, 1.45 + Math.cos(a) * 0.95, -Math.sin(a) * 0.9); s.rotation.x = -a; }
+      if (onHead) { s.position.set(0, 2.22 + Math.cos(a + 0.6) * 0.68, 0.22 - Math.sin(a + 0.6) * 0.5); s.rotation.x = -(a + 0.6) * 0.8; }
+      else { s.position.set(0, 1.57 + Math.cos(a) * 0.95, -Math.sin(a) * 0.9); s.rotation.x = -a; }
       s.scale.setScalar(0.8 + stage * 0.05 - Math.abs(f - 0.35) * 0.35);
     }
   }
@@ -110,12 +133,12 @@ export function createBonbon(opts = {}) {
 
   let poseName = '', poseT = 0, poseDur = 1, wantJawOverride = 0, rainbowEyes = false;
   let headYaw = 0, laughT = 0, t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0, jawOpen = 0;
-  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
-  function setFace(name, sec = 1) { faceName = name; faceTimer = sec; }
+  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), grip = [0, 0], bendArm = [0.35, 0.35]; let crouch = 0, kneeTuck = 0, lean = 0, leanV = 0;
+  function setFace(name, sec = 1) { if (faceName === 'dizzy' && faceTimer > 0 && name !== 'dizzy' && name !== 'win' && name !== 'happy') return; faceName = name; faceTimer = sec; } // dizzy stars stay while dizzy
 
   function applyFace(dt) {
     const f = faceName;
-    const wantJaw = f === 'roar' ? 0.75 : f === 'surprised' ? 0.45 : f === 'win' ? 0.4 : f === 'angry' ? 0.12 : f === 'dizzy' ? 0.3 : 0.18;
+    const wantJaw = f === 'roar' ? 0.75 : f === 'surprised' ? 0.45 : f === 'win' || f === 'excited' ? 0.42 : f === 'angry' ? 0.12 : f === 'dizzy' ? 0.3 : 0.18;
     jawOpen += (Math.max(wantJaw, wantJawOverride) - jawOpen) * Math.min(1, dt * 14); wantJawOverride = 0;
     jaw.rotation.x = jawOpen;
     mouthIn.scale.y = 0.06 + jawOpen * 0.32;
@@ -124,9 +147,10 @@ export function createBonbon(opts = {}) {
       b.rotation.z = f === 'surprised' ? 0.2 * b.userData.s : -0.45 * b.userData.s;
       b.position.y = f === 'surprised' ? 0.58 : 0.48;
     }
-    const eyeY = blink > 0 ? 0.04 : f === 'win' ? 0.1 : f === 'surprised' ? 0.33 : 0.27;
-    for (const e of eyes) e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 25);
-    for (const b of blush) b.visible = f === 'happy' || f === 'win';
+    const eyeY = blink > 0 ? 0.04 : f === 'win' ? 0.1 : f === 'surprised' || f === 'excited' ? 0.33 : 0.27;
+    for (const e of eyes) { e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 25); const ex = f === 'excited' ? 0.29 : 0.24; e.scale.x += (ex - e.scale.x) * Math.min(1, dt * 20); }
+    for (const p of pupils) { const v = f === 'excited' ? 0.6 + Math.sin(t * 20) * 0.03 : f === 'surprised' ? 0.36 : 0.5; p.scale.set(v, v, v * 0.8); } // sparkly big pupils, tiny ones in shock
+    for (const b of blush) b.visible = f === 'happy' || f === 'win' || f === 'excited';
     dizzy.visible = f === 'dizzy';
   }
 
@@ -138,15 +162,16 @@ export function createBonbon(opts = {}) {
     const moving = state.moving;
     walkPhase += dt * (moving ? 8 + state.speed * 0.25 : 0);
     const step = Math.sin(walkPhase);
-    legs[0].position.y = 0.62 + (moving ? Math.max(0, step) * 0.3 : 0);
-    legs[1].position.y = 0.62 + (moving ? Math.max(0, -step) * 0.3 : 0);
+    legs[0].position.y = 0.7 + (moving ? Math.max(0, step) * 0.3 : 0);
+    legs[1].position.y = 0.7 + (moving ? Math.max(0, -step) * 0.3 : 0);
     legs[0].rotation.x = moving ? step * 0.55 : 0; legs[1].rotation.x = moving ? -step * 0.55 : 0;
     const bob = moving ? Math.abs(Math.cos(walkPhase)) * 0.14 : Math.sin(t * 2.2) * 0.03;
     squashV += (-squash * 140 - squashV * 9) * dt; squash += squashV * dt;
     const sy = 1 - squash + (roarT > 0 ? 0.1 : 0), sxz = 1 + squash * 0.55;
     body.scale.set(sxz, sy, sxz); body.position.y = bob;
     const atk = attackT > 0 ? Math.sin((attackT / 0.3) * Math.PI) : 0;
-    torso.rotation.x = (moving ? 0.1 : 0) + atk * 0.25; torso.rotation.z = moving ? step * 0.06 : 0;
+    leanV += (((moving ? 0.12 : 0) - lean) * 120 - leanV * 9) * dt; lean += leanV * dt; // overshoots a little when Bonbon starts or stops
+    torso.rotation.x = lean + atk * 0.25; torso.rotation.z = moving ? step * 0.06 : 0;
     head.rotation.x = -0.05 + atk * 0.35 - (roarT > 0 ? 0.35 : 0) + (moving ? Math.cos(walkPhase * 2) * 0.03 : Math.sin(t * 1.7) * 0.03);
     head.rotation.z = moving ? -step * 0.05 : Math.sin(t * 0.9) * 0.05;
     // the head turns toward what Bonbon is about to break
@@ -158,12 +183,16 @@ export function createBonbon(opts = {}) {
     belly.scale.set(0.78 + squash * 0.25, 1.0 - squash * 0.2, 0.42);
     for (const [i, a] of arms.entries()) {
       const s = i ? 1 : -1;
-      a.rotation.x = atk ? -1.7 * atk : moving ? Math.sin(walkPhase + i * Math.PI) * 0.6 : Math.sin(t * 2 + i) * 0.1;
-      a.rotation.z = (roarT > 0 ? 1.4 : 0.35) * -s;
+      a.rotation.x = atk ? -1.7 * atk : moving ? Math.sin(walkPhase + i * Math.PI) * 0.5 - 0.4 : -0.6 + Math.sin(t * 2 + i) * 0.1; // T-rex hands held out in front
+      a.rotation.z = (roarT > 0 ? 1.4 : 0.5) * -s;
+      grip[i] = atk ? 1 : roarT > 0 ? -0.4 : 0.25 + Math.sin(t * 1.3 + i) * 0.1; // a fist to hit, spread claws to roar, relaxed otherwise
+      bendArm[i] = atk ? 0.2 : roarT > 0 ? 0.5 : moving ? 0.55 + Math.max(0, -Math.sin(walkPhase + i * Math.PI)) * 0.45 : 0.35;
     }
     // a move's own body language, on top of the walk (k goes 0 -> 1 over the move)
+    crouch = 0; kneeTuck = 0;
     if (poseT > 0) {
       poseT -= dt; const k = 1 - Math.max(0, poseT) / poseDur, inOut = Math.sin(Math.min(1, k) * Math.PI);
+      if (poseName === 'flop' || poseName === 'moon' || poseName === 'jelly') { crouch = k < 0.14 ? Math.sin(k / 0.14 * Math.PI) : 0; body.position.y -= crouch * 0.3; } // anticipation: crouch, then spring up
       const ease = (a, b2) => THREE.MathUtils.smoothstep(k, a, b2);
       if (poseName === 'flop') { // leaps, tips forward onto the belly in the air, lands flat, pops back up
         body.rotation.x = 1.25 * ease(0.1, 0.55) * (1 - ease(0.8, 1)); for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 1.7 * inOut; a.rotation.x = -0.4; }
@@ -187,11 +216,36 @@ export function createBonbon(opts = {}) {
         head.rotation.x += -0.7 * back + 0.6 * snap; torso.rotation.x += -0.3 * back + 0.35 * snap; wantJawOverride = 0.9 * snap;
         for (const e of eyes) e.scale.y = 0.27 - 0.2 * back;
       } else if (poseName === 'moon') { // arms up to the sky, legs tucked
-        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 2.7 * inOut; a.rotation.x = 0; } for (const l of legs) l.rotation.x = -0.6 * inOut;
+        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 2.7 * inOut; a.rotation.x = 0; } for (const l of legs) l.rotation.x = -0.9 * inOut; kneeTuck = 1.5 * inOut; grip[0] = grip[1] = -0.5 * inOut;
+      }
+      else if (poseName === 'wave') { // turns the head to you and waves one hand high, elbow swinging
+        arms[1].rotation.z = -2.5 * inOut; arms[1].rotation.x = -0.2; bendArm[1] = 0.9 + Math.sin(k * 26) * 0.55; grip[1] = -0.3; head.rotation.z += 0.15 * inOut;
+      } else if (poseName === 'flex') { // both arms up and bent, showing off, a little bounce
+        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 1.6 * inOut; a.rotation.x = -0.3; bendArm[i] = 1.9 * inOut; grip[i] = 1; }
+        body.position.y += Math.abs(Math.sin(k * 18)) * 0.12 * inOut; head.rotation.x -= 0.2 * inOut;
+      } else if (poseName === 'tickle') { // giggles, hugs the belly, wiggles
+        body.rotation.z = Math.sin(k * 44) * 0.1 * inOut; for (const [i, a] of arms.entries()) { a.rotation.z = (i ? 1 : -1) * 0.35; a.rotation.x = -0.9 * inOut; bendArm[i] = 1.6 * inOut; }
+        head.rotation.x -= 0.3 * inOut; for (const e of eyes) e.scale.y = 0.27 - 0.2 * inOut;
+      } else if (poseName === 'point') { // points a straight arm at what you tapped
+        arms[1].rotation.x = -1.5 * inOut; arms[1].rotation.z = -0.2; bendArm[1] = 0.05; grip[1] = 0.6;
       }
       if (poseT <= 0) { body.rotation.x = 0; head.scale.set(1, 1, 1); poseName = ''; }
     }
     if (rainbowEyes && poseName !== 'rainbow') { pupilMat.color.setHex(0x1a1030); rainbowEyes = false; }
+    for (const [i, l] of legs.entries()) { // after the poses, so a tuck or crouch keeps the feet flat
+      // the lifted leg bends at the knee; the planted foot stays flat and rolls onto its toes
+      const lift = moving ? Math.max(0, i ? -step : step) : 0, push = moving ? Math.max(0, i ? step : -step) : 0, u = l.userData;
+      u.knee.rotation.x = 0.08 + lift * 1.05 + crouch * 0.5 + kneeTuck;
+      u.ankle.rotation.x = -(l.rotation.x + u.knee.rotation.x) * 0.85 - lift * 0.25;
+      u.toes.rotation.x = push * 0.6 - lift * 0.2;
+    }
+    for (const [i, a] of arms.entries()) { // elbows and fingers ease to their pose; the wrist trails the swing (follow-through)
+      const u = a.userData, swing = (a.rotation.x - u.prevX) / Math.max(dt, 1e-3); u.prevX = a.rotation.x;
+      u.lagV += (-swing * 0.06 - u.lag * 90 - u.lagV * 11) * dt; u.lag += u.lagV * dt; u.lag = THREE.MathUtils.clamp(u.lag, -0.8, 0.8);
+      u.elbow.rotation.x += (-bendArm[i] - u.elbow.rotation.x) * Math.min(1, dt * 12);
+      u.wrist.rotation.x = u.lag - 0.15;
+      for (const [k, fg] of u.fingers.entries()) fg.rotation.x += ((k === 1 ? -0.6 : -1.3) * grip[i] - fg.rotation.x) * Math.min(1, dt * 16);
+    }
     const look = state.lookAt;
     for (const p of pupils) {
       let lx = Math.sin(t * 0.7) * 0.12, ly = 0;
@@ -285,7 +339,7 @@ export function createBonbon(opts = {}) {
   return {
     root, update: (dt, s) => update(dt, s), setStage, face: setFace, setRainbow, setSkin, setHat, get hatOn() { for (const k in hats) if (hats[k].visible) return k; return 'none'; },
     stomp(strength = 1) { squashV -= 6 * strength; attackT = 0.3; },
-    /** Plays a move's body pose for sec seconds ('flop', 'spin', 'bubble', 'roar', 'jelly', 'magnet', 'rainbow', 'sneeze', 'moon'). */
+    /** Plays a body pose for sec seconds: a move's ('flop', 'spin', 'bubble', 'roar', 'jelly', 'magnet', 'rainbow', 'sneeze', 'moon') or a reaction ('wave', 'flex', 'tickle', 'point'). */
     pose(name, sec) { poseName = name; poseT = poseDur = sec; },
     get posing() { return poseT > 0; },
     /** Where the eyes are in the world (for the rainbow beam). */
