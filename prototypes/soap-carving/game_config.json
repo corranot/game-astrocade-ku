@@ -1,0 +1,648 @@
+{
+ "knifeR": 18,
+ "knifeStep": 6,
+ "insideSpeed": 2200,
+ "protect": 0,
+ "core": 8,
+ "tol": 10,
+ "simpleTol": 16,
+ "shaveEvery": 240,
+ "carveDone": 0.92,
+ "carveCheck": 0.75,
+ "spongeR": 46,
+ "spongeRate": 2.2,
+ "smoothDone": 0.08,
+ "smoothCheck": 0.35,
+ "glitterTarget": 18,
+ "sparkleAuto": 5,
+ "revealSeconds": 4.5,
+ "coinPerStar": 10,
+ "priceBase": 50,
+ "priceStep": 10,
+ "idleHand": 4,
+ "bevel": 6,
+ "depth": 30,
+ "margin": 20,
+ "shadowX": 10,
+ "shadowY": 8,
+ "freeAfter": 6,
+ "confetti": 120,
+ "slowFrameMs": 30,
+ "bar": {
+  "x": 170,
+  "y": 420,
+  "w": 380,
+  "h": 460,
+  "r": 48
+ },
+ "shapes": [
+  {
+   "id": "heart",
+   "d": "M50 92 C20 70 2 52 2 30 C2 14 14 4 28 4 C38 4 46 10 50 18 C54 10 62 4 72 4 C86 4 98 14 98 30 C98 52 80 70 50 92 Z"
+  },
+  {
+   "id": "star",
+   "star": [
+    5,
+    0.5
+   ]
+  },
+  {
+   "id": "duck",
+   "d": "M30 92 C10 92 2 78 6 64 C10 52 22 48 34 50 C28 42 26 32 28 24 C32 10 44 4 56 6 C70 8 78 18 78 30 L95 33 C99 35 98 41 94 43 L76 48 C74 52 72 56 70 58 C84 58 96 64 98 74 C100 86 90 92 78 92 Z"
+  },
+  {
+   "id": "flower",
+   "flower": [
+    6,
+    0.55
+   ]
+  },
+  {
+   "id": "fish",
+   "d": "M4 50 C16 24 44 14 64 30 L94 10 C88 30 88 70 94 90 L64 70 C44 86 16 76 4 50 Z"
+  },
+  {
+   "id": "cat",
+   "d": "M14 94 C4 82 4 62 10 48 L8 6 L36 28 C44 26 56 26 64 28 L92 6 L90 48 C96 62 96 82 86 94 Z"
+  },
+  {
+   "id": "crown",
+   "d": "M6 90 L8 26 L30 52 L50 10 L70 52 L92 26 L94 90 Z"
+  },
+  {
+   "id": "cloud",
+   "d": "M22 80 C6 80 0 66 6 56 C0 42 12 30 26 34 C28 18 44 12 56 20 C64 8 86 10 90 28 C100 32 102 50 94 58 C100 70 92 82 78 80 Z"
+  }
+ ],
+ "marbles": [
+  {
+   "id": "pink",
+   "base": "#FF9EC4",
+   "vein": "#FFFFFF",
+   "swirl": "#E2589A",
+   "inner": "#FFE1EE",
+   "kind": "marble"
+  },
+  {
+   "id": "lavender",
+   "base": "#C3A8FF",
+   "vein": "#FFFFFF",
+   "swirl": "#8E6CF0",
+   "inner": "#EFE6FF",
+   "kind": "marble"
+  },
+  {
+   "id": "mint",
+   "base": "#8FE8C8",
+   "vein": "#FFFFFF",
+   "swirl": "#3FC79A",
+   "inner": "#E3FFF4",
+   "kind": "speckle"
+  },
+  {
+   "id": "honey",
+   "base": "#FFD27A",
+   "vein": "#FFF6D8",
+   "swirl": "#F5A623",
+   "inner": "#FFF2CC",
+   "kind": "marble"
+  },
+  {
+   "id": "gold",
+   "base": "#FFD54A",
+   "vein": "#FFFBE0",
+   "swirl": "#E8A317",
+   "inner": "#FFF0B0",
+   "kind": "speckle",
+   "shop": true
+  },
+  {
+   "id": "rainbow",
+   "base": "#FFFFFF",
+   "vein": "#FFFFFF",
+   "swirl": "#FFFFFF",
+   "inner": "#FFF4FB",
+   "kind": "layers",
+   "shop": true
+  },
+  {
+   "id": "galaxy",
+   "base": "#A99BFF",
+   "vein": "#FFFFFF",
+   "swirl": "#6FD0FF",
+   "inner": "#ECE8FF",
+   "kind": "galaxy",
+   "shop": true
+  },
+  {
+   "id": "ocean",
+   "base": "#7FD6FF",
+   "vein": "#FFFFFF",
+   "swirl": "#3BA7F0",
+   "inner": "#E2F7FF",
+   "kind": "marble",
+   "shop": true
+  }
+ ],
+ "glitters": [
+  {
+   "id": "silver",
+   "c": "#E4ECFA"
+  },
+  {
+   "id": "gold",
+   "c": "#FFD23F"
+  },
+  {
+   "id": "pink",
+   "c": "#FF5FA2"
+  },
+  {
+   "id": "sky",
+   "c": "#3EC5FF",
+   "shop": true
+  },
+  {
+   "id": "lime",
+   "c": "#7CF25A",
+   "shop": true
+  },
+  {
+   "id": "violet",
+   "c": "#B57BFF",
+   "shop": true
+  }
+ ],
+ "gems": [
+  {
+   "id": "ruby",
+   "cell": 0
+  },
+  {
+   "id": "heart",
+   "cell": 1
+  },
+  {
+   "id": "star",
+   "cell": 2
+  },
+  {
+   "id": "emerald",
+   "cell": 3,
+   "shop": true
+  },
+  {
+   "id": "sapphire",
+   "cell": 4,
+   "shop": true
+  },
+  {
+   "id": "pearl",
+   "cell": 7,
+   "shop": true
+  }
+ ],
+ "customers": [
+  "mia",
+  "omar",
+  "lin",
+  "grandpa"
+ ],
+ "rtl": [
+  "ar"
+ ],
+ "strings": {
+  "en": {
+   "carve": "Carve outside the line!",
+   "smooth": "Rub it smooth!",
+   "sparkle": "Add sparkles!",
+   "bath": "Bath time!",
+   "oops": "Oops! Careful!",
+   "p3": "WOW! Perfect!",
+   "p2": "So pretty!",
+   "p1": "Nice soap!",
+   "love": "I love it!",
+   "thanks": "Thank you!",
+   "please": "Please!",
+   "charm": "A surprise inside!",
+   "golden": "Golden soap!",
+   "shelf": "My Soaps",
+   "free": "Free carve",
+   "shape": "Shape",
+   "smoothBar": "Smooth",
+   "sparkleBar": "Sparkle",
+   "new": "NEW!",
+   "lang": "English",
+   "gem": "Tap the soap!",
+   "carveFree": "Carve any shape!"
+  },
+  "ar": {
+   "carve": "انحت خارج الخط!",
+   "smooth": "افركه حتى ينعم!",
+   "sparkle": "أضف اللمعان!",
+   "bath": "وقت الحمام!",
+   "oops": "أوه! انتبه!",
+   "p3": "واو! رائع!",
+   "p2": "جميل جدًا!",
+   "p1": "صابونة لطيفة!",
+   "love": "أحببتها!",
+   "thanks": "شكرًا لك!",
+   "please": "من فضلك!",
+   "charm": "مفاجأة بالداخل!",
+   "golden": "صابونة ذهبية!",
+   "shelf": "صابوني",
+   "free": "نحت حر",
+   "shape": "الشكل",
+   "smoothBar": "النعومة",
+   "sparkleBar": "اللمعان",
+   "new": "جديد!",
+   "lang": "العربية",
+   "gem": "المس الصابونة!",
+   "carveFree": "انحت أي شكل!"
+  },
+  "es": {
+   "carve": "¡Talla fuera de la línea!",
+   "smooth": "¡Frótalo suave!",
+   "sparkle": "¡Pon brillitos!",
+   "bath": "¡Hora del baño!",
+   "oops": "¡Ups! ¡Cuidado!",
+   "p3": "¡GUAU! ¡Perfecto!",
+   "p2": "¡Qué bonito!",
+   "p1": "¡Buen jabón!",
+   "love": "¡Me encanta!",
+   "thanks": "¡Gracias!",
+   "please": "¡Por favor!",
+   "charm": "¡Sorpresa adentro!",
+   "golden": "¡Jabón dorado!",
+   "shelf": "Mis jabones",
+   "free": "Tallado libre",
+   "shape": "Forma",
+   "smoothBar": "Suave",
+   "sparkleBar": "Brillo",
+   "new": "¡NUEVO!",
+   "lang": "Español",
+   "gem": "¡Toca el jabón!",
+   "carveFree": "¡Talla lo que quieras!"
+  },
+  "vi": {
+   "carve": "Khắc ngoài đường kẻ!",
+   "smooth": "Chà cho mịn!",
+   "sparkle": "Thêm kim tuyến!",
+   "bath": "Giờ tắm rồi!",
+   "oops": "Ối! Cẩn thận!",
+   "p3": "WOW! Hoàn hảo!",
+   "p2": "Đẹp quá!",
+   "p1": "Xà phòng xinh!",
+   "love": "Mình thích lắm!",
+   "thanks": "Cảm ơn bạn!",
+   "please": "Làm ơn nhé!",
+   "charm": "Có bất ngờ!",
+   "golden": "Xà phòng vàng!",
+   "shelf": "Xà phòng của tôi",
+   "free": "Khắc tự do",
+   "shape": "Hình",
+   "smoothBar": "Mịn",
+   "sparkleBar": "Lấp lánh",
+   "new": "MỚI!",
+   "lang": "Tiếng Việt",
+   "gem": "Chạm vào xà phòng!",
+   "carveFree": "Khắc hình bạn thích!"
+  },
+  "hi": {
+   "carve": "रेखा के बाहर काटो!",
+   "smooth": "रगड़कर चिकना करो!",
+   "sparkle": "चमक लगाओ!",
+   "bath": "नहाने का समय!",
+   "oops": "उफ़! ध्यान से!",
+   "p3": "वाह! एकदम सही!",
+   "p2": "बहुत सुंदर!",
+   "p1": "अच्छा साबुन!",
+   "love": "मुझे बहुत पसंद!",
+   "thanks": "धन्यवाद!",
+   "please": "कृपया!",
+   "charm": "अंदर सरप्राइज़!",
+   "golden": "सुनहरा साबुन!",
+   "shelf": "मेरे साबुन",
+   "free": "खुली नक्काशी",
+   "shape": "आकार",
+   "smoothBar": "चिकना",
+   "sparkleBar": "चमक",
+   "new": "नया!",
+   "lang": "हिन्दी",
+   "gem": "साबुन को छुओ!",
+   "carveFree": "कोई भी आकार काटो!"
+  },
+  "bn": {
+   "carve": "দাগের বাইরে কাটো!",
+   "smooth": "ঘষে মসৃণ করো!",
+   "sparkle": "ঝিকিমিকি দাও!",
+   "bath": "গোসলের সময়!",
+   "oops": "উফ! সাবধানে!",
+   "p3": "ওয়াও! নিখুঁত!",
+   "p2": "খুব সুন্দর!",
+   "p1": "সুন্দর সাবান!",
+   "love": "আমার খুব পছন্দ!",
+   "thanks": "ধন্যবাদ!",
+   "please": "প্লিজ!",
+   "charm": "ভেতরে চমক!",
+   "golden": "সোনালি সাবান!",
+   "shelf": "আমার সাবান",
+   "free": "মুক্ত খোদাই",
+   "shape": "আকার",
+   "smoothBar": "মসৃণ",
+   "sparkleBar": "ঝিলিক",
+   "new": "নতুন!",
+   "lang": "বাংলা",
+   "gem": "সাবান ছোঁও!",
+   "carveFree": "যেকোনো আকার কাটো!"
+  },
+  "id": {
+   "carve": "Ukir di luar garis!",
+   "smooth": "Gosok sampai halus!",
+   "sparkle": "Tambah gliter!",
+   "bath": "Waktunya mandi!",
+   "oops": "Ups! Hati-hati!",
+   "p3": "WOW! Sempurna!",
+   "p2": "Cantik sekali!",
+   "p1": "Sabun bagus!",
+   "love": "Aku suka!",
+   "thanks": "Terima kasih!",
+   "please": "Tolong ya!",
+   "charm": "Ada kejutan!",
+   "golden": "Sabun emas!",
+   "shelf": "Sabunku",
+   "free": "Ukir bebas",
+   "shape": "Bentuk",
+   "smoothBar": "Halus",
+   "sparkleBar": "Kilau",
+   "new": "BARU!",
+   "lang": "Bahasa Indonesia",
+   "gem": "Ketuk sabunnya!",
+   "carveFree": "Ukir bentuk apa saja!"
+  }
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ },
+ "sprites": {
+  "customer_mia": {
+   "cells": [
+    [
+     0,
+     1,
+     489,
+     636
+    ],
+    [
+     490,
+     0,
+     498,
+     636
+    ],
+    [
+     4,
+     663,
+     479,
+     637
+    ],
+    [
+     494,
+     663,
+     483,
+     637
+    ]
+   ]
+  },
+  "customer_omar": {
+   "cells": [
+    [
+     0,
+     0,
+     408,
+     602
+    ],
+    [
+     480,
+     0,
+     394,
+     607
+    ],
+    [
+     0,
+     637,
+     397,
+     597
+    ],
+    [
+     475,
+     635,
+     391,
+     599
+    ]
+   ]
+  },
+  "customer_lin": {
+   "cells": [
+    [
+     0,
+     0,
+     470,
+     648
+    ],
+    [
+     475,
+     0,
+     484,
+     648
+    ],
+    [
+     0,
+     696,
+     469,
+     638
+    ],
+    [
+     473,
+     695,
+     479,
+     639
+    ]
+   ]
+  },
+  "customer_grandpa": {
+   "cells": [
+    [
+     0,
+     0,
+     458,
+     689
+    ],
+    [
+     484,
+     8,
+     462,
+     684
+    ],
+    [
+     0,
+     740,
+     450,
+     682
+    ],
+    [
+     485,
+     737,
+     461,
+     685
+    ]
+   ]
+  },
+  "tools_sheet": {
+   "cells": [
+    [
+     11,
+     7,
+     391,
+     393
+    ],
+    [
+     483,
+     0,
+     401,
+     398
+    ],
+    [
+     1015,
+     0,
+     258,
+     387
+    ],
+    [
+     0,
+     490,
+     404,
+     410
+    ],
+    [
+     578,
+     478,
+     246,
+     422
+    ],
+    [
+     952,
+     494,
+     365,
+     399
+    ]
+   ]
+  },
+  "gems_sheet": {
+   "cells": [
+    [
+     0,
+     20,
+     287,
+     301
+    ],
+    [
+     356,
+     24,
+     336,
+     309
+    ],
+    [
+     755,
+     0,
+     335,
+     331
+    ],
+    [
+     1164,
+     24,
+     291,
+     304
+    ],
+    [
+     20,
+     445,
+     248,
+     346
+    ],
+    [
+     399,
+     452,
+     249,
+     339
+    ],
+    [
+     764,
+     462,
+     310,
+     318
+    ],
+    [
+     1161,
+     462,
+     294,
+     310
+    ]
+   ]
+  },
+  "charms_sheet": {
+   "cells": [
+    [
+     23,
+     0,
+     324,
+     329
+    ],
+    [
+     370,
+     0,
+     314,
+     301
+    ],
+    [
+     730,
+     23,
+     309,
+     272
+    ],
+    [
+     1081,
+     0,
+     306,
+     333
+    ],
+    [
+     0,
+     470,
+     356,
+     285
+    ],
+    [
+     392,
+     441,
+     286,
+     338
+    ],
+    [
+     741,
+     452,
+     304,
+     291
+    ],
+    [
+     1077,
+     451,
+     310,
+     290
+    ]
+   ]
+  }
+ }
+}
