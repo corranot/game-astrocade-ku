@@ -396,17 +396,18 @@ const server = http.createServer((q, s) => {
     await pv.goto(`http://localhost:${port}/?local&tier=0&speed=3`);
     await pv.waitForFunction(() => window.__game && window.__game.S && !document.getElementById('load'), null, { timeout: 30000 });
     await pv.evaluate(() => { window.__vis = {}; const S = __game.S; S.touched = true; document.querySelector('#hint').hidden = true; const v = new THREE.Vector3();
-      window.__visT = setInterval(() => { const S = __game.S; let w = 0; for (const h of [0.4, 1.5, 2.6]) { v.set(S.x, h * S.scale, S.z).project(__game.camera); w = Math.max(w, Math.abs(v.x), Math.abs(v.y), v.z > 1 ? 9 : 0); }
-        const k = __game.cine.kind || 'play'; window.__vis[k] = Math.max(window.__vis[k] || 0, +w.toFixed(2)); }, 100); });
+      window.__visT = setInterval(() => { const S = __game.S; let w = 0; for (const h of [0.4, 1.5, 2.6]) { v.set(S.x, h * S.scale + (S.airY || 0), S.z).project(__game.camera); w = Math.max(w, Math.abs(v.x), Math.abs(v.y), v.z > 1 ? 9 : 0); }
+        const k = __game.cine.kind || (S.jump ? 'jump' : 'play'); window.__vis[k] = Math.max(window.__vis[k] || 0, +w.toFixed(2)); }, 100); });
     const step = async (js, ms) => { await pv.evaluate(js); await pv.waitForTimeout(ms); };
     await step('__game.grow()', 3000);
     await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("boss", S.x - 40, S.z - 30, 2.4); })()', 3200);
     await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("boss", S.x + 10, S.z + 45, 2.4); })()', 3200);
     await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("collapse", S.x + 9, S.z - 28, 1.3); })()', 2200);
     await step('(() => { const S = __game.S; __game.cine.kind = ""; __game.startCine("mega", S.x, S.z, 1.4); })()', 2200);
+    await step('(() => { const S = __game.S; __game.cine.kind = ""; S.jump = { sx: S.x, sz: S.z, tx: S.x, tz: S.z - 6, t: 0, dur: 6, h: 12 * Math.sqrt(S.scale), onLand() {} }; })()', 3500); // a moon-high jump
     await step('__game.S.idle = 99', 3500);
     const vis = await pv.evaluate(() => { clearInterval(window.__visT); return window.__vis; });
-    check(Object.values(vis).every((w) => w <= 1) && vis.play !== undefined, `Bonbon stays on screen while playing and in every shot (furthest from centre: ${JSON.stringify(vis)})`);
+    check(Object.values(vis).every((w) => w <= 1) && vis.play !== undefined && vis.jump !== undefined, `Bonbon stays on screen while playing and in every shot (furthest from centre: ${JSON.stringify(vis)})`);
     await pv.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
