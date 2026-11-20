@@ -235,7 +235,17 @@
    "new": "NEW!",
    "lang": "English",
    "gem": "Tap the soap!",
-   "carveFree": "Carve any shape!"
+   "carveFree": "Carve any shape!",
+   "chop": "Tap to chop!",
+   "color": "Add colors!",
+   "stir": "Stir in circles!",
+   "scent": "Pick a scent!",
+   "pour": "Hold to pour!",
+   "cool": "Rub to cool!",
+   "pop": "Swipe down!",
+   "stamp": "Press a stamp!",
+   "perfect": "Perfect pour!",
+   "gift": "Tap the gift!"
   },
   "ar": {
    "carve": "انحت خارج الخط!",
@@ -259,7 +269,17 @@
    "new": "جديد!",
    "lang": "العربية",
    "gem": "المس الصابونة!",
-   "carveFree": "انحت أي شكل!"
+   "carveFree": "انحت أي شكل!",
+   "chop": "اضغط للتقطيع!",
+   "color": "أضف الألوان!",
+   "stir": "حرّك في دوائر!",
+   "scent": "اختر عطرًا!",
+   "pour": "اضغط مطولًا للصب!",
+   "cool": "افرك للتبريد!",
+   "pop": "اسحب للأسفل!",
+   "stamp": "اضغط الختم!",
+   "perfect": "صبّ مثالي!",
+   "gift": "المس الهدية!"
   },
   "es": {
    "carve": "¡Talla fuera de la línea!",
@@ -283,7 +303,17 @@
    "new": "¡NUEVO!",
    "lang": "Español",
    "gem": "¡Toca el jabón!",
-   "carveFree": "¡Talla lo que quieras!"
+   "carveFree": "¡Talla lo que quieras!",
+   "chop": "¡Toca para cortar!",
+   "color": "¡Pon colores!",
+   "stir": "¡Remueve en círculos!",
+   "scent": "¡Elige un aroma!",
+   "pour": "¡Mantén para verter!",
+   "cool": "¡Frota para enfriar!",
+   "pop": "¡Desliza hacia abajo!",
+   "stamp": "¡Pon un sello!",
+   "perfect": "¡Vertido perfecto!",
+   "gift": "¡Toca el regalo!"
   },
   "vi": {
    "carve": "Khắc ngoài đường kẻ!",
@@ -307,7 +337,17 @@
    "new": "MỚI!",
    "lang": "Tiếng Việt",
    "gem": "Chạm vào xà phòng!",
-   "carveFree": "Khắc hình bạn thích!"
+   "carveFree": "Khắc hình bạn thích!",
+   "chop": "Chạm để cắt!",
+   "color": "Thêm màu!",
+   "stir": "Khuấy vòng tròn!",
+   "scent": "Chọn mùi hương!",
+   "pour": "Giữ để rót!",
+   "cool": "Xoa cho nguội!",
+   "pop": "Vuốt xuống!",
+   "stamp": "Đóng con dấu!",
+   "perfect": "Rót hoàn hảo!",
+   "gift": "Chạm hộp quà!"
   },
   "hi": {
    "carve": "रेखा के बाहर काटो!",
@@ -331,7 +371,17 @@
    "new": "नया!",
    "lang": "हिन्दी",
    "gem": "साबुन को छुओ!",
-   "carveFree": "कोई भी आकार काटो!"
+   "carveFree": "कोई भी आकार काटो!",
+   "chop": "काटने को छुओ!",
+   "color": "रंग डालो!",
+   "stir": "गोल-गोल घुमाओ!",
+   "scent": "खुशबू चुनो!",
+   "pour": "डालने को दबाए रखो!",
+   "cool": "ठंडा करने को रगड़ो!",
+   "pop": "नीचे स्वाइप करो!",
+   "stamp": "मुहर लगाओ!",
+   "perfect": "एकदम सही डाला!",
+   "gift": "तोहफ़ा छुओ!"
   },
   "bn": {
    "carve": "দাগের বাইরে কাটো!",
@@ -355,7 +405,17 @@
    "new": "নতুন!",
    "lang": "বাংলা",
    "gem": "সাবান ছোঁও!",
-   "carveFree": "যেকোনো আকার কাটো!"
+   "carveFree": "যেকোনো আকার কাটো!",
+   "chop": "কাটতে ছোঁও!",
+   "color": "রং দাও!",
+   "stir": "গোল করে নাড়ো!",
+   "scent": "সুগন্ধ বাছো!",
+   "pour": "ঢালতে চেপে ধরো!",
+   "cool": "ঠান্ডা করতে ঘষো!",
+   "pop": "নিচে টানো!",
+   "stamp": "সিল লাগাও!",
+   "perfect": "দারুণ ঢালা!",
+   "gift": "উপহার ছোঁও!"
   },
   "id": {
    "carve": "Ukir di luar garis!",
@@ -379,7 +439,17 @@
    "new": "BARU!",
    "lang": "Bahasa Indonesia",
    "gem": "Ketuk sabunnya!",
-   "carveFree": "Ukir bentuk apa saja!"
+   "carveFree": "Ukir bentuk apa saja!",
+   "chop": "Ketuk untuk potong!",
+   "color": "Tambah warna!",
+   "stir": "Aduk memutar!",
+   "scent": "Pilih aroma!",
+   "pour": "Tahan untuk tuang!",
+   "cool": "Gosok biar dingin!",
+   "pop": "Usap ke bawah!",
+   "stamp": "Tekan capnya!",
+   "perfect": "Tuangan sempurna!",
+   "gift": "Ketuk hadiahnya!"
   }
  },
  "persistent_storage_config": {
@@ -644,5 +714,48 @@
     ]
    ]
   }
- }
+ },
+ "chopCubes": 5,
+ "colorDrops": 3,
+ "stirTurns": 5,
+ "pourRate": 0.42,
+ "pourMin": 0.6,
+ "pourLo": 0.86,
+ "pourHi": 0.98,
+ "perfectCoins": 5,
+ "coolDist": 5000,
+ "stepCoins": 1,
+ "giftEvery": 3,
+ "giftCoins": 50,
+ "stampSize": 104,
+ "stampMax": 3,
+ "stamps": [
+  {
+   "id": "heart",
+   "shape": "heart"
+  },
+  {
+   "id": "star",
+   "shape": "star"
+  },
+  {
+   "id": "flower",
+   "shape": "flower"
+  },
+  {
+   "id": "cat",
+   "shape": "cat",
+   "shop": true
+  },
+  {
+   "id": "crown",
+   "shape": "crown",
+   "shop": true
+  },
+  {
+   "id": "duck",
+   "shape": "duck",
+   "shop": true
+  }
+ ]
 }
