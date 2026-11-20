@@ -60,20 +60,21 @@ export function drawSalon(g) {
 /** The salon chair: a tall back behind the customer and arm rests in front. Front part only when front is true. */
 export function drawChair(g, cx, top, front) {
   if (!front) {
-    rr(g, cx - 200, top, 400, 460, 70); ink(g, VIOLET, 6);
-    rr(g, cx - 168, top + 30, 336, 400, 54); g.fillStyle = '#B394FF'; g.fill();
+    rr(g, cx - 200, top, 400, 460, 70); ink(g, '#FFFFFF', 6); // white leather: no dye colour can hide on it
+    rr(g, cx - 168, top + 30, 336, 400, 54); g.fillStyle = '#EDF1F8'; g.fill();
+    for (let i = 0; i < 3; i++) oval(g, cx - 90 + i * 90, top + 60, 10, 10, '#D5DDEB');
     return;
   }
-  rr(g, cx - 250, top + 330, 92, 150, 36); ink(g, '#8A5BF0', 6);
-  rr(g, cx + 158, top + 330, 92, 150, 36); ink(g, '#8A5BF0', 6);
+  rr(g, cx - 250, top + 330, 92, 150, 36); ink(g, '#F4F6FB', 6);
+  rr(g, cx + 158, top + 330, 92, 150, 36); ink(g, '#F4F6FB', 6);
 }
 
 // ---------- customers ----------
 export const CUSTOMERS = {
-  cat: { fur: '#FFB86B', belly: '#FFE7C7', cape: SKY },
-  bunny: { fur: '#FFF0F5', belly: '#FFD3E4', cape: CORAL },
-  monster: { fur: '#8EE07A', belly: '#D4F7C6', cape: VIOLET },
-  bear: { fur: '#C98B5A', belly: '#F0C9A3', cape: MINT },
+  cat: { fur: '#FFB86B', belly: '#FFE7C7', cape: '#E8F6FF', dots: SKY },
+  bunny: { fur: '#FFF0F5', belly: '#FFD3E4', cape: '#FFF0F3', dots: CORAL },
+  monster: { fur: '#8EE07A', belly: '#D4F7C6', cape: '#F3EEFF', dots: VIOLET },
+  bear: { fur: '#C98B5A', belly: '#F0C9A3', cape: '#EAFBF3', dots: MINT },
 };
 export const CUSTOMER_TYPES = Object.keys(CUSTOMERS);
 
@@ -82,7 +83,7 @@ export function drawBody(g, c) {
   const k = CUSTOMERS[c.type], cx = c.x, y = c.y + c.R * 0.82;
   g.beginPath(); g.moveTo(cx - 70, y); g.quadraticCurveTo(cx - 250, y + 80, cx - 270, y + 330); g.lineTo(cx + 270, y + 330); g.quadraticCurveTo(cx + 250, y + 80, cx + 70, y); g.closePath();
   ink(g, k.cape, 6);
-  for (let i = -2; i <= 2; i++) oval(g, cx + i * 80, y + 200 + Math.abs(i) * 12, 16, 16, 'rgba(255,255,255,0.45)');
+  for (let i = -2; i <= 2; i++) oval(g, cx + i * 80, y + 200 + Math.abs(i) * 12, 14, 14, k.dots); // pale cape, small dots: every dye colour shows on it
   box(g, cx - 64, y - 30, 128, 54, 24, k.fur); rr(g, cx - 64, y - 30, 128, 54, 24); g.lineWidth = 5; g.strokeStyle = NAVY; g.stroke();
   rr(g, cx - 92, y + 10, 184, 40, 20); ink(g, WHITE, 5); // the cape collar
 }
