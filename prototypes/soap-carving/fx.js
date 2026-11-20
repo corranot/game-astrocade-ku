@@ -15,7 +15,14 @@ function curlShape(r, len, turns) {
   }
   return pts;
 }
-function strokeCurl(g, p, x, y, sc) {
+/** A shaving ribbon of length len (px) peeling backward from the blade along angle back: it curls tighter toward its end. */
+export function ribbonShape(len, back, wide) {
+  const pts = [[0, 0]]; let a = back, x = 0, y = 0;
+  for (let s = 6; s <= len; s += 6) { a += 6 / (14 + 34 * (1 - s / Math.max(len, 1))) * 1.1; x += Math.cos(a) * 6; y += Math.sin(a) * 6; pts.push([x, y]); }
+  return { pts, wide };
+}
+/** Draw a shaving (curl or ribbon) at (x, y), scaled sc. */
+export function strokeCurl(g, p, x, y, sc) {
   g.save(); g.translate(x, y); g.rotate(p.rot); g.scale(sc, sc);
   g.lineCap = 'round'; g.lineJoin = 'round';
   g.beginPath(); for (let i = 0; i < p.pts.length; i++) { const [a, b] = p.pts[i]; i ? g.lineTo(a, b) : g.moveTo(a, b); }
@@ -31,9 +38,9 @@ export function createFx(pile) {
   const fx = {
     P, pile,
     /** A soap curl leaving (x, y) with ground velocity (vx, vy), colours c (top) and c2 (underside). */
-    curl(x, y, vx, vy, c, c2, r, size = 1) {
+    curl(x, y, vx, vy, c, c2, r, size = 1, shape = null) {
       if (P.length > 400) return;
-      P.push({ k: 'curl', x, y, z: 10 + r() * 14, vx, vy, vz: 160 + r() * 140, rot: r() * TAU, vr: (r() - 0.5) * 9, c, c2, wide: (5 + r() * 4) * size, pts: curlShape(r, (16 + r() * 16) * size, 1.2 + r() * 1.1), land: null });
+      P.push({ k: 'curl', x, y, z: 10 + r() * 14, vx, vy, vz: 160 + r() * 140, rot: shape ? 0 : r() * TAU, vr: (r() - 0.5) * (shape ? 4 : 9), c, c2, wide: shape ? shape.wide : (5 + r() * 4) * size, pts: shape ? shape.pts : curlShape(r, (16 + r() * 16) * size, 1.2 + r() * 1.1), land: null });
     },
     /** A chunk of soap (a canvas) falling from (x, y), its top-left corner, thrown up at vz. */
     chunk(canvas, x, y, vx, vy, r, vz = 150) {
