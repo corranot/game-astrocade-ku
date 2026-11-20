@@ -16,6 +16,7 @@
  */
 import { W, H, NAVY, WHITE, CORAL, SUNNY, MINT, SKY, VIOLET, ORANGE, SHADOW, rr, box, oval, star, drawSalon, drawChair, drawBody, drawHead, drawEars, CUSTOMERS, CUSTOMER_TYPES, ACCESSORIES, drawAcc, icon, pot, hand } from './art.js';
 import { PLUM, PINK, GREEN, glossDisc, glossPill, sphere, panel, rays, vignette } from './ui.js';
+import { startGL, stopGL, glOn, glHasArt, drawGL, clearHair } from './gl.js';
 import { loadSprites, ready, settled, drawWhole, drawBust, drawAccSprite, drawToolSprite, drawRoom } from './sprites.js';
 import { rng, COLORS, FREE_COLORS, colorOf, createHair, placeHair, stepHair, cutHair, trimToY, fillUnpainted, foamAt, paintAt, count, rinse, drawHair, encodeHair, hairFromCode } from './hair.js';
 
@@ -34,7 +35,7 @@ let cv, g, cfg, mode, raf = 0, last = 0, acc = 0, runs = 0;
 let save = { n: 0, coins: 0, stars: 0, colors: [], acc: [], wall: [], fresh: null, muted: false, lang: null }, saveRead = false, merged = false, muteTouched = false;
 let view = 'play', S = null, lang = 'en', parts = [], back = null, photos = [], wallSel = -1, wallT = 0;
 let pen = null, penId = null, touched = false, bound = false, coinShown = 0, coinPulse = 0, shakeId = null, shakeT = 0, gain = null;
-let vig = null, quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, roomDrawn = false, bootT = 0; // RES: canvas pixels per game pixel, lowered on slow phones
+let glSlow = 0, stageEl = null, vig = null, quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, roomDrawn = false, bootT = 0; // RES: canvas pixels per game pixel, lowered on slow phones
 let ac = null, noiseBuf = null, dryNode = null, dryOn = false;
 const throttle = {};
 const every = (key, ms) => { const t = performance.now(); if (t - (throttle[key] || 0) < ms) return false; throttle[key] = t; return true; };
@@ -144,6 +145,7 @@ function makeOrder(n) {
 
 /** A new customer in the chair; enter slides them in from the right. */
 function newCustomer(n, enter) {
+  clearHair();
   const order = makeOrder(n);
   S = {
     n, order, step: 0, stepT: 0, t: 0, enter: enter ? 1 : 0, jump: 0, idle: 0, used: false, rinse: -1, eek: 0, done: -1,
@@ -425,12 +427,15 @@ function drawCustomer(s, c) {
     drawBody(g, c); drawChair(g, s.head.x, HEAD.y - 260, true); drawHead(g, c);
   }
   drawHair(g, s.hair, s.head, quality < 2);
+  drawLatherAndAcc(s);
+}
+/** Lather on the painted mop, and the accessories: drawn on the 2D canvas over either renderer. */
+function drawLatherAndAcc(s) {
   if (s.blobs.length) { // lather on the painted mop: glossy bubbles
     const b = new Path2D(); for (const o of s.blobs) { const x = s.head.x + o.dx, y = s.head.y + o.dy; b.moveTo(x + o.r, y); b.arc(x, y, o.r, 0, 7); }
     g.fillStyle = 'rgba(255,255,255,0.93)'; g.fill(b); g.lineWidth = 3; g.strokeStyle = '#A8DDF5'; g.stroke(b);
     g.fillStyle = 'rgba(255,255,255,1)'; for (const o of s.blobs) { g.beginPath(); g.arc(s.head.x + o.dx - o.r * 0.35, s.head.y + o.dy - o.r * 0.35, o.r * 0.22, 0, 7); g.fill(); }
   }
-  drawEars(g, c);
   for (const p of s.placed) { const [x, y, rot] = accPos(p.slot), age = s.t - p.t, k = age < 0.3 ? 0.5 + ease(age / 0.3) * 0.5 + Math.sin(age / 0.3 * Math.PI) * 0.2 : 1; if (!drawAccSprite(g, p.id, x, y, 112 * k, rot)) drawAcc(g, p.id, x, y, 92 * k, rot); }
 }
 
@@ -448,9 +453,16 @@ function draw() {
   const ha = handShown() ? handAt() : null;
   c.look = pen ? [pen.x, pen.y] : ha ? [ha[0], ha[1]] : [360 + Math.sin(s.t * 0.7) * 120, 700];
   const punch = s.step === 5 && s.reveal < 0.3 ? 1 + Math.sin(s.reveal / 0.3 * Math.PI) * 0.03 : 1;
+  const gl = glOn() && glHasArt(s.order.type); // the WebGL layer draws the room, the child and the hair
+  if (gl) {
+    s.hair.painted = ready('messy_hair');
+    drawGL({ W, H, punch, t: s.t, head: s.head, kid: s.order.type, mood: c.mood, hair: s.hair, showMop: s.hair.painted && s.hair.dirt > 0, mopAlpha: s.hair.dirt,
+      rays: s.step === 5 ? Math.min(0.85, s.reveal * 2) : 0, raysT: s.reveal, hairAlpha: s.hair.painted ? 1 - s.hair.dirt : 1 });
+    g.setTransform(RES, 0, 0, RES, 0, 0); g.clearRect(0, 0, W, H);
+  }
   g.setTransform(punch * RES, 0, 0, punch * RES, RES * W / 2 * (1 - punch), RES * H / 2 * (1 - punch));
-  g.drawImage(back, 0, 0);
-  drawCustomer(s, c);
+  if (gl) { drawHair(g, s.hair, s.head, quality < 2, true, true); drawLatherAndAcc(s); } // lather and accessories on top
+  else { g.drawImage(back, 0, 0); drawCustomer(s, c); }
   if (s.step === 1 && mode === 'play') dashed(guide(), WHITE);
   if (s.step === 2 && s.order.cols.length > 1) dashed(S.hair.strands.filter((q) => q.len > 3).map((q) => [q.x[Math.floor(q.len / 2)], q.y[Math.floor(q.len / 2)]]).sort((a, b) => a[0] - b[0]), SUNNY);
   drawParts();
@@ -623,12 +635,14 @@ function watchSpeed(dt) {
   if (mid > cfg.slowFrameMs + quality * 5) { fast = 0; if (++slow >= 2 && quality < 2) { quality++; slow = 0; } }
   else if (mid < 18) { slow = 0; if (++fast >= 5 && quality > 0) { quality--; fast = 0; } }
   else slow = fast = 0;
+  if (glOn() && mid > 70) { if (++glSlow >= 2) stopGL(); } else glSlow = 0; // no real GPU here: back to the 2D canvas
   setRes([1, 0.8, 0.62][quality]);
 }
 function frame(now) {
   raf = requestAnimationFrame(frame);
-  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-  if (dt > 0 && dt < 0.25) watchSpeed(dt);
+  if (stageEl) startGL(stageEl, cv, W, H);
+  const rawDt = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, rawDt); last = now;
+  if (rawDt > 0 && rawDt < 1) watchSpeed(rawDt); // very slow frames count too: they are what the fallback is for
   if (DEBUG) { const a = performance.now(); update(dt); const b = performance.now(); draw(); const c = performance.now(); const p = (window.__prof = window.__prof || { u: 0, d: 0, n: 0 }); p.u += b - a; p.d += c - b; p.n++; window.__frames = (window.__frames || 0) + 1; }
   else { update(dt); draw(); }
 }
@@ -658,8 +672,12 @@ function run(m) {
   const me = ++runs;
   mode = m; cfg = window.gameConfig;
   cv = document.getElementById('game') || document.body.appendChild(Object.assign(document.createElement('canvas'), { id: 'game' }));
-  cv.width = Math.round(W * RES); cv.height = Math.round(H * RES); cv.style.touchAction = 'none';
-  g = cv.getContext('2d', { alpha: false });
+  stageEl = document.getElementById('stage'); // the 2D canvas sits on a WebGL canvas inside one box
+  if (!stageEl) { stageEl = document.createElement('div'); stageEl.id = 'stage'; cv.parentNode.insertBefore(stageEl, cv); stageEl.appendChild(cv); }
+  stageEl.style.cssText = 'position:relative;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));touch-action:none;margin:auto';
+  cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none';
+  cv.width = Math.round(W * RES); cv.height = Math.round(H * RES);
+  g = cv.getContext('2d', { alpha: true });
   if (!back) { back = document.createElement('canvas'); back.width = W; back.height = H; drawSalon(back.getContext('2d')); }
   loadSprites(cfg.sprites); bootT = 0;
   try { for (const f of ["800 40px 'Baloo 2'", "800 40px 'Baloo Da 2'", "800 40px 'Baloo Bhaijaan 2'"]) document.fonts.load(f); } catch (e) { /* fonts load when they can */ }

@@ -15,14 +15,15 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 
 (async () => {
   await new Promise((r) => server.listen(0, r));
-  const base = `http://127.0.0.1:${server.address().port}/index.html?local`;
+  const base = `http://127.0.0.1:${server.address().port}/index.html?local`, glBase = base;
+  // the headless browser draws WebGL in software (a few frames a second): the 2D path runs the rules, part 19 the WebGL one
   const browser = await chromium.launch();
   let current = null; // one game page at a time: pages left open keep running and slow the frame checks
   const open = async (extra = '', ctx = {}) => {
     if (current) await current.context().close();
     const page = current = await (await browser.newContext({ viewport: { width: 720, height: 1280 }, ...ctx })).newPage();
     page.errors = []; page.on('pageerror', (e) => page.errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') page.errors.push(m.text()); });
-    await page.goto(base + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 8000 });
+    await page.goto(base + (extra.includes('gl') ? '' : '&nogl') + extra); await page.waitForFunction(() => window.__game && window.__game.S && window.__frames > 3 && !window.__game.booting(), null, { timeout: 8000 });
     return page;
   };
   const G = (page, f, a) => page.evaluate(f, a);
@@ -288,6 +289,10 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   console.log('18. the painted art: it loads fast, and the game still plays when it cannot load');
   page = await open();
   ok(await G(page, () => { const g = window.__game; return g.S && !g.booting(); }), 'the room and the first child are in within the wait');
+  page = await open('&slowgl'); // WebGL on, no keep: software WebGL is too slow here, so the game must fall back to 2D by itself
+  await page.waitForFunction(() => document.getElementById('gl'), null, { timeout: 15000 });
+  await page.waitForFunction(() => !document.getElementById('gl'), null, { timeout: 30000 }).catch(() => {});
+  ok(await G(page, () => !document.getElementById('gl')), 'a device too slow for WebGL falls back to the 2D canvas within seconds');
   const t0a = Date.now();
   {
     if (current) await current.context().close();
@@ -299,9 +304,20 @@ const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
   await shot(page, 'no-assets');
   await serve(page, null); ok(page.errors.length === 0 && (await st(page)).stars >= 1, 'without the images a customer still plays start to finish');
 
+  console.log('19. the WebGL layer: painted locks follow the strands, and a slow device falls back to the 2D canvas');
+  page = await open('&keepgl');
+  await page.waitForFunction(() => document.getElementById('gl'), null, { timeout: 15000 });
+  ok(await G(page, () => !!document.getElementById('gl') && !!window.PIXI), 'PixiJS loads and its canvas sits under the 2D canvas');
+  await wash(page); await waitStep(page, 1); await cut(page); await waitStep(page, 2);
+  ok(page.errors.length === 0, 'washing and cutting with the WebGL layer: no errors ' + page.errors.join(' | '));
+  page = await open('&nogl'); await page.waitForTimeout(800);
+  ok(await G(page, () => !document.getElementById('gl')), 'with WebGL off (?nogl) the game draws in 2D only');
+  await serve(page, null); ok(page.errors.length === 0, 'a full customer without WebGL: no errors');
+
   console.log('16. platform rules');
-  const src = ['game.js', 'hair.js', 'art.js', 'sprites.js', 'index.html'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
+  const src = ['game.js', 'hair.js', 'art.js', 'sprites.js', 'ui.js', 'gl.js'].map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
   ok(!/localStorage|sessionStorage|document\.cookie|alert\(|confirm\(|window\.open|navigator\.vibrate|XMLHttpRequest|WebSocket/.test(src), 'no browser storage, alert, popups, raw vibration or network');
+  ok(/cdn\.jsdelivr\.net\/npm\/pixi\.js@8\.20\.1\//.test(fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')), 'the only library is PixiJS from jsDelivr, pinned');
   ok((src.match(/fetch\(/g) || []).length === 1 && /if \(DEBUG\)[\s\S]*fetch\('game_config.json'\)/.test(src), 'the only fetch is the local preview loading its config');
   ok(/window\.run = run;/.test(src) && /showGameParameters/.test(src), 'window.run is assigned and the settings panel is offered');
   const conf = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'), 'utf8'));

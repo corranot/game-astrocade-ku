@@ -20,6 +20,7 @@ canvas{display:block;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100
 </head>
 <body>
 <canvas id="game" width="720" height="1280"></canvas>
+<script type="module" data-lib>import * as PIXI from 'https://cdn.jsdelivr.net/npm/pixi.js@8.20.1/dist/pixi.min.mjs'; window.PIXI = PIXI; window.dispatchEvent(new Event('pixi-ready'));</script>
 <script type="module" src="./game.js"></script>
 </body>
 </html>

@@ -126,5 +126,21 @@
   "subtype": "object",
   "type": "image",
   "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7W9N62BBGZWZK0K8HNTNB7R_6cf18555-ad0e-497e-90cb-292def024d44_ad0a77a0-c82e-40d2-b2fa-8f686da92644.webp"
+ },
+ "hair_lock": {
+  "animation": null,
+  "aspect_ratio": [
+   512,
+   152
+  ],
+  "compression_suggestion": "original",
+  "description": "Painted lock of hair as a 3-layer atlas (white silhouette, strand detail, sheen) for tinting; made from a generated painted lock.",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "prompt": "Painted lock of hair as a 3-layer atlas (white silhouette, strand detail, sheen) for tinting; made from a generated painted lock.",
+  "subtype": "object",
+  "type": "image",
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795173753145_01M7WB389SHSBP57H8TV3P7SA5.webp"
  }
 }
