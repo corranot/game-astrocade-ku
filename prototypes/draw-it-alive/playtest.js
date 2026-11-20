@@ -30,7 +30,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   const target = (page) => page.evaluate(() => window.__game.target.filter((_, i) => i % 3 === 0).concat([window.__game.target[window.__game.target.length - 1]]));
   const wobble = (pts) => pts.map((p, i) => [p[0] + Math.sin(i * 1.3) * 14, p[1] + Math.cos(i * 0.9) * 14]); // a child's hand, not a ruler
   const settled = (page) => page.waitForFunction(() => !window.__game.S.pen, null, { timeout: 5000 });
-  const shot = (page, name) => page.screenshot({ path: path.join(out, name + '.png') });
+  const shot = (page, name) => page.screenshot({ path: path.join(out, name + '.jpg'), quality: 82 });
 
   console.log('1. first frame is the level itself, alive, with no input');
   let page = await open();

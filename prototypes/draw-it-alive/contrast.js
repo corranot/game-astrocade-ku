@@ -74,7 +74,7 @@ function scan(maxD) {
     total += flags.length;
     if (out && (flags.length || !/^L\d/.test(name))) { // every screen other than a level is kept to be looked at
       await page.evaluate((flags) => { const g = document.getElementById('game').getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.lineWidth = 6; g.strokeStyle = '#FF00FF'; for (const f of flags) g.strokeRect(f.box[0] - 4, f.box[1] - 4, f.box[2] - f.box[0] + 8, f.box[3] - f.box[1] + 8); g.restore(); }, flags);
-      await page.screenshot({ path: path.join(out, name + '.png') });
+      await page.screenshot({ path: path.join(out, name + '.jpg'), quality: 82 });
     }
   };
   const n = await page.evaluate(() => window.__game.LEVELS.length);

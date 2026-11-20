@@ -63,15 +63,18 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 9. Alarm palsu alat (`\btrend` vs `setRenderTarget`).
 10. Input (klik kanan, jari kedua, ketukan tembus toko).
 
-## 8. Yang usang, bertentangan, atau perlu dibereskan (temuan, belum diubah)
-- Workflow sinkronisasi skill rusak (bagian 5); auto-merge tanpa CI.
-- `.claude/settings.local.json` dan `project.local.yaml` ter-commit padahal ada di `.gitignore`.
-- Hook lokal "langsung kerjakan" bertentangan dengan protokol tanya-dulu di `CLAUDE.md`.
-- `project.yaml` mematok `review_mode: solo` padahal komentarnya melarang knob yang dikuasai `rigor`.
-- `CLAUDE.md` engine masih "[CHOOSE…]"; `README` bilang game tidak dikirim di repo ini.
-- Dua konvensi bukti: framework `story-slug/NN-…png + stamp.txt` vs fork satu set per game (yang dipakai: fork).
-- Ukuran bukti: draw-it-alive 31 MB (ada duplikat `book*.png`, `contrast/`), toy-city-stomp 19 MB (PNG ±790 KB; JPG jauh lebih kecil), dua berkas `astrocade-top9-*` di akar evidence semestinya di `production/market/`, folder `fizzy` ≠ nama prototipe.
-- `prototypes/toy-city-stomp/0x-*.png` (tangkapan playtest) ada di folder prototipe.
-- Commit menyebut `design/game-brief.md` tetapi berkas itu tidak ada; `production/session-state/active.md` juga tidak ada.
-- Hitungan skill tidak cocok (75 / 69 / 91); referensi engine bilang batas pengetahuan Mei 2025; `caveman-help` menyebut `/caveman-compress` dan `/caveman-stats` yang tidak ada; template patch-notes hilang.
-- `log-instructions.sh` tidak terpasang; `config.json` Web dan `prototypes/*/config.js` tidak pernah divalidasi hook.
+## 8. Dibereskan 2026-11-20 dan yang masih terbuka
+Dibereskan:
+- `auto-sync-all.yml`: URL clone ke repo asli (`DietrichGebert/ponytail`, `JuliusBrussee/caveman`, `aicodeking/leanrea`), clone gagal = langkah gagal, email bot benar, `caveman-compress` dan `caveman-stats` ikut (dulu disebut `caveman-help` tetapi tidak ada).
+- `checks.yml` menggantikan auto-merge instan: `tools/ci-checks.sh` (sintaks, JSON, modul tanpa THREE saat impor lewat `tools/no-three-import.mjs`, set unggah bersih) + uji bundel untuk keempat game; PR pemilik digabung hanya setelah keduanya lulus.
+- `tools/astrocade-bundle-test.js`: "mulai" = hook debug ada atau kanvas 2D benar-benar tergambar (berlaku untuk keempat game).
+- `.gitignore` menjelaskan bahwa `.claude/settings.local.json` dan `project.local.yaml` sengaja dilacak (sesi cloud butuh hook-nya).
+- Bukti 61 MB → 30 MB: PNG Toy City Stomp dan Draw It Alive jadi JPG (skrip pembuatnya kini menulis JPG), tangkapan playtest Toy City Stomp ke folder sementara, `astrocade-top9-*` ke `production/market/2026-11-17/`, folder `fizzy` → `fizzy-bath-bomb-maker`.
+- `market-check.js` memperingatkan bila feed kosong (tangkapan 19 Nov hanya gagal sesaat; cek 2026-11-20 terisi 12 kategori).
+- Skill baru `astrocade-ship` (urutan kirim ke draft + artifact); `design/game-brief.md` untuk Toy City Stomp.
+
+Masih terbuka (keputusan pemilik):
+- Hook lokal "langsung kerjakan" vs protokol tanya-dulu di `CLAUDE.md`: menambah pengecualian ke `CLAUDE.md` ditolak pemeriksa keamanan sesi (melonggarkan pengawasan), jadi perlu disunting pemilik sendiri bila diinginkan.
+- `project.yaml` mematok `review_mode: solo`; `CLAUDE.md` engine "[CHOOSE…]"; README template bilang game tidak dikirim di repo ini.
+- Riwayat git tetap memuat gambar lama (tanpa tulis ulang riwayat).
+- Hitungan skill di katalog tes (75) vs folder (93); referensi engine bilang batas pengetahuan Mei 2025; template patch-notes hilang; `log-instructions.sh` tidak terpasang; `config.json` Web tidak divalidasi hook; `CODEOWNERS`/`FUNDING.yml` milik upstream.

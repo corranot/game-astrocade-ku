@@ -4,7 +4,7 @@
 // Usage: node playtest.js <out folder> [--lang xx]   (needs Playwright; swiftshader GPU, so FPS here is not a phone's)
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
-const out = process.argv[2] || '.', lang = (process.argv.indexOf('--lang') > 0 && process.argv[process.argv.indexOf('--lang') + 1]) || 'en';
+const out = process.argv[2] || require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'tcs-playtest-')), lang = (process.argv.indexOf('--lang') > 0 && process.argv[process.argv.indexOf('--lang') + 1]) || 'en';
 fs.mkdirSync(out, { recursive: true });
 const types = { '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json' };
 const server = http.createServer((q, s) => {
