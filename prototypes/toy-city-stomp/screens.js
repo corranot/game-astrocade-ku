@@ -1,5 +1,5 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Screens in all 7 languages: play (HUD, mission card), result (city map), shop (moves, looks) and sticker book, saved to
+// Screens in all 7 languages: play (HUD, mission card), result (city map), shop (moves, looks), sticker book and daily gift, saved to
 // production/qa/evidence/toy-city-stomp/ (overwrites the previous set). Reports any HUD text cut off.
 // Usage: node screens.js
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -28,9 +28,10 @@ const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   for (const lang of ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id']) {
     const page = await browser.newPage({ viewport: { width: 405, height: 720 }, deviceScaleFactor: 2, locale: lang });
-    await page.goto(`http://localhost:${port}/?local&tier=1`);
+    await page.goto(`http://localhost:${port}/?local&daily&tier=1`);
     await page.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 30000 });
-    await page.evaluate(() => { const S = __game.S; S.touched = true; S.idle = 99; __game.save.tutorialDone = true; document.querySelector('#hint').hidden = true; __game.grow(); __game.grow(); });
+    await page.waitForFunction(() => !document.querySelector('#gift').hidden, null, { timeout: 8000 }).catch(() => {});
+    await page.evaluate(() => { document.querySelector('#gift').hidden = true; const S = __game.S; S.touched = true; S.idle = 99; __game.save.tutorialDone = true; document.querySelector('#hint').hidden = true; __game.grow(); __game.grow(); });
     await page.waitForTimeout(4000);
     await page.screenshot({ path: path.join(out, `${lang}-1-play.png`) });
     let cut = await page.evaluate(cutOff);
@@ -51,6 +52,10 @@ const cutOff = () => [...document.querySelectorAll('.hud *')].filter((el) => {
     await page.evaluate(() => { __game.save.stickers = ['toy0', 'toy2', 'candy1', 'snow0']; __game.save.unlocked = 4; __game.openAlbum(); });
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(out, `${lang}-5-album.png`) });
+    cut = cut.concat(await page.evaluate(cutOff));
+    await page.evaluate(() => { document.querySelector('#album').hidden = true; const s = __game.save; s.lastDay = __game.today() - 1; s.streak = 3; __game.dailyGift(); });
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: path.join(out, `${lang}-6-gift.png`) });
     cut = cut.concat(await page.evaluate(cutOff));
     console.log((cut.length ? 'CUT  ' : 'ok   ') + lang + (cut.length ? ': ' + [...new Set(cut)].join(' | ') : ''));
     if (cut.length) problems.push(lang);

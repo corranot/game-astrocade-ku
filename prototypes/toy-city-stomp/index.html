@@ -171,6 +171,16 @@ body{display:flex;align-items:center;justify-content:center}
 .result .endbtns{gap:calc(var(--u)*18px)}
 .result .board{font-size:calc(var(--u)*24px);margin-top:calc(var(--u)*8px)}
 .result .board li{padding:0}
+.gday{color:#ff5fa2;font-weight:900;font-size:calc(var(--u)*46px);--o:calc(var(--u)*3px)}
+.gdays{display:grid;grid-template-columns:repeat(7,1fr);gap:calc(var(--u)*8px);width:100%}
+.gd{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*2px);padding:calc(var(--u)*8px) 0;border-radius:calc(var(--u)*16px);background:#efe9ff;border:calc(var(--u)*3px) dashed #c9bfe0;font-weight:900}
+.gd i{font-style:normal;font-size:calc(var(--u)*22px);color:#7a5fae}
+.gd b{font-size:calc(var(--u)*22px);color:#c98a00}
+.gd.got{background:#e3fff6;border-style:solid;border-color:#22c6a3}
+.gd.now{background:linear-gradient(#fff3b0,#ffc531);border:calc(var(--u)*4px) solid var(--ink);transform:scale(1.12);animation:pulse 1s ease-in-out infinite}
+.dbonus{margin-inline-start:calc(var(--u)*12px);font-size:calc(var(--u)*26px);color:#22c6a3}
+.city.daily{background:linear-gradient(#e3fff6,#a8f0d8) !important}
+.city.daily.on{background:linear-gradient(#fff3b0,#ffc531) !important;animation:none}
 </style>
 </head>
 <body>
