@@ -23,9 +23,9 @@ if (page.includes('data-lib') && !libLoader) { console.error('index.html has a d
 const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8'));
 delete cfg.persistent_storage_config; // the host keeps this key out of window.gameConfig
 const key = 'save-' + path.basename(path.resolve(dir));
-// images the game folder keeps a copy of (e.g. icons.webp for asset 'icons'): served next to the page, because
-// an artifact cannot load images from the Astrocade CDN. Publish them with the modules.
-const localAssets = Object.fromEntries(fs.readdirSync(dir).filter((f) => /\.(webp|png|jpg)$/.test(f)).map((f) => [f.replace(/\.[^.]+$/, ''), { url: './' + f, type: 'image' }]));
+// images and sounds the game folder keeps a copy of (e.g. icons.webp for asset 'icons'): served next to the page,
+// because an artifact cannot load them from the Astrocade CDN. Publish them with the modules.
+const localAssets = Object.fromEntries(fs.readdirSync(dir).filter((f) => /\.(webp|png|jpg|mp3|ogg)$/.test(f)).map((f) => [f.replace(/\.[^.]+$/, ''), { url: './' + f, type: /\.(mp3|ogg)$/.test(f) ? 'audio' : 'image' }]));
 
 const html = `<title>${title}</title>
 ${fontLink}
