@@ -15,7 +15,7 @@
 import { PLUM, PINK, GREEN, tint, glossDisc, glossPill, panel, rays, vignette, roundRect } from './ui.js';
 import { loadSprites, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
 import { rng, makeSoap, markDirty, carve, trimRows, carvedShare, sponge, edgeCells, meanRough, takeIslands, islandSprite, shapeScore, sparkleScore, verdict, soapCount, encodeMask, decodeMask, marbleAlbedo, attachPaint, paint, stamp as pressStamp } from './soap.js';
-import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge } from './make.js';
+import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide } from './make.js';
 import { createFx } from './fx.js';
 
 const DEBUG = location.search.includes('local');
@@ -30,7 +30,7 @@ const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 const back3 = (k) => { k = Math.max(0, Math.min(1, k)); const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
 
 let cv, g, cfg, mode, raf = 0, last = 0, runs = 0, base = null, tables = [], ti = 0, fx = null, vig = null, chrome = null, chromeKey = '';
-let save = { n: 0, coins: 0, stars: 0, buys: 0, gifts: 0, learned: [], owned: { marbles: [], glitters: [], gems: [], stamps: [] }, shelf: [], charms: [], fresh: null, lang: null, muted: false };
+let save = { n: 0, coins: 0, stars: 0, buys: 0, gifts: 0, giftDue: false, learned: [], owned: { marbles: [], glitters: [], gems: [], stamps: [] }, shelf: [], charms: [], fresh: null, lang: null, muted: false };
 let saveRead = false, merged = false, muteTouched = false, touched = false;
 let view = 'play', S = null, lang = 'en', pen = null, penId = null, coinShown = 0, coinPulse = 0, wiggle = null, shake = 0, freeNext = false;
 let coinShake = 0, quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, bootT = 0, photoSel = -1, coinsFlying = [];
@@ -354,7 +354,7 @@ function nextStep() {
   if (S.make) S.make.stepT = 0;
   if (S.k !== 'bath') reward(x, y, cfg.stepCoins);
   if (S.k === 'smooth') { S.edges = edgeCells(S.soap); S.rough = meanRough(S.soap, S.edges); }
-  if (S.k === 'bath') startReveal();
+  if (S.k === 'bath') startReveal(); else persist(); // coins and learned gestures are kept even if the player leaves mid-soap
 }
 /** n coins flying from (x, y) to the counter: a small reward the player sees land. */
 function reward(x, y, n) {
@@ -414,7 +414,7 @@ function startReveal() {
   THUMBS.set(entry, thumbFrom(sm));
   save.shelf.unshift(entry); if (save.shelf.length > 12) save.shelf.length = 12;
   if (save.fresh && ((save.fresh.k === 'marbles' && S.order.marble === save.fresh.id) || (save.fresh.k === 'glitters' && S.order.glitter === save.fresh.id) || (save.fresh.k === 'gems' && S.order.gem === save.fresh.id) || (save.fresh.k === 'stamps' && S.order.stamp === save.fresh.id))) save.fresh = null;
-  S.reveal.gift = save.n % cfg.giftEvery === 0; // every few soaps the next tap opens a gift box
+  if (save.n % cfg.giftEvery === 0) save.giftDue = true; // every few soaps a gift box; saved, so a reload cannot lose it
   persist(); submitScore();
   fizz(true);
 }
@@ -439,9 +439,12 @@ function stepReveal(dt) {
 const starXY = (i) => [360 + (i - 1) * 110, 196];
 function nextOrder() {
   fizz(false);
-  if (S.reveal && S.reveal.gift && !S.reveal.giftDone) { S.reveal.giftDone = true; gift = { taps: 0, t: 0, open: -1, item: null }; view = 'gift'; pen = null; return; }
+  if (save.giftDue) return showGift();
   newOrder(save.n, true);
 }
+function showGift() { gift = { taps: 0, t: 0, open: -1, item: null }; view = 'gift'; pen = null; }
+/** Dots filled on the gift pill: all of them while a gift waits. */
+const giftDots = () => (save.giftDue ? cfg.giftEvery : save.n % cfg.giftEvery);
 /** What the gift box holds: the next locked thing, taking turns between stamps, glitter, gems and marbles. */
 function pickGift() {
   const kinds = ['stamps', 'glitters', 'gems', 'marbles'];
@@ -449,7 +452,7 @@ function pickGift() {
   return { k: 'coins', n: cfg.giftCoins };
 }
 function openGift() {
-  const it = pickGift(); gift.item = it; gift.open = 0; save.gifts++;
+  const it = pickGift(); gift.item = it; gift.open = 0; save.gifts++; save.giftDue = false;
   if (it.k === 'coins') { save.coins += it.n; coinShown = save.coins; } else { save.owned[it.k].push(it.id); save.fresh = { k: it.k, id: it.id }; }
   SFX.unlock(); SFX.wow(); buzz('success'); burst(360, 600, cfg.confetti, true); persist();
 }
@@ -765,7 +768,7 @@ function drawHud() {
   disc(MUTE(), (cx, cy, s) => iconSound(cx, cy, s * 0.7, save.muted));
   if (view !== 'gift') disc(SHELFB(), (cx, cy, s) => (view === 'play' ? iconShelf(cx, cy, s * 0.8) : iconX(cx, cy, s * 0.8)));
   if (view === 'play') { // how close the next gift box is
-    const gb = GIFTB(), k = save.n % cfg.giftEvery; glossPill(g, gb.x, gb.y, gb.w, gb.h, '#FFFFFF', '#FF9CC8'); giftIcon(rtl() ? gb.x + gb.w - 34 : gb.x + 34, gb.y + 30, 22, 0);
+    const gb = GIFTB(), k = giftDots(); glossPill(g, gb.x, gb.y, gb.w, gb.h, '#FFFFFF', '#FF9CC8'); giftIcon(rtl() ? gb.x + gb.w - 34 : gb.x + 34, gb.y + 30, 22, 0);
     for (let i = 0; i < cfg.giftEvery; i++) { const dx = rtl() ? gb.x + gb.w - 80 - i * 40 : gb.x + 80 + i * 40; g.fillStyle = i < k ? PINK : 'rgba(74,35,102,0.18)'; g.beginPath(); g.arc(dx, gb.y + 30, 12, 0, TAU); g.fill(); }
   }
   if (view === 'play' && save.shelf.length && S.k === 'bath' && S.reveal && S.reveal.t > 3.5) { const b = SHELFB(); g.fillStyle = PINK; g.beginPath(); g.arc(b.x + b.s - 10, b.y + 12, 13, 0, TAU); g.fill(); }
@@ -773,7 +776,7 @@ function drawHud() {
 /** HUD, step row, prompt and order card: drawn into one layer, again only when what they show changes. */
 function drawChrome() {
   const live = S.enter > 0 || S.oopsT < 1.1 || S.t - (S.promptAt || 0) < 0.4 || coinPulse > 0 || wiggle || coinsFlying.length || view !== 'play' || S.k === 'bath';
-  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n].join('|');
+  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue].join('|');
   if (live) { drawHud(); if (view === 'play' && S.k !== 'bath') { drawSteps(); drawPrompt(); drawOrder(); } chromeKey = ''; return; }
   if (key !== chromeKey) {
     chromeKey = key;
@@ -889,7 +892,8 @@ function drawTray() {
   if (makeTray(S.k)) return drawMakeTray(g, S);
   const rows = trayItems();
   for (let row = 0; row < 2; row++) for (const it of rows[row]) {
-    const [x, y0] = slotXY(row, it.j), y = it.k === 'stamps' ? 998 : y0, wig = wiggle && wiggle.k === it.k + it.id ? Math.sin(wiggle.t * 40) * 6 : 0; // one row of stamps sits in the middle
+    const shakeIt = wiggle && (wiggle.k === it.k + it.id || (wiggle.k === 'stampsfull' && it.k === 'stamps'));
+    const [x, y0] = slotXY(row, it.j), y = it.k === 'stamps' ? 998 : y0, wig = shakeIt ? Math.sin(wiggle.t * 40) * 6 : 0; // one row of stamps sits in the middle
     const sel = it.k === 'stamps' ? S.stampSel === it.j : row === 0 ? S.gemSel < 0 && S.glitSel === it.j : S.gemSel === it.j;
     if (sel) { g.fillStyle = 'rgba(255,95,162,0.25)'; g.beginPath(); g.arc(x, y, 50, 0, TAU); g.fill(); g.strokeStyle = PINK; g.lineWidth = 5; g.stroke(); }
     if (it.k === 'stamps') { glossDisc(g, x + wig, y, 40, '#FFE3EF'); g.save(); g.translate(x + wig - 26, y - 26); g.scale(0.52, 0.52); g.fillStyle = '#FF5FA2'; g.fill(pathOf(cfg.stamps[it.j].shape)); g.restore(); }
@@ -1067,7 +1071,7 @@ function applySave(st) {
   if (!st || typeof st !== 'object' || merged) return;
   merged = true;
   const n0 = int(st.n, 0, 1e6) || 0, before = save.n;
-  save.n = n0 + save.n; save.coins = (int(st.coins, 0, 1e7) || 0) + save.coins; save.stars = (int(st.stars, 0, 1e7) || 0) + save.stars; save.buys = (int(st.buys, 0, 1000) || 0) + save.buys; save.gifts = (int(st.gifts, 0, 1e5) || 0) + save.gifts;
+  save.n = n0 + save.n; save.coins = (int(st.coins, 0, 1e7) || 0) + save.coins; save.stars = (int(st.stars, 0, 1e7) || 0) + save.stars; save.buys = (int(st.buys, 0, 1000) || 0) + save.buys; save.gifts = (int(st.gifts, 0, 1e5) || 0) + save.gifts; if (st.giftDue === true) save.giftDue = true;
   const ow = st.owned && typeof st.owned === 'object' ? st.owned : {};
   for (const k of ['marbles', 'glitters', 'gems', 'stamps']) if (Array.isArray(ow[k])) for (const id of ow[k]) if (cfg[k].some((x) => x.id === id && x.shop) && !save.owned[k].includes(id)) save.owned[k].push(id);
   if (Array.isArray(st.shelf)) for (const e of st.shelf.slice(0, 12)) { const c = cleanEntry(e); if (c && save.shelf.length < 12) save.shelf.push(c); }
@@ -1078,6 +1082,7 @@ function applySave(st) {
   if (!save.lang && typeof st.lang === 'string' && cfg.strings[st.lang]) lang = save.lang = st.lang;
   coinShown = save.coins;
   if (n0 > 0 && before === 0 && !touched && view === 'play') newOrder(save.n, false); // a returning player meets their next customer
+  if (save.giftDue && !touched && view === 'play' && S && S.si === 0 && !S.used) showGift(); // a gift left waiting before a reload
 }
 
 /** Entry point. The host calls this on start and on every reload. */
@@ -1104,7 +1109,7 @@ function run(m) {
       },
     });
   } catch (e) { /* settings panel not offered here */ }
-  cancelAnimationFrame(raf); pen = null; penId = null;
+  cancelAnimationFrame(raf); pen = null; penId = null; makeStop(S); // a pour or stir in progress lost its finger
   lang = save.lang || detectLang();
   // a soap in progress is kept through edit runs; edit mode only shows it, with no input
   if (!S || (S.edit && mode === 'play')) { view = 'play'; fx.clear(); newOrder(mode === 'play' ? save.n : 0, false); S.edit = mode !== 'play'; }
@@ -1128,7 +1133,7 @@ if (DEBUG) {
   window.__game = {
     get S() { return S; }, get save() { return save; }, set save(v) { save = v; }, get view() { return view; }, set view(v) { view = v; }, get cfg() { return cfg; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; },
     get quality() { return quality; }, set quality(q) { quality = q; }, get fx() { return fx; }, get pen() { return pen; }, get coinShown() { return coinShown; }, set coinShown(v) { coinShown = v; },
-    booting, T, detectLang, applySave, nextStep, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
+    booting, T, detectLang, applySave, nextStep, fillShare, potSide, giftDots, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
     MUTE, SHELFB, CHECK, NEXT, ORDER, slotXY, SHELF_CELL, SHOP_XY, LANGB, FREEB, BOWL, freeOpen, set freeNext(v) { freeNext = v; },
   };
   const q = new URLSearchParams(location.search);

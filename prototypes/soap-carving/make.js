@@ -9,7 +9,7 @@
 export const MAKE_STEPS = ['chop', 'color', 'stir', 'scent', 'pour', 'cool', 'pop'];
 const TAU = Math.PI * 2;
 const POT = { x: 360, y: 640, r: 196, liquid: 160 };
-const POT_SIDE = { x: 628, y: 520, r: 104 };
+const POT_SIDE = { x: 600, y: 520, r: 96 }; // beside the mould, fully on screen in both reading directions
 const SCENTS = [{ id: 'lavender', c: '#B57BFF', c2: '#E3CCFF' }, { id: 'rose', c: '#FF6FA8', c2: '#FFD0E2' }, { id: 'lemon', c: '#FFD23F', c2: '#FFF3B0' }];
 let C = null; // { cfg, fx, SFX, buzz, burst, R, reward, done, glossDisc, roundRect, tint, PLUM, mx }
 
@@ -74,7 +74,7 @@ export function makeDown(S, p) {
     C.SFX.shimmer(); C.buzz('success'); C.burst(flowerXY(j)[0], flowerXY(j)[1], 14, false);
     return true;
   }
-  if (k === 'pour') { if (M.move >= 1 && !M.poured) { M.pouring = true; } return true; }
+  if (k === 'pour') { M.held = true; return true; } // pouring starts as soon as the pot is in place, even if the finger came first
   if (k === 'pop') { if (M.popT < 0) M.popDrag = { y: p[1], taps: (M.popDrag ? M.popDrag.taps : 0) + 1 }; if (M.popDrag && M.popDrag.taps >= 3) popOut(S); return true; }
   return k === 'stir' || k === 'cool';
 }
@@ -98,9 +98,19 @@ export function makeMove(S, ax, ay, bx, by) {
 /** The finger lifted. */
 export function makeUp(S) {
   const M = S.make; if (!M) return;
-  M.lastAng = null;
-  if (S.k === 'pour' && M.pouring) { M.pouring = false; if (M.level >= C.cfg().pourMin) finishPour(S); }
+  M.lastAng = null; M.held = false;
+  if (S.k === 'pour' && M.pouring) {
+    M.pouring = false;
+    if (M.level >= C.cfg().pourMin) finishPour(S);
+    else { M.lowT = 0.8; C.SFX.no(); C.buzz('warning'); } // too early: the gauge shakes and points at the green band
+  }
 }
+/** Stop any pour or stir in progress (the host restarted, the finger is gone). */
+export function makeStop(S) { const M = S && S.make; if (M) { M.pouring = false; M.held = false; M.lastAng = null; } }
+/** How much of the mould the liquid covers at fill level v: full exactly when the level reaches the green band. */
+export const fillShare = (v) => Math.min(1, Math.sqrt(Math.max(0, v) / C.cfg().pourLo));
+/** The pot's place beside the mould while pouring. */
+export const potSide = () => ({ x: C.mx(POT_SIDE.x), y: POT_SIDE.y, r: POT_SIDE.r });
 function finishPour(S) {
   const M = S.make, cfg = C.cfg(); if (M.poured) return;
   M.poured = true; M.pouring = false;
@@ -119,11 +129,14 @@ function popOut(S) {
 /** Advance the making animations and finish the step when its goal is reached. */
 export function makeUpdate(S, dt) {
   const M = S.make, k = S.k, cfg = C.cfg(); M.t += dt; M.stepT += dt;
-  for (const b of M.bits) b.t += dt;
-  const landed = M.bits.filter((b) => b.t >= 0.45 && !b.in);
-  for (const b of landed) { b.in = true; M.melt = Math.min(1, M.melt + 1 / (M.cubes.length * 4)); if (C.every('plop', 90)) { C.SFX.plop(); C.fx.ring(b.tx, b.ty, 26, 0.7); } }
-  for (const f of M.fall) f.t += dt;
-  for (const f of M.fall.filter((f) => f.t >= 0.4 && !f.in)) {
+  let flying = 0;
+  for (const b of M.bits) {
+    b.t += dt; if (b.in) continue;
+    if (b.t < 0.45) { flying++; continue; }
+    b.in = true; M.melt = Math.min(1, M.melt + 1 / (M.cubes.length * 4)); if (C.every('plop', 90)) { C.SFX.plop(); C.fx.ring(b.tx, b.ty, 26, 0.7); }
+  }
+  for (const f of M.fall) {
+    f.t += dt; if (f.in || f.t < 0.4) continue;
     f.in = true; M.drops++; if (!f.swirl) M.baseDrops++;
     M.blobs.push({ c: f.c, x: f.x - POT.x, y: f.y + 260 - POT.y, r: 20, swirl: f.swirl });
     C.SFX.pop(); C.fx.ring(f.x, POT.y + (f.y + 260 - POT.y), 30, 0.8); C.burst(f.x, POT.y, 4, false);
@@ -132,12 +145,14 @@ export function makeUpdate(S, dt) {
   for (const p of M.petals) p.t += dt;
   if (M.scentT >= 0) M.scentT += dt;
   if (M.perfectT !== undefined) M.perfectT += dt;
-  if (k === 'chop' && M.cubes.every((c) => c.cut) && M.bits.every((b) => b.in)) C.done();
+  if (k === 'chop' && !flying && M.bits.length === M.cubes.length * 4) C.done();
   else if (k === 'color' && M.drops >= cfg.colorDrops) C.done();
   else if (k === 'stir' && M.stir >= cfg.stirTurns * TAU) C.done();
   else if (k === 'scent' && M.scentT > 0.9) C.done();
   else if (k === 'pour') {
     M.move = Math.min(1, M.move + dt * 2.2);
+    if (M.held && M.move >= 1 && !M.poured) M.pouring = true;
+    if (M.lowT > 0) M.lowT -= dt;
     if (M.pouring) {
       M.level += dt * cfg.pourRate;
       if (C.every('pourS', 120)) { C.SFX.pour(); C.buzz('tick'); }
@@ -153,12 +168,18 @@ export function makeUpdate(S, dt) {
 /** Progress of the step (0..1) for the ring on the step icon. */
 export function makeProgress(S) {
   const M = S.make, k = S.k, cfg = C.cfg();
-  return k === 'chop' ? M.cubes.filter((c) => c.cut).length / M.cubes.length : k === 'color' ? M.drops / cfg.colorDrops : k === 'stir' ? M.stir / (cfg.stirTurns * TAU)
+  return k === 'chop' ? M.bits.length / (M.cubes.length * 4) : k === 'color' ? M.drops / cfg.colorDrops : k === 'stir' ? M.stir / (cfg.stirTurns * TAU)
     : k === 'scent' ? (M.scent >= 0 ? 1 : 0) : k === 'pour' ? Math.min(1, M.level) : k === 'cool' ? M.cool : M.popT >= 0 ? 1 : 0;
 }
 
 // ---------- drawing ----------
+let POT_IMG = null, CUBE_IMG = null, MOULD_IMG = null;
+/** The pot, drawn once at full size; smaller pots are this picture scaled. */
 function potBody(g, x, y, r) {
+  if (!POT_IMG) { const R = POT.r, c = document.createElement('canvas'); c.width = c.height = Math.ceil(R * 2.7); potDraw(c.getContext('2d'), c.width / 2, c.height / 2, R); POT_IMG = c; }
+  const k = r / POT.r, w = POT_IMG.width * k; g.drawImage(POT_IMG, x - w / 2, y - w / 2, w, w);
+}
+function potDraw(g, x, y, r) {
   g.fillStyle = 'rgba(92,52,70,0.22)'; g.beginPath(); g.ellipse(x + 10, y + 18, r * 1.02, r * 0.98, 0, 0, TAU); g.fill();
   // handles
   for (const s of [-1, 1]) { g.fillStyle = '#3BBFA0'; C.roundRect(g, x + s * r * 0.92 - (s > 0 ? 0 : r * 0.3), y - r * 0.12, r * 0.3, r * 0.24, r * 0.1); g.fill(); g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(x + s * r * 0.92 - (s > 0 ? -r * 0.04 : r * 0.26), y - r * 0.08, r * 0.2, r * 0.05); }
@@ -190,7 +211,12 @@ function liquid(g, S, x, y, r) {
   g.restore();
   g.strokeStyle = 'rgba(200,150,110,0.5)'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, r * (0.55 + 0.45 * melt), 0, TAU); g.stroke(); // the melt's edge
 }
+/** A cube of soap base: one picture made once, drawn at size s. */
 function cube(g, x, y, s, a = 1) {
+  if (!CUBE_IMG) { const c = document.createElement('canvas'); c.width = c.height = 100; cubeDraw(c.getContext('2d'), 46, 44, 84); CUBE_IMG = c; }
+  const k = s / 84; g.globalAlpha = a; g.drawImage(CUBE_IMG, x - 46 * k, y - 44 * k, 100 * k, 100 * k); g.globalAlpha = 1;
+}
+function cubeDraw(g, x, y, s, a = 1) {
   g.globalAlpha = a;
   g.fillStyle = 'rgba(92,52,70,0.2)'; C.roundRect(g, x - s / 2 + 5, y - s / 2 + 8, s, s, s * 0.2); g.fill();
   const gr = g.createLinearGradient(x - s / 2, y - s / 2, x + s / 2, y + s / 2); gr.addColorStop(0, '#FFFFFF'); gr.addColorStop(1, '#E6E9F2');
@@ -231,15 +257,20 @@ function snowflake(g, x, y, r) {
 function mould(g, S, lift = 0, alpha = 1) {
   const M = S.make, b = C.cfg().bar, pad = 22;
   g.save(); g.globalAlpha = alpha; g.translate(0, lift);
-  g.fillStyle = 'rgba(92,52,70,0.22)'; C.roundRect(g, b.x - pad + 8, b.y - pad + 14, b.w + pad * 2, b.h + pad * 2, b.r + pad); g.fill();
-  const gr = g.createLinearGradient(b.x - pad, b.y - pad, b.x + b.w + pad, b.y + b.h + pad); gr.addColorStop(0, '#FFB7D5'); gr.addColorStop(1, '#F27BB0');
-  g.fillStyle = gr; C.roundRect(g, b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, b.r + pad); g.fill(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke();
-  g.fillStyle = '#E2669F'; C.roundRect(g, b.x, b.y, b.w, b.h, b.r); g.fill(); // the cavity
-  g.fillStyle = 'rgba(255,255,255,0.35)'; C.roundRect(g, b.x - pad + 14, b.y - pad + 6, b.w + pad * 2 - 28, 8, 4); g.fill();
+  if (!MOULD_IMG) { // the silicone tray, drawn once
+    const c = document.createElement('canvas'); c.width = b.w + pad * 2 + 20; c.height = b.h + pad * 2 + 24; const q = c.getContext('2d'); q.translate(pad - b.x, pad - b.y);
+    q.fillStyle = 'rgba(92,52,70,0.22)'; C.roundRect(q, b.x - pad + 8, b.y - pad + 14, b.w + pad * 2, b.h + pad * 2, b.r + pad); q.fill();
+    const gr = q.createLinearGradient(b.x - pad, b.y - pad, b.x + b.w + pad, b.y + b.h + pad); gr.addColorStop(0, '#FFB7D5'); gr.addColorStop(1, '#F27BB0');
+    q.fillStyle = gr; C.roundRect(q, b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, b.r + pad); q.fill(); q.lineWidth = 5; q.strokeStyle = '#FFFFFF'; q.stroke();
+    q.fillStyle = '#E2669F'; C.roundRect(q, b.x, b.y, b.w, b.h, b.r); q.fill(); // the cavity
+    q.fillStyle = 'rgba(255,255,255,0.35)'; C.roundRect(q, b.x - pad + 14, b.y - pad + 6, b.w + pad * 2 - 28, 8, 4); q.fill();
+    MOULD_IMG = c;
+  }
+  g.drawImage(MOULD_IMG, b.x - pad, b.y - pad);
   const level = S.k === 'pour' ? M.level : 1;
   if (level > 0) {
     g.save(); C.roundRect(g, b.x, b.y, b.w, b.h, b.r); g.clip();
-    const px = b.x + b.w * 0.62, py = b.y + b.h * 0.35, R = Math.hypot(b.w, b.h) * Math.min(1, Math.sqrt(level / 0.55));
+    const px = b.x + b.w * 0.62, py = b.y + b.h * 0.35, R = Math.hypot(b.w, b.h) * fillShare(level);
     g.beginPath(); g.arc(px, py, R, 0, TAU); g.clip();
     g.drawImage(M.marble, b.x, b.y);
     const wet = S.k === 'cool' ? 1 - M.cool : S.k === 'pop' ? 0 : 1;
@@ -250,9 +281,9 @@ function mould(g, S, lift = 0, alpha = 1) {
   g.restore();
 }
 function gauge(g, S) {
-  const M = S.make, b = C.cfg().bar, cfg = C.cfg(), x = C.mx(b.x - 56, 30), y0 = b.y + 20, h = b.h - 40;
+  const M = S.make, b = C.cfg().bar, cfg = C.cfg(), x = C.mx(b.x - 56, 30) + (M.lowT > 0 ? Math.sin(M.lowT * 50) * 6 : 0), y0 = b.y + 20, h = b.h - 40;
   g.fillStyle = 'rgba(255,255,255,0.9)'; C.roundRect(g, x, y0, 30, h, 15); g.fill(); g.lineWidth = 4; g.strokeStyle = '#FFFFFF'; g.stroke();
-  g.fillStyle = 'rgba(59,209,111,0.45)'; g.fillRect(x + 3, y0 + h * (1 - cfg.pourHi), 24, h * (cfg.pourHi - cfg.pourLo)); // the target band
+  g.fillStyle = M.lowT > 0 && Math.sin(M.lowT * 20) > 0 ? 'rgba(59,209,111,0.95)' : 'rgba(59,209,111,0.45)'; g.fillRect(x + 3, y0 + h * (1 - cfg.pourHi), 24, h * (cfg.pourHi - cfg.pourLo)); // the target band
   g.fillStyle = M.level > cfg.pourHi ? '#FF5F7E' : M.base; const lv = Math.min(1, M.level); C.roundRect(g, x + 5, y0 + h * (1 - lv), 20, h * lv, 10); g.fill();
   g.strokeStyle = '#2FAE5C'; g.lineWidth = 4; for (const v of [cfg.pourLo, cfg.pourHi]) { g.beginPath(); g.moveTo(x - 8, y0 + h * (1 - v)); g.lineTo(x + 38, y0 + h * (1 - v)); g.stroke(); }
 }
@@ -269,7 +300,7 @@ export function drawMake(g, S) {
     if (k === 'pop' && M.popT >= 0) { const sq = 1 + Math.sin(Math.min(1, M.popT / 0.5) * Math.PI) * 0.06; g.save(); g.translate(b.x + b.w / 2, b.y + b.h); g.scale(1 / sq, sq); g.translate(-(b.x + b.w / 2), -(b.y + b.h)); g.drawImage(S.soap.canvas, b.x - C.cfg().margin, b.y - C.cfg().margin); g.restore(); }
     mould(g, S, lift, a);
     if (k === 'pour') {
-      const pm = ease(M.move), px = POT.x + (C.mx(POT_SIDE.x) - POT.x) * pm, py = POT.y + (POT_SIDE.y - POT.y) * pm, pr = POT.r + (POT_SIDE.r - POT.r) * pm;
+      const pm = ease(M.move), px = POT.x + (potSide().x - POT.x) * pm, py = POT.y + (POT_SIDE.y - POT.y) * pm, pr = POT.r + (POT_SIDE.r - POT.r) * pm;
       if (M.pouring) { // the stream from the pot's lip to the mould
         const sx = px + (C.mx(0) > 0 ? pr * 0.7 : -pr * 0.7), sy = py + pr * 0.2, tx = b.x + b.w * 0.62, ty = b.y + b.h * 0.35;
         g.lineCap = 'round'; g.strokeStyle = M.base; g.lineWidth = 22; g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo((sx + tx) / 2, sy - 30 + Math.sin(M.t * 20) * 6, tx, ty); g.stroke();
