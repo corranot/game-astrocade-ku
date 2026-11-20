@@ -13,7 +13,7 @@ let SP = {};
 /** Start loading every image the config measures. Safe to call again; images already asked for are kept. */
 export function loadSprites(sprites) {
   SP = sprites || {};
-  for (const id of Object.keys(SP).concat('salon_bg')) {
+  for (const id of Object.keys(SP).concat('salon_bg', 'hair_lock')) {
     if (IMG[id]) continue;
     let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map here */ }
     if (!a || !a.url) continue;
@@ -25,12 +25,12 @@ export const ready = (id) => { const im = IMG[id]; return !!(im && im.complete &
 /** Whether every image has arrived or failed (nothing is still on its way). */
 export const settled = () => Object.values(IMG).every((im) => im.complete);
 
-/**
- * A child, head and shoulders, in mood m, with the skull circle at (x, y) and radius R. Returns false when the
- * sheet is not loaded.
- */
-export function drawBust(g, kid, mood, x, y, R) {
-  const id = 'kid_' + kid; if (!ready(id) || !SP[id]) return false;
+/** The loaded image for id, or null. */
+export const imageOf = (id) => (ready(id) ? IMG[id] : null);
+
+/** A child's mood pre-scaled for skull radius R: { canvas, ox, oy } where (ox, oy) is the skull centre in it; null when not loaded. */
+export function bustCanvas(kid, mood, R) {
+  const id = 'kid_' + kid; if (!ready(id) || !SP[id]) return null;
   const i = MOODS[mood] ?? 1, [bx, by, bw, bh] = SP[id].cells[i], [sx, sy, sr] = SP[id].skull[i], k = R / sr;
   const key = id + i + '@' + Math.round(R);
   let c = BUSTS.get(key);
@@ -44,7 +44,12 @@ export function drawBust(g, kid, mood, x, y, R) {
     if (BUSTS.size > 24) BUSTS.clear();
     BUSTS.set(key, c);
   }
-  g.drawImage(c, Math.round(x - sx * k), Math.round(y - sy * k));
+  return { canvas: c, ox: sx * k, oy: sy * k };
+}
+/** A child, head and shoulders, in mood m, with the skull circle at (x, y) and radius R. False when not loaded. */
+export function drawBust(g, kid, mood, x, y, R) {
+  const b = bustCanvas(kid, mood, R); if (!b) return false;
+  g.drawImage(b.canvas, Math.round(x - b.ox), Math.round(y - b.oy));
   return true;
 }
 
