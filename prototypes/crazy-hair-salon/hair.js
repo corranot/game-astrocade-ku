@@ -147,7 +147,7 @@ function near(h, x, y, r, fn) {
 /** Lather where the finger rubs; the lather runs along each strand it touches. Returns the number of points newly foamed. */
 export const foamAt = (h, x, y, r) => near(h, x, y, r, (s, i) => { let n = 0; for (let j = Math.max(1, i - 2); j <= Math.min(s.len, i + 2); j++) if (!s.foam[j]) { s.foam[j] = 1; n++; } return n > 0; });
 /**
- * Dye where the brush passes, soaking one point along the strand each way: points take colour c and count as
+ * Dye where the brush passes, spreading one point along the strand each way: points take colour c and count as
  * painted. only(s, i), when given, keeps the dye inside a zone, like colouring inside the lines. Returns how many changed.
  */
 export const paintAt = (h, x, y, r, c, only) => near(h, x, y, r, (s, i) => { let n = 0; for (let j = Math.max(1, i - 1); j <= Math.min(s.len, i + 1); j++) if ((!only || only(s, j)) && (s.col[j] !== c || !s.mark[j])) { s.col[j] = c; s.mark[j] = 1; n++; } return n > 0; });
