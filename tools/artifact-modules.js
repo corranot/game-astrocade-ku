@@ -23,6 +23,9 @@ if (page.includes('data-lib') && !libLoader) { console.error('index.html has a d
 const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8'));
 delete cfg.persistent_storage_config; // the host keeps this key out of window.gameConfig
 const key = 'save-' + path.basename(path.resolve(dir));
+// images the game folder keeps a copy of (e.g. icons.webp for asset 'icons'): served next to the page, because
+// an artifact cannot load images from the Astrocade CDN. Publish them with the modules.
+const localAssets = Object.fromEntries(fs.readdirSync(dir).filter((f) => /\.(webp|png|jpg)$/.test(f)).map((f) => [f.replace(/\.[^.]+$/, ''), { url: './' + f, type: 'image' }]));
 
 const html = `<title>${title}</title>
 ${fontLink}
@@ -32,7 +35,7 @@ ${importMap}
 ${libLoader}
 <script>
 window.gameConfig = ${JSON.stringify(cfg)};
-window.lib = { showGameParameters() {}, log() {},
+window.lib = { showGameParameters() {}, log() {}, getAsset(id) { return ${JSON.stringify(localAssets)}[id]; },
   shouldUseTouchControls() { return matchMedia('(pointer: coarse)').matches || !matchMedia('(hover: hover)').matches; },
   haptics: { play() { try { if (navigator.userActivation && navigator.userActivation.hasBeenActive && navigator.vibrate) navigator.vibrate(15); } catch (e) {} }, start() {}, stop() {} },
   async getUserGameState() { try { return { state: JSON.parse(localStorage.getItem('${key}') || 'null') }; } catch (e) { return {}; } },

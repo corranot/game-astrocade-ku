@@ -188,7 +188,7 @@ const server = http.createServer((q, s) => {
     const before = await g(() => { const s = __game.save; s.stickers = []; s.theme = 0; __game.newRound(); const S = __game.S; S.touched = true; S.idle = -999;
       S.stickerAt = S.collapses + 1; const b = __game.city.buildings.find((x) => x.state === 'intact'); __game.city.collapse(b, { x: 0, z: 1 }, 0); return s.stickers.length; });
     await page.waitForFunction(() => __game.save.stickers.length > 0, null, { timeout: 8000 }).catch(() => {});
-    const r = await g(() => ({ got: __game.save.stickers.slice(), sticker: __game.S.newSticker, banner: document.querySelector('#banner').textContent }));
+    const r = await g(() => { const b = document.querySelector('#banner'), s = __game.S.newSticker; return { got: __game.save.stickers.slice(), sticker: s, banner: b.textContent + (b.querySelector(`[data-e="${s}"]`) ? s : '') }; });
     const al = await g(() => { __game.openAlbum(); const box = document.querySelector('#album'); const r = { open: !box.hidden, got: box.querySelectorAll('.slot.got').length, slots: box.querySelectorAll('.slot').length }; box.querySelector('#albumClose').click(); return { ...r, closed: box.hidden }; });
     check(before === 0 && r.got.length === 1 && r.got[0] === 'toy0' && r.sticker && r.banner.includes(r.sticker), `a building gives the first Toy Town sticker with a banner (${JSON.stringify(r)})`);
     check(al.open && al.got === 1 && al.slots === 18 && al.closed, `the sticker book shows 1 of 18 and closes (${JSON.stringify(al)})`);
@@ -307,6 +307,14 @@ const server = http.createServer((q, s) => {
     const cd = await p6.evaluate(() => __game.S.skillCd); await touch('touchEnd', []);
     check(walking && cd > 0, `the move button works with a second finger while walking (walking ${walking}, cooldown ${cd.toFixed(1)})`);
     await ctx2.close();
+  }
+  // drawn icons replace the emoji everywhere in the HUD (shop, result, album)
+  {
+    const r = await g(async () => { __game.openShop(); await new Promise((res) => setTimeout(res, 100));
+      const hud = document.querySelector('.hud'), left = (hud.innerText.match(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu) || []);
+      const ic = hud.querySelectorAll('.ic').length, bg = getComputedStyle(hud.querySelector('.ic')).backgroundImage;
+      document.querySelector('#shop').hidden = true; return { left: left.slice(0, 5), ic, atlas: /icons|cloudfront/.test(bg) }; });
+    check(r.ic > 10 && r.left.length === 0 && r.atlas, `drawn icons replace the emoji (${r.ic} icons, emoji left: ${r.left.join(' ') || 'none'})`);
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {

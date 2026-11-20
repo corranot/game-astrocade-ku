@@ -14,9 +14,9 @@ export const MISSIONS = {
     { icon: '🏢', ev: 'tower', n: 1 },
   ],
   tiers: [
-    [{ icon: '🏠', ev: 'house', n: 5 }, { icon: '🚗', ev: 'car', n: 3 }, { icon: '🌳', ev: 'prop', n: 6 }, { icon: '🤖', ev: 'toy', n: 2 }],
+    [{ icon: '🏠', ev: 'house', n: 5 }, { icon: '🚗', ev: 'car', n: 3 }, { icon: '🌳', ev: 'prop', n: 6 }, { icon: '🪖', ev: 'toy', n: 2 }],
     [{ icon: '🏢', ev: 'tower', n: 2 }, { icon: '🔥', ev: 'combo', n: 4, reach: true }, { icon: '🎳', ev: 'domino', n: 2, reach: true }, { icon: '✨', ev: 'move', n: 3 }, { icon: '⭐', ev: 'stars', n: 2, reach: true }],
-    [{ icon: '🎳', ev: 'domino', n: 3, reach: true }, { icon: '🤖', ev: 'toy', n: 8 }, { icon: '🔥', ev: 'combo', n: 6, reach: true }],
+    [{ icon: '🎳', ev: 'domino', n: 3, reach: true }, { icon: '🪖', ev: 'toy', n: 8 }, { icon: '🔥', ev: 'combo', n: 6, reach: true }],
   ],
   rewards: [60, 140, 300],
   odds: [0.5, 0.35, 0.15],

@@ -259,6 +259,33 @@ function startGame(mode) {
     <div class="album" id="gift" hidden></div>
     <div class="langs" id="langs" hidden></div>`;
   const $ = (id) => hud.querySelector('#' + id);
+  // ---------- icons: drawn icons (one atlas, asset 'icons') replace the emoji everywhere in the HUD. A watcher
+  // swaps every emoji that reaches the screen for its icon, so text built anywhere gets them; with no atlas the
+  // emoji stay as they are
+  const ICON_CELL = {"🌀": 0, "💥": 1, "🫧": 2, "📣": 3, "🍮": 4, "🧲": 5, "🌈": 6, "🤧": 7, "🌙": 8, "👣": 9, "⚙️": 10, "⚙": 10, "🔊": 11, "🔇": 12, "📖": 13, "🎁": 14, "📅": 15, "👆": 16, "🔒": 17, "❤": 18, "★": 19, "⭐": 19, "☆": 20, "🥇": 21, "🥈": 22, "🥉": 23, "⏱": 24, "🚗": 25, "🎈": 26, "🔥": 27, "🧱": 28, "🏠": 29, "⬆️": 30, "⬆": 30, "🏢": 31, "🌳": 32, "🪖": 33, "🎳": 34, "✨": 35, "🏙️": 36, "🏙": 36, "🍭": 37, "🏖️": 38, "🏖": 38, "❄️": 39, "❄": 39, "🌋": 40, "🛰️": 41, "🛰": 41, "🎩": 42, "✓": 43, "↻": 44, "🙂": 45, "🥳": 46, "🌸": 47, "😎": 48, "🍰": 49, "🤠": 50, "👑": 51, "🚁": 52, "👸": 54, "🧙": 55, "🦸": 56, "🐰": 57, "🦄": 58, "🍩": 59, "🦀": 60, "🐬": 61, "🧜": 62, "⛄": 63, "🐧": 64, "🎅": 65, "🦕": 66, "🦖": 67, "🐣": 68, "🤖": 69, "👾": 70, "🛸": 71};
+  const atlas = (() => { try { const a = lib.getAsset && lib.getAsset('icons'); return a && (a.url || (typeof a === 'string' ? a : '')); } catch (e) { return ''; } })();
+  const ICON_RE = new RegExp(Object.keys(ICON_CELL).sort((a, b) => b.length - a.length).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + '|\ufe0f', 'g');
+  function iconize(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) { ICON_RE.lastIndex = 0; if (ICON_RE.test(n.nodeValue)) hits.push(n); }
+    for (const n of hits) {
+      const frag = document.createDocumentFragment(); let last = 0; const s = n.nodeValue; ICON_RE.lastIndex = 0;
+      for (let m = ICON_RE.exec(s); m; m = ICON_RE.exec(s)) {
+        if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+        last = m.index + m[0].length; const c = ICON_CELL[m[0]]; if (c === undefined) continue; // a lone variation selector
+        const i = document.createElement('i'); i.className = 'ic'; i.dataset.e = m[0]; i.setAttribute('aria-hidden', 'true');
+        i.style.setProperty('--i', c % 9); i.style.setProperty('--j', Math.floor(c / 9)); frag.appendChild(i);
+      }
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      n.parentNode.replaceChild(frag, n);
+    }
+  }
+  if (atlas) {
+    hud.style.setProperty('--atlas', `url("${atlas}")`); new Image().src = atlas; // fetched now, ready before the first icon shows
+    iconize(hud);
+    new MutationObserver((list) => { for (const r of list) { if (r.type === 'characterData') { if (r.target.parentNode) iconize(r.target.parentNode); } else for (const n of r.addedNodes) if (n.nodeType === 1 || n.nodeType === 3) iconize(n.nodeType === 1 ? n : n.parentNode || hud); } })
+      .observe(hud, { childList: true, subtree: true, characterData: true });
+  }
   const setDir = () => { hud.dir = lang === 'ar' ? 'rtl' : 'ltr'; $('hintT').textContent = T('swipe'); };
   setDir();
 
