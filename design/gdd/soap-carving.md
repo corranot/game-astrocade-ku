@@ -1,6 +1,6 @@
 # GDD: Soap Carving: Satisfying ASMR
 
-> Status: draft for approval (2026-11-20). Platform: Astrocade (portrait iframe 720×1280, touch first).
+> Status: approved and built (2026-11-20, `prototypes/soap-carving/`); notes marked *Built:* record where the build differs. Platform: Astrocade (portrait iframe 720×1280, touch first).
 > Audience: kids 6–10 (Gen Alpha), 7 languages. Benchmark played as guest: Woodturner Workshop (#5 weekly).
 > Market basis: `production/market/2026-11-20T0749/strategi.md` (make/DIY = 13 of the weekly top 50; recipe
 > steps + judged reveal + a shelf of results = highest share). Not in the families of our own live games
@@ -54,17 +54,19 @@ marbles, glitter and gems; the soap joins the player's shelf. A carve takes 45�
 ### 3.3 Carving (step 1)
 - Dragging moves the knife; the blade tip removes soap in a capsule of radius `KNIFE_R` along the finger's
   path (sampled every `KNIFE_STEP` px).
-- **Resistance inside the line:** cells inside the template's outline are harder: they are removed only
-  where the finger has stayed `INSIDE_HOLD` s, or the drag speed is above `INSIDE_SPEED`. A quick slip inside
-  removes a small nick (radius `KNIFE_R × 0.5`), plays "oops" and counts against Shape.
+- **Resistance inside the line:** the knife stops at the line; cells inside the template are removed only when
+  the drag speed is above `INSIDE_SPEED`: a quick slip removes a small nick (radius `KNIFE_R × 0.5`), plays
+  "oops" and counts against Shape. *Built:* the `INSIDE_HOLD` rule was dropped (holding still would let a child
+  dig into the shape by accident), and the knife is free only outside the line (`protect` 0): a protect band
+  inside the line cost 5–7% of Shape on every soap.
 - **Shavings:** each `SHAVE_EVERY` removed cells spawn one curl (a ribbon of 6–10 points, curling while it
   falls, in the outer or inner colour). Curls fall with gravity and **land and stay** on the table/floor in
   a pile (max `SHAVINGS_MAX`, oldest fade).
 - **Chunks:** when a carved stroke separates a region of soap from the main body (flood fill from the bar's
   base), that island falls off as one chunk with a thud and a bounce, and becomes part of the pile. This is a
   big satisfying moment.
-- **Hidden charm:** on orders flagged `charm`, a small charm sprite is embedded at a random point inside the
-  template. When carving exposes ≥ 30% of its area it pops out with sparkles and goes to the charm album.
+- **Hidden charm:** on orders flagged `charm`, a small charm sprite is embedded at a random point in the waste
+  soap at least 30 px outside the line (*Built:* inside the template the knife could never reach it). When carving exposes ≥ 30% of its area it pops out with sparkles and goes to the charm album.
 - **Step done** when ≥ `CARVE_DONE` of the cells outside the outline are removed, or the player taps ✔
   (shown at ≥ `CARVE_CHECK`). Leftover soap outside the line is then trimmed automatically with a short
   auto-carve animation (no penalty below the done threshold, small penalty for what was left).
@@ -93,7 +95,8 @@ marbles, glitter and gems; the soap joins the player's shelf. A carve takes 45�
 - Orders 1–2: heart, star (simple, `SIMPLE_TOL`). From order 3: all 8 shapes, deterministic by order index.
   Every 4th order is a **Golden Soap** (gold marble, double coins). Every 5th order has a hidden charm.
 - After a purchase, the next order asks for the item just bought.
-- **Free carve** unlocks after 6 orders: any shape, no judging, the soap still goes to the shelf.
+- **Free carve** unlocks after 6 orders: any shape, no judging, the soap still goes to the shelf. *Built:* a small
+  oval core (120 px) is the template, so the soap can never be carved away entirely; ✔ shows at 15% carved.
 
 ### 3.8 Economy
 - Coins per soap = `COIN_PER_STAR × stars + (golden ? COIN_PER_STAR × stars : 0)`.
@@ -125,7 +128,8 @@ Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, 
 
 - **Shape score**
   `cover = A(S ∧ T) / A(T)` (how much of the wanted shape is still there)
-  `excess = A(S ∧ ¬T ∧ ¬B) / A(¬T)` (soap left outside the line, beyond the tolerance band)
+  `excess = A(S ∧ ¬T ∧ ¬B) / A(¬T)` (soap left outside the line, beyond the tolerance band; ¬T counted
+  within the bar)
   `shape = clamp(cover − 1.5 × excess, 0, 1)`
 - **Smooth score:** `smooth = 1 − mean(roughness of edge cells)`
 - **Sparkle score:** `sparkle = min(1, glitterDensity / GLITTER_TARGET) × 0.6 + min(gems, 2) / 2 × 0.4`
@@ -172,12 +176,12 @@ Let `T` = template mask (1 inside the outline), `S` = soap mask after the step, 
 
 | Knob | Start | Range | Note |
 |---|---|---|---|
-| `MASK_W × MASK_H` | 300 × 380 | — | cells over `BAR_RECT` (360×456 on screen) |
-| `KNIFE_R` | 16 px | 8–30 | blade radius |
+| `MASK_W × MASK_H` | 380 × 460 | — | *Built:* 1 cell = 1 game px, bar at (170, 420) |
+| `KNIFE_R` | 18 px | 8–30 | blade radius |
 | `KNIFE_STEP` | 6 px | 3–12 | sampling along the drag |
-| `INSIDE_HOLD` / `INSIDE_SPEED` | 0.35 s / 1,800 px/s | — | resistance inside the line |
+| `INSIDE_SPEED` | 2,200 px/s | 800–4,000 | slip speed inside the line (`INSIDE_HOLD` dropped) |
 | `TOL` | 10 px | 4–20 | tolerance band at the outline; `SIMPLE_TOL` 16 px for orders 1–2 |
-| `SHAVE_EVERY` | 40 cells | 20–120 | one curl per this many removed cells |
+| `SHAVE_EVERY` | 240 cells | 60–600 | one curl per this many removed cells (one per ≈ 7 px of a stroke) |
 | `SHAVINGS_MAX` | 140 | 40–300 | pile size cap |
 | `CARVE_DONE` / `CARVE_CHECK` | 0.92 / 0.75 | — | share of outside cells removed |
 | `SPONGE_R` / `SPONGE_RATE` | 40 px / 2.2 s⁻¹ | — | |
