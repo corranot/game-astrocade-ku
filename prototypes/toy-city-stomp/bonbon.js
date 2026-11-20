@@ -133,8 +133,8 @@ export function createBonbon(opts = {}) {
 
   let poseName = '', poseT = 0, poseDur = 1, wantJawOverride = 0, rainbowEyes = false;
   let headYaw = 0, laughT = 0, t = 0, walkPhase = 0, squash = 0, squashV = 0, faceName = 'happy', faceTimer = 0, blink = 0, roarT = 0, attackT = 0, jawOpen = 0;
-  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), grip = [0, 0], bendArm = [0.35, 0.35]; let crouch = 0, lean = 0, leanV = 0;
-  function setFace(name, sec = 1) { faceName = name; faceTimer = sec; }
+  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), grip = [0, 0], bendArm = [0.35, 0.35]; let crouch = 0, kneeTuck = 0, lean = 0, leanV = 0;
+  function setFace(name, sec = 1) { if (faceName === 'dizzy' && faceTimer > 0 && name !== 'dizzy' && name !== 'win' && name !== 'happy') return; faceName = name; faceTimer = sec; } // dizzy stars stay while dizzy
 
   function applyFace(dt) {
     const f = faceName;
@@ -149,7 +149,7 @@ export function createBonbon(opts = {}) {
     }
     const eyeY = blink > 0 ? 0.04 : f === 'win' ? 0.1 : f === 'surprised' || f === 'excited' ? 0.33 : 0.27;
     for (const e of eyes) { e.scale.y += (eyeY - e.scale.y) * Math.min(1, dt * 25); const ex = f === 'excited' ? 0.29 : 0.24; e.scale.x += (ex - e.scale.x) * Math.min(1, dt * 20); }
-    for (const p of pupils) p.scale.setScalar(f === 'excited' ? 0.62 + Math.sin(t * 20) * 0.04 : f === 'surprised' ? 0.36 : 0.5); // sparkly big pupils, tiny ones in shock
+    for (const p of pupils) { const v = f === 'excited' ? 0.6 + Math.sin(t * 20) * 0.03 : f === 'surprised' ? 0.36 : 0.5; p.scale.set(v, v, v * 0.8); } // sparkly big pupils, tiny ones in shock
     for (const b of blush) b.visible = f === 'happy' || f === 'win' || f === 'excited';
     dizzy.visible = f === 'dizzy';
   }
@@ -165,12 +165,6 @@ export function createBonbon(opts = {}) {
     legs[0].position.y = 0.7 + (moving ? Math.max(0, step) * 0.3 : 0);
     legs[1].position.y = 0.7 + (moving ? Math.max(0, -step) * 0.3 : 0);
     legs[0].rotation.x = moving ? step * 0.55 : 0; legs[1].rotation.x = moving ? -step * 0.55 : 0;
-    for (const [i, l] of legs.entries()) { // the lifted leg bends at the knee; the planted foot stays flat and rolls onto its toes
-      const lift = moving ? Math.max(0, i ? -step : step) : 0, push = moving ? Math.max(0, i ? step : -step) : 0, u = l.userData;
-      u.knee.rotation.x = 0.08 + lift * 1.05 + crouch * 0.5;
-      u.ankle.rotation.x = -(l.rotation.x + u.knee.rotation.x) * 0.85 - lift * 0.25;
-      u.toes.rotation.x = push * 0.6 - lift * 0.2;
-    }
     const bob = moving ? Math.abs(Math.cos(walkPhase)) * 0.14 : Math.sin(t * 2.2) * 0.03;
     squashV += (-squash * 140 - squashV * 9) * dt; squash += squashV * dt;
     const sy = 1 - squash + (roarT > 0 ? 0.1 : 0), sxz = 1 + squash * 0.55;
@@ -195,7 +189,7 @@ export function createBonbon(opts = {}) {
       bendArm[i] = atk ? 0.2 : roarT > 0 ? 0.5 : moving ? 0.55 + Math.max(0, -Math.sin(walkPhase + i * Math.PI)) * 0.45 : 0.35;
     }
     // a move's own body language, on top of the walk (k goes 0 -> 1 over the move)
-    crouch = 0;
+    crouch = 0; kneeTuck = 0;
     if (poseT > 0) {
       poseT -= dt; const k = 1 - Math.max(0, poseT) / poseDur, inOut = Math.sin(Math.min(1, k) * Math.PI);
       if (poseName === 'flop' || poseName === 'moon' || poseName === 'jelly') { crouch = k < 0.14 ? Math.sin(k / 0.14 * Math.PI) : 0; body.position.y -= crouch * 0.3; } // anticipation: crouch, then spring up
@@ -222,7 +216,7 @@ export function createBonbon(opts = {}) {
         head.rotation.x += -0.7 * back + 0.6 * snap; torso.rotation.x += -0.3 * back + 0.35 * snap; wantJawOverride = 0.9 * snap;
         for (const e of eyes) e.scale.y = 0.27 - 0.2 * back;
       } else if (poseName === 'moon') { // arms up to the sky, legs tucked
-        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 2.7 * inOut; a.rotation.x = 0; } for (const l of legs) { l.rotation.x = -0.9 * inOut; l.userData.knee.rotation.x = 1.5 * inOut; } grip[0] = grip[1] = -0.5 * inOut;
+        for (const [i, a] of arms.entries()) { a.rotation.z = (i ? -1 : 1) * 2.7 * inOut; a.rotation.x = 0; } for (const l of legs) l.rotation.x = -0.9 * inOut; kneeTuck = 1.5 * inOut; grip[0] = grip[1] = -0.5 * inOut;
       }
       else if (poseName === 'wave') { // turns the head to you and waves one hand high, elbow swinging
         arms[1].rotation.z = -2.5 * inOut; arms[1].rotation.x = -0.2; bendArm[1] = 0.9 + Math.sin(k * 26) * 0.55; grip[1] = -0.3; head.rotation.z += 0.15 * inOut;
@@ -238,6 +232,13 @@ export function createBonbon(opts = {}) {
       if (poseT <= 0) { body.rotation.x = 0; head.scale.set(1, 1, 1); poseName = ''; }
     }
     if (rainbowEyes && poseName !== 'rainbow') { pupilMat.color.setHex(0x1a1030); rainbowEyes = false; }
+    for (const [i, l] of legs.entries()) { // after the poses, so a tuck or crouch keeps the feet flat
+      // the lifted leg bends at the knee; the planted foot stays flat and rolls onto its toes
+      const lift = moving ? Math.max(0, i ? -step : step) : 0, push = moving ? Math.max(0, i ? step : -step) : 0, u = l.userData;
+      u.knee.rotation.x = 0.08 + lift * 1.05 + crouch * 0.5 + kneeTuck;
+      u.ankle.rotation.x = -(l.rotation.x + u.knee.rotation.x) * 0.85 - lift * 0.25;
+      u.toes.rotation.x = push * 0.6 - lift * 0.2;
+    }
     for (const [i, a] of arms.entries()) { // elbows and fingers ease to their pose; the wrist trails the swing (follow-through)
       const u = a.userData, swing = (a.rotation.x - u.prevX) / Math.max(dt, 1e-3); u.prevX = a.rotation.x;
       u.lagV += (-swing * 0.06 - u.lag * 90 - u.lagV * 11) * dt; u.lag += u.lagV * dt; u.lag = THREE.MathUtils.clamp(u.lag, -0.8, 0.8);

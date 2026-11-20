@@ -129,7 +129,7 @@ function run(mode) {
     return;
   }
   if (app) app.destroy();
-  app = startGame(mode === 'edit' ? 'edit' : 'play');
+  try { app = startGame(mode === 'edit' ? 'edit' : 'play'); } catch (e) { app = null; console.error(e); showRetry(); return; } // no WebGL, out of memory: a retry button, never a stuck loading screen
   window.__game = app.debug;
 }
 
@@ -329,10 +329,12 @@ function startGame(mode) {
   const bon = createBonbon({ candy: quality.candy }); scene.add(bon.root);
   const mfx = createMoveFx(scene);
   let rng, S, army = null, missions = null, target = null, lookAt = null;
+  const CN = cfg.cine || {}, cine = { kind: '', t0: 0, dur: 0, x: 0, z: 0 }; let lastCollapseCine = -99; // cinematic shot state (see startCine)
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 
   function newRound() {
     if (city) city.dispose();
+    cine.kind = ''; lastCollapseCine = -99; hud.classList.remove('cine'); // no shot carries into a new city
     // a new city every round: the first one (and the attract mode) is the tuned seed, then each finished city
     // moves the seed on, so the layout, colours and the clock tower's place change
     // the Daily City: the same seed and city for every player today, picked from the map's 📅
@@ -349,7 +351,7 @@ function startGame(mode) {
     resize();
     S = {
       x: city.start.x, z: city.start.z, yaw: Math.PI, stage: 1, xp: 0, points: 0, coins: 0, combo: 0, comboT: 0, bestCombo: 0,
-      time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, lookT: 0, lookP: new THREE.Vector3(), fidgeted: false, trauma: 0, finished: false, idle: 0, touched: false,
+      time: 0, attackT: 0, tooBigT: 0, slowT: 0, hitstopT: 0, lookT: 0, turnT: 0, lookP: new THREE.Vector3(), fidgeted: false, trauma: 0, finished: false, idle: 0, touched: false,
       skillCd: 0, spinT: 0, sweepT: 0, moving: false, speed: 0, chainShown: 0, stepT: 0, firstBonk: false,
       scale: G.baseScale, scaleTarget: G.baseScale, kbX: 0, kbZ: 0, bonusCoins: 0, trucks: 0, truckSet: new Set(), rainbowUsed: false, rainbowT: 0, jingleT: 2, spirit: 0, dizzyT: 0, clock: 0, acts: [], jump: null, skillCdMax: 1, bossDone: false, avoidX: 0, avoidZ: 0, avoidT: 0, pct: 100, cars: 0, hits: 0, blocks0: 0, poseT: 0, carTipT: 2, thrown: 0, daily, dailyBonus: 0, theme: ti, day, collapses: 0, stickerAt: 0, newSticker: '', newCity: -1,
     };
@@ -520,7 +522,7 @@ function startGame(mode) {
       placeMarker('candy', c.x, 4 * sc, c.z, '');
       if (Math.hypot(c.x - S.x, c.z - S.z) < (CC.pickRadius || 2.4) * sc + MC.radius * S.scale * 0.5) {
         S.candy = null; candyMesh.visible = false; hideMarker('candy'); S.megaT = CC.megaSec || 8; S.candyAt = S.time + (CC.everySec || 50);
-        bon.setRainbow(true); startCine('mega', S.x, S.z, CN.megaSec); banner('🍭 ' + T('mega'), 1.8, 1); Sound.rainbow(); buzz('success'); bon.roar(); mfx.ring(S.x, S.z, 0xff9cc6, 8 * S.scale, 0.6);
+        bon.setRainbow(true); if (S.touched) startCine('mega', S.x, S.z, CN.megaSec); banner('🍭 ' + T('mega'), 1.8, 1); Sound.rainbow(); buzz('success'); bon.roar(); mfx.ring(S.x, S.z, 0xff9cc6, 8 * S.scale, 0.6);
       }
     }
     if (S.megaT > 0) { S.megaT -= dt; if (S.megaT <= 0 && S.rainbowT <= 0) bon.setRainbow(false); }
@@ -593,12 +595,12 @@ function startGame(mode) {
     const reach = (cfg.throwCar && cfg.throwCar.reach || 12) * Math.sqrt(S.scale);
     const car = city.pickCar(tapHit.x, tapHit.z, 2.6 + S.scale * 0.6);
     if (!car || Math.hypot(car.x - S.x, car.z - S.z) > reach) { // nothing to throw: a tap on Bonbon tickles it, elsewhere it looks and points
-      const RC = cfg.react || {}, [bx, by] = screenOf(S.x, 1.5 * S.scale, S.z), tx0 = (cx - r.left) / r.width, ty0 = (cy - r.top) / r.height;
-      if (Math.hypot(tx0 - bx, (ty0 - by) * r.height / r.width) < (RC.tickleRadius || 0.14) * Math.sqrt(S.scale / G.baseScale)) {
+      const tx0 = (cx - r.left) / r.width, ty0 = (cy - r.top) / r.height;
+      if (tapRay.intersectObject(bon.root, true).length) { // the tap lands on Bonbon's own body
         if (!bon.posing) { bon.pose('tickle', 1.1); bon.laugh(); Sound.boing(); buzz('tap'); pop('❤', tx0 + 0.05, ty0 - 0.06, '#ff5fa2', 1); S.idle = 0; }
         return;
       }
-      S.lookT = (cfg.react && cfg.react.lookSec) || 1.6; S.lookP.set(tapHit.x, 1.5, tapHit.z); if (!bon.posing) bon.pose('point', 0.9); return;
+      S.lookT = (cfg.react && cfg.react.lookSec) || 1.6; S.lookP.set(tapHit.x, 1.5, tapHit.z); S.turnT = 0.9; if (!bon.posing) bon.pose('point', 0.9); return;
     }
     // the target is a building the child can see (on screen), so the crash is seen
     const onScreen = (b) => { const [sx, sy] = screenOf(b.cx, Math.min(b.h, 6) * 0.5, b.cz); return sx > 0.12 && sx < 0.88 && sy > 0.15 && sy < 0.85; };
@@ -777,6 +779,8 @@ function startGame(mode) {
       let d = Math.atan2(camera.position.x - S.x, camera.position.z - S.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 9);
       if (S.poseT <= 0) S.idle = 0;
     }
+    if (cine.kind === 'boss' && hud.classList.contains('cine')) { mag = 0; ix = iz = 0; } // the boss shot turns the view: no steering against it for those two seconds
+    S.turnT -= dt; if (!mag && S.turnT > 0) { let d = Math.atan2(S.lookP.x - S.x, S.lookP.z - S.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * 8); } // turns to point at a tapped spot
     if (mag) S.idle = 0; else S.idle += dt;
     // nobody steering: walk to the nearest building Bonbon can break (the game plays itself behind the Play card)
     if (!mag && S.dizzyT <= 0 && S.poseT <= 0 && (S.idle > cfg.idleAutoplaySec || !S.touched)) {
@@ -912,7 +916,7 @@ function startGame(mode) {
         mission('stars', e.stars);
         const w = $('wanted'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); Sound.combo(2 + e.stars); // the star row itself pops, no extra text
       } else if (e.type === 'bossIntro') {
-        startCine('boss', army.boss.x, army.boss.z, CN.bossSec); bon.face('surprised', 1.2);
+        if (S.touched) startCine('boss', army.boss.x, army.boss.z, CN.bossSec); bon.face('surprised', 1.2);
         banner(T('warn'), 1.8); $('bossName').textContent = bossName(); $('bossbar').hidden = false; hudCache.boss = null; Sound.roar(9); buzz('warning');
       } else if (e.type === 'bossLand') {
         shake(0.45); Sound.land(); for (let k = 0; k < 10; k++) city.puff(e.x + Math.cos(k) * 5, 0.8, e.z + Math.sin(k) * 5, 2.4);
@@ -1069,8 +1073,7 @@ function startGame(mode) {
   const shakeV = new THREE.Vector3(), monV = new THREE.Vector3();
   let camOverride = null, frozen = false;
   // cinematic shots: the camera eases from the play view to a framed shot and back, with letterbox bars
-  const CN = cfg.cine || {}, cine = { kind: '', t0: 0, dur: 0, x: 0, z: 0 }, cineP = new THREE.Vector3(), cineL = new THREE.Vector3();
-  let lastCollapseCine = -99;
+  const cineP = new THREE.Vector3(), cineL = new THREE.Vector3();
   /** Starts a shot ('boss', 'collapse', 'grow', 'mega') around world point x, z, unless one is playing or motion is reduced. */
   function startCine(kind, x, z, dur) {
     if (calm || !dur || camOverride) return;

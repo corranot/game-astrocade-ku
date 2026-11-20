@@ -217,6 +217,7 @@ body{display:flex;align-items:center;justify-content:center}
 /* loading screen: drawn in CSS so it shows the instant the page opens, before three.js and the fonts arrive */
 #load{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vmin;overflow:hidden;background:radial-gradient(circle at 50% 38%,#c9ecff 0,#8fd2ff 45%,#6bb8f5 100%);transition:opacity .45s,transform .45s}
 #load.out{opacity:0;transform:scale(1.08);pointer-events:none}
+@media (prefers-reduced-motion: reduce){#load *{animation:none!important}#load,#load.out{transform:none}}
 #load .cl{position:absolute;background:#fff;border-radius:999px;opacity:.9;animation:ldrift 14s linear infinite}
 #load .cl::before,#load .cl::after{content:"";position:absolute;background:#fff;border-radius:50%}
 #load .cl::before{width:55%;height:160%;left:15%;bottom:20%}#load .cl::after{width:40%;height:120%;right:12%;bottom:25%}
@@ -281,6 +282,7 @@ body{display:flex;align-items:center;justify-content:center}
   window.__load = { step: step, done: function () { step(100); cap = 100; finished = true; } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { step(25); });
   addEventListener('three-ready', function () { step(55); });
+  addEventListener('error', function () { setTimeout(function () { if (document.getElementById('load')) window.__load.done(); }, 4000); }); // a script error: never hide the page behind it for good
   function tick() {
     target += (cap - target) * 0.012; shown += (target - shown) * (finished ? 0.3 : 0.1);
     var p = Math.min(100, shown); bar.style.width = p + '%'; knob.style.left = p + '%'; knob.textContent = Math.floor(p);

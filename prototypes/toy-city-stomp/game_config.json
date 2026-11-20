@@ -1275,9 +1275,8 @@
     "collapseMinClass": 5
   },
   "react": {
-    "_": "Bonbon reacts to the child: a wave when left alone, a giggle when tapped, points at what was tapped, flexes on combos",
+    "_": "Bonbon reacts to the child: a wave when left alone, a giggle when its body is tapped, turns and points at a tapped spot, flexes on combos",
     "fidgetSec": 2.2,
-    "tickleRadius": 0.14,
     "lookSec": 1.6
   }
 }

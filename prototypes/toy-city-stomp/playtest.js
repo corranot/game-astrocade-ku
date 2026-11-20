@@ -380,6 +380,15 @@ const server = http.createServer((q, s) => {
     check(loadGone && r.tickle && r.wave && r.shot === 'grow' && r.bars && r.ended, `tahap 9: loading screen goes, a tap tickles Bonbon, it waves when left alone, growing plays a framed shot with bars that ends (${JSON.stringify({ loadGone, ...r })})`);
     await p9.close();
   }
+  // no WebGL: a retry button shows and the loading screen goes (never a page stuck at 90%)
+  {
+    const pw = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await pw.addInitScript(() => { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (k, ...a) { return /webgl/.test(k) ? null : g.call(this, k, ...a); }; });
+    await pw.goto(`http://localhost:${port}/?local`);
+    const ok = await pw.waitForFunction(() => !document.getElementById('load') && document.querySelector('#app button[aria-label="Retry"]'), null, { timeout: 20000 }).then(() => true, () => false);
+    check(ok, `with no WebGL the loading screen goes and a retry button shows (${ok})`);
+    await pw.close();
+  }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {
     const p2 = await browser.newPage({ viewport: { width: 405, height: 720 } });

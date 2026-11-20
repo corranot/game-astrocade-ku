@@ -366,7 +366,7 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
   // limbs are their own instances, each turned at its shoulder or hip: residents wave, cheer and kick as they float off
   const personMat = toon({ color: 0xffffff, vertexColors: true }), armGeo = personArm(), legGeo = personLeg();
   const limbs = [pool(24, armGeo, personMat), pool(24, armGeo.clone(), personMat), pool(24, legGeo, personMat), pool(24, legGeo.clone(), personMat)];
-  const JOINT = [[-0.2, 0.17], [0.2, 0.17], [-0.075, -0.15], [0.075, -0.15]], limbM = new THREE.Matrix4(), baseM = new THREE.Matrix4(), jq = new THREE.Quaternion(), je = new THREE.Euler();
+  const JOINT = [[-0.2, 0.17], [0.2, 0.17], [-0.075, -0.15], [0.075, -0.15]], limbM = new THREE.Matrix4(), baseM = new THREE.Matrix4(), limbAng = new Float32Array(8), jq = new THREE.Quaternion(), je = new THREE.Euler();
   const balloons = pool(24, new THREE.SphereGeometry(0.42, 12, 10), toon({ color: 0xffffff, roughness: 0.2 }));
   const strings = pool(24, new THREE.CylinderGeometry(0.02, 0.02, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0x2a2140 }));
   const take = (P) => { const i = P.next; P.next = (P.next + 1) % P.items.length; return i; };
@@ -429,10 +429,11 @@ export function createCity(scene, cfg, rng, quality, opts = {}) {
       people.m.setMatrixAt(i, mtx.compose(v3.set(it.x, it.y, it.z), quat, one.setScalar(s))); heads.m.setMatrixAt(i, mtx); baseM.copy(mtx);
       // on the ground: both arms up and kicking for joy; in the air: the right hand holds the string, the left waves, legs dangle
       const w = it.life * 9 + it.ph, ground = it.hop > 0;
-      const ang = ground ? [[-2.6 + Math.sin(w) * 0.3, 0.3], [-2.6 - Math.sin(w) * 0.3, -0.3], [Math.max(0, Math.sin(w)) * -0.7, 0.05], [Math.max(0, -Math.sin(w)) * -0.7, -0.05]]
-        : [[-1.2 + Math.sin(w * 0.8) * 0.9, 0.7 + Math.sin(w * 0.8) * 0.3], [-2.9, -0.15], [Math.sin(w * 0.35) * 0.45, 0.06], [-Math.sin(w * 0.35) * 0.45, -0.06]];
+      const sw = Math.sin(w), sa = Math.sin(w * 0.8), sl = Math.sin(w * 0.35), A = limbAng; // x, z per limb, filled in place (no garbage per frame)
+      if (ground) { A[0] = -2.6 + sw * 0.3; A[1] = 0.3; A[2] = -2.6 - sw * 0.3; A[3] = -0.3; A[4] = Math.max(0, sw) * -0.7; A[5] = 0.05; A[6] = Math.max(0, -sw) * -0.7; A[7] = -0.05; }
+      else { A[0] = -1.2 + sa * 0.9; A[1] = 0.7 + sa * 0.3; A[2] = -2.9; A[3] = -0.15; A[4] = sl * 0.45; A[5] = 0.06; A[6] = -sl * 0.45; A[7] = -0.06; }
       for (let k = 0; k < 4; k++) {
-        jq.setFromEuler(je.set(ang[k][0], 0, ang[k][1]));
+        jq.setFromEuler(je.set(A[k * 2], 0, A[k * 2 + 1]));
         limbs[k].m.setMatrixAt(i, limbM.compose(v3.set(JOINT[k][0], JOINT[k][1], 0), jq, one.setScalar(1)).premultiply(baseM));
       }
       strings.m.setMatrixAt(i, mtx.compose(v3.set(it.x - sway * 0.5, it.y + 0.75, it.z), quat.setFromEuler(eul.set(0, 0, sway * 0.6)), one.setScalar(s)));
