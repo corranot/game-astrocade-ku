@@ -1078,6 +1078,7 @@ function startGame(mode) {
   function startCine(kind, x, z, dur) {
     if (calm || !dur || camOverride) return;
     if (cine.kind && performance.now() / 1000 - cine.t0 < cine.dur && kind !== 'boss') return;
+    if (kind === 'collapse') { monV.set(x, 2, z).project(camera); if (monV.z > 1 || Math.abs(monV.x) > 1.2) return; } // only a collapse ahead of the camera: one behind it would pull the view off Bonbon
     Object.assign(cine, { kind, t0: performance.now() / 1000, dur, x, z });
   }
   const follow = { x: 0, z: 0, vx: 0, vz: 0, init: false };
@@ -1092,22 +1093,30 @@ function startGame(mode) {
     if (!follow.init) { follow.x = S.x; follow.z = S.z; follow.init = true; }
     const w = 5, ax = (S.x - follow.x) * w * w - 2 * w * follow.vx, az = (S.z - follow.z) * w * w - 2 * w * follow.vz;
     follow.vx += ax * dt; follow.vz += az * dt; follow.x += follow.vx * dt; follow.z += follow.vz * dt;
+    { const lag = 2.5 * Math.pow(S.scale / G.baseScale, 0.95), fx = follow.x - S.x, fz = follow.z - S.z, fl = Math.hypot(fx, fz); // never lag so far that Bonbon leaves the frame
+      if (fl > lag) { follow.x = S.x + fx / fl * lag; follow.z = S.z + fz / fl * lag; } }
     const z = Math.pow(S.scale / G.baseScale, 0.95); // the camera backs off as fast as Bonbon grows
     // all offsets scale with Bonbon, so it keeps the same size and place on screen at every stage: low in the
     // frame, leaving the sky and what lies ahead (a boss, the next towers) in view
     camPos.set(follow.x + 0.8 * z, 8.6 * z, follow.z + 16 * z);
-    camLook.set(follow.x, 3.4 * z, follow.z - 14 * z);
+    camLook.set(follow.x, 2.9 * z, follow.z - 14 * z); // low enough that Bonbon's feet stay on screen
     if (cine.kind) { // blend toward the framed shot (eases in over the first quarter, out over the last)
       const k = (performance.now() / 1000 - cine.t0) / cine.dur, b = THREE.MathUtils.smoothstep(k, 0, 0.25) * (1 - THREE.MathUtils.smoothstep(k, 0.72, 1));
       if (k >= 1 || S.finished) { cine.kind = ''; hud.classList.remove('cine'); }
       else {
         const fx = Math.sin(S.yaw), fz = Math.cos(S.yaw);
-        if (cine.kind === 'boss') { const bs = army.boss.scale || 1, dx = S.x - cine.x, dz = S.z - cine.z, dl = Math.hypot(dx, dz) || 1, d = (15 - k * 4) * bs;
-          cineP.set(cine.x + dx / dl * d + dz / dl * 4 * bs, 5.5 * bs, cine.z + dz / dl * d - dx / dl * 4 * bs); cineL.set(cine.x, 5 * bs, cine.z); }
-        else if (cine.kind === 'collapse') { cineP.lerpVectors(camPos, cineL.set(cine.x, 3 * z, cine.z), 0.32); cineP.x += Math.sin(k * 2) * 3 * z; cineL.set(cine.x, 2.5 * z, cine.z); }
-        else if (cine.kind === 'grow') { cineP.set(S.x + fx * 8 * z - fz * 2.5 * z, 3.4 * z, S.z + fz * 8 * z + fx * 2.5 * z); cineL.set(S.x, 1.8 * z, S.z); }
+        // every shot keeps Bonbon in the frame: the boss is seen over Bonbon's shoulder, a collapse beside it
+        if (cine.kind === 'boss') { const bs = army.boss.scale || 1, dx = S.x - cine.x, dz = S.z - cine.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, zz = Math.max(z, bs * 0.7), d = (18 - k * 3) * zz;
+          cineP.set(S.x + ux * d + uz * 3 * zz, 6.5 * zz, S.z + uz * d - ux * 3 * zz); cineL.set(S.x * 0.7 + cine.x * 0.3, 3 * zz, S.z * 0.7 + cine.z * 0.3); }
+        else if (cine.kind === 'collapse') { cineP.copy(camPos); cineP.y *= 0.8; cineL.set(S.x, 1.6 * S.scale, S.z).lerp(shakeV.set(cine.x, 2.5 * z, cine.z), 0.4); } // Bonbon and the falling tower share the frame
+        else if (cine.kind === 'grow') { const gx = camPos.x - S.x, gz = camPos.z - S.z, gl = Math.hypot(gx, gz) || 1; cineP.set(S.x + gx / gl * 8 * z - gz / gl * 2.5 * z, 3.4 * z, S.z + gz / gl * 8 * z + gx / gl * 2.5 * z); cineL.set(S.x, 1.8 * z, S.z); } // dollies in from the camera's side: Bonbon turns to face it
         else { const m = 1.35 * z; cineP.set(S.x + fx * 10 * m + fz * 4 * m, 1.3 * m, S.z + fz * 10 * m - fx * 4 * m); cineL.set(S.x, 2.8 * m, S.z); } // mega: a low hero angle from the front
-        camPos.lerp(cineP, b); camLook.lerp(cineL, b);
+        // orbit round Bonbon instead of cutting across: the view turns through Bonbon at mid-way, so it never slips out
+        const a0 = Math.atan2(camPos.x - S.x, camPos.z - S.z), a1 = Math.atan2(cineP.x - S.x, cineP.z - S.z), da = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0));
+        const ang = a0 + da * b, rad = THREE.MathUtils.lerp(Math.hypot(camPos.x - S.x, camPos.z - S.z), Math.hypot(cineP.x - S.x, cineP.z - S.z), b);
+        camPos.set(S.x + Math.sin(ang) * rad, THREE.MathUtils.lerp(camPos.y, cineP.y, b), S.z + Math.cos(ang) * rad);
+        monV.set(S.x, 1.6 * S.scale, S.z);
+        if (b < 0.5) camLook.lerp(monV, b * 2); else camLook.copy(monV).lerp(cineL, (b - 0.5) * 2);
         hud.classList.toggle('cine', b > 0.05);
       }
     }
@@ -1115,6 +1124,10 @@ function startGame(mode) {
     const sh = S.trauma * S.trauma * FX.shakeMax * z, tt = performance.now() / 1000;
     camera.position.copy(camPos).add(shakeV.set(Math.sin(tt * 23) * sh * 0.35, Math.sin(tt * 19 + 1) * sh * 0.25, 0));
     camera.lookAt(camLook);
+    if (cine.kind && hud.classList.contains('cine')) { // safety: if Bonbon ever leaves the frame during a shot, ease back now
+      let out = false; for (const h of [0.5, 1.6, 2.6]) { monV.set(S.x, h * S.scale, S.z).project(camera); if (monV.z > 1 || Math.abs(monV.x) > 0.8 || Math.abs(monV.y) > 0.85) out = true; }
+      const now = performance.now() / 1000; if (out && now - cine.t0 < cine.dur * 0.72) cine.t0 = now - cine.dur * 0.72;
+    }
     if (camOverride) { camera.position.copy(camOverride.p); camera.lookAt(camOverride.l); } // tests only: a fixed close-up
     city.setXray(camera.position, monV.set(S.x, 1.4 * S.scale, S.z), 1.6 * S.scale);
     sky.position.copy(camera.position);
