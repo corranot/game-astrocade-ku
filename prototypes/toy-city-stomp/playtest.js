@@ -203,6 +203,24 @@ const server = http.createServer((q, s) => {
     const t = await g(() => ({ b0: __game.S.blocks0, coins: __game.S.coins, touched: __game.S.touched }));
     check(t.touched && t.b0 >= pre && t.coins < 40, `the first touch starts the child's count: ${t.b0} blocks already down left out (>= ${pre}), coins ${t.coins} (the 40 from before are gone), touched ${t.touched}`);
   }
+  // growing: Bonbon turns to face the player for a moment (the camera does not move)
+  {
+    const r = await g(async () => { __game.newRound(); const S = __game.S; S.touched = true; S.idle = -999; const cam0 = __game.camera.position.clone(); __game.grow();
+      await new Promise((res) => setTimeout(res, 500)); const c = __game.camera.position; let d = Math.atan2(c.x - S.x, c.z - S.z) - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      return { facing: Math.abs(d) < 0.5, pose: S.poseT > 0 }; });
+    check(r.facing, `growing turns Bonbon to face the player (${JSON.stringify(r)})`);
+  }
+  // a quick tap on a car near Bonbon throws it at a building on screen: it lands with a comic word and breaks things
+  {
+    const car = await g(() => { const S = __game.S; S.idle = -999; const c = __game.city.cars.find((x) => x.squash <= 0 && !x.fly); c.speed = 0; S.x = c.x; S.z = c.z + 7; window.__car = c; return true; });
+    await page.waitForTimeout(2500); // the camera settles on Bonbon's new place
+    const at = await g(() => __game.screenOfCar(window.__car)), p0 = await g(() => __game.S.points);
+    await page.mouse.click(at[0], at[1]);
+    const word = await page.waitForFunction(() => document.querySelector('.comic'), null, { timeout: 5000 }).then(() => g(() => document.querySelector('.comic').textContent)).catch(() => '');
+    await page.waitForTimeout(600);
+    const r = await g((p0) => ({ thrown: __game.S.thrown, landed: !!window.__car.land, pts: __game.S.points - p0 }), p0);
+    check(r.thrown === 1 && r.landed && r.pts > 0 && word, `tapping a car throws it; it lands with "${word}" and breaks things (+${r.pts})`);
+  }
   // switching cities rebuilds the sky's reflections without leaving the old ones on the GPU
   {
     const t = await g(async () => { const s = __game.save; s.unlocked = 6; const counts = [];
@@ -229,6 +247,15 @@ const server = http.createServer((q, s) => {
         name: document.querySelector('#cityName').textContent, hat: __game.hatOn, theme: __game.save.theme }; });
     check(r.locked === 2 && r.on === 3 && r.name === 'Snow Town' && r.hat === 'party', `a late save fixes the city map (4 open, Snow Town picked, no fake NEW CITY) and keeps the hat picked now (${JSON.stringify(r)})`);
     await p3.close();
+  }
+  // shaders are compiled before the first frame, for the target the scene really draws into (no first-frame stall)
+  {
+    const p4 = await browser.newPage({ viewport: { width: 405, height: 720 } });
+    await p4.goto(`http://localhost:${port}/?local&tier=1`);
+    await p4.waitForFunction(() => window.__game && window.__game.renderer, null, { timeout: 30000 });
+    const r = await p4.evaluate(async () => { const n0 = __game.renderer.info.programs.length; for (let i = 0; i < 4; i++) await new Promise((res) => requestAnimationFrame(res)); return { before: n0, after: __game.renderer.info.programs.length }; });
+    check(r.after - r.before <= 3, `shaders are ready before the first frames (${r.before} programs, ${r.after - r.before} more in the first frames)`);
+    await p4.close();
   }
   // a save that fails to load is never written over (it would wipe coins, moves and the all-time total)
   {

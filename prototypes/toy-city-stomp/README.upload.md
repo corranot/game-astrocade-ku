@@ -23,7 +23,7 @@ cars squash and pop back, and the little toy residents float away happily on bal
 
 ## Features
 
-- Full 3D toy diorama with a sea horizon, a glossy candy monster, buildings that turn see-through when they hide Bonbon.
+- Full 3D cel-shaded toy diorama with very thin ink outlines, a sea horizon, buildings that turn see-through when they hide Bonbon.
 - Combo ×10, dominoes, cracks and glass, dust, confetti, recorded sounds and music.
 - 10 moves, 3 mission tiers, a boss with three phases, Rainbow Mode, 6 themed cities, 13 costumes, 18 stickers.
 - Result screen: blocks smashed, all-time total, the next move to save for, and the top 3 by all-time blocks smashed.
@@ -36,6 +36,7 @@ cars squash and pop back, and the little toy residents float away happily on bal
 - `game.js`: `run(mode)`, renderer, camera, input, rules, HUD, sound, languages, save, shop.
 - `city.js`: the island and city in a theme's colours: buildings made of blocks, collapse and dominoes, cars, trees, lamps, effects.
 - `bonbon.js`: the monster model, its animation, hats and skins.
+- `toon.js`: the cel-shading material shared by everything lit (the thin outline is an edge pass in `game.js`).
 - `army.js`: toy army, wanted stars and the Wind-Up Robot boss.
 - `moves.js`: the button moves and the shop rules.
 - `missions.js`: missions and their rewards.
