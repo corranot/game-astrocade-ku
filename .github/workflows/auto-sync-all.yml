@@ -26,44 +26,28 @@ jobs:
           token: ${{ secrets.SYNC_TOKEN }}
           ref: main
 
-      # 3. Update otomatis 13 Skill Pilihan (Dengan Pengaman Error)
-      - name: Update 13 Selected Skills
+      # 3. Update otomatis 15 skill pilihan dari repo aslinya (clone gagal = langkah gagal, bukan diam-diam)
+      - name: Update 15 Selected Skills
         run: |
+          set -e
           mkdir -p .claude/skills
-
-          if git clone --depth 1 https://github.com /tmp/ponytail; then
-            for s in ponytail ponytail-audit ponytail-debt ponytail-gain ponytail-help ponytail-review; do
-              if [ -d "/tmp/ponytail/skills/$s" ]; then
-                rm -rf ".claude/skills/$s"
-                cp -r "/tmp/ponytail/skills/$s" ".claude/skills/$s"
-              fi
-            done
-          fi
-
-          if git clone --depth 1 https://github.com /tmp/caveman; then
-            for s in caveman ultracave megacave caveman-commit caveman-review caveman-help; do
-              if [ -d "/tmp/caveman/skills/$s" ]; then
-                rm -rf ".claude/skills/$s"
-                cp -r "/tmp/caveman/skills/$s" ".claude/skills/$s"
-              fi
-            done
-          fi
-
-          if git clone --depth 1 https://github.com /tmp/leanrea; then
-            if [ -d "/tmp/leanrea/leanrea" ]; then
-              rm -rf .claude/skills/leanrea
-              cp -r /tmp/leanrea/leanrea .claude/skills/leanrea
-            fi
-          fi
+          # copy <repo dir> <subdir holding the skills> <skill names...>
+          copy() { src="$1/$2"; shift 2; for s in "$@"; do if [ -d "$src/$s" ]; then rm -rf ".claude/skills/$s"; cp -r "$src/$s" ".claude/skills/$s"; else echo "::warning::skill $s not found in $src"; fi; done; }
+          git clone --depth 1 https://github.com/DietrichGebert/ponytail /tmp/ponytail
+          copy /tmp/ponytail skills ponytail ponytail-audit ponytail-debt ponytail-gain ponytail-help ponytail-review
+          git clone --depth 1 https://github.com/JuliusBrussee/caveman /tmp/caveman
+          copy /tmp/caveman skills caveman ultracave megacave caveman-commit caveman-review caveman-help caveman-compress caveman-stats
+          git clone --depth 1 https://github.com/aicodeking/leanrea /tmp/leanrea
+          copy /tmp/leanrea . leanrea
 
       # 4. Simpan otomatis ke GitHub jika ada perubahan versi baru
       - name: Commit and Push
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@://github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .claude/skills/
           if ! git diff --staged --quiet; then
-            git commit -m "chore: auto-update 13 selected skills"
+            git commit -m "chore: auto-update 15 selected skills"
             git push origin main
           else
             echo "Semua skill sudah versi paling baru!"

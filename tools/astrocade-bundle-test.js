@@ -32,7 +32,11 @@ const outer = `<!doctype html><html><body style="margin:0"><iframe id="g" style=
   await p.setContent(outer);
   const f = p.frames().find((x) => x !== p.mainFrame());
   let started = false;
-  for (let i = 0; i < 40 && !started; i++) { await p.waitForTimeout(500); started = await f.evaluate(() => !!(window.__game && window.__game.S)).catch(() => false); }
+  for (let i = 0; i < 40 && !started; i++) { await p.waitForTimeout(500); started = await f.evaluate(() => { // the game's debug hook is set, or a 2D canvas on screen has been drawn on (not one flat colour)
+    if (window.__game) return true;
+    for (const c of document.querySelectorAll('canvas')) { if (!c.width || !c.getBoundingClientRect().width) continue; const g = c.getContext('2d'); if (!g) continue;
+      const d = g.getImageData(0, 0, c.width, c.height).data, seen = new Set(); for (let k = 0; k < d.length; k += 4 * 997) seen.add(d[k] << 16 | d[k + 1] << 8 | d[k + 2]); if (seen.size > 8) return true; }
+    return false; }).catch(() => false); }
   if (started) await p.waitForTimeout(3000);
   const errs = await f.evaluate(() => window.__errs).catch(() => ['frame not reachable']);
   if (shot) await p.screenshot({ path: shot });

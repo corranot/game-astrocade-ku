@@ -1,0 +1,65 @@
+name: Checks
+
+# Every PR and push to main: fast checks on all games, then each game started the way Astrocade runs it.
+# PRs by the owner are merged only after both jobs pass (this replaced the old instant auto-merge).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    name: Syntax, JSON, THREE at import, upload sets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bash tools/ci-checks.sh
+
+  bundle:
+    name: Each game starts as an Astrocade bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright with Chromium
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright@1.56.1 esbuild@0.24.0
+          npx playwright install --with-deps chromium
+      - name: Start every game from its bundle
+        run: |
+          fail=0
+          for d in prototypes/*/; do
+            grep -q '<script type="module" src="./game.js"></script>' "$d/index.html" 2>/dev/null || continue
+            out=$(node tools/astrocade-bundle-test.js "$d") || { echo "::error::$d bundle test crashed"; fail=1; continue; }
+            echo "$d $out" | tr -d '\n'; echo
+            echo "$out" | node -e 'const r = JSON.parse(require("fs").readFileSync(0, "utf8")); process.exit(r.started && !r.errors.length ? 0 : 1)' || { echo "::error::$d did not start cleanly"; fail=1; }
+          done
+          exit $fail
+
+  automerge:
+    name: Merge the owner's PR once checks pass
+    needs: [fast, bundle]
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'corranot'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr ready "$PR_URL" || true
+          gh pr merge "$PR_URL" --squash
