@@ -25,7 +25,7 @@ export function createWorld(cfg0, n, opts = {}) {
     hero: { x: L.spawn.x, y: 0, z: L.spawn.z, vy: 0, yaw: Math.PI, moving: false, swingT: -1, swingCell: null, cool: 0, goal: null, aim: null, hold: false, happy: 0, stepT: 0, bump: 0 },
     shots: [], falls: [], fuses: [], cool: {}, owned: (opts.owned || ['hammer', 'bomb']).slice(), tried: new Set(),
     combo: createCombo(cfg), coins: 0, smashed: 0, demo: !!opts.demo, phase: 'play', fever: 0, t: 0, ev: [], nextId: 1,
-    hardT: 0, used: new Set(), ids, lastHard: null, coinMult: opts.coinMult || 1, daily: !!opts.daily,
+    hardT: 0, used: new Set(), ids, lastHard: null, coinMult: (opts.coinMult || 1) * (L.boss ? cfg.boss.mult : 1), daily: !!opts.daily, boss: !!L.boss, theme: L.theme,
   };
   return W;
 }

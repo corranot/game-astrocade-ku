@@ -32,7 +32,7 @@ export function createScene(cv, cfg) {
     fragmentShader: 'uniform vec3 top; uniform vec3 low; varying vec3 vP; void main(){ float k = smoothstep(-0.05, 0.55, vP.y); gl_FragColor = vec4(mix(low, top, k), 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
   }));
   const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(300, 24, 12)), skyMat); scene.add(sky);
-  scene.add(new THREE.HemisphereLight('#e4f4ff', '#8fcf6a', 1.7));
+  const hemi = new THREE.HemisphereLight('#e4f4ff', '#8fcf6a', 1.7); scene.add(hemi);
   const sun = new THREE.DirectionalLight('#fff4dc', 2.3); sun.position.set(0.55, 1, 0.38).multiplyScalar(50); scene.add(sun); scene.add(sun.target);
   // soft sun shadows over the whole lot (off on a slow phone)
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -44,6 +44,8 @@ export function createScene(cv, cfg) {
   const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = keep(new THREE.CanvasTexture(c)); t.colorSpace = THREE.SRGBColorSpace; return t; };
   const grassTex = tex(128, 128, (x, w, h) => { x.fillStyle = '#6fd14a'; x.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { const v = Math.random(); x.fillStyle = v < 0.5 ? 'rgba(80,180,50,.55)' : 'rgba(150,235,100,.5)'; x.fillRect(Math.random() * w, Math.random() * h, 2, 3); } });
   grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping; grassTex.repeat.set(70, 70);
+  const snowTex = tex(128, 128, (x, w, h) => { x.fillStyle = '#f4f9ff'; x.fillRect(0, 0, w, h); for (let i = 0; i < 700; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(200,222,245,.6)' : 'rgba(255,255,255,.9)'; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); } });
+  snowTex.wrapS = snowTex.wrapT = THREE.RepeatWrapping; snowTex.repeat.set(70, 70);
   const ground = new THREE.Mesh(keep(new THREE.PlaneGeometry(400, 400)), keep(new THREE.MeshLambertMaterial({ map: grassTex })));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   const pathMat = keep(new THREE.MeshLambertMaterial({ color: '#e8c48a' }));
@@ -287,6 +289,16 @@ export function createScene(cv, cfg) {
   function addTrauma(k) { cam.trauma = Math.min(1, cam.trauma + (reduced ? k * 0.3 : k)); }
 
   /** Shows level W: rebuilds every chunk, the chest, the beacons and the path. */
+  // snow: flakes drifting around the eye (one Points object, 260 flakes)
+  const flakeN = 260, flakePos = new Float32Array(flakeN * 3); for (let i = 0; i < flakeN; i++) { flakePos[i * 3] = Math.random() * 40 - 20; flakePos[i * 3 + 1] = Math.random() * 18; flakePos[i * 3 + 2] = Math.random() * 40 - 20; }
+  const flakeGeo = keep(new THREE.BufferGeometry()); flakeGeo.setAttribute('position', new THREE.BufferAttribute(flakePos, 3));
+  const flakes = new THREE.Points(flakeGeo, keep(new THREE.PointsMaterial({ color: '#ffffff', size: 0.16, fog: false }))); flakes.frustumCulled = false; flakes.visible = false; scene.add(flakes);
+  /** The level's look: day, warm sunset or snow (always bright: sky, light, ground tint, snowflakes). */
+  function setTheme(name) {
+    const t = cfg.themes[name] || cfg.themes.day;
+    SKY_TOP.set(t.top); SKY_LOW.set(t.low); scene.fog.color.set(t.low); sun.color.set(t.sun); hemi.groundColor.set(t.hemiG);
+    ground.material.color.set(t.ground); ground.material.map = name === 'snow' ? snowTex : grassTex; flakes.visible = name === 'snow';
+  }
   function setLevel(world) {
     W = world;
     for (const m of chunks.values()) { chunkRoot.remove(m); m.geometry.dispose(); } chunks.clear(); dirty.clear();
@@ -302,6 +314,7 @@ export function createScene(cv, cfg) {
     for (const c of W.starCells) { const b = makeBeacon(); b.cell = c; beacons.push(b); }
     const pz0 = W.box.z1 + 0.5, pz1 = W.g.D + 30; path.scale.set(1, pz1 - pz0, 1); path.position.set((W.box.x0 + W.box.x1 + 1) / 2, 0.01, (pz0 + pz1) / 2);
     cam.yaw = 0; cam.pitch = cfg.camera.pitch0; cam.eyeY = cfg.camera.eye;
+    setTheme(W.theme);
   }
 
   // ---- input helpers
@@ -432,6 +445,7 @@ export function createScene(cv, cfg) {
       b.w.scale.setScalar(b.r * 2.4 * k); b.w.material.opacity = 0.7 * (1 - k);
     }
     flash.intensity *= Math.exp(-dt * 9);
+    if (flakes.visible) { const p = flakeGeo.attributes.position.array, cx = camera.position.x, cz = camera.position.z; for (let i = 0; i < flakeN; i++) { p[i * 3 + 1] -= dt * (1.2 + (i % 5) * 0.2); p[i * 3] += Math.sin(time + i) * dt * 0.3; if (p[i * 3 + 1] < 0) p[i * 3 + 1] += 18; } flakes.position.set(cx - (cx % 40), 0, cz - (cz % 40)); flakeGeo.attributes.position.needsUpdate = true; }
   }
   function updateCamera(dt) {
     const h = W.hero, cc = cfg.camera;

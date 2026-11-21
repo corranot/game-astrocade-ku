@@ -361,7 +361,8 @@
    "album": "ALBUM",
    "max": "MAX",
    "dailyGo": "DAILY ×2",
-   "built": "BUILDINGS"
+   "built": "BUILDINGS",
+   "boss": "BOSS BUILDING!"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -399,7 +400,8 @@
    "album": "الألبوم",
    "max": "الحد الأقصى",
    "dailyGo": "يومي ×2",
-   "built": "المباني"
+   "built": "المباني",
+   "boss": "مبنى الزعيم!"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -437,7 +439,8 @@
    "album": "ÁLBUM",
    "max": "MÁX",
    "dailyGo": "DIARIO ×2",
-   "built": "EDIFICIOS"
+   "built": "EDIFICIOS",
+   "boss": "¡EDIFICIO JEFE!"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -475,7 +478,8 @@
    "album": "ALBUM",
    "max": "TỐI ĐA",
    "dailyGo": "HÀNG NGÀY ×2",
-   "built": "TOÀ NHÀ"
+   "built": "TOÀ NHÀ",
+   "boss": "TOÀ NHÀ TRÙM!"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -513,7 +517,8 @@
    "album": "एल्बम",
    "max": "पूरा",
    "dailyGo": "आज का ×2",
-   "built": "इमारतें"
+   "built": "इमारतें",
+   "boss": "बॉस इमारत!"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -551,7 +556,8 @@
    "album": "অ্যালবাম",
    "max": "সর্বোচ্চ",
    "dailyGo": "আজকের ×2",
-   "built": "ভবন"
+   "built": "ভবন",
+   "boss": "বস ভবন!"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -589,7 +595,8 @@
    "album": "ALBUM",
    "max": "MAKS",
    "dailyGo": "HARIAN ×2",
-   "built": "GEDUNG"
+   "built": "GEDUNG",
+   "boss": "GEDUNG BOS!"
   }
  },
  "persistent_storage_config": {
@@ -698,5 +705,31 @@
  },
  "daily": {
   "mult": 2
+ },
+ "boss": {
+  "mult": 2
+ },
+ "themes": {
+  "day": {
+   "top": "#3aa8ff",
+   "low": "#d9f3ff",
+   "sun": "#fff4dc",
+   "hemiG": "#8fcf6a",
+   "ground": "#ffffff"
+  },
+  "sunset": {
+   "top": "#4f8dff",
+   "low": "#ffd2a1",
+   "sun": "#ffd9a8",
+   "hemiG": "#c9b37a",
+   "ground": "#fff1d8"
+  },
+  "snow": {
+   "top": "#4aa8ff",
+   "low": "#eaf6ff",
+   "sun": "#ffffff",
+   "hemiG": "#dfefff",
+   "ground": "#e9f3ff"
+  }
  }
 }

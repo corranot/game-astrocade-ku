@@ -174,6 +174,7 @@ function startGame(mode) {
     $('panel').hidden = true; $('shop').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
     renderTools(); renderTop();
+    if (!demo && lastLevelShown !== n && W.boss) setTimeout(() => { if (alive && W && W.n === n) { banner(T('boss'), 'p-big', -200); Sound.play('fever'); } }, 700);
     if (!demo && lastLevelShown !== n) { lastLevelShown = n; banner(`${T('level', n + 1)}`, 'p-mid', -60); setTimeout(() => { if (alive && W && W.n === n) banner(T(W.kind), 'p-mid', 20); }, 350); }
     setTip(demo ? 'tap' : 'find');
   }

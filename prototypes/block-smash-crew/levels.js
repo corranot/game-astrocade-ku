@@ -163,7 +163,9 @@ export const KINDS = Object.keys(BUILD);
  */
 export function buildLevel(cfg, n) {
   const M = matIds(cfg), L = cfg.level;
-  const kind = KINDS[n % KINDS.length], s = Math.min(L.maxStep, Math.floor(n / KINDS.length));
+  // every 5th level is a boss: the biggest size of its building; the look also changes with the level (theme)
+  const boss = n % 5 === 4 && n < 1000, kind = KINDS[n % KINDS.length], s = boss ? L.maxStep : Math.min(L.maxStep, Math.floor(n / KINDS.length));
+  const theme = ['day', 'sunset', 'snow'][n % 3] === 'snow' && kind === 'ice' ? 'day' : ['day', 'sunset', 'snow'][n % 3];
   const rnd = rng(1000 + n * 7919);
   const g = createGrid(L.W, L.H, L.D);
   const w = Math.min(L.W - 12, L.bw + s * 2 + (kind === 'castle' ? 4 : 0)), d = Math.min(L.D - 18, L.bd + s * 2 + (kind === 'lighthouse' ? 8 : 0));
@@ -193,5 +195,5 @@ export function buildLevel(cfg, n) {
   for (const [x, z] of [[3, b.z0 + 2], [L.W - 4, b.z0 + 2], [3, b.z1 - 1], [L.W - 4, b.z1 - 1]]) if (!g.get(x, 0, z)) tree(g, M, x, z, 4 + Math.floor(rnd() * 2), rnd);
   putTnt(Math.floor(L.W / 2) - 1, fz + 2) || putTnt(Math.floor(L.W / 2) - 2, fz + 2); // straight ahead (just left of the hammer) in front of the fence: the first tap is a boom
   const total = g.count();
-  return { grid: g, kind, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 6.5) }, stars, tnt, total, box: b, fenceZ: fz, top };
+  return { grid: g, kind, boss, theme, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 6.5) }, stars, tnt, total, box: b, fenceZ: fz, top };
 }
