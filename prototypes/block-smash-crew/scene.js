@@ -303,7 +303,7 @@ export function createScene(cv, cfg) {
   function updateHero(dt) {
     const h = W.hero;
     // the tool in the hand: the hammer swings down at SWING_HIT, a thrown tool is pushed forward
-    const want = cam.tool || 'hammer';
+    const want = h.swingT >= 0 && h.throwKind ? h.throwKind : cam.tool || 'hammer'; // a throw shows the thrown tool, even when the hand goes back to the hammer
     if (want !== heldTool) { held[heldTool].visible = false; heldTool = want; }
     held[heldTool].visible = true;
     let rx = 0, rz = 0, py = 0;
@@ -432,6 +432,7 @@ export function createScene(cv, cfg) {
     set tool(id) { cam.tool = id; },
     get target() { return cam.target; },
     pickCenter,
+    get heldTool() { return heldTool; },
     /** Attract mode: the view sweeps slowly across the building's front. */
     demoLook(b) { if (!W) return; const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1, h = W.hero; cam.follow = false; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12; },
     get coinArrive() { return coinArrive; },

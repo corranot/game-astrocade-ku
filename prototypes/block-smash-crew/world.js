@@ -92,6 +92,8 @@ export function aimHammer(W, t, hold) {
     // walk to the face that was tapped (on the ground in front of it)
     h.goal = { x: t.x + 0.5 + (t.nx || 0) * 0.9, z: t.z + 0.5 + (t.nz || 0) * 0.9 };
   } else { h.aim = null; h.goal = { x: t.x, z: t.z }; }
+  const lim = (v, n) => Math.max(-12, Math.min(n + 12, v)); // a tap near the horizon still walks to the lot's edge, not 160 blocks away
+  if (h.goal) { h.goal.x = lim(h.goal.x, W.g.W); h.goal.z = lim(h.goal.z, W.g.D); }
 }
 export function release(W) { W.hero.hold = false; }
 
@@ -104,7 +106,7 @@ export function useTool(W, id, p) {
   W.cool[id] = cooldownOf(W.cfg, id, W.fever > 0);
   W.used.add(id);
   const h = W.hero, [hx, hy, hz] = heroChest(W);
-  h.yaw = Math.atan2(p.x - h.x, p.z - h.z); h.swingT = 0; h.swingCell = null; // throw animation
+  h.yaw = Math.atan2(p.x - h.x, p.z - h.z); h.swingT = 0; h.swingCell = null; h.throwKind = id; // throw animation with that tool in the hand
   const shot = { id: W.nextId++, kind: id, t: 0, x: hx, y: hy + 0.6, z: hz, sx: hx, sy: hy + 0.6, sz: hz, tx: p.x, ty: p.y, tz: p.z, r: tl.r, free: !owned };
   if (id === 'bomb') { shot.dur = Math.max(0.35, Math.min(0.8, Math.hypot(p.x - hx, p.z - hz) / 22)); }
   else if (id === 'rocket') { const d = Math.hypot(p.x - hx, p.y - shot.y, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dy = (p.y - shot.y) / d; shot.dz = (p.z - hz) / d; shot.dist = 0; }
@@ -173,7 +175,7 @@ function land(W, f) {
 /** Starts a hammer swing at cell c (it lands part way through); false while the last swing or its cooldown runs. */
 function swingAt(W, c) {
   const h = W.hero; if (h.cool > 0 || h.swingT >= 0) return false;
-  h.swingT = 0; h.cool = tool(W, 'hammer').cd; h.swingCell = c ? { x: c.x, y: c.y, z: c.z } : null;
+  h.swingT = 0; h.cool = tool(W, 'hammer').cd; h.swingCell = c ? { x: c.x, y: c.y, z: c.z } : null; h.throwKind = null;
   W.ev.push({ type: 'swing' }); return true;
 }
 /** First person: the player swings at the block under the crosshair (null = a swing at the air). */

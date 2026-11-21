@@ -215,7 +215,7 @@ function startGame(mode) {
   root.classList.toggle('touch', touchUI); root.classList.toggle('desk', !touchUI);
   let ptr = null; // the look/tap finger {id, x, y, sx, sy, cx, cy, drag, t, hold}
   let stick = null; // the walking thumb {id, bx, by, dx, dy}
-  let hitHeld = false, locked = false, usedKeys = false;
+  let hitHeld = false, locked = false, usedKeys = false, lockRefused = false;
   const keys = new Set();
   const STICK_R = 80;
   function firstTouch() {
@@ -235,11 +235,16 @@ function startGame(mode) {
       stick = { id: e.pointerId, bx: x, by: y, dx: 0, dy: 0 }; showStick(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); e.preventDefault(); return;
     }
     // mouse look once the player walks with the keys; before that a click is a tap
-    if (!touchUI && usedKeys && e.pointerType === 'mouse' && !locked && cv.requestPointerLock) { try { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (er) { /* not allowed here: drag to look */ } }
+    if (!touchUI && usedKeys && e.pointerType === 'mouse' && !locked && cv.requestPointerLock) {
+      // this click only asks for the lock: it makes no finger (its pointerup may come after the lock)
+      let asked = false; try { const r = cv.requestPointerLock(); asked = true; if (r && r.catch) r.catch(() => { lockRefused = true; }); } catch (er) { lockRefused = true; }
+      if (asked && !lockRefused) { e.preventDefault(); return; }
+    }
     if (locked) { onHitDown(); e.preventDefault(); return; }
     if (ptr && ptr.id !== e.pointerId) return; // a third finger is ignored
     ptr = { id: e.pointerId, x, y, sx: x, sy: y, cx: e.clientX, cy: e.clientY, drag: false, t: performance.now() };
-    if (sel === 'hammer') { const t = scene.pick(e.clientX, e.clientY); if (t) { WD.aimHammer(W, t, true); scene.follow = true; if (tipKey === 'find' || tipKey === 'tap') setTip(null); } }
+    if (sel === 'hammer' && (tipKey === 'find' || tipKey === 'tap')) setTip(null);
+    // the hammer waits: a quick tap aims on release, a still hold after 120 ms; a drag only looks (it never swings)
     e.preventDefault();
   }
   function onMove(e) {
@@ -260,6 +265,7 @@ function startGame(mode) {
     if (!W) return;
     WD.release(W);
     if (!p.drag && sel !== 'hammer') useSelected(e.clientX, e.clientY);
+    if (!p.drag && sel === 'hammer' && !p.held && !resultsOpen) { const t = scene.pick(e.clientX, e.clientY); if (t) { WD.aimHammer(W, t, false); scene.follow = true; } }
   }
   function showStick() {
     const el = $('stick'); el.hidden = !stick; if (!stick) return;
@@ -291,7 +297,7 @@ function startGame(mode) {
     } else { Sound.play('no'); const el = toolEls[id]; el.classList.remove('no'); void el.offsetWidth; el.classList.add('no'); }
   }
   function pickTool(id) {
-    if (mode !== 'play' || !W) return;
+    if (mode !== 'play' || !W || resultsOpen) return; // nothing is bought or picked behind the result card
     Sound.unlock(); if (demo) firstTouch();
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id);
     if (!owned && !usable(id) && save.coins >= t.cost) { // buy it, only once its free try is used (and never in smash time, which lends it)
@@ -311,7 +317,7 @@ function startGame(mode) {
   const hitUp = () => { hitHeld = false; hitBtn.classList.remove('down'); };
   hitBtn.addEventListener('pointerup', hitUp); hitBtn.addEventListener('pointercancel', hitUp); hitBtn.addEventListener('pointerleave', hitUp);
   const onCancel = (e) => { if (stick && e.pointerId === stick.id) { stick = null; showStick(); } if (!ptr || e.pointerId !== ptr.id) return; ptr = null; if (W) WD.release(W); }; // a cancelled touch never fires a tool
-  const onLock = () => { locked = document.pointerLockElement === cv; if (!locked) hitHeld = false; };
+  const onLock = () => { locked = document.pointerLockElement === cv; if (!locked) hitHeld = false; else if (ptr) { ptr = null; if (W) { WD.release(W); WD.aimHammer(W, null); } } };
   root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onCancel);
   document.addEventListener('pointerlockchange', onLock);
   const noMenu = (e) => e.preventDefault(); root.addEventListener('contextmenu', noMenu);
@@ -319,12 +325,14 @@ function startGame(mode) {
   root.addEventListener('wheel', onWheel, { passive: true });
   const MOVE_KEYS = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'];
   const onKey = (e) => {
-    const k = (e.key || '').toLowerCase();
+    // physical keys (e.code): an Arabic or any other layout still walks with the W A S D positions
+    const CODE = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', ArrowUp: 'arrowup', ArrowDown: 'arrowdown', ArrowLeft: 'arrowleft', ArrowRight: 'arrowright', ShiftLeft: 'shift', ShiftRight: 'shift', Space: ' ' };
+    const k = CODE[e.code] || (e.key || '').toLowerCase();
     if (e.type === 'keyup') { keys.delete(k); if (k === ' ') hitHeld = false; return; }
     if (mode !== 'play' || !W) return;
     if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); Sound.unlock(); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
-    const i = '123456'.indexOf(e.key); if (i >= 0 && cfg.tools[i]) { pickTool(cfg.tools[i].id); e.preventDefault(); }
+    const dm = /^Digit([1-6])$/.exec(e.code || ''), i = dm ? Number(dm[1]) - 1 : '123456'.indexOf(e.key); if (i >= 0 && cfg.tools[i]) { pickTool(cfg.tools[i].id); e.preventDefault(); }
   };
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
   const onBlur = () => { keys.clear(); hitHeld = false; };
@@ -378,7 +386,8 @@ function startGame(mode) {
   // ---- results: stars, coins, next tool, NEXT
   function results() {
     if (!W || demo) return;
-    WD.aimHammer(W, null); WD.release(W); // a finger still down stops smashing behind the card
+    WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false; // a finger, key or stick still down stops behind the card
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ } // the cursor comes back for NEXT
     const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1; // trophies for wrecking 50% and 80%
     // the level bonus is paid once; later visits (after smashing more) only add the stars' difference
     const bonus = paidStars === null ? L.levelBonus(cfg, W.n, stars) : (stars.every(Boolean) && !paidStars.every(Boolean) ? L.levelBonus(cfg, W.n, stars) / 2 : 0);
@@ -432,7 +441,8 @@ function startGame(mode) {
         demoT -= dt;
         if (demoT <= 0) { demoT = 1.6; const t = demoTarget(); if (t) { W.cool.rocket = 0; WD.useTool(W, 'rocket', t); } }
         scene.demoLook(W.box);
-      } else if (!resultsOpen) {
+      } else if (resultsOpen) WD.setMove(W, 0, 0);
+      else {
         // walking: the stick or the keys, turned by where the view looks
         let fx = 0, sx = 0;
         if (stick) { sx = stick.dx / STICK_R; fx = -stick.dy / STICK_R; }
@@ -445,8 +455,8 @@ function startGame(mode) {
         if (!scene.follow) W.hero.yaw = scene.yaw + Math.PI; // the hero faces where the player looks
         if (hitHeld && sel === 'hammer') hammerAtCrosshair();
       }
-      if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && !stick) { // holding on a block: keep aiming at what is under the finger
-        const t = scene.pick(ptr.cx, ptr.cy); if (t) WD.aimHammer(W, t, true);
+      if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && !stick && performance.now() - ptr.t > 120) { // holding on a block: keep aiming at what is under the finger
+        const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true); if (!ptr.held) { ptr.held = true; scene.follow = true; } }
       }
       const sub = dt > 1 / 45 ? 2 : 1;
       for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
