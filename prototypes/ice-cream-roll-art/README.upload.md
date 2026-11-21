@@ -1,4 +1,4 @@
-# Ice Cream Roll Art: DIY Rolled Ice Cream Maker
+# Ice Cream Roll Art: DIY ASMR Maker
 
 Genre: step-by-step food maker, rolled ice cream (Thai stir-fried ice cream) ASMR. Ages 5–12. One finger.
 
@@ -16,7 +16,11 @@ your drawing inside. Stand the rolls in a cup, add toppings and serve for stars 
 7. **Roll** — swipe up each lane; every roll stands up with its spiral on top.
 8. **Toppings** — whipped cream, chocolate, sprinkles, cherry and more, then Serve.
 
-The first cup is ready to roll, so the fun starts at once. Coins unlock new flavours (matcha, ocean, taro), fruit,
+After the last roll, the camera looks down into the spirals so you can see your drawing inside.
+
+The first cup is ready to roll, so the fun starts at once. Every third customer is a VIP who pays double, and once a
+day there is a Today's Special order, the same for everyone. My Cups (🍨) keeps a photo of every cup you serve and lets
+you pick paper cup designs. Coins unlock new flavours (matcha, ocean, taro), fruit,
 toppings and syrups; anything locked can be tried for free in the current cup. Gift box every 3 cups and a daily gift.
 No losing and no timers. 7 languages (English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian) follow the
 device, with a 🌐 button to change.

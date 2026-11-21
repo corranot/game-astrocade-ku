@@ -25,6 +25,10 @@ function rnd(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 16807) % 21
 /** A new sheet. `onDirty` is called when the texture must be re-uploaded. */
 export function createSheet() {
   const out = mk(), puddle = mk(), spread = mk(), art = mk(), frost = mk(), artDone = mk();
+  // height of the cream (grey 128 = flat): spatula ridges, fruit lumps, raised syrup; shown as the bump map
+  const bump = mk(), artBump = mk(), bumpOut = mk();
+  const gb = bump.getContext('2d'), gab = artBump.getContext('2d'), gbo = bumpOut.getContext('2d');
+  const flatBump = () => { gb.fillStyle = '#808080'; gb.fillRect(0, 0, N, N); gab.clearRect(0, 0, N, N); };
   const gd = artDone.getContext('2d');
   let cur = []; // the syrup stroke in progress, in canvas pixels
   const g = out.getContext('2d'), gp = puddle.getContext('2d'), gs = spread.getContext('2d'), ga = art.getContext('2d'), gf = frost.getContext('2d');
@@ -48,13 +52,14 @@ export function createSheet() {
   })();
 
   const api = {
-    canvas: out, RECT,
+    canvas: out, bumpCanvas: bumpOut, RECT,
+    get bumpDirty() { return S.bumpDirty; }, set bumpDirty(v) { S.bumpDirty = v; },
     get dirty() { return S.dirty; }, set dirty(v) { S.dirty = v; },
     get cover() { return S.cover; }, get freeze() { return S.freeze; }, get artUsed() { return S.artUsed; },
 
     /** Clear everything for a new cup. */
     reset(seed = 7) {
-      for (const c of [gp, gs, ga, gd]) c.clearRect(0, 0, N, N); cur = [];
+      for (const c of [gp, gs, ga, gd]) c.clearRect(0, 0, N, N); cur = []; flatBump(); S.bumpNeed = true;
       S.cells.fill(0); S.cover = 0; S.freeze = 0; S.lastSpread = null; S.artUsed = false; S.poured = 0; R = rnd(seed); api.compose();
     },
     /** Pour: a soft round blob of base colour at (u, v); the blob grows with how much has been poured there. */
@@ -63,14 +68,15 @@ export function createSheet() {
       const gr = gp.createRadialGradient(x, y, r * 0.2, x, y, r);
       gr.addColorStop(0, col); gr.addColorStop(0.82, col); gr.addColorStop(1, 'rgba(255,255,255,0)');
       gp.fillStyle = gr; gp.beginPath(); gp.arc(x, y, r, 0, Math.PI * 2); gp.fill();
-      S.dirty = true;
+      S.need = true;
     },
     /** A juice splat when a fruit bursts: blotches of the fruit colour mixed into the puddle. */
     splat(u, v, col, rad) {
       const x = u * N, y = v * N;
       gp.globalAlpha = 0.55; gp.fillStyle = col;
       for (let i = 0; i < 9; i++) { const a = R() * Math.PI * 2, d = R() * rad * N, r = (0.25 + R() * 0.5) * rad * N; gp.beginPath(); gp.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, r, 0, Math.PI * 2); gp.fill(); }
-      gp.globalAlpha = 1; S.dirty = true;
+      gp.globalAlpha = 1; S.need = true;
+      gb.fillStyle = '#a8a8a8'; for (let i = 0; i < 6; i++) { const a = R() * 6.28, d = R() * rad * N; gb.beginPath(); gb.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 2 + R() * 4, 0, 7); gb.fill(); } S.bumpNeed = true;
     },
     /** Spread brush at (u, v): paints the mixed cream (and a few fruit flecks) inside the rectangle; returns coverage. */
     spreadAt(u, v, col, fleck, rad) {
@@ -82,6 +88,13 @@ export function createSheet() {
         const t = i / pts, px = L ? L[0] + (x - L[0]) * t : x, py = L ? L[1] + (y - L[1]) * t : y;
         gs.fillStyle = col; gs.beginPath(); gs.arc(px, py, r, 0, Math.PI * 2); gs.fill();
         if (fleck) { gs.fillStyle = fleck; for (let k = 0; k < 3; k++) { const a = R() * 6.28, d = R() * r * 0.9; gs.fillRect(px + Math.cos(a) * d, py + Math.sin(a) * d, 2 + R() * 4, 2 + R() * 3); } }
+        // spatula ridges along the stroke, and a few lumps of fruit
+        if (L) {
+          const dx = x - L[0], dy = y - L[1], dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl;
+          gb.lineWidth = 2.2; gb.lineCap = 'round';
+          for (let k = -2; k <= 2; k++) { gb.strokeStyle = k % 2 ? '#6c6c6c' : '#9c9c9c'; const ox = -uy * k * r * 0.36, oy = ux * k * r * 0.36; gb.beginPath(); gb.moveTo(px + ox - ux * r * 0.45, py + oy - uy * r * 0.45); gb.lineTo(px + ox + ux * r * 0.45, py + oy + uy * r * 0.45); gb.stroke(); }
+        }
+        if (fleck && R() < 0.5) { gb.fillStyle = '#b4b4b4'; const a = R() * 6.28, d = R() * r * 0.8; gb.beginPath(); gb.arc(px + Math.cos(a) * d, py + Math.sin(a) * d, 2 + R() * 2.5, 0, 7); gb.fill(); }
         // grid cells this dab covers
         const cu = (px / N - RECT.u0) / (RECT.u1 - RECT.u0), cv = (py / N - RECT.v0) / (RECT.v1 - RECT.v0), cr = r / N / (RECT.u1 - RECT.u0);
         for (let gy = Math.max(0, Math.floor((cv - cr) * GRID)); gy <= Math.min(GRID - 1, Math.floor((cv + cr) * GRID)); gy++) {
@@ -90,10 +103,10 @@ export function createSheet() {
           }
         }
       }
-      gs.restore();
+      gs.restore(); S.bumpNeed = true;
       S.lastSpread = [x, y];
       let n = 0; for (const c of S.cells) n += c; S.cover = n / S.cells.length;
-      S.dirty = true; return S.cover;
+      S.need = true; return S.cover;
     },
     /** The finger left the plate: the next brush dab starts fresh (no line across the gap). */
     lift() { S.lastSpread = null; if (cur.length) { gd.clearRect(0, 0, N, N); gd.drawImage(art, 0, 0); } cur = []; },
@@ -102,29 +115,41 @@ export function createSheet() {
       const x = RECT.u0 * N, y = RECT.v0 * N, w = (RECT.u1 - RECT.u0) * N, h = (RECT.v1 - RECT.v0) * N;
       gs.save(); gs.globalCompositeOperation = 'destination-over'; gs.fillStyle = col; gs.fillRect(x, y, w, h); gs.restore();
       if (fleck) { gs.fillStyle = fleck; for (let i = 0; i < 160; i++) gs.fillRect(x + 6 + R() * (w - 12), y + 6 + R() * (h - 12), 2 + R() * 4, 2 + R() * 3); }
-      S.cells.fill(1); S.cover = 1; S.dirty = true;
+      gb.fillStyle = '#a6a6a6'; for (let i = 0; i < 120; i++) { gb.beginPath(); gb.arc(x + 6 + R() * (w - 12), y + 6 + R() * (h - 12), 1.5 + R() * 2, 0, 7); gb.fill(); }
+      S.cells.fill(1); S.cover = 1; S.need = true; S.bumpNeed = true;
     },
     /** Syrup drawing: extend the stroke in progress to (u, v), kept inside the rectangle, and repaint it whole. */
     strokeTo(u, v, col, width = 0.026) {
       const x = Math.max(RECT.u0 + 0.02, Math.min(RECT.u1 - 0.02, u)) * N, y = Math.max(RECT.v0 + 0.02, Math.min(RECT.v1 - 0.02, v)) * N;
       const q = cur[cur.length - 1]; if (q && Math.hypot(q[0] - x, q[1] - y) < 2) return;
       cur.push([x, y]); ga.clearRect(0, 0, N, N); ga.drawImage(artDone, 0, 0); syrupPath(ga, [cur], col, width * N);
-      S.artUsed = true; S.dirty = true;
+      if (cur.length > 1) { const a = cur[cur.length - 2]; gab.strokeStyle = '#d8d8d8'; gab.lineWidth = width * N; gab.lineCap = 'round'; gab.beginPath(); gab.moveTo(a[0], a[1]); gab.lineTo(x, y); gab.stroke(); S.bumpNeed = true; }
+      S.artUsed = true; S.need = true;
     },
     /** A ready-made shape ('heart' | 'star' | 'smile') drawn up to fraction t (0..1) of its path. */
     stencil(id, col, t) {
       const pts = stencilPath(id), n = Math.max(2, Math.floor(pts.length * Math.min(1, t))), paths = [[]];
       for (let i = 0; i < n; i++) { const [pu, pv, lift] = pts[i]; if (lift && paths[paths.length - 1].length) paths.push([]); paths[paths.length - 1].push([(0.5 + pu * 0.3) * N, (0.5 + pv * 0.3) * N]); }
       ga.clearRect(0, 0, N, N); ga.drawImage(artDone, 0, 0); syrupPath(ga, paths, col, 0.03 * N);
+      gab.strokeStyle = '#d8d8d8'; gab.lineWidth = 0.03 * N; gab.lineCap = 'round'; gab.lineJoin = 'round';
+      for (const q of paths) { if (q.length < 2) continue; gab.beginPath(); gab.moveTo(q[0][0], q[0][1]); for (const pt of q) gab.lineTo(pt[0], pt[1]); gab.stroke(); }
+      S.bumpNeed = true;
       if (t >= 1) { gd.clearRect(0, 0, N, N); gd.drawImage(art, 0, 0); }
-      S.artUsed = true; S.dirty = true;
+      S.artUsed = true; S.need = true;
     },
     /** Clear the drawing only. */
-    clearArt() { ga.clearRect(0, 0, N, N); gd.clearRect(0, 0, N, N); cur = []; S.artUsed = false; S.dirty = true; },
+    clearArt() { ga.clearRect(0, 0, N, N); gd.clearRect(0, 0, N, N); gab.clearRect(0, 0, N, N); cur = []; S.artUsed = false; S.need = true; S.bumpNeed = true; },
     /** Freezing progress 0..1: the frost grows in from the edges of the rectangle. */
-    setFreeze(k) { S.freeze = Math.max(0, Math.min(1, k)); S.dirty = true; },
+    setFreeze(k) { S.freeze = Math.max(0, Math.min(1, k)); S.need = true; },
     /** Paint the final texture from the layers. Call once per frame when dirty. */
-    compose() {
+    /** Ask for a repaint of the texture; the scene paints at most once per frame (flush), however many strokes came in. */
+    compose() { S.need = true; },
+    /** Repaint now if anything changed since the last paint. Called once per frame. */
+    flush() {
+      if (S.need) { S.need = false; api.paint(); }
+      if (S.bumpNeed) { S.bumpNeed = false; gbo.drawImage(bump, 0, 0); gbo.drawImage(artBump, 0, 0); S.bumpDirty = true; }
+    },
+    paint() {
       g.clearRect(0, 0, N, N);
       const fade = Math.max(0, 1 - S.cover * 1.15);
       if (fade > 0) { g.globalAlpha = fade; g.drawImage(puddle, 0, 0); g.globalAlpha = 1; }
@@ -156,7 +181,7 @@ export function createSheet() {
       S.freeze = 1; api.compose();
     },
   };
-  api.compose();
+  flatBump(); S.bumpNeed = true; api.compose();
   return api;
 }
 
