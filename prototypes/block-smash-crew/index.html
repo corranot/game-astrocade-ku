@@ -17,7 +17,17 @@ body{display:flex;align-items:center;justify-content:center}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
 .hud{position:absolute;inset:0;pointer-events:none;color:var(--ink);font-size:calc(var(--u)*30px)}
 .hud button{pointer-events:auto;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--ink);padding:0}
-.hud.edit .top,.hud.edit .tools,.hud.edit .hand,.hud.edit .tip{display:none}
+.hud.edit .top,.hud.edit .tools,.hud.edit .hand,.hud.edit .tip,.hud.edit .hitbtn,.hud.edit .keys,.hud.edit .cross{display:none}
+/* first person: crosshair, the walking stick (phones), HIT (phones), key hint (desktop) */
+.cross{position:absolute;left:50%;top:50%;width:calc(var(--u)*26px);height:calc(var(--u)*26px);margin:calc(var(--u)*-13px) 0 0 calc(var(--u)*-13px);border-radius:50%;border:calc(var(--u)*4px) solid #fff;box-shadow:0 0 0 calc(var(--u)*2px) rgba(43,29,79,.6),inset 0 0 0 calc(var(--u)*2px) rgba(43,29,79,.6);box-sizing:border-box}
+.cross::after{content:"";position:absolute;left:50%;top:50%;width:calc(var(--u)*6px);height:calc(var(--u)*6px);margin:calc(var(--u)*-3px) 0 0 calc(var(--u)*-3px);border-radius:50%;background:#fff}
+.stick{position:absolute;width:calc(var(--u)*190px);height:calc(var(--u)*190px);margin:calc(var(--u)*-95px) 0 0 calc(var(--u)*-95px);border-radius:50%;background:rgba(255,255,255,.28);border:calc(var(--u)*5px) solid rgba(255,255,255,.85);box-shadow:0 calc(var(--u)*6px) calc(var(--u)*12px) rgba(20,40,90,.25);box-sizing:border-box;pointer-events:none}
+.stick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*84px);height:calc(var(--u)*84px);margin:calc(var(--u)*-42px) 0 0 calc(var(--u)*-42px);border-radius:50%;background:radial-gradient(circle at 38% 30%,#fff,#d6f0ff 60%,#9fcdf0);box-shadow:0 calc(var(--u)*5px) 0 #4a8fc4}
+.hitbtn{position:absolute;right:calc(var(--u)*36px);bottom:calc(var(--u)*312px);width:calc(var(--u)*150px);height:calc(var(--u)*150px);border-radius:50%;font-size:calc(var(--u)*70px);display:grid;place-items:center;background:radial-gradient(circle at 38% 28%,#fff 0 10%,rgba(255,255,255,0) 34%),radial-gradient(circle at 50% 60%,#ff8a5a 55%,#e0503c 100%)!important;box-shadow:0 calc(var(--u)*8px) 0 #a8321f,0 calc(var(--u)*14px) calc(var(--u)*18px) rgba(20,40,90,.35)!important;transition:transform .06s}
+.hitbtn.down{transform:scale(.9) translateY(calc(var(--u)*5px))}
+/* HIT stays right in every language: the stick owns the left thumb */
+.keys{position:absolute;right:var(--m);bottom:calc(var(--u)*300px);font-size:calc(var(--u)*26px);line-height:1;direction:ltr;opacity:.9}
+#app.touch .keys,#app.desk .hitbtn{display:none}
 .out{--o:calc(var(--u)*3.5px);color:#fff;text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
 .hud button.out{color:#fff}
 .gloss{border:calc(var(--u)*4px) solid #fff;background:linear-gradient(#fff 0,#eef9ff 48%,#d6f0ff 52%,#bfe6ff 100%);box-shadow:0 calc(var(--u)*6px) 0 #4a8fc4,0 calc(var(--u)*10px) calc(var(--u)*14px) rgba(20,60,110,.25)}

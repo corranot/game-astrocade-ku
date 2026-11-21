@@ -100,7 +100,7 @@ export function useTool(W, id, p) {
   const tl = tool(W, id); if (!tl || id === 'hammer' || W.phase === 'done') return false;
   if ((W.cool[id] || 0) > 0) return false;
   const owned = W.owned.includes(id);
-  if (!owned && W.fever <= 0) { if (W.tried.has(id)) return false; W.tried.add(id); } // a locked tool: one free try per level; smash time lends them all
+  if (!owned && W.fever <= 0 && !W.demo) { if (W.tried.has(id)) return false; W.tried.add(id); } // (the attract mode shows any tool) // a locked tool: one free try per level; smash time lends them all
   W.cool[id] = cooldownOf(W.cfg, id, W.fever > 0);
   W.used.add(id);
   const h = W.hero, [hx, hy, hz] = heroChest(W);
@@ -170,6 +170,17 @@ function land(W, f) {
   for (const c of removed) if (c.m === W.ids.star) gotStar(W, c.x + 0.5, c.y + 0.5 - f.drop, c.z + 0.5);
 }
 
+/** Starts a hammer swing at cell c (it lands part way through); false while the last swing or its cooldown runs. */
+function swingAt(W, c) {
+  const h = W.hero; if (h.cool > 0 || h.swingT >= 0) return false;
+  h.swingT = 0; h.cool = tool(W, 'hammer').cd; h.swingCell = c ? { x: c.x, y: c.y, z: c.z } : null;
+  W.ev.push({ type: 'swing' }); return true;
+}
+/** First person: the player swings at the block under the crosshair (null = a swing at the air). */
+export function hitBlock(W, c) { if (W.phase === 'done') return false; return swingAt(W, c); }
+/** First person: the walking direction in world space, length 0..1 (null or 0 stops). */
+export function setMove(W, x, z) { W.hero.move = { x, z }; }
+
 function stepHero(W, dt) {
   const h = W.hero, H = W.cfg.hero, hm = tool(W, 'hammer');
   h.cool -= dt; h.happy = Math.max(0, h.happy - dt); h.bump = Math.max(0, h.bump - dt);
@@ -183,7 +194,17 @@ function stepHero(W, dt) {
     }
     if (h.swingT >= 1) h.swingT = -1;
   }
-  const swing = (c) => { if (h.cool > 0 || h.swingT >= 0) return false; h.swingT = 0; h.cool = hm.cd; h.swingCell = { x: c.x, y: c.y, z: c.z }; h.yaw = Math.atan2(c.x + 0.5 - h.x, c.z + 0.5 - h.z); W.ev.push({ type: 'swing' }); return true; };
+  const swing = (c) => { const ok = swingAt(W, c); if (ok) h.yaw = Math.atan2(c.x + 0.5 - h.x, c.z + 0.5 - h.z); return ok; }; // tap/bot path: face the block
+  // first person: the stick or the keys walk the hero directly (sliding along walls); the hammer is aimed by the view
+  const mv = h.move;
+  if (mv && (mv.x || mv.z)) {
+    h.goal = null; h.aim = null;
+    const sp = H.speed * Math.min(1.5, Math.hypot(mv.x, mv.z)) * dt, d = Math.hypot(mv.x, mv.z) || 1, ux = mv.x / d, uz = mv.z / d;
+    const nx = h.x + ux * sp, nz = h.z + uz * sp, lim = (v, n) => Math.max(-12, Math.min(n + 12, v));
+    if (!blockAt(W, nx, h.z, h.y)) h.x = lim(nx, W.g.W);
+    if (!blockAt(W, h.x, nz, h.y)) h.z = lim(nz, W.g.D);
+    h.moving = true; h.stepT += sp; if (h.stepT > 1.1) { h.stepT = 0; W.ev.push({ type: 'step' }); }
+  }
   // the tapped block: smash it once it is in reach (and keep smashing while the finger holds)
   if (h.aim && !W.g.get(h.aim.x, h.aim.y, h.aim.z)) { h.aim = null; if (!h.hold) h.goal = null; }
   if (h.aim && distToCell(W, h.aim) <= H.reach) { h.goal = null; h.moving = false; if (swing(h.aim) && !h.hold) h.aim = null; } // a tap is one swing, a hold keeps swinging
@@ -206,7 +227,7 @@ function stepHero(W, dt) {
         else swing(b);
       }
     }
-  } else h.moving = false;
+  } else if (!(mv && (mv.x || mv.z))) h.moving = false;
   // gravity onto whatever is under the feet
   const sy = supportY(W, h.x, h.z, h.y);
   if (h.y > sy) { h.vy -= 30 * dt; h.y = Math.max(sy, h.y + h.vy * dt); } else { h.vy = 0; h.y = sy; }
