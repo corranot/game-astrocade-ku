@@ -31,6 +31,8 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 | `market-check.js [--report|--selftest]` | Tangkap astrotopper + flag beranda + feed ke `production/market/<UTC>/`, beda dengan cek sebelumnya | Saat "cek backend" |
 | `competitor-check.js <id> <folder>` | Main satu game Astrocade sebagai tamu: tangkapan layar awal, ketuk, seret + `stack.json` (pustaka, ukuran kode, daftar aset, `disableRemix`) dari context-nya | Sebelum memilih genre atau menggambar (ASTROCADE.md §0.13, §0.18) |
 
+Pola uji per game yang dipakai ulang (bukan alat bersama): `playtest.js` dengan mode `ONLY=bugs` untuk uji mutan cepat, dan pilot simulasi (pengetuk asal vs pembidik) di `logic.test.mjs` untuk game ber-CPU (`prototypes/jelly-bump-party/`).
+
 ## 4. Sistem studio (`.claude/`)
 - **49 agen** (`.claude/agents/`, daftar di `.claude/docs/agent-roster.md`): tingkat 1 opus (creative-director, technical-director, producer), tingkat 2 kepala bagian, tingkat 3 spesialis, set khusus Godot/Unity/Unreal. **Tidak ada agen Web/Astrocade.** Semua agen bertanya "May I write…" kecuali berkas baru di jalur yang ditentukan skill pemanggil.
 - **91 skill** (`.claude/skills/`; katalog tes hanya mencatat 75). Yang relevan untuk game browser: `/prototype` (kartu → bangun → cek diri → serah → ubah → tumbuhkan; `one-shot-share.sh` membuat `dist/`), `/cut`, `/smoke-check`, `/setup-engine web`, `/bug-report`, `/playtest-report`, utilitas `caveman`, `ponytail`, `leanrea` (leanrea mengandaikan macOS). Skill khusus pengguna (tidak bisa dipanggil model): dev-story, story-done, hotfix, day-one-patch, launch-checklist, ultracave, megacave, help, settings, changelog. **Tidak ada skill yang membahas Astrocade**; alurnya ada di `ASTROCADE.md`.
@@ -69,6 +71,8 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 10. Input (klik kanan, jari kedua, ketukan tembus toko, kecepatan dari `performance.now()` pada event gabungan).
 11. Petunjuk/pratinjau basi (tangan ke rata-rata bukan sasaran nyata, intip pesanan di-cache, benda di jari terbawa ke sentuhan baru).
 12. Tata letak yang lolos uji kotak tapi terlihat berantakan (Ice Cream Roll Art, 21 Nov): kartu tanpa padding (isi > min-height → tombol nempel tepi, bayangan terpotong `overflow:hidden`); glyph ★/emoji yang tintanya tidak mengisi kotak baris (beda tiap font HP) → gambar SVG / geser menurut tinta; badge & bayangan di luar kotak barisnya; `clip-path` ikut memotong `filter` di elemen yang sama → garis tepi di pembungkus; RTL membalik `+60` jadi `60+`. Alat: `layout.js` (salin dari `ice-cream-roll-art`, ganti selektornya).
+13. Uji yang tidak menangkap bug-nya (Jelly Bump, 21 Nov): lulus walau perbaikannya dibuang karena berjalan di state yang salah (blob sudah jatuh) atau memeriksa hal lain. Obat: uji mutan per perbaikan (`ONLY=bugs`, salinan folder per mutan, paralel).
+14. Tabrakan nama: kelas CSS efek = kelas tombol (`.big`), spesifisitas `.hud button` menimpa warna `.out`, nama variabel `ai` kena pemeriksa kata terlarang.
 
 ## 8. Dibereskan 2026-11-20 dan yang masih terbuka
 Dibereskan:
