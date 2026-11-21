@@ -13,56 +13,64 @@
    "color": "#b8763e",
    "value": 5,
    "snd": "wood",
-   "jitter": 0.08
+   "jitter": 0.08,
+   "frag": "splinter"
   },
   {
    "id": "trunk",
    "color": "#7a4a26",
    "value": 5,
    "snd": "wood",
-   "jitter": 0.06
+   "jitter": 0.06,
+   "frag": "splinter"
   },
   {
    "id": "brick",
    "color": "#e0503c",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.1
+   "jitter": 0.1,
+   "frag": "crumb"
   },
   {
    "id": "plaster",
    "color": "#fff1d6",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.04
+   "jitter": 0.04,
+   "frag": "crumb"
   },
   {
    "id": "roofRed",
    "color": "#ff6f4f",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.07
+   "jitter": 0.07,
+   "frag": "crumb"
   },
   {
    "id": "roofBlue",
    "color": "#3f7cf0",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.07
+   "jitter": 0.07,
+   "frag": "crumb"
   },
   {
    "id": "glass",
    "color": "#9fe8ff",
    "value": 5,
    "snd": "glass",
-   "jitter": 0.03
+   "jitter": 0.03,
+   "frag": "shard"
   },
   {
    "id": "stone",
    "color": "#b9b4ad",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.12
+   "jitter": 0.12,
+   "frag": "crumb"
   },
   {
    "id": "steel",
@@ -70,98 +78,121 @@
    "value": 15,
    "snd": "metal",
    "jitter": 0.05,
-   "hard": true
+   "hard": true,
+   "frag": "spark"
   },
   {
    "id": "leaves",
    "color": "#2e8b3e",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.14
+   "jitter": 0.14,
+   "frag": "soft"
   },
   {
    "id": "candyPink",
    "color": "#ff7fc4",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.05
+   "jitter": 0.05,
+   "frag": "soft"
   },
   {
    "id": "candyMint",
    "color": "#6fe8c4",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.05
+   "jitter": 0.05,
+   "frag": "soft"
   },
   {
    "id": "ice",
    "color": "#b7a6ff",
    "value": 5,
    "snd": "glass",
-   "jitter": 0.06
+   "jitter": 0.06,
+   "frag": "shard"
   },
   {
    "id": "snow",
    "color": "#f6d6ff",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.03
+   "jitter": 0.03,
+   "frag": "soft"
   },
   {
    "id": "sand",
    "color": "#f2c86a",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.1
+   "jitter": 0.1,
+   "frag": "crumb"
   },
   {
    "id": "moss",
    "color": "#8fae5a",
    "value": 5,
    "snd": "brick",
-   "jitter": 0.12
+   "jitter": 0.12,
+   "frag": "crumb"
   },
   {
    "id": "gold",
    "color": "#ffcc1f",
    "value": 250,
    "snd": "coin",
-   "jitter": 0.05
+   "jitter": 0.05,
+   "frag": "chunk"
   },
   {
    "id": "star",
    "color": "#ffe14a",
    "value": 500,
    "snd": "gem",
-   "jitter": 0
+   "jitter": 0,
+   "frag": "chunk"
   },
   {
    "id": "toyRed",
    "color": "#ff4a4a",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.05
+   "jitter": 0.05,
+   "frag": "chunk"
   },
   {
    "id": "toyYellow",
    "color": "#ffd12e",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.05
+   "jitter": 0.05,
+   "frag": "chunk"
   },
   {
    "id": "toyBlue",
    "color": "#2f5bff",
    "value": 5,
    "snd": "soft",
-   "jitter": 0.05
+   "jitter": 0.05,
+   "frag": "chunk"
   },
   {
    "id": "panel",
    "color": "#c9c2ff",
    "value": 5,
    "snd": "metal",
-   "jitter": 0.04
+   "jitter": 0.04,
+   "frag": "spark"
+  },
+  {
+   "id": "tnt",
+   "color": "#e8322b",
+   "value": 25,
+   "snd": "brick",
+   "jitter": 0,
+   "hidden": true,
+   "frag": "chunk"
   }
  ],
  "tools": [
@@ -301,7 +332,8 @@
    "space": "Space Base",
    "star": "STAR!",
    "keep": "KEEP SMASHING",
-   "super": "SUPER HAMMER!"
+   "super": "SUPER HAMMER!",
+   "timber": "TIMBER!"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -333,7 +365,8 @@
    "space": "قاعدة فضائية",
    "star": "نجمة!",
    "keep": "واصل التحطيم",
-   "super": "مطرقة خارقة!"
+   "super": "مطرقة خارقة!",
+   "timber": "سيسقط!"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -365,7 +398,8 @@
    "space": "Base espacial",
    "star": "¡ESTRELLA!",
    "keep": "SIGUE ROMPIENDO",
-   "super": "¡SÚPER MARTILLO!"
+   "super": "¡SÚPER MARTILLO!",
+   "timber": "¡CUIDADO, CAE!"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -397,7 +431,8 @@
    "space": "Trạm vũ trụ",
    "star": "NGÔI SAO!",
    "keep": "ĐẬP TIẾP",
-   "super": "SIÊU BÚA!"
+   "super": "SIÊU BÚA!",
+   "timber": "ĐỔ RỒI!"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -429,7 +464,8 @@
    "space": "अंतरिक्ष अड्डा",
    "star": "तारा!",
    "keep": "तोड़ते रहो",
-   "super": "सुपर हथौड़ा!"
+   "super": "सुपर हथौड़ा!",
+   "timber": "गिर रहा है!"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -461,7 +497,8 @@
    "space": "মহাকাশ ঘাঁটি",
    "star": "তারা!",
    "keep": "ভাঙতে থাকো",
-   "super": "সুপার হাতুড়ি!"
+   "super": "সুপার হাতুড়ি!",
+   "timber": "পড়ছে!"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -493,12 +530,29 @@
    "space": "Pangkalan Luar Angkasa",
    "star": "BINTANG!",
    "keep": "TERUS HANCURKAN",
-   "super": "PALU SUPER!"
+   "super": "PALU SUPER!",
+   "timber": "AWAS RUNTUH!"
   }
  },
  "persistent_storage_config": {
   "leaderboard": {
    "sort_ascending": false
   }
+ },
+ "tnt": {
+  "r": 2.7,
+  "delay": 0.22,
+  "step": 0.12
+ },
+ "topple": {
+  "minH": 6,
+  "ratio": 1.3,
+  "landAt": 1.5
+ },
+ "feel": {
+  "hitStop": 0.045,
+  "boomStop": 0.07,
+  "toppleSlow": 0.9,
+  "landSlow": 0.45
  }
 }

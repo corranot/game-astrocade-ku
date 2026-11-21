@@ -104,6 +104,28 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(V.left === V.g.count() + V.falls.reduce((a, f) => a + f.total, 0) || V.left === V.g.count(), 'blocks left matches the grid');
 }
 
+// ---- TNT chains and tipping towers
+{
+  const W = WD.createWorld(cfg, 0, {});
+  check(W.tntCells.length >= 3 && W.tntCells.every((c) => W.g.get(c.x, c.y, c.z) === M.tnt), `TNT blocks placed (${W.tntCells.length}), one in front of the building`);
+  // put two TNT side by side in the open and hit one: both go off
+  const g = W.g; g.set(2, 0, 30, M.tnt); g.set(4, 0, 30, M.tnt);
+  WD.useTool(W, 'bomb', { x: 2.5, y: 0.5, z: 30.5 });
+  const booms = []; for (let i = 0; i < 90; i++) for (const e of WD.step(W, 1 / 30)) if (e.type === 'boom') booms.push(e.kind);
+  check(booms.filter((k) => k === 'tnt').length >= 2, `one blast sets off the TNT next to it (${booms.join(',')})`);
+  W.cool.bomb = 0; WD.useTool(W, 'bomb', { x: W.box.x0 + 3.5, y: 1.5, z: W.box.z1 + 0.5 }); for (let i = 0; i < 40; i++) WD.step(W, 1 / 30);
+  check(g.scorch && g.scorch.some((v) => v > 0), 'blasts leave scorch marks on the blocks around them');
+  // the lighthouse: knock out a ring at its base and the tower tips over
+  const L = WD.createWorld(cfg, 3, {}), cx = (L.box.x0 + L.box.x1) / 2 + 0.5, cz = L.box.z0 + 6.5;
+  const removed = [];
+  for (let z = Math.floor(cz - 6); z <= cz + 6; z++) for (let x = Math.floor(cx - 6); x <= cx + 6; x++) for (let y = 0; y < 2; y++) { const m = L.g.get(x, y, z); if (m && Math.hypot(x + 0.5 - cx, z + 0.5 - cz) < 5) { L.g.set(x, y, z, 0); removed.push({ x, y, z, m }); } }
+  const ev = []; WD.useTool(L, 'bomb', { x: cx, y: 2.5, z: cz + 3.5 }); // a real blast into the cut tower runs the collapse check
+  for (let i = 0; i < 150; i++) for (const e of WD.step(L, 1 / 30)) ev.push(e);
+  const top = ev.find((e) => e.type === 'topple'), landed = ev.find((e) => e.type === 'land' && e.topple);
+  check(!!top && !!landed, `the cut lighthouse tips over its base and lands (${top ? 'tipped' : 'no topple'}, ${landed ? 'landed' : 'no landing'})`);
+  if (top) { const f = top.fall, c = f.cells.reduce((a, b) => (b.y > a.y ? b : a)); f.th = 1.35; const p = WD.placeOf(f, c); check(p[1] < c.y * 0.5, `a tipped piece lies down (top block y ${c.y} → ${p[1].toFixed(1)})`); }
+}
+
 // ---- the child pilot: taps near (not at) what matters, hesitates, uses the bomb only half the time it is told to
 {
   const { rng } = await import('./levels.js');

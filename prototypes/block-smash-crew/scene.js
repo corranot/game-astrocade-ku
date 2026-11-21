@@ -5,6 +5,7 @@
 // roof when he is inside. World coordinates are grid coordinates (1 unit = 1 block).
 /* global THREE */
 import { meshRegion, raycast } from './voxels.js';
+import { placeOf } from './world.js';
 
 const CS = 12; // chunk size in blocks
 const SWING_HIT = 0.4;
@@ -68,7 +69,8 @@ export function createScene(cv, cfg) {
 
   // ---- palette (linear) for the mesher
   const palette = [null], jitter = [0];
-  for (const m of cfg.materials) { const c = new THREE.Color(m.color); palette.push([c.r, c.g, c.b]); jitter.push(m.jitter || 0); }
+  const dcol = [null]; // debris colours: every material, also the ones drawn as their own mesh (TNT)
+  for (const m of cfg.materials) { const c = new THREE.Color(m.color); palette.push(m.hidden ? null : [c.r, c.g, c.b]); dcol.push([c.r, c.g, c.b]); jitter.push(m.jitter || 0); }
 
   // ---- voxel chunks
   const chunkMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide }));
@@ -78,7 +80,8 @@ export function createScene(cv, cfg) {
   function buildChunk(cx, cy, cz) {
     const k = ckey(cx, cy, cz), old = chunks.get(k);
     if (old) { chunkRoot.remove(old); old.geometry.dispose(); chunks.delete(k); }
-    const g = W.g, r = meshRegion(g.get, cx * CS, cy * CS, cz * CS, Math.min(g.W, (cx + 1) * CS), Math.min(g.H, (cy + 1) * CS), Math.min(g.D, (cz + 1) * CS), palette, jitter);
+    const g = W.g, sc = g.scorch, shade = sc ? (x, y, z) => 1 - sc[g.idx(x, y, z)] * 0.0033 : null;
+    const r = meshRegion(g.get, cx * CS, cy * CS, cz * CS, Math.min(g.W, (cx + 1) * CS), Math.min(g.H, (cy + 1) * CS), Math.min(g.D, (cz + 1) * CS), palette, jitter, 0, 0, 0, 0, shade);
     if (!r.faces) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(r.positions, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.normals, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.colors, 3));
@@ -134,11 +137,25 @@ export function createScene(cv, cfg) {
   const dGeo = box(1, 1, 1), dMat = keep(new THREE.MeshLambertMaterial());
   const debris = new THREE.InstancedMesh(dGeo, dMat, debrisMax); debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage); debris.frustumCulled = false; debris.castShadow = true; scene.add(debris);
   debris.setColorAt(0, new THREE.Color(1, 1, 1));
-  const D = { n: 0, p: new Float32Array(debrisMax * 3), v: new Float32Array(debrisMax * 3), r: new Float32Array(debrisMax * 3), w: new Float32Array(debrisMax * 3), s: new Float32Array(debrisMax), life: new Float32Array(debrisMax), pull: new Float32Array(debrisMax * 4) };
+  const D = { n: 0, p: new Float32Array(debrisMax * 3), v: new Float32Array(debrisMax * 3), r: new Float32Array(debrisMax * 3), w: new Float32Array(debrisMax * 3), s: new Float32Array(debrisMax), life: new Float32Array(debrisMax), pull: new Float32Array(debrisMax * 4), sh: new Float32Array(debrisMax * 3) }; // sh: the piece's shape (x, y, z scale)
   const dustMax = 160, dustGeo = keep(new THREE.IcosahedronGeometry(0.5, 1)), dustMat = keep(new THREE.MeshLambertMaterial({ emissive: '#5a5040' }));
   const dust = new THREE.InstancedMesh(dustGeo, dustMat, dustMax); dust.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dust.frustumCulled = false; scene.add(dust);
   dust.setColorAt(0, new THREE.Color(1, 1, 1));
   const U = { n: 0, p: new Float32Array(dustMax * 3), v: new Float32Array(dustMax * 3), s: new Float32Array(dustMax * 2), life: new Float32Array(dustMax * 2) };
+  // sparks (steel, TNT fuses): tiny bright bits, short life
+  const sparkMax = 80, sparkMesh = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.09, 0.09, 0.09)), keep(new THREE.MeshBasicMaterial({ color: '#ffd84a', fog: false })), sparkMax);
+  sparkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); sparkMesh.frustumCulled = false; scene.add(sparkMesh);
+  const SP = { n: 0, p: new Float32Array(sparkMax * 3), v: new Float32Array(sparkMax * 3), life: new Float32Array(sparkMax) };
+  function sparks(x, y, z, n) { for (let k = 0; k < n && SP.n < sparkMax; k++) { const i = SP.n++; SP.p[i * 3] = x; SP.p[i * 3 + 1] = y; SP.p[i * 3 + 2] = z; SP.v[i * 3] = (Math.random() - 0.5) * 9; SP.v[i * 3 + 1] = 2 + Math.random() * 6; SP.v[i * 3 + 2] = (Math.random() - 0.5) * 9; SP.life[i] = 0.25 + Math.random() * 0.25; } }
+  // TNT barrels: red with a white band, standing on their blocks (the block itself is not drawn)
+  const tntMax = 24, barrel = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.44, 0.44, 0.96, 14)), keep(new THREE.MeshLambertMaterial({ color: '#e8322b' })), tntMax);
+  const band = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.455, 0.455, 0.22, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#553300' })), tntMax);
+  barrel.castShadow = true; scene.add(barrel, band); barrel.count = band.count = 0;
+  function placeBarrels() {
+    let n = 0;
+    if (W && W.tntCells) for (const c of W.tntCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.tnt || n >= tntMax) continue; tmpM.compose(tmpV.set(c.x + 0.5, c.y + 0.48, c.z + 0.5), tmpQ.identity(), tmpS.set(1, 1, 1)); barrel.setMatrixAt(n, tmpM); band.setMatrixAt(n, tmpM); n++; }
+    barrel.count = band.count = n; barrel.instanceMatrix.needsUpdate = band.instanceMatrix.needsUpdate = true;
+  }
   const coinMax = 90, coinGeo = keep(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14)), coinMat = keep(new THREE.MeshLambertMaterial({ color: '#ffcf1f', emissive: '#7a5000' }));
   const coins = new THREE.InstancedMesh(coinGeo, coinMat, coinMax); coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage); coins.frustumCulled = false; scene.add(coins);
   const C = { n: 0, p: new Float32Array(coinMax * 3), v: new Float32Array(coinMax * 3), t: new Float32Array(coinMax) };
@@ -183,17 +200,22 @@ export function createScene(cv, cfg) {
 
   function spawnDebris(x, y, z, m, cx, cy, cz, power, pullTo) {
     if (D.n >= debrisMax * (quality < 1 ? 0.5 : 1)) return;
-    const i = D.n++, p = palette[m] || [1, 1, 1];
+    const i = D.n++, p = dcol[m] || [1, 1, 1];
     let dx = x - cx, dy = y - cy, dz = z - cz; const d = Math.hypot(dx, dy, dz) || 1; dx /= d; dy /= d; dz /= d;
     const sp = power * (0.6 + Math.random() * 0.8);
     D.p[i * 3] = x; D.p[i * 3 + 1] = y; D.p[i * 3 + 2] = z;
     D.v[i * 3] = dx * sp + (Math.random() - 0.5) * 3; D.v[i * 3 + 1] = Math.max(0, dy) * sp + 3 + Math.random() * 5; D.v[i * 3 + 2] = dz * sp + (Math.random() - 0.5) * 3;
     for (let k = 0; k < 3; k++) { D.r[i * 3 + k] = Math.random() * 6; D.w[i * 3 + k] = (Math.random() - 0.5) * 14; }
     D.s[i] = 0.42 + Math.random() * 0.4; D.life[i] = cfg.debris.life * (0.7 + Math.random() * 0.5);
+    // each material breaks its own way: wood splinters, glass shards, brick crumbs, soft stuff in round lumps
+    const frag = (cfg.materials[m - 1] || {}).frag;
+    const SH = frag === 'splinter' ? [0.32, 0.32, 1.9] : frag === 'shard' ? [1.1, 0.14, 0.8] : frag === 'crumb' ? [0.7, 0.7, 0.7] : frag === 'soft' ? [0.85, 0.85, 0.85] : [1, 1, 1];
+    D.sh[i * 3] = SH[0]; D.sh[i * 3 + 1] = SH[1]; D.sh[i * 3 + 2] = SH[2];
+    if (frag === 'spark' && Math.random() < 0.7) sparks(x, y, z, 2);
     if (pullTo) { D.pull[i * 4] = pullTo[0]; D.pull[i * 4 + 1] = pullTo[1]; D.pull[i * 4 + 2] = pullTo[2]; D.pull[i * 4 + 3] = 1; D.life[i] = 1.2; } else D.pull[i * 4 + 3] = 0;
     const j = 0.9 + Math.random() * 0.2; tmpC.setRGB(p[0] * j, p[1] * j, p[2] * j); debris.setColorAt(i, tmpC);
   }
-  function killDebris(i) { const j = --D.n; if (i !== j) { for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
+  function killDebris(i) { const j = --D.n; if (i !== j) { for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; for (let k = 0; k < 3; k++) D.sh[i * 3 + k] = D.sh[j * 3 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
   function puff(x, y, z, size, color = '#f4ead8', n = 3) {
     for (let k = 0; k < n; k++) {
       if (U.n >= dustMax * (quality < 1 ? 0.5 : 1)) return;
@@ -214,6 +236,7 @@ export function createScene(cv, cfg) {
   function event(e) {
     if (e.type === 'smash') {
       for (const c of e.removed) markCell(c.x, c.y, c.z);
+      if (e.removed.some((c) => c.m === W.ids.tnt)) placeBarrels();
       const cap = Math.min(e.removed.length, e.by === 'hammer' ? 30 : cfg.debris.perBlast), step = e.removed.length / cap;
       const power = e.by === 'hammer' ? 5 : e.by === 'ball' ? 7 : 6 + e.r * 2.2;
       const hx = W.hero.x, hz = W.hero.z;
@@ -231,37 +254,46 @@ export function createScene(cv, cfg) {
       const r = meshRegion((x, y, z) => map.get(`${x},${y},${z}`) || 0, x0, y0, z0, x1 + 1, y1 + 1, z1 + 1, palette, jitter, mx, my, mz, -1e9);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(r.positions, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.normals, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.colors, 3)); geo.setIndex(new THREE.BufferAttribute(r.indices, 1));
-      const mesh = new THREE.Mesh(geo, chunkMat); mesh.position.set(mx, my, mz); mesh.castShadow = true; scene.add(mesh);
-      falls.set(f.id, { mesh, f, my, tilt: 0 });
+      const mesh = new THREE.Mesh(geo, chunkMat); mesh.castShadow = true;
+      // a tipping piece turns around its base edge (the pivot), a dropping one around its middle
+      const holder = new THREE.Group(); holder.add(mesh); scene.add(holder);
+      if (f.topple) { holder.position.set(f.topple.px, f.topple.py, f.topple.pz); mesh.position.set(mx - f.topple.px, my - f.topple.py, mz - f.topple.pz); } else holder.position.set(mx, my, mz);
+      falls.set(f.id, { mesh, holder, f, my, tilt: 0 });
       puff(mx, y0, mz, 1.5, '#f4ead8', 3);
     } else if (e.type === 'land') {
       const it = falls.get(e.fall.id);
-      if (it) { scene.remove(it.mesh); it.mesh.geometry.dispose(); falls.delete(e.fall.id); }
+      if (it) { scene.remove(it.holder); it.mesh.geometry.dispose(); falls.delete(e.fall.id); }
       const cells = e.fall.cells, cap = Math.min(cells.length, cfg.debris.perBlast), step = cells.length / cap;
-      for (let k = 0; k < cap; k++) { const c = cells[Math.floor(k * step)]; spawnDebris(c.x + 0.5, c.y + 0.5 - e.fall.drop, c.z + 0.5, c.m, e.x, e.y - 2, e.z, 4 + Math.min(8, e.n / 40)); }
+      for (let k = 0; k < cap; k++) { const c = cells[Math.floor(k * step)], p = placeOf(e.fall, c); spawnDebris(p[0], Math.max(0.5, p[1]), p[2], c.m, e.x, e.y - 2, e.z, 4 + Math.min(8, e.n / 40)); }
+      if (e.topple) kick(0.07);
       puff(e.x, 0.3, e.z, Math.min(5, 1.5 + e.n / 60), '#efe4cf', Math.min(10, 3 + (e.n >> 5)));
       if (!W.demo) spawnCoins(e.x, e.y + 1, e.z, Math.min(8, 2 + (e.n >> 5)));
       addTrauma(Math.min(0.6, 0.15 + e.n / 250));
     } else if (e.type === 'boom') {
-      addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06));
+      addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06)); sparks(e.x, e.y, e.z, 10);
+      const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
+      kick(Math.min(0.06, 0.02 + e.r * 0.006));
+    } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); }
     else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); }
     else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05); }
     else if (e.type === 'treasure') { spawnCoins(e.x, 1.4, e.z, 24); puff(e.x, 1, e.z, 2, '#fff3a0', 6); }
     else if (e.type === 'star') { puff(e.x, e.y, e.z, 1.6, '#fff3a0', 5); }
   }
+  function kick(a) { cam.kick = (cam.kick || 0) + (reduced ? a * 0.3 : a); }
   function addTrauma(k) { cam.trauma = Math.min(1, cam.trauma + (reduced ? k * 0.3 : k)); }
 
   /** Shows level W: rebuilds every chunk, the chest, the beacons and the path. */
   function setLevel(world) {
     W = world;
     for (const m of chunks.values()) { chunkRoot.remove(m); m.geometry.dispose(); } chunks.clear(); dirty.clear();
-    for (const it of falls.values()) { scene.remove(it.mesh); it.mesh.geometry.dispose(); } falls.clear();
+    for (const it of falls.values()) { scene.remove(it.holder); it.mesh.geometry.dispose(); } falls.clear();
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
     for (const b of blasts) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); } blasts.length = 0;
-    D.n = 0; U.n = 0; C.n = 0;
+    D.n = 0; U.n = 0; C.n = 0; SP.n = 0; cam.kick = 0;
     for (let cy = 0; cy * CS < W.g.H; cy++) for (let cz = 0; cz * CS < W.g.D; cz++) for (let cx = 0; cx * CS < W.g.W; cx++) buildChunk(cx, cy, cz);
     chest.position.set(W.chest.x, 0, W.chest.z); chest.rotation.y = 0; lid.rotation.x = 0; chest.visible = true;
+    placeBarrels();
     for (const b of beacons) scene.remove(b.beam, b.mark); beacons.length = 0;
     const bc = makeBeacon(); bc.chest = true; beacons.push(bc);
     for (const c of W.starCells) { const b = makeBeacon(); b.cell = c; beacons.push(b); }
@@ -340,7 +372,11 @@ export function createScene(cv, cfg) {
       else if (s.kind === 'hole') { const k = Math.min(1, s.t / (s.dur * 0.6)); g.scale.setScalar(0.4 + k * 1.2 * (1 - Math.max(0, (s.t - s.dur + 0.3) / 0.3))); for (const c of g.children) if (c.userData.spin) c.rotation.z += dt * c.userData.spin; }
       else if (s.kind === 'meteor') { g.rotation.x += dt * 5; g.rotation.y += dt * 3; puff(s.x, s.y + 0.5, s.z, 1.2, '#ffb347', 1); }
     }
-    for (const it of falls.values()) { it.mesh.position.y = it.my + it.f.y; it.tilt = Math.min(0.22, it.tilt + dt * Math.abs(it.f.spin) * 0.25); it.mesh.rotation.z = Math.sign(it.f.spin) * it.tilt; }
+    for (const it of falls.values()) {
+      const T = it.f.topple;
+      if (T) { it.holder.position.y = T.py + it.f.y; if (T.axis === 'z') it.holder.rotation.z = T.s * it.f.th; else it.holder.rotation.x = T.s * it.f.th; continue; }
+      it.holder.position.y = it.my + it.f.y; it.tilt = Math.min(0.22, it.tilt + dt * Math.abs(it.f.spin) * 0.25); it.holder.rotation.z = Math.sign(it.f.spin) * it.tilt;
+    }
   }
   function updateFx(dt) {
     const g = W.g;
@@ -358,9 +394,15 @@ export function createScene(cv, cfg) {
       }
       for (let k = 0; k < 3; k++) D.r[o + k] += D.w[o + k] * dt;
       const sc = s * Math.min(1, D.life[i] / 0.5);
-      tmpM.compose(tmpV.set(D.p[o], D.p[o + 1], D.p[o + 2]), tmpQ.setFromEuler(tmpE.set(D.r[o], D.r[o + 1], D.r[o + 2])), tmpS.set(sc, sc, sc));
+      tmpM.compose(tmpV.set(D.p[o], D.p[o + 1], D.p[o + 2]), tmpQ.setFromEuler(tmpE.set(D.r[o], D.r[o + 1], D.r[o + 2])), tmpS.set(sc * D.sh[o], sc * D.sh[o + 1], sc * D.sh[o + 2]));
       debris.setMatrixAt(i, tmpM);
     }
+    for (let i = SP.n - 1; i >= 0; i--) {
+      SP.life[i] -= dt; if (SP.life[i] <= 0) { const j = --SP.n; for (let k = 0; k < 3; k++) { SP.p[i * 3 + k] = SP.p[j * 3 + k]; SP.v[i * 3 + k] = SP.v[j * 3 + k]; } SP.life[i] = SP.life[j]; continue; }
+      const o = i * 3; SP.v[o + 1] -= 22 * dt; for (let k = 0; k < 3; k++) SP.p[o + k] += SP.v[o + k] * dt;
+      tmpM.compose(tmpV.set(SP.p[o], SP.p[o + 1], SP.p[o + 2]), tmpQ.identity(), tmpS.setScalar(Math.min(1, SP.life[i] * 4))); sparkMesh.setMatrixAt(i, tmpM);
+    }
+    sparkMesh.count = SP.n; sparkMesh.instanceMatrix.needsUpdate = true;
     debris.count = D.n; debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
     for (let i = U.n - 1; i >= 0; i--) {
       U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); continue; }
@@ -395,9 +437,11 @@ export function createScene(cv, cfg) {
     cam.bob += (h.moving ? dt * 9 : 0);
     const bob = h.moving ? Math.abs(Math.sin(cam.bob)) * 0.06 : 0;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6);
+    // the kick: a short upward nod on hits and blasts that dies away (exponential: stable at any frame time; no roll)
+    cam.kick = Math.min(0.12, (cam.kick || 0)) * Math.exp(-dt * 14);
     const sh = cam.trauma * cam.trauma * 0.25;
     camera.position.set(h.x + (Math.random() - 0.5) * sh, h.y + cam.eyeY + bob + (Math.random() - 0.5) * sh, h.z + (Math.random() - 0.5) * sh);
-    camera.rotation.set(cam.pitch, cam.yaw, 0, 'YXZ'); // yaw 0 looks along -z; never a roll
+    camera.rotation.set(cam.pitch + (cam.kick || 0), cam.yaw, 0, 'YXZ'); // yaw 0 looks along -z; never a roll
     sky.position.copy(camera.position);
     sun.position.set(W.g.W / 2 + 27, 50, W.g.D / 2 + 19); sun.target.position.set(W.g.W / 2, 0, W.g.D / 2); // fixed over the lot: shadows never swim
     // what the crosshair points at
@@ -432,6 +476,7 @@ export function createScene(cv, cfg) {
     set tool(id) { cam.tool = id; },
     get target() { return cam.target; },
     pickCenter,
+    kick,
     get heldTool() { return heldTool; },
     /** Star beacons in view: [{cell, x, y}] in frame units (a tap near one throws a star bomb). */
     starMarks() { const out = []; for (const b of beacons) { if (b.chest || !b.mark.visible) continue; const [x, y, behind] = screenOf(b.mark.position.x, b.mark.position.y, b.mark.position.z); if (!behind) out.push({ cell: b.cell, x, y }); } return out; },
@@ -448,7 +493,7 @@ export function createScene(cv, cfg) {
       for (const m of chunks.values()) m.geometry.dispose(); for (const it of falls.values()) it.mesh.geometry.dispose();
       for (const b of blasts) { b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); }
       for (const x of disposables) x.dispose();
-      debris.dispose(); dust.dispose(); coins.dispose();
+      debris.dispose(); dust.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
       renderer.dispose(); try { renderer.forceContextLoss(); } catch (e) { /* already gone */ }
     },
   };

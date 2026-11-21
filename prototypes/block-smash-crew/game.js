@@ -64,6 +64,8 @@ const Sound = (() => {
     hole() { tone('sine', 120, 40, 1.6, 0.4); tone('sine', 600, 90, 1.4, 0.12); },
     meteor() { tone('sine', 2200, 300, 0.85, 0.15); },
     step() { hiss(600, 300, 0.05, 0.06); },
+    timber() { tone('sawtooth', 140, 90, 0.5, 0.08); hiss(900, 200, 1.1, 0.25, 'lowpass', 0.4); },
+    fuse() { hiss(4000, 2500, 0.5, 0.12, 'highpass'); },
   };
   // a bouncy loop: bass on the beat, a marimba-ish melody
   const BASS = [45, 45, 52, 52, 50, 50, 47, 52], MEL = [69, 0, 72, 76, 0, 72, 69, 0, 71, 0, 74, 79, 0, 76, 74, 0];
@@ -372,6 +374,9 @@ function startGame(mode) {
         if (!dailyChecked && saveLoaded) daily();
       }
     } else if (e.type === 'swing') Sound.play('swing');
+    else if (e.type === 'hit') { if (e.n > 0 && !demo) { stopT = Math.max(stopT, cfg.feel.hitStop); scene.kick(0.022); } }
+    else if (e.type === 'topple') { Sound.play('timber'); buzz('warning'); if (!demo) { slowT = Math.max(slowT, cfg.feel.toppleSlow); banner(T('timber'), 'p-big', -80); } }
+    else if (e.type === 'fuse') Sound.play('fuse');
     else if (e.type === 'clang') { Sound.play('metal'); buzz('warning'); }
     else if (e.type === 'super') { Sound.play('boom', 0.5); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('super'), sx, sy - 110, 'p-mid', '#ffd23c'); toolEls.bomb.classList.remove('hint'); if (tipKey === 'tooHard') setTip(null); }
     else if (e.type === 'tooHard') {
@@ -379,12 +384,12 @@ function startGame(mode) {
       const teach = sel === 'hammer' && usable('bomb') && !save.learned.bomb; // the first times: the tip line + hand say it
       if (!teach) { const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('tooHard'), sx, sy - 100, 'p-mid', '#ffd0d0'); }
       if (sel === 'hammer' && usable('bomb')) { toolEls.bomb.classList.add('hint'); hardHint = { x: e.x, y: e.y, z: e.z, t: 4 }; if (teach) setTip('tooHard'); }
-    } else if (e.type === 'boom') { Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); }
+    } else if (e.type === 'boom') { Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); if (!demo) stopT = Math.max(stopT, cfg.feel.boomStop); }
     else if (e.type === 'throw') { Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
     else if (e.type === 'roll') Sound.play('roll');
     else if (e.type === 'fall') { /* the crash comes when it lands */ }
     else if (e.type === 'land') {
-      Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud');
+      Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud'); if (!demo && e.n >= 120) slowT = Math.max(slowT, cfg.feel.landSlow);
       if (!demo) { save.coins += e.coins; save.total += e.coins; save.blocks += e.n; persistSoon(); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (e.n >= 12) pop(T('crash'), sx, sy - 120, e.n > 120 ? 'p-big' : 'p-mid', '#ffb02e'); coinPop(e.coins, e.x, e.y + 1, e.z); }
     } else if (e.type === 'step') Sound.play('step');
     else if (e.type === 'treasure') { Sound.play('treasure'); buzz('success'); if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); banner(T('treasure'), 'p-big', -40); } }
@@ -443,6 +448,7 @@ function startGame(mode) {
   $('settings').addEventListener('pointerdown', (e) => e.stopPropagation());
 
   // ---- frame loop
+  let stopT = 0, slowT = 0;
   let fpsT = 0, fpsN = 0, slow = 0, fast = 0, quality = 1, coinTickT = 0, arrowKey = '';
   function frame(now) {
     if (!alive) return;
@@ -451,7 +457,9 @@ function startGame(mode) {
     if (document.hidden) return;
     fpsT += real; fpsN++;
     if (fpsT >= 1) { const fps = fpsN / fpsT; fpsT = 0; fpsN = 0; if (fps < 40) { slow++; fast = 0; } else if (fps > 55) { fast++; slow = 0; } if (slow >= 3 && quality > 0.7) { quality = 0.7; scene.setQuality(quality); slow = 0; } if (fast >= 6 && quality < 1) { quality = 1; scene.setQuality(quality); fast = 0; } }
-    const dt = real * speed;
+    // hit-stop on a solid hit, slow motion while a tower tips and as a big piece lands
+    if (stopT > 0) stopT -= real; if (slowT > 0) slowT -= real;
+    const dt = real * speed * (stopT > 0 ? 0.06 : slowT > 0 ? 0.4 : 1);
     coinPopT -= dt;
     if (mode === 'play' && W) {
       if (demo) { // attract: the hero smashes the fence by himself

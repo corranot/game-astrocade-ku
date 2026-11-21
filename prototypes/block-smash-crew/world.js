@@ -17,10 +17,10 @@ export function createWorld(cfg, n, opts = {}) {
   const ids = matIds(cfg);
   const H = cfg.hero;
   const W = {
-    cfg, n, g, mats, kind: L.kind, total: L.total, left: L.total, need: L.stars.length + 1, got: 0, starCells: L.stars, box: L.box, top: L.top,
+    cfg, n, g, mats, kind: L.kind, total: L.total, left: L.total, need: L.stars.length + 1, got: 0, starCells: L.stars, tntCells: L.tnt, box: L.box, top: L.top,
     chest: { x: L.chest.x, z: L.chest.z, open: false, t: 0 },
     hero: { x: L.spawn.x, y: 0, z: L.spawn.z, vy: 0, yaw: Math.PI, moving: false, swingT: -1, swingCell: null, cool: 0, goal: null, aim: null, hold: false, happy: 0, stepT: 0, bump: 0 },
-    shots: [], falls: [], cool: {}, owned: (opts.owned || ['hammer', 'bomb']).slice(), tried: new Set(),
+    shots: [], falls: [], fuses: [], cool: {}, owned: (opts.owned || ['hammer', 'bomb']).slice(), tried: new Set(),
     combo: createCombo(cfg), coins: 0, smashed: 0, demo: !!opts.demo, phase: 'play', fever: 0, t: 0, ev: [], nextId: 1,
     hardT: 0, used: new Set(), ids, lastHard: null,
   };
@@ -46,12 +46,15 @@ function afterRemove(W, removed, by, x, y, z, r) {
   for (const c of removed) if (c.m === W.ids.gold) gold++;
   W.ev.push({ type: 'smash', by, removed, x, y, z, r, coins, mult, word: smashWord(W.cfg, removed.length), gold });
   for (const c of removed) if (c.m === W.ids.star) gotStar(W, c.x + 0.5, c.y + 0.5, c.z + 0.5);
-  // whatever lost its support falls as one piece and shatters where it lands
+  lightFuses(W, removed.map((c) => ({ x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5, m: c.m })));
+  // whatever lost its support falls as one piece and shatters where it lands; a tall thin piece tips over its base
   for (const cl of collapse(W.g, removed)) {
     W.left -= cl.total;
     const land = landingDrop(W.g, cl.cells);
-    W.falls.push({ id: W.nextId++, cells: cl.cells, total: cl.total, y: 0, vy: 0, drop: land, spin: (cl.cells.length % 2 ? 1 : -1) * (0.3 + Math.min(1, cl.total / 400)) });
-    W.ev.push({ type: 'fall', fall: W.falls[W.falls.length - 1] });
+    const f = { id: W.nextId++, cells: cl.cells, total: cl.total, y: 0, vy: 0, drop: land, spin: (cl.cells.length % 2 ? 1 : -1) * (0.3 + Math.min(1, cl.total / 400)), th: 0, thv: 0, t: 0 };
+    f.topple = toppleOf(W, cl.cells, x, z);
+    W.falls.push(f);
+    W.ev.push({ type: f.topple ? 'topple' : 'fall', fall: f });
   }
 }
 /** How far a falling piece drops before its lowest block rests on something (or the ground). */
@@ -163,24 +166,74 @@ function stepShots(W, dt) {
 function boom(W, s, x, y, z) {
   W.ev.push({ type: 'boom', kind: s.kind, x, y, z, r: s.r });
   blast(W, x, y, z, s.r, true, s.kind);
+  scorch(W, x, y, z, s.r + 1.6);
+}
+/** Darkens the blocks left around a blast (the look reads g.scorch). */
+function scorch(W, x, y, z, R) {
+  const g = W.g; if (!g.scorch) g.scorch = new Uint8Array(g.data.length);
+  for (let cy = Math.max(0, Math.floor(y - R)); cy <= Math.min(g.H - 1, y + R); cy++) for (let cz = Math.max(0, Math.floor(z - R)); cz <= Math.min(g.D - 1, z + R); cz++) for (let cx = Math.max(0, Math.floor(x - R)); cx <= Math.min(g.W - 1, x + R); cx++) {
+    const i = g.idx(cx, cy, cz); if (!g.data[i]) continue;
+    const d = Math.hypot(cx + 0.5 - x, cy + 0.5 - y, cz + 0.5 - z); if (d > R) continue;
+    g.scorch[i] = Math.min(200, g.scorch[i] + Math.round(120 * (1 - d / R)));
+  }
+}
+/** TNT blocks that were smashed or landed: each blows up a moment later (and can set off the next). */
+function lightFuses(W, cells) {
+  let k = 0;
+  for (const c of cells) if (c.m === W.ids.tnt) { W.fuses.push({ x: c.x, y: Math.max(0.5, c.y), z: c.z, t: W.cfg.tnt.delay + k++ * W.cfg.tnt.step }); W.ev.push({ type: 'fuse', x: c.x, y: c.y, z: c.z }); }
+}
+function stepFuses(W, dt) {
+  for (const f of W.fuses) { f.t -= dt; if (f.t <= 0) { f.done = true; boom(W, { kind: 'tnt', r: W.cfg.tnt.r }, f.x, f.y, f.z); } }
+  W.fuses = W.fuses.filter((f) => !f.done);
+}
+/**
+ * A falling piece taller than it is wide tips over: it turns around the bottom edge on the side away from the blast
+ * (axis 'z' tips along x, axis 'x' along z; s is the sign of the turn). null for a piece that just drops.
+ */
+function toppleOf(W, cells, bx, bz) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity, cx = 0, cz = 0;
+  for (const c of cells) { x0 = Math.min(x0, c.x); x1 = Math.max(x1, c.x); y0 = Math.min(y0, c.y); y1 = Math.max(y1, c.y); z0 = Math.min(z0, c.z); z1 = Math.max(z1, c.z); cx += c.x + 0.5; cz += c.z + 0.5; }
+  cx /= cells.length; cz /= cells.length;
+  const h = y1 - y0 + 1, w = Math.max(x1 - x0, z1 - z0) + 1;
+  if (h < W.cfg.topple.minH || h < w * W.cfg.topple.ratio) return null;
+  let dx = cx - bx, dz = cz - bz; if (Math.abs(dx) < 0.01 && Math.abs(dz) < 0.01) dz = 1;
+  if (Math.abs(dx) >= Math.abs(dz)) return dx > 0 ? { axis: 'z', s: -1, px: x1 + 1, py: y0, pz: cz, h } : { axis: 'z', s: 1, px: x0, py: y0, pz: cz, h };
+  return dz > 0 ? { axis: 'x', s: 1, px: cx, py: y0, pz: z1 + 1, h } : { axis: 'x', s: -1, px: cx, py: y0, pz: z0, h };
+}
+/** Where cell c of falling piece f is now (its centre), turned and dropped. */
+export function placeOf(f, c) {
+  const x = c.x + 0.5, y = c.y + 0.5, z = c.z + 0.5, T = f.topple;
+  if (!T) return [x, y + f.y, z];
+  const a = T.s * f.th, co = Math.cos(a), si = Math.sin(a);
+  if (T.axis === 'z') { const dx = x - T.px, dy = y - T.py; return [T.px + dx * co - dy * si, T.py + dx * si + dy * co + f.y, z]; }
+  const dy = y - T.py, dz = z - T.pz; return [x, T.py + dy * co - dz * si + f.y, T.pz + dy * si + dz * co];
 }
 
 function stepFalls(W, dt) {
   for (const f of W.falls) {
+    f.t += dt;
+    if (f.topple) { // a rod tipping over its end: θ'' = 3g/2h · sin θ, dropping too if it was in the air
+      f.thv += (45 / f.topple.h) * Math.sin(f.th + 0.06) * dt; f.th += f.thv * dt;
+      if (-f.y < f.drop) { f.vy -= 30 * dt; f.y = Math.max(-f.drop, f.y + f.vy * dt); }
+      if (f.th >= W.cfg.topple.landAt || f.t > 3) { f.done = true; land(W, f); }
+      continue;
+    }
     f.vy -= 30 * dt; f.y += f.vy * dt;
     if (-f.y >= f.drop) { f.done = true; f.y = -f.drop; land(W, f); }
   }
   W.falls = W.falls.filter((f) => !f.done);
 }
 function land(W, f) {
-  let x = 0, y = 0, z = 0; for (const c of f.cells) { x += c.x; y += c.y; z += c.z; }
+  let x = 0, y = 0, z = 0; for (const c of f.cells) { const p = placeOf(f, c); x += p[0] - 0.5; y += p[1] - 0.5; z += p[2] - 0.5; }
   const k = f.cells.length || 1;
   const removed = f.cells;
   const mult = W.fever > 0 ? W.cfg.fever.mult : 1;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult) + (removed.length < f.total ? coinsFor(W.cfg, [{ m: removed[0].m }], mult) * (f.total - removed.length) : 0);
   W.coins += coins; W.smashed += f.total;
-  W.ev.push({ type: 'land', fall: f, x: x / k + 0.5, y: y / k - f.drop + 0.5, z: z / k + 0.5, coins, n: f.total });
-  for (const c of removed) if (c.m === W.ids.star) gotStar(W, c.x + 0.5, c.y + 0.5 - f.drop, c.z + 0.5);
+  W.ev.push({ type: 'land', fall: f, x: x / k + 0.5, y: Math.max(0.5, y / k + 0.5), z: z / k + 0.5, coins, n: f.total, topple: !!f.topple });
+  const at = (c) => { const p = placeOf(f, c); return [p[0], Math.max(0.5, p[1]), p[2]]; };
+  for (const c of removed) if (c.m === W.ids.star) { const p = at(c); gotStar(W, p[0], p[1], p[2]); }
+  lightFuses(W, removed.filter((c) => c.m === W.ids.tnt).map((c) => { const p = at(c); return { x: p[0], y: p[1], z: p[2], m: c.m }; }));
 }
 
 /** Starts a hammer swing at cell c (it lands part way through); false while the last swing or its cooldown runs. */
@@ -274,6 +327,7 @@ export function step(W, dt) {
   if (W.phase !== 'done') stepHero(W, dt);
   stepShots(W, dt);
   stepFalls(W, dt);
+  stepFuses(W, dt);
   if (W.phase === 'fever') { W.fever -= dt; if (W.fever <= 0) { W.fever = 0; W.phase = 'free'; W.ev.push({ type: 'clear' }); } } // free: keep smashing, NEXT is up
   return W.ev;
 }
