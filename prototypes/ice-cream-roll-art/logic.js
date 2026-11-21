@@ -37,8 +37,17 @@ export function makeOrder(cfg, owned, n, rng) {
   const want = Math.min(tops.length, n < o.twoToppingsFrom ? 1 : 1 + Math.floor(rng() * o.maxToppings));
   const pool = tops.slice(), toppings = [];
   while (toppings.length < want && pool.length) toppings.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
-  const art = n >= o.artFrom && rng() < o.artChance ? pick(rng, cfg.stencils) : null;
-  return { base: pick(rng, bases), fruits: f2 ? [f1, f2] : [f1], toppings, art, customer };
+  // every few cups a VIP: a richer order (an extra topping and a drawing) that pays double
+  const vip = n >= (o.vipEvery || 3) && n % (o.vipEvery || 3) === 0;
+  if (vip) while (toppings.length < Math.min(3, tops.length)) { const rest = tops.filter((t) => !toppings.includes(t)); toppings.push(pick(rng, rest)); }
+  const art = vip ? pick(rng, cfg.stencils) : n >= o.artFrom && rng() < o.artChance ? pick(rng, cfg.stencils) : null;
+  return { base: pick(rng, bases), fruits: f2 ? [f1, f2] : [f1], toppings, art, customer, special: vip ? 'vip' : null };
+}
+
+/** Today's special order: the same for every player on calendar day `day` (YYYYMMDD), from the free items only. */
+export function dailyOrder(cfg, day) {
+  const o = makeOrder(cfg, [], 5, mulberry32(day));
+  return { ...o, customer: cfg.customers[day % cfg.customers.length], special: 'today' };
 }
 
 /** How many pieces of each ordered fruit go on the plate: 3 of one, or 2 + 2 for a mix. */
@@ -75,10 +84,31 @@ export function scoreCup(cfg, order, made) {
   return { quality, stars: quality >= s[0] ? 3 : quality >= s[1] ? 2 : 1, parts };
 }
 
-/** Coins paid for a cup with the given stars; a cup with a drawing earns the art tip. */
-export function coinsFor(cfg, stars, drew) {
+/** Coins paid for a cup with the given stars; a drawing earns the art tip, a VIP pays double, today's special a bonus. */
+export function coinsFor(cfg, stars, drew, special = null) {
   const c = cfg.coins;
-  return c.base + c.perStar * stars + (drew ? c.artTip : 0);
+  const pay = c.base + c.perStar * stars + (drew ? c.artTip : 0);
+  return special === 'vip' ? pay * (c.vipMult || 2) : special === 'today' ? pay + (c.todayBonus || 0) : pay;
+}
+
+/** The cheapest thing still locked (any list, cup styles included), or null when everything is owned. */
+export function nextUnlock(cfg, owned, lists = ['bases', 'fruits', 'toppings', 'syrups', 'cupStyles']) {
+  let best = null;
+  for (const list of lists) {
+    for (const it of cfg[list] || []) if (it.cost && !(owned || []).includes(it.id) && (!best || it.cost < best.cost)) best = { list, id: it.id, cost: it.cost };
+  }
+  return best;
+}
+
+/** Step tuning for a cup: once a step has been done before and from cup `expert.from`, it goes quicker. */
+export function tuned(cfg, learned, n) {
+  const e = cfg.expert || {}, on = (k) => n >= (e.from || 3) && !!(learned || {})[k];
+  return {
+    pourRate: cfg.pour.rate * (on('pour') ? e.pourRate || 1 : 1),
+    chopHits: Math.max(1, cfg.chop.hits + (on('chop') ? e.chopHits || 0 : 0)),
+    freezeTime: cfg.freeze.time * (on('freeze') ? e.freezeTime || 1 : 1),
+    spreadDone: on('spread') ? e.spreadDone || cfg.spread.done : cfg.spread.done,
+  };
 }
 
 /** Whether a gift box is due after `cups` cups have been served (every n-th cup, never the first). */
@@ -90,7 +120,7 @@ export const giftDue = (cups, every) => cups > 0 && cups % every === 0;
  */
 export function giftContent(cfg, owned) {
   let best = null;
-  for (const list of ['fruits', 'toppings', 'bases', 'syrups']) {
+  for (const list of ['fruits', 'toppings', 'bases', 'syrups', 'cupStyles']) {
     for (const it of cfg[list] || []) if (it.cost && !(owned || []).includes(it.id) && (!best || it.cost < best.cost)) best = { ...it, list };
   }
   return best ? { kind: 'item', id: best.id, list: best.list } : { kind: 'coins', amount: cfg.coins.giftCoins };
@@ -99,8 +129,8 @@ export function giftContent(cfg, owned) {
 /** A calendar day as the number YYYYMMDD (compared by size, so a clock moved back never pays twice). */
 export const dayNum = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 
-/** Whether today's daily gift may be paid: only after a first cup, once per calendar day, never backwards. */
-export const dailyDue = (today, lastDaily, cups) => cups > 0 && today > (Number(lastDaily) || 0);
+/** Whether today's daily gift may be paid: only after `from` cups, once per calendar day, never backwards. */
+export const dailyDue = (today, lastDaily, cups, from = 1) => cups >= from && today > (Number(lastDaily) || 0);
 
 /** Buy item id if the player has the coins. Returns the new coins, or -1 when it cannot be bought. */
 export function buy(cfg, list, id, coins, owned) {

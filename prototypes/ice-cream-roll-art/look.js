@@ -21,7 +21,7 @@ const fails = [];
     const shot = async (n) => {
       await page.screenshot({ path: path.join(out, `${n}-${lang}.jpg`), type: 'jpeg', quality: 80 });
       // every visible text box inside the 720-wide screen
-      const bad = await page.evaluate(() => { const r = document.querySelector('#app').getBoundingClientRect(); return [...document.querySelectorAll('#hud .banner, #hud .pop, #hud button, #panel .gtitle, #panel .tap')].filter((e) => e.offsetParent && e.getBoundingClientRect().width).filter((e) => { const b = e.getBoundingClientRect(); return b.left < r.left - 1 || b.right > r.right + 1; }).map((e) => e.className + ':' + e.textContent.slice(0, 20)); });
+      const bad = await page.evaluate(() => { const r = document.querySelector('#app').getBoundingClientRect(); return [...document.querySelectorAll('#hud .banner, #hud .pop, #hud button, #panel .gtitle, #panel .tap, #panel .board, #panel .styles, #panel .card, #panel .lock, #hud .lock')].filter((e) => e.offsetParent && e.getBoundingClientRect().width).filter((e) => { const b = e.getBoundingClientRect(); return b.left < r.left - 1 || b.right > r.right + 1; }).map((e) => e.className + ':' + e.textContent.slice(0, 20)); });
       if (bad.length) fails.push(`${lang} ${n}: outside the screen: ${bad.join(', ')}`);
     };
     const g = (fn, a) => page.evaluate(fn, a);
@@ -29,12 +29,17 @@ const fails = [];
     await g(() => { for (const ln of __game.scene.lanes) __game.scene.setLane(ln, __game.scene.L); });
     await page.waitForFunction(() => __game.S.step === 'topping', null, { timeout: 20000 });
     await g(() => { __game.addTop('whip'); __game.addTop('cherry'); }); await page.waitForTimeout(700); await shot('02-toppings');
+    // a second cup's worth of play, so the daily gift (from cup 2) follows the rating card
+    await g(() => { __game.save.cups = 1; });
     await page.click('#action', { force: true }); await page.waitForSelector('#nextBtn', { timeout: 15000 }); await page.waitForTimeout(1500); await shot('03-rating');
     await page.click('#nextBtn', { force: true }); await page.waitForSelector('#giftBox', { timeout: 5000 }); await shot('04-gift');
     await page.click('#giftBox', { force: true }); await page.waitForSelector('#nextBtn'); await page.click('#nextBtn', { force: true });
-    await page.waitForFunction(() => __game.S.step === 'pour', null, { timeout: 8000 }); await page.waitForTimeout(1300); await shot('05-pour');
+    await page.waitForFunction(() => __game.S.step === 'pour' || __game.S.step === 'roll', null, { timeout: 8000 }); await g(() => { if (__game.S.step !== 'pour') { __game.save.cups = 1; __game.newCup(); } }); await page.waitForTimeout(1300); await shot('05-pour');
     await g(() => __game.go(4)); await page.waitForTimeout(600); await shot('06-draw');
     await g(() => __game.go(5)); await page.waitForTimeout(600); await shot('07-freeze');
+    await g(() => { __game.save.coins = 130; __game.openShelf(); }); await page.waitForTimeout(700); await shot('08-shelf');
+    await page.click('#closeShelf', { force: true });
+    await g(() => { __game.save.cups = 3; __game.newCup(); }); await page.waitForTimeout(900); await shot('09-vip');
     if (errors.length) fails.push(`${lang}: page errors ${errors.join(' | ')}`);
     console.log('done', lang);
     await page.close();

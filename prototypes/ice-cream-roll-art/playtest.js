@@ -30,7 +30,7 @@ function driver(page) {
     for (const p of pts.slice(1)) { const [nx, ny] = await at(...p); await page.mouse.move(nx, ny, { steps }); }
     await page.mouse.up();
   }
-  const trayTap = (id) => page.click(`#tray button[data-id="${id}"]`, { force: true });
+  const trayTap = (id) => page.click(`#hud .slot[data-id="${id}"]`, { force: true });
   return { g, at, step, waitStep, tap, hold, drag, trayTap };
 }
 
@@ -105,6 +105,7 @@ async function playCup(page, d, prefix, shots = true) {
   await page.waitForFunction(() => __game.S.step === 'serve', null, { timeout: 8000 });
   await page.waitForTimeout(900); await shot('15-serve');
   await page.waitForSelector('#nextBtn', { timeout: 15000 }); await page.waitForTimeout(1200); await shot('16-rating');
+  check(await page.$$eval('#panel .part', (p) => p.length) >= 5, 'rating card shows a tick or cross for each thing the customer checks');
 }
 
 /** Regression checks for bugs found by reading the code (each one failed before its fix). */
@@ -125,6 +126,51 @@ async function bugChecks(browser, port) {
     await page.waitForFunction(() => __game.saveLoaded, null, { timeout: 12000 });
     const st = await page.evaluate(() => ({ lastDaily: __game.save.lastDaily, coins: __game.save.coins }));
     check(!gift && st.lastDaily === today && st.coins < 100 + 30 + 30, `late save: no daily gift before it is read, today's claim kept (gift shown ${gift}, ${JSON.stringify(st)})`);
+    await page.close();
+  }
+  // a late save redraws the lock labels against the real coins (a "TRY!" label must not spend coins)
+  {
+    const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await page.addInitScript(() => { window.__preset = { cups: 1, coins: 100, owned: [] }; window.__saveFails = true; });
+    await page.goto(`http://localhost:${port}/?local`);
+    await page.waitForFunction(() => window.__game && window.__game.S, null, { timeout: 40000 });
+    await page.evaluate(() => { for (const ln of __game.scene.lanes) __game.scene.setLane(ln, __game.scene.L); });
+    await page.waitForFunction(() => __game.S.step === 'topping', null, { timeout: 20000 });
+    // the kid has been playing this cup, so the late save must not restart it
+    await page.evaluate(() => { __game.S.touched = true; window.__saveFails = false; });
+    await page.waitForFunction(() => __game.saveLoaded, null, { timeout: 12000 });
+    const label = await page.evaluate(() => { const b = document.querySelector('#hud .slot[data-id="wafer"] .lock b'); return b && b.textContent; });
+    check(label === '25', `late save: lock labels show the price once the coins arrive (${label})`);
+    await page.close();
+  }
+  // today's special: not again for a clock moved back; the gift card moves on by itself; the draw step stays above the sign-in zone
+  {
+    const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await page.addInitScript(() => { window.__preset = { cups: 2, coins: 0, owned: [], todayDone: 29991231, lastDaily: 0 }; });
+    await page.goto(`http://localhost:${port}/?local&speed=3`);
+    await page.waitForFunction(() => window.__game && window.__game.saveLoaded && __game.S.n === 2, null, { timeout: 40000 });
+    const sp = await page.evaluate(() => { __game.newCup(); return __game.S.order.special; });
+    check(sp !== 'today', `today's special does not come back when the clock goes back (${sp})`);
+    await page.evaluate(() => __game.go(4)); await page.waitForTimeout(400);
+    const low = await page.evaluate(() => { const a = document.querySelector('#app').getBoundingClientRect(); return Math.max(...[...document.querySelectorAll('#hud .low .slot, #hud .low button:not([hidden])')].filter((e) => e.offsetParent).map((e) => (e.getBoundingClientRect().bottom - a.top) / a.height)); });
+    check(low <= 0.87, `draw step: syrups, shapes and Done stay above the bottom 13% (${low.toFixed(3)})`);
+    // serve a cup straight away: rating card, then the daily gift, both move on by themselves
+    await page.evaluate(() => { window.gameConfig.ratingAutoNext = 1; __game.go(6); });
+    await page.evaluate(() => { for (const ln of __game.scene.lanes) __game.scene.setLane(ln, __game.scene.L); });
+    await page.waitForFunction(() => __game.S.step === 'topping', null, { timeout: 20000 });
+    await page.evaluate(() => { __game.addTop('whip'); document.querySelector('#action').click(); });
+    await page.waitForSelector('#giftBox', { timeout: 20000 });
+    const moved = await page.waitForFunction(() => __game.S.n === 3, null, { timeout: 15000 }).then(() => true).catch(() => false);
+    check(moved, 'the opened gift card moves on to the next cup by itself');
+    // a page hidden mid-roll ends the gesture (a lost pointerup must not keep the lane held)
+    await page.evaluate(() => __game.go(6)); await page.waitForTimeout(300);
+    const [x0, y0] = await page.evaluate(() => __game.client(__game.scene.lanes[1].x / 4 + 0.5, 0.84));
+    await page.mouse.move(x0, y0); await page.mouse.down(); await page.mouse.move(x0, y0 - 30, { steps: 3 }); await page.waitForTimeout(150);
+    const held = await page.evaluate(() => !!__game.S.lane);
+    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
+    const after = await page.evaluate(() => ({ lane: !!__game.S.lane, auto: __game.scene.lanes[1].auto || __game.scene.lanes[1].done }));
+    await page.mouse.up();
+    check(held && !after.lane && after.auto, `hiding the page mid-roll lets go of the lane, which finishes by itself (${JSON.stringify({ held, ...after })})`);
     await page.close();
   }
   // 2, 3, 6, 7, 8 on one page in Arabic with a returning player's save
@@ -189,24 +235,57 @@ if (require.main === module) (async () => {
   check(await d.g(() => __game.lang) === (['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'].includes(langArg.slice(0, 2)) ? langArg.slice(0, 2) : 'en'), 'language follows the device: ' + langArg);
   check(await d.step() === 'roll', 'the first cup starts at the most satisfying step (rolling a ready sheet)');
   await page.waitForTimeout(800);
+  { // before any touch the screen moves by itself (feed preview), and nothing to tap sits in the sign-in sheet zone
+    const p1 = await d.g(() => __game.scene.lanes[0].p); await page.waitForTimeout(500); const p2 = await d.g(() => __game.scene.lanes[0].p);
+    check(Math.abs(p2 - p1) > 0.01, `attract mode: the first lane curls by itself before a touch (${p1.toFixed(2)} -> ${p2.toFixed(2)})`);
+    const low = await d.g(() => { const a = document.querySelector('#app').getBoundingClientRect(); return [...document.querySelectorAll('#hud .low button:not([hidden]), #hud .low .banner:not([hidden])')].filter((e) => e.offsetParent).map((e) => (e.getBoundingClientRect().bottom - a.top) / a.height); });
+    check(low.every((y) => y <= 0.87), `first cup: banner and buttons stay above the bottom 13% (${low.map((y) => y.toFixed(2))})`);
+    const rectNear = await d.g(() => { const [, y] = __game.client(0.5, 0.87); const a = document.querySelector('#app').getBoundingClientRect(); return (y - a.top) / a.height; });
+    const lowTop = await d.g(() => { const a = document.querySelector('#app').getBoundingClientRect(); return (document.querySelector('#hud .low').getBoundingClientRect().top - a.top) / a.height; });
+    check(lowTop >= rectNear - 0.005, `the bottom HUD never covers the cream sheet (sheet ends ${rectNear.toFixed(3)}, HUD starts ${lowTop.toFixed(3)})`);
+  }
   globalThis.__errs = errors; globalThis.__page = page;
   await playCup(page, d, 'a');
   const r0 = await d.g(() => ({ coins: __game.save.coins, cups: __game.save.cups, writes: (window.__writes || []).length }));
   check(r0.cups === 1 && r0.coins > 0 && r0.writes > 0, `first cup pays and saves (cups ${r0.cups}, coins ${r0.coins}, writes ${r0.writes})`);
-  await page.click('#nextBtn', { force: true });
-  // the daily gift comes after the first cup: open it, then go on
-  await page.waitForSelector('#giftBox', { timeout: 3000 }); await page.screenshot({ path: path.join(out, 'a-17-daily-gift.png') });
-  await page.click('#giftBox', { force: true }); await page.waitForSelector('#nextBtn', { timeout: 3000 });
-  await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, 'a-18-daily-open.png') });
-  check(await d.g(() => __game.save.coins) > r0.coins, 'daily gift pays coins after the first cup');
-  await page.click('#nextBtn', { force: true });
-  await page.waitForFunction(() => __game.S.n === 1 && __game.S.step === 'pour', null, { timeout: 8000 });
-  check(true, 'next cup starts at pouring with a new order');
+  // no menu between the first cup and the next one: the rating card moves on by itself, no gift yet
+  const autoNext = await page.waitForFunction(() => __game.S.n === 1 && __game.S.step === 'pour', null, { timeout: 12000 }).then(() => true).catch(() => false);
+  check(autoNext && !(await page.$('#giftBox')), 'after the first cup the rating card moves on by itself to the next cup (no gift box in between)');
   const cupState = await d.g(() => ({ s: __game.scene.cup.scale.x, r: __game.scene.cup.rotation.y, v: __game.scene.cup.visible, kids: __game.scene.cup.children.length }));
   check(cupState.s === 1 && cupState.r === 0 && !cupState.v && cupState.kids === 4, `the new cup is reset to full size, empty and put away (${JSON.stringify(cupState)})`);
   await playCup(page, d, 'b');
   const r1 = await d.g(() => ({ stars: __game.S.result.stars, q: __game.S.result.quality, parts: __game.S.result.parts, cups: __game.save.cups }));
   check(r1.cups === 2 && r1.stars === 3, `a careful full cup earns 3 stars (stars ${r1.stars}, quality ${r1.q.toFixed(2)}, ${JSON.stringify(r1.parts)})`);
+  { // the daily gift comes after the second cup
+    const c0 = await d.g(() => __game.save.coins);
+    await page.click('#nextBtn', { force: true });
+    await page.waitForSelector('#giftBox', { timeout: 3000 }); await page.screenshot({ path: path.join(out, 'b-17-daily-gift.png') });
+    await page.click('#giftBox', { force: true }); await page.waitForSelector('#nextBtn', { timeout: 3000 });
+    await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, 'b-18-daily-open.png') });
+    check(await d.g(() => __game.save.coins) > c0, 'daily gift pays coins after the second cup');
+  }
+  { // the shelf keeps a photo of each cup; a cup style can be bought and goes on the next cup
+    await page.click('#nextBtn', { force: true });
+    await page.waitForFunction(() => __game.S.n === 2 && __game.S.step === 'pour', null, { timeout: 8000 });
+    const parts = await page.$$eval('#tray .slot', (b) => b.length);
+    await d.g(() => { __game.save.coins = 100; });
+    await page.click('#shelfBtn', { force: true }); await page.waitForSelector('.shelf .grid');
+    const shelf = await d.g(() => ({ photos: document.querySelectorAll('.shelf .cell > img').length, cells: document.querySelectorAll('.shelf .cell').length, snaps: __game.snaps.length }));
+    await page.screenshot({ path: path.join(out, 'c-01-shelf.png') });
+    await page.click('.shelf [data-st="mint"]', { force: true }); await page.waitForTimeout(300);
+    const bought = await d.g(() => ({ style: __game.save.cupStyle, owned: __game.save.owned.includes('mint'), coins: __game.save.coins, on: __game.S.style }));
+    await page.click('#closeShelf', { force: true });
+    const closed = await d.g(() => document.querySelector('#panel').hidden);
+    check(shelf.photos === 2 && shelf.cells === 8, `shelf: a photo of each cup played (${JSON.stringify(shelf)})`);
+    check(bought.style === 'mint' && bought.owned && bought.coins === 40 && bought.on === 'mint' && closed, `a cup style is bought with coins and used at once (${JSON.stringify(bought)})`);
+    check(parts === 6, `pour tray shows the six flavours (${parts})`);
+    const vip = await d.g(() => { __game.save.cups = 3; __game.newCup(); return { special: __game.S.order.special, badge: !!document.querySelector('.bubble .badge') }; });
+    check(vip.special === 'vip' && vip.badge, `every third cup is a VIP order with a crown (${JSON.stringify(vip)})`);
+    await d.g(() => { __game.go(1); });
+    const fruits = await page.$$eval('#tray .slot', (b) => b.length);
+    const pulse = await d.g(() => document.querySelectorAll('.bubble .oi.now').length);
+    check(fruits <= 6 && pulse >= 1, `fruit tray at most six (${fruits}) and the order item for this step pulses (${pulse})`);
+  }
   const mem = await d.g(() => ({ t: __game.textures, g: __game.geometries }));
   check(errors.length === 0, 'no page errors: ' + (errors.join(' | ') || 'none'));
   console.log('gpu memory after 2 cups:', JSON.stringify(mem));

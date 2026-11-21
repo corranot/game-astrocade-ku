@@ -25,7 +25,9 @@
   "inner": 0.05,
   "thick": 0.045,
   "autoAt": 0.18,
-  "speed": 2.6
+  "speed": 2.6,
+  "follow": 12,
+  "slowMo": 0.4
  },
  "cup": {
   "height": 0.5,
@@ -39,7 +41,8 @@
   "twoToppingsFrom": 2,
   "maxToppings": 3,
   "artFrom": 2,
-  "artChance": 0.55
+  "artChance": 0.55,
+  "vipEvery": 3
  },
  "score": {
   "weights": {
@@ -61,7 +64,10 @@
   "perStar": 5,
   "artTip": 5,
   "giftCoins": 60,
-  "daily": 30
+  "daily": 30,
+  "dailyFrom": 2,
+  "vipMult": 2,
+  "todayBonus": 40
  },
  "gift": {
   "every": 3
@@ -242,7 +248,12 @@
    "gift": "Gift box!",
    "daily": "Daily gift!",
    "makeOwn": "Now make your own!",
-   "tapOpen": "Tap to open!"
+   "tapOpen": "Tap to open!",
+   "look": "Look inside!",
+   "shelf": "My cups",
+   "vip": "VIP order!",
+   "today": "Today's special!",
+   "top": "Top makers"
   },
   "ar": {
    "pour": "اضغط مطولاً للصب!",
@@ -269,7 +280,12 @@
    "gift": "صندوق هدية!",
    "daily": "هدية اليوم!",
    "makeOwn": "الآن اصنع بنفسك!",
-   "tapOpen": "انقر للفتح!"
+   "tapOpen": "انقر للفتح!",
+   "look": "انظر إلى الداخل!",
+   "shelf": "أكوابي",
+   "vip": "طلب VIP!",
+   "today": "طلب اليوم المميز!",
+   "top": "أفضل الصانعين"
   },
   "es": {
    "pour": "¡Mantén para verter!",
@@ -296,7 +312,12 @@
    "gift": "¡Caja regalo!",
    "daily": "¡Regalo diario!",
    "makeOwn": "¡Ahora haz el tuyo!",
-   "tapOpen": "¡Toca para abrir!"
+   "tapOpen": "¡Toca para abrir!",
+   "look": "¡Mira por dentro!",
+   "shelf": "Mis copas",
+   "vip": "¡Pedido VIP!",
+   "today": "¡Especial de hoy!",
+   "top": "Mejores"
   },
   "vi": {
    "pour": "Giữ để rót!",
@@ -323,7 +344,12 @@
    "gift": "Hộp quà!",
    "daily": "Quà mỗi ngày!",
    "makeOwn": "Giờ tự làm nào!",
-   "tapOpen": "Chạm để mở!"
+   "tapOpen": "Chạm để mở!",
+   "look": "Nhìn bên trong!",
+   "shelf": "Cốc của tôi",
+   "vip": "Đơn VIP!",
+   "today": "Món đặc biệt hôm nay!",
+   "top": "Bảng xếp hạng"
   },
   "hi": {
    "pour": "डालने को दबाए रखो!",
@@ -346,11 +372,16 @@
    "chopWord": "काटो!",
    "frozen": "जम गया!",
    "new": "नया!",
-   "try": "आज़माओ!",
+   "try": "ट्राई!",
    "gift": "गिफ्ट बॉक्स!",
    "daily": "आज का तोहफ़ा!",
    "makeOwn": "अब खुद बनाओ!",
-   "tapOpen": "खोलने को टैप करो!"
+   "tapOpen": "खोलने को टैप करो!",
+   "look": "अंदर देखो!",
+   "shelf": "मेरे कप",
+   "vip": "VIP ऑर्डर!",
+   "today": "आज का खास!",
+   "top": "टॉप मेकर"
   },
   "bn": {
    "pour": "ঢালতে চেপে ধরো!",
@@ -373,11 +404,16 @@
    "chopWord": "কাটো!",
    "frozen": "জমে গেছে!",
    "new": "নতুন!",
-   "try": "চেষ্টা করো!",
+   "try": "ট্রাই!",
    "gift": "উপহার বাক্স!",
    "daily": "আজকের উপহার!",
    "makeOwn": "এবার নিজে বানাও!",
-   "tapOpen": "খুলতে ট্যাপ করো!"
+   "tapOpen": "খুলতে ট্যাপ করো!",
+   "look": "ভেতরে দেখো!",
+   "shelf": "আমার কাপ",
+   "vip": "VIP অর্ডার!",
+   "today": "আজকের বিশেষ!",
+   "top": "সেরা নির্মাতা"
   },
   "id": {
    "pour": "Tahan untuk tuang!",
@@ -404,7 +440,12 @@
    "gift": "Kotak hadiah!",
    "daily": "Hadiah harian!",
    "makeOwn": "Sekarang buat sendiri!",
-   "tapOpen": "Ketuk untuk buka!"
+   "tapOpen": "Ketuk untuk buka!",
+   "look": "Lihat dalamnya!",
+   "shelf": "Cup-ku",
+   "vip": "Pesanan VIP!",
+   "today": "Spesial hari ini!",
+   "top": "Pembuat teratas"
   }
  },
  "sprites": {
@@ -575,5 +616,66 @@
   "leaderboard": {
    "sort_ascending": false
   }
+ },
+ "ratingAutoNext": 6,
+ "cupStyles": [
+  {
+   "id": "pink",
+   "cols": [
+    "#ff7fb6",
+    "#ffffff"
+   ]
+  },
+  {
+   "id": "mint",
+   "cols": [
+    "#4fd1a8",
+    "#ffffff"
+   ],
+   "cost": 60
+  },
+  {
+   "id": "sky",
+   "cols": [
+    "#4fb2ff",
+    "#ffffff"
+   ],
+   "cost": 90
+  },
+  {
+   "id": "lilac",
+   "cols": [
+    "#b48cff",
+    "#ffffff"
+   ],
+   "cost": 120
+  },
+  {
+   "id": "rainbow",
+   "cols": [
+    "#ff5b7f",
+    "#ffb23c",
+    "#ffe14f",
+    "#5fd16b",
+    "#4fb2ff",
+    "#b48cff"
+   ],
+   "cost": 180
+  },
+  {
+   "id": "gold",
+   "cols": [
+    "#ffc531",
+    "#fff3c4"
+   ],
+   "cost": 250
+  }
+ ],
+ "expert": {
+  "from": 3,
+  "pourRate": 1.35,
+  "chopHits": -1,
+  "freezeTime": 0.7,
+  "spreadDone": 0.86
  }
 }

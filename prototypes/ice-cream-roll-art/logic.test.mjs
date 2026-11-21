@@ -52,11 +52,12 @@ t('coins grow with stars, art tip added', () => {
 t('gift every n cups, never at 0', () => { assert.equal(R.giftDue(0, 3), false); assert.equal(R.giftDue(3, 3), true); assert.equal(R.giftDue(4, 3), false); });
 t('gift is the cheapest locked item, coins when all owned', () => {
   const g = R.giftContent(cfg, []); assert.equal(g.kind, 'item'); assert.equal(g.id, 'wafer');
-  const all = ['bases', 'fruits', 'toppings', 'syrups'].flatMap((k) => cfg[k].map((x) => x.id));
+  const all = ['bases', 'fruits', 'toppings', 'syrups', 'cupStyles'].flatMap((k) => cfg[k].map((x) => x.id));
   assert.deepEqual(R.giftContent(cfg, all), { kind: 'coins', amount: cfg.coins.giftCoins });
 });
 t('daily gift: only after a cup, once a day, never for a clock moved back', () => {
   assert.equal(R.dailyDue(20261121, 0, 0), false); assert.equal(R.dailyDue(20261121, 0, 1), true);
+  assert.equal(R.dailyDue(20261121, 0, 1, 2), false); assert.equal(R.dailyDue(20261121, 0, 2, 2), true);
   assert.equal(R.dailyDue(20261121, 20261121, 5), false); assert.equal(R.dailyDue(20261120, 20261121, 5), false);
   assert.equal(R.dayNum(new Date(2026, 0, 5)), 20260105);
 });
@@ -81,5 +82,29 @@ t('roll: flat ahead of the scraper, touching the plate at the scraper, no kink',
   // the whole wound part stays inside the outer radius, above the plate
   const R0 = rollRadius(p, a, b);
   for (let s = 0; s < p; s += 0.01) { const [dd, yy] = rollPoint(s, p, a, b); assert.ok(yy >= -1e-9 && Math.hypot(dd - p, yy - R0) <= R0 + 1e-9); }
+});
+t('VIP every 3rd cup from cup 3: three toppings and a drawing, pays double', () => {
+  for (let s = 1; s < 50; s++) {
+    const o = R.makeOrder(cfg, [], 6, R.mulberry32(s)); assert.equal(o.special, 'vip'); assert.ok(o.art); assert.equal(o.toppings.length, 3); assert.equal(new Set(o.toppings).size, 3);
+    assert.equal(R.makeOrder(cfg, [], 4, R.mulberry32(s)).special, null); assert.equal(R.makeOrder(cfg, [], 0, R.mulberry32(s)).special, undefined);
+  }
+  assert.equal(R.coinsFor(cfg, 3, false, 'vip'), 2 * R.coinsFor(cfg, 3, false));
+  assert.equal(R.coinsFor(cfg, 3, false, 'today') - R.coinsFor(cfg, 3, false), cfg.coins.todayBonus);
+});
+t("today's special is the same for everyone that day, and differs between days", () => {
+  assert.deepEqual(R.dailyOrder(cfg, 20261121), R.dailyOrder(cfg, 20261121));
+  assert.equal(R.dailyOrder(cfg, 20261121).special, 'today');
+  const days = new Set(); for (let d = 20261101; d < 20261111; d++) days.add(JSON.stringify(R.dailyOrder(cfg, d))); assert.ok(days.size > 5);
+});
+t('next unlock: cheapest locked across all lists, null when all owned', () => {
+  assert.deepEqual(R.nextUnlock(cfg, []), { list: 'toppings', id: 'wafer', cost: 25 });
+  const all = ['bases', 'fruits', 'toppings', 'syrups', 'cupStyles'].flatMap((k) => cfg[k].map((x) => x.id));
+  assert.equal(R.nextUnlock(cfg, all), null);
+});
+t('expert tuning only for learned steps from cup 3', () => {
+  const base = R.tuned(cfg, {}, 9); assert.equal(base.pourRate, cfg.pour.rate); assert.equal(base.chopHits, cfg.chop.hits);
+  const early = R.tuned(cfg, { pour: 1, chop: 1 }, 2); assert.equal(early.pourRate, cfg.pour.rate);
+  const pro = R.tuned(cfg, { pour: 1, chop: 1, freeze: 1, spread: 1 }, 3);
+  assert.ok(pro.pourRate > cfg.pour.rate && pro.chopHits === cfg.chop.hits - 1 && pro.freezeTime < cfg.freeze.time && pro.spreadDone < cfg.spread.done);
 });
 console.log(`\n${n} passed`);
