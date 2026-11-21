@@ -47,7 +47,7 @@
  "score": {
   "weights": {
    "base": 1,
-   "fruit": 2,
+   "fruit": 3,
    "pour": 1,
    "spread": 1.5,
    "rolls": 1,

@@ -106,6 +106,8 @@ async function playCup(page, d, prefix, shots = true) {
   await page.waitForTimeout(900); await shot('15-serve');
   await page.waitForSelector('#nextBtn', { timeout: 15000 }); await page.waitForTimeout(1200); await shot('16-rating');
   check(await page.$$eval('#panel .part', (p) => p.length) >= 5, 'rating card shows a tick or cross for each thing the customer checks');
+  { const o = await page.evaluate(() => ({ items: __game.S.order.fruits.length + __game.S.order.toppings.length, imgs: document.querySelectorAll('#panel .part img').length }));
+    check(o.items === o.imgs, `rating card shows the customer's own fruit and toppings, one icon each (${o.imgs}/${o.items})`); }
 }
 
 /** Regression checks for bugs found by reading the code (each one failed before its fix). */
@@ -171,6 +173,46 @@ async function bugChecks(browser, port) {
     const after = await page.evaluate(() => ({ lane: !!__game.S.lane, auto: __game.scene.lanes[1].auto || __game.scene.lanes[1].done }));
     await page.mouse.up();
     check(held && !after.lane && after.auto, `hiding the page mid-roll lets go of the lane, which finishes by itself (${JSON.stringify({ held, ...after })})`);
+    await page.close();
+  }
+  // toppings rest on what is really there: on the rolls without cream, on the cream once it is added
+  {
+    const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await page.goto(`http://localhost:${port}/?local`);
+    await page.waitForFunction(() => window.__game && window.__game.S && window.__game.saveLoaded, null, { timeout: 40000 });
+    await page.evaluate(() => { __game.S.touched = true; for (const ln of __game.scene.lanes) __game.scene.setLane(ln, __game.scene.L); });
+    await page.waitForFunction(() => __game.S.step === 'topping', null, { timeout: 20000 });
+    const probe = () => page.evaluate(() => {
+      // heights in cup space, measured through the scene graph (toppings sit in a pivot)
+      const sc = __game.scene, T = sc.rollTopY(), m = new THREE.Matrix4(), v = new THREE.Vector3(); sc.cup.updateMatrixWorld(true);
+      const local = (o, p) => sc.cup.worldToLocal(o.localToWorld(p.clone()));
+      const cherry = sc.toppings.find((t) => t.id === 'cherry'), spr = sc.toppings.find((t) => t.id === 'sprinkles');
+      let sMax = -1; if (spr) { let im = null; spr.m.traverse((o) => { if (o.isInstancedMesh) im = o; }); for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); v.setFromMatrixPosition(m); sMax = Math.max(sMax, local(im, v).y - T); } }
+      let ball = null; if (cherry) cherry.m.traverse((o) => { if (!ball && o.isMesh && o.geometry.type === 'SphereGeometry') ball = o; });
+      return { cherry: ball ? local(ball, new THREE.Vector3()).y - T : null, sprinkles: sMax };
+    });
+    await page.evaluate(() => { __game.addTop('sprinkles'); __game.addTop('cherry'); }); await page.waitForTimeout(900);
+    const before = await probe();
+    await page.evaluate(() => __game.addTop('whip')); await page.waitForTimeout(900);
+    const after = await probe();
+    check(before.cherry < 0.2 && before.sprinkles < 0.06, `without cream the cherry and sprinkles sit on the rolls (${JSON.stringify(before)})`);
+    check(after.cherry > 0.45 && after.sprinkles > 0.2, `cream added afterwards lifts the cherry to its tip and sprinkles onto it (${JSON.stringify(after)})`);
+    await page.close();
+  }
+  // the shelf cannot open while a cup is being served (the rating card would replace it)
+  {
+    const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await page.goto(`http://localhost:${port}/?local`);
+    await page.waitForFunction(() => window.__game && window.__game.S && window.__game.saveLoaded, null, { timeout: 40000 });
+    await page.evaluate(() => { __game.S.touched = true; for (const ln of __game.scene.lanes) __game.scene.setLane(ln, __game.scene.L); });
+    await page.waitForFunction(() => __game.S.step === 'topping', null, { timeout: 20000 });
+    await page.evaluate(() => { __game.addTop('whip'); document.querySelector('#action').click(); });
+    await page.waitForFunction(() => __game.S.step === 'serve', null, { timeout: 5000 });
+    await page.click('#shelfBtn', { force: true });
+    const shelfDuring = await page.evaluate(() => !!document.querySelector('.shelf'));
+    await page.waitForSelector('#nextBtn', { timeout: 20000 });
+    const card = await page.evaluate(() => !!document.querySelector('#panel .stars') && !document.querySelector('.shelf'));
+    check(!shelfDuring && card, `the shelf stays shut during the serve; the rating card comes up clean (${JSON.stringify({ shelfDuring, card })})`);
     await page.close();
   }
   // 2, 3, 6, 7, 8 on one page in Arabic with a returning player's save
