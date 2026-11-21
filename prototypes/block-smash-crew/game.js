@@ -214,7 +214,7 @@ function startGame(mode) {
   /** A word at frame point (x, y). */
   function pop(text, x, y, cls = '', color) {
     const p = document.createElement('div'); p.className = `pop out ${cls}`; p.textContent = text;
-    p.style.left = `calc(var(--u)*${Math.max(110, Math.min(610, x))}px)`; p.style.top = `calc(var(--u)*${Math.max(150, Math.min(980, y))}px)`;
+    p.style.left = `calc(var(--u)*${Math.max(110, Math.min(610, x))}px)`; p.style.top = `calc(var(--u)*${Math.max(150, Math.min(920, y))}px)`;
     if (color) p.style.color = color;
     $('pops').appendChild(p); setTimeout(() => p.remove(), 950);
     const base = cls.includes('p-big') ? 88 : cls.includes('p-mid') ? 62 : cls.includes('p-coin') ? 38 : 44; fitText(p, 690, base);

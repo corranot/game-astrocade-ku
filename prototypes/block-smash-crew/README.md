@@ -47,6 +47,16 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Wreck rating uses trophies, not stars (two meanings of "star" confused).
 - Tests: `node logic.test.mjs`, `node playtest.js <out>`, `node soak.js 10`, `node look.js <out>`, `node checks.js`.
 
+## Upgrade P1–P5 (21 Nov, "setuju semuanya")
+- P1 day-one safety: child pilot (taps near the goal, hesitates, bombs half the time) went 9/48 → 48/48 runs (median 23 s) with
+  star bombs (tap a shining star), SUPER HAMMER (steel breaks after 3 bounces), stick-zone taps, idle hand hint.
+  `perf.js`: game code 2.6 ms/frame at CPU 4× (GL submit is SwiftShader's, not a phone's).
+- P2: tall pieces tip over their base (TIMBER!, slow motion), TNT chains (one straight ahead of the start), material
+  fragments, sparks, scorch, hit-stop, camera kick (exponential: a spring was unstable at slow frames).
+- P3: 13 recorded sounds + music from the asset map (code sounds as fallback), 16-tile pixel atlas, glove.
+- P4: shop (tap coins) with 5 upgrade levels per tool, album, daily challenge ×2 (never moves the level path).
+- P5: boss every 5th level (biggest size, ×2), day / sunset / snow looks.
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.

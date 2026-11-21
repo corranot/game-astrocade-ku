@@ -19,6 +19,13 @@ First person: you see your hands and your tool. The game finds your device by it
 - Find all 3 stars for SMASH TIME: every tool unlocked, no waiting, double coins.
 - Trophies for wrecking 50% and 80% of the building. Keep smashing as long as you like, then press NEXT.
 
+- Tap a shining star to throw a free star bomb at it. If the hammer bounces off steel a few times, SUPER HAMMER breaks it.
+- Red TNT barrels blow up and set off the ones next to them; tall towers tip over — TIMBER!
+
+Every 5th building is a BOSS (the biggest, double coins). Levels change between day, sunset and snow. Tap your coins to
+open the shop: unlock tools and upgrade each one 5 times, and see your album of buildings and trophies. A daily
+challenge (double coins) waits on the result card.
+
 Tools: hammer, bomb, rocket, wrecking ball, black hole and meteor. Coins unlock tools; every locked tool has one
 free try per level. Daily gift, endless levels (the buildings grow), a leaderboard of blocks smashed. No timer, no
 losing. 7 languages (English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian) follow the device; change it
@@ -32,4 +39,5 @@ under ⚙️.
 - `levels.js` — the eight building generators.
 - `logic.js` — coins, combo, trophies, unlocks, daily gift.
 - `scene.js` — the 3D look: blocks, first-person camera, hands and tools, flying pieces, dust, coins, explosions.
-- `game_config.json` — tuning values and all player text in 7 languages; leaderboard of blocks smashed.
+- `game_config.json` — tuning values, sounds and all player text in 7 languages; leaderboard of blocks smashed.
+- `asset_map.json` — the recorded sound effects and music.
