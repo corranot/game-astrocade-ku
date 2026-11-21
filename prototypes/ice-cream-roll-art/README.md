@@ -39,3 +39,6 @@ winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FP
   (draw tray in the guest sign-in zone, stale "TRY!" labels after a late save, today's special back on a clock moved
   back, the gift card never moving on, a lost pointerup locking the plate, a leaked sauce tube); each has a check in
   `bugChecks` that failed before its fix.
+- Finishing an order (owner's report): the cherry floated without cream. Toppings now rest on what is there (roll tops,
+  or the cream once added; adding cream later rebuilds the cherry and sprinkles). Extra toppings no longer cost a star,
+  the rating card lists the customer's own items, and the frozen sheet reads clearly on a darker steel plate.

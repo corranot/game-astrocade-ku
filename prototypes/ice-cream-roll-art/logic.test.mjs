@@ -107,4 +107,31 @@ t('expert tuning only for learned steps from cup 3', () => {
   const pro = R.tuned(cfg, { pour: 1, chop: 1, freeze: 1, spread: 1 }, 3);
   assert.ok(pro.pourRate > cfg.pour.rate && pro.chopHits === cfg.chop.hits - 1 && pro.freezeTime < cfg.freeze.time && pro.spreadDone < cfg.spread.done);
 });
+t('extra toppings never cost a star; a missing ordered one does', () => {
+  const order = { base: 'milk', fruits: ['mango'], toppings: ['whip'], art: null };
+  const base = { base: 'milk', fruits: ['mango', 'mango', 'mango'], pour: 0.95, cover: 1, rolls: 1 };
+  const extra = R.scoreCup(cfg, order, { ...base, toppings: ['whip', 'cherry', 'sprinkles', 'choco'] });
+  assert.equal(extra.parts.toppings, 1); assert.equal(extra.stars, 3);
+  assert.equal(R.scoreCup(cfg, order, { ...base, toppings: ['cherry'] }).parts.toppings, 0);
+});
+t('the default syrup always shows on the cream (never brown on chocolate, never white on milk)', () => {
+  const free = cfg.syrups.filter((x) => !x.cost).map((x) => x.id);
+  for (const b of cfg.bases) for (const f of cfg.fruits) {
+    const cream = R.creamColour(cfg, b.id, [f.id]), id = R.bestSyrup(cfg, cream, free), col = cfg.syrups.find((x) => x.id === id).color;
+    assert.ok(R.contrast(col, cream) >= 2.2, `${id} on ${b.id}+${f.id}: ${R.contrast(col, cream).toFixed(2)}`);
+  }
+  assert.equal(R.bestSyrup(cfg, '#fff1cf', free), 'chocsyrup'); assert.equal(R.bestSyrup(cfg, '#5a2c16', free), 'whitesyrup');
+});
+t('a missing ordered fruit is missed even when other pieces fill the plate', () => {
+  const order = { base: 'milk', fruits: ['strawberry', 'kiwi'], toppings: [], art: null };
+  const base = { base: 'milk', pour: 0.95, cover: 1, rolls: 1, toppings: [] };
+  const r = R.scoreCup(cfg, order, { ...base, fruits: ['strawberry', 'strawberry', 'strawberry', 'strawberry'] });
+  assert.equal(r.fruitEach.kiwi, 0); assert.equal(r.fruitEach.strawberry, 1); assert.equal(r.parts.fruit, 0.5); assert.ok(r.stars < 3);
+  const ok = R.scoreCup(cfg, order, { ...base, fruits: ['strawberry', 'kiwi', 'strawberry', 'kiwi'] });
+  assert.equal(ok.parts.fruit, 1);
+});
+t('chocolate cream never gets chocolate syrup by default', () => {
+  const free = cfg.syrups.filter((x) => !x.cost).map((x) => x.id);
+  for (const f of cfg.fruits) assert.notEqual(R.bestSyrup(cfg, R.creamColour(cfg, 'chocolate', [f.id]), free, ['chocsyrup']), 'chocsyrup');
+});
 console.log(`\n${n} passed`);

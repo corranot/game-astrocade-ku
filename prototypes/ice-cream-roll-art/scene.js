@@ -33,8 +33,8 @@ export function createScene(cv, cfg, sheet) {
   const std = (o) => keep(new THREE.MeshStandardMaterial(o));
 
   // ---- light and a soft pastel environment for the steel to reflect
-  scene.add(new THREE.HemisphereLight(0xfff4fb, 0xffd9b8, 1.25));
-  const sun = new THREE.DirectionalLight(0xffffff, 2.3);
+  scene.add(new THREE.HemisphereLight(0xfff4fb, 0xffd9b8, 1.05));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.15);
   sun.position.set(-3.5, 9, 6); sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 25 });
   sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
@@ -74,15 +74,16 @@ export function createScene(cv, cfg, sheet) {
   // brushed steel: fine streaks in the roughness so the cold plate catches light like the real thing
   const brushed = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#5a5a5a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { const v = 70 + Math.random() * 90 | 0; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(Math.random() * w, Math.random() * h, 20 + Math.random() * 90, 1); } });
   brushed.colorSpace = THREE.NoColorSpace;
-  const steel = std({ color: 0xf6f9fd, metalness: 0.75, roughness: 0.85, roughnessMap: brushed });
+  // cold silver steel, a step darker than the pastel creams so every flavour stands out on it
+  const steel = std({ color: 0xb4c3d3, metalness: 0.75, roughness: 0.85, roughnessMap: brushed });
   const plate = new THREE.Mesh(keep(new THREE.BoxGeometry(PW, 0.08, PW)), steel);
   plate.position.y = -0.04; plate.receiveShadow = true; scene.add(plate);
-  const rimMat = std({ color: 0xc7d4e2, metalness: 0.9, roughness: 0.2 });
+  const rimMat = std({ color: 0xa5b5c6, metalness: 0.9, roughness: 0.2 });
   for (const [x, z, w, d] of [[0, -PW / 2 - 0.12, PW + 0.48, 0.24], [0, PW / 2 + 0.12, PW + 0.48, 0.24], [-PW / 2 - 0.12, 0, 0.24, PW], [PW / 2 + 0.12, 0, 0.24, PW]]) {
     const r = new THREE.Mesh(keep(new THREE.BoxGeometry(w, 0.16, d)), rimMat); r.position.set(x, 0.04, z); r.castShadow = true; r.receiveShadow = true; scene.add(r);
   }
   // cold glow: a frosty tint on the steel that grows while freezing
-  const frostMat = keep(new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0, depthWrite: false }));
+  const frostMat = keep(new THREE.MeshBasicMaterial({ color: 0x9fd4f5, transparent: true, opacity: 0, depthWrite: false }));
   const frostPlane = new THREE.Mesh(keep(new THREE.PlaneGeometry(PW, PW)), frostMat);
   frostPlane.rotation.x = -Math.PI / 2; frostPlane.position.y = 0.002; scene.add(frostPlane);
 
@@ -341,8 +342,12 @@ export function createScene(cv, cfg, sheet) {
   const slot = (k, n) => { const a = (k / n) * Math.PI * 2 + Math.PI / 4, r = n > 1 ? cfg.cup.ring : 0; return new THREE.Vector3(Math.cos(a) * r, cfg.cup.floor, Math.sin(a) * r); };
   const rollTopY = () => cfg.cup.floor + laneW * 0.96;
 
-  /** A topping model in cup-local space; `fruit` picks the colour of the slices. */
-  function toppingModel(id, fruit, seed = 1) {
+  /** Radius of the whipped-cream swirl at height fraction t (0 = base, 1 = tip); its base sits at roll-top height. */
+  const whipR = (t) => 0.3 * Math.pow(1 - t, 0.8) + 0.02, WHIP_H = 0.5;
+  /** A point on top of one of the standing rolls (cup-local), for things that rest on the rolls. */
+  function onRollTop(rnd, T) { const sl = slot(Math.floor(rnd() * LANES) % LANES, LANES), a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * laneW * 0.22; return new THREE.Vector3(sl.x + Math.cos(a) * r, T + 0.015, sl.z + Math.sin(a) * r); }
+  /** A topping model in cup-local space. `whip` says whether whipped cream is on: the cherry and sprinkles rest on it. */
+  function toppingModel(id, fruit, seed = 1, whip = false) {
     const g = new THREE.Group(); const T = rollTopY();
     let s = seed * 9301 + 49297; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
     const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
@@ -358,16 +363,22 @@ export function createScene(cv, cfg, sheet) {
     } else if (id === 'choco' || id === 'berrysauce') {
       // a spiral drizzle over the roll tops, like sauce poured in circles from a bottle
       const m = mat(id, { color: id === 'choco' ? 0x5a2c16 : 0xe0194f, roughness: 0.15, metalness: 0.05 });
-      const pts = []; for (let i = 0; i <= 90; i++) { const t = i / 90, a = t * Math.PI * 2 * 2.6, r = 0.62 - t * 0.5; pts.push(new THREE.Vector3(Math.cos(a) * r, T + 0.035 + t * 0.05 + Math.sin(a * 3) * 0.006, Math.sin(a) * r)); }
+      const pts = []; for (let i = 0; i <= 90; i++) { const t = i / 90, a = t * Math.PI * 2 * 2.6, r = 0.5 - t * 0.38; pts.push(new THREE.Vector3(Math.cos(a) * r, T + 0.035 + t * 0.05 + Math.sin(a * 3) * 0.006, Math.sin(a) * r)); }
       add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 220, 0.03, 8), m, 0, 0, 0);
     } else if (id === 'sprinkles') {
       const cols = [0xff4f8b, 0x4fc3ff, 0xffe14f, 0x7be36b, 0xb27bff, 0xffffff];
       const n = 70, im = new THREE.InstancedMesh(cacheGeo('spr', () => new THREE.CapsuleGeometry(0.018, 0.06, 2, 6)), mat('spr', { roughness: 0.3 }), n);
-      for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 0.62; const dome = Math.max(0, 0.6 - r * 0.9); dummy.position.set(Math.cos(a) * r, T + 0.03 + dome * 0.55 * rnd(), Math.sin(a) * r); dummy.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); dummy.scale.setScalar(1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.setColorAt(i, tmpC.set(cols[i % cols.length])); }
+      for (let i = 0; i < n; i++) {
+        // on the cream swirl's surface when there is cream, otherwise lying on the roll tops (never in the air)
+        // on the swirl's ridged surface (the star ridges of the cream), else on roll tops clear of the cream's base
+        if (whip && i < 45) { const t = rnd() * 0.85, a = rnd() * Math.PI * 2, r = whipR(t) * (1 + 0.16 * Math.cos(a * 8 + t * 3.2 * Math.PI * 2)) + 0.012; dummy.position.set(Math.cos(a) * r, T - 0.04 + t * WHIP_H, Math.sin(a) * r); }
+        else { let q = onRollTop(rnd, T); for (let k = 0; whip && k < 8 && Math.hypot(q.x, q.z) < 0.35; k++) q = onRollTop(rnd, T); dummy.position.copy(q); } dummy.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); dummy.scale.setScalar(1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.setColorAt(i, tmpC.set(cols[i % cols.length])); }
       g.add(im);
     } else if (id === 'cherry') {
-      add(cacheGeo('cherry', () => new THREE.SphereGeometry(0.13, 20, 16)), mat('cherry', { color: 0xe3102e, roughness: 0.12 }), 0, T + 0.56, 0);
-      const st = add(cacheGeo('stem', () => new THREE.CylinderGeometry(0.012, 0.012, 0.24, 6)), mat('stem', { color: 0x5b8a2a }), 0.04, T + 0.72, 0); st.rotation.z = -0.4;
+      // on the tip of the cream, or nestled where the rolls meet in the middle
+      const cy = whip ? T - 0.04 + WHIP_H + 0.1 : T + 0.12;
+      add(cacheGeo('cherry', () => new THREE.SphereGeometry(0.13, 20, 16)), mat('cherry', { color: 0xe3102e, roughness: 0.12 }), 0, cy, 0);
+      const st = add(cacheGeo('stem', () => new THREE.CylinderGeometry(0.012, 0.012, 0.24, 6)), mat('stem', { color: 0x5b8a2a }), 0.04, cy + 0.16, 0); st.rotation.z = -0.4;
     } else if (id === 'wafer') {
       for (const [x, z, rz] of [[-0.18, -0.22, 0.32], [0.16, -0.25, -0.28]]) { const o = add(cacheGeo('wafer', () => new THREE.CylinderGeometry(0.05, 0.05, 0.75, 12)), mat('wafer', () => ({ map: canvasTex(64, 128, (q, w, h) => { q.fillStyle = '#f1b862'; q.fillRect(0, 0, w, h); q.strokeStyle = '#c98a3a'; q.lineWidth = 4; for (let y = -w; y < h; y += 14) { q.beginPath(); q.moveTo(0, y); q.lineTo(w, y + w); q.stroke(); } }), roughness: 0.6 })), x, T + 0.32, z); o.rotation.z = rz; o.rotation.x = -0.2; }
     } else if (id === 'slices') {
@@ -385,12 +396,18 @@ export function createScene(cv, cfg, sheet) {
   }
   const toppings = [];
   /** Add a topping to the cup with a pop. */
+  /** Wrap a topping so it pops around the roll tops (its own height), not the cup floor. */
+  function pivoted(model) { const p = new THREE.Group(), T = rollTopY(); p.position.y = T; model.position.y = -T; p.add(model); p.scale.setScalar(0.01); return p; }
+  const freeTopping = (m) => m.traverse((o) => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh && o.geometry && !Object.values(geoCache).includes(o.geometry) && !o.isInstancedMesh) o.geometry.dispose(); });
   function addTopping(id, fruit) {
-    const m = toppingModel(id, fruit, toppings.length + 1); m.scale.setScalar(0.01); toppingGroup.add(m);
-    toppings.push({ id, m, t: 0 });
+    const whip = id === 'whip' || toppings.some((t) => t.id === 'whip');
+    // cream added after the cherry or sprinkles: they move up onto it
+    if (id === 'whip') for (const t of toppings) if (t.id === 'cherry' || t.id === 'sprinkles') { t.m.removeFromParent(); freeTopping(t.m); t.m = pivoted(toppingModel(t.id, fruit, t.seed, true)); t.t = 0; toppingGroup.add(t.m); }
+    const seed = toppings.length + 1, m = pivoted(toppingModel(id, fruit, seed, whip)); toppingGroup.add(m);
+    toppings.push({ id, m, t: 0, seed });
     sparkle(cup.localToWorld(new THREE.Vector3(0, rollTopY() + 0.4, 0)), 10);
   }
-  function clearToppings() { for (const t of toppings) { t.m.removeFromParent(); t.m.traverse((o) => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh && o.geometry && !Object.values(geoCache).includes(o.geometry) && !o.isInstancedMesh) o.geometry.dispose(); }); } toppings.length = 0; }
+  function clearToppings() { for (const t of toppings) { t.m.removeFromParent(); freeTopping(t.m); } toppings.length = 0; }
 
   // ---- counter decor in front of the plate: a sprinkle jar and a bowl of strawberries (static, built once)
   {
@@ -441,7 +458,7 @@ export function createScene(cv, cfg, sheet) {
       g.putImageData(img, 0, 0); ts.remove(obj); if (extra) ts.remove(extra); return c.toDataURL();
     };
     for (const f of cfg.fruits) out[f.id] = shot(fruitModel(f.id));
-    for (const t of cfg.toppings) { const m = toppingModel(t.id, 'strawberry', 3); out['t_' + t.id] = shot(m); m.traverse((o) => { if (o.isMesh && o.geometry && !Object.values(geoCache).includes(o.geometry) && !o.isInstancedMesh) o.geometry.dispose(); }); }
+    for (const t of cfg.toppings) { const m = toppingModel(t.id, 'strawberry', 3); out['t_' + t.id] = shot(m); m.traverse((o) => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh && o.geometry && !Object.values(geoCache).includes(o.geometry) && !o.isInstancedMesh) o.geometry.dispose(); }); }
     rt.dispose(); renderer.setClearColor(0x000000, 0);
     return out;
   }
@@ -461,7 +478,7 @@ export function createScene(cv, cfg, sheet) {
   const poses = {
     plate: { p: new THREE.Vector3(0, 9.6, 7.6), l: new THREE.Vector3(0, 0, 0.25) },
     cup: { p: new THREE.Vector3(1.55, 4.6, 11.6), l: new THREE.Vector3(1.55, -0.1, 2.85) },
-    show: { p: new THREE.Vector3(1.55, 2.9, 7.1), l: new THREE.Vector3(1.55, 0.45, 3.35) },
+    show: { p: new THREE.Vector3(1.55, 3.5, 8.6), l: new THREE.Vector3(1.55, 0.42, 3.35) },
     peek: { p: new THREE.Vector3(0, 3.3, -0.35), l: new THREE.Vector3(0, 0.3, -2.0) },
     last: { p: new THREE.Vector3(0, 7.4, 5.4), l: new THREE.Vector3(0, 0, -0.2) },
   };
@@ -521,7 +538,7 @@ export function createScene(cv, cfg, sheet) {
         f.m.position.y = f.y; f.m.scale.set(1 + (1 - squash) * 0.7, squash, 1 + (1 - squash) * 0.7);
       }
       updateChunks(dt); updateSprites(dt);
-      for (const t of toppings) { t.t = Math.min(1, t.t + dt * 4); const e = t.t < 1 ? 1 + Math.sin(t.t * Math.PI) * 0.25 : 1; t.m.scale.setScalar(Math.max(0.01, t.t * e)); }
+      for (const t of toppings) { t.t = Math.min(1, t.t + dt * 4); const k = t.t >= 1 ? 1 : 1 - Math.pow(1 - t.t, 3) + 0.25 * Math.sin(t.t * Math.PI); t.m.scale.setScalar(Math.max(0.01, k)); }
       watch(dt);
       renderer.render(scene, camera);
     },

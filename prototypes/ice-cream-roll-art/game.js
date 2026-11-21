@@ -145,7 +145,7 @@ function startGame(mode) {
       const col = R.creamColour(cfg, 'strawberry', ['strawberry']);
       sheet.preset(col, fruitById.strawberry.flesh, syrupById.chocsyrup.color, 'heart'); S.creamCol = col;
       S.made = { base: 'strawberry', fruits: ['strawberry', 'strawberry', 'strawberry'], pour: 1, cover: 1, rolls: 1, toppings: [], art: 'heart' };
-      scene.frostMat.opacity = 0.3; scene.creamMat.roughness = 0.8;
+      scene.frostMat.opacity = 0.15; scene.creamMat.roughness = 0.8;
     }
     $('panel').hidden = true;
     renderOrder(); setMood(0); go(0);
@@ -174,6 +174,8 @@ function startGame(mode) {
     if (st === 'chop') { scene.spatA.visible = scene.spatB.visible = true; }
     if (st === 'spread') { S.mix = S.creamCol = R.creamColour(cfg, S.made.base, S.made.fruits); S.fleck = (fruitById[S.made.fruits[0]] || cfg.fruits[0]).flesh; scene.spatA.visible = true; scene.spatB.visible = false; showBar(0); }
     if (st === 'draw') {
+      // start with the syrup that stands out most on this cream
+      S.syrup = R.bestSyrup(cfg, S.mix || R.creamColour(cfg, S.made.base, S.made.fruits), cfg.syrups.filter((x) => owned('syrups', x.id)).map((x) => x.id), S.made.base === 'chocolate' ? ['chocsyrup'] : []);
       setTray([...cfg.syrups.map((s) => ({ id: s.id, list: 'syrups', html: dropIcon(s.color), on: s.id === S.syrup })), ...cfg.stencils.map((id) => ({ id, list: 'stencils', html: stencilIcon(id) }))]);
       showAction(T('done'), () => go(S.si + 1)); scene.bottle.visible = true; bottleColour();
     }
@@ -375,7 +377,7 @@ function startGame(mode) {
     if (on) {
       const f = Math.min(1, sheet.freeze + dt / S.tune.freezeTime);
       sheet.setFreeze(f); sheet.compose(); showBar(f);
-      scene.frostMat.opacity = 0.45 * f; scene.creamMat.roughness = 0.32 + 0.5 * f;
+      scene.frostMat.opacity = 0.22 * f; scene.creamMat.roughness = 0.32 + 0.5 * f;
       if (Math.random() < dt * 24) { const a = Math.random() * Math.PI * 2; scene.fog(new THREE.Vector3(Math.cos(a) * 1.8, 0.1, Math.sin(a) * 1.8)); }
       if (Math.random() < dt * 6) buzz('tick');
       if (f >= 1) { loops.freeze(false); pop(T('frozen'), 'blue'); buzz('success'); Sound.play('sfx_pop', 0.5, 1.3); scene.sparkle(new THREE.Vector3(0, 0.3, 0), 18, [0xffffff, 0xbfe9ff, 0x8fd8ff]); learn('freeze'); react(2, '❄️'); next(0.6); }
@@ -507,7 +509,7 @@ function startGame(mode) {
       const k = clamp((S.show - 1.9) / 0.7, 0, 1), e = k * k * (3 - 2 * k);
       if (!S.flyTo) { const r = root.querySelector('#cust').getBoundingClientRect(), c = root.getBoundingClientRect(); S.flyTo = scene.worldAt((r.left + r.width / 2 - c.left) / c.width, (r.top + r.height * 0.6 - c.top) / c.height, 4.5); }
       cup.position.lerpVectors(scene.cupHome, S.flyTo, e); cup.scale.setScalar(1 - e * 0.75);
-      if (k >= 1 && !S.served) { S.served = true; cup.visible = false; setMood(1); Sound.play('sfx_pop', 0.6, 0.8); finishCup(); }
+      if (k >= 1 && !S.served) { S.served = true; cup.visible = false; react(1, '😋'); buzz('success'); Sound.play('sfx_pop', 0.6, 0.8); finishCup(); }
     }
   }
   function finishCup() {
@@ -518,14 +520,15 @@ function startGame(mode) {
     save.shelf = [...(save.shelf || []), { b: S.made.base, f: S.made.fruits[0], s: res.stars, a: S.made.art, c: S.style }].slice(-24);
     if (snaps[0] && S.snapped) snaps[0].saved = true;
     persist(); postScore();
-    showRating(res, coins);
+    // a short beat for the customer to enjoy it before the card comes up
+    const cupNow = S; setTimeout(() => { if (alive && S === cupNow) showRating(res, coins); }, 550);
   }
   function showRating(res, coins) {
-    const p = $('panel'); p.hidden = false;
+    S.ratingUp = true; const p = $('panel'); p.hidden = false;
     const cell = custCell(S.order.customer, 1);
     p.innerHTML = `<div class="card"><div class="rays"></div><div class="face" style="${cell}"></div>
       <div class="stars">${[0, 1, 2].map((i) => `<span class="star ${i < res.stars ? 'on' : ''}" style="animation-delay:${0.15 + i * 0.22}s">★</span>`).join('')}</div>
-      <div class="parts">${partsHtml(res.parts)}</div>
+      <div class="parts${S.order.fruits.length + S.order.toppings.length + (S.order.art ? 1 : 0) + 3 > 7 ? ' many' : ''}">${partsHtml(res.parts)}</div>
       <div class="earn out"><i class="coin"></i>+<b id="earnN">0</b></div>
       <button id="nextBtn" class="big gloss out">${T('next')} ▶</button></div>`;
     for (let i = 0; i < res.stars; i++) setTimeout(() => { if (alive) { Sound.play('sfx_coin', 0.5, 1 + i * 0.15); buzz('tick'); } }, 250 + i * 220);
@@ -538,9 +541,13 @@ function startGame(mode) {
     const cupNow = S; setTimeout(() => { if (S === cupNow && !$('panel').hidden && $('nextBtn')) goOn(); }, (cfg.ratingAutoNext || 6) * 1000);
   }
   /** One round icon per thing the customer checks, with a tick or a cross. */
+  // the customer's own order, item by item (the topping they asked for, not a generic icon): what was right, what was missed
   function partsHtml(pt) {
-    const list = [['🥛', Math.min(pt.base, pt.pour)], ['🍓', pt.fruit], ['🌀', pt.spread], ['🍥', pt.rolls], ['🍒', pt.toppings]];
-    if (pt.art !== undefined) list.push(['🎨', pt.art]);
+    const o = S.order, got = new Set(S.made.toppings), img = (src) => `<img src="${src}" alt="">`;
+    const each = (S.result && S.result.fruitEach) || {};
+    const list = [[bottleIcon(baseById[o.base].color), Math.min(pt.base, pt.pour)], ...o.fruits.map((f) => [img(thumbs[f]), each[f] === undefined ? pt.fruit : each[f]]), ['🌀', pt.spread], ['🍥', pt.rolls],
+      ...o.toppings.map((t) => [img(thumbs['t_' + t]), got.has(t) ? 1 : 0])];
+    if (o.art) list.push([stencilIcon(o.art), pt.art]);
     return list.map(([ic, v]) => `<span class="part ${v >= 0.85 ? 'ok' : 'no'}">${ic}<i>${v >= 0.85 ? '✓' : '✗'}</i></span>`).join('');
   }
   function afterRating() {
@@ -650,7 +657,8 @@ function startGame(mode) {
   }
   /** My cups: photos of this session's cups, the older ones as recipe cards, cup styles to pick, the top makers. */
   function openShelf() {
-    if (!$('panel').hidden || mode !== 'play') return;
+    // not while a cup is being served: the rating card is about to take the panel
+    if (!$('panel').hidden || mode !== 'play' || (S && S.step === 'serve' && !S.ratingUp)) return;
     const p = $('panel'); p.hidden = false;
     const older = (save.shelf || []).slice(-8).reverse().slice(snaps.filter((x) => x.saved).length);
     const cards = [...snaps.map((x) => `<div class="cell"><img src="${x.img}" alt=""><span class="cs">${'★'.repeat(x.s)}</span></div>`),
