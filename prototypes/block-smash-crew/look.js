@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Screens in every language at 720×1280 for the full-size look check: the demo, playing outside, inside the building
-// (roof cut away), TOO HARD with the bomb hint, SMASH TIME, and the result card. Fails when text leaves the frame.
+// (first person, looking at the vault), TOO HARD with the bomb hint, SMASH TIME, and the result card. Fails when text leaves the frame.
 // Usage: node look.js <out folder> [langs comma-separated]
 const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
@@ -11,7 +11,7 @@ fs.mkdirSync(out, { recursive: true });
 (async () => {
   const server = serve(), browser = await chromium.launch({ args: GPU }); let bad = 0;
   for (const lang of langs) {
-    const { page, errors } = await open(browser, '', { port: server.address().port, locale: lang, dpr: 2 });
+    const { page, errors } = await open(browser, '', { port: server.address().port, locale: lang, dpr: 2, touch: true }); // phone layout: stick + HIT
     const g = (fn, a) => page.evaluate(fn, a), shot = (n) => page.screenshot({ path: path.join(out, `${lang}-${n}.jpg`), type: 'jpeg', quality: 82 });
     const overflow = () => g(() => { const a = document.getElementById('app').getBoundingClientRect(); return [...document.querySelectorAll('.pop, .tip, .title, .card, .big, .small, .cups, .stat, .nexttool, .tool, .pill, .bar, .round')].filter((el) => !el.closest('[hidden]') && el.offsetParent !== null).map((el) => [el.className, el.getBoundingClientRect()]).filter(([, r]) => r.width && (r.left < a.left - 1 || r.right > a.right + 1)).map(([c]) => c); });
     const over = [];
@@ -19,7 +19,7 @@ fs.mkdirSync(out, { recursive: true });
     await g(() => { __game.newLevel(0); const W = __game.W; __game.WD.aimHammer(W, { type: 'block', x: Math.floor(W.chest.x), y: 1, z: W.box.z1, nx: 0, ny: 0, nz: 1 }, true); });
     await page.waitForTimeout(1800); await shot('2-play'); over.push(...await overflow());
     // inside: the hero in the room in front of the vault, roof peeled away
-    await g(() => { const W = __game.W; __game.WD.aimHammer(W, null); W.hero.x = W.chest.x + 0.5; W.hero.z = W.chest.z + 4; });
+    await g(() => { const W = __game.W; __game.WD.aimHammer(W, null); W.hero.x = W.chest.x + 0.5; W.hero.z = W.chest.z + 4; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.2); });
     await page.waitForTimeout(1600); await shot('3-inside'); over.push(...await overflow());
     await g(() => { const W = __game.W; __game.onEvent({ type: 'tooHard', x: W.chest.x, y: 1, z: W.chest.z + 2 }); });
     await page.waitForTimeout(350); await shot('4-too-hard'); over.push(...await overflow());
