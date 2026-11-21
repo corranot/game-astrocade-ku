@@ -1,6 +1,7 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Soak: many levels in one page with the bot finger. Fails on page errors, a level that does not finish, a broken
-// save, a level that pays nothing, or GPU objects that keep growing from level to level.
+// save, a level that pays nothing, GPU objects that keep growing from level to level, or frame time that keeps
+// climbing (late levels slower than early ones: a leak or a per-frame cost that grows; not an absolute FPS test).
 // Usage: node soak.js [levels]
 const { chromium } = require('playwright');
 const { serve, open, GPU } = require('./playtest.js');
@@ -11,8 +12,11 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   const { page, errors } = await open(browser, '&speed=3', { port: server.address().port, speed: 3 });
   const g = (fn, a) => page.evaluate(fn, a);
   await page.waitForFunction(() => __game.saveLoaded, null, { timeout: 10000 });
+  // frame-time sampler: every rAF gap since the last read, so each level gets its own median
+  await g(() => { window.__ft = []; let last = performance.now(); const tick = (t) => { window.__ft.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+  const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
   await g(() => { const a = document.querySelector('#app').getBoundingClientRect(); document.querySelector('#app').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, clientX: a.left + a.width / 2, clientY: a.top + a.height * 0.4, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true })); __bot(true); });
-  const mem = [], kinds = new Set(); let coins0 = 0;
+  const mem = [], kinds = new Set(), ft = []; let coins0 = 0;
   for (let i = 0; i < levels; i++) {
     const t0 = Date.now();
     while (Date.now() - t0 < 120000) { if (await g(() => __game.resultsOpen)) break; await page.waitForTimeout(200); }
@@ -20,12 +24,17 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
     kinds.add(st.kind);
     check(st.open && st.lvl === i + 1 && st.coins > coins0 && st.last && st.last.level === st.lvl, `level ${i + 1} (${st.kind}): finished, paid (${st.coins} coins), saved`);
     coins0 = st.coins; mem.push([st.t, st.geo]);
+    ft.push(+med(await g(() => window.__ft.splice(0))).toFixed(1));
     await g(() => document.querySelector('#nextBtn').click());
     await page.waitForTimeout(300);
   }
   console.log('gpu [textures, geometries] after each level:', JSON.stringify(mem));
   // geometry per level depends on the building (chunks), so compare the same building kind a full cycle apart
   const same = mem.length > 8 ? Math.abs(mem[mem.length - 1][1] - mem[mem.length - 1 - 8][1]) : 0;
+  console.log('median frame ms per level:', JSON.stringify(ft));
+  // level 1 is warm-up (shader compile, first textures); compare levels 2-4 with the last 3. rAF gaps snap to
+  // 16.7 ms steps, so one step up is already 2x slower: fail on a climb of half a 60 Hz frame (8 ms)
+  if (ft.length >= 7) { const early = med(ft.slice(1, 4)), late = med(ft.slice(-3)); check(late - early < 8, `frame time does not climb (early ${early} ms, late ${late} ms)`); }
   const tex = mem.slice(1).map((m) => m[0]);
   check(Math.max(...tex) - Math.min(...tex) <= 1, 'GPU textures stay flat');
   check(same <= 4, `geometries do not pile up (same building 8 levels apart differs by ${same})`);
