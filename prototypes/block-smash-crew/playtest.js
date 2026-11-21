@@ -360,11 +360,12 @@ async function main() {
     const z1 = await g(page, () => __game.W.hero.z);
     check(z1 < z0 - 1, `f6 Arabic keyboard: the W position walks (z ${z0.toFixed(1)} → ${z1.toFixed(1)})`);
     // f2: a key still held when the card opens does not walk the hero behind it
+    await g(page, () => { const W = __game.W; W.hero.x = W.g.W / 2; W.hero.z = W.g.D - 4; __game.scene.look(Math.PI - __game.scene.yaw, 0); }); // face away from the building: open lawn ahead
     await key('keydown', 'KeyW', 'w'); await page.waitForTimeout(200);
     await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
     const zc = await g(page, () => __game.W.hero.z); await key('keyup', 'KeyW', 'w'); await page.waitForTimeout(600);
     const zd = await g(page, () => __game.W.hero.z);
-    check(Math.abs(zd - zc) < 0.05, `f2 the card is open: the hero stands still (z ${zc.toFixed(2)} → ${zd.toFixed(2)})`);
+    check(Math.abs(zd - zc) < 0.05 && zc < 51.9, `f2 the card is open: the hero stands still (z ${zc.toFixed(2)} → ${zd.toFixed(2)})`);
     // f7: keys 1-6 buy nothing behind the card
     await g(page, () => { __game.save.coins = 50000; __game.W.tried.add('rocket'); }); // free try used: a tap would buy
     await key('keydown', 'Digit3', '3'); await key('keyup', 'Digit3', '3');
@@ -381,9 +382,15 @@ async function main() {
     await page.waitForTimeout(200);
     const s0 = await g(page, () => __game.W.smashed);
     const [mx, my] = await g(page, () => __game.client(360, 640));
-    await page.mouse.move(mx, my); await page.mouse.down(); await page.waitForTimeout(30);
-    for (let i = 1; i <= 6; i++) await page.mouse.move(mx + i * 12, my);
-    await page.mouse.up(); await page.waitForTimeout(700);
+    // in the page, timed by frames (not by the machine's speed): down, two frames, then a drag; a touch, since the keys used above put the mouse on the lock path
+    await g(page, async ([x, y]) => {
+      const fire = (t, dx) => (t === 'pointerdown' ? document.getElementById('app') : window).dispatchEvent(new PointerEvent(t, { pointerId: 11, pointerType: 'touch', clientX: x + dx, clientY: y, bubbles: true }));
+      const frame = () => new Promise((r) => requestAnimationFrame(r));
+      fire('pointerdown', 0); await frame(); await frame();
+      for (let i = 1; i <= 6; i++) fire('pointermove', i * 12);
+      fire('pointerup', 72);
+    }, [mx, my]);
+    await page.waitForTimeout(700);
     const s1 = await g(page, () => __game.W.smashed);
     check(s1 === s0, `f4 a look-drag starting on a near block smashes nothing (${s0} → ${s1})`);
     // f8: a tap near the horizon walks at most to the lot's edge
@@ -391,8 +398,8 @@ async function main() {
     check(f8 && f8.x >= -12 && f8.z <= 40 + 12, `f8 a far ground tap walks at most to the edge (${JSON.stringify(f8)})`);
     // f3: the click that asks for mouse lock (lock coming before the button is let go) leaves no finger behind
     await key('keydown', 'KeyD', 'd'); await key('keyup', 'KeyD', 'd');
-    await g(page, () => { const cv = document.getElementById('cv'); cv.requestPointerLock = () => { Object.defineProperty(document, 'pointerLockElement', { get: () => cv, configurable: true }); document.dispatchEvent(new Event('pointerlockchange')); }; });
-    await page.mouse.move(mx - 100, my - 200); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(800);
+    await g(page, () => { const cv = document.getElementById('cv'); cv.requestPointerLock = () => { Object.defineProperty(document, 'pointerLockElement', { get: () => cv, configurable: true }); setTimeout(() => document.dispatchEvent(new Event('pointerlockchange')), 0); }; }); // the lock comes a moment later, before the button is let go (as in Chrome)
+    await page.mouse.move(mx - 100, my - 200); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.up(); await page.waitForTimeout(800);
     const f3 = await g(page, () => ({ hold: __game.W.hero.hold, goal: __game.W.hero.goal }));
     check(!f3.hold && !f3.goal, `f3 the mouse-lock click leaves no finger: the hero does not walk or smash by himself (${JSON.stringify(f3)})`);
     // f1: the card gives the cursor back so NEXT can be clicked
