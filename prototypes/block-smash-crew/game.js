@@ -157,7 +157,7 @@ function startGame(mode) {
   setDir();
 
   // ---- save: one slot; nothing is written until the player's own save has been read
-  const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], learned: { bomb: false, drag: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0 };
+  const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], lv: {}, learned: { bomb: false, drag: false, shop: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0, dailyDone: 0 };
   let saveLoaded = false, persistT = 0, dirtySave = false;
   const persist = () => { if (mode === 'play' && saveLoaded) { dirtySave = false; Promise.resolve().then(() => lib.saveUserGameState(JSON.parse(JSON.stringify(save)))).catch(() => {}); } };
   const persistSoon = () => { dirtySave = true; };
@@ -166,12 +166,12 @@ function startGame(mode) {
   const cv = $('cv'), scene = createScene(cv, cfg);
   let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
   function newLevel(n, opts = {}) {
-    W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned });
+    W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned, lv: save.lv, daily: !!opts.daily, coinMult: opts.daily ? cfg.daily.mult : 1 });
     demo = !!opts.demo;
     scene.setLevel(W);
     sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; if ($('stick')) $('stick').hidden = true; // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
-    $('panel').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
+    $('panel').hidden = true; $('shop').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
     renderTools(); renderTop();
     if (!demo && lastLevelShown !== n) { lastLevelShown = n; banner(`${T('level', n + 1)}`, 'p-mid', -60); setTimeout(() => { if (alive && W && W.n === n) banner(T(W.kind), 'p-mid', 20); }, 350); }
@@ -200,6 +200,7 @@ function startGame(mode) {
   }
   function renderTop() {
     const coins = save.coins;
+    if (coins !== shown.coins) { const can = !save.learned.shop && cfg.tools.some((t) => (save.owned.includes(t.id) ? (L.upgradeCost(cfg, t.id, Math.max(1, save.lv[t.id] || 1)) || Infinity) : t.cost) <= coins); $('coins').classList.toggle('can', can); }
     if (coins !== shown.coins) { const el = $('coins'); el.querySelector('b').textContent = fmt(coins); if (shown.coins >= 0 && coins > shown.coins) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } shown.coins = coins; renderTools(); }
     const got = W ? Math.min(3, W.got) : 0;
     if (got !== shown.got) { $('stars').querySelectorAll('img').forEach((im, i) => im.classList.toggle('on', i < got)); shown.got = got; }
@@ -432,6 +433,7 @@ function startGame(mode) {
   // ---- results: stars, coins, next tool, NEXT
   function results() {
     if (!W || demo) return;
+    $('shop').hidden = true;
     WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false; // a finger, key or stick still down stops behind the card
     try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ } // the cursor comes back for NEXT
     const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1; // trophies for wrecking 50% and 80%
@@ -439,8 +441,8 @@ function startGame(mode) {
     const bonus = paidStars === null ? L.levelBonus(cfg, W.n, stars) : (stars.every(Boolean) && !paidStars.every(Boolean) ? L.levelBonus(cfg, W.n, stars) / 2 : 0);
     paidStars = stars;
     save.coins += bonus; save.total += bonus;
-    const key = String(W.n); save.best[key] = Math.max(save.best[key] || 0, cups);
-    if (save.level <= W.n) { save.level = W.n + 1; save.levels++; }
+    if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); } // today's challenge: done for today
+    else { const key = String(W.n); save.best[key] = Math.max(save.best[key] || 0, cups); if (save.level <= W.n) { save.level = W.n + 1; save.levels++; } }
     persist(); renderTop();
     try { if (saveLoaded) lib.addPlayerScoreToLeaderboard(save.blocks).catch(() => {}); } catch (er) { /* no board here */ }
     const nt = L.nextTool(cfg, save.owned, save.coins);
@@ -451,14 +453,56 @@ function startGame(mode) {
       <div class="cups"><span class="pct out">💥 ${Math.round(wr * 100)}%</span>${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</div>
       <div class="stat out"><i class="coin"></i>+${fmt(W.coins + (bonus || 0))}</div>
       ${nt ? `<div class="nexttool out"><span class="hi">${nt.tool.icon}</span><i><b style="width:${Math.round(nt.have / nt.need * 100)}%"></b></i><span>${fmt(nt.have)}/${fmt(nt.need)}</span></div>` : ''}
-      <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${share ? `<button id="shareBtn" class="small out">✈️</button>` : ''}</div></div>`;
+      <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date()) ? `<button id="dailyBtn" class="small daily out">📅 ${T('dailyGo')}</button>` : ''}${share ? `<button id="shareBtn" class="small out">✈️</button>` : ''}</div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
+    if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
     $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); $('panel').hidden = true; resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
     if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('share') })).catch(() => {}); });
   }
-  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); newLevel(Math.max(W.n + 1, save.level)); } // a save that came late still counts
+  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); newLevel(W.daily ? save.level : Math.max(W.n + 1, save.level)); } // a save that came late still counts; after the daily, back to the path
+  function startDaily() { Sound.unlock(cfg); Sound.play('unlock'); newLevel(L.dailyLevel(cfg, L.dayNum(new Date())), { daily: true }); banner(T('dailyGo'), 'p-big', -160); }
+  // ---- the shop (tap the coins): tools to unlock and upgrade (5 levels each), and the album of buildings
+  const KIND_ICON = { cottage: '🏠', candy: '🍬', castle: '🏰', lighthouse: '🗼', factory: '🏭', ice: '🧊', temple: '🛕', space: '🚀' };
+  let shopTab = 'tools';
+  const lvOf = (id) => Math.max(1, Math.min(cfg.upgrade.max, save.lv[id] || 1));
+  function openShop(tab) {
+    if (mode !== 'play' || !W || resultsOpen) return;
+    shopTab = tab || shopTab; save.learned.shop = true; $('coins').classList.remove('can');
+    const tabs = `<div class="tabs"><button class="tab gloss ${shopTab === 'tools' ? 'on' : ''}" data-tab="tools">🛠️ ${T('tools')}</button><button class="tab gloss ${shopTab === 'album' ? 'on' : ''}" data-tab="album">📖 ${T('album')}</button></div>`;
+    let body = '';
+    if (shopTab === 'tools') {
+      body = `<div class="srows">${cfg.tools.map((t) => {
+        const owned = save.owned.includes(t.id), lv = lvOf(t.id), cost = owned ? L.upgradeCost(cfg, t.id, lv) : t.cost;
+        const btn = cost === null ? `<span class="sbtn max">${T('max')}</span>` : `<button class="sbtn ${save.coins >= cost ? '' : 'no'}" data-buy="${t.id}">${owned ? '⬆' : '🔓'} <i class="coin"></i>${fmt(cost)}</button>`;
+        return `<div class="srow"><span class="sic">${t.icon}</span><span class="pips">${[1, 2, 3, 4, 5].map((k) => `<i class="${owned && k <= lv ? 'on' : ''}"></i>`).join('')}</span>${btn}</div>`;
+      }).join('')}</div>`;
+    } else {
+      const seen = {}; for (const [k, v] of Object.entries(save.best)) { const n = Number(k); if (!Number.isFinite(n)) continue; const kind = WD.KINDS[n % WD.KINDS.length]; seen[kind] = Math.max(seen[kind] || 0, v); }
+      body = `<div class="agrid">${WD.KINDS.map((k) => { const has = k in seen; return `<div class="atile ${has ? '' : 'off'}"><span class="aic">${has ? KIND_ICON[k] : '❓'}</span><span class="anm">${has ? T(k) : ''}</span><span class="acups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${has && seen[k] >= i ? 'on' : ''}" alt="">`).join('')}</span></div>`; }).join('')}</div>`;
+    }
+    $('shop').innerHTML = `<div class="card shopcard"><button id="shopX" class="round gloss sx" aria-label="close">✕</button>${tabs}${body}</div>`;
+    $('shop').hidden = false; Sound.play('blip');
+  }
+  function buyOrUpgrade(id) {
+    const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
+    if (cost === null || save.coins < cost) { Sound.play('no'); return false; }
+    save.coins -= cost;
+    if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
+    persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
+    return true;
+  }
+  $('shop').addEventListener('pointerdown', (e) => e.stopPropagation());
+  $('shop').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const b = e.target.closest('button'); if (!b) { if (!e.target.closest('.card')) { $('shop').hidden = true; } return; }
+    try { b.blur(); } catch (er) { /* fine */ }
+    if (b.id === 'shopX') { $('shop').hidden = true; Sound.play('blip'); return; }
+    if (b.dataset.tab) { openShop(b.dataset.tab); return; }
+    if (b.dataset.buy) buyOrUpgrade(b.dataset.buy);
+  });
+  $('coins').addEventListener('click', (e) => { e.stopPropagation(); Sound.unlock(cfg); if (demo) firstTouch(); openShop('tools'); });
   $('nextpill').addEventListener('click', (e) => { e.stopPropagation(); results(); });
   $('panel').addEventListener('pointerdown', (e) => e.stopPropagation());
 
@@ -589,14 +633,16 @@ function startGame(mode) {
       const st = r && r.state;
       if (st && typeof st === 'object') {
         // what was earned before the save arrived is added on top, never lost
-        const earned = save.coins, earnedTotal = save.total, blocks = save.blocks, owned = save.owned.slice(), picked = save.lang, learned = { ...save.learned }, mutedLocal = Sound.muted, levelLocal = save.level, levelsLocal = save.levels, best = { ...save.best }, dayLocal = save.day;
+        const earned = save.coins, earnedTotal = save.total, blocks = save.blocks, owned = save.owned.slice(), picked = save.lang, learned = { ...save.learned }, mutedLocal = Sound.muted, levelLocal = save.level, levelsLocal = save.levels, best = { ...save.best }, dayLocal = save.day, dailyLocal = save.dailyDone, lvLocal = { ...save.lv };
         const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
         save.coins = Math.max(0, num(st.coins)) + earned; save.total = num(st.total) + earnedTotal; save.blocks = num(st.blocks) + blocks;
         save.level = Math.max(num(st.level), levelLocal); save.levels = num(st.levels) + levelsLocal;
         save.owned = [...new Set(['hammer', 'bomb', ...(Array.isArray(st.owned) ? st.owned : []), ...owned])].filter((id) => cfg.tools.some((t) => t.id === id));
         save.best = { ...(st.best && typeof st.best === 'object' ? st.best : {}) }; for (const [k, v] of Object.entries(best)) save.best[k] = Math.max(num(save.best[k]), v);
         save.learned = { bomb: !!(st.learned && st.learned.bomb) || learned.bomb, drag: !!(st.learned && st.learned.drag) || learned.drag };
-        save.day = Math.max(num(st.day), dayLocal);
+        save.day = Math.max(num(st.day), dayLocal); save.dailyDone = Math.max(num(st.dailyDone), dailyLocal);
+        save.lv = { ...(st.lv && typeof st.lv === 'object' ? st.lv : {}) }; for (const [k, v] of Object.entries(lvLocal)) save.lv[k] = Math.max(num(save.lv[k]) || 1, v);
+        save.learned.shop = !!(st.learned && st.learned.shop) || learned.shop;
         save.lang = picked || (LANGS.includes(st.lang) ? st.lang : null);
         if (save.lang) { lang = save.lang; setDir(); }
         save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊';
@@ -656,6 +702,7 @@ const HTML = `
   <div id="pops" class="pops"></div>
   <div id="hand" class="hand" hidden>👆</div>
   <div id="panel" class="panel" hidden></div>
+  <div id="shop" class="panel" hidden></div>
 </div>`;
 
 window.run = run;

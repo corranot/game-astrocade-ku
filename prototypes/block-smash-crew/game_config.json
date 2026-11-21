@@ -356,7 +356,12 @@
    "star": "STAR!",
    "keep": "KEEP SMASHING",
    "super": "SUPER HAMMER!",
-   "timber": "TIMBER!"
+   "timber": "TIMBER!",
+   "tools": "TOOLS",
+   "album": "ALBUM",
+   "max": "MAX",
+   "dailyGo": "DAILY ×2",
+   "built": "BUILDINGS"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -389,7 +394,12 @@
    "star": "نجمة!",
    "keep": "واصل التحطيم",
    "super": "مطرقة خارقة!",
-   "timber": "سيسقط!"
+   "timber": "سيسقط!",
+   "tools": "الأدوات",
+   "album": "الألبوم",
+   "max": "الحد الأقصى",
+   "dailyGo": "يومي ×2",
+   "built": "المباني"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -422,7 +432,12 @@
    "star": "¡ESTRELLA!",
    "keep": "SIGUE ROMPIENDO",
    "super": "¡SÚPER MARTILLO!",
-   "timber": "¡CUIDADO, CAE!"
+   "timber": "¡CUIDADO, CAE!",
+   "tools": "HERRAMIENTAS",
+   "album": "ÁLBUM",
+   "max": "MÁX",
+   "dailyGo": "DIARIO ×2",
+   "built": "EDIFICIOS"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -455,7 +470,12 @@
    "star": "NGÔI SAO!",
    "keep": "ĐẬP TIẾP",
    "super": "SIÊU BÚA!",
-   "timber": "ĐỔ RỒI!"
+   "timber": "ĐỔ RỒI!",
+   "tools": "DỤNG CỤ",
+   "album": "ALBUM",
+   "max": "TỐI ĐA",
+   "dailyGo": "HÀNG NGÀY ×2",
+   "built": "TOÀ NHÀ"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -488,7 +508,12 @@
    "star": "तारा!",
    "keep": "तोड़ते रहो",
    "super": "सुपर हथौड़ा!",
-   "timber": "गिर रहा है!"
+   "timber": "गिर रहा है!",
+   "tools": "औज़ार",
+   "album": "एल्बम",
+   "max": "पूरा",
+   "dailyGo": "आज का ×2",
+   "built": "इमारतें"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -521,7 +546,12 @@
    "star": "তারা!",
    "keep": "ভাঙতে থাকো",
    "super": "সুপার হাতুড়ি!",
-   "timber": "পড়ছে!"
+   "timber": "পড়ছে!",
+   "tools": "যন্ত্র",
+   "album": "অ্যালবাম",
+   "max": "সর্বোচ্চ",
+   "dailyGo": "আজকের ×2",
+   "built": "ভবন"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -554,7 +584,12 @@
    "star": "BINTANG!",
    "keep": "TERUS HANCURKAN",
    "super": "PALU SUPER!",
-   "timber": "AWAS RUNTUH!"
+   "timber": "AWAS RUNTUH!",
+   "tools": "ALAT",
+   "album": "ALBUM",
+   "max": "MAKS",
+   "dailyGo": "HARIAN ×2",
+   "built": "GEDUNG"
   }
  },
  "persistent_storage_config": {
@@ -646,5 +681,22 @@
    "gain": 0.71,
    "skip": 0
   }
+ },
+ "upgrade": {
+  "max": 5,
+  "rStep": 0.12,
+  "cdStep": 0.07,
+  "growth": 1.9,
+  "base": {
+   "hammer": 1500,
+   "bomb": 2500,
+   "rocket": 6000,
+   "ball": 12000,
+   "hole": 20000,
+   "meteor": 30000
+  }
+ },
+ "daily": {
+  "mult": 2
  }
 }

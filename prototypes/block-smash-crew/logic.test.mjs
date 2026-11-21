@@ -65,6 +65,16 @@ check(KINDS.length === 8, '8 kinds of building');
   check(L.cooldownOf(cfg, 'bomb', true) < L.cooldownOf(cfg, 'bomb', false), 'smash time cuts cooldowns');
 }
 
+// ---- upgrades and the daily challenge
+{
+  const t = cfg.tools.find((x) => x.id === 'bomb'), a = L.toolAt(cfg, t, 1), b = L.toolAt(cfg, t, 5);
+  check(a.r === t.r && b.r > t.r * 1.4 && b.cd < t.cd, `upgrades grow a tool (bomb r ${a.r} → ${b.r}, cd ${a.cd} → ${b.cd})`);
+  check(L.upgradeCost(cfg, 'bomb', 1) < L.upgradeCost(cfg, 'bomb', 4) && L.upgradeCost(cfg, 'bomb', 5) === null, 'upgrade prices climb and stop at the top level');
+  const W = WD.createWorld(cfg, 0, { lv: { hammer: 5 }, coinMult: 2 });
+  check(W.cfg.tools[0].r > cfg.tools[0].r && cfg.tools[0].r === 1.45, 'a world uses the upgraded tools without changing the config');
+  check(L.dailyLevel(cfg, 20261121) !== L.dailyLevel(cfg, 20261122) && L.dailyLevel(cfg, 20261121) >= 8 * cfg.level.maxStep, 'the daily building changes each day and is a big one');
+}
+
 // ---- the world, played
 function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   const W = WD.createWorld(cfg, lv, opts); let t = 0, tt = 0; const seen = new Set(); let feverAt = null, coinsDemo = 0;

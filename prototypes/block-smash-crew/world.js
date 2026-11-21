@@ -4,15 +4,18 @@
 // treasure chest in its steel vault and the smash-time finale. step() returns events for the look and the sound.
 // Pure (no Three.js), so whole levels can be played by a bot in Node.
 import { raycast, smashSphere, collapse } from './voxels.js';
-import { buildLevel, matIds } from './levels.js';
-import { coinsFor, createCombo, comboHit, comboTick, smashWord, cooldownOf, wreckOf } from './logic.js';
+import { buildLevel, matIds, KINDS } from './levels.js';
+export { KINDS };
+import { coinsFor, createCombo, comboHit, comboTick, smashWord, cooldownOf, wreckOf, toolAt } from './logic.js';
 
 const SWING_HIT = 0.4; // share of the swing at which the hammer lands
 
 /**
  * A new world for level n. opts: {demo: the attract mode (nothing pays), owned: tool ids the player has}.
  */
-export function createWorld(cfg, n, opts = {}) {
+export function createWorld(cfg0, n, opts = {}) {
+  // upgraded tools: a copy of the config with each tool's size and cooldown at the player's level for it
+  const cfg = opts.lv ? { ...cfg0, tools: cfg0.tools.map((t) => ({ ...t, ...toolAt(cfg0, t, opts.lv[t.id] || 1) })) } : cfg0;
   const L = buildLevel(cfg, n), g = L.grid, mats = [null, ...cfg.materials];
   const ids = matIds(cfg);
   const H = cfg.hero;
@@ -22,7 +25,7 @@ export function createWorld(cfg, n, opts = {}) {
     hero: { x: L.spawn.x, y: 0, z: L.spawn.z, vy: 0, yaw: Math.PI, moving: false, swingT: -1, swingCell: null, cool: 0, goal: null, aim: null, hold: false, happy: 0, stepT: 0, bump: 0 },
     shots: [], falls: [], fuses: [], cool: {}, owned: (opts.owned || ['hammer', 'bomb']).slice(), tried: new Set(),
     combo: createCombo(cfg), coins: 0, smashed: 0, demo: !!opts.demo, phase: 'play', fever: 0, t: 0, ev: [], nextId: 1,
-    hardT: 0, used: new Set(), ids, lastHard: null,
+    hardT: 0, used: new Set(), ids, lastHard: null, coinMult: opts.coinMult || 1, daily: !!opts.daily,
   };
   return W;
 }
@@ -39,7 +42,7 @@ function blast(W, x, y, z, r, canHard, by) {
   return res;
 }
 function afterRemove(W, removed, by, x, y, z, r) {
-  const mult = comboHit(W.combo) * (W.fever > 0 ? W.cfg.fever.mult : 1);
+  const mult = comboHit(W.combo) * (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult);
   W.coins += coins; W.left -= removed.length; W.smashed += removed.length;
   let gold = 0;
@@ -227,7 +230,7 @@ function land(W, f) {
   let x = 0, y = 0, z = 0; for (const c of f.cells) { const p = placeOf(f, c); x += p[0] - 0.5; y += p[1] - 0.5; z += p[2] - 0.5; }
   const k = f.cells.length || 1;
   const removed = f.cells;
-  const mult = W.fever > 0 ? W.cfg.fever.mult : 1;
+  const mult = (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult) + (removed.length < f.total ? coinsFor(W.cfg, [{ m: removed[0].m }], mult) * (f.total - removed.length) : 0);
   W.coins += coins; W.smashed += f.total;
   W.ev.push({ type: 'land', fall: f, x: x / k + 0.5, y: Math.max(0.5, y / k + 0.5), z: z / k + 0.5, coins, n: f.total, topple: !!f.topple });

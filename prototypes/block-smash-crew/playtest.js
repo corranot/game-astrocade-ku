@@ -378,6 +378,36 @@ async function main() {
     }
   }
 
+  // ---- 18. shop, upgrades, album, daily challenge
+  if (!process.env.ONLY) {
+    const { page, errors } = await open(browser, '', { port });
+    await tapAt(page, 360, 600); await waitFor(page, () => __game.saveLoaded, null, 5000);
+    await g(page, () => { __game.save.coins = 50000; document.querySelector('#coins').click(); });
+    const open1 = await g(page, () => !document.querySelector('#shop').hidden && document.querySelectorAll('.srow').length);
+    const r0 = await g(page, () => __game.W.cfg.tools.find((t) => t.id === 'bomb').r);
+    await g(page, () => document.querySelector('[data-buy=bomb]').click());
+    const up = await g(page, () => ({ lv: __game.save.lv.bomb, coins: __game.save.coins, r: __game.W.cfg.tools.find((t) => t.id === 'bomb').r, saved: (window.__writes || []).slice(-1)[0] }));
+    check(open1 === 6 && up.lv === 2 && up.coins === 47500 && up.r > r0 && up.saved && up.saved.lv && up.saved.lv.bomb === 2, `shop: 6 tools; bomb upgraded to level 2, paid 2500, bigger now (r ${r0} → ${up.r}), saved`);
+    await g(page, () => document.querySelector('[data-buy=rocket]').click());
+    check(await g(page, () => __game.save.owned.includes('rocket') && __game.W.owned.includes('rocket')), 'shop: a locked tool is bought from the shop');
+    await g(page, () => { __game.save.best = { 0: 2, 3: 1 }; document.querySelector('[data-tab=album]').click(); });
+    const al = await g(page, () => ({ tiles: document.querySelectorAll('.atile').length, off: document.querySelectorAll('.atile.off').length, lit: document.querySelectorAll('.acups img.on').length }));
+    check(al.tiles === 8 && al.off === 6 && al.lit === 3, `album: 8 buildings, 2 seen, their trophies lit (${JSON.stringify(al)})`);
+    await g(page, () => document.querySelector('#shopX').click());
+    // the daily challenge: from the card, double coins, the path's level unchanged, NEXT goes back to it
+    await g(page, () => { __game.save.level = 3; __game.save.dailyDone = 0; __game.newLevel(3); const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    const hasDaily = await g(page, () => !!document.querySelector('#dailyBtn'));
+    await g(page, () => document.querySelector('#dailyBtn').click());
+    const d = await g(page, () => ({ daily: __game.W.daily, n: __game.W.n, mult: __game.W.coinMult, lvl: __game.save.level }));
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    const after = await g(page, () => ({ lvl: __game.save.level, done: __game.save.dailyDone, btn: !!document.querySelector('#dailyBtn') }));
+    await g(page, () => document.querySelector('#nextBtn').click());
+    const back = await g(page, () => ({ n: __game.W.n, daily: __game.W.daily }));
+    check(hasDaily && d.daily && d.mult === 2 && d.n >= 32 && after.lvl === 4 && after.done > 20000000 && !after.btn && back.n === 4 && !back.daily, `daily: big building ×2 coins, done for today, NEXT back to level ${back.n + 1} (${JSON.stringify({ d, after })})`);
+    check(errors.length === 0, 'shop/album/daily: no page errors: ' + (errors.join(' | ') || 'none'));
+    await page.close();
+  }
+
   // ---- 16. first-person bugs found by reading the code (each check failed before its fix)
   {
     const { page, errors } = await open(browser, '', { port });

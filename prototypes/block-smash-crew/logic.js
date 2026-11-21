@@ -48,3 +48,15 @@ export const dailyDue = (lastDay, today) => !lastDay || today > lastDay;
 
 /** Seconds of cooldown for a tool; smash time cuts them to a fraction. */
 export function cooldownOf(cfg, id, fever) { const t = cfg.tools.find((x) => x.id === id); return t ? t.cd * (fever ? cfg.fever.cdScale : 1) : 0; }
+
+/** A tool at upgrade level lv (1..max): bigger and quicker. Returns {r, cd} (and len for the ball). */
+export function toolAt(cfg, t, lv) {
+  const u = cfg.upgrade, k = Math.max(1, Math.min(u.max, lv)) - 1;
+  const out = { r: +(t.r * (1 + u.rStep * k)).toFixed(3), cd: +(t.cd * (1 - u.cdStep * k)).toFixed(3) };
+  if (t.len) out.len = Math.round(t.len * (1 + u.rStep * k));
+  return out;
+}
+/** Coins for the next upgrade of tool id from level lv, or null at the top level. */
+export function upgradeCost(cfg, id, lv) { const u = cfg.upgrade; return lv >= u.max ? null : Math.round(u.base[id] * Math.pow(u.growth, lv - 1) / 100) * 100; }
+/** Today's challenge: the biggest step of one of the 8 buildings, the kind changing every day. */
+export const dailyLevel = (cfg, day) => 8 * cfg.level.maxStep + (day % 8);

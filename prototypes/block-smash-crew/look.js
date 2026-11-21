@@ -13,7 +13,7 @@ fs.mkdirSync(out, { recursive: true });
   for (const lang of langs) {
     const { page, errors } = await open(browser, '', { port: server.address().port, locale: lang, dpr: 2, touch: true }); // phone layout: stick + HIT
     const g = (fn, a) => page.evaluate(fn, a), shot = (n) => page.screenshot({ path: path.join(out, `${lang}-${n}.jpg`), type: 'jpeg', quality: 82 });
-    const overflow = () => g(() => { const a = document.getElementById('app').getBoundingClientRect(); return [...document.querySelectorAll('.pop, .tip, .title, .card, .big, .small, .cups, .stat, .nexttool, .tool, .pill, .bar, .round')].filter((el) => !el.closest('[hidden]') && el.offsetParent !== null).map((el) => [el.className, el.getBoundingClientRect()]).filter(([, r]) => r.width && (r.left < a.left - 1 || r.right > a.right + 1)).map(([c]) => c); });
+    const overflow = () => g(() => { const a = document.getElementById('app').getBoundingClientRect(); return [...document.querySelectorAll('.pop, .tip, .title, .card, .big, .small, .cups, .stat, .nexttool, .tool, .pill, .bar, .round, .srow, .sbtn, .tab, .atile, .anm')].filter((el) => !el.closest('[hidden]') && el.offsetParent !== null).map((el) => [el.className, el.getBoundingClientRect()]).filter(([, r]) => r.width && (r.left < a.left - 1 || r.right > a.right + 1)).map(([c]) => c); });
     const over = [];
     await page.waitForTimeout(1500); await shot('1-demo'); over.push(...await overflow());
     await g(() => { __game.newLevel(0); const W = __game.W; __game.WD.aimHammer(W, { type: 'block', x: Math.floor(W.chest.x), y: 1, z: W.box.z1, nx: 0, ny: 0, nz: 1 }, true); });
@@ -27,7 +27,11 @@ fs.mkdirSync(out, { recursive: true });
     await page.waitForTimeout(700); await shot('5-smash-time'); over.push(...await overflow());
     await g(() => { const W = __game.W; W.fever = 0; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
     await page.waitForTimeout(1200); await shot('6-result'); over.push(...await overflow());
-    if (over.length || errors.length) { bad++; console.log(`FAIL ${lang}: outside the frame ${[...new Set(over)].join(',')} errors ${errors.join('|')}`); } else console.log(`ok   ${lang}: 6 screens, everything inside the frame`);
+    await g(() => { document.querySelector('#keepBtn').click(); __game.save.coins = 30000; __game.save.best = { 0: 2, 1: 1, 3: 2 }; document.querySelector('#coins').click(); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
+    await page.waitForTimeout(400); await shot('7-shop'); over.push(...await overflow());
+    await g(() => { document.querySelector('[data-tab=album]').click(); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
+    await page.waitForTimeout(400); await shot('8-album'); over.push(...await overflow());
+    if (over.length || errors.length) { bad++; console.log(`FAIL ${lang}: outside the frame ${[...new Set(over)].join(',')} errors ${errors.join('|')}`); } else console.log(`ok   ${lang}: 8 screens, everything inside the frame`);
     await page.close();
   }
   await browser.close(); server.close(); process.exit(bad ? 1 : 0);
