@@ -369,7 +369,8 @@
    "cLook": "SWIPE TO LOOK",
    "cLookMouse": "CLICK & DRAG TO LOOK",
    "cHit": "HOLD 💥 TO SMASH",
-   "cHitClick": "CLICK TO SMASH"
+   "cHitClick": "CLICK TO SMASH",
+   "shareCta": "SHOW A FRIEND"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -415,7 +416,8 @@
    "cLook": "اسحب للنظر حولك",
    "cLookMouse": "انقر واسحب للنظر",
    "cHit": "اضغط مطولاً 💥 للتحطيم",
-   "cHitClick": "انقر للتحطيم"
+   "cHitClick": "انقر للتحطيم",
+   "shareCta": "أرِه لصديق"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -461,7 +463,8 @@
    "cLook": "DESLIZA PARA MIRAR",
    "cLookMouse": "CLIC Y ARRASTRA PARA MIRAR",
    "cHit": "MANTÉN 💥 PARA ROMPER",
-   "cHitClick": "CLIC PARA ROMPER"
+   "cHitClick": "CLIC PARA ROMPER",
+   "shareCta": "MUÉSTRALO A UN AMIGO"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -507,7 +510,8 @@
    "cLook": "VUỐT ĐỂ NHÌN",
    "cLookMouse": "NHẤP & KÉO ĐỂ NHÌN",
    "cHit": "GIỮ 💥 ĐỂ ĐẬP",
-   "cHitClick": "NHẤP ĐỂ ĐẬP"
+   "cHitClick": "NHẤP ĐỂ ĐẬP",
+   "shareCta": "KHOE VỚI BẠN"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -553,7 +557,8 @@
    "cLook": "देखने के लिए स्वाइप करें",
    "cLookMouse": "देखने के लिए क्लिक करके खींचें",
    "cHit": "तोड़ने के लिए 💥 दबाए रखें",
-   "cHitClick": "तोड़ने के लिए क्लिक करें"
+   "cHitClick": "तोड़ने के लिए क्लिक करें",
+   "shareCta": "दोस्त को दिखाओ"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -599,7 +604,8 @@
    "cLook": "দেখতে সোয়াইপ করো",
    "cLookMouse": "দেখতে ক্লিক করে টানো",
    "cHit": "ভাঙতে 💥 চেপে ধরো",
-   "cHitClick": "ভাঙতে ক্লিক করো"
+   "cHitClick": "ভাঙতে ক্লিক করো",
+   "shareCta": "বন্ধুকে দেখাও"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -645,7 +651,8 @@
    "cLook": "USAP UNTUK MELIHAT",
    "cLookMouse": "KLIK & GESER UNTUK MELIHAT",
    "cHit": "TAHAN 💥 UNTUK HANCURKAN",
-   "cHitClick": "KLIK UNTUK HANCURKAN"
+   "cHitClick": "KLIK UNTUK HANCURKAN",
+   "shareCta": "TUNJUKKAN KE TEMAN"
   }
  },
  "persistent_storage_config": {

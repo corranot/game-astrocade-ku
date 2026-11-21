@@ -11,7 +11,8 @@ fs.mkdirSync(out, { recursive: true });
 const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
 (async () => {
   const server = serve(), browser = await chromium.launch({ args: GPU });
-  const { page, errors } = await open(browser, '', { port: server.address().port, locale: lang, dpr: 2, touch: true });
+  // a host that can share (Astrocade has lib.share): the result card shows its ✈️ button
+  const { page, errors } = await open(browser, '', { port: server.address().port, locale: lang, dpr: 2, touch: true, init: 'window.__share = true;' });
   const g = (fn, a) => page.evaluate(fn, a), shot = (n) => page.screenshot({ path: path.join(out, `${lang}-j${n}.jpg`), type: 'jpeg', quality: 82 });
   // the coach's label (and the level card) must sit inside the frame, clear of the stick / HIT row (top 934)
   const coach = () => g(() => { const c = document.getElementById('coach'); if (c.hidden) return null; const a = document.getElementById('app').getBoundingClientRect(), r = c.querySelector('.clabel').getBoundingClientRect(), k = 720 / a.width; return { cls: c.className, text: c.querySelector('.clabel').textContent, inside: r.left >= a.left - 1 && r.right <= a.right + 1 && (r.bottom - a.top) * k <= 934 }; });
@@ -74,6 +75,11 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   await page.waitForTimeout(700); const mid = await g(() => document.querySelector('#panel .cnt').textContent); await shot('09-result-counting');
   await page.waitForTimeout(900); const end = await g(() => document.querySelector('#panel .cnt').textContent); await shot('10-result');
   check(mid !== end, `result coins count up (${mid} → ${end})`);
+  // the ✈️ button says what it does and shares when tapped
+  const sh = await g(() => { const b = document.getElementById('shareBtn'); if (!b) return null; const t = b.textContent; b.click(); return t; });
+  await page.waitForTimeout(100);
+  const shared = await g(() => (window.__shared || []).length);
+  check(!!sh && sh.trim().length > 3 && shared === 1, `share button has its words and shares (${sh}, ${shared} shared)`);
   await g(() => document.querySelector('#nextBtn').click());
   await page.waitForTimeout(120); await shot('11-next-flash');
   await page.waitForTimeout(500); await shot('12-next-card');

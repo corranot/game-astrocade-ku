@@ -507,7 +507,7 @@ function startGame(mode) {
       <div class="cups"><span class="pct out">💥 ${Math.round(wr * 100)}%</span>${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</div>
       <div class="stat out"><i class="coin"></i>+<b class="cnt">${fmt(W.coins + (bonus || 0))}</b></div>
       ${nt ? `<div class="nexttool out"><span class="hi">${nt.tool.icon}</span><i><b style="width:${Math.round(nt.have / nt.need * 100)}%"></b></i><span>${fmt(nt.have)}/${fmt(nt.need)}</span></div>` : ''}
-      <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date()) ? `<button id="dailyBtn" class="small daily out">📅 ${T('dailyGo')}</button>` : ''}${share ? `<button id="shareBtn" class="small out">✈️</button>` : ''}</div></div>`;
+      <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date()) ? `<button id="dailyBtn" class="small daily out">📅 ${T('dailyGo')}</button>` : ''}${share ? `<button id="shareBtn" class="small share out">✈️ ${T('shareCta')}</button>` : ''}</div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
     countUp($('panel').querySelector('.cnt'), W.coins + (bonus || 0));
@@ -719,7 +719,7 @@ function startGame(mode) {
     const k = root.getBoundingClientRect().width / 720 || 1, cs = getComputedStyle(card);
     const inner = (card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / k;
     const title = card.querySelector('.title'); if (title) fitText(title, inner, 68, 2);
-    const bs = [...card.querySelectorAll('.btns .big, .btns .small')].filter((b) => b.id !== 'shareBtn');
+    const bs = [...card.querySelectorAll('.btns .big, .btns .small')];
     for (const b of bs) { b.style.width = ''; b.style.whiteSpace = 'nowrap'; }
     const w = Math.min(inner, Math.max(340, ...bs.map((b) => Math.ceil(b.offsetWidth / k))));
     for (const b of bs) { b.style.width = `calc(var(--u)*${w}px)`; fitText(b, w, b.classList.contains('big') ? 52 : 32, 2); }
@@ -865,7 +865,7 @@ if (typeof location !== 'undefined' && new URLSearchParams(location.search).has(
   const store = { state: window.__preset || null };
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => { if (window.__saveDelay) await new Promise((r) => setTimeout(r, window.__saveDelay)); return window.__saveFails ? Promise.reject(new Error('offline')) : { state: store.state }; },
     saveUserGameState: async (s) => { store.state = s; (window.__writes = window.__writes || []).push(s); }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
-    shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
+    shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, ...(window.__share ? { share: async (o) => { (window.__shared = window.__shared || []).push(o); } } : {}), haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
   Promise.all([fetch('./game_config.json').then((r) => r.json()), fetch('./asset_map.json').then((r) => r.json()).catch(() => ({}))]).then(([c, assets]) => {
     window.lib.getAsset = (id) => (window.__noAssets ? undefined : assets[id]);
     window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play');
