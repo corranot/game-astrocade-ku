@@ -199,7 +199,9 @@ function startGame(mode) {
       el.classList.toggle('sel', sel === t.id);
       el.classList.toggle('locked', !owned && !fever);
       const lock = el.querySelector('.lock'); lock.hidden = owned || fever; lock.querySelector('b').textContent = fmt(t.cost);
-      const free = el.querySelector('.free'); free.hidden = owned || fever || !W || W.tried.has(t.id); if (free.textContent !== T('tryFree')) { free.textContent = T('tryFree'); if (!free.hidden) fitText(free, 100, 18); }
+      const free = el.querySelector('.free'); free.hidden = owned || fever || !W || W.tried.has(t.id); if (free.textContent !== T('tryFree')) free.textContent = T('tryFree');
+      // fitted once per language, when it shows (a badge hidden during a language change keeps no stale size)
+      if (!free.hidden && free.dataset.l !== lang) { free.dataset.l = lang; fitText(free, 100, 18); }
       el.classList.toggle('can', !owned && save.coins >= t.cost);
     }
   }
@@ -233,16 +235,19 @@ function startGame(mode) {
   function fitText(el, maxW, base, lines = 1) {
     const k = root.getBoundingClientRect().width / 720 || 1;
     el.style.fontSize = ''; el.style.whiteSpace = 'nowrap'; el.style.maxWidth = ''; el.classList.remove('wrap');
+    if (el.style.width === 'max-content') el.style.width = '';
     if (el.offsetWidth / k <= maxW + 0.5 && el.scrollWidth <= el.clientWidth + 1) return;
-    if (lines > 1) { el.style.whiteSpace = 'normal'; el.style.maxWidth = `calc(var(--u)*${maxW}px)`; el.classList.add('wrap'); }
-    const rows = () => { const cs = getComputedStyle(el), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2; return Math.round((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh); };
+    // a box centred with left:50% only gets half the frame when it wraps: max-content up to maxW gives it the full room
+    if (lines > 1) { el.style.whiteSpace = 'normal'; el.style.maxWidth = `calc(var(--u)*${maxW}px)`; if (!el.style.width) el.style.width = 'max-content'; el.classList.add('wrap'); }
+    // lines counted from the text's own height (a button's min-height would read as extra lines)
+    const rows = () => { const mh = el.style.minHeight; el.style.minHeight = '0'; const cs = getComputedStyle(el), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2, n = Math.round((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh); el.style.minHeight = mh; return n; };
     const over = () => el.scrollWidth > el.clientWidth + 1 || el.offsetWidth / k > maxW + 0.5 || (lines > 1 && rows() > lines);
-    for (let f = base; over() && f > base * 0.7; ) { f *= 0.94; el.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
+    for (let f = base; over() && f > base * 0.7; ) { f = Math.max(base * 0.7, f * 0.94); el.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
   }
   /** One row of buttons or tabs that must fit side by side: all shrink together (same size), at most to 70%. */
   function fitRow(row, items, base) {
     for (const b of items) b.style.fontSize = '';
-    for (let f = base; row.scrollWidth > row.clientWidth + 1 && f > base * 0.7; ) { f *= 0.94; for (const b of items) b.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
+    for (let f = base; row.scrollWidth > row.clientWidth + 1 && f > base * 0.7; ) { f = Math.max(base * 0.7, f * 0.94); for (const b of items) b.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
   }
   let coinPopT = 0;
   const coinPop = (n, x, y, z) => {
@@ -815,7 +820,7 @@ function startGame(mode) {
     },
     debug: {
       get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; },
-      scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); },
+      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); },
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },

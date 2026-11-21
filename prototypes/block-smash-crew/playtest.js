@@ -102,7 +102,8 @@ async function main() {
     // ---- 7. buying: enough coins → unlocked, paid, saved
     await waitFor(page, () => __game.saveLoaded, null, 5000);
     // the price is read in the same step as the click: pieces still falling from the free try may pay coins meanwhile
-    const buy = await g(page, () => { __game.save.coins = 9000; document.querySelector('.tool[data-t=rocket]').click(); return { owned: __game.save.owned.includes('rocket'), paid: 9000 - __game.save.coins, sel: __game.sel, saved: (window.__writes || []).slice(-1)[0] }; });
+    // (the save is written a microtask after the click: wait one before reading it)
+    const buy = await g(page, async () => { __game.save.coins = 9000; document.querySelector('.tool[data-t=rocket]').click(); const r = { owned: __game.save.owned.includes('rocket'), paid: 9000 - __game.save.coins, sel: __game.sel }; await new Promise((ok) => setTimeout(ok, 0)); r.saved = (window.__writes || []).slice(-1)[0]; return r; });
     check(buy.owned && buy.paid === 8000 && buy.sel === 'rocket' && buy.saved && buy.saved.owned.includes('rocket'), `rocket bought: 8000 paid (${buy.paid}), selected, saved`);
     check(errors.length === 0, 'no page errors (sections 1–7): ' + (errors.join(' | ') || 'none'));
     await page.close();

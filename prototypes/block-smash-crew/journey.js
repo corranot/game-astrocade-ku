@@ -45,6 +45,12 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   const relabel = await g((o) => { const a = document.querySelector('#coach .clabel').textContent; __game.setLang(o); const b = document.querySelector('#coach .clabel').textContent; return [a, b]; }, other);
   await g((l) => __game.setLang(l), lang);
   check(relabel[0] !== relabel[1], `the coach label follows a language change (${relabel.join(' → ')})`);
+  // a long label wraps across the full room (up to 600 units, two lines), not into the half frame left of centre
+  const wrapT = await g(() => { const el = document.querySelector('#coach .clabel'), k = 720 / document.getElementById('app').getBoundingClientRect().width, old = el.textContent;
+    el.textContent = 'SMASH THE BIG WALL AND FIND THE STARS'; __game.fitText(el, 600, 44, 2);
+    const cs = getComputedStyle(el), lh = parseFloat(cs.lineHeight), r = { w: Math.round(el.offsetWidth * k), rows: Math.round((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh), fs: +(parseFloat(cs.fontSize) * k).toFixed(1) };
+    el.textContent = old; __game.fitText(el, 600, 44, 2); return r; });
+  check(wrapT.w >= 480 && wrapT.w <= 601 && wrapT.rows <= 2 && wrapT.fs >= 30.7, `a long label wraps wide: ${JSON.stringify(wrapT)}`);
   // smashing by holding a finger on the block in reach also completes the lesson
   const cross = await g(() => { const a = document.getElementById('app').getBoundingClientRect(), r = document.getElementById('cross').getBoundingClientRect(), k = 720 / a.width; return [(r.left - a.left + r.width / 2) * k, (r.top - a.top + r.height / 2) * k]; });
   await touch(4, 'pointerdown', cross[0], cross[1]); const held = await until(() => __game.save.learned.hit, 2500); await touch(4, 'pointerup', cross[0], cross[1]);
