@@ -576,7 +576,7 @@ function startGame(mode) {
       if (opened || !alive) return; opened = true; Sound.play('sfx_win', 0.5); buzz('success');
       const inner = g.kind === 'item' ? itemIcon(g.list, g.id) : `<span class="earn out"><i class="coin"></i>+${g.amount}</span>`;
       renderCoins();
-      p.querySelector('.card').innerHTML = `<div class="rays"></div><div class="gtitle out">${g.kind === 'item' ? T('new') : title}</div><div class="stage"><div class="prize">${inner}</div></div><button id="nextBtn" class="big gloss out">${nextLabel()}</button>`;
+      p.querySelector('.card').innerHTML = `<div class="rays"></div><div class="gtitle out">${g.kind === 'item' ? T('new') : title}</div><div class="stage"><div class="prize"><span class="pi">${inner}</span></div></div><button id="nextBtn" class="big gloss out">${nextLabel()}</button>`;
       let gone = false; const goOn = () => { if (gone || !alive) return; gone = true; afterRating(); };
       $('nextBtn').addEventListener('click', (e) => { e.stopPropagation(); goOn(); });
       const cupNow = S; setTimeout(() => { if (S === cupNow && !$('panel').hidden && $('nextBtn')) goOn(); }, (cfg.ratingAutoNext || 6) * 1000);

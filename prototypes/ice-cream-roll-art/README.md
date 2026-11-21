@@ -46,4 +46,6 @@ winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FP
 - Rating and gift cards (owner's report: the Next button margins were off): the card had no padding, so content taller
   than its min-height pushed the button onto the bottom edge and clipped its shadow. Cards now size to their content
   with 2 x margin padding (button shadow counted), every gap = margin, stars drawn as SVG (a font glyph's ink sits
-  differently in every fallback font), badges and shadows counted in their row. `layout.js` measures both cards.
+  differently in every fallback font), badges and shadows counted in their row. `layout.js` measures both cards. A fresh bug hunt found the cup-style
+  prize tiny and white-on-white on the new plate (outline on a wrapper: a clip-path clips its own filter); Arabic
+  coin amounts read "60+" (now left to right everywhere).

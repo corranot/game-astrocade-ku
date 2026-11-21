@@ -140,7 +140,8 @@ body{display:flex;align-items:center;justify-content:center}
 .star svg{display:block;height:100%;width:auto;overflow:visible}
 .star.on{color:#ffd23c;filter:drop-shadow(0 calc(var(--u)*5px) 0 #d79a00) drop-shadow(0 0 calc(var(--u)*10px) #fff3a0)}
 @keyframes starin{0%{transform:scale(0) rotate(-60deg)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
-.earn{position:relative;display:flex;align-items:center;gap:calc(var(--u)*10px);font-size:calc(var(--u)*64px)}
+/* coin + amount read left to right in every language (RTL turned +60 into 60+) */
+.earn{position:relative;direction:ltr;display:flex;align-items:center;gap:calc(var(--u)*10px);font-size:calc(var(--u)*64px)}
 .earn .coin{width:calc(var(--u)*60px);height:calc(var(--u)*60px)}
 .gtitle{position:relative;font-size:calc(var(--u)*64px)}
 .giftbox{position:relative;font-size:calc(var(--u)*200px);background:none!important;animation:wiggle 1s ease-in-out infinite}
@@ -149,7 +150,9 @@ body{display:flex;align-items:center;justify-content:center}
 /* gift: 254-unit plate + its 6-unit shadow fill the 260 stage exactly; the prize sits on a white plate so a pale item (wafer, vanilla) never melts into the yellow rays */
 .stage{position:relative;width:calc(var(--u)*260px);height:calc(var(--u)*260px);display:grid;place-items:center}
 .prize{align-self:start;width:calc(var(--u)*254px);height:calc(var(--u)*254px);border-radius:50%;background:#fff;box-shadow:0 calc(var(--u)*6px) 0 #f3b9d3;display:grid;place-items:center;animation:cardin .5s ease-out}
-.prize img{width:66%;height:66%;object-fit:contain;filter:drop-shadow(0 0 calc(var(--u)*2px) #5b2a4a) drop-shadow(0 0 calc(var(--u)*2px) #5b2a4a)}
+/* one dark outline for every prize kind, on a wrapper (a clip-path, like the cup icon's, also clips a filter on the same element) */
+.prize .pi{width:100%;height:100%;display:grid;place-items:center;filter:drop-shadow(0 0 calc(var(--u)*2px) #5b2a4a) drop-shadow(0 0 calc(var(--u)*2px) #5b2a4a)}
+.prize img{width:66%;height:66%;object-fit:contain}.prize .cupico{transform:scale(2.6)}
 .prize .bottle{transform:scale(2.3)}.prize .drop{transform:scale(2.3) rotate(-45deg)}.prize .sten{font-size:calc(var(--u)*150px)}
 .prize .earn{font-size:calc(var(--u)*56px)}.prize .earn .coin{width:calc(var(--u)*52px);height:calc(var(--u)*52px)}
 .card.fit .gtitle{line-height:1}/* the gift glyph's ink sits high in its line box: 15 units down centres it in the stage */
