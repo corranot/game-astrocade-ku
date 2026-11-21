@@ -1,0 +1,108 @@
+// PROTOTYPE - NOT FOR PRODUCTION
+// Node tests for the pure parts: grid, ray, smashing, collapse, the building generators, the economy and whole
+// levels played by the bot (the pilot: every level is finished, the vault needs a tool, nothing pays in the demo).
+// Usage: node logic.test.mjs
+import fs from 'fs';
+import { createGrid, fill, raycast, smashSphere, collapse, meshRegion } from './voxels.js';
+import { buildLevel, KINDS, matIds } from './levels.js';
+import * as L from './logic.js';
+import * as WD from './world.js';
+
+const cfg = JSON.parse(fs.readFileSync(new URL('./game_config.json', import.meta.url)));
+const fails = []; let n = 0;
+const check = (ok, msg) => { n++; console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
+const mats = [null, ...cfg.materials], M = matIds(cfg);
+
+// ---- voxels
+{
+  const g = createGrid(8, 8, 8); fill(g, 2, 0, 2, 4, 3, 4, 1);
+  check(g.count() === 3 * 4 * 3, 'fill fills an inclusive box');
+  const h = raycast(g, 0.5, 1.5, 3.5, 1, 0, 0, 20);
+  check(h && h.x === 2 && h.nx === -1 && Math.abs(h.t - 1.5) < 1e-6, 'ray stops at the first block, entered through its -x face');
+  check(raycast(g, 0.5, 6.5, 3.5, 1, 0, 0, 20) === null, 'ray over the blocks hits nothing');
+  check(raycast(g, 0.5, 1.5, 3.5, 1, 0, 0, 20, 1) === null, 'cells at or above skipY (the cut-away) are passed through');
+  // a tower on a thin leg: knocking out the leg drops the top as one piece
+  const t = createGrid(8, 12, 8); fill(t, 3, 0, 3, 3, 4, 3, M.wood); fill(t, 1, 5, 1, 5, 7, 5, M.brick);
+  const before = t.count();
+  const res = smashSphere(t, 3.5, 2.5, 3.5, 0.6, mats, false);
+  check(res.removed.length === 1, 'a small smash takes one block');
+  const cl = collapse(t, res.removed);
+  check(cl.length === 1 && cl[0].total === before - 1 - 2, 'the top and the upper leg fall as one piece; the ground stub stays');
+  check(t.count() === 2, 'falling pieces leave the grid at once');
+  const s = createGrid(6, 6, 6); fill(s, 0, 0, 0, 5, 2, 5, M.steel);
+  const r2 = smashSphere(s, 3, 1, 3, 2, mats, false);
+  check(r2.removed.length === 0 && r2.hard > 0, 'the hammer bounces off steel');
+  check(smashSphere(s, 3, 1, 3, 2, mats, true).removed.length > 0, 'explosives break steel');
+  const one = createGrid(3, 3, 3); one.set(1, 0, 1, M.brick);
+  const mr = meshRegion(one.get, 0, 0, 0, 3, 3, 3, [null, ...cfg.materials.map(() => [1, 1, 1])], []);
+  check(mr.faces === 5, 'a lone block on the ground shows 5 faces (the bottom is hidden)');
+}
+
+// ---- buildings
+for (let lv = 0; lv < 24; lv++) {
+  const a = buildLevel(cfg, lv), b = buildLevel(cfg, lv);
+  const g = a.grid, all = [];
+  for (let y = 0; y < g.H; y++) for (let z = 0; z < g.D; z++) for (let x = 0; x < g.W; x++) if (g.get(x, y, z)) all.push({ x, y, z, m: 0 });
+  const total = g.count(), floating = collapse(g, all).reduce((s, c) => s + c.total, 0);
+  const room = a.chest, roomOk = !b.grid.get(room.x - 1, 0, room.z - 1) && !b.grid.get(room.x, 1, room.z);
+  const walls = [[-2, 0], [1, 0], [0, -2], [0, 1]].every(([dx, dz]) => b.grid.get(room.x + dx, 0, room.z + dz) === M.steel);
+  const ok = floating === 0 && roomOk && walls && b.stars.length === 2 && b.stars.every((c) => b.grid.get(c.x, c.y, c.z) === M.star) && a.total === b.total && a.spawn.z < cfg.level.D && !b.grid.get(Math.floor(a.spawn.x), 0, Math.floor(a.spawn.z));
+  if (!ok || lv < 8) check(ok, `level ${lv} (${a.kind}): ${total} blocks, nothing floats (${floating}), chest room empty in a steel vault, 2 star blocks, same every build, spawn clear`);
+}
+check(KINDS.length === 8, '8 kinds of building');
+
+// ---- economy
+{
+  check(L.detectLang(['ar-EG', 'en'], ['en', 'ar']) === 'ar' && L.detectLang(['fr-FR'], ['en', 'ar']) === 'en', 'device language picked, unknown falls back to English');
+  const c = L.createCombo(cfg); let m = 1; for (let i = 0; i < 20; i++) m = L.comboHit(c);
+  check(m === cfg.combo.max, 'combo multiplier caps at max');
+  L.comboTick(c, cfg.combo.window + 0.01); check(c.mult === 1 && c.k === 0, 'combo ends after its window');
+  check(L.coinsFor(cfg, [{ m: M.brick }, { m: M.gold }], 2) === (5 + 250) * 2, 'coins = material values × multiplier');
+  check(JSON.stringify(L.starsFor(cfg, 0.49)) === '[true,false,false]' && JSON.stringify(L.starsFor(cfg, 0.8)) === '[true,true,true]', 'trophies at 50% and 80% wrecked');
+  check(L.levelBonus(cfg, 2, [true, true, true]) === 2 * (cfg.coins.level + 2 * cfg.coins.levelStep), 'level bonus doubles with both trophies');
+  check(L.dailyDue(20261120, 20261121) && !L.dailyDue(20261121, 20261121) && !L.dailyDue(20261122, 20261121), 'daily gift: once a day, never for a clock turned back');
+  check(L.nextTool(cfg, ['hammer', 'bomb'], 100).tool.id === 'rocket' && L.nextTool(cfg, cfg.tools.map((t) => t.id), 0) === null, 'next tool is the cheapest locked one');
+  check(L.cooldownOf(cfg, 'bomb', true) < L.cooldownOf(cfg, 'bomb', false), 'smash time cuts cooldowns');
+}
+
+// ---- the world, played
+function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
+  const W = WD.createWorld(cfg, lv, opts); let t = 0, tt = 0; const seen = new Set(); let feverAt = null, coinsDemo = 0;
+  while (t < secs && W.phase !== 'free') {
+    if ((tt -= 1 / 60) <= 0) { tt = 0.25; const b = tap(W); if (b) { if (b.tool === 'hammer') WD.aimHammer(W, b.t, true); else WD.useTool(W, b.tool, b.p); } }
+    for (const e of WD.step(W, 1 / 60)) { seen.add(e.type); if (e.type === 'fever') feverAt = t; if (W.demo) coinsDemo += e.coins || 0; }
+    t += 1 / 60;
+  }
+  return { W, seen, feverAt, t, coinsDemo };
+}
+{
+  const times = [];
+  for (let lv = 0; lv < 16; lv++) { const r = play(lv); times.push(r.feverAt); if (r.feverAt === null) check(false, `bot finishes level ${lv} (${r.W.kind})`); }
+  check(times.every((x) => x !== null), `the bot finds all 3 stars on 16 levels (${times.map((x) => x && x.toFixed(1)).join(', ')} s)`);
+  const r = play(0, {}, 30);
+  check(r.seen.has('fall') && r.seen.has('land'), 'pieces lose their support, fall and shatter');
+  check(r.W.phase === 'free' && r.seen.has('clear'), 'smash time ends in the free phase (NEXT shows)');
+  // hammer only: the vault never opens
+  const ham = play(0, {}, 40, (W) => ({ tool: 'hammer', t: { type: 'chest' } }));
+  check(!ham.W.chest.open && ham.seen.has('tooHard'), 'the hammer alone cannot open the steel vault (TOO HARD shows)');
+  const d = play(0, { demo: true }, 20);
+  check(d.coinsDemo === 0 && d.W.coins === 0 && d.W.phase === 'play', 'the demo never pays and never starts smash time');
+}
+{
+  const W = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] }), p = { x: 18, y: 1, z: 10 };
+  check(WD.useTool(W, 'rocket', p) === true, 'a locked tool has one free try');
+  W.cool.rocket = 0;
+  check(WD.useTool(W, 'rocket', p) === false, '...and only one per level');
+  check(WD.useTool(W, 'bomb', p) === true && WD.useTool(W, 'bomb', p) === false, 'a used tool cools down');
+  W.fever = 5; W.phase = 'fever'; W.cool.rocket = 0;
+  check(WD.useTool(W, 'rocket', p) === true, 'smash time lends locked tools');
+  // every flight ends and the shots list empties
+  const V = WD.createWorld(cfg, 2, { owned: cfg.tools.map((t) => t.id) });
+  for (const t of ['bomb', 'rocket', 'ball', 'hole', 'meteor']) WD.useTool(V, t, { x: 18, y: 2, z: 12 });
+  const kinds = new Set(); for (let i = 0; i < 60 * 6; i++) for (const e of WD.step(V, 1 / 60)) if (e.type === 'boom' || e.type === 'pop') kinds.add(e.kind);
+  check(V.shots.length === 0 && ['bomb', 'rocket', 'meteor', 'ball', 'hole'].every((k) => kinds.has(k)), 'all five throwables fly, act and finish');
+  check(V.left === V.g.count() + V.falls.reduce((a, f) => a + f.total, 0) || V.left === V.g.count(), 'blocks left matches the grid');
+}
+
+console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
+process.exit(fails.length ? 1 : 0);
