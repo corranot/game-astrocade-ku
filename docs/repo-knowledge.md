@@ -1,11 +1,11 @@
 # Peta pengetahuan repo `corranot/game-astrocade-ku`
 
-Dibaca sesuai kebutuhan (bukan tiap sesi). Ringkasan dari pembacaan seluruh repo pada 2026-11-20 (1.388 berkas).
+Dibaca sesuai kebutuhan (bukan tiap sesi). Ringkasan dari pembacaan seluruh repo pada 2026-11-20 (1.388 berkas); game, alat uji dan kelas bug diperbarui 2026-11-21.
 Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, dan kenapa".
 
 ## 1. Apa repo ini
 - Fork dari template **Claude Code Game Studios v1.3.0** (upstream `Donchitos/Claude-Code-Game-Studios`, `framework.version` 1.3.0, upgrade terakhir 2026-11-09), dipakai untuk membuat game browser anak untuk **Astrocade**.
-- Isi milik fork: `ASTROCADE.md`, `prototypes/` (4 game), `tools/` (6 alat), `production/market/`, `production/qa/evidence/`, workflow GitHub tambahan, `.claude/settings.local.json`, `project.local.yaml`.
+- Isi milik fork: `ASTROCADE.md`, `prototypes/` (7 game), `tools/` (6 alat), `production/market/`, `production/qa/evidence/`, workflow GitHub tambahan, `.claude/settings.local.json`, `project.local.yaml`.
 - Satu-satunya repo GitHub yang bisa diakses sesi; pencarian publik atas nama user tidak menemukan repo lain.
 
 ## 2. Game di `prototypes/`
@@ -15,6 +15,8 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 | `pinata-maker` | Three 0.187 lewat `import()` dinamis dari 4 CDN dengan `?retry=`; kanvas `gl` + kanvas HUD | `scene.js` `seen()` untuk uji keterlihatan; tabel `SOUND_FIX` (lewati diam awal, atur volume); kualitas 0.5 saat FPS rendah | `playtest.js`, `soak.js`, `look.js` (`__saveFails`) |
 | `draw-it-alive` | Kanvas 2D, modul `art.js` / `levels.js` (20 level, dicerminkan jadi 40) / `game.js` | Kit stiker; baca simpanan diulang; `contrast.js` (jarak Lab < 22 dari latar) | `playtest.js` 167 cek, `soak.js` 40 level |
 | `soap-carving` | Kanvas 2D multi-modul: `soap` (masker sel + SDF + cat per piksel 2.5D), `make` (7 langkah membuat), `fx`, `ui`, `sprites`, `game` | Rekaman suara lewat `lib.getAsset` + cadangan synth; kecepatan gestur dari `e.timeStamp` event gabungan; `drawAnchored` titik kerja alat; meja ganda bergantian untuk tumpukan serutan; layer HUD di-cache per kunci; hadiah harian `YYYYMMDD` | `playtest.js` 25 bagian, `soak.js` 14, `soap.test.mjs` |
+| `crazy-hair-salon` | Kanvas 2D + lapisan WebGL PixiJS 8 (`gl.js`), modul `art / hair / sprites / ui / game` | Seni lukis dari generator Astrocade, kotak potong per lembar + lingkaran kepala diukur sekali di `game_config.json` `sprites`; rambut jumput lukis; resep gestur → penilaian → rak hasil | `playtest.js` 16 bagian, `soak.js` |
+| `ice-cream-roll-art` | Three r187 multi-modul: `scene, sheet, roll, logic, game` | Spiral Archimedes `roll.js` (strip lembaran yang benar-benar tergulung, tutup diberi warna titik); lembaran = lapisan kanvas + bump, `compose()` tandai kotor / `flush()` sekali per frame; topping dipasang di permukaan nyata (puncak gulungan / krim), pivot di puncak; token jarak CSS `--m`/`--g`; kartu panel `.card.fit`; bintang SVG | `logic.test.mjs` 24, `playtest.js` 36 + `bugChecks`, `soak.js` 14, `look.js` 7 bahasa, **`layout.js` (jarak HUD + kartu bintang/hadiah, toleransi 2 unit)** |
 | `toy-city-stomp` | Three r187 multi-modul: `game, city, bonbon, army, moves, missions, movefx, shapes, toon` | Import map cdnjs + `<script type="module" data-lib>` + event `three-ready`; `run()` mengantre mode, tombol coba lagi 10 dtk, try/catch `startGame`; layar loading `window.__load`; toon 3 pita + garis tepi kedalaman; atlas ikon 9×8×128 + `MutationObserver` pengganti emoji (warna kulit/ZWJ dibiarkan); Baloo 2 / Baloo Da 2 / Baloo Bhaijaan 2 (`data-font`); tier kualitas 0–3 turun otomatis bila median frame > 1/42 dtk; `?tier` `?speed`; gabung koin bila simpanan datang terlambat, tulis menunggu `saveLoaded`; papan skor tambah lalu ambil 3 teratas, nama dipotong per huruf + `dir=auto`; Kota Harian dari nomor hari; mode demo tidak menyimpan; rig bersendi; kamera sinematik dengan penjaga keterlihatan | `playtest.js` (impor 9 modul tanpa THREE, kenyamanan kamera, shader sebelum frame pertama, tekstur GPU saat ganti kota, Bonbon selalu di layar, tanpa WebGL), `screens.js` 7 bahasa |
 
 ## 3. Alat di `tools/`
@@ -65,6 +67,7 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 9. Alarm palsu alat (`\btrend` vs `setRenderTarget`).
 10. Input (klik kanan, jari kedua, ketukan tembus toko, kecepatan dari `performance.now()` pada event gabungan).
 11. Petunjuk/pratinjau basi (tangan ke rata-rata bukan sasaran nyata, intip pesanan di-cache, benda di jari terbawa ke sentuhan baru).
+12. Tata letak yang lolos uji kotak tapi terlihat berantakan (Ice Cream Roll Art, 21 Nov): kartu tanpa padding (isi > min-height → tombol nempel tepi, bayangan terpotong `overflow:hidden`); glyph ★/emoji yang tintanya tidak mengisi kotak baris (beda tiap font HP) → gambar SVG / geser menurut tinta; badge & bayangan di luar kotak barisnya; `clip-path` ikut memotong `filter` di elemen yang sama → garis tepi di pembungkus; RTL membalik `+60` jadi `60+`. Alat: `layout.js` (salin dari `ice-cream-roll-art`, ganti selektornya).
 
 ## 8. Dibereskan 2026-11-20 dan yang masih terbuka
 Dibereskan:
