@@ -23,9 +23,9 @@ dislike), learned from, not copied: own theme, own camera, own controls, own cod
 
 ## Our game (portrait 720×1280, ages 5–12)
 A demolition kid in a hard hat smashes cheerful voxel buildings to find the treasure chest hidden in each one.
-- **One input:** tap or hold where you want to smash. The hero runs there and smashes everything in the way.
-  Drag to turn the camera. Tool buttons: tap a tool, tap the world to use it.
-- **Third person over the shoulder** (hero + giant hammer always on screen), cutaway of roofs above the hero inside.
+- **First person like the leader (owner's call, 21 Nov), but portrait:** hands + tool on screen, crosshair, outline on
+  the target block. Device found by itself: phone = stick + drag-look + HIT button; desktop = WASD + mouse (pointer
+  lock after the keys are used) + click/Space. Tap a block = run there and smash (kept for little kids).
 - **Real collapse:** anything no longer connected to the ground falls as one piece and shatters ("CRASH!").
 - **Tools (verbs):** hammer, bomb, rocket, wrecking ball, black hole, meteor. Cooldown, no ammo, no ads.
   Locked tools can be tried free once per level; coins unlock them.

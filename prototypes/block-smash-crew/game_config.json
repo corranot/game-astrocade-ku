@@ -217,22 +217,18 @@
  ],
  "hero": {
   "speed": 5.2,
-  "reach": 2.6,
+  "reach": 3.2,
   "radius": 0.38,
   "height": 2.2,
   "step": 0
  },
  "camera": {
-  "fov": 70,
-  "dist": 15,
-  "height": 10.5,
-  "look": 5,
-  "lookY": 4.5,
-  "insideDist": 6.5,
-  "insideHeight": 10.5,
-  "insideLook": 2,
-  "insideLookY": 0.8,
-  "cut": 4.4
+  "fov": 78,
+  "eye": 1.55,
+  "pitch0": 0.1,
+  "pitchMax": 1.25,
+  "lookTouch": 0.0065,
+  "lookMouse": 0.0024
  },
  "combo": {
   "window": 2.2,

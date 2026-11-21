@@ -14,7 +14,6 @@ export function createScene(cv, cfg) {
   const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.05;
-  renderer.localClippingEnabled = true;
   let quality = 1, dprBase = Math.min(window.devicePixelRatio || 1, 1.5);
   renderer.setPixelRatio(dprBase);
   const scene = new THREE.Scene();
@@ -72,8 +71,7 @@ export function createScene(cv, cfg) {
   for (const m of cfg.materials) { const c = new THREE.Color(m.color); palette.push([c.r, c.g, c.b]); jitter.push(m.jitter || 0); }
 
   // ---- voxel chunks
-  const cut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
-  const chunkMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, clippingPlanes: [cut], side: THREE.FrontSide }));
+  const chunkMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide }));
   const chunkRoot = new THREE.Group(); scene.add(chunkRoot);
   let chunks = new Map(), dirty = new Set(), W = null;
   const ckey = (cx, cy, cz) => `${cx},${cy},${cz}`;
@@ -94,30 +92,29 @@ export function createScene(cv, cfg) {
     }
   }
 
-  // ---- the hero: a blocky demolition kid in a hard hat with a giant hammer (FK rig: hips, torso, head, arms, legs)
+  // ---- first person: hands holding the tool, drawn in a second pass over the world (never inside a wall)
   const lam = (c) => keep(new THREE.MeshLambertMaterial({ color: c }));
   const box = (w, h, d) => keep(new THREE.BoxGeometry(w, h, d));
   const part = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
-  const hero = new THREE.Group(); scene.add(hero);
-  const body = new THREE.Group(); hero.add(body);
-  const legs = [-0.2, 0.2].map((x) => { const p = new THREE.Group(); p.position.set(x, 0.82, 0); body.add(p); part(box(0.32, 0.62, 0.36), lam('#3a64c8'), 0, -0.36, 0, p); part(box(0.36, 0.2, 0.46), lam('#5a3a22'), 0, -0.72, 0.04, p); return p; });
-  const torso = new THREE.Group(); torso.position.y = 0.82; body.add(torso);
-  part(box(0.92, 0.82, 0.56), lam('#ff8a1f'), 0, 0.41, 0, torso);
-  part(box(0.94, 0.09, 0.58), lam('#fff36b'), 0, 0.3, 0, torso); part(box(0.94, 0.09, 0.58), lam('#fff36b'), 0, 0.58, 0, torso);
-  const head = new THREE.Group(); head.position.y = 0.82; torso.add(head);
-  part(box(0.8, 0.74, 0.74), lam('#ffcf9e'), 0, 0.37, 0, head);
-  const faceTex = ['open', 'blink', 'happy', 'push'].map((k) => tex(128, 128, (x) => drawFace(x, k)));
-  const faceMat = keep(new THREE.MeshBasicMaterial({ map: faceTex[0], transparent: true }));
-  part(keep(new THREE.PlaneGeometry(0.76, 0.7)), faceMat, 0, 0.36, 0.375, head);
-  part(box(0.9, 0.32, 0.86), lam('#ffd21f'), 0, 0.82, 0, head); part(box(1.04, 0.07, 1.08), lam('#ffc400'), 0, 0.67, 0.06, head); part(box(0.16, 0.34, 0.9), lam('#ff8a1f'), 0, 0.84, 0, head);
-  const arms = [-1, 1].map((s) => { const p = new THREE.Group(); p.position.set(s * 0.6, 0.72, 0); torso.add(p); part(box(0.26, 0.74, 0.3), lam('#ff8a1f'), 0, -0.3, 0, p); part(box(0.24, 0.2, 0.26), lam('#ffcf9e'), 0, -0.72, 0, p); return p; });
-  const hammer = new THREE.Group(); hammer.position.set(0, -0.72, 0.05); arms[1].add(hammer);
-  part(keep(new THREE.CylinderGeometry(0.07, 0.07, 1.5, 8)), lam('#c98a4b'), 0, 0, 0.55, hammer).rotation.x = Math.PI / 2;
-  const hHead = part(box(0.62, 0.5, 0.5), lam('#8a96a8'), 0, 0, 1.3, hammer); hHead.rotation.y = Math.PI / 2;
-  part(box(0.64, 0.14, 0.52), lam('#ff4a4a'), 0, 0, 1.3, hammer).rotation.y = Math.PI / 2;
-  hero.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  const shadow = new THREE.Mesh(keep(new THREE.CircleGeometry(0.62, 20)), keep(new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.22, depthWrite: false })));
-  shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+  const vmScene = new THREE.Scene();
+  vmScene.add(new THREE.HemisphereLight('#e4f4ff', '#a08060', 2.2)); const vmSun = new THREE.DirectionalLight('#fff4dc', 2); vmSun.position.set(1, 2, 1.5); vmScene.add(vmSun);
+  const vmCam = new THREE.PerspectiveCamera(60, 720 / 1280, 0.01, 10);
+  const rig = new THREE.Group(); rig.position.set(0.1, -0.29, -0.6); rig.scale.setScalar(0.36); vmScene.add(rig); // sized for the narrow portrait view: the hammer head ±1/3 of the width // the right hand, low right of the view
+  const sleeve = part(box(0.2, 0.2, 0.55), lam('#ff8a1f'), 0.06, -0.08, 0.3, rig); sleeve.rotation.x = 0.2;
+  part(box(0.22, 0.05, 0.56), lam('#fff36b'), 0.06, -0.08 + 0.1, 0.3, rig).rotation.x = 0.2;
+  part(box(0.17, 0.17, 0.17), lam('#ffcf9e'), 0.02, 0, 0, rig);
+  const held = {};
+  { const g = new THREE.Group(); part(keep(new THREE.CylinderGeometry(0.035, 0.035, 0.85, 8)), lam('#c98a4b'), 0, 0.3, 0, g); const hd = part(box(0.42, 0.24, 0.24), lam('#8a96a8'), 0, 0.72, 0, g); part(box(0.44, 0.08, 0.26), lam('#ff4a4a'), 0, 0.72, 0, g); hd.rotation.y = 0; g.rotation.set(-0.3, 0, 0.15); held.hammer = g; }
+  { const g = new THREE.Group(); part(keep(new THREE.SphereGeometry(0.17, 14, 10)), lam('#2a2d3a'), 0, 0.17, -0.05, g); part(box(0.05, 0.08, 0.05), lam('#c9a46b'), 0, 0.36, -0.05, g); held.bomb = g; }
+  { const g = new THREE.Group(); const t = part(keep(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 12)), lam('#8fae5a'), 0, 0.08, -0.25, g); t.rotation.x = Math.PI / 2; part(keep(new THREE.ConeGeometry(0.09, 0.2, 12)), lam('#ff4a4a'), 0, 0.08, -0.78, g).rotation.x = -Math.PI / 2; held.rocket = g; }
+  { const g = new THREE.Group(); held.ball = g; } // the ball mesh is the ball texture sphere, made below
+  { const g = new THREE.Group(); part(keep(new THREE.SphereGeometry(0.12, 12, 10)), keep(new THREE.MeshBasicMaterial({ color: '#16052a' })), 0, 0.2, -0.05, g); const r = part(keep(new THREE.TorusGeometry(0.2, 0.025, 6, 24)), keep(new THREE.MeshBasicMaterial({ color: '#b65cff' })), 0, 0.2, -0.05, g); g.userData.ring = r; held.hole = g; }
+  { const g = new THREE.Group(); part(keep(new THREE.IcosahedronGeometry(0.17, 0)), keep(new THREE.MeshLambertMaterial({ color: '#7a4b2a', emissive: '#ff5a00', emissiveIntensity: 0.6, flatShading: true })), 0, 0.18, -0.05, g); held.meteor = g; }
+  for (const k of Object.keys(held)) { held[k].visible = false; rig.add(held[k]); }
+  let heldTool = 'hammer';
+  // the block under the crosshair: a white outline (red on steel the hammer cannot break)
+  const outline = new THREE.LineSegments(keep(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.03, 1.03, 1.03))), keep(new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthTest: true })));
+  outline.visible = false; scene.add(outline);
 
   // ---- chest (star one) and the star beacons
   const chest = new THREE.Group(); scene.add(chest);
@@ -152,6 +149,7 @@ export function createScene(cv, cfg) {
   const bombGeo = keep(new THREE.SphereGeometry(0.42, 16, 12)), black = lam('#2a2d3a'), red = lam('#ff4a4a'), white = lam('#f4f7ff');
   const ballTex = tex(128, 64, (x, w, h) => { x.fillStyle = '#ff5a8a'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; for (let i = 0; i < 4; i++) x.fillRect(i * 32, 0, 12, h); x.fillStyle = '#ffd12e'; x.fillRect(0, h * 0.42, w, h * 0.16); });
   const ballMat = keep(new THREE.MeshLambertMaterial({ map: ballTex }));
+  part(keep(new THREE.SphereGeometry(0.2, 18, 12)), ballMat, 0, 0.2, -0.05, held.ball);
   const holeMat = keep(new THREE.MeshBasicMaterial({ color: '#16052a' })), ringMat = keep(new THREE.MeshBasicMaterial({ color: '#b65cff', transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
   const rockMat = keep(new THREE.MeshLambertMaterial({ color: '#7a4b2a', emissive: '#ff5a00', emissiveIntensity: 0.6, flatShading: true }));
   // shot parts are made once and shared by every throw (a new geometry per bomb grew GPU memory all level)
@@ -179,7 +177,7 @@ export function createScene(cv, cfg) {
   const falls = new Map();
 
   // ---- camera rig
-  const cam = { yaw: 0, inside: 0, pull: cfg.camera.dist, trauma: 0, pos: new THREE.Vector3(), look: new THREE.Vector3(), ready: false, focus: null };
+  const cam = { yaw: 0, pitch: cfg.camera.pitch0, trauma: 0, follow: true, bob: 0, eyeY: cfg.camera.eye };
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4(), tmpS = new THREE.Vector3(), tmpC = new THREE.Color();
 
@@ -268,7 +266,7 @@ export function createScene(cv, cfg) {
     const bc = makeBeacon(); bc.chest = true; beacons.push(bc);
     for (const c of W.starCells) { const b = makeBeacon(); b.cell = c; beacons.push(b); }
     const pz0 = W.box.z1 + 0.5, pz1 = W.g.D + 30; path.scale.set(1, pz1 - pz0, 1); path.position.set((W.box.x0 + W.box.x1 + 1) / 2, 0.01, (pz0 + pz1) / 2);
-    cam.yaw = 0; cam.ready = false; cam.focus = null; cam.isIn = false; cam.inside = 0;
+    cam.yaw = 0; cam.pitch = cfg.camera.pitch0; cam.eyeY = cfg.camera.eye;
   }
 
   // ---- input helpers
@@ -279,7 +277,7 @@ export function createScene(cv, cfg) {
     ndc.set((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     const o = ray.ray.origin, d = ray.ray.direction;
-    const hit = W ? raycast(W.g, o.x, o.y, o.z, d.x, d.y, d.z, 120, cutY()) : null;
+    const hit = W ? raycast(W.g, o.x, o.y, o.z, d.x, d.y, d.z, 120) : null;
     // the chest wins when the ray passes close to it before any block
     if (W && !W.chest.open) { const c = tmpV.set(W.chest.x, 0.6, W.chest.z); const t = c.clone().sub(o).dot(d); if (t > 0 && (!hit || t < hit.t + 0.5) && ray.ray.distanceToPoint(c) < 1.1) return { type: 'chest', x: W.chest.x, y: 0.6, z: W.chest.z, p: { x: W.chest.x, y: 0.6, z: W.chest.z } }; }
     if (hit) return { type: 'block', x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz, p: { x: hit.x + 0.5, y: hit.y + 0.5, z: hit.z + 0.5 } };
@@ -287,8 +285,6 @@ export function createScene(cv, cfg) {
     return null;
   }
   // the cut comes down from high above as the camera goes inside (the roof peels away from the top)
-  const cutY = () => (!W ? Infinity : cam.isIn ? W.hero.y + cfg.camera.cut : cam.inside > 0.03 ? W.hero.y + cfg.camera.cut + (1 - cam.inside) * 30 : Infinity); // going in: cut at once; coming out: the roof grows back from the top
-  const solidNear = (x, y, z) => { for (const [a, b, c] of [[0, 0, 0], [0.4, 0, 0], [-0.4, 0, 0], [0, 0.4, 0], [0, -0.4, 0], [0, 0, 0.4], [0, 0, -0.4]]) if (W.g.get(Math.floor(x + a), Math.floor(y + b), Math.floor(z + c))) return true; return false; };
   /** Frame position (720 × 1280 units) of world point (x, y, z); z flag says it is behind the camera. */
   function screenOf(x, y, z) { tmpV.set(x, y, z).project(camera); return [(tmpV.x + 1) / 2 * 720, (1 - tmpV.y) / 2 * 1280, tmpV.z > 1]; }
 
@@ -300,28 +296,26 @@ export function createScene(cv, cfg) {
     // remesh what changed
     for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
     dirty.clear();
-    updateHero(dt); updateShots(dt); updateFx(dt); updateCamera(dt);
-    renderer.render(scene, camera);
+    updateCamera(dt); updateHero(dt); updateShots(dt); updateFx(dt);
+    renderer.autoClear = true; renderer.render(scene, camera);
+    renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; // the hands on top
   }
   function updateHero(dt) {
     const h = W.hero;
-    hero.position.set(h.x, h.y, h.z); hero.rotation.y = h.yaw;
-    shadow.position.set(h.x, 0.02, h.z);
-    const run = h.moving ? 1 : 0, ph = time * 11;
-    for (let s = 0; s < 2; s++) legs[s].rotation.x = run * Math.sin(ph + s * Math.PI) * 0.8;
-    body.position.y = run * Math.abs(Math.sin(ph)) * 0.12 + (h.happy > 0 ? Math.abs(Math.sin(time * 9)) * 0.35 : Math.sin(time * 2.2) * 0.02);
-    arms[0].rotation.x = run * Math.sin(ph) * 0.7; arms[0].rotation.z = h.happy > 0 ? -2.6 : 0;
-    // the swing: wind up over the head, slam down at SWING_HIT, come back
-    let a = run * Math.sin(ph + Math.PI) * 0.5 - 0.2, lean = 0, sq = 1;
+    // the tool in the hand: the hammer swings down at SWING_HIT, a thrown tool is pushed forward
+    const want = cam.tool || 'hammer';
+    if (want !== heldTool) { held[heldTool].visible = false; heldTool = want; }
+    held[heldTool].visible = true;
+    let rx = 0, rz = 0, py = 0;
     if (h.swingT >= 0) {
       const t = h.swingT;
-      if (t < 0.25) a = -0.2 - (t / 0.25) * 2.6; else if (t < SWING_HIT) { const k = (t - 0.25) / (SWING_HIT - 0.25); a = -2.8 + k * 3.9; lean = k * 0.25; } else { const k = (t - SWING_HIT) / (1 - SWING_HIT); a = 1.1 - k * 1.3; lean = 0.25 * (1 - k); sq = 1 - 0.12 * Math.max(0, 1 - k * 3); }
+      if (heldTool === 'hammer') { if (t < 0.25) rx = (t / 0.25) * 0.9; else if (t < SWING_HIT) rx = 0.9 - ((t - 0.25) / (SWING_HIT - 0.25)) * 2.5; else rx = -1.6 + ((t - SWING_HIT) / (1 - SWING_HIT)) * 1.6; }
+      else { const k = Math.sin(Math.min(1, t * 1.6) * Math.PI); rz = -k * 0.35; py = k * 0.12; }
     }
-    if (h.happy > 0 && h.swingT < 0) a = -2.6;
-    arms[1].rotation.x = a; torso.rotation.x = lean; body.scale.set(1 + (1 - sq) * 0.6, sq, 1 + (1 - sq) * 0.6);
-    hero.position.x += h.bump > 0 ? Math.sin(time * 70) * 0.04 : 0;
-    const blink = (time % 3.1) < 0.12;
-    faceMat.map = faceTex[h.happy > 0 ? 2 : h.swingT >= 0 && h.swingT < SWING_HIT + 0.1 ? 3 : blink ? 1 : 0];
+    const run = h.moving ? 1 : 0;
+    rig.position.set(0.1 + Math.cos(time * 9) * 0.007 * run, -0.29 + py * 0.45 + Math.abs(Math.sin(time * 9)) * 0.011 * run + Math.sin(time * 2) * 0.003, -0.6 + rz * 0.45);
+    rig.rotation.set(rx, 0, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
+    if (held.hole.userData.ring) held.hole.userData.ring.rotation.z += dt * 4;
     // chest
     if (W.chest.open) { lid.rotation.x = Math.max(-1.9, lid.rotation.x - dt * 8); } else { chest.rotation.y = Math.sin(time * 3) * 0.04; }
     // beacons: on the stars still in the building; the mark floats above it, always visible
@@ -396,45 +390,50 @@ export function createScene(cv, cfg) {
   }
   function updateCamera(dt) {
     const h = W.hero, cc = cfg.camera;
-    // inside the building the camera rises and looks down; everything above the cut is peeled away
-    // in or out by the building's footprint (with a margin each way), so bits of roof never swing the camera
-    const bx = W.box, inBox = (m) => h.x > bx.x0 - m && h.x < bx.x1 + 1 + m && h.z > bx.z0 - m && h.z < bx.z1 + 1 + m;
-    if (!cam.isIn && inBox(0.3)) cam.isIn = true; else if (cam.isIn && !inBox(2)) cam.isIn = false;
-    cam.inside += ((cam.isIn ? 1 : 0) - cam.inside) * Math.min(1, dt * 2.2);
-    cut.constant = cutY();
-    const dist = cc.dist + (cc.insideDist - cc.dist) * cam.inside, ht = cc.height + (cc.insideHeight - cc.height) * cam.inside;
-    const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw);
-    // pull in when visible blocks stand between the hero and the camera
-    const hx = h.x, hy = h.y + 1.8, hz = h.z, tx = hx + sy * dist, ty = h.y + ht, tz = hz + cy * dist;
-    const dx = tx - hx, dy = ty - hy, dz = tz - hz, dl = Math.hypot(dx, dy, dz);
-    const occ = cam.isIn ? null : raycast(W.g, hx, hy, hz, dx, dy, dz, dl, cutY());
-    const want = occ ? Math.max(0.35, (occ.t - 0.6) / dl) : 1;
-    cam.pull += (want - cam.pull) * Math.min(1, dt * (want < cam.pull ? 14 : 3));
-    const k = Math.min(1, cam.pull);
-    let px = hx + dx * k, py = hy + dy * k, pz = hz + dz * k;
-    // never inside a shown block: rise until the camera is clear
-    for (let i = 0; i < 24 && py < cutY() && solidNear(px, py, pz); i++) py += 0.5;
-    const look = cc.look + (cc.insideLook - cc.look) * cam.inside, lookY = cc.lookY + (cc.insideLookY - cc.lookY) * cam.inside;
-    const lx = h.x - sy * look, ly = h.y + lookY, lz = h.z - cy * look;
-    const f = cam.ready ? 1 - Math.exp(-dt * 5) : 1; cam.ready = true;
-    cam.pos.x += (px - cam.pos.x) * f; cam.pos.y += (py - cam.pos.y) * f; cam.pos.z += (pz - cam.pos.z) * f;
-    cam.look.x += (lx - cam.look.x) * f; cam.look.y += (ly - cam.look.y) * f; cam.look.z += (lz - cam.look.z) * f;
+    // demo / bot: the view turns towards where the hero walks and swings; the player's own look otherwise
+    if (cam.follow) { let d = h.yaw + Math.PI - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * Math.min(1, dt * 4); cam.pitch += (cc.pitch0 - 0.1 - cam.pitch) * Math.min(1, dt * 2); }
+    cam.bob += (h.moving ? dt * 9 : 0);
+    const bob = h.moving ? Math.abs(Math.sin(cam.bob)) * 0.06 : 0;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6);
-    const sh = cam.trauma * cam.trauma * 0.6;
-    camera.position.set(cam.pos.x + (Math.random() - 0.5) * sh, cam.pos.y + (Math.random() - 0.5) * sh, cam.pos.z + (Math.random() - 0.5) * sh);
-    camera.lookAt(cam.look);
+    const sh = cam.trauma * cam.trauma * 0.25;
+    camera.position.set(h.x + (Math.random() - 0.5) * sh, h.y + cam.eyeY + bob + (Math.random() - 0.5) * sh, h.z + (Math.random() - 0.5) * sh);
+    camera.rotation.set(cam.pitch, cam.yaw, 0, 'YXZ'); // yaw 0 looks along -z; never a roll
     sky.position.copy(camera.position);
     sun.position.set(W.g.W / 2 + 27, 50, W.g.D / 2 + 19); sun.target.position.set(W.g.W / 2, 0, W.g.D / 2); // fixed over the lot: shadows never swim
+    // what the crosshair points at
+    const t = pickCenter(); cam.target = t;
+    if (t && t.type === 'block' && (cam.tool !== 'hammer' || t.dist <= cfg.hero.reach)) {
+      outline.visible = true; outline.position.set(t.x + 0.5, t.y + 0.5, t.z + 0.5);
+      const hard = cam.tool === 'hammer' && W.mats[W.g.get(t.x, t.y, t.z)] && W.mats[W.g.get(t.x, t.y, t.z)].hard;
+      outline.material.color.set(hard ? '#ff4a4a' : '#ffffff');
+    } else outline.visible = false;
+  }
+  /** What the crosshair (the middle of the view) points at, with its distance from the eye. */
+  function pickCenter() {
+    if (!W) return null;
+    camera.updateMatrixWorld(); const d = tmpV.set(0, 0, -1).applyQuaternion(camera.quaternion), o = camera.position;
+    const hit = raycast(W.g, o.x, o.y, o.z, d.x, d.y, d.z, 90);
+    if (!W.chest.open) { const c = new THREE.Vector3(W.chest.x, 0.6, W.chest.z), tt = c.clone().sub(o).dot(d); if (tt > 0 && (!hit || tt < hit.t + 0.5) && new THREE.Ray(o, d).distanceToPoint(c) < 1.1) return { type: 'chest', x: W.chest.x, y: 0.6, z: W.chest.z, dist: tt, p: { x: W.chest.x, y: 0.6, z: W.chest.z } }; }
+    if (hit) return { type: 'block', x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz, dist: hit.t, p: { x: hit.x + 0.5 + hit.nx * 0.5, y: hit.y + 0.5 + hit.ny * 0.5, z: hit.z + 0.5 + hit.nz * 0.5 } };
+    const far = 40, gy = d.y < -0.01 ? Math.min(far, -o.y / d.y) : far;
+    return { type: 'air', dist: gy, p: { x: o.x + d.x * gy, y: Math.max(0.5, o.y + d.y * gy), z: o.z + d.z * gy } };
   }
 
-  function resize(w, h) { renderer.setPixelRatio(dprBase * quality); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  function resize(w, h) { renderer.setPixelRatio(dprBase * quality); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); }
 
   return {
     renderer, camera, event, setLevel, update, pick, screenOf, resize,
     /** Turns the camera around the hero (radians). */
-    orbit(d) { cam.yaw += d; },
-    get yaw() { return cam.yaw; },
-    get inside() { return cam.inside; },
+    /** Turns the first-person view (radians); the player looking stops the demo's follow. */
+    look(dy, dp) { cam.follow = false; cam.yaw += dy; cam.pitch = Math.max(-cfg.camera.pitchMax, Math.min(cfg.camera.pitchMax, cam.pitch + dp)); },
+    set follow(v) { cam.follow = !!v; }, get follow() { return cam.follow; },
+    get yaw() { return cam.yaw; }, get pitch() { return cam.pitch; },
+    /** The tool shown in the hand. */
+    set tool(id) { cam.tool = id; },
+    get target() { return cam.target; },
+    pickCenter,
+    /** Attract mode: the view sweeps slowly across the building's front. */
+    demoLook(b) { if (!W) return; const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1, h = W.hero; cam.follow = false; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12; },
     get coinArrive() { return coinArrive; },
     get counts() { return { debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
     setQuality(q) { quality = q; sun.castShadow = q >= 1; const r = cv.getBoundingClientRect(); resize(r.width || 360, r.height || 640); },
@@ -466,20 +465,6 @@ function mergeGeos(list) {
   return m;
 }
 
-/** The hero's face on a 128 px canvas: big eyes, a grin; 'blink', 'happy' (^ ^) and 'push' (> <) variants. */
-function drawFace(x, kind) {
-  x.clearRect(0, 0, 128, 128);
-  x.fillStyle = '#ff9f8a'; x.globalAlpha = 0.55; x.beginPath(); x.arc(24, 84, 12, 0, 7); x.arc(104, 84, 12, 0, 7); x.fill(); x.globalAlpha = 1;
-  x.lineCap = 'round'; x.lineWidth = 9; x.strokeStyle = '#2a1a12';
-  if (kind === 'open') {
-    for (const ex of [40, 88]) { x.fillStyle = '#fff'; x.beginPath(); x.ellipse(ex, 56, 15, 19, 0, 0, 7); x.fill(); x.fillStyle = '#2a1a12'; x.beginPath(); x.ellipse(ex + 2, 59, 9, 12, 0, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(ex + 5, 53, 4, 0, 7); x.fill(); }
-  } else if (kind === 'blink') { for (const ex of [40, 88]) { x.beginPath(); x.moveTo(ex - 13, 58); x.lineTo(ex + 13, 58); x.stroke(); } }
-  else if (kind === 'happy') { for (const ex of [40, 88]) { x.beginPath(); x.arc(ex, 62, 13, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); } }
-  else { for (const [ex, s] of [[40, 1], [88, -1]]) { x.beginPath(); x.moveTo(ex - 12 * s, 48); x.lineTo(ex + 10 * s, 57); x.lineTo(ex - 12 * s, 66); x.stroke(); } }
-  x.fillStyle = '#2a1a12'; x.beginPath();
-  if (kind === 'push') { x.ellipse(64, 96, 14, 10, 0, 0, 7); x.fill(); }
-  else { x.moveTo(42, 88); x.quadraticCurveTo(64, 116, 86, 88); x.closePath(); x.fill(); x.fillStyle = '#ff6b6b'; x.beginPath(); x.ellipse(64, 101, 9, 5, 0, 0, 7); x.fill(); }
-}
 /** A golden star with a dark outline, for the beacon marks. */
 function drawStar(x) {
   x.clearRect(0, 0, 128, 128);
