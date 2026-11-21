@@ -12,7 +12,7 @@ This skill only orders the steps. Each step reports what it saw; a step that cou
 
 ## Before uploading
 1. `bash tools/ci-checks.sh`: syntax, JSON, modules that touch THREE when imported, clean upload sets. Fix every FAIL.
-2. The game's own suite, e.g. `node prototypes/<name>/playtest.js` (and `screens.js` for 7-language screens). Report failures with their output.
+2. The game's own suite, e.g. `node prototypes/<name>/playtest.js` (and `screens.js` / `look.js` for 7-language screens, `layout.js` for spacing of the HUD and every card or panel, `contrast.js` where the game has one). Report failures with their output.
 3. A fresh bug-hunting subagent on what changed (ASTROCADE.md section 5). Fix what it confirms.
 4. `node tools/astrocade-bundle-test.js prototypes/<name> [shot.png]`: must say `started: true` with no errors. This is the only Astrocade-like run available (the owner cannot share a login).
 
