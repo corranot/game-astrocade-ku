@@ -1,0 +1,24 @@
+{
+ "arena": { "w": 5.67, "h": 8.27, "c": 4.27, "minScale": 0.42, "startX": 0.42, "startZ": 0.4, "shrinkAt": 9, "shrinkTime": 10, "tiny": 0.78, "iceFriction": 0.38, "spin": 0.45, "carry": 0.4 },
+ "blob": { "r": 1.0, "spin": 2.5, "chargeTime": 0.65, "dashMin": 5.5, "dashMax": 11.5, "friction": 1.7, "cooldown": 0.22, "bumpBoost": 1.45, "restitution": 0.8, "fallTime": 0.7, "assist": 0.4 },
+ "match": { "crowns": 3, "go": 0.9, "firstGo": 0.25, "roundGap": 1.5, "endGap": 1.2, "koWindow": 3, "rimGrace": 1.2 },
+ "cpu": { "aimTol": 0.32, "react": 0.6, "err": 0.4, "humanBias": 1.5, "edgeCare": 1.6, "startWait": 0.8, "errEasy": 1.3, "easySlow": 1.8 },
+ "power": { "every": 5, "life": 7, "giant": { "t": 5, "scale": 1.45, "mass": 2.4 }, "star": { "t": 5, "boost": 2 } },
+ "mods": ["cake", "ice", "spin", "tiny"],
+ "coins": { "play": 2, "ko": 2, "round": 3, "match": 10 },
+ "hats": [
+  { "id": "party", "cost": 0 }, { "id": "crown", "cost": 12 }, { "id": "top", "cost": 35 }, { "id": "chef", "cost": 70 },
+  { "id": "propeller", "cost": 120 }, { "id": "bunny", "cost": 180 }, { "id": "viking", "cost": 250 }, { "id": "halo", "cost": 340 }
+ ],
+ "langNames": { "en": "English", "ar": "العربية", "es": "Español", "vi": "Tiếng Việt", "hi": "हिन्दी", "bn": "বাংলা", "id": "Indonesia" },
+ "strings": {
+  "en": { "tap": "TAP TO BUMP!", "hold": "HOLD, AIM, LET GO!", "join": "JOIN", "go": "GO!", "round": "ROUND {n}", "out": "OUT!", "bump": "BUMP!", "youWin": "YOU WIN!", "wins": "WINS!", "again": "PLAY AGAIN", "share": "PLAY WITH FRIENDS", "friends": "FRIENDS? TAP +", "newHat": "NEW HAT!", "giant": "GIANT!", "star": "SUPER PUSH!", "ice": "ICE!", "spin": "SPIN!", "tiny": "TINY!", "hurry": "HURRY!", "draw": "DRAW!" },
+  "ar": { "tap": "اضغط للدفع!", "hold": "اضغط، صوّب، اترك!", "join": "انضم", "go": "انطلق!", "round": "الجولة {n}", "out": "خرج!", "bump": "بوم!", "youWin": "فزت!", "wins": "يفوز!", "again": "العب مجددًا", "share": "العب مع أصدقائك", "friends": "أصدقاء؟ اضغط +", "newHat": "قبعة جديدة!", "giant": "عملاق!", "star": "دفعة خارقة!", "ice": "جليد!", "spin": "دوران!", "tiny": "صغير!", "hurry": "أسرع!", "draw": "تعادل!" },
+  "es": { "tap": "¡TOCA Y EMPUJA!", "hold": "¡MANTÉN, APUNTA, SUELTA!", "join": "UNIRSE", "go": "¡YA!", "round": "RONDA {n}", "out": "¡FUERA!", "bump": "¡PUM!", "youWin": "¡GANASTE!", "wins": "¡GANA!", "again": "OTRA VEZ", "share": "JUEGA CON AMIGOS", "friends": "¿AMIGOS? TOCA +", "newHat": "¡GORRO NUEVO!", "giant": "¡GIGANTE!", "star": "¡SÚPER EMPUJE!", "ice": "¡HIELO!", "spin": "¡GIRA!", "tiny": "¡MINI!", "hurry": "¡RÁPIDO!", "draw": "¡EMPATE!" },
+  "vi": { "tap": "CHẠM ĐỂ HÚC!", "hold": "GIỮ, NGẮM, THẢ!", "join": "VÀO", "go": "ĐI!", "round": "VÒNG {n}", "out": "RƠI!", "bump": "BỤP!", "youWin": "BẠN THẮNG!", "wins": "THẮNG!", "again": "CHƠI LẠI", "share": "CHƠI CÙNG BẠN", "friends": "CÓ BẠN? CHẠM +", "newHat": "MŨ MỚI!", "giant": "KHỔNG LỒ!", "star": "SIÊU HÚC!", "ice": "BĂNG!", "spin": "XOAY!", "tiny": "TÍ HON!", "hurry": "NHANH LÊN!", "draw": "HÒA!" },
+  "hi": { "tap": "टैप करो, धक्का दो!", "hold": "दबाओ, निशाना, छोड़ो!", "join": "जुड़ो", "go": "चलो!", "round": "राउंड {n}", "out": "बाहर!", "bump": "धम!", "youWin": "तुम जीते!", "wins": "जीता!", "again": "फिर खेलो", "share": "दोस्तों संग खेलो", "friends": "दोस्त? + दबाओ", "newHat": "नई टोपी!", "giant": "विशाल!", "star": "सुपर धक्का!", "ice": "बर्फ!", "spin": "घूमो!", "tiny": "छोटा!", "hurry": "जल्दी!", "draw": "बराबर!" },
+  "bn": { "tap": "ট্যাপ করো, ধাক্কা দাও!", "hold": "চাপো, তাক করো, ছাড়ো!", "join": "যোগ দাও", "go": "চলো!", "round": "রাউন্ড {n}", "out": "আউট!", "bump": "ধাম!", "youWin": "তুমি জিতেছ!", "wins": "জিতেছে!", "again": "আবার খেলো", "share": "বন্ধুদের সাথে খেলো", "friends": "বন্ধু? + চাপো", "newHat": "নতুন টুপি!", "giant": "বিশাল!", "star": "সুপার ধাক্কা!", "ice": "বরফ!", "spin": "ঘূর্ণি!", "tiny": "ছোট্ট!", "hurry": "তাড়াতাড়ি!", "draw": "ড্র!" },
+  "id": { "tap": "TAP UNTUK SERUDUK!", "hold": "TAHAN, BIDIK, LEPAS!", "join": "IKUT", "go": "MULAI!", "round": "RONDE {n}", "out": "JATUH!", "bump": "DUAK!", "youWin": "KAMU MENANG!", "wins": "MENANG!", "again": "MAIN LAGI", "share": "MAIN BARENG TEMAN", "friends": "ADA TEMAN? TAP +", "newHat": "TOPI BARU!", "giant": "RAKSASA!", "star": "SUPER SERUDUK!", "ice": "ES LICIN!", "spin": "BERPUTAR!", "tiny": "MINI!", "hurry": "CEPAT!", "draw": "SERI!" }
+ },
+ "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
