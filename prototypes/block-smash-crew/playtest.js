@@ -350,6 +350,60 @@ async function main() {
     await d.page.close();
   }
 
+  // ---- 16. first-person bugs found by reading the code (each check failed before its fix)
+  {
+    const { page, errors } = await open(browser, '', { port });
+    const key = (type, code, k) => g(page, ([type, code, k]) => window.dispatchEvent(new KeyboardEvent(type, { code, key: k, bubbles: true })), [type, code, k]);
+    // f6: an Arabic layout walks with the W key's position
+    const z0 = await g(page, () => __game.W.hero.z);
+    await key('keydown', 'KeyW', 'ص'); await page.waitForTimeout(600); await key('keyup', 'KeyW', 'ص');
+    const z1 = await g(page, () => __game.W.hero.z);
+    check(z1 < z0 - 1, `f6 Arabic keyboard: the W position walks (z ${z0.toFixed(1)} → ${z1.toFixed(1)})`);
+    // f2: a key still held when the card opens does not walk the hero behind it
+    await key('keydown', 'KeyW', 'w'); await page.waitForTimeout(200);
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    const zc = await g(page, () => __game.W.hero.z); await key('keyup', 'KeyW', 'w'); await page.waitForTimeout(600);
+    const zd = await g(page, () => __game.W.hero.z);
+    check(Math.abs(zd - zc) < 0.05, `f2 the card is open: the hero stands still (z ${zc.toFixed(2)} → ${zd.toFixed(2)})`);
+    // f7: keys 1-6 buy nothing behind the card
+    await g(page, () => { __game.save.coins = 50000; __game.W.tried.add('rocket'); }); // free try used: a tap would buy
+    await key('keydown', 'Digit3', '3'); await key('keyup', 'Digit3', '3');
+    const f7 = await g(page, () => ({ coins: __game.save.coins, owned: __game.save.owned.includes('rocket') }));
+    check(f7.coins === 50000 && !f7.owned, 'f7 the card is open: number keys buy nothing');
+    await g(page, () => __game.nextLevel()); await page.waitForTimeout(300);
+    // f5: a thrown bomb shows the bomb in the hand, not the hammer
+    await g(page, () => __game.pickTool('bomb'));
+    await key('keydown', 'Space', ' '); await page.waitForTimeout(80); const held = await g(page, () => __game.scene.heldTool); await key('keyup', 'Space', ' ');
+    check(held === 'bomb', `f5 the hand shows the thrown tool (${held})`);
+    // f4: a quick look-drag that starts on a near block smashes nothing
+    await page.waitForTimeout(500);
+    await g(page, () => { const W = __game.W; W.hero.x = W.box.x0 + 4.5; W.hero.z = W.box.z1 + 2.2; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.25); W.hero.cool = 0; });
+    await page.waitForTimeout(200);
+    const s0 = await g(page, () => __game.W.smashed);
+    const [mx, my] = await g(page, () => __game.client(360, 640));
+    await page.mouse.move(mx, my); await page.mouse.down(); await page.waitForTimeout(30);
+    for (let i = 1; i <= 6; i++) await page.mouse.move(mx + i * 12, my);
+    await page.mouse.up(); await page.waitForTimeout(700);
+    const s1 = await g(page, () => __game.W.smashed);
+    check(s1 === s0, `f4 a look-drag starting on a near block smashes nothing (${s0} → ${s1})`);
+    // f8: a tap near the horizon walks at most to the lot's edge
+    const f8 = await g(page, () => { const W = __game.W; __game.WD.aimHammer(W, { type: 'ground', x: -150, z: 170 }, false); const gl = W.hero.goal; __game.WD.aimHammer(W, null); return gl; });
+    check(f8 && f8.x >= -12 && f8.z <= 40 + 12, `f8 a far ground tap walks at most to the edge (${JSON.stringify(f8)})`);
+    // f3: the click that asks for mouse lock (lock coming before the button is let go) leaves no finger behind
+    await key('keydown', 'KeyD', 'd'); await key('keyup', 'KeyD', 'd');
+    await g(page, () => { const cv = document.getElementById('cv'); cv.requestPointerLock = () => { Object.defineProperty(document, 'pointerLockElement', { get: () => cv, configurable: true }); document.dispatchEvent(new Event('pointerlockchange')); }; });
+    await page.mouse.move(mx - 100, my - 200); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(800);
+    const f3 = await g(page, () => ({ hold: __game.W.hero.hold, goal: __game.W.hero.goal }));
+    check(!f3.hold && !f3.goal, `f3 the mouse-lock click leaves no finger: the hero does not walk or smash by himself (${JSON.stringify(f3)})`);
+    // f1: the card gives the cursor back so NEXT can be clicked
+    let exited = false; await g(page, () => { document.exitPointerLock = () => { Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true }); document.dispatchEvent(new Event('pointerlockchange')); window.__exited = true; }; });
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    exited = await g(page, () => !!window.__exited && document.pointerLockElement === null);
+    check(exited, 'f1 the result card releases the mouse lock (the cursor comes back for NEXT)');
+    check(errors.length === 0, 'first-person bug checks: no page errors: ' + (errors.join(' | ') || 'none'));
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);
