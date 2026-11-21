@@ -1,0 +1,499 @@
+{
+ "level": {
+  "W": 36,
+  "H": 30,
+  "D": 40,
+  "bw": 16,
+  "bd": 12,
+  "maxStep": 4
+ },
+ "materials": [
+  {
+   "id": "wood",
+   "color": "#b8763e",
+   "value": 5,
+   "snd": "wood",
+   "jitter": 0.08
+  },
+  {
+   "id": "trunk",
+   "color": "#7a4a26",
+   "value": 5,
+   "snd": "wood",
+   "jitter": 0.06
+  },
+  {
+   "id": "brick",
+   "color": "#e0503c",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.1
+  },
+  {
+   "id": "plaster",
+   "color": "#fff1d6",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.04
+  },
+  {
+   "id": "roofRed",
+   "color": "#ff6f4f",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.07
+  },
+  {
+   "id": "roofBlue",
+   "color": "#3f7cf0",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.07
+  },
+  {
+   "id": "glass",
+   "color": "#9fe8ff",
+   "value": 5,
+   "snd": "glass",
+   "jitter": 0.03
+  },
+  {
+   "id": "stone",
+   "color": "#b9b4ad",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.12
+  },
+  {
+   "id": "steel",
+   "color": "#5d6b80",
+   "value": 15,
+   "snd": "metal",
+   "jitter": 0.05,
+   "hard": true
+  },
+  {
+   "id": "leaves",
+   "color": "#2e8b3e",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.14
+  },
+  {
+   "id": "candyPink",
+   "color": "#ff7fc4",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.05
+  },
+  {
+   "id": "candyMint",
+   "color": "#6fe8c4",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.05
+  },
+  {
+   "id": "ice",
+   "color": "#b7a6ff",
+   "value": 5,
+   "snd": "glass",
+   "jitter": 0.06
+  },
+  {
+   "id": "snow",
+   "color": "#f6d6ff",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.03
+  },
+  {
+   "id": "sand",
+   "color": "#f2c86a",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.1
+  },
+  {
+   "id": "moss",
+   "color": "#8fae5a",
+   "value": 5,
+   "snd": "brick",
+   "jitter": 0.12
+  },
+  {
+   "id": "gold",
+   "color": "#ffcc1f",
+   "value": 250,
+   "snd": "coin",
+   "jitter": 0.05
+  },
+  {
+   "id": "star",
+   "color": "#ffe14a",
+   "value": 500,
+   "snd": "gem",
+   "jitter": 0
+  },
+  {
+   "id": "toyRed",
+   "color": "#ff4a4a",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.05
+  },
+  {
+   "id": "toyYellow",
+   "color": "#ffd12e",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.05
+  },
+  {
+   "id": "toyBlue",
+   "color": "#2f5bff",
+   "value": 5,
+   "snd": "soft",
+   "jitter": 0.05
+  },
+  {
+   "id": "panel",
+   "color": "#c9c2ff",
+   "value": 5,
+   "snd": "metal",
+   "jitter": 0.04
+  }
+ ],
+ "tools": [
+  {
+   "id": "hammer",
+   "icon": "🔨",
+   "cd": 0.3,
+   "cost": 0,
+   "r": 1.45
+  },
+  {
+   "id": "bomb",
+   "icon": "💣",
+   "cd": 2.2,
+   "cost": 0,
+   "r": 3.3,
+   "hard": true
+  },
+  {
+   "id": "rocket",
+   "icon": "🚀",
+   "cd": 3,
+   "cost": 8000,
+   "r": 2.8,
+   "hard": true
+  },
+  {
+   "id": "ball",
+   "icon": "🎳",
+   "cd": 5,
+   "cost": 25000,
+   "r": 1.9,
+   "hard": true,
+   "len": 30
+  },
+  {
+   "id": "hole",
+   "icon": "🌀",
+   "cd": 7,
+   "cost": 60000,
+   "r": 4.2,
+   "hard": true,
+   "dur": 2.2
+  },
+  {
+   "id": "meteor",
+   "icon": "☄️",
+   "cd": 10,
+   "cost": 110000,
+   "r": 5.5,
+   "hard": true
+  }
+ ],
+ "hero": {
+  "speed": 5.2,
+  "reach": 2.6,
+  "radius": 0.38,
+  "height": 2.2,
+  "step": 0
+ },
+ "camera": {
+  "fov": 70,
+  "dist": 15,
+  "height": 10.5,
+  "look": 5,
+  "lookY": 4.5,
+  "insideDist": 6.5,
+  "insideHeight": 10.5,
+  "insideLook": 2,
+  "insideLookY": 0.8,
+  "cut": 4.4
+ },
+ "combo": {
+  "window": 2.2,
+  "step": 3,
+  "max": 5
+ },
+ "words": {
+  "smash": 25,
+  "kaboom": 70,
+  "mega": 160
+ },
+ "stars": {
+  "wreck1": 0.5,
+  "wreck2": 0.8
+ },
+ "coins": {
+  "level": 1000,
+  "levelStep": 250,
+  "daily": 2000
+ },
+ "fever": {
+  "dur": 8,
+  "cdScale": 0.15,
+  "mult": 2
+ },
+ "debris": {
+  "max": 700,
+  "life": 3.2,
+  "perBlast": 220
+ },
+ "langNames": {
+  "en": "English",
+  "ar": "العربية",
+  "es": "Español",
+  "vi": "Tiếng Việt",
+  "hi": "हिन्दी",
+  "bn": "বাংলা",
+  "id": "Indonesia"
+ },
+ "strings": {
+  "en": {
+   "tap": "TAP TO SMASH!",
+   "find": "FIND 3 STARS!",
+   "tooHard": "TOO HARD! USE 💣",
+   "treasure": "TREASURE!",
+   "smashTime": "SMASH TIME!",
+   "level": "LEVEL {n}",
+   "next": "NEXT",
+   "again": "AGAIN",
+   "smash": "SMASH!",
+   "kaboom": "KABOOM!",
+   "mega": "MEGA SMASH!",
+   "crash": "CRASH!",
+   "newTool": "NEW TOOL!",
+   "tryFree": "FREE",
+   "clear": "LEVEL CLEAR!",
+   "daily": "DAILY GIFT!",
+   "drag": "DRAG TO TURN",
+   "vault": "VAULT OPEN!",
+   "share": "Smash blocks with me in Block Smash Crew!",
+   "cottage": "Cottage",
+   "candy": "Candy Shop",
+   "castle": "Castle",
+   "lighthouse": "Lighthouse",
+   "factory": "Toy Factory",
+   "ice": "Ice Palace",
+   "temple": "Jungle Temple",
+   "space": "Space Base",
+   "star": "STAR!",
+   "keep": "KEEP SMASHING"
+  },
+  "ar": {
+   "tap": "اضغط للتحطيم!",
+   "find": "اعثر على 3 نجوم!",
+   "tooHard": "صلب جدًا! استخدم 💣",
+   "treasure": "كنز!",
+   "smashTime": "وقت التحطيم!",
+   "level": "المستوى {n}",
+   "next": "التالي",
+   "again": "مرة أخرى",
+   "smash": "تحطيم!",
+   "kaboom": "بووم!",
+   "mega": "تحطيم هائل!",
+   "crash": "انهيار!",
+   "newTool": "أداة جديدة!",
+   "tryFree": "مجانًا",
+   "clear": "أُنجز المستوى!",
+   "daily": "هدية اليوم!",
+   "drag": "اسحب للدوران",
+   "vault": "فُتحت الخزنة!",
+   "share": "حطّم المكعبات معي في Block Smash Crew!",
+   "cottage": "كوخ",
+   "candy": "متجر الحلوى",
+   "castle": "قلعة",
+   "lighthouse": "منارة",
+   "factory": "مصنع الألعاب",
+   "ice": "قصر الجليد",
+   "temple": "معبد الغابة",
+   "space": "قاعدة فضائية",
+   "star": "نجمة!",
+   "keep": "واصل التحطيم"
+  },
+  "es": {
+   "tap": "¡TOCA PARA ROMPER!",
+   "find": "¡BUSCA 3 ESTRELLAS!",
+   "tooHard": "¡MUY DURO! USA 💣",
+   "treasure": "¡TESORO!",
+   "smashTime": "¡A ROMPER TODO!",
+   "level": "NIVEL {n}",
+   "next": "SIGUIENTE",
+   "again": "OTRA VEZ",
+   "smash": "¡CRASH!",
+   "kaboom": "¡KABUM!",
+   "mega": "¡MEGA GOLPE!",
+   "crash": "¡SE CAE!",
+   "newTool": "¡NUEVA HERRAMIENTA!",
+   "tryFree": "GRATIS",
+   "clear": "¡NIVEL LISTO!",
+   "daily": "¡REGALO DIARIO!",
+   "drag": "ARRASTRA PARA GIRAR",
+   "vault": "¡CAJA FUERTE ABIERTA!",
+   "share": "¡Rompe bloques conmigo en Block Smash Crew!",
+   "cottage": "Casita",
+   "candy": "Dulcería",
+   "castle": "Castillo",
+   "lighthouse": "Faro",
+   "factory": "Fábrica de juguetes",
+   "ice": "Palacio de hielo",
+   "temple": "Templo de la selva",
+   "space": "Base espacial",
+   "star": "¡ESTRELLA!",
+   "keep": "SIGUE ROMPIENDO"
+  },
+  "vi": {
+   "tap": "CHẠM ĐỂ ĐẬP!",
+   "find": "TÌM 3 NGÔI SAO!",
+   "tooHard": "QUÁ CỨNG! DÙNG 💣",
+   "treasure": "KHO BÁU!",
+   "smashTime": "GIỜ ĐẬP PHÁ!",
+   "level": "MÀN {n}",
+   "next": "TIẾP",
+   "again": "CHƠI LẠI",
+   "smash": "ĐẬP!",
+   "kaboom": "BÙM!",
+   "mega": "SIÊU ĐẬP!",
+   "crash": "SẬP RỒI!",
+   "newTool": "DỤNG CỤ MỚI!",
+   "tryFree": "MIỄN PHÍ",
+   "clear": "QUA MÀN!",
+   "daily": "QUÀ HÔM NAY!",
+   "drag": "KÉO ĐỂ XOAY",
+   "vault": "KÉT ĐÃ MỞ!",
+   "share": "Cùng mình đập khối trong Block Smash Crew!",
+   "cottage": "Nhà nhỏ",
+   "candy": "Tiệm kẹo",
+   "castle": "Lâu đài",
+   "lighthouse": "Hải đăng",
+   "factory": "Xưởng đồ chơi",
+   "ice": "Cung điện băng",
+   "temple": "Đền rừng",
+   "space": "Trạm vũ trụ",
+   "star": "NGÔI SAO!",
+   "keep": "ĐẬP TIẾP"
+  },
+  "hi": {
+   "tap": "तोड़ने के लिए टैप करो!",
+   "find": "3 तारे ढूँढो!",
+   "tooHard": "बहुत सख़्त! 💣 लो",
+   "treasure": "खज़ाना!",
+   "smashTime": "तोड़-फोड़ टाइम!",
+   "level": "लेवल {n}",
+   "next": "आगे",
+   "again": "फिर से",
+   "smash": "धड़ाम!",
+   "kaboom": "बूम!",
+   "mega": "मेगा धमाका!",
+   "crash": "गिर गया!",
+   "newTool": "नया औज़ार!",
+   "tryFree": "मुफ़्त",
+   "clear": "लेवल पूरा!",
+   "daily": "आज का तोहफ़ा!",
+   "drag": "घुमाने को खींचो",
+   "vault": "तिजोरी खुली!",
+   "share": "Block Smash Crew में मेरे साथ ब्लॉक तोड़ो!",
+   "cottage": "कुटिया",
+   "candy": "मिठाई की दुकान",
+   "castle": "किला",
+   "lighthouse": "प्रकाश स्तंभ",
+   "factory": "खिलौना फ़ैक्ट्री",
+   "ice": "बर्फ़ महल",
+   "temple": "जंगल मंदिर",
+   "space": "अंतरिक्ष अड्डा",
+   "star": "तारा!",
+   "keep": "तोड़ते रहो"
+  },
+  "bn": {
+   "tap": "ভাঙতে ট্যাপ করো!",
+   "find": "৩টি তারা খোঁজো!",
+   "tooHard": "খুব শক্ত! 💣 নাও",
+   "treasure": "গুপ্তধন!",
+   "smashTime": "ভাঙার সময়!",
+   "level": "লেভেল {n}",
+   "next": "পরের",
+   "again": "আবার",
+   "smash": "ধড়াম!",
+   "kaboom": "বুম!",
+   "mega": "মেগা ভাঙা!",
+   "crash": "ভেঙে পড়ল!",
+   "newTool": "নতুন যন্ত্র!",
+   "tryFree": "ফ্রি",
+   "clear": "লেভেল শেষ!",
+   "daily": "আজকের উপহার!",
+   "drag": "ঘোরাতে টানো",
+   "vault": "সিন্দুক খুলল!",
+   "share": "Block Smash Crew-এ আমার সাথে ব্লক ভাঙো!",
+   "cottage": "কুটির",
+   "candy": "মিষ্টির দোকান",
+   "castle": "দুর্গ",
+   "lighthouse": "বাতিঘর",
+   "factory": "খেলনা কারখানা",
+   "ice": "বরফের প্রাসাদ",
+   "temple": "জঙ্গলের মন্দির",
+   "space": "মহাকাশ ঘাঁটি",
+   "star": "তারা!",
+   "keep": "ভাঙতে থাকো"
+  },
+  "id": {
+   "tap": "KETUK UNTUK HANCURKAN!",
+   "find": "CARI 3 BINTANG!",
+   "tooHard": "TERLALU KERAS! PAKAI 💣",
+   "treasure": "HARTA KARUN!",
+   "smashTime": "WAKTU HANCUR!",
+   "level": "LEVEL {n}",
+   "next": "LANJUT",
+   "again": "ULANG",
+   "smash": "HANCUR!",
+   "kaboom": "DUAR!",
+   "mega": "MEGA HANCUR!",
+   "crash": "RUNTUH!",
+   "newTool": "ALAT BARU!",
+   "tryFree": "GRATIS",
+   "clear": "LEVEL SELESAI!",
+   "daily": "HADIAH HARIAN!",
+   "drag": "GESER UNTUK PUTAR",
+   "vault": "BRANKAS TERBUKA!",
+   "share": "Hancurkan balok bareng aku di Block Smash Crew!",
+   "cottage": "Pondok",
+   "candy": "Toko Permen",
+   "castle": "Kastil",
+   "lighthouse": "Mercusuar",
+   "factory": "Pabrik Mainan",
+   "ice": "Istana Es",
+   "temple": "Kuil Hutan",
+   "space": "Pangkalan Luar Angkasa",
+   "star": "BINTANG!",
+   "keep": "TERUS HANCURKAN"
+  }
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ }
+}
