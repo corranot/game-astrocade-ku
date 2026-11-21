@@ -366,7 +366,7 @@ async function main() {
     const zd = await g(page, () => __game.W.hero.z);
     check(Math.abs(zd - zc) < 0.05, `f2 the card is open: the hero stands still (z ${zc.toFixed(2)} → ${zd.toFixed(2)})`);
     // f7: keys 1-6 buy nothing behind the card
-    await g(page, () => { __game.save.coins = 50000; });
+    await g(page, () => { __game.save.coins = 50000; __game.W.tried.add('rocket'); }); // free try used: a tap would buy
     await key('keydown', 'Digit3', '3'); await key('keyup', 'Digit3', '3');
     const f7 = await g(page, () => ({ coins: __game.save.coins, owned: __game.save.owned.includes('rocket') }));
     check(f7.coins === 50000 && !f7.owned, 'f7 the card is open: number keys buy nothing');
