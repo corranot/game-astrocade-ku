@@ -163,7 +163,7 @@ export function createSheet() {
         const m = g.createRadialGradient(cx, cy, Math.max(0, R0), cx, cy, R1);
         m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)');
         g.globalCompositeOperation = 'source-atop';
-        g.globalAlpha = 0.32 * S.freeze; g.fillStyle = '#ffffff'; g.fillRect(0, 0, N, N); // the cream goes matte and paler
+        g.globalAlpha = 0.16 * S.freeze; g.fillStyle = '#ffffff'; g.fillRect(0, 0, N, N); // the cream goes matte and paler
         g.globalAlpha = 1;
         const tmp = api._tmp || (api._tmp = mk()); const gt = tmp.getContext('2d');
         gt.clearRect(0, 0, N, N); gt.drawImage(frost, 0, 0); gt.globalCompositeOperation = 'destination-in'; gt.fillStyle = m; gt.fillRect(0, 0, N, N); gt.globalCompositeOperation = 'source-over';

@@ -69,19 +69,23 @@ export function scoreCup(cfg, order, made) {
   const w = cfg.score.weights;
   const parts = {};
   parts.base = made.base === order.base ? 1 : 0.5;
-  const want = new Set(order.fruits), got = made.fruits || [];
-  parts.fruit = got.length ? got.filter((f) => want.has(f)).length / got.length : 0;
+  // each ordered fruit counts by how many of its pieces went in (a missing kiwi is missed, even with extra strawberries)
+  const got = made.fruits || [], per = piecesFor(order);
+  const fruitEach = Object.fromEntries(order.fruits.map((f) => [f, Math.min(1, got.filter((x) => x === f).length / per)]));
+  parts.fruit = order.fruits.reduce((a, f) => a + fruitEach[f], 0) / order.fruits.length;
   const p = made.pour || 0, band = cfg.pour.band;
   parts.pour = p >= band[0] && p <= band[1] ? 1 : Math.max(0, 1 - Math.min(Math.abs(p - band[0]), Math.abs(p - band[1])) * 2.5);
   parts.spread = Math.min(1, (made.cover || 0) / cfg.spread.done);
   parts.rolls = Math.max(0, Math.min(1, made.rolls || 0));
-  parts.toppings = jaccard(order.toppings, [...new Set(made.toppings || [])]);
+  // every ordered topping counts; extras are a kid's own idea and never cost a star
+  const tops = new Set(made.toppings || []);
+  parts.toppings = order.toppings.length ? order.toppings.filter((t) => tops.has(t)).length / order.toppings.length : 1;
   let sum = 0, tot = 0;
   for (const k of Object.keys(parts)) { sum += parts[k] * w[k]; tot += w[k]; }
   if (order.art) { parts.art = made.art === order.art ? 1 : made.art ? 0.6 : 0.3; sum += parts.art * w.art; tot += w.art; }
   const quality = sum / tot;
   const s = cfg.score.stars;
-  return { quality, stars: quality >= s[0] ? 3 : quality >= s[1] ? 2 : 1, parts };
+  return { quality, stars: quality >= s[0] ? 3 : quality >= s[1] ? 2 : 1, parts, fruitEach };
 }
 
 /** Coins paid for a cup with the given stars; a drawing earns the art tip, a VIP pays double, today's special a bonus. */
@@ -153,4 +157,18 @@ export function creamColour(cfg, baseId, fruitIds) {
   if (!fs.length) return base;
   let c = fs[0].cream; for (let i = 1; i < fs.length; i++) c = mixHex(c, fs[i].cream, 1 / (i + 1));
   return mixHex(base, c, cfg.fruitTint);
+}
+
+/** Relative luminance (0..1) of a '#rrggbb' colour. */
+export function luminance(hex) {
+  const p = parseInt(hex.slice(1), 16), f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(p >> 16 & 255) + 0.7152 * f(p >> 8 & 255) + 0.0722 * f(p & 255);
+}
+/** WCAG contrast ratio between two colours (1..21). */
+export const contrast = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+/** The usable syrup that shows best on this cream (so a drawing is never brown on brown or white on white). */
+export function bestSyrup(cfg, cream, usable, avoid = []) {
+  let best = null, bc = -1;
+  for (const sy of cfg.syrups) { if (!usable.includes(sy.id) || sy.color === 'rainbow' || avoid.includes(sy.id)) continue; const c = contrast(sy.color, cream); if (c > bc) { bc = c; best = sy.id; } }
+  return best || cfg.syrups[0].id;
 }
