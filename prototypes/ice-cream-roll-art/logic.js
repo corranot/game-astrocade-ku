@@ -1,0 +1,126 @@
+// PROTOTYPE - NOT FOR PRODUCTION
+/**
+ * Pure rules for Ice Cream Roll Art: orders, stars, coins, unlocks, gifts and calendar days.
+ * No DOM, no THREE: every function here is unit-tested in logic.test.mjs.
+ */
+
+/** Seeded random in [0, 1). */
+export function mulberry32(a) {
+  return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+/** One item of a non-empty list, picked with rng; null for an empty list. */
+export const pick = (rng, list) => (list && list.length ? list[Math.min(list.length - 1, Math.floor(rng() * list.length))] : null);
+
+/** The device language among the supported ones, else English. */
+export function detectLang(list, langs) {
+  for (const l of list || []) { const k = String(l || '').slice(0, 2).toLowerCase(); if (langs.includes(k)) return k; }
+  return 'en';
+}
+
+/** Ids of the items of one kind ('bases' | 'fruits' | 'toppings' | 'syrups') the player may use. */
+export function unlockedIds(cfg, kind, owned) {
+  return (cfg[kind] || []).filter((it) => !it.cost || (owned || []).includes(it.id)).map((it) => it.id);
+}
+
+/**
+ * A customer's order for cup number n (0 = the first-ever cup, which is the short hook round).
+ * @returns {{base:string, fruits:string[], toppings:string[], art:string|null, customer:string}}
+ */
+export function makeOrder(cfg, owned, n, rng) {
+  const bases = unlockedIds(cfg, 'bases', owned), fruits = unlockedIds(cfg, 'fruits', owned), tops = unlockedIds(cfg, 'toppings', owned);
+  const customer = cfg.customers[n % cfg.customers.length];
+  if (n === 0) return { base: 'strawberry', fruits: ['strawberry'], toppings: ['whip'], art: 'heart', customer };
+  const o = cfg.order;
+  const f1 = pick(rng, fruits);
+  const mix = n >= o.mixFrom && fruits.length > 1 && rng() < o.mixChance;
+  const f2 = mix ? pick(rng, fruits.filter((f) => f !== f1)) : null;
+  const want = Math.min(tops.length, n < o.twoToppingsFrom ? 1 : 1 + Math.floor(rng() * o.maxToppings));
+  const pool = tops.slice(), toppings = [];
+  while (toppings.length < want && pool.length) toppings.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  const art = n >= o.artFrom && rng() < o.artChance ? pick(rng, cfg.stencils) : null;
+  return { base: pick(rng, bases), fruits: f2 ? [f1, f2] : [f1], toppings, art, customer };
+}
+
+/** How many pieces of each ordered fruit go on the plate: 3 of one, or 2 + 2 for a mix. */
+export const piecesFor = (order) => (order.fruits.length > 1 ? 2 : 3);
+
+/** Jaccard similarity of two lists of ids (1 when both are empty). */
+export function jaccard(a, b) {
+  const A = new Set(a), B = new Set(b); if (!A.size && !B.size) return 1;
+  let both = 0; for (const x of A) if (B.has(x)) both++;
+  return both / (A.size + B.size - both);
+}
+
+/**
+ * Score of one cup. made = {base, fruits (ids added, with repeats), pour (0..1.3 of target), cover (0..1),
+ * rolls (lanes rolled cleanly / lanes), toppings (ids), art (stencil id or 'free' or null)}.
+ * @returns {{quality:number, stars:number, parts:Object<string,number>}}
+ */
+export function scoreCup(cfg, order, made) {
+  const w = cfg.score.weights;
+  const parts = {};
+  parts.base = made.base === order.base ? 1 : 0.5;
+  const want = new Set(order.fruits), got = made.fruits || [];
+  parts.fruit = got.length ? got.filter((f) => want.has(f)).length / got.length : 0;
+  const p = made.pour || 0, band = cfg.pour.band;
+  parts.pour = p >= band[0] && p <= band[1] ? 1 : Math.max(0, 1 - Math.min(Math.abs(p - band[0]), Math.abs(p - band[1])) * 2.5);
+  parts.spread = Math.min(1, (made.cover || 0) / cfg.spread.done);
+  parts.rolls = Math.max(0, Math.min(1, made.rolls || 0));
+  parts.toppings = jaccard(order.toppings, [...new Set(made.toppings || [])]);
+  let sum = 0, tot = 0;
+  for (const k of Object.keys(parts)) { sum += parts[k] * w[k]; tot += w[k]; }
+  if (order.art) { parts.art = made.art === order.art ? 1 : made.art ? 0.6 : 0.3; sum += parts.art * w.art; tot += w.art; }
+  const quality = sum / tot;
+  const s = cfg.score.stars;
+  return { quality, stars: quality >= s[0] ? 3 : quality >= s[1] ? 2 : 1, parts };
+}
+
+/** Coins paid for a cup with the given stars; a cup with a drawing earns the art tip. */
+export function coinsFor(cfg, stars, drew) {
+  const c = cfg.coins;
+  return c.base + c.perStar * stars + (drew ? c.artTip : 0);
+}
+
+/** Whether a gift box is due after `cups` cups have been served (every n-th cup, never the first). */
+export const giftDue = (cups, every) => cups > 0 && cups % every === 0;
+
+/**
+ * What a gift box holds: the cheapest locked item (free), or coins when everything is owned.
+ * @returns {{kind:'item', id:string, list:string}|{kind:'coins', amount:number}}
+ */
+export function giftContent(cfg, owned) {
+  let best = null;
+  for (const list of ['fruits', 'toppings', 'bases', 'syrups']) {
+    for (const it of cfg[list] || []) if (it.cost && !(owned || []).includes(it.id) && (!best || it.cost < best.cost)) best = { ...it, list };
+  }
+  return best ? { kind: 'item', id: best.id, list: best.list } : { kind: 'coins', amount: cfg.coins.giftCoins };
+}
+
+/** A calendar day as the number YYYYMMDD (compared by size, so a clock moved back never pays twice). */
+export const dayNum = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+
+/** Whether today's daily gift may be paid: only after a first cup, once per calendar day, never backwards. */
+export const dailyDue = (today, lastDaily, cups) => cups > 0 && today > (Number(lastDaily) || 0);
+
+/** Buy item id if the player has the coins. Returns the new coins, or -1 when it cannot be bought. */
+export function buy(cfg, list, id, coins, owned) {
+  const it = (cfg[list] || []).find((x) => x.id === id);
+  if (!it || !it.cost || owned.includes(id) || coins < it.cost) return -1;
+  return coins - it.cost;
+}
+
+/** Linear blend of two '#rrggbb' colours, t in 0..1. */
+export function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = (s) => Math.round(((pa >> s) & 255) * (1 - t) + ((pb >> s) & 255) * t);
+  return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+}
+
+/** The cream colour of a cup: the base blended with the average flesh colour of the fruits added. */
+export function creamColour(cfg, baseId, fruitIds) {
+  const base = (cfg.bases.find((b) => b.id === baseId) || cfg.bases[0]).color;
+  const fs = (fruitIds || []).map((f) => cfg.fruits.find((x) => x.id === f)).filter(Boolean);
+  if (!fs.length) return base;
+  let c = fs[0].cream; for (let i = 1; i < fs.length; i++) c = mixHex(c, fs[i].cream, 1 / (i + 1));
+  return mixHex(base, c, cfg.fruitTint);
+}
