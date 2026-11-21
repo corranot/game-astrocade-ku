@@ -408,6 +408,55 @@ async function main() {
     await page.close();
   }
 
+  // ---- 19. upgrade bugs found by reading the code (each check failed before its fix)
+  {
+    const { page, errors } = await open(browser, '', { port, init: `window.__preset = ${JSON.stringify({ v: 1, coins: 50000, total: 50000, level: 3, owned: ['hammer', 'bomb'], lv: { bomb: 5 }, muted: true, learned: { bomb: true, drag: true, shop: true }, day: 20200101 })};` });
+    await waitFor(page, () => __game.saveLoaded, null, 5000);
+    // g4: the coins pill opens the shop and throws nothing
+    await g(page, () => { __game.newLevel(3); __game.pickTool('bomb'); });
+    const [px, py] = await g(page, () => { const r = document.querySelector('#coins').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    await page.mouse.click(px, py); await page.waitForTimeout(150);
+    const g4 = await g(page, () => ({ shop: !document.querySelector('#shop').hidden, shots: __game.W.shots.length + (__game.W.queued || []).length, sel: __game.sel }));
+    check(g4.shop && g4.shots === 0 && g4.sel === 'bomb', `g4 the coins pill opens the shop and throws nothing (${JSON.stringify(g4)})`);
+    // g7: a number key behind the open shop buys nothing
+    await g(page, () => { __game.W.tried.add('rocket'); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3', key: '3', bubbles: true })); });
+    check(await g(page, () => !__game.save.owned.includes('rocket') && __game.save.coins === 50000), 'g7 a number key behind the open shop buys nothing');
+    // g6: smash time does not run out behind the shop
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'fever'; W.fever = 3; });
+    const f0 = await g(page, () => __game.W.fever); await page.waitForTimeout(1200); const f1 = await g(page, () => __game.W.fever);
+    check(Math.abs(f1 - f0) < 0.05, `g6 smash time pauses while the shop is open (${f0.toFixed(2)} → ${f1.toFixed(2)})`);
+    await g(page, () => { document.querySelector('#shopX').click(); });
+    // g10: an upgraded tool's ring starts full
+    await g(page, () => { const W = __game.W; W.phase = 'free'; W.fever = 0; W.cool.bomb = 0; __game.WD.useTool(W, 'bomb', { x: W.hero.x, y: 1, z: W.hero.z - 6 }); });
+    await page.waitForTimeout(60);
+    const ring = await g(page, () => Number(document.querySelector('.tool[data-t=bomb]').style.getPropertyValue('--c')));
+    check(ring > 0.9, `g10 an upgraded bomb's cooldown ring starts full (${ring})`);
+    // g1: a tipping tower is drawn as it tips (and its old blocks are gone from the picture)
+    await g(page, () => { __game.newLevel(3); const W = __game.W, cx = (W.box.x0 + W.box.x1) / 2 + 0.5, cz = W.box.z0 + 6.5; for (let z = Math.floor(cz - 6); z <= cz + 6; z++) for (let x = Math.floor(cx - 6); x <= cx + 6; x++) for (let y = 0; y < 2; y++) if (W.g.get(x, y, z) && Math.hypot(x + 0.5 - cx, z + 0.5 - cz) < 5) W.g.set(x, y, z, 0); W.cool.bomb = 0; __game.WD.useTool(W, 'bomb', { x: cx, y: 2.5, z: cz + 3.5 }); });
+    await waitFor(page, () => __game.W.falls.some((f) => f.topple), null, 4000).catch(() => {});
+    await page.waitForTimeout(100);
+    const g1 = await g(page, () => ({ world: __game.W.falls.filter((f) => f.topple).length, drawn: __game.scene.counts.falls }));
+    check(g1.world >= 1 && g1.drawn >= 1, `g1 a tipping tower is drawn while it tips (${JSON.stringify(g1)})`);
+    // g9: snow falls around the player
+    await g(page, () => __game.newLevel(2)); await page.waitForTimeout(400);
+    const fl = await g(page, () => { const a = __game.scene.flakesAt, c = __game.scene.camera.position; return a ? Math.hypot(a[0] - c.x, a[1] - c.z) : -1; });
+    check(fl >= 0 && fl < 1, `g9 the snow's box is around the player (${fl.toFixed ? fl.toFixed(2) : fl})`);
+    // g2: a muted save stays muted when the recorded music arrives
+    await tapAt(page, 360, 600); await page.waitForTimeout(5000);
+    const g2 = await g(page, () => __game.Sound.musicLevel);
+    check(g2 === 0, `g2 a muted save keeps the music silent (gain ${g2})`);
+    // g3: after run() again the recorded music comes back
+    await g(page, () => { __game.Sound.setMuted(false); window.run('play'); }); await page.waitForTimeout(400); await tapAt(page, 360, 600); await page.waitForTimeout(800);
+    check(await g(page, () => __game.Sound.songOn), 'g3 after run() again the recorded music plays again');
+    check(errors.length === 0, 'upgrade bug checks: no page errors: ' + (errors.join(' | ') || 'none'));
+    await page.close();
+    // g5: no shop (so no purchase) before the save has been read
+    const late = await open(browser, '', { port, init: 'window.__saveDelay = 6000;' });
+    await tapAt(late.page, 360, 600); await g(late.page, () => document.querySelector('#coins').click());
+    check(await g(late.page, () => document.querySelector('#shop').hidden && !__game.saveLoaded), 'g5 the shop waits for the save (nothing bought that a late save would undo)');
+    await late.page.close();
+  }
+
   // ---- 16. first-person bugs found by reading the code (each check failed before its fix)
   {
     const { page, errors } = await open(browser, '', { port });

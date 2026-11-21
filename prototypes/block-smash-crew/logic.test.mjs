@@ -72,6 +72,8 @@ check(KINDS.length === 8, '8 kinds of building');
   check(L.upgradeCost(cfg, 'bomb', 1) < L.upgradeCost(cfg, 'bomb', 4) && L.upgradeCost(cfg, 'bomb', 5) === null, 'upgrade prices climb and stop at the top level');
   const W = WD.createWorld(cfg, 0, { lv: { hammer: 5 }, coinMult: 2 });
   check(W.cfg.tools[0].r > cfg.tools[0].r && cfg.tools[0].r === 1.45, 'a world uses the upgraded tools without changing the config');
+  const DB = WD.createWorld(cfg, 34, { daily: true, coinMult: 2 }), BB = WD.createWorld(cfg, 34, {});
+  check(DB.coinMult === 2 && !DB.boss && BB.boss && BB.coinMult === 2, `a daily on a boss building pays ×2, not ×4 (daily ${DB.coinMult}, boss ${BB.coinMult})`);
   check(L.dailyLevel(cfg, 20261121) !== L.dailyLevel(cfg, 20261122) && L.dailyLevel(cfg, 20261121) >= 8 * cfg.level.maxStep, 'the daily building changes each day and is a big one');
 }
 

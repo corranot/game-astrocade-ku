@@ -25,7 +25,8 @@ const Sound = (() => {
   const buf = {}; let loading = false, song = null; // recorded sounds (from the asset map), the music loop playing
   const ensure = () => {
     if (ctx) return ctx;
-    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.75; master.connect(ctx.destination); music = ctx.createGain(); music.gain.value = 0.13; music.connect(master); } catch (e) { ctx = null; }
+    // the music gain starts at 0 for a muted save (setMuted may have run before the context existed)
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.75; master.connect(ctx.destination); music = ctx.createGain(); music.gain.value = muted ? 0 : 0.13; music.connect(master); } catch (e) { ctx = null; }
     if (ctx) { noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
     return ctx;
   };
@@ -107,10 +108,11 @@ const Sound = (() => {
     const g = ctx.createGain(); g.gain.value = buf.music.gain * 0.5; song.connect(g).connect(music); song.start();
   }
   return {
-    unlock(cfg) { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); },
+    unlock(cfg) { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
     play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a); else fx[id](a); },
     setTempo(t) { tempo = t; if (song) song.playbackRate.value = t / 118; },
     get recorded() { return Object.keys(buf).length; },
+    get musicLevel() { return music ? music.gain.value : null; }, get songOn() { return !!song; },
     get muted() { return muted; },
     setMuted(v) { muted = !!v; if (music && ctx) music.gain.setTargetAtTime(muted ? 0 : 0.13, ctx.currentTime, 0.05); },
     suspend(v) { if (!ctx) return; if (v) ctx.suspend().catch(() => {}); else ctx.resume().catch(() => {}); },
@@ -256,7 +258,7 @@ function startGame(mode) {
   }
   function onDown(e) {
     if (mode !== 'play' || !W) return;
-    if (e.target.closest && e.target.closest('button, .settings, #panel')) return;
+    if (e.target.closest && e.target.closest('button, .settings, #panel, #shop, .pill')) return; // the coins pill opens the shop, it is not a tap on the world
     Sound.unlock(cfg); $('settings').hidden = true;
     const [x, y] = toFrame(e);
     if (demo) firstTouch();
@@ -343,7 +345,7 @@ function startGame(mode) {
     if (mode !== 'play' || !W || resultsOpen) return; // nothing is bought or picked behind the result card
     Sound.unlock(cfg); if (demo) firstTouch();
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id);
-    if (!owned && !usable(id) && save.coins >= t.cost) { // buy it, only once its free try is used (and never in smash time, which lends it)
+    if (!owned && !usable(id) && save.coins >= t.cost && saveLoaded) { // buy it, only once its free try is used (and never in smash time, which lends it)
       save.coins -= t.cost; save.owned.push(id); W.owned.push(id); persist();
       Sound.play('unlock'); buzz('success'); banner(T('newTool'), 'p-mid'); pop(t.icon, 360, 700, 'p-big');
       root.appendChild(Object.assign(document.createElement('div'), { className: 'flash' })); setTimeout(() => { const f = root.querySelector('.flash'); if (f) f.remove(); }, 460);
@@ -364,7 +366,7 @@ function startGame(mode) {
   root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onCancel);
   document.addEventListener('pointerlockchange', onLock);
   const noMenu = (e) => e.preventDefault(); root.addEventListener('contextmenu', noMenu);
-  const onWheel = (e) => { if (mode !== 'play' || !W) return; const ids = cfg.tools.map((t) => t.id).filter(usable); const i = ids.indexOf(sel); if (ids.length) pickTool(ids[(i + (e.deltaY > 0 ? 1 : -1) + ids.length) % ids.length]); };
+  const onWheel = (e) => { if (mode !== 'play' || !W || !$('shop').hidden) return; const ids = cfg.tools.map((t) => t.id).filter(usable); const i = ids.indexOf(sel); if (ids.length) pickTool(ids[(i + (e.deltaY > 0 ? 1 : -1) + ids.length) % ids.length]); };
   root.addEventListener('wheel', onWheel, { passive: true });
   const MOVE_KEYS = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'];
   const onKey = (e) => {
@@ -375,6 +377,7 @@ function startGame(mode) {
     if (mode !== 'play' || !W) return;
     if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); Sound.unlock(cfg); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
+    if (!$('shop').hidden) return; // nothing is picked or bought behind the open shop
     const dm = /^Digit([1-6])$/.exec(e.code || ''), i = dm ? Number(dm[1]) - 1 : '123456'.indexOf(e.key); if (i >= 0 && cfg.tools[i]) { pickTool(cfg.tools[i].id); e.preventDefault(); }
   };
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
@@ -469,7 +472,7 @@ function startGame(mode) {
   let shopTab = 'tools';
   const lvOf = (id) => Math.max(1, Math.min(cfg.upgrade.max, save.lv[id] || 1));
   function openShop(tab) {
-    if (mode !== 'play' || !W || resultsOpen) return;
+    if (mode !== 'play' || !W || resultsOpen || !saveLoaded) return; // nothing is bought before the save is read: a late save would undo it
     shopTab = tab || shopTab; save.learned.shop = true; $('coins').classList.remove('can');
     const tabs = `<div class="tabs"><button class="tab gloss ${shopTab === 'tools' ? 'on' : ''}" data-tab="tools">🛠️ ${T('tools')}</button><button class="tab gloss ${shopTab === 'album' ? 'on' : ''}" data-tab="album">📖 ${T('album')}</button></div>`;
     let body = '';
@@ -553,10 +556,11 @@ function startGame(mode) {
         const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true); if (!ptr.held) { ptr.held = true; scene.follow = true; } }
       }
       const sub = dt > 1 / 45 ? 2 : 1;
-      for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
+      // the shop pauses the world (smash time does not run out behind it)
+      if ($('shop').hidden) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
       if (W.fever > 0) $('ftime').textContent = '⏱ ' + Math.ceil(W.fever);
       // cooldown rings
-      for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
+      for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
       if (hardHint) { hardHint.t -= dt; if (hardHint.t <= 0) { hardHint = null; toolEls.bomb.classList.remove('hint'); } }
       idleT = W.phase === 'play' && !demo ? idleT + dt : 0;
       placeHand(); placeArrows();
@@ -647,7 +651,7 @@ function startGame(mode) {
         save.lang = picked || (LANGS.includes(st.lang) ? st.lang : null);
         if (save.lang) { lang = save.lang; setDir(); }
         save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊';
-        if (W) for (const id of save.owned) if (!W.owned.includes(id)) W.owned.push(id);
+        if (W) { for (const id of save.owned) if (!W.owned.includes(id)) W.owned.push(id); for (const t of W.cfg.tools) Object.assign(t, L.toolAt(cfg, cfg.tools.find((x) => x.id === t.id), save.lv[t.id] || 1)); } // the saved upgrades apply to the level already running
         localGain = earnedTotal > 0 || levelsLocal > 0 || blocks > 0;
       }
       saveLoaded = true;

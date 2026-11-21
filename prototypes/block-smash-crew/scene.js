@@ -250,7 +250,7 @@ export function createScene(cv, cfg) {
       if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), '#fbf6ec', Math.min(6, 1 + (e.removed.length >> 4)));
       if (!W.demo) spawnCoins(e.x, e.y, e.z, Math.min(6, 1 + Math.floor(e.removed.length / 8)) + e.gold * 3);
       addTrauma(e.by === 'hammer' ? 0.06 : Math.min(0.5, e.removed.length / 300));
-    } else if (e.type === 'fall') {
+    } else if (e.type === 'fall' || e.type === 'topple') {
       const f = e.fall; for (const c of f.cells) markCell(c.x, c.y, c.z);
       // the piece as one mesh, turning a little around its middle as it drops
       let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity; const map = new Map();
@@ -445,7 +445,8 @@ export function createScene(cv, cfg) {
       b.w.scale.setScalar(b.r * 2.4 * k); b.w.material.opacity = 0.7 * (1 - k);
     }
     flash.intensity *= Math.exp(-dt * 9);
-    if (flakes.visible) { const p = flakeGeo.attributes.position.array, cx = camera.position.x, cz = camera.position.z; for (let i = 0; i < flakeN; i++) { p[i * 3 + 1] -= dt * (1.2 + (i % 5) * 0.2); p[i * 3] += Math.sin(time + i) * dt * 0.3; if (p[i * 3 + 1] < 0) p[i * 3 + 1] += 18; } flakes.position.set(cx - (cx % 40), 0, cz - (cz % 40)); flakeGeo.attributes.position.needsUpdate = true; }
+    // the flakes' box rides with the eye: snow always falls around the player
+    if (flakes.visible) { const p = flakeGeo.attributes.position.array, cx = camera.position.x, cz = camera.position.z; for (let i = 0; i < flakeN; i++) { p[i * 3 + 1] -= dt * (1.2 + (i % 5) * 0.2); p[i * 3] += Math.sin(time + i) * dt * 0.3; if (p[i * 3 + 1] < 0) p[i * 3 + 1] += 18; } flakes.position.set(cx, 0, cz); flakeGeo.attributes.position.needsUpdate = true; }
   }
   function updateCamera(dt) {
     const h = W.hero, cc = cfg.camera;
@@ -495,6 +496,7 @@ export function createScene(cv, cfg) {
     pickCenter,
     kick,
     get heldTool() { return heldTool; },
+    get flakesAt() { return flakes.visible ? [flakes.position.x, flakes.position.z] : null; },
     /** Star beacons in view: [{cell, x, y}] in frame units (a tap near one throws a star bomb). */
     starMarks() { const out = []; for (const b of beacons) { if (b.chest || !b.mark.visible) continue; const [x, y, behind] = screenOf(b.mark.position.x, b.mark.position.y, b.mark.position.z); if (!behind) out.push({ cell: b.cell, x, y }); } return out; },
     /** Attract mode: the view sweeps slowly across the building's front. */
