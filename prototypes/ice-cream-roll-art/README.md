@@ -19,7 +19,7 @@ winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FP
 - `node soak.js 14` — 14 cups in one page: saves, payouts, gifts, flat GPU memory.
 - `node look.js <out> [langs]` — every screen in 7 languages, text inside the screen.
 
-**Status.** In progress (2026-11-21): playable end to end; artifact https://claude.ai/artifact/7M1bGkY1o7Ykc6qFE9rNUH. Not yet uploaded to Astrocade.
+**Status.** In progress (2026-11-21): playable end to end; artifact https://claude.ai/artifact/7M1bGkY1o7Ykc6qFE9rNUH; Astrocade draft `01M7Y5W8MM2NWA5KPRQN4GNRC8` (private, no thumbnail yet, not published).
 
 **Findings so far.**
 - Seen from above, a lying roll reads as a flat block. Standing each roll on its end as soon as it is scraped shows
@@ -35,3 +35,7 @@ winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FP
   mirrored wrong in Arabic, a re-rendered tray moving the highlight, a listener kept per `run()`, a canvas made per
   fruit because cache arguments were evaluated on every call, the mute icon, the hint hand over a still finger,
   coins spent on a tap that did nothing). `playtest.js` `bugChecks` covers them; each check failed before its fix.
+- Upgrade in 4 stages (gate, feel, retention, clarity): see ASTROCADE.md section 9. A second bug hunt found 8 more
+  (draw tray in the guest sign-in zone, stale "TRY!" labels after a late save, today's special back on a clock moved
+  back, the gift card never moving on, a lost pointerup locking the plate, a leaked sauce tube); each has a check in
+  `bugChecks` that failed before its fix.

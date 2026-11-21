@@ -21,6 +21,9 @@ export function createScene(cv, cfg, sheet) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   let dpr = Math.min(window.devicePixelRatio || 1, DPR_MAX);
+  // a phone with few cores or little memory starts at the low tier: 1x resolution, no shadows (FPS gate)
+  const lowTier = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
+  if (lowTier) { dpr = Math.min(dpr, 1); renderer.shadowMap.enabled = false; }
   renderer.setPixelRatio(dpr);
 
   const scene = new THREE.Scene();
@@ -58,8 +61,9 @@ export function createScene(cv, cfg, sheet) {
       g.fillStyle = 'rgba(150,85,30,0.35)'; g.fillRect(x, 0, 3, h); g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x + 3, 0, 4, h);
     }
   });
-  const counter = new THREE.Mesh(keep(new THREE.BoxGeometry(16, 1, 8.75)), std({ map: counterTop, roughness: 0.55 }));
-  counter.position.set(0, -0.72, 1.625); counter.receiveShadow = true; scene.add(counter);
+  const counter = new THREE.Mesh(keep(new THREE.BoxGeometry(16, 1, 15.75)), std({ map: counterTop, roughness: 0.55 }));
+  counterTop.wrapT = THREE.RepeatWrapping; counterTop.repeat.set(1, 1.8);
+  counter.position.set(0, -0.72, 5.125); counter.receiveShadow = true; scene.add(counter);
   const front = canvasTex(512, 128, (g, w, h) => {
     for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#ff8fbd'; g.fillRect((i * w) / 16, 0, w / 16 + 1, h); }
     g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(0, 0, w, 10);
@@ -84,7 +88,8 @@ export function createScene(cv, cfg, sheet) {
 
   // ---- the cream sheet
   const sheetTex = keep(new THREE.CanvasTexture(sheet.canvas)); sheetTex.colorSpace = THREE.SRGBColorSpace; sheetTex.anisotropy = 4;
-  const creamMat = std({ map: sheetTex, transparent: true, roughness: 0.32, metalness: 0, alphaTest: 0.02, side: THREE.DoubleSide });
+  const bumpTex = keep(new THREE.CanvasTexture(sheet.bumpCanvas)); bumpTex.colorSpace = THREE.NoColorSpace;
+  const creamMat = std({ map: sheetTex, bumpMap: bumpTex, bumpScale: 1.6, transparent: true, roughness: 0.32, metalness: 0, alphaTest: 0.02, side: THREE.DoubleSide });
   const sheetMesh = new THREE.Mesh(keep(new THREE.PlaneGeometry(PW, PW)), creamMat);
   sheetMesh.rotation.x = -Math.PI / 2; sheetMesh.position.y = 0.006; sheetMesh.receiveShadow = true; scene.add(sheetMesh);
   const uvToWorld = (u, v, y = 0) => new THREE.Vector3((u - 0.5) * PW, y, (v - 0.5) * PW);
@@ -119,7 +124,9 @@ export function createScene(cv, cfg, sheet) {
     g.visible = false; scene.add(g); return g;
   }
   const spatA = makeSpatula(0xff6fa8), spatB = makeSpatula(0x56c8ff);
-  const laneW = ((RECT.u1 - RECT.u0) * PW) / cfg.roll.lanes;
+  // the lane count is read once: lane width, scraper and cup heights all follow it (a live config change waits for run())
+  const LANES = cfg.roll.lanes;
+  const laneW = ((RECT.u1 - RECT.u0) * PW) / LANES;
   const scraper = makeSpatula(0xffc22e, laneW * 0.96);
 
   const bottle = new THREE.Group();
@@ -218,7 +225,7 @@ export function createScene(cv, cfg, sheet) {
     for (let i = 0; i < n; i++) { const s = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: blend || THREE.NormalBlending }))); s.visible = false; scene.add(s); pool.push({ s, life: 0 }); }
     return pool;
   }
-  const sparkPool = spritePool(starTex, 60), fogPool = spritePool(softTex, 26);
+  const sparkPool = spritePool(starTex, 60), fogPool = spritePool(softTex, 26), shavePool = spritePool(softTex, 70);
   function emit(pool, pos, o) {
     const p = pool.find((x) => x.life <= 0) || pool[0];
     p.life = o.life || 1; p.max = p.life; p.v = o.v || new THREE.Vector3(); p.size = o.size || 0.2; p.grow = o.grow || 0; p.g = o.g || 0;
@@ -228,6 +235,8 @@ export function createScene(cv, cfg, sheet) {
   function sparkle(pos, n = 12, cols = [0xfff36b, 0xffffff, 0xff9ad0, 0x8fe3ff]) {
     for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, u = Math.random() * 2.5; emit(sparkPool, pos, { v: new THREE.Vector3(Math.cos(a) * u, 1 + Math.random() * 2.5, Math.sin(a) * u), size: 0.12 + Math.random() * 0.18, life: 0.6 + Math.random() * 0.5, color: cols[i % cols.length], g: 4, spin: 1 }); }
   }
+  /** Frosty shavings flying off the scraper edge. */
+  function shave(pos, col) { emit(shavePool, pos, { v: new THREE.Vector3((Math.random() - 0.5) * 1.6, 0.8 + Math.random() * 1.4, -0.4 - Math.random() * 0.8), size: 0.04 + Math.random() * 0.06, life: 0.45 + Math.random() * 0.3, color: col, g: 7 }); }
   function fog(pos) { emit(fogPool, pos, { v: new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.35 + Math.random() * 0.3, 0.25), size: 0.8 + Math.random() * 0.6, grow: 0.8, life: 1.8, color: 0xeaf7ff }); }
   function updateSprites(dt) {
     for (const pool of sprites) for (const p of pool) {
@@ -240,14 +249,14 @@ export function createScene(cv, cfg, sheet) {
   // ---- rolls: each lane of the sheet becomes a strip that really winds into a spiral (roll.js)
   const RA = cfg.roll.inner, RB = cfg.roll.thick / (2 * Math.PI), L = (RECT.v1 - RECT.v0) * PW;
   const COLS = 6, ROWS = 140, CAP = 160;
-  const rollMat = std({ map: sheetTex, roughness: 0.55, side: THREE.DoubleSide });
+  const rollMat = std({ map: sheetTex, bumpMap: bumpTex, bumpScale: 1.6, roughness: 0.55, side: THREE.DoubleSide });
   const capMat = std({ map: sheetTex, roughness: 0.6, side: THREE.DoubleSide, vertexColors: true }); // inner edge of each turn shaded: the spiral line
   const lanes = [];
   function buildLanes() {
     clearLanes();
-    for (let i = 0; i < cfg.roll.lanes; i++) {
+    for (let i = 0; i < LANES; i++) {
       const g = new THREE.Group();
-      const u0 = RECT.u0 + (i / cfg.roll.lanes) * (RECT.u1 - RECT.u0), u1 = RECT.u0 + ((i + 1) / cfg.roll.lanes) * (RECT.u1 - RECT.u0);
+      const u0 = RECT.u0 + (i / LANES) * (RECT.u1 - RECT.u0), u1 = RECT.u0 + ((i + 1) / LANES) * (RECT.u1 - RECT.u0);
       const gap = 0.006; const ua = u0 + gap, ub = u1 - gap, w = (ub - ua) * PW;
       const geo = new THREE.PlaneGeometry(1, 1, COLS, ROWS); // positions rewritten in setLane
       const uv = geo.attributes.uv;
@@ -308,9 +317,16 @@ export function createScene(cv, cfg, sheet) {
 
   // ---- cup and toppings
   const cup = new THREE.Group();
+  let stripes = null;
+  /** Repaint the paper cup with a cup style: its colours repeat around the cup (24 stripes, so 2 or 6 colours meet cleanly). */
+  function paintStripes(cols) {
+    const c = stripes.image, g = c.getContext('2d'), w = c.width, h = c.height, n = 24;
+    for (let i = 0; i < n; i++) { g.fillStyle = cols[i % cols.length]; g.fillRect((i * w) / n, 0, w / n + 1, h); }
+    g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(0, 0, w, 10); stripes.needsUpdate = true;
+  }
   const CUP_H = cfg.cup.height, CUP_R = cfg.cup.radius;
   {
-    const stripes = canvasTex(512, 128, (g, w, h) => { for (let i = 0; i < 20; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#ff7fb6'; g.fillRect((i * w) / 20, 0, w / 20 + 1, h); } g.fillStyle = '#ffd1e6'; g.fillRect(0, 0, w, 10); });
+    stripes = canvasTex(512, 128, () => {}); paintStripes(['#ff7fb6', '#ffffff']);
     const prof = [[CUP_R * 0.86, 0], [CUP_R, CUP_H], [CUP_R * 1.04, CUP_H + 0.02], [CUP_R * 1.02, CUP_H + 0.05]].map(([x, y]) => new THREE.Vector2(x, y));
     const body = new THREE.Mesh(keep(new THREE.LatheGeometry(prof, 40)), std({ map: stripes, roughness: 0.5, side: THREE.DoubleSide }));
     body.castShadow = true; body.receiveShadow = true;
@@ -340,10 +356,10 @@ export function createScene(cv, cfg, sheet) {
       });
       add(geo, mat('whip', { color: 0xfffdf6, roughness: 0.55 }), 0, T - 0.04, 0);
     } else if (id === 'choco' || id === 'berrysauce') {
-      // a zig-zag drizzle laid over the roll tops, with a few drips running down the rolls
+      // a spiral drizzle over the roll tops, like sauce poured in circles from a bottle
       const m = mat(id, { color: id === 'choco' ? 0x5a2c16 : 0xe0194f, roughness: 0.15, metalness: 0.05 });
-      for (let k = 0; k < 2; k++) { const pts = []; for (let i = 0; i <= 14; i++) { const t = i / 14 - 0.5; const a = k ? Math.PI / 2.6 : 0; const x = t * 1.05, z = (i % 2 ? 0.2 : -0.2); pts.push(new THREE.Vector3(x * Math.cos(a) - z * Math.sin(a), T + 0.035 + Math.sin(i) * 0.008, x * Math.sin(a) + z * Math.cos(a))); }
-        add(keep(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.026, 8)), m, 0, 0, 0); }
+      const pts = []; for (let i = 0; i <= 90; i++) { const t = i / 90, a = t * Math.PI * 2 * 2.6, r = 0.62 - t * 0.5; pts.push(new THREE.Vector3(Math.cos(a) * r, T + 0.035 + t * 0.05 + Math.sin(a * 3) * 0.006, Math.sin(a) * r)); }
+      add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 220, 0.03, 8), m, 0, 0, 0);
     } else if (id === 'sprinkles') {
       const cols = [0xff4f8b, 0x4fc3ff, 0xffe14f, 0x7be36b, 0xb27bff, 0xffffff];
       const n = 70, im = new THREE.InstancedMesh(cacheGeo('spr', () => new THREE.CapsuleGeometry(0.018, 0.06, 2, 6)), mat('spr', { roughness: 0.3 }), n);
@@ -414,26 +430,40 @@ export function createScene(cv, cfg, sheet) {
     const lut = new Uint8Array(256); for (let i = 0; i < 256; i++) { const l = i / 255; lut[i] = Math.round(255 * Math.min(1, (l <= 0.0031308 ? l * 12.92 : 1.055 * Math.pow(l, 1 / 2.4) - 0.055) * 1.08)); }
     const buf = new Uint8Array(size * size * 4), c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d'), img = g.createImageData(size, size);
     const box = new THREE.Box3(), mid = new THREE.Vector3(), bsize = new THREE.Vector3();
-    const shot = (obj) => {
-      // frame whatever the model is: its bounding box centred, seen from the front and above
+    const shot = (obj, extra) => {
+      // frame whatever the model is: its bounding box centred, seen from the front and above (extra is drawn, not framed)
       ts.add(obj); obj.updateMatrixWorld(true); box.setFromObject(obj); box.getCenter(mid); box.getSize(bsize);
+      if (extra) ts.add(extra);
       const dist = Math.max(bsize.x, bsize.y, bsize.z) * 2.1 + 0.2; cam.position.set(mid.x, mid.y + dist * 0.6, mid.z + dist * 0.8); cam.lookAt(mid);
       renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(ts, cam); renderer.readRenderTargetPixels(rt, 0, 0, size, size, buf); renderer.setRenderTarget(null);
       // the target holds linear colour (no output conversion off-screen): encode to sRGB by table, flip rows
       for (let y = 0; y < size; y++) for (let x = 0; x < size * 4; x++) { const v = buf[(size - 1 - y) * size * 4 + x]; img.data[y * size * 4 + x] = (x & 3) === 3 ? v : lut[v]; }
-      g.putImageData(img, 0, 0); ts.remove(obj); return c.toDataURL();
+      g.putImageData(img, 0, 0); ts.remove(obj); if (extra) ts.remove(extra); return c.toDataURL();
     };
     for (const f of cfg.fruits) out[f.id] = shot(fruitModel(f.id));
     for (const t of cfg.toppings) { const m = toppingModel(t.id, 'strawberry', 3); out['t_' + t.id] = shot(m); m.traverse((o) => { if (o.isMesh && o.geometry && !Object.values(geoCache).includes(o.geometry) && !o.isInstancedMesh) o.geometry.dispose(); }); }
     rt.dispose(); renderer.setClearColor(0x000000, 0);
     return out;
   }
+  /** A photo of what the camera sees now, as a small JPEG (the shelf keeps the player's finished cups). */
+  function snapshot(w = 216, h = 384) {
+    const rt = new THREE.WebGLRenderTarget(w, h, { samples: 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+    const bg = scene.background; scene.background = new THREE.Color(0xffe6f0);
+    renderer.setRenderTarget(rt); renderer.render(scene, camera);
+    const buf = new Uint8Array(w * h * 4); renderer.readRenderTargetPixels(rt, 0, 0, w, h, buf); renderer.setRenderTarget(null); scene.background = bg; rt.dispose();
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'), img = g.createImageData(w, h);
+    const lut = new Uint8Array(256); for (let i = 0; i < 256; i++) { const l = i / 255; lut[i] = Math.round(255 * (l <= 0.0031308 ? l * 12.92 : 1.055 * Math.pow(l, 1 / 2.4) - 0.055)); }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w * 4; x++) { const v = buf[(h - 1 - y) * w * 4 + x]; img.data[y * w * 4 + x] = (x & 3) === 3 ? 255 : lut[v]; }
+    g.putImageData(img, 0, 0); return c.toDataURL('image/jpeg', 0.82);
+  }
 
   // ---- camera poses
   const poses = {
     plate: { p: new THREE.Vector3(0, 9.6, 7.6), l: new THREE.Vector3(0, 0, 0.25) },
-    cup: { p: new THREE.Vector3(1.55, 4, 10.65), l: new THREE.Vector3(1.55, 0.15, 2.85) },
+    cup: { p: new THREE.Vector3(1.55, 4.6, 11.6), l: new THREE.Vector3(1.55, -0.1, 2.85) },
     show: { p: new THREE.Vector3(1.55, 2.9, 7.1), l: new THREE.Vector3(1.55, 0.45, 3.35) },
+    peek: { p: new THREE.Vector3(0, 3.3, -0.35), l: new THREE.Vector3(0, 0.3, -2.0) },
+    last: { p: new THREE.Vector3(0, 7.4, 5.4), l: new THREE.Vector3(0, 0, -0.2) },
   };
   const cam = { p: poses.plate.p.clone(), l: poses.plate.l.clone(), to: poses.plate, orbit: 0, shake: 0 };
   camera.position.copy(cam.p); camera.lookAt(cam.l);
@@ -454,7 +484,7 @@ export function createScene(cv, cfg, sheet) {
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
   const api = {
     cupHome: new THREE.Vector3(1.55, -0.155, 3.35), poses, renderer, scene, camera, cup, lanes, placed, toppings, jug, stream, spatA, spatB, scraper, bottle, sheetTex, creamMat, frostMat, L, laneW,
-    uvToWorld, fruitModel, dropFruit, clearFruit, spawnChunks, absorbChunks, sparkle, fog, buildLanes, setLane, clearLanes, liftLane, slot, rollTopY, addTopping, clearToppings, thumbs,
+    shave, uvToWorld, fruitModel, dropFruit, clearFruit, spawnChunks, absorbChunks, sparkle, fog, buildLanes, setLane, clearLanes, liftLane, slot, rollTopY, addTopping, clearToppings, thumbs, snapshot, paintStripes,
     get chunkCount() { return chunks.length; },
     get dpr() { return dpr; },
     /** Plate uv under client point (x, y), or null when the ray misses the plate plane. */
@@ -473,7 +503,9 @@ export function createScene(cv, cfg, sheet) {
     resize,
     /** Advance animations by dt seconds and draw. */
     frame(dt) {
+      sheet.flush();
       if (sheet.dirty) { sheet.dirty = false; sheetTex.needsUpdate = true; }
+      if (sheet.bumpDirty) { sheet.bumpDirty = false; bumpTex.needsUpdate = true; }
       // camera: critically damped follow, optional slow orbit for the showcase; no roll
       const k = 1 - Math.exp(-dt * 4);
       cam.p.lerp(cam.to.p, k); cam.l.lerp(cam.to.l, k);
