@@ -111,8 +111,11 @@ body{display:flex;align-items:center;justify-content:center}
 .sx{position:absolute;top:var(--m);right:var(--m);width:calc(var(--u)*72px);height:calc(var(--u)*72px);font-size:calc(var(--u)*34px);z-index:2}
 [dir=rtl] .sx{right:auto;left:var(--m)}
 .tabs{position:relative;display:flex;gap:var(--g);justify-content:center}
-.shopcard .tabs{align-self:stretch;justify-content:flex-start;padding-inline-end:calc(var(--u)*84px)} /* clear of the ✕ */
-.tab{min-height:calc(var(--u)*72px);padding:0 calc(var(--u)*22px);border-radius:999px;font-size:calc(var(--u)*28px);white-space:nowrap}
+/* shop header: an empty cell as wide as the ✕ on the other side, so the tabs sit in the middle of the card */
+.shead{display:grid;grid-template-columns:calc(var(--u)*72px) minmax(0,1fr) calc(var(--u)*72px);align-items:center;gap:var(--g);align-self:stretch}
+.shead .tabs{min-width:0}
+.shead .sx{position:static}
+.tab{min-height:calc(var(--u)*72px);padding:0 calc(var(--u)*24px);border-radius:999px;font-size:calc(var(--u)*30px);line-height:1;white-space:nowrap;flex:none}
 .tab.on{background:linear-gradient(#fffbe0,#ffe57a 50%,#ffd23c 52%,#ffc400)}
 .srows{position:relative;display:flex;flex-direction:column;gap:calc(var(--u)*10px);width:100%}
 .srow{display:grid;grid-template-columns:calc(var(--u)*76px) 1fr calc(var(--u)*210px);align-items:center;gap:var(--g);height:calc(var(--u)*88px);padding:0 calc(var(--u)*12px);border-radius:calc(var(--u)*24px);background:#fff;box-shadow:0 calc(var(--u)*4px) 0 #cfe8f6;box-sizing:border-box}
@@ -124,13 +127,13 @@ body{display:flex;align-items:center;justify-content:center}
 .sbtn .coin{width:calc(var(--u)*30px);height:calc(var(--u)*30px)}
 .sbtn.no{background:linear-gradient(#f1f4f8,#d5dde6);box-shadow:0 calc(var(--u)*5px) 0 #a9b6c4;color:#6b7a8c!important;text-shadow:none}
 .sbtn.max{background:none;box-shadow:none;color:var(--ink)!important;text-shadow:none}
-.agrid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:var(--g);width:100%}
-.atile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*4px);height:calc(var(--u)*176px);border-radius:calc(var(--u)*24px);background:#fff;box-shadow:0 calc(var(--u)*4px) 0 #cfe8f6}
+.agrid{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--g);width:100%;margin-block:auto} /* centred in the card's height */
+.atile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*8px);height:calc(var(--u)*236px);padding:0 calc(var(--u)*6px);box-sizing:border-box;border-radius:calc(var(--u)*24px);background:#fff;box-shadow:0 calc(var(--u)*4px) 0 #cfe8f6}
 .atile.off{background:#eef3f7}
-.aic{font-size:calc(var(--u)*60px);line-height:1}
-.anm{font-size:calc(var(--u)*18px);line-height:1.1;text-align:center;min-height:calc(var(--u)*20px);padding:0 calc(var(--u)*4px)}
+.aic{font-size:calc(var(--u)*76px);line-height:1}
+.anm{display:block;font-size:calc(var(--u)*24px);line-height:1.1;text-align:center;min-height:calc(var(--u)*26px)}
 .acups{display:flex;gap:calc(var(--u)*4px);direction:ltr}
-.acups img{width:calc(var(--u)*34px);height:calc(var(--u)*34px);filter:grayscale(1) opacity(.3)}
+.acups img{width:calc(var(--u)*40px);height:calc(var(--u)*40px);filter:grayscale(1) opacity(.3)}
 .acups img.on{filter:none}
 .small.daily{background:linear-gradient(#e0f2ff,#7cc4ff 50%,#4aa8ff 52%,#2a8cf0);box-shadow:0 calc(var(--u)*6px) 0 #1a66b8}
 .stat{position:relative;display:flex;align-items:center;gap:calc(var(--u)*12px);font-size:calc(var(--u)*44px);line-height:1;direction:ltr}
@@ -140,8 +143,8 @@ body{display:flex;align-items:center;justify-content:center}
 .nexttool i{display:block;width:calc(var(--u)*240px);height:calc(var(--u)*24px);border-radius:999px;background:#fff;box-shadow:0 0 0 calc(var(--u)*3px) #8fd0f2;overflow:hidden}
 .nexttool i b{display:block;height:100%;background:linear-gradient(#ffe57a,#ffc400)}
 .btns{position:relative;display:flex;flex-direction:column;gap:var(--g);align-items:center}
-.big{position:relative;min-width:calc(var(--u)*340px);min-height:calc(var(--u)*112px);font-size:calc(var(--u)*52px);padding:0 calc(var(--u)*34px);border-radius:999px;background:linear-gradient(#c9ffd8 0,#67e08f 48%,#3ccf6f 52%,#22b85a 100%);box-shadow:0 calc(var(--u)*7px) 0 #17904a,0 calc(var(--u)*12px) calc(var(--u)*16px) rgba(20,90,50,.3);animation:pulse 1.3s ease-in-out infinite}
-.small{min-height:calc(var(--u)*96px);font-size:calc(var(--u)*32px);padding:0 calc(var(--u)*28px);border-radius:999px;background:linear-gradient(#ffe2c4,#ffb06b 50%,#ff9640 52%,#ff7a1f);box-shadow:0 calc(var(--u)*6px) 0 #c4560f}
+.big{position:relative;box-sizing:border-box;min-width:calc(var(--u)*340px);min-height:calc(var(--u)*112px);font-size:calc(var(--u)*52px);padding:0 calc(var(--u)*34px);border-radius:999px;background:linear-gradient(#c9ffd8 0,#67e08f 48%,#3ccf6f 52%,#22b85a 100%);box-shadow:0 calc(var(--u)*7px) 0 #17904a,0 calc(var(--u)*12px) calc(var(--u)*16px) rgba(20,90,50,.3);animation:pulse 1.3s ease-in-out infinite}
+.small{box-sizing:border-box;min-height:calc(var(--u)*96px);font-size:calc(var(--u)*32px);padding:0 calc(var(--u)*28px);border-radius:999px;background:linear-gradient(#ffe2c4,#ffb06b 50%,#ff9640 52%,#ff7a1f);box-shadow:0 calc(var(--u)*6px) 0 #c4560f}
 .flash{position:absolute;inset:0;background:#fff;pointer-events:none;z-index:7;animation:flash .45s ease-out forwards}
 @keyframes flash{0%{opacity:.85}100%{opacity:0}}
 @media (prefers-reduced-motion: reduce){.hud *{animation-duration:.01s!important;animation-iteration-count:1!important}}
@@ -187,6 +190,10 @@ body{display:flex;align-items:center;justify-content:center}
 /* the coach dims the world and the controls, never the top bar, the words or what flies into the HUD */
 .top,.pops{z-index:4}
 @media (prefers-reduced-motion:reduce){.coach .chand,.cring,.clabel,.tip{animation:none!important}.fly{animation-duration:.01s!important}}
+/* a text wrapped by fitText: balanced lines, centred; capsules become rounded boxes */
+.wrap{white-space:normal;text-wrap:balance;text-align:center;line-height:1.1}
+.clabel.wrap,.lvnm.wrap{border-radius:calc(var(--u)*30px)}
+.big.wrap,.small.wrap{border-radius:calc(var(--u)*40px);padding-block:calc(var(--u)*12px)}
 </style>
 </head>
 <body>

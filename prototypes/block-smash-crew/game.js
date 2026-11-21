@@ -226,10 +226,23 @@ function startGame(mode) {
     if (w) p.style.left = `calc(var(--u)*${Math.max(w / 2 + 12, Math.min(708 - w / 2, x))}px)`;
   }
   const banner = (text, cls = 'p-big', dy = 0) => pop(text, 360, 560 + dy, cls);
-  /** Shrinks an element's font until it is at most maxW frame units wide (long translations). */
-  function fitText(el, maxW, base) {
-    el.style.fontSize = ''; const k = root.getBoundingClientRect().width / 720 || 1;
-    const w = el.offsetWidth / k; if (w > maxW) el.style.fontSize = `calc(var(--u)*${Math.floor(base * maxW / w)}px)`;
+  /**
+   * Fits a text to its room, the box following its text: one line when it fits in maxW frame units; else (lines > 1)
+   * balanced lines inside maxW; only then a smaller font, never below 70% of base (long translations).
+   */
+  function fitText(el, maxW, base, lines = 1) {
+    const k = root.getBoundingClientRect().width / 720 || 1;
+    el.style.fontSize = ''; el.style.whiteSpace = 'nowrap'; el.style.maxWidth = ''; el.classList.remove('wrap');
+    if (el.offsetWidth / k <= maxW + 0.5 && el.scrollWidth <= el.clientWidth + 1) return;
+    if (lines > 1) { el.style.whiteSpace = 'normal'; el.style.maxWidth = `calc(var(--u)*${maxW}px)`; el.classList.add('wrap'); }
+    const rows = () => { const cs = getComputedStyle(el), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2; return Math.round((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh); };
+    const over = () => el.scrollWidth > el.clientWidth + 1 || el.offsetWidth / k > maxW + 0.5 || (lines > 1 && rows() > lines);
+    for (let f = base; over() && f > base * 0.7; ) { f *= 0.94; el.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
+  }
+  /** One row of buttons or tabs that must fit side by side: all shrink together (same size), at most to 70%. */
+  function fitRow(row, items, base) {
+    for (const b of items) b.style.fontSize = '';
+    for (let f = base; row.scrollWidth > row.clientWidth + 1 && f > base * 0.7; ) { f *= 0.94; for (const b of items) b.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
   }
   let coinPopT = 0;
   const coinPop = (n, x, y, z) => {
@@ -241,7 +254,7 @@ function startGame(mode) {
   let coinFlyT = 0;
   function setTip(k) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
-    tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 620, 50); } // room for its pulse
+    tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 600, 50, 2); } // room for its pulse
     if (coachK && coachK !== '-') tip.hidden = true;
     hand.hidden = !(k === 'tap' || k === 'tooHard');
   }
@@ -493,6 +506,7 @@ function startGame(mode) {
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
     countUp($('panel').querySelector('.cnt'), W.coins + (bonus || 0));
+    layoutCard($('panel'));
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
     if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
     $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); $('panel').hidden = true; resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
@@ -519,8 +533,12 @@ function startGame(mode) {
       const seen = {}; for (const [k, v] of Object.entries(save.best)) { const n = Number(k); if (!Number.isFinite(n)) continue; const kind = WD.KINDS[n % WD.KINDS.length]; seen[kind] = Math.max(seen[kind] || 0, v); }
       body = `<div class="agrid">${WD.KINDS.map((k) => { const has = k in seen; return `<div class="atile ${has ? '' : 'off'}"><span class="aic">${has ? KIND_ICON[k] : '❓'}</span><span class="anm">${has ? T(k) : ''}</span><span class="acups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${has && seen[k] >= i ? 'on' : ''}" alt="">`).join('')}</span></div>`; }).join('')}</div>`;
     }
-    $('shop').innerHTML = `<div class="card shopcard"><button id="shopX" class="round gloss sx" aria-label="close">✕</button>${tabs}${body}</div>`;
+    $('shop').innerHTML = `<div class="card shopcard"><div class="shead"><i></i>${tabs}<button id="shopX" class="round gloss sx" aria-label="close">✕</button></div>${body}</div>`;
     $('shop').hidden = false; Sound.play('blip');
+    const tabsEl = $('shop').querySelector('.tabs'); fitRow(tabsEl, [...tabsEl.querySelectorAll('.tab')], 30);
+    // building names: two balanced lines in their tile before a smaller font
+    const k = root.getBoundingClientRect().width / 720 || 1;
+    for (const n of $('shop').querySelectorAll('.anm')) if (n.textContent) fitText(n, n.parentElement.clientWidth / k - 12, 24, 2);
   }
   function buyOrUpgrade(id) {
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
@@ -642,7 +660,7 @@ function startGame(mode) {
     const ly = k === 'look' ? 300 : Math.max(330, Math.min(860, cy - cr - 70));
     for (const [n, v] of [['cx', cx], ['cy', cy], ['cr', cr], ['hx', hx], ['hy', hy], ['ly', ly]]) c.style.setProperty('--' + n, String(Math.round(v)));
     c.className = 'coach ' + how; const lb = c.querySelector('.clabel'); lb.textContent = text;
-    c.hidden = false; fitText(lb, 640, 44); $('tip').hidden = true;
+    c.hidden = false; fitText(lb, 600, 44, 2); $('tip').hidden = true;
   }
   function coachTick(dt) {
     if (demo || resultsOpen || !$('shop').hidden || W.phase === 'free') { showCoach(null); return; }
@@ -672,7 +690,7 @@ function startGame(mode) {
     el.innerHTML = `<span class="lvic">${KIND_ICON[W.kind] || '🏠'}</span><b class="out">${T('level', n + 1)}</b><span class="lvnm">${T(W.kind)}</span>${tag}`;
     el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
     clearTimeout(levelCard.t); levelCard.t = setTimeout(() => { el.hidden = true; }, 2300);
-    for (const x of el.querySelectorAll('b, .lvnm, .lvtag')) fitText(x, 640, x.tagName === 'B' ? 72 : 40);
+    for (const x of el.querySelectorAll('b, .lvnm, .lvtag')) fitText(x, 600, x.tagName === 'B' ? 72 : 40, x.classList.contains('lvnm') ? 2 : 1);
   }
   /** Builds the next level at once under a white flash that fades away. */
   function wipeTo(fn) { $('panel').hidden = true; fn(); const w = $('wipe'); w.hidden = false; w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(wipeTo.t); wipeTo.t = setTimeout(() => { w.hidden = true; }, 650); }
@@ -687,6 +705,20 @@ function startGame(mode) {
   // each found star has its own slot, even when two are found in one step
   let starsFlown = 0;
   const flyStar = (sx, sy) => { const slots = $('stars').querySelectorAll('img'), i = Math.min(2, starsFlown++); fly(`<img class="fst" src="${STAR_SVG}" alt="">`, sx, sy, slots[i], 'land'); };
+  /**
+   * A card's text follows its length: the title fits the card, and the buttons (NEXT, KEEP SMASHING, DAILY) share
+   * one width set by the longest label (at least 340, at most the card's inner width), a long label wrapping in two.
+   */
+  function layoutCard(panel) {
+    const card = panel.querySelector('.card'); if (!card) return;
+    const k = root.getBoundingClientRect().width / 720 || 1, cs = getComputedStyle(card);
+    const inner = (card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / k;
+    const title = card.querySelector('.title'); if (title) fitText(title, inner, 68, 2);
+    const bs = [...card.querySelectorAll('.btns .big, .btns .small')].filter((b) => b.id !== 'shareBtn');
+    for (const b of bs) { b.style.width = ''; b.style.whiteSpace = 'nowrap'; }
+    const w = Math.min(inner, Math.max(340, ...bs.map((b) => Math.ceil(b.offsetWidth / k))));
+    for (const b of bs) { b.style.width = `calc(var(--u)*${w}px)`; fitText(b, w, b.classList.contains('big') ? 52 : 32, 2); }
+  }
   /** The result card's coins count up from 0. */
   function countUp(el, to) {
     if (!el || to <= 0) return; const t0 = performance.now() + 450, dur = 700; el.textContent = '0';

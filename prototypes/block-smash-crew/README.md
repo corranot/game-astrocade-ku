@@ -64,6 +64,10 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   bomb, each until used once (saved in `learned`); level card (icon, LEVEL n, name, BOSS / DAILY) under a white flash;
   coins and found stars fly into the HUD; result coins count up. `journey.js` plays a new player's first minutes
   (phone) and checks every step, label placement and the flights.
+- Text auto-fit pass (user): every box follows its text — one line when it fits, else two balanced lines, only then a
+  smaller font (≥70%); result buttons share the longest label's width; shop tabs centred between an empty cell and ✕;
+  album names in two readable lines. `look.js` measures it in 7 languages (no sideways spill, no text under 12 u,
+  equal buttons, centred tabs).
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
