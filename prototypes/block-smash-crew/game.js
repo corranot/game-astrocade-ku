@@ -159,7 +159,8 @@ function startGame(mode) {
   setDir();
 
   // ---- save: one slot; nothing is written until the player's own save has been read
-  const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], lv: {}, learned: { bomb: false, drag: false, shop: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0, dailyDone: 0 };
+  const LESSONS = ['bomb', 'drag', 'shop', 'walk', 'hit'];
+  const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], lv: {}, learned: { bomb: false, drag: false, shop: false, walk: false, hit: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0, dailyDone: 0 };
   let saveLoaded = false, persistT = 0, dirtySave = false;
   const persist = () => { if (mode === 'play' && saveLoaded) { dirtySave = false; Promise.resolve().then(() => lib.saveUserGameState(JSON.parse(JSON.stringify(save)))).catch(() => {}); } };
   const persistSoon = () => { dirtySave = true; };
@@ -176,8 +177,9 @@ function startGame(mode) {
     $('panel').hidden = true; $('shop').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
     renderTools(); renderTop();
-    if (!demo && lastLevelShown !== n && W.boss) setTimeout(() => { if (alive && W && W.n === n) { banner(T('boss'), 'p-big', -200); Sound.play('fever'); } }, 700);
-    if (!demo && lastLevelShown !== n) { lastLevelShown = n; banner(`${T('level', n + 1)}`, 'p-mid', -60); setTimeout(() => { if (alive && W && W.n === n) banner(T(W.kind), 'p-mid', 20); }, 350); }
+    if (!demo && lastLevelShown !== n && W.boss) setTimeout(() => { if (alive && W && W.n === n) Sound.play('fever'); }, 500);
+    if (!demo && (lastLevelShown !== n || W.daily)) { lastLevelShown = n; levelCard(n); }
+    coachK = '-'; showCoach(null); walkD = 0; aimT = 0; lostT = 0; starsFlown = 0; lastHX = W.hero.x; lastHZ = W.hero.z;
     setTip(demo ? 'tap' : 'find');
   }
 
@@ -230,10 +232,17 @@ function startGame(mode) {
     const w = el.offsetWidth / k; if (w > maxW) el.style.fontSize = `calc(var(--u)*${Math.floor(base * maxW / w)}px)`;
   }
   let coinPopT = 0;
-  const coinPop = (n, x, y, z) => { if (!n || coinPopT > 0) return; coinPopT = 0.12; const [sx, sy, behind] = scene.screenOf(x, y, z); if (!behind) pop('+' + fmt(n), sx, sy - 40, 'p-coin'); };
+  const coinPop = (n, x, y, z) => {
+    if (!n || coinPopT > 0) return; coinPopT = 0.12; const [sx, sy, behind] = scene.screenOf(x, y, z); if (behind) return;
+    pop('+' + fmt(n), sx, sy - 40, 'p-coin');
+    // a coin flies into the coins pill (one every quarter second at most)
+    if (coinFlyT <= 0) { coinFlyT = 0.25; fly('<i class="coin"></i>', sx, sy - 40, $('coins')); }
+  };
+  let coinFlyT = 0;
   function setTip(k) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
     tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 620, 50); } // room for its pulse
+    if (coachK && coachK !== '-') tip.hidden = true;
     hand.hidden = !(k === 'tap' || k === 'tooHard');
   }
 
@@ -286,7 +295,7 @@ function startGame(mode) {
     e.preventDefault();
   }
   function onMove(e) {
-    if (locked && e.pointerType === 'mouse') { scene.look(-(e.movementX || 0) * cfg.camera.lookMouse, -(e.movementY || 0) * cfg.camera.lookMouse); return; }
+    if (locked && e.pointerType === 'mouse') { scene.look(-(e.movementX || 0) * cfg.camera.lookMouse, -(e.movementY || 0) * cfg.camera.lookMouse); if (!save.learned.drag && Math.abs(e.movementX || 0) > 2) { save.learned.drag = true; persistSoon(); } return; }
     if (stick && e.pointerId === stick.id) { const [x, y] = toFrame(e); let dx = x - stick.bx, dy = y - stick.by; const d = Math.hypot(dx, dy); if (d > 18 && !stick.moved) { stick.moved = true; firstTap = false; } if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; } stick.dx = dx; stick.dy = dy; showStick(); return; }
     if (!ptr || e.pointerId !== ptr.id || !W) return;
     const [x, y] = toFrame(e), dx = x - ptr.x, dy = y - ptr.y;
@@ -318,6 +327,7 @@ function startGame(mode) {
     if (mk && WD.starShot(W, mk.cell)) { idleT = 0; return; }
     if (sel !== 'hammer') { useSelected(cx, cy); return; }
     const t = scene.pick(cx, cy); if (t) WD.aimHammer(W, t, false, false);
+    if (W.hero.aim && !firstTap && !save.learned.hit) { save.learned.hit = true; persistSoon(); }
     // the very first tap of the game is a boom: the hammer swings at the TNT barrel straight ahead (in reach of the start)
     if (!W.hero.aim && firstTap) { const c = frontTnt(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
     firstTap = false;
@@ -336,7 +346,7 @@ function startGame(mode) {
     el.querySelector('i').style.transform = `translate(calc(var(--u)*${stick.dx}px),calc(var(--u)*${stick.dy}px))`;
   }
   /** HIT (button, held mouse, space): the hammer swings at the crosshair while held; a tool is thrown there once. */
-  function onHitDown() { if (mode !== 'play' || !W || resultsOpen || !$('shop').hidden) return; firstTap = false; Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
+  function onHitDown() { if (mode !== 'play' || !W || resultsOpen || !$('shop').hidden) return; firstTap = false; if (!demo && !save.learned.hit) { save.learned.hit = true; persistSoon(); } Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
   function useCrosshair() {
     const t = scene.target || scene.pickCenter(); if (!t) return;
     const id = sel, wasOwned = save.owned.includes(id);
@@ -384,6 +394,9 @@ function startGame(mode) {
   const onLock = () => { locked = document.pointerLockElement === cv; if (!locked) hitHeld = false; else if (ptr) { ptr = null; if (W) { WD.release(W); WD.aimHammer(W, null); } } };
   root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onCancel);
   document.addEventListener('pointerlockchange', onLock);
+  // a host that refuses the lock: clicks are taps and a drag looks, from now on
+  const onLockError = () => { lockRefused = true; };
+  document.addEventListener('pointerlockerror', onLockError);
   const noMenu = (e) => e.preventDefault(); root.addEventListener('contextmenu', noMenu);
   const onWheel = (e) => { if (mode !== 'play' || !W || !$('shop').hidden) return; const ids = cfg.tools.map((t) => t.id).filter(usable); const i = ids.indexOf(sel); if (ids.length) pickTool(ids[(i + (e.deltaY > 0 ? 1 : -1) + ids.length) % ids.length]); };
   root.addEventListener('wheel', onWheel, { passive: true });
@@ -441,7 +454,7 @@ function startGame(mode) {
       if (!demo) { save.coins += e.coins; save.total += e.coins; save.blocks += e.n; persistSoon(); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (e.n >= 12) pop(T('crash'), sx, sy - 120, e.n > 120 ? 'p-big' : 'p-mid', '#ffb02e'); coinPop(e.coins, e.x, e.y + 1, e.z); }
     } else if (e.type === 'step') Sound.play('step');
     else if (e.type === 'treasure') { Sound.play('treasure'); buzz('success'); if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); banner(T('treasure'), 'p-big', -40); } }
-    else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); persist(); } } // the chest's star: TREASURE! says it
+    else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); flyStar(sx, sy); persist(); } } // the chest's star: TREASURE! says it
     else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); banner(T('smashTime'), 'p-big'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); }
     else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); results(); }
     else if (e.type === 'pop') { /* the look handles it */ }
@@ -474,18 +487,19 @@ function startGame(mode) {
       <div class="title out">${T('clear')}</div>
       <div class="bigstars">${[0, 1, 2].map((i) => `<img src="${STAR_SVG}" class="on" style="animation-delay:${0.15 + i * 0.15}s" alt="">`).join('')}</div>
       <div class="cups"><span class="pct out">💥 ${Math.round(wr * 100)}%</span>${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</div>
-      <div class="stat out"><i class="coin"></i>+${fmt(W.coins + (bonus || 0))}</div>
+      <div class="stat out"><i class="coin"></i>+<b class="cnt">${fmt(W.coins + (bonus || 0))}</b></div>
       ${nt ? `<div class="nexttool out"><span class="hi">${nt.tool.icon}</span><i><b style="width:${Math.round(nt.have / nt.need * 100)}%"></b></i><span>${fmt(nt.have)}/${fmt(nt.need)}</span></div>` : ''}
       <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date()) ? `<button id="dailyBtn" class="small daily out">📅 ${T('dailyGo')}</button>` : ''}${share ? `<button id="shareBtn" class="small out">✈️</button>` : ''}</div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
+    countUp($('panel').querySelector('.cnt'), W.coins + (bonus || 0));
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
     if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
     $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); $('panel').hidden = true; resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
     if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('share') })).catch(() => {}); });
   }
-  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); newLevel(W.daily ? save.level : Math.max(W.n + 1, save.level)); } // a save that came late still counts; after the daily, back to the path
-  function startDaily() { Sound.unlock(cfg); Sound.play('unlock'); newLevel(L.dailyLevel(cfg, L.dayNum(new Date())), { daily: true }); banner(T('dailyGo'), 'p-big', -160); }
+  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); const n = W.daily ? save.level : Math.max(W.n + 1, save.level); wipeTo(() => newLevel(n)); } // a save that came late still counts; after the daily, back to the path
+  function startDaily() { Sound.unlock(cfg); Sound.play('unlock'); const n = L.dailyLevel(cfg, L.dayNum(new Date())); wipeTo(() => newLevel(n, { daily: true })); }
   // ---- the shop (tap the coins): tools to unlock and upgrade (5 levels each), and the album of buildings
   const KIND_ICON = { cottage: '🏠', candy: '🍬', castle: '🏰', lighthouse: '🗼', factory: '🏭', ice: '🧊', temple: '🛕', space: '🚀' };
   let shopTab = 'tools';
@@ -535,7 +549,7 @@ function startGame(mode) {
   $('gear').addEventListener('click', (e) => { e.stopPropagation(); blur(e); Sound.unlock(cfg); Sound.play('blip'); $('settings').hidden = !$('settings').hidden; renderTop(); });
   $('mute').addEventListener('click', (e) => { e.stopPropagation(); blur(e); muteTouched = true; Sound.unlock(cfg); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; $('mute').textContent = Sound.muted ? '🔇' : '🔊'; persist(); });
   $('langs').innerHTML = LANGS.map((l) => `<button data-l="${l}" class="gloss">${cfg.langNames[l]}</button>`).join('');
-  $('langs').addEventListener('click', (e) => { e.stopPropagation(); const l = e.target.dataset && e.target.dataset.l; if (!l) return; try { e.target.blur(); } catch (er) { /* fine */ } lang = l; save.lang = l; setDir(); $('settings').hidden = true; renderTools(); renderTop(); if (tipKey) setTip(tipKey); persist(); });
+  $('langs').addEventListener('click', (e) => { e.stopPropagation(); const l = e.target.dataset && e.target.dataset.l; if (!l) return; try { e.target.blur(); } catch (er) { /* fine */ } lang = l; save.lang = l; setDir(); $('settings').hidden = true; renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); persist(); });
   $('settings').addEventListener('pointerdown', (e) => e.stopPropagation());
 
   // ---- frame loop
@@ -551,7 +565,7 @@ function startGame(mode) {
     // hit-stop on a solid hit, slow motion while a tower tips and as a big piece lands
     if (stopT > 0) stopT -= real; if (slowT > 0) slowT -= real;
     const dt = real * speed * (stopT > 0 ? 0.06 : slowT > 0 ? 0.4 : 1);
-    coinPopT -= dt;
+    coinPopT -= dt; coinFlyT -= dt;
     if (mode === 'play' && W) {
       if (demo) { // attract: the hero smashes the fence by himself
         demoT -= dt;
@@ -573,7 +587,7 @@ function startGame(mode) {
       }
       if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && performance.now() - ptr.t > 120) { // holding on a block: keep aiming at what is under the finger
         // only a block in reach makes it a hold: a slow press on a far block or a star is still a tap on release
-        const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true, false); if (W.hero.aim) ptr.held = true; }
+        const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true, false); if (W.hero.aim) { ptr.held = true; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } } }
       }
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
@@ -583,7 +597,7 @@ function startGame(mode) {
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
       if (hardHint) { hardHint.t -= dt; if (hardHint.t <= 0) { hardHint = null; toolEls.bomb.classList.remove('hint'); } }
       idleT = W.phase === 'play' && !demo ? idleT + dt : 0;
-      placeHand(); placeArrows();
+      placeHand(); placeArrows(); coachTick(dt);
       if (dirtySave && (persistT -= dt) <= 0) { persistT = 2; persist(); }
     }
     scene.tool = sel;
@@ -600,6 +614,7 @@ function startGame(mode) {
   }
   function placeHand() {
     const hand = $('hand');
+    if (coachK) { hand.hidden = true; hand._k = ''; return; }
     // stuck for a while: the hand points at a shining star (tapping it throws a star bomb)
     const help = idleT > 8 && !demo && tipKey !== 'tooHard' ? scene.starMarks()[0] : null;
     if (help) { hand.hidden = false; const k = `s${Math.round(help.x / 4)},${Math.round(help.y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.left = `calc(var(--u)*${help.x}px)`; hand.style.top = `calc(var(--u)*${help.y + 30}px)`; } return; }
@@ -609,6 +624,74 @@ function startGame(mode) {
     if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = root.getBoundingClientRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
     else { x = 400; y = 560; } // first person: point at the middle of the view
     const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.left = `calc(var(--u)*${x}px)`; hand.style.top = `calc(var(--u)*${y}px)`; }
+  }
+  // ---- coach: the first times, a spotlight shows each control (walk, look, smash, bomb) until it has been used once
+  let coachK = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0;
+  /** An element's centre and size in frame units. */
+  const frameRect = (el) => { const r = el.getBoundingClientRect(), a = root.getBoundingClientRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
+  /** Shows the coach step k (null hides it): a dimmed screen with a lit hole on the control, a label and a moving hand. */
+  function showCoach(k) {
+    if (coachK === k) return;
+    coachK = k; const c = $('coach');
+    if (!k) { c.hidden = true; if (tipKey) $('tip').hidden = false; return; }
+    const desk = !touchUI; let cx, cy, cr, hx, hy, text, how;
+    if (k === 'walk') { const r = desk ? frameRect($('keys')) : { x: 111, y: 1029, w: 190 }; cx = r.x; cy = r.y; cr = desk ? r.w / 2 + 24 : 118; hx = cx; hy = cy + (desk ? 10 : 30); text = T(desk ? 'cWalkKeys' : 'cWalk'); how = desk ? 'press' : 'drag'; }
+    else if (k === 'look') { cx = 400; cy = 560; cr = 210; hx = 400; hy = 600; text = T(desk ? 'cLookMouse' : 'cLook'); how = 'swipe'; }
+    else if (k === 'hit') { const r = frameRect($(desk ? 'cross' : 'hit')); cx = r.x; cy = r.y; cr = desk ? 90 : r.w / 2 + 26; hx = cx; hy = cy + 20; text = T(desk ? 'cHitClick' : 'cHit'); how = 'press'; }
+    else { const r = frameRect(toolEls.bomb); cx = r.x; cy = r.y; cr = r.w / 2 + 22; hx = cx; hy = cy - 10; text = T('tooHard'); how = 'press'; }
+    const ly = k === 'look' ? 300 : Math.max(330, Math.min(860, cy - cr - 70));
+    for (const [n, v] of [['cx', cx], ['cy', cy], ['cr', cr], ['hx', hx], ['hy', hy], ['ly', ly]]) c.style.setProperty('--' + n, String(Math.round(v)));
+    c.className = 'coach ' + how; const lb = c.querySelector('.clabel'); lb.textContent = text;
+    c.hidden = false; fitText(lb, 640, 44); $('tip').hidden = true;
+  }
+  function coachTick(dt) {
+    if (demo || resultsOpen || !$('shop').hidden || W.phase === 'free') { showCoach(null); return; }
+    const h = W.hero, d = Math.hypot(h.x - lastHX, h.z - lastHZ); lastHX = h.x; lastHZ = h.z;
+    if (h.move && (h.move.x || h.move.z)) walkD += Math.min(d, 1);
+    if (!save.learned.walk && walkD > 2) { save.learned.walk = true; persistSoon(); }
+    const t = scene.target, near = t && t.type === 'block' && t.dist <= cfg.hero.reach;
+    aimT = near ? aimT + dt : 0; lostT = near ? 0 : lostT + dt;
+    let k = null;
+    if (tipKey === 'tooHard' && !save.learned.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';
+    else if (W.phase !== 'play' || W.t < 1.2) k = null;
+    else if (!save.learned.walk) k = 'walk';
+    else if (!save.learned.drag) k = 'look';
+    // the smash step stays up while the target only flickers away (a block breaking under the crosshair)
+    else if (!save.learned.hit && (aimT > 0.6 || (coachK === 'hit' && lostT < 0.6))) k = 'hit';
+    // the step on screen was just done: a thumbs-up
+    if (coachK && coachK !== k && ['walk', 'look', 'hit', 'bomb'].includes(coachK) && save.learned[coachK === 'look' ? 'drag' : coachK]) cheer();
+    showCoach(k);
+  }
+  /** A lesson done: a thumbs-up and a bright note. */
+  /** The coach step on screen, drawn again (a new language). */
+  function relabel() { if (coachK && coachK !== '-') { const k = coachK; coachK = '-'; showCoach(k); } }
+  function cheer() { pop('👍 ' + T('great'), 360, 470, 'p-mid', '#7dff9a'); Sound.play('blip', 990); buzz('tap'); }
+  /** A new level: a card with the building's icon, its number and name (and BOSS / DAILY). */
+  function levelCard(n) {
+    const el = $('lvcard'), tag = W.daily ? `<span class="lvtag d">📅 ${T('dailyGo')}</span>` : W.boss ? `<span class="lvtag">👑 ${T('boss')}</span>` : '';
+    el.innerHTML = `<span class="lvic">${KIND_ICON[W.kind] || '🏠'}</span><b class="out">${T('level', n + 1)}</b><span class="lvnm">${T(W.kind)}</span>${tag}`;
+    el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+    clearTimeout(levelCard.t); levelCard.t = setTimeout(() => { el.hidden = true; }, 2300);
+    for (const x of el.querySelectorAll('b, .lvnm, .lvtag')) fitText(x, 640, x.tagName === 'B' ? 72 : 40);
+  }
+  /** Builds the next level at once under a white flash that fades away. */
+  function wipeTo(fn) { $('panel').hidden = true; fn(); const w = $('wipe'); w.hidden = false; w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(wipeTo.t); wipeTo.t = setTimeout(() => { w.hidden = true; }, 650); }
+  /** Something flies from frame point (sx, sy) into a HUD element, which bumps when it lands. */
+  function fly(html, sx, sy, target, land = 'bump') {
+    const r = frameRect(target), el = document.createElement('div'); el.className = 'fly'; el.innerHTML = html;
+    el.style.left = `calc(var(--u)*${Math.round(sx)}px)`; el.style.top = `calc(var(--u)*${Math.round(sy)}px)`;
+    el.style.setProperty('--dx', String(Math.round(r.x - sx))); el.style.setProperty('--dy', String(Math.round(r.y - sy)));
+    $('flies').appendChild(el);
+    setTimeout(() => { el.remove(); target.classList.remove(land); void target.offsetWidth; target.classList.add(land); }, 620);
+  }
+  // each found star has its own slot, even when two are found in one step
+  let starsFlown = 0;
+  const flyStar = (sx, sy) => { const slots = $('stars').querySelectorAll('img'), i = Math.min(2, starsFlown++); fly(`<img class="fst" src="${STAR_SVG}" alt="">`, sx, sy, slots[i], 'land'); };
+  /** The result card's coins count up from 0. */
+  function countUp(el, to) {
+    if (!el || to <= 0) return; const t0 = performance.now() + 450, dur = 700; el.textContent = '0';
+    const tick = () => { if (!alive || !el.isConnected) return; const k = Math.max(0, Math.min(1, (performance.now() - t0) / dur)); el.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
   }
   /** An arrow at the frame's edge towards each star that is out of view. */
   function placeArrows() {
@@ -664,10 +747,12 @@ function startGame(mode) {
         save.level = Math.max(num(st.level), levelLocal); save.levels = num(st.levels) + levelsLocal;
         save.owned = [...new Set(['hammer', 'bomb', ...(Array.isArray(st.owned) ? st.owned : []), ...owned])].filter((id) => cfg.tools.some((t) => t.id === id));
         save.best = { ...(st.best && typeof st.best === 'object' ? st.best : {}) }; for (const [k, v] of Object.entries(best)) save.best[k] = Math.max(num(save.best[k]), v);
-        save.learned = { bomb: !!(st.learned && st.learned.bomb) || learned.bomb, drag: !!(st.learned && st.learned.drag) || learned.drag };
+        // every lesson learned on either side stays learned (the coach never comes back for it)
+        save.learned = {}; for (const k of LESSONS) save.learned[k] = !!(st.learned && st.learned[k]) || !!learned[k];
         save.day = Math.max(num(st.day), dayLocal); save.dailyDone = Math.max(num(st.dailyDone), dailyLocal);
         save.lv = { ...(st.lv && typeof st.lv === 'object' ? st.lv : {}) }; for (const [k, v] of Object.entries(lvLocal)) save.lv[k] = Math.max(num(save.lv[k]) || 1, v);
-        save.learned.shop = !!(st.learned && st.learned.shop) || learned.shop;
+        // lessons learned on another day: the coach on screen goes quietly (no thumbs-up for them)
+        coachK = '-'; showCoach(null);
         save.lang = picked || (LANGS.includes(st.lang) ? st.lang : null);
         if (save.lang) { lang = save.lang; setDir(); }
         save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊';
@@ -692,13 +777,13 @@ function startGame(mode) {
       alive = false; cancelAnimationFrame(raf); Sound.stop();
       if (dirtySave) persist();
       root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onCancel);
-      root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('wheel', onWheel); document.removeEventListener('pointerlockchange', onLock); try { if (document.pointerLockElement === cv) document.exitPointerLock(); } catch (er) { /* fine */ }
+      root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('wheel', onWheel); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('pointerlockerror', onLockError); try { if (document.pointerLockElement === cv) document.exitPointerLock(); } catch (er) { /* fine */ }
       window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
       scene.dispose(); root.innerHTML = '';
     },
     debug: {
       get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; },
-      scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); },
+      scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); },
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
@@ -725,10 +810,14 @@ const HTML = `
   <div id="keys" class="keys out">WASD · 🖱️ · 1-6</div>
   <div id="tip" class="tip out" hidden></div>
   <div id="tools" class="tools"></div>
+  <div id="coach" class="coach" hidden><i class="cring"></i><div class="clabel"></div><div class="chand">👆</div></div>
+  <div id="lvcard" class="lvcard" hidden></div>
   <div id="pops" class="pops"></div>
+  <div id="flies" class="flies"></div>
   <div id="hand" class="hand" hidden>👆</div>
   <div id="panel" class="panel" hidden></div>
   <div id="shop" class="panel" hidden></div>
+  <div id="wipe" class="wipe" hidden></div>
 </div>`;
 
 window.run = run;

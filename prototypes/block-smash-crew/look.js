@@ -16,7 +16,8 @@ fs.mkdirSync(out, { recursive: true });
     const overflow = () => g(() => { const a = document.getElementById('app').getBoundingClientRect(); return [...document.querySelectorAll('.pop, .tip, .title, .card, .big, .small, .cups, .stat, .nexttool, .tool, .pill, .bar, .round, .srow, .sbtn, .tab, .atile, .anm')].filter((el) => !el.closest('[hidden]') && el.offsetParent !== null).map((el) => [el.className, el.getBoundingClientRect()]).filter(([, r]) => r.width && (r.left < a.left - 1 || r.right > a.right + 1)).map(([c]) => c); });
     const over = [];
     await page.waitForTimeout(1500); await shot('1-demo'); over.push(...await overflow());
-    await g(() => { __game.newLevel(0); const W = __game.W; __game.WD.aimHammer(W, { type: 'block', x: Math.floor(W.chest.x), y: 1, z: W.box.z1, nx: 0, ny: 0, nz: 1 }, true); });
+    // a player who has done the walk / look / smash lessons (the coach screens are journey.js's)
+    await g(() => { Object.assign(__game.save.learned, { walk: true, drag: true, hit: true }); __game.newLevel(0); const W = __game.W; __game.WD.aimHammer(W, { type: 'block', x: Math.floor(W.chest.x), y: 1, z: W.box.z1, nx: 0, ny: 0, nz: 1 }, true); });
     await page.waitForTimeout(1800); await shot('2-play'); over.push(...await overflow());
     // inside: the hero in the room in front of the vault, roof peeled away
     await g(() => { const W = __game.W; __game.WD.aimHammer(W, null); W.hero.x = W.chest.x + 0.5; W.hero.z = W.chest.z + 4; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.2); });

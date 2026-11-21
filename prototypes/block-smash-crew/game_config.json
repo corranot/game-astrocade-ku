@@ -362,7 +362,14 @@
    "max": "MAX",
    "dailyGo": "DAILY ×2",
    "built": "BUILDINGS",
-   "boss": "BOSS BUILDING!"
+   "boss": "BOSS BUILDING!",
+   "great": "GREAT!",
+   "cWalk": "DRAG TO WALK",
+   "cWalkKeys": "WASD TO WALK",
+   "cLook": "SWIPE TO LOOK",
+   "cLookMouse": "CLICK & DRAG TO LOOK",
+   "cHit": "HOLD 💥 TO SMASH",
+   "cHitClick": "CLICK TO SMASH"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -401,7 +408,14 @@
    "max": "الحد الأقصى",
    "dailyGo": "يومي ×2",
    "built": "المباني",
-   "boss": "مبنى الزعيم!"
+   "boss": "مبنى الزعيم!",
+   "great": "رائع!",
+   "cWalk": "اسحب للمشي",
+   "cWalkKeys": "WASD للمشي",
+   "cLook": "اسحب للنظر حولك",
+   "cLookMouse": "انقر واسحب للنظر",
+   "cHit": "اضغط مطولاً 💥 للتحطيم",
+   "cHitClick": "انقر للتحطيم"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -440,7 +454,14 @@
    "max": "MÁX",
    "dailyGo": "DIARIO ×2",
    "built": "EDIFICIOS",
-   "boss": "¡EDIFICIO JEFE!"
+   "boss": "¡EDIFICIO JEFE!",
+   "great": "¡GENIAL!",
+   "cWalk": "ARRASTRA PARA CAMINAR",
+   "cWalkKeys": "WASD PARA CAMINAR",
+   "cLook": "DESLIZA PARA MIRAR",
+   "cLookMouse": "CLIC Y ARRASTRA PARA MIRAR",
+   "cHit": "MANTÉN 💥 PARA ROMPER",
+   "cHitClick": "CLIC PARA ROMPER"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -479,7 +500,14 @@
    "max": "TỐI ĐA",
    "dailyGo": "HÀNG NGÀY ×2",
    "built": "TOÀ NHÀ",
-   "boss": "TOÀ NHÀ TRÙM!"
+   "boss": "TOÀ NHÀ TRÙM!",
+   "great": "TUYỆT!",
+   "cWalk": "KÉO ĐỂ ĐI",
+   "cWalkKeys": "WASD ĐỂ ĐI",
+   "cLook": "VUỐT ĐỂ NHÌN",
+   "cLookMouse": "NHẤP & KÉO ĐỂ NHÌN",
+   "cHit": "GIỮ 💥 ĐỂ ĐẬP",
+   "cHitClick": "NHẤP ĐỂ ĐẬP"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -518,7 +546,14 @@
    "max": "पूरा",
    "dailyGo": "आज का ×2",
    "built": "इमारतें",
-   "boss": "बॉस इमारत!"
+   "boss": "बॉस इमारत!",
+   "great": "शाबाश!",
+   "cWalk": "चलने के लिए खींचें",
+   "cWalkKeys": "चलने के लिए WASD",
+   "cLook": "देखने के लिए स्वाइप करें",
+   "cLookMouse": "देखने के लिए क्लिक करके खींचें",
+   "cHit": "तोड़ने के लिए 💥 दबाए रखें",
+   "cHitClick": "तोड़ने के लिए क्लिक करें"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -557,7 +592,14 @@
    "max": "সর্বোচ্চ",
    "dailyGo": "আজকের ×2",
    "built": "ভবন",
-   "boss": "বস ভবন!"
+   "boss": "বস ভবন!",
+   "great": "দারুণ!",
+   "cWalk": "হাঁটতে টেনে ধরো",
+   "cWalkKeys": "হাঁটতে WASD",
+   "cLook": "দেখতে সোয়াইপ করো",
+   "cLookMouse": "দেখতে ক্লিক করে টানো",
+   "cHit": "ভাঙতে 💥 চেপে ধরো",
+   "cHitClick": "ভাঙতে ক্লিক করো"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -596,7 +638,14 @@
    "max": "MAKS",
    "dailyGo": "HARIAN ×2",
    "built": "GEDUNG",
-   "boss": "GEDUNG BOS!"
+   "boss": "GEDUNG BOS!",
+   "great": "HEBAT!",
+   "cWalk": "GESER UNTUK JALAN",
+   "cWalkKeys": "WASD UNTUK JALAN",
+   "cLook": "USAP UNTUK MELIHAT",
+   "cLookMouse": "KLIK & GESER UNTUK MELIHAT",
+   "cHit": "TAHAN 💥 UNTUK HANCURKAN",
+   "cHitClick": "KLIK UNTUK HANCURKAN"
   }
  },
  "persistent_storage_config": {

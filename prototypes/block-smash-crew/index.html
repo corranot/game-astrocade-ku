@@ -149,6 +149,44 @@ body{display:flex;align-items:center;justify-content:center}
 #load.out{opacity:0;pointer-events:none}
 #load i{width:min(20vmin,120px);aspect-ratio:1;border-radius:18%;background:linear-gradient(#ff8a5a,#e0503c);border:min(1.4vmin,8px) solid #fff;animation:jig .7s ease-in-out infinite}
 @keyframes jig{50%{transform:scale(1.12,.88) rotate(8deg)}}
+/* coach: a dimmed screen with a lit hole on the control being taught, a label and a moving hand (touches pass through) */
+.coach{position:absolute;inset:0;pointer-events:none;z-index:3;--cx:360;--cy:640;--cr:120;--hx:360;--hy:640;--ly:300;background:radial-gradient(circle at calc(var(--cx)*var(--u)*1px) calc(var(--cy)*var(--u)*1px),rgba(18,28,70,0) calc(var(--cr)*var(--u)*1px),rgba(18,28,70,.5) calc((var(--cr) + 16)*var(--u)*1px));animation:cfade .35s ease-out}
+@keyframes cfade{from{opacity:0}}
+.cring{position:absolute;left:calc(var(--cx)*var(--u)*1px);top:calc(var(--cy)*var(--u)*1px);width:calc(var(--cr)*var(--u)*2px);height:calc(var(--cr)*var(--u)*2px);translate:-50% -50%;border-radius:50%;box-sizing:border-box;border:calc(var(--u)*6px) solid #fff;box-shadow:0 0 calc(var(--u)*22px) rgba(255,255,255,.85);animation:cring 1.2s ease-in-out infinite}
+@keyframes cring{50%{transform:scale(1.07);opacity:.75}}
+.clabel{position:absolute;left:50%;top:calc(var(--ly)*var(--u)*1px);translate:-50% -50%;padding:calc(var(--u)*16px) calc(var(--u)*30px);border-radius:999px;background:#fff;color:var(--ink);font-size:calc(var(--u)*44px);line-height:1;white-space:nowrap;box-shadow:0 calc(var(--u)*7px) 0 #b9d6f0,0 calc(var(--u)*14px) calc(var(--u)*24px) rgba(20,40,90,.3);animation:pulse 1.2s ease-in-out infinite}
+.chand{position:absolute;left:calc(var(--hx)*var(--u)*1px);top:calc(var(--hy)*var(--u)*1px);font-size:calc(var(--u)*92px);line-height:1;filter:drop-shadow(0 calc(var(--u)*6px) calc(var(--u)*6px) rgba(0,0,0,.35))}
+.coach.drag .chand{animation:cdrag 1.5s ease-in-out infinite}
+@keyframes cdrag{0%,15%{transform:translate(-30%,0)}55%,75%{transform:translate(-30%,calc(var(--u)*-86px)) scale(.92)}100%{transform:translate(-30%,0)}}
+.coach.swipe .chand{animation:cswipe 1.6s ease-in-out infinite}
+@keyframes cswipe{0%,10%{transform:translate(calc(var(--u)*110px),0)}60%,70%{transform:translate(calc(var(--u)*-130px),0) scale(.92)}100%{transform:translate(calc(var(--u)*110px),0)}}
+.coach.press .chand{animation:cpress .9s ease-in-out infinite}
+@keyframes cpress{0%,100%{transform:translate(-30%,0)}50%{transform:translate(-30%,calc(var(--u)*14px)) scale(.85)}}
+/* level card: the building's icon, LEVEL n, its name, and BOSS / DAILY */
+.lvcard{position:absolute;left:50%;top:calc(var(--u)*400px);translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*12px);pointer-events:none;white-space:nowrap;z-index:3}
+.lvcard.go{animation:lvcard 2.3s cubic-bezier(.2,.9,.3,1.15) both}
+@keyframes lvcard{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.08)}20%{transform:scale(1)}80%{opacity:1;transform:none}100%{opacity:0;transform:translateY(calc(var(--u)*-60px)) scale(.9)}}
+.lvic{font-size:calc(var(--u)*120px);line-height:1;filter:drop-shadow(0 calc(var(--u)*8px) calc(var(--u)*8px) rgba(20,40,90,.35))}
+.lvcard b{font-size:calc(var(--u)*72px);line-height:1}
+.lvnm{font-size:calc(var(--u)*40px);line-height:1;padding:calc(var(--u)*12px) calc(var(--u)*28px);border-radius:999px;background:#fff;color:var(--ink);box-shadow:0 calc(var(--u)*6px) 0 #b9d6f0}
+.lvtag{font-size:calc(var(--u)*34px);line-height:1;padding:calc(var(--u)*10px) calc(var(--u)*24px);border-radius:999px;background:linear-gradient(#fff3a8,#ffc400);color:var(--ink);box-shadow:0 calc(var(--u)*5px) 0 #c98a00}
+.lvtag.d{background:linear-gradient(#d4ffe0,#4bd67c);box-shadow:0 calc(var(--u)*5px) 0 #23944a}
+/* level change: a white flash that fades to the new building */
+.wipe{position:absolute;inset:0;pointer-events:none;z-index:6;background:radial-gradient(circle at 50% 45%,#ffffff 0,#e3f5ff 60%,#bfe6ff 100%);opacity:0}
+.wipe.go{animation:wipe .65s ease-out both}
+@keyframes wipe{0%{opacity:1}35%{opacity:1}100%{opacity:0}}
+/* things that fly into the HUD: coins to the coins pill, found stars to their slot */
+.flies{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:4}
+.fly{position:absolute;width:0;height:0;animation:fly .62s cubic-bezier(.5,0,.8,.45) both}
+.fly>*{position:absolute;left:0;top:0;translate:-50% -50%}
+.fly .coin{width:calc(var(--u)*40px);height:calc(var(--u)*40px)}
+.fly .fst{width:calc(var(--u)*64px);height:calc(var(--u)*64px)}
+@keyframes fly{0%{transform:scale(.6)}25%{transform:translate(calc(var(--dx)*var(--u)*.06px),calc(var(--u)*-50px)) scale(1.25)}100%{transform:translate(calc(var(--dx)*var(--u)*1px),calc(var(--dy)*var(--u)*1px)) scale(.75)}}
+.st.on.land{animation:land .5s ease-out}
+@keyframes land{0%{transform:scale(1.6) rotate(-20deg)}60%{transform:scale(.9)}100%{transform:none}}
+/* the coach dims the world and the controls, never the top bar, the words or what flies into the HUD */
+.top,.pops{z-index:4}
+@media (prefers-reduced-motion:reduce){.coach .chand,.cring,.clabel,.tip{animation:none!important}.fly{animation-duration:.01s!important}}
 </style>
 </head>
 <body>

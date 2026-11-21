@@ -9,7 +9,8 @@ and each one hides 3 stars: one in the treasure chest inside a steel vault, one 
 one deep inside behind the rooms.
 
 ## How to play
-First person: you see your hands and your tool. The game finds your device by itself.
+First person: you see your hands and your tool. The game finds your device by itself. The first times, a bright spotlight shows each
+control (walk, look, smash, bomb) until you have used it.
 - Phone or tablet: the stick (lower left) walks, swipe anywhere else to look around, hold the 💥 button to smash what
   the crosshair shows. Or tap a block close to you to smash it; hold on it to keep smashing.
 - Computer: WASD or the arrow keys walk (Shift runs), the mouse looks around, click or Space smashes, 1–6 or the

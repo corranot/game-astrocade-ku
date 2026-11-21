@@ -60,6 +60,10 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Controls pass (user): no auto-walk (only stick / WASD walk; swipe elsewhere looks), resting stick shown on phones,
   tools at the bottom edge (no empty band), spawn 1.5 closer so the front TNT is in hammer reach. Child pilot now
   walks with the stick + holds HIT: 48/48, median 12 s.
+- First-time guidance pass (user): coach spotlight (dim + lit hole + moving hand + label) for walk → look → smash →
+  bomb, each until used once (saved in `learned`); level card (icon, LEVEL n, name, BOSS / DAILY) under a white flash;
+  coins and found stars fly into the HUD; result coins count up. `journey.js` plays a new player's first minutes
+  (phone) and checks every step, label placement and the flights.
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with

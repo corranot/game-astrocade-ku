@@ -12,6 +12,11 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   const g = (fn, a) => page.evaluate(fn, a);
   await page.waitForFunction(() => __game.saveLoaded, null, { timeout: 10000 });
   await g(() => { const a = document.querySelector('#app').getBoundingClientRect(); document.querySelector('#app').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, clientX: a.left + a.width / 2, clientY: a.top + a.height * 0.4, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true })); __bot(true); });
+  // the same fresh building before and after the run: a leak shows as more GPU geometries the second time
+  const fresh = () => g(async () => { const n = __game.W.n; __game.newLevel(0); await new Promise((r) => setTimeout(r, 600)); const geo = __game.geometries; __game.newLevel(n); return geo; });
+  // warm up: every tool thrown once (each shot kind builds its shared geometry the first time, then reuses it)
+  await g(async () => { const W = __game.W; W.fever = 5; for (const t of W.cfg.tools) if (t.id !== 'hammer') { W.cool[t.id] = 0; __game.WD.useTool(W, t.id, { x: W.chest.x, y: 1, z: W.chest.z }); } await new Promise((r) => setTimeout(r, 3000)); });
+  const geo0 = await fresh();
   const mem = [], kinds = new Set(); let coins0 = 0;
   for (let i = 0; i < levels; i++) {
     const t0 = Date.now();
@@ -26,11 +31,11 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
     await page.waitForTimeout(300);
   }
   console.log('gpu [textures, geometries] after each level:', JSON.stringify(mem));
-  // geometry per level depends on the building (chunks), so compare the same building kind a full cycle apart
-  const same = mem.length > 8 ? Math.abs(mem[mem.length - 1][1] - mem[mem.length - 1 - 8][1]) : 0;
+  // buildings grow every cycle of 8, so a level 8 apart is not the same size: compare the same fresh level 1
+  const geo1 = await fresh(), same = geo1 - geo0;
   const tex = mem.slice(1).map((m) => m[0]);
   check(Math.max(...tex) - Math.min(...tex) <= 1, 'GPU textures stay flat');
-  check(same <= 4, `geometries do not pile up (same building 8 levels apart differs by ${same})`);
+  check(same <= 2, `geometries do not pile up (the same fresh level 1: ${geo0} before, ${geo1} after 10 levels)`);
   check(kinds.size === Math.min(8, levels), `every building came up (${[...kinds].join(', ')})`);
   check(errors.length === 0, 'no page errors: ' + (errors.join(' | ') || 'none'));
   await browser.close(); server.close();
