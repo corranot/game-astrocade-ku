@@ -22,6 +22,7 @@ const buzz = (kind) => { try { lib.haptics.play(kind); } catch (e) { /* no vibra
 // ---------------------------------------------------------------- sound: all made in code, no files to load
 const Sound = (() => {
   let ctx = null, master = null, music = null, muted = false, noise = null, seq = 0, step = 0, nextT = 0, tempo = 118, lastCoin = 0;
+  const buf = {}; let loading = false, song = null; // recorded sounds (from the asset map), the music loop playing
   const ensure = () => {
     if (ctx) return ctx;
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.75; master.connect(ctx.destination); music = ctx.createGain(); music.gain.value = 0.13; music.connect(master); } catch (e) { ctx = null; }
@@ -71,7 +72,7 @@ const Sound = (() => {
   const BASS = [45, 45, 52, 52, 50, 50, 47, 52], MEL = [69, 0, 72, 76, 0, 72, 69, 0, 71, 0, 74, 79, 0, 76, 74, 0];
   const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
   function tick() {
-    if (!ctx || muted || ctx.state !== 'running') return;
+    if (!ctx || muted || ctx.state !== 'running' || song) return; // the recorded music plays instead
     const spb = 60 / tempo / 2;
     if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05;
     while (nextT < ctx.currentTime + 0.3) {
@@ -83,14 +84,37 @@ const Sound = (() => {
       nextT += spb; step++;
     }
   }
+  /** Loads the recorded sounds named in cfg.sounds; until one arrives (or if it never does) its sound is made in code. */
+  function load(cfg) {
+    if (loading || !ctx || !cfg.sounds) return; loading = true;
+    for (const [name, sd] of Object.entries(cfg.sounds)) {
+      let a = null; try { a = lib.getAsset(sd.id); } catch (e) { /* no asset map */ }
+      if (!a || !a.url) continue;
+      fetch(a.url).then((r) => r.arrayBuffer()).then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej))).then((b) => { buf[name] = { b, ...sd }; if (name === 'music') startSong(); }).catch(() => { /* keep the code-made sound */ });
+    }
+  }
+  function playBuf(id, vol) {
+    const sd = buf[id], src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = sd.b; src.playbackRate.value = 0.94 + Math.random() * 0.12; g.gain.value = sd.gain * Math.min(1.2, vol);
+    src.connect(g).connect(master);
+    const end = sd.end ? sd.end - sd.skip : undefined;
+    if (end) { const t = ctx.currentTime; g.gain.setValueAtTime(sd.gain * Math.min(1.2, vol), t + end * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + end); }
+    src.start(0, sd.skip || 0, end);
+  }
+  function startSong() {
+    if (!buf.music || song || !ctx) return;
+    song = ctx.createBufferSource(); song.buffer = buf.music.b; song.loop = true; song.playbackRate.value = tempo / 118;
+    const g = ctx.createGain(); g.gain.value = buf.music.gain * 0.5; song.connect(g).connect(music); song.start();
+  }
   return {
-    unlock() { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); },
-    play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } fx[id](a); },
-    setTempo(t) { tempo = t; },
+    unlock(cfg) { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); },
+    play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a); else fx[id](a); },
+    setTempo(t) { tempo = t; if (song) song.playbackRate.value = t / 118; },
+    get recorded() { return Object.keys(buf).length; },
     get muted() { return muted; },
-    setMuted(v) { muted = !!v; },
+    setMuted(v) { muted = !!v; if (music && ctx) music.gain.setTargetAtTime(muted ? 0 : 0.13, ctx.currentTime, 0.05); },
     suspend(v) { if (!ctx) return; if (v) ctx.suspend().catch(() => {}); else ctx.resume().catch(() => {}); },
-    stop() { clearInterval(seq); seq = 0; },
+    stop() { clearInterval(seq); seq = 0; if (song) { try { song.stop(); } catch (e) { /* stopped */ } song = null; } },
     get running() { return !!ctx && ctx.state === 'running'; },
   };
 })();
@@ -231,7 +255,7 @@ function startGame(mode) {
   function onDown(e) {
     if (mode !== 'play' || !W) return;
     if (e.target.closest && e.target.closest('button, .settings, #panel')) return;
-    Sound.unlock(); $('settings').hidden = true;
+    Sound.unlock(cfg); $('settings').hidden = true;
     const [x, y] = toFrame(e);
     if (demo) firstTouch();
     if (touchUI && e.pointerType !== 'mouse' && !stick && x < 360 && y > 600 && y < 990) { // the walking thumb
@@ -289,7 +313,7 @@ function startGame(mode) {
     el.querySelector('i').style.transform = `translate(calc(var(--u)*${stick.dx}px),calc(var(--u)*${stick.dy}px))`;
   }
   /** HIT (button, held mouse, space): the hammer swings at the crosshair while held; a tool is thrown there once. */
-  function onHitDown() { if (mode !== 'play' || !W || resultsOpen) return; Sound.unlock(); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
+  function onHitDown() { if (mode !== 'play' || !W || resultsOpen) return; Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
   function useCrosshair() {
     const t = scene.target || scene.pickCenter(); if (!t) return;
     const id = sel, wasOwned = save.owned.includes(id);
@@ -315,7 +339,7 @@ function startGame(mode) {
   }
   function pickTool(id) {
     if (mode !== 'play' || !W || resultsOpen) return; // nothing is bought or picked behind the result card
-    Sound.unlock(); if (demo) firstTouch();
+    Sound.unlock(cfg); if (demo) firstTouch();
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id);
     if (!owned && !usable(id) && save.coins >= t.cost) { // buy it, only once its free try is used (and never in smash time, which lends it)
       save.coins -= t.cost; save.owned.push(id); W.owned.push(id); persist();
@@ -347,7 +371,7 @@ function startGame(mode) {
     const k = CODE[e.code] || (e.key || '').toLowerCase();
     if (e.type === 'keyup') { keys.delete(k); if (k === ' ') hitHeld = false; return; }
     if (mode !== 'play' || !W) return;
-    if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); Sound.unlock(); e.preventDefault(); return; }
+    if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); Sound.unlock(cfg); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
     const dm = /^Digit([1-6])$/.exec(e.code || ''), i = dm ? Number(dm[1]) - 1 : '123456'.indexOf(e.key); if (i >= 0 && cfg.tools[i]) { pickTool(cfg.tools[i].id); e.preventDefault(); }
   };
@@ -434,15 +458,15 @@ function startGame(mode) {
     $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); $('panel').hidden = true; resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
     if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('share') })).catch(() => {}); });
   }
-  function nextLevel() { if (!W) return; Sound.unlock(); Sound.play('blip', 880); newLevel(Math.max(W.n + 1, save.level)); } // a save that came late still counts
+  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); newLevel(Math.max(W.n + 1, save.level)); } // a save that came late still counts
   $('nextpill').addEventListener('click', (e) => { e.stopPropagation(); results(); });
   $('panel').addEventListener('pointerdown', (e) => e.stopPropagation());
 
   // ---- top bar
   let muteTouched = false;
   const blur = (e) => { try { e.currentTarget.blur(); } catch (er) { /* fine */ } };
-  $('gear').addEventListener('click', (e) => { e.stopPropagation(); blur(e); Sound.unlock(); Sound.play('blip'); $('settings').hidden = !$('settings').hidden; renderTop(); });
-  $('mute').addEventListener('click', (e) => { e.stopPropagation(); blur(e); muteTouched = true; Sound.unlock(); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; $('mute').textContent = Sound.muted ? '🔇' : '🔊'; persist(); });
+  $('gear').addEventListener('click', (e) => { e.stopPropagation(); blur(e); Sound.unlock(cfg); Sound.play('blip'); $('settings').hidden = !$('settings').hidden; renderTop(); });
+  $('mute').addEventListener('click', (e) => { e.stopPropagation(); blur(e); muteTouched = true; Sound.unlock(cfg); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; $('mute').textContent = Sound.muted ? '🔇' : '🔊'; persist(); });
   $('langs').innerHTML = LANGS.map((l) => `<button data-l="${l}" class="gloss">${cfg.langNames[l]}</button>`).join('');
   $('langs').addEventListener('click', (e) => { e.stopPropagation(); const l = e.target.dataset && e.target.dataset.l; if (!l) return; try { e.target.blur(); } catch (er) { /* fine */ } lang = l; save.lang = l; setDir(); $('settings').hidden = true; renderTools(); renderTop(); if (tipKey) setTip(tipKey); persist(); });
   $('settings').addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -643,5 +667,8 @@ if (typeof location !== 'undefined' && new URLSearchParams(location.search).has(
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => { if (window.__saveDelay) await new Promise((r) => setTimeout(r, window.__saveDelay)); return window.__saveFails ? Promise.reject(new Error('offline')) : { state: store.state }; },
     saveUserGameState: async (s) => { store.state = s; (window.__writes = window.__writes || []).push(s); }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
     shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
-  fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });
+  Promise.all([fetch('./game_config.json').then((r) => r.json()), fetch('./asset_map.json').then((r) => r.json()).catch(() => ({}))]).then(([c, assets]) => {
+    window.lib.getAsset = (id) => (window.__noAssets ? undefined : assets[id]);
+    window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play');
+  });
 }

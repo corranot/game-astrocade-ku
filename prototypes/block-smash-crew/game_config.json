@@ -14,7 +14,8 @@
    "value": 5,
    "snd": "wood",
    "jitter": 0.08,
-   "frag": "splinter"
+   "frag": "splinter",
+   "tile": 2
   },
   {
    "id": "trunk",
@@ -22,7 +23,8 @@
    "value": 5,
    "snd": "wood",
    "jitter": 0.06,
-   "frag": "splinter"
+   "frag": "splinter",
+   "tile": 11
   },
   {
    "id": "brick",
@@ -30,7 +32,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.1,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 1
   },
   {
    "id": "plaster",
@@ -38,7 +41,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.04,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 0
   },
   {
    "id": "roofRed",
@@ -46,7 +50,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.07,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 4
   },
   {
    "id": "roofBlue",
@@ -54,7 +59,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.07,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 4
   },
   {
    "id": "glass",
@@ -62,7 +68,8 @@
    "value": 5,
    "snd": "glass",
    "jitter": 0.03,
-   "frag": "shard"
+   "frag": "shard",
+   "tile": 5
   },
   {
    "id": "stone",
@@ -70,7 +77,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.12,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 3
   },
   {
    "id": "steel",
@@ -79,7 +87,8 @@
    "snd": "metal",
    "jitter": 0.05,
    "hard": true,
-   "frag": "spark"
+   "frag": "spark",
+   "tile": 6
   },
   {
    "id": "leaves",
@@ -87,7 +96,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.14,
-   "frag": "soft"
+   "frag": "soft",
+   "tile": 7
   },
   {
    "id": "candyPink",
@@ -95,7 +105,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.05,
-   "frag": "soft"
+   "frag": "soft",
+   "tile": 9
   },
   {
    "id": "candyMint",
@@ -103,7 +114,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.05,
-   "frag": "soft"
+   "frag": "soft",
+   "tile": 9
   },
   {
    "id": "ice",
@@ -111,7 +123,8 @@
    "value": 5,
    "snd": "glass",
    "jitter": 0.06,
-   "frag": "shard"
+   "frag": "shard",
+   "tile": 15
   },
   {
    "id": "snow",
@@ -119,7 +132,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.03,
-   "frag": "soft"
+   "frag": "soft",
+   "tile": 0
   },
   {
    "id": "sand",
@@ -127,7 +141,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.1,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 10
   },
   {
    "id": "moss",
@@ -135,7 +150,8 @@
    "value": 5,
    "snd": "brick",
    "jitter": 0.12,
-   "frag": "crumb"
+   "frag": "crumb",
+   "tile": 3
   },
   {
    "id": "gold",
@@ -143,7 +159,8 @@
    "value": 250,
    "snd": "coin",
    "jitter": 0.05,
-   "frag": "chunk"
+   "frag": "chunk",
+   "tile": 13
   },
   {
    "id": "star",
@@ -151,7 +168,8 @@
    "value": 500,
    "snd": "gem",
    "jitter": 0,
-   "frag": "chunk"
+   "frag": "chunk",
+   "tile": 12
   },
   {
    "id": "toyRed",
@@ -159,7 +177,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.05,
-   "frag": "chunk"
+   "frag": "chunk",
+   "tile": 8
   },
   {
    "id": "toyYellow",
@@ -167,7 +186,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.05,
-   "frag": "chunk"
+   "frag": "chunk",
+   "tile": 8
   },
   {
    "id": "toyBlue",
@@ -175,7 +195,8 @@
    "value": 5,
    "snd": "soft",
    "jitter": 0.05,
-   "frag": "chunk"
+   "frag": "chunk",
+   "tile": 8
   },
   {
    "id": "panel",
@@ -183,7 +204,8 @@
    "value": 5,
    "snd": "metal",
    "jitter": 0.04,
-   "frag": "spark"
+   "frag": "spark",
+   "tile": 14
   },
   {
    "id": "tnt",
@@ -192,7 +214,8 @@
    "snd": "brick",
    "jitter": 0,
    "hidden": true,
-   "frag": "chunk"
+   "frag": "chunk",
+   "tile": 0
   }
  ],
  "tools": [
@@ -554,5 +577,74 @@
   "boomStop": 0.07,
   "toppleSlow": 0.9,
   "landSlow": 0.45
+ },
+ "sounds": {
+  "wood": {
+   "id": "sfx_hit_wood",
+   "gain": 0.633,
+   "skip": 0,
+   "end": 0.3
+  },
+  "brick": {
+   "id": "sfx_hit_brick",
+   "gain": 0.681,
+   "skip": 0,
+   "end": 0.6
+  },
+  "glass": {
+   "id": "sfx_hit_glass",
+   "gain": 0.516,
+   "skip": 0
+  },
+  "metal": {
+   "id": "sfx_hit_metal",
+   "gain": 0.68,
+   "skip": 0
+  },
+  "swing": {
+   "id": "sfx_swing",
+   "gain": 0.6,
+   "skip": 0.2
+  },
+  "boom": {
+   "id": "sfx_boom",
+   "gain": 0.771,
+   "skip": 0
+  },
+  "crash": {
+   "id": "sfx_crash",
+   "gain": 0.634,
+   "skip": 0
+  },
+  "timber": {
+   "id": "sfx_timber",
+   "gain": 0.651,
+   "skip": 0
+  },
+  "coinS": {
+   "id": "sfx_coin",
+   "gain": 0.821,
+   "skip": 0
+  },
+  "star": {
+   "id": "sfx_star",
+   "gain": 0.786,
+   "skip": 0
+  },
+  "fuse": {
+   "id": "sfx_tnt_fuse",
+   "gain": 0.664,
+   "skip": 0
+  },
+  "unlock": {
+   "id": "sfx_unlock",
+   "gain": 0.603,
+   "skip": 0
+  },
+  "music": {
+   "id": "music_main",
+   "gain": 0.71,
+   "skip": 0
+  }
  }
 }

@@ -365,6 +365,19 @@ async function main() {
     await d.page.close();
   }
 
+  // ---- 17. sounds: the recorded ones load after the first touch; with no assets the game plays on with code-made sounds
+  if (!process.env.ONLY) {
+    for (const none of [false, true]) {
+      const { page, errors } = await open(browser, '', { port, init: none ? 'window.__noAssets = true;' : '' });
+      await tapAt(page, 360, 600); await page.waitForTimeout(none ? 1500 : 6000);
+      await g(page, () => { const W = __game.W; __game.WD.useTool(W, 'bomb', { x: W.hero.x, y: 1, z: W.hero.z - 5 }); });
+      await page.waitForTimeout(1200);
+      const r = await g(page, () => ({ rec: __game.Sound.recorded, smashed: __game.W.smashed }));
+      check(errors.length === 0 && (none ? r.rec === 0 : r.rec >= 10), none ? `no assets: the game plays on with code-made sounds (${r.smashed} blocks)` : `recorded sounds loaded after the first touch (${r.rec})`);
+      await page.close();
+    }
+  }
+
   // ---- 16. first-person bugs found by reading the code (each check failed before its fix)
   {
     const { page, errors } = await open(browser, '', { port });

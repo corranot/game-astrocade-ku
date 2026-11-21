@@ -69,11 +69,14 @@ export function createScene(cv, cfg) {
 
   // ---- palette (linear) for the mesher
   const palette = [null], jitter = [0];
+  const tiles = [0]; for (const m of cfg.materials) tiles.push(m.tile || 0);
   const dcol = [null]; // debris colours: every material, also the ones drawn as their own mesh (TNT)
   for (const m of cfg.materials) { const c = new THREE.Color(m.color); palette.push(m.hidden ? null : [c.r, c.g, c.b]); dcol.push([c.r, c.g, c.b]); jitter.push(m.jitter || 0); }
 
   // ---- voxel chunks
-  const chunkMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide }));
+  // a pixel texture atlas (bricks, planks, studs...) multiplied by the block colour and corner shading
+  const atlas = tex(128, 128, (x) => drawAtlas(x)); atlas.magFilter = THREE.NearestFilter; atlas.minFilter = THREE.LinearFilter; atlas.generateMipmaps = false;
+  const chunkMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, map: atlas, side: THREE.FrontSide }));
   const chunkRoot = new THREE.Group(); scene.add(chunkRoot);
   let chunks = new Map(), dirty = new Set(), W = null;
   const ckey = (cx, cy, cz) => `${cx},${cy},${cz}`;
@@ -81,10 +84,10 @@ export function createScene(cv, cfg) {
     const k = ckey(cx, cy, cz), old = chunks.get(k);
     if (old) { chunkRoot.remove(old); old.geometry.dispose(); chunks.delete(k); }
     const g = W.g, sc = g.scorch, shade = sc ? (x, y, z) => 1 - sc[g.idx(x, y, z)] * 0.0033 : null;
-    const r = meshRegion(g.get, cx * CS, cy * CS, cz * CS, Math.min(g.W, (cx + 1) * CS), Math.min(g.H, (cy + 1) * CS), Math.min(g.D, (cz + 1) * CS), palette, jitter, 0, 0, 0, 0, shade);
+    const r = meshRegion(g.get, cx * CS, cy * CS, cz * CS, Math.min(g.W, (cx + 1) * CS), Math.min(g.H, (cy + 1) * CS), Math.min(g.D, (cz + 1) * CS), palette, jitter, 0, 0, 0, 0, shade, tiles);
     if (!r.faces) return;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(r.positions, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.normals, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.colors, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(r.positions, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.normals, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.colors, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(r.uvs, 2));
     geo.setIndex(new THREE.BufferAttribute(r.indices, 1)); geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, chunkMat); mesh.matrixAutoUpdate = false; mesh.castShadow = mesh.receiveShadow = true; chunkRoot.add(mesh); chunks.set(k, mesh);
   }
@@ -105,7 +108,7 @@ export function createScene(cv, cfg) {
   const rig = new THREE.Group(); rig.position.set(0.1, -0.29, -0.6); rig.scale.setScalar(0.36); vmScene.add(rig); // sized for the narrow portrait view: the hammer head ±1/3 of the width // the right hand, low right of the view
   const sleeve = part(box(0.2, 0.2, 0.55), lam('#ff8a1f'), 0.06, -0.08, 0.3, rig); sleeve.rotation.x = 0.2;
   part(box(0.22, 0.05, 0.56), lam('#fff36b'), 0.06, -0.08 + 0.1, 0.3, rig).rotation.x = 0.2;
-  part(box(0.17, 0.17, 0.17), lam('#ffcf9e'), 0.02, 0, 0, rig);
+  part(box(0.19, 0.19, 0.19), lam('#ff9f1c'), 0.02, 0, 0, rig); part(box(0.21, 0.06, 0.21), lam('#ffffff'), 0.02, -0.1, 0.02, rig); // work glove with a white cuff
   const held = {};
   { const g = new THREE.Group(); part(keep(new THREE.CylinderGeometry(0.035, 0.035, 0.85, 8)), lam('#c98a4b'), 0, 0.3, 0, g); const hd = part(box(0.42, 0.24, 0.24), lam('#8a96a8'), 0, 0.72, 0, g); part(box(0.44, 0.08, 0.26), lam('#ff4a4a'), 0, 0.72, 0, g); hd.rotation.y = 0; g.rotation.set(-0.3, 0, 0.15); held.hammer = g; }
   { const g = new THREE.Group(); part(keep(new THREE.SphereGeometry(0.17, 14, 10)), lam('#2a2d3a'), 0, 0.17, -0.05, g); part(box(0.05, 0.08, 0.05), lam('#c9a46b'), 0, 0.36, -0.05, g); held.bomb = g; }
@@ -251,9 +254,9 @@ export function createScene(cv, cfg) {
       let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity; const map = new Map();
       for (const c of f.cells) { map.set(`${c.x},${c.y},${c.z}`, c.m); x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); z0 = Math.min(z0, c.z); x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y); z1 = Math.max(z1, c.z); }
       const mx = (x0 + x1 + 1) / 2, my = (y0 + y1 + 1) / 2, mz = (z0 + z1 + 1) / 2;
-      const r = meshRegion((x, y, z) => map.get(`${x},${y},${z}`) || 0, x0, y0, z0, x1 + 1, y1 + 1, z1 + 1, palette, jitter, mx, my, mz, -1e9);
+      const r = meshRegion((x, y, z) => map.get(`${x},${y},${z}`) || 0, x0, y0, z0, x1 + 1, y1 + 1, z1 + 1, palette, jitter, mx, my, mz, -1e9, null, tiles);
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(r.positions, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.normals, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.colors, 3)); geo.setIndex(new THREE.BufferAttribute(r.indices, 1));
+      geo.setAttribute('position', new THREE.BufferAttribute(r.positions, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.normals, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.colors, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(r.uvs, 2)); geo.setIndex(new THREE.BufferAttribute(r.indices, 1));
       const mesh = new THREE.Mesh(geo, chunkMat); mesh.castShadow = true;
       // a tipping piece turns around its base edge (the pivot), a dropping one around its middle
       const holder = new THREE.Group(); holder.add(mesh); scene.add(holder);
@@ -514,6 +517,33 @@ function mergeGeos(list) {
   return m;
 }
 
+/**
+ * The block texture atlas: 4 × 4 tiles of 32 px, light grey patterns (multiplied by each block's colour):
+ * 0 plain, 1 brick, 2 planks, 3 cobble, 4 roof tiles, 5 glass, 6 steel plate, 7 leaves, 8 toy studs, 9 candy swirl,
+ * 10 sand, 11 bark, 12 star, 13 gold, 14 panel, 15 ice.
+ */
+function drawAtlas(x) {
+  const T = 32, R = (() => { let a = 99; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  const tile = (i, draw) => { x.save(); x.translate((i % 4) * T, Math.floor(i / 4) * T); x.beginPath(); x.rect(0, 0, T, T); x.clip(); draw(); x.restore(); };
+  const base = (v, n = 0.05) => { x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(0, 0, T, T); for (let k = 0; k < 120; k++) { const c = Math.round(v * (1 - n + R() * n * 2)); x.fillStyle = `rgb(${c},${c},${c})`; x.fillRect(Math.floor(R() * T), Math.floor(R() * T), 2, 2); } };
+  const line = (v, rects) => { x.fillStyle = `rgb(${v},${v},${v})`; for (const r of rects) x.fillRect(...r); };
+  tile(0, () => base(250, 0.03));
+  tile(1, () => { base(245, 0.06); line(200, [[0, 0, T, 2], [0, 16, T, 2], [8, 0, 2, 16], [24, 16, 2, 16]]); });
+  tile(2, () => { base(240, 0.05); line(195, [[0, 10, T, 2], [0, 21, T, 2], [0, 31, T, 1], [20, 0, 2, 10], [6, 12, 2, 9], [26, 23, 2, 8]]); for (let k = 0; k < 10; k++) line(220, [[Math.floor(R() * 28), Math.floor(R() * 30), 4, 1]]); });
+  tile(3, () => { base(235, 0.08); line(190, [[0, 0, T, 2], [0, 11, T, 2], [0, 22, T, 2], [10, 0, 2, 11], [22, 11, 2, 11], [6, 22, 2, 10], [26, 22, 2, 10]]); });
+  tile(4, () => { base(245, 0.04); for (let r = 0; r < 4; r++) { line(205, [[0, r * 8 + 6, T, 2]]); for (let c = 0; c < 4; c++) line(215, [[c * 8 + (r % 2) * 4, r * 8, 1, 8]]); } });
+  tile(5, () => { base(250, 0.01); line(215, [[0, 0, T, 3], [0, 29, T, 3], [0, 0, 3, T], [29, 0, 3, T]]); x.fillStyle = 'rgba(255,255,255,1)'; x.save(); x.translate(10, 6); x.rotate(0.7); x.fillRect(0, 0, 4, 18); x.fillRect(8, 0, 2, 12); x.restore(); });
+  tile(6, () => { base(240, 0.03); line(205, [[0, 0, T, 1], [0, 31, T, 1], [0, 0, 1, T], [31, 0, 1, T]]); for (const [a, b] of [[4, 4], [26, 4], [4, 26], [26, 26]]) { line(200, [[a, b, 3, 3]]); line(255, [[a, b, 1, 1]]); } });
+  tile(7, () => { base(235, 0.14); for (let k = 0; k < 40; k++) { const v = R() < 0.5 ? 205 : 255; line(v, [[Math.floor(R() * 30), Math.floor(R() * 30), 3, 2]]); } });
+  tile(8, () => { base(245, 0.02); for (const [a, b] of [[8, 8], [24, 8], [8, 24], [24, 24]]) { x.fillStyle = 'rgb(210,210,210)'; x.beginPath(); x.arc(a, b + 1, 6, 0, 7); x.fill(); x.fillStyle = 'rgb(255,255,255)'; x.beginPath(); x.arc(a, b - 0.5, 5, 0, 7); x.fill(); } });
+  tile(9, () => { base(248, 0.02); for (let k = 0; k < 7; k++) { x.fillStyle = 'rgb(220,220,220)'; x.beginPath(); x.arc(R() * 30 + 1, R() * 30 + 1, 2.4, 0, 7); x.fill(); } line(255, [[2, 2, 10, 2]]); });
+  tile(10, () => { base(245, 0.1); for (let k = 0; k < 60; k++) line(R() < 0.5 ? 215 : 255, [[Math.floor(R() * T), Math.floor(R() * T), 1, 1]]); });
+  tile(11, () => { base(230, 0.06); for (let c = 0; c < 6; c++) line(195, [[c * 6 + Math.floor(R() * 2), 0, 2, T]]); });
+  tile(12, () => { base(255, 0); x.fillStyle = 'rgb(225,225,225)'; x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 6 : 13; x.lineTo(16 + Math.cos(a) * r, 17 + Math.sin(a) * r); } x.closePath(); x.fill(); });
+  tile(13, () => { base(240, 0.04); line(255, [[3, 3, 26, 3], [3, 3, 3, 26]]); line(205, [[3, 27, 26, 2], [27, 3, 2, 26]]); });
+  tile(14, () => { base(245, 0.02); line(200, [[0, 15, T, 2], [15, 0, 2, 15]]); line(255, [[4, 4, 6, 2]]); });
+  tile(15, () => { base(250, 0.02); x.strokeStyle = 'rgb(220,220,220)'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(4, 6); x.lineTo(14, 16); x.lineTo(10, 28); x.moveTo(14, 16); x.lineTo(28, 12); x.stroke(); });
+}
 /** A golden star with a dark outline, for the beacon marks. */
 function drawStar(x) {
   x.clearRect(0, 0, 128, 128);
