@@ -329,6 +329,21 @@ async function main() {
     await g(page, () => document.getElementById('hit').dispatchEvent(new PointerEvent('pointerup', { pointerId: 4, bubbles: true })));
     const w1 = await g(page, () => __game.W.smashed);
     check(w1 > w0 + 8, `phone: HIT held smashes what the crosshair shows (${w0} → ${w1} blocks)`);
+    // a quick still touch in the stick zone is a tap (taps are the main control for small children)
+    await g(page, () => { __game.newLevel(0); __game.scene.look(-__game.scene.yaw, -__game.scene.pitch); });
+    await page.waitForTimeout(300);
+    const [tx, ty] = await g(page, () => { const W = __game.W, p = __game.scene.screenOf(W.box.x0 + 3.5, 1.5, W.box.z1 + 4.5); return __game.client(Math.min(340, p[0]), Math.max(620, p[1])); });
+    await g(page, ([x, y]) => { const a = document.getElementById('app'); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); }, [tx, ty]);
+    const tap = await g(page, () => ({ goal: !!(__game.W.hero.goal || __game.W.hero.aim), stick: !document.getElementById('stick').hidden }));
+    check(tap.goal && !tap.stick, 'phone: a still touch in the stick zone is a tap (the hero heads there, no stick shown)');
+    // a tap on a shining star throws the free star bomb at it
+    await g(page, () => { __game.newLevel(3); __game.scene.look(-__game.scene.yaw, 0.35 - __game.scene.pitch); });
+    await page.waitForTimeout(500);
+    const mk = await g(page, () => __game.scene.starMarks()[0]);
+    if (mk) { const [mx2, my2] = await g(page, ([x, y]) => __game.client(x, y), [mk.x, mk.y]); await page.touchscreen.tap(mx2, my2); }
+    await page.waitForTimeout(100);
+    const star = await g(page, () => ({ shots: __game.W.shots.filter((s) => s.star).length + (__game.W.queued || []).filter((e) => e.shot && e.shot.star).length, hand: __game.scene.heldTool }));
+    check(!!mk && star.shots === 1, `phone: tapping a star mark throws a star bomb (${mk ? 'mark seen' : 'no mark in view'})`);
     check(errors.length === 0, 'phone: no page errors: ' + (errors.join(' | ') || 'none'));
     await ctx.close();
     const d = await open(browser, '', { port });

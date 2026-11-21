@@ -98,6 +98,17 @@ export function aimHammer(W, t, hold) {
 export function release(W) { W.hero.hold = false; }
 
 /** Uses a throwable tool at a target point; returns false when it is cooling down or locked (and the free try is used). */
+/** A tap on a shining star: a free star bomb flies to it (its own short cooldown). */
+export function starShot(W, c) {
+  if (W.phase === 'done' || (W.cool.star || 0) > 0 || W.g.get(c.x, c.y, c.z) !== W.ids.star) return false;
+  W.cool.star = W.cfg.hero.starShotCd; W.clangs = 0;
+  const [hx, hy, hz] = heroChest(W), p = { x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 };
+  const shot = { id: W.nextId++, kind: 'bomb', t: 0, x: hx, y: hy + 0.6, z: hz, sx: hx, sy: hy + 0.6, sz: hz, tx: p.x, ty: p.y, tz: p.z, r: tool(W, 'bomb').r, free: true, star: true };
+  shot.dur = Math.max(0.35, Math.min(0.8, Math.hypot(p.x - hx, p.z - hz) / 22));
+  W.hero.swingT = 0; W.hero.swingCell = null; W.hero.throwKind = 'bomb';
+  W.shots.push(shot); (W.queued = W.queued || []).push({ type: 'throw', shot });
+  return true;
+}
 export function useTool(W, id, p) {
   const tl = tool(W, id); if (!tl || id === 'hammer' || W.phase === 'done') return false;
   if ((W.cool[id] || 0) > 0) return false;
@@ -191,7 +202,10 @@ function stepHero(W, dt) {
     const before = h.swingT; h.swingT += dt / hm.cd;
     if (before < SWING_HIT && h.swingT >= SWING_HIT && h.swingCell) {
       const c = h.swingCell, m = W.g.get(c.x, c.y, c.z);
-      if (m && isHard(W, m)) { W.ev.push({ type: 'clang', x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 }); tooHard(W, c); h.bump = 0.25; }
+      if (m && isHard(W, m) && (W.clangs = (W.clangs || 0) + 1) >= W.cfg.hero.superAfter) {
+        // no child stays stuck at the vault: after a few bounces the hammer breaks steel once
+        W.clangs = 0; blast(W, c.x + 0.5, c.y + 0.5, c.z + 0.5, hm.r + 0.2, true, 'hammer'); W.ev.push({ type: 'super', x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 });
+      } else if (m && isHard(W, m)) { W.ev.push({ type: 'clang', x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 }); tooHard(W, c); h.bump = 0.25; }
       else { const res = blast(W, c.x + 0.5, c.y + 0.5, c.z + 0.5, hm.r, false, 'hammer'); if (res.hard && !res.removed.length) tooHard(W, c); W.ev.push({ type: 'hit', x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5, n: res.removed.length }); }
     }
     if (h.swingT >= 1) h.swingT = -1;

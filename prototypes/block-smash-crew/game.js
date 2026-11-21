@@ -143,7 +143,7 @@ function startGame(mode) {
     W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned });
     demo = !!opts.demo;
     scene.setLevel(W);
-    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; hitHeld = false; if ($('stick')) $('stick').hidden = true; // a finger from the last level does not steer this one
+    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; if ($('stick')) $('stick').hidden = true; // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
     $('panel').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
@@ -213,6 +213,7 @@ function startGame(mode) {
   const toFrame = (e) => { const r = root.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 720, (e.clientY - r.top) / r.height * 1280]; };
   let touchUI = false; try { touchUI = typeof lib !== 'undefined' && typeof lib.shouldUseTouchControls === 'function' ? !!lib.shouldUseTouchControls() : matchMedia('(pointer: coarse)').matches; } catch (e) { touchUI = false; }
   root.classList.toggle('touch', touchUI); root.classList.toggle('desk', !touchUI);
+  let idleT = 0; // seconds since the last smash in a level still hunting stars (the hand then points at a star)
   let ptr = null; // the look/tap finger {id, x, y, sx, sy, cx, cy, drag, t, hold}
   let stick = null; // the walking thumb {id, bx, by, dx, dy}
   let hitHeld = false, locked = false, usedKeys = false, lockRefused = false;
@@ -232,7 +233,7 @@ function startGame(mode) {
     const [x, y] = toFrame(e);
     if (demo) firstTouch();
     if (touchUI && e.pointerType !== 'mouse' && !stick && x < 360 && y > 600 && y < 990) { // the walking thumb
-      stick = { id: e.pointerId, bx: x, by: y, dx: 0, dy: 0 }; showStick(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); e.preventDefault(); return;
+      stick = { id: e.pointerId, bx: x, by: y, dx: 0, dy: 0, t: performance.now(), moved: false, cx: e.clientX, cy: e.clientY }; // shown once it moves: a still touch here is a tap if (tipKey === 'find' || tipKey === 'tap') setTip(null); e.preventDefault(); return;
     }
     // mouse look once the player walks with the keys; before that a click is a tap
     if (!touchUI && usedKeys && e.pointerType === 'mouse' && !locked && cv.requestPointerLock) {
@@ -249,7 +250,7 @@ function startGame(mode) {
   }
   function onMove(e) {
     if (locked && e.pointerType === 'mouse') { scene.look(-(e.movementX || 0) * cfg.camera.lookMouse, -(e.movementY || 0) * cfg.camera.lookMouse); return; }
-    if (stick && e.pointerId === stick.id) { const [x, y] = toFrame(e); let dx = x - stick.bx, dy = y - stick.by; const d = Math.hypot(dx, dy); if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; } stick.dx = dx; stick.dy = dy; showStick(); return; }
+    if (stick && e.pointerId === stick.id) { const [x, y] = toFrame(e); let dx = x - stick.bx, dy = y - stick.by; const d = Math.hypot(dx, dy); if (d > 12) stick.moved = true; if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; } stick.dx = dx; stick.dy = dy; showStick(); return; }
     if (!ptr || e.pointerId !== ptr.id || !W) return;
     const [x, y] = toFrame(e), dx = x - ptr.x, dy = y - ptr.y;
     ptr.cx = e.clientX; ptr.cy = e.clientY;
@@ -258,17 +259,30 @@ function startGame(mode) {
     ptr.x = x; ptr.y = y;
   }
   function onUp(e) {
-    if (stick && e.pointerId === stick.id) { stick = null; showStick(); return; }
+    if (stick && e.pointerId === stick.id) {
+      const st = stick; stick = null; showStick();
+      // a quick still touch in the stick zone is a tap on what is under it (taps are the main control on phones)
+      if (!st.moved && performance.now() - st.t < 350 && W && !resultsOpen) tapWorld(st.cx, st.cy);
+      return;
+    }
     if (locked && e.pointerType === 'mouse') { hitHeld = false; return; }
     if (!ptr || e.pointerId !== ptr.id) return;
     const p = ptr; ptr = null;
     if (!W) return;
     WD.release(W);
-    if (!p.drag && sel !== 'hammer') useSelected(e.clientX, e.clientY);
-    if (!p.drag && sel === 'hammer' && !p.held && !resultsOpen) { const t = scene.pick(e.clientX, e.clientY); if (t) { WD.aimHammer(W, t, false); scene.follow = true; } }
+    if (!p.drag && !p.held && !resultsOpen) tapWorld(e.clientX, e.clientY);
+  }
+  /** A tap on the world: the hammer runs there and smashes it; a tool is thrown there. */
+  function tapWorld(cx, cy) {
+    // a tap on (or near) a shining star throws a free star bomb at it: what children tap first
+    const r = root.getBoundingClientRect(), fx = (cx - r.left) / r.width * 720, fy = (cy - r.top) / r.height * 1280;
+    const mk = scene.starMarks().find((m) => Math.hypot(m.x - fx, m.y - fy) < 80);
+    if (mk && WD.starShot(W, mk.cell)) { idleT = 0; return; }
+    if (sel !== 'hammer') { useSelected(cx, cy); return; }
+    const t = scene.pick(cx, cy); if (t) { WD.aimHammer(W, t, false); scene.follow = true; }
   }
   function showStick() {
-    const el = $('stick'); el.hidden = !stick; if (!stick) return;
+    const el = $('stick'); el.hidden = !stick || !stick.moved; if (el.hidden) return;
     el.style.left = `calc(var(--u)*${stick.bx}px)`; el.style.top = `calc(var(--u)*${stick.by}px)`;
     el.querySelector('i').style.transform = `translate(calc(var(--u)*${stick.dx}px),calc(var(--u)*${stick.dy}px))`;
   }
@@ -283,6 +297,7 @@ function startGame(mode) {
   }
   function hammerAtCrosshair() {
     const t = scene.target;
+    if (t && t.type === 'block' && W.g.get(t.x, t.y, t.z) === W.ids.star && t.dist > cfg.hero.reach && WD.starShot(W, t)) return; // aiming at a far star: the star bomb
     WD.hitBlock(W, t && t.type === 'block' && t.dist <= cfg.hero.reach ? t : null);
   }
   function useSelected(cx, cy) {
@@ -343,6 +358,7 @@ function startGame(mode) {
   function onEvent(e) {
     scene.event(e);
     if (e.type === 'smash') {
+      idleT = 0;
       const n = e.removed.length, mat = cfg.materials[(e.removed[0] || {}).m - 1] || {};
       if (e.by === 'hammer') { Sound.play(mat.snd === 'wood' || mat.snd === 'glass' || mat.snd === 'soft' ? mat.snd : mat.snd === 'metal' ? 'brick' : 'brick', 0.8); buzz('tap'); }
       else if (e.by === 'hole' || e.by === 'ball') { if ((hitSnd -= 1) <= 0) { hitSnd = 3; Sound.play('brick', 0.5); } }
@@ -357,6 +373,7 @@ function startGame(mode) {
       }
     } else if (e.type === 'swing') Sound.play('swing');
     else if (e.type === 'clang') { Sound.play('metal'); buzz('warning'); }
+    else if (e.type === 'super') { Sound.play('boom', 0.5); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('super'), sx, sy - 110, 'p-mid', '#ffd23c'); toolEls.bomb.classList.remove('hint'); if (tipKey === 'tooHard') setTip(null); }
     else if (e.type === 'tooHard') {
       if (demo) return;
       const teach = sel === 'hammer' && usable('bomb') && !save.learned.bomb; // the first times: the tip line + hand say it
@@ -464,6 +481,7 @@ function startGame(mode) {
       // cooldown rings
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
       if (hardHint) { hardHint.t -= dt; if (hardHint.t <= 0) { hardHint = null; toolEls.bomb.classList.remove('hint'); } }
+      idleT = W.phase === 'play' && !demo ? idleT + dt : 0;
       placeHand(); placeArrows();
       if (dirtySave && (persistT -= dt) <= 0) { persistT = 2; persist(); }
     }
@@ -480,7 +498,12 @@ function startGame(mode) {
     return null;
   }
   function placeHand() {
-    const hand = $('hand'); if (hand.hidden) return;
+    const hand = $('hand');
+    // stuck for a while: the hand points at a shining star (tapping it throws a star bomb)
+    const help = idleT > 8 && !demo && tipKey !== 'tooHard' ? scene.starMarks()[0] : null;
+    if (help) { hand.hidden = false; const k = `s${Math.round(help.x / 4)},${Math.round(help.y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.left = `calc(var(--u)*${help.x}px)`; hand.style.top = `calc(var(--u)*${help.y + 30}px)`; } return; }
+    if (hand._k && hand._k[0] === 's') { hand._k = ''; hand.hidden = !(tipKey === 'tap' || tipKey === 'tooHard'); }
+    if (hand.hidden) return;
     let x, y;
     if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = root.getBoundingClientRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
     else { x = 400; y = 560; } // first person: point at the middle of the view

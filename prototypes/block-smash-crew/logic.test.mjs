@@ -84,7 +84,7 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(r.W.phase === 'free' && r.seen.has('clear'), 'smash time ends in the free phase (NEXT shows)');
   // hammer only: the vault never opens
   const ham = play(0, {}, 40, (W) => ({ tool: 'hammer', t: { type: 'chest' } }));
-  check(!ham.W.chest.open && ham.seen.has('tooHard'), 'the hammer alone cannot open the steel vault (TOO HARD shows)');
+  check(ham.W.chest.open && ham.seen.has('tooHard') && ham.seen.has('super'), 'the hammer bounces off steel (TOO HARD), then SUPER HAMMER breaks it: no child stays stuck');
   const d = play(0, { demo: true }, 20);
   check(d.coinsDemo === 0 && d.W.coins === 0 && d.W.phase === 'play', 'the demo never pays and never starts smash time');
 }
@@ -102,6 +102,44 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   const kinds = new Set(); for (let i = 0; i < 60 * 6; i++) for (const e of WD.step(V, 1 / 60)) if (e.type === 'boom' || e.type === 'pop') kinds.add(e.kind);
   check(V.shots.length === 0 && ['bomb', 'rocket', 'meteor', 'ball', 'hole'].every((k) => kinds.has(k)), 'all five throwables fly, act and finish');
   check(V.left === V.g.count() + V.falls.reduce((a, f) => a + f.total, 0) || V.left === V.g.count(), 'blocks left matches the grid');
+}
+
+// ---- the child pilot: taps near (not at) what matters, hesitates, uses the bomb only half the time it is told to
+{
+  const { rng } = await import('./levels.js');
+  function childTap(r) {
+    return (W) => {
+      if (W.t > 1 && r() < 0.25) return null; // looking around, thinking (never on the very first touch)
+      // children tap what shines: a star still in the building, now and then
+      const shining = W.starCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.star);
+      if (shining.length && r() < 0.3) return { star: shining[Math.floor(r() * shining.length)] };
+      const lh = W.lastHard;
+      if (lh && W.t - lh.t < 3 && (W.cool.bomb || 0) <= 0 && r() < 0.5) return { tool: 'bomb', p: { x: lh.x + 0.5, y: lh.y + 0.5, z: lh.z + 0.5 } };
+      const left = W.starCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.star);
+      const aim = !W.chest.open || !left.length ? { x: W.chest.x, y: 1, z: W.chest.z } : left[Math.floor(r() * left.length)];
+      const tx = aim.x + (r() - 0.5) * 12, tz = aim.z + (r() - 0.5) * 12, h = W.hero;
+      // the first block on the way to that point is what a child would tap
+      const dx = tx - h.x, dz = tz - h.z, d = Math.hypot(dx, dz) || 1;
+      for (let s = 0.5; s < d + 4; s += 0.5) { const x = Math.floor(h.x + dx / d * s), z = Math.floor(h.z + dz / d * s); for (let y = 0; y < 3; y++) if (W.g.get(x, y, z)) return { tool: 'hammer', t: { type: 'block', x, y, z, nx: -Math.sign(dx), ny: 0, nz: -Math.sign(dz) } }; }
+      return { tool: 'hammer', t: { type: 'ground', x: tx, z: tz } };
+    };
+  }
+  const res = [];
+  for (let lv = 0; lv < 16; lv++) for (let seed = 1; seed <= 3; seed++) {
+    const r = rng(seed * 101 + lv), tap = childTap(r), W = WD.createWorld(cfg, lv, {});
+    let t = 0, tt = 0, first = null, lastSmash = 0, gap = 0, fever = null;
+    while (t < 240 && fever === null) {
+      if ((tt -= 1 / 30) <= 0) { tt = 0.4 + r(); const b = tap(W); if (b) { if (b.star) WD.starShot(W, b.star); else if (b.tool === 'hammer') WD.aimHammer(W, b.t, false); else WD.useTool(W, b.tool, b.p); } }
+      for (const e of WD.step(W, 1 / 30)) { if (e.type === 'smash' || e.type === 'land') { if (first === null) first = t; gap = Math.max(gap, t - lastSmash); lastSmash = t; } if (e.type === 'fever') fever = t; }
+      t += 1 / 30;
+    }
+    res.push({ lv, kind: W.kind, first, gap, fever });
+  }
+  const done = res.filter((x) => x.fever !== null), p50 = done.map((x) => x.fever).sort((a, b) => a - b)[Math.floor(done.length / 2)];
+  console.log(`  child pilot: ${done.length}/${res.length} runs reach smash time, median ${p50 && p50.toFixed(0)} s, slowest ${Math.max(...done.map((x) => x.fever)).toFixed(0)} s, worst idle gap ${Math.max(...res.map((x) => x.gap)).toFixed(1)} s`);
+  const stuck = res.filter((x) => x.fever === null).map((x) => `${x.lv}:${x.kind}`);
+  check(done.length >= res.length * 0.9, `child pilot: at least 90% of runs find all 3 stars within 4 min${stuck.length ? ' (stuck: ' + stuck.join(', ') + ')' : ''}`);
+  check(res.every((x) => x.first !== null && x.first < 3), 'child pilot: the first smash comes within 3 s on every level');
 }
 
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);

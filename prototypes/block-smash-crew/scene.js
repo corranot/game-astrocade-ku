@@ -433,10 +433,13 @@ export function createScene(cv, cfg) {
     get target() { return cam.target; },
     pickCenter,
     get heldTool() { return heldTool; },
+    /** Star beacons in view: [{cell, x, y}] in frame units (a tap near one throws a star bomb). */
+    starMarks() { const out = []; for (const b of beacons) { if (b.chest || !b.mark.visible) continue; const [x, y, behind] = screenOf(b.mark.position.x, b.mark.position.y, b.mark.position.z); if (!behind) out.push({ cell: b.cell, x, y }); } return out; },
     /** Attract mode: the view sweeps slowly across the building's front. */
     demoLook(b) { if (!W) return; const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1, h = W.hero; cam.follow = false; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12; },
     get coinArrive() { return coinArrive; },
     get counts() { return { debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
+    get quality() { return quality; },
     setQuality(q) { quality = q; sun.castShadow = q >= 1; const r = cv.getBoundingClientRect(); resize(r.width || 360, r.height || 640); },
     /** Is world point (x, y, z) inside the view? */
     seen(x, y, z) { const [sx, sy, behind] = screenOf(x, y, z); return !behind && sx >= 0 && sx <= 720 && sy >= 0 && sy <= 1280; },
