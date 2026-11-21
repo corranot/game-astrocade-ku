@@ -1,7 +1,7 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Layout check: measures the HUD on the main screens (720-unit design space) and reports spacing that is not
 // even: outer margins left vs right, the top bar's heights and gaps, the order bubble and progress bar edges,
-// the bottom block and tray centring, row gaps. Prints observations; exits 1 when a rule is off by more than 2 units.
+// the bottom block and tray centring, row gaps, the rating and gift cards (inner margins, gaps, centring). Prints observations; exits 1 when a rule is off by more than 2 units.
 // Usage: node layout.js
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
@@ -61,6 +61,27 @@ const near = (x, y) => Math.abs(x - y) <= TOL;
       note(true, `${label}: action row heights ${h.map((x) => x.toFixed(0)).join(', ')}`);
     }
   }
+  // reward cards: the rating card after the cup, then the gift (cups 2 -> 3 makes one due); the last row is a button
+  // whose 7-unit drop shadow is counted in the bottom margin
+  const card = async (label) => {
+    const c = await page.evaluate(() => {
+      const a = document.querySelector('#app').getBoundingClientRect(), k = 720 / a.width, el = document.querySelector('#panel .card'), r = el.getBoundingClientRect(), bw = parseFloat(getComputedStyle(el).borderTopWidth) * k;
+      const kids = [...el.children].filter((e) => !e.classList.contains('rays')).map((e) => { const b = e.getBoundingClientRect(); return { l: (b.left - r.left) * k - bw, r: (r.right - b.right) * k - bw, t: (b.top - r.top) * k - bw, b: (r.bottom - b.bottom) * k - bw, h: b.height * k }; });
+      return { kids, l: (r.left - a.left) * k, r: (a.right - r.right) * k, t: (r.top - a.top) * k, b: (a.bottom - r.bottom) * k };
+    });
+    c.m = it[0].l; const k = c.kids, top = k[0].t, bot = k[k.length - 1].b - 7, g = []; for (let i = 1; i < k.length; i++) g.push(k[i].t - k[i - 1].t - k[i - 1].h);
+    note(near(top, bot) && near(top, c.m * 2), `${label} card: inner top ${top.toFixed(1)} = bottom ${bot.toFixed(1)} (button shadow counted) = 2 x margin`);
+    note(k.every((x) => near(x.l, x.r)), `${label} card: every row centred (${k.map((x) => (x.l - x.r).toFixed(1)).join(', ')})`);
+    note(g.every((x) => near(x, c.m)), `${label} card: gaps between rows = margin (${g.map((x) => x.toFixed(1)).join(', ')})`);
+    note(near(c.l, c.r) && near(c.t, c.b) && c.l >= c.m, `${label} card: centred on the screen, inside the page margin (${c.l.toFixed(1)} / ${c.r.toFixed(1)})`);
+  };
+  await page.click('#action', { force: true });
+  await page.waitForSelector('#panel:not([hidden]) #nextBtn', { timeout: 20000 }); await page.waitForTimeout(300);
+  await card('rating');
+  await page.click('#nextBtn', { force: true }); await page.waitForSelector('#openBtn', { timeout: 5000 });
+  await card('gift (closed)');
+  await page.click('#openBtn', { force: true }); await page.waitForSelector('#panel #nextBtn', { timeout: 5000 });
+  await card('gift (open)');
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} OFF` : '\nall even');
   process.exit(fails.length ? 1 : 0);
