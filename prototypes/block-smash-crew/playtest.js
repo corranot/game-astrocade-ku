@@ -413,11 +413,13 @@ async function main() {
     const { page, errors } = await open(browser, '', { port, init: `window.__preset = ${JSON.stringify({ v: 1, coins: 50000, total: 50000, level: 3, owned: ['hammer', 'bomb'], lv: { bomb: 5 }, muted: true, learned: { bomb: true, drag: true, shop: true }, day: 20200101 })};` });
     await waitFor(page, () => __game.saveLoaded, null, 5000);
     // g4: the coins pill opens the shop and throws nothing
-    await g(page, () => { __game.newLevel(3); __game.pickTool('bomb'); });
+    await g(page, () => { __game.newLevel(3); __game.pickTool('bomb'); const W = __game.W; W.hero.x = W.box.x0 + 6.5; W.hero.z = W.box.z1 + 1.6; __game.scene.look(-__game.scene.yaw, 0.25 - __game.scene.pitch); }); // a wall fills the view: the pill's corner points at blocks
+    await page.waitForTimeout(200);
+    const behind = await g(page, () => { const r = document.querySelector('#coins').getBoundingClientRect(); const t = __game.scene.pick(r.left + r.width / 2, r.top + r.height / 2); return t && t.type; });
     const [px, py] = await g(page, () => { const r = document.querySelector('#coins').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
     await page.mouse.click(px, py); await page.waitForTimeout(150);
     const g4 = await g(page, () => ({ shop: !document.querySelector('#shop').hidden, shots: __game.W.shots.length + (__game.W.queued || []).length, sel: __game.sel }));
-    check(g4.shop && g4.shots === 0 && g4.sel === 'bomb', `g4 the coins pill opens the shop and throws nothing (${JSON.stringify(g4)})`);
+    check(behind === 'block' && g4.shop && g4.shots === 0 && g4.sel === 'bomb', `g4 the coins pill opens the shop and throws nothing (behind it: ${behind}; ${JSON.stringify(g4)})`);
     // g7: a number key behind the open shop buys nothing
     await g(page, () => { __game.W.tried.add('rocket'); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3', key: '3', bubbles: true })); });
     check(await g(page, () => !__game.save.owned.includes('rocket') && __game.save.coins === 50000), 'g7 a number key behind the open shop buys nothing');
