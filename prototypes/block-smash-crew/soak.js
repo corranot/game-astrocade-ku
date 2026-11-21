@@ -16,6 +16,8 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   for (let i = 0; i < levels; i++) {
     const t0 = Date.now();
     while (Date.now() - t0 < 120000) { if (await g(() => __game.resultsOpen)) break; await page.waitForTimeout(200); }
+    // count GPU objects once nothing is falling (a falling piece holds its own geometry until it lands)
+    await page.waitForFunction(() => !__game.W.falls.length && !__game.W.fuses.length, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(400);
     const st = await g(() => ({ open: __game.resultsOpen, n: __game.W.n, kind: __game.W.kind, lvl: __game.save.level, coins: __game.save.coins, t: __game.textures, geo: __game.geometries, last: (window.__writes || []).slice(-1)[0], c: __game.scene.counts }));
     kinds.add(st.kind);
     check(st.open && st.lvl === i + 1 && st.coins > coins0 && st.last && st.last.level === st.lvl, `level ${i + 1} (${st.kind}): finished, paid (${st.coins} coins), saved`);

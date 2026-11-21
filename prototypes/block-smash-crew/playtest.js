@@ -52,20 +52,24 @@ async function main() {
     check(st.coins === 0 && st.writes === 0, 'demo: no coins, no save writes');
     check(st.hand && st.tip === 'TAP TO SMASH!', 'demo: hand + "TAP TO SMASH!"');
     await shot(page, '01-demo');
-    // ---- 2. the first tap on the building: smashing within a second
+    // ---- 2. the first tap anywhere: the real level starts and the hammer hits the TNT straight ahead (no walking)
     const box = await g(page, () => __game.W.box);
     const [sx, sy] = await screenOf(page, (box.x0 + box.x1) / 2 + 0.5, 2, box.z1 + 1);
     const t0 = Date.now(); await tapAt(page, sx, sy, 80);
+    const h0 = await g(page, () => [__game.W.hero.x, __game.W.hero.z]);
     await waitFor(page, () => !__game.demo && __game.WD.wreck(__game.W) > 0, null, 4000).catch(() => {});
-    const a = await g(page, () => ({ demo: __game.demo, goal: !!(__game.W.hero.goal || __game.W.hero.aim || __game.W.hero.swingT >= 0 || __game.W.smashed > 0), n: __game.W.n, tip: document.querySelector('#tip').hidden ? '' : document.querySelector('#tip').textContent }));
-    check(!a.demo && a.goal, 'first tap: the real level starts and the hero heads for the tapped block');
+    const a = await g(page, () => ({ demo: __game.demo, hit: __game.W.smashed > 0 || __game.W.fuses.length > 0, h: [__game.W.hero.x, __game.W.hero.z], goal: __game.W.hero.goal }));
+    check(!a.demo && a.hit, 'first tap: the real level starts and the hammer hits the TNT ahead');
+    check(!a.goal && Math.hypot(a.h[0] - h0[0], a.h[1] - h0[1]) < 0.01, 'first tap: the hero does not walk by itself');
     await waitFor(page, () => __game.save.coins > 0, null, 5000).catch(() => {});
     const dt = Date.now() - t0, coins = await g(page, () => __game.save.coins);
     check(coins > 0 && dt < 4000, `first tap → first coins in ${dt} ms`);
     await shot(page, '02-first-tap');
-    // ---- 3. hold: keeps smashing what is under the finger
+    // ---- 3. hold: keeps smashing the block in reach under the finger (the hero is put at the wall, looking at it)
+    await g(page, () => { const W = __game.W; W.hero.x = W.box.x0 + 4.5; W.hero.z = W.box.z1 + 2.2; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.25); });
+    await page.waitForTimeout(200);
     const w0 = await g(page, () => __game.WD.wreck(__game.W));
-    const [cx, cy] = await g(page, ([x, y]) => __game.client(x, y), [sx, sy]);
+    const [cx, cy] = await g(page, () => __game.client(360, 640));
     await page.mouse.move(cx, cy); await page.mouse.down(); await page.waitForTimeout(2500);
     const holding = await g(page, () => __game.W.hero.hold);
     await page.mouse.up();
@@ -148,7 +152,7 @@ async function main() {
     check(before.w === 0 && after.c >= 777 + before.c && after.lvl === 3 && after.n === before.n, `late save: nothing written before it came, coins earned meanwhile added (${before.c} + 777), the level being played is not swapped ${JSON.stringify([before, after])}`);
     await late.page.close();
     const bad = await open(browser, '', { port, init: 'window.__saveFails = true;' });
-    await tapAt(bad.page, 360, 520); await bad.page.waitForTimeout(2500);
+    await tapAt(bad.page, 360, 520); await bad.page.waitForTimeout(3500); // the first tap is the TNT boom
     const b = await g(bad.page, () => ({ w: (window.__writes || []).length, c: __game.save.coins }));
     check(b.w === 0 && b.c > 0, 'a failing save: play goes on, nothing is ever written blind');
     check(errors.length + late.errors.length + bad.errors.length === 0, 'no page errors (section 9)');
@@ -332,10 +336,68 @@ async function main() {
     // a quick still touch in the stick zone is a tap (taps are the main control for small children)
     await g(page, () => { __game.newLevel(0); __game.scene.look(-__game.scene.yaw, -__game.scene.pitch); });
     await page.waitForTimeout(300);
-    const [tx, ty] = await g(page, () => { const W = __game.W, p = __game.scene.screenOf(W.box.x0 + 3.5, 1.5, W.box.z1 + 4.5); return __game.client(Math.min(340, p[0]), Math.max(620, p[1])); });
+    await g(page, () => { const W = __game.W; W.hero.x = W.box.x0 + 4.5; W.hero.z = W.box.z1 + 2.2; __game.scene.look(0.35, -0.45); });
+    await page.waitForTimeout(200);
+    const hp = await g(page, () => [__game.W.hero.x, __game.W.hero.z]);
+    const [tx, ty] = await g(page, () => { for (let y = 1100; y > 620; y -= 20) for (let x = 40; x < 340; x += 20) { const c = __game.client(x, y), t = __game.scene.pick(c[0], c[1]); const h = __game.W.hero; if (t && t.type === 'block' && Math.hypot(t.x + 0.5 - h.x, t.y + 0.5 - h.y - 1.3, t.z + 0.5 - h.z) <= __game.W.cfg.hero.reach - 0.2) return c; } return __game.client(200, 900); });
     await g(page, ([x, y]) => { const a = document.getElementById('app'); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); }, [tx, ty]);
-    const tap = await g(page, () => ({ goal: !!(__game.W.hero.goal || __game.W.hero.aim), stick: !document.getElementById('stick').hidden }));
-    check(tap.goal && !tap.stick, 'phone: a still touch in the stick zone is a tap (the hero heads there, no stick shown)');
+    const tap = await g(page, () => ({ aim: !!(__game.W.hero.aim || __game.W.hero.swingT >= 0), goal: __game.W.hero.goal, stick: !document.getElementById('stick').hidden }));
+    await page.waitForTimeout(400);
+    const hp1 = await g(page, () => [__game.W.hero.x, __game.W.hero.z]);
+    check(tap.aim && !tap.goal && !tap.stick && Math.hypot(hp1[0] - hp[0], hp1[1] - hp[1]) < 0.01, 'phone: a still touch in the stick zone is a tap on the block in reach (a swing, no walking, no stick shown)');
+    // a tap on a far block: nothing walks, the resting stick pulses
+    await g(page, () => { const W = __game.W; W.hero.x = W.box.x0 + 4.5; W.hero.z = W.box.z1 + 9; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch); });
+    await page.waitForTimeout(200);
+    const far0 = await g(page, () => [__game.W.hero.x, __game.W.hero.z]);
+    const [fx, fy] = await g(page, () => __game.client(360, 560));
+    await g(page, ([x, y]) => { const a = document.getElementById('app'); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 6, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 6, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); }, [fx, fy]);
+    await page.waitForTimeout(600);
+    const far = await g(page, () => ({ h: [__game.W.hero.x, __game.W.hero.z], goal: __game.W.hero.goal, nudge: document.getElementById('stickHome').classList.contains('nudge') }));
+    check(!far.goal && Math.hypot(far.h[0] - far0[0], far.h[1] - far0[1]) < 0.01 && far.nudge, `phone: a tap on a far block walks nowhere; the resting stick pulses ${JSON.stringify([far, far0])}`);
+    // after the stick was used, a swipe anywhere else still turns the view (a stick touch once also became the look
+    // finger and was never let go: every later swipe and tap was ignored as a "third finger")
+    const yawA = await g(page, () => __game.scene.yaw);
+    await g(page, () => { const a = document.getElementById('app'), c = __game.client(520, 520); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 7, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); for (let i = 1; i <= 8; i++) window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, pointerType: 'touch', clientX: c[0] - i * 8, clientY: c[1], bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, pointerType: 'touch', clientX: c[0] - 64, clientY: c[1], bubbles: true })); });
+    const yawB = await g(page, () => __game.scene.yaw);
+    check(Math.abs(yawB - yawA) > 0.05, `phone: after using the stick, a swipe elsewhere turns the view (yaw ${yawA.toFixed(2)} → ${yawB.toFixed(2)})`);
+    // a slow press (250 ms) on a far block is still a tap on release: the resting stick pulses (a still press once
+    // counted as a hold and did nothing)
+    await g(page, () => { const W = __game.W; W.hero.x = W.box.x0 + 4.5; W.hero.z = W.box.z1 + 9; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch); document.getElementById('stickHome').classList.remove('nudge'); });
+    await page.waitForTimeout(200);
+    await g(page, () => { const c = __game.client(360, 560); document.getElementById('app').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 8, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); });
+    await page.waitForTimeout(250);
+    await g(page, () => { const c = __game.client(360, 560); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 8, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); });
+    const slow = await g(page, () => document.getElementById('stickHome').classList.contains('nudge'));
+    check(slow, 'phone: a slow press on a far block is still a tap (the resting stick pulses)');
+    // the next level shows the resting stick even if a stick thumb was down when it started
+    await g(page, () => { const a = document.getElementById('app'), c = __game.client(170, 900); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 9, pointerType: 'touch', clientX: c[0], clientY: c[1] - 40, bubbles: true })); });
+    await g(page, () => __game.newLevel(1)); await page.waitForTimeout(150);
+    await g(page, () => window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, pointerType: 'touch', bubbles: true })));
+    const home = await g(page, () => !document.getElementById('stickHome').hidden);
+    check(home, 'phone: a new level started under a held stick still shows the resting stick');
+    // the first touch is a swipe: a later tap at the sky does not swing at the TNT (the first-tap boom is only for a tap)
+    {
+      const c2 = await browser.newContext({ viewport: { width: 360, height: 640 }, isMobile: true, hasTouch: true });
+      const p2 = await c2.newPage(); await p2.addInitScript('window.__speed = 1;' + BOT); await p2.goto(`http://localhost:${port}/?local`);
+      await waitFor(p2, () => window.__game && __game.W && document.fonts.status === 'loaded', null, 40000);
+      await p2.evaluate(() => { const a = document.getElementById('app'), c = __game.client(520, 520); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); for (let i = 1; i <= 8; i++) window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, pointerType: 'touch', clientX: c[0] - i * 8, clientY: c[1], bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, pointerType: 'touch', bubbles: true })); });
+      await p2.evaluate(() => { __game.scene.look(0, -__game.scene.pitch + 0.6); const a = document.getElementById('app'), c = __game.client(360, 300); a.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 2, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); });
+      await p2.waitForTimeout(800);
+      const ft = await p2.evaluate(() => ({ s: __game.W.smashed, f: __game.W.fuses.length, demo: __game.demo }));
+      check(!ft.demo && ft.s === 0 && ft.f === 0, `phone: after a swipe as the first touch, a tap at the sky smashes nothing (${JSON.stringify(ft)})`);
+      await c2.close();
+    }
+    // Space with the shop open: no tool is thrown behind it
+    {
+      const { page: p3 } = await open(browser, '', { port });
+      await p3.evaluate(() => { __game.newLevel(0); __game.save.owned.push('bomb'); __game.pickTool('bomb'); document.querySelector('#coins').click(); });
+      await p3.waitForTimeout(200);
+      const shopOpen = await p3.evaluate(() => !document.getElementById('shop').hidden);
+      await p3.keyboard.press('Space'); await p3.waitForTimeout(200);
+      const sp = await p3.evaluate(() => ({ shots: (__game.W.shots || []).length, cool: __game.W.cool.bomb || 0 }));
+      check(shopOpen && sp.shots === 0 && sp.cool === 0, `Space with the shop open throws nothing (${JSON.stringify(sp)})`);
+      await p3.close();
+    }
     // a tap on a shining star throws the free star bomb at it
     await g(page, () => { __game.newLevel(3); __game.scene.look(-__game.scene.yaw, 0.35 - __game.scene.pitch); });
     await page.waitForTimeout(500);

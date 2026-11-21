@@ -3,8 +3,8 @@
 // Block Smash Crew: Voxel Demolition. A demolition kid in a hard hat smashes cheerful block buildings (cottage, candy
 // shop, castle, lighthouse, toy factory, ice palace, jungle temple, space base) to find 3 stars in each: one in the
 // treasure chest inside a steel vault, one high up, one deep inside. First person with the hammer in hand; the device
-// is found by itself: phone = stick + drag to look + HIT button, computer = WASD + mouse + click/Space. A tap on a
-// block runs there and smashes it. Anything left without support falls and shatters.
+// is found by itself: phone = stick + drag to look + HIT button, computer = WASD + mouse + click/Space. Only the stick
+// or the keys walk; a tap smashes a block in reach. Anything left without support falls and shatters.
 // Tools: hammer, bomb, rocket, wrecking ball, black hole, meteor. All stars found = SMASH TIME (every tool, no wait,
 // double coins). Stars for wrecking 50% and 80%; coins unlock tools. No timer, no losing. 7 languages.
 // Modules: voxels.js (grid, mesher, collapse), levels.js (buildings), world.js (play rules), logic.js (numbers),
@@ -171,7 +171,7 @@ function startGame(mode) {
     W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned, lv: save.lv, daily: !!opts.daily, coinMult: opts.daily ? cfg.daily.mult : 1 });
     demo = !!opts.demo;
     scene.setLevel(W);
-    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; if ($('stick')) $('stick').hidden = true; // a finger from the last level does not steer this one
+    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; firstTap = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
     $('panel').hidden = true; $('shop').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
@@ -238,8 +238,8 @@ function startGame(mode) {
   }
 
   // ---- input, picked by device: phone/tablet = stick (lower left) + look by dragging + HIT button;
-  // desktop = WASD + mouse look (pointer lock when allowed) + click. On both, a tap smashes or throws at what was
-  // tapped (the hero walks there), and holding on a block keeps smashing it.
+  // desktop = WASD + mouse look (pointer lock when allowed) + click. On both, only the stick or the keys walk: a tap
+  // smashes a block in reach (a far one nudges the stick) or throws a tool there, and holding keeps smashing.
   const toFrame = (e) => { const r = root.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 720, (e.clientY - r.top) / r.height * 1280]; };
   let touchUI = false; try { touchUI = typeof lib !== 'undefined' && typeof lib.shouldUseTouchControls === 'function' ? !!lib.shouldUseTouchControls() : matchMedia('(pointer: coarse)').matches; } catch (e) { touchUI = false; }
   root.classList.toggle('touch', touchUI); root.classList.toggle('desk', !touchUI);
@@ -247,13 +247,17 @@ function startGame(mode) {
   let ptr = null; // the look/tap finger {id, x, y, sx, sy, cx, cy, drag, t, hold}
   let stick = null; // the walking thumb {id, bx, by, dx, dy}
   let hitHeld = false, locked = false, usedKeys = false, lockRefused = false;
+  let firstTap = false; // the touch that ended the demo: its tap is the first boom
   const keys = new Set();
   const STICK_R = 80;
+  // the stick zone ends just above the tool bar (the tools sit at the bottom edge)
+  const STICK_Y1 = 1126;
   function firstTouch() {
     if (!demo) return;
     // the demo becomes the real game on the level the player is at
     touched = true;
     newLevel(saveLoaded ? save.level : W.n);
+    firstTap = true;
     scene.follow = false;
   }
   function onDown(e) {
@@ -262,8 +266,11 @@ function startGame(mode) {
     Sound.unlock(cfg); $('settings').hidden = true;
     const [x, y] = toFrame(e);
     if (demo) firstTouch();
-    if (touchUI && e.pointerType !== 'mouse' && !stick && x < 360 && y > 600 && y < 990) { // the walking thumb
-      stick = { id: e.pointerId, bx: x, by: y, dx: 0, dy: 0, t: performance.now(), moved: false, cx: e.clientX, cy: e.clientY }; // shown once it moves: a still touch here is a tap if (tipKey === 'find' || tipKey === 'tap') setTip(null); e.preventDefault(); return;
+    if (touchUI && e.pointerType !== 'mouse' && !stick && x < 360 && y > 600 && y < STICK_Y1) { // the walking thumb
+      // shown once it moves: a still touch here is a tap
+      stick = { id: e.pointerId, bx: x, by: y, dx: 0, dy: 0, t: performance.now(), moved: false, cx: e.clientX, cy: e.clientY };
+      if (tipKey === 'find' || tipKey === 'tap') setTip(null);
+      e.preventDefault(); return;
     }
     // mouse look once the player walks with the keys; before that a click is a tap
     if (!touchUI && usedKeys && e.pointerType === 'mouse' && !locked && cv.requestPointerLock) {
@@ -280,11 +287,11 @@ function startGame(mode) {
   }
   function onMove(e) {
     if (locked && e.pointerType === 'mouse') { scene.look(-(e.movementX || 0) * cfg.camera.lookMouse, -(e.movementY || 0) * cfg.camera.lookMouse); return; }
-    if (stick && e.pointerId === stick.id) { const [x, y] = toFrame(e); let dx = x - stick.bx, dy = y - stick.by; const d = Math.hypot(dx, dy); if (d > 12) stick.moved = true; if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; } stick.dx = dx; stick.dy = dy; showStick(); return; }
+    if (stick && e.pointerId === stick.id) { const [x, y] = toFrame(e); let dx = x - stick.bx, dy = y - stick.by; const d = Math.hypot(dx, dy); if (d > 18 && !stick.moved) { stick.moved = true; firstTap = false; } if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; } stick.dx = dx; stick.dy = dy; showStick(); return; }
     if (!ptr || e.pointerId !== ptr.id || !W) return;
     const [x, y] = toFrame(e), dx = x - ptr.x, dy = y - ptr.y;
     ptr.cx = e.clientX; ptr.cy = e.clientY;
-    if (!ptr.drag && Math.hypot(x - ptr.sx, y - ptr.sy) > 26) { ptr.drag = true; WD.aimHammer(W, null); if (!save.learned.drag) { save.learned.drag = true; persistSoon(); } }
+    if (!ptr.drag && Math.hypot(x - ptr.sx, y - ptr.sy) > 26) { ptr.drag = true; firstTap = false; WD.aimHammer(W, null); if (!save.learned.drag) { save.learned.drag = true; persistSoon(); } }
     if (ptr.drag) scene.look(-dx * cfg.camera.lookTouch, -dy * cfg.camera.lookTouch);
     ptr.x = x; ptr.y = y;
   }
@@ -292,8 +299,8 @@ function startGame(mode) {
     if (stick && e.pointerId === stick.id) {
       const st = stick; stick = null; showStick();
       // a quick still touch in the stick zone is a tap on what is under it (taps are the main control on phones)
-      if (!st.moved && performance.now() - st.t < 350 && W && !resultsOpen) tapWorld(st.cx, st.cy);
-      return;
+      if (!st.moved && performance.now() - st.t < 400 && W && !resultsOpen) tapWorld(st.cx, st.cy);
+      firstTap = false; return;
     }
     if (locked && e.pointerType === 'mouse') { hitHeld = false; return; }
     if (!ptr || e.pointerId !== ptr.id) return;
@@ -301,23 +308,35 @@ function startGame(mode) {
     if (!W) return;
     WD.release(W);
     if (!p.drag && !p.held && !resultsOpen) tapWorld(e.clientX, e.clientY);
+    firstTap = false;
   }
-  /** A tap on the world: the hammer runs there and smashes it; a tool is thrown there. */
+  /** A tap on the world: the hammer smashes a block in reach (never walks); a tool is thrown there. */
   function tapWorld(cx, cy) {
     // a tap on (or near) a shining star throws a free star bomb at it: what children tap first
     const r = root.getBoundingClientRect(), fx = (cx - r.left) / r.width * 720, fy = (cy - r.top) / r.height * 1280;
     const mk = scene.starMarks().find((m) => Math.hypot(m.x - fx, m.y - fy) < 80);
     if (mk && WD.starShot(W, mk.cell)) { idleT = 0; return; }
     if (sel !== 'hammer') { useSelected(cx, cy); return; }
-    const t = scene.pick(cx, cy); if (t) { WD.aimHammer(W, t, false); scene.follow = true; }
+    const t = scene.pick(cx, cy); if (t) WD.aimHammer(W, t, false, false);
+    // the very first tap of the game is a boom: the hammer swings at the TNT barrel straight ahead (in reach of the start)
+    if (!W.hero.aim && firstTap) { const c = frontTnt(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
+    firstTap = false;
+    // too far for the hammer: the stick at home pulses (walk there with it)
+    if (!W.hero.aim) { const el = $(touchUI ? 'stickHome' : 'keys'); el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); }
+  }
+  /** The TNT cell nearest the hero, when it is still there and in reach of the hammer. */
+  function frontTnt() {
+    const h = W.hero; let best = null, bd = cfg.hero.reach;
+    for (const c of W.tntCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.tnt) continue; const d = Math.hypot(c.x + 0.5 - h.x, c.y + 0.5 - (h.y + 1.3), c.z + 0.5 - h.z); if (d <= bd) { bd = d; best = c; } }
+    return best;
   }
   function showStick() {
-    const el = $('stick'); el.hidden = !stick || !stick.moved; if (el.hidden) return;
+    const el = $('stick'); el.hidden = !stick || !stick.moved; $('stickHome').hidden = !el.hidden; if (el.hidden) return;
     el.style.left = `calc(var(--u)*${stick.bx}px)`; el.style.top = `calc(var(--u)*${stick.by}px)`;
     el.querySelector('i').style.transform = `translate(calc(var(--u)*${stick.dx}px),calc(var(--u)*${stick.dy}px))`;
   }
   /** HIT (button, held mouse, space): the hammer swings at the crosshair while held; a tool is thrown there once. */
-  function onHitDown() { if (mode !== 'play' || !W || resultsOpen) return; Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
+  function onHitDown() { if (mode !== 'play' || !W || resultsOpen || !$('shop').hidden) return; firstTap = false; Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
   function useCrosshair() {
     const t = scene.target || scene.pickCenter(); if (!t) return;
     const id = sel, wasOwned = save.owned.includes(id);
@@ -375,7 +394,7 @@ function startGame(mode) {
     const k = CODE[e.code] || (e.key || '').toLowerCase();
     if (e.type === 'keyup') { keys.delete(k); if (k === ' ') hitHeld = false; return; }
     if (mode !== 'play' || !W) return;
-    if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); Sound.unlock(cfg); e.preventDefault(); return; }
+    if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); firstTap = false; Sound.unlock(cfg); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
     if (!$('shop').hidden) return; // nothing is picked or bought behind the open shop
     const dm = /^Digit([1-6])$/.exec(e.code || ''), i = dm ? Number(dm[1]) - 1 : '123456'.indexOf(e.key); if (i >= 0 && cfg.tools[i]) { pickTool(cfg.tools[i].id); e.preventDefault(); }
@@ -552,8 +571,9 @@ function startGame(mode) {
         if (!scene.follow) W.hero.yaw = scene.yaw + Math.PI; // the hero faces where the player looks
         if (hitHeld && sel === 'hammer') hammerAtCrosshair();
       }
-      if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && !stick && performance.now() - ptr.t > 120) { // holding on a block: keep aiming at what is under the finger
-        const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true); if (!ptr.held) { ptr.held = true; scene.follow = true; } }
+      if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && performance.now() - ptr.t > 120) { // holding on a block: keep aiming at what is under the finger
+        // only a block in reach makes it a hold: a slow press on a far block or a star is still a tap on release
+        const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true, false); if (W.hero.aim) ptr.held = true; }
       }
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
@@ -699,6 +719,7 @@ const HTML = `
   <div id="ftime" class="ftime out" hidden></div>
   <div id="arrows"></div>
   <div id="cross" class="cross"></div>
+  <div id="stickHome" class="stick home"><i></i></div>
   <div id="stick" class="stick" hidden><i></i></div>
   <button id="hit" class="hitbtn gloss" aria-label="hit">💥</button>
   <div id="keys" class="keys out">WASD · 🖱️ · 1-6</div>

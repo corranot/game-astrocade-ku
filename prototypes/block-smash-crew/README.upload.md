@@ -10,8 +10,8 @@ one deep inside behind the rooms.
 
 ## How to play
 First person: you see your hands and your tool. The game finds your device by itself.
-- Phone or tablet: the stick (lower left) walks, drag anywhere to look around, hold the 💥 button to smash what the
-  crosshair shows. Or just tap a block: you run there and smash it; hold on a block to keep smashing.
+- Phone or tablet: the stick (lower left) walks, swipe anywhere else to look around, hold the 💥 button to smash what
+  the crosshair shows. Or tap a block close to you to smash it; hold on it to keep smashing.
 - Computer: WASD or the arrow keys walk (Shift runs), the mouse looks around, click or Space smashes, 1–6 or the
   wheel pick a tool.
 - Steel is too hard for the hammer: pick the 💣 bomb and throw it at the steel.

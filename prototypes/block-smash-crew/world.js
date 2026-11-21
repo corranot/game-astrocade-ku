@@ -89,10 +89,19 @@ function supportY(W, x, z, y) {
   return 0;
 }
 
-/** The player taps or holds: t = {type: 'block', x, y, z, nx, ny, nz} or {type: 'ground', x, z} or {type: 'chest'}. */
-export function aimHammer(W, t, hold) {
+/**
+ * Aims the hammer: t = {type: 'block', x, y, z, nx, ny, nz} or {type: 'ground', x, z} or {type: 'chest'}.
+ * walk = false (the player): only a block in reach is swung at, the hero never walks by itself.
+ * walk = true (the demo and the bot): the hero walks there and smashes what is in the way.
+ */
+export function aimHammer(W, t, hold, walk = true) {
   const h = W.hero; h.hold = !!hold;
   if (!t) { h.goal = null; h.aim = null; return; }
+  if (!walk) {
+    h.goal = null;
+    h.aim = t.type === 'block' && distToCell(W, t) <= W.cfg.hero.reach ? { x: t.x, y: t.y, z: t.z } : null;
+    return;
+  }
   if (t.type === 'chest') { h.goal = { x: W.chest.x, z: W.chest.z }; h.aim = null; return; }
   if (t.type === 'block') {
     h.aim = { x: t.x, y: t.y, z: t.z };
@@ -271,7 +280,8 @@ function stepHero(W, dt) {
   // first person: the stick or the keys walk the hero directly (sliding along walls); the hammer is aimed by the view
   const mv = h.move;
   if (mv && (mv.x || mv.z)) {
-    h.goal = null; h.aim = null;
+    // walking drops a walk goal, not the aim: a block in reach can be smashed while walking
+    h.goal = null;
     const sp = H.speed * Math.min(1.5, Math.hypot(mv.x, mv.z)) * dt, d = Math.hypot(mv.x, mv.z) || 1, ux = mv.x / d, uz = mv.z / d;
     const nx = h.x + ux * sp, nz = h.z + uz * sp, lim = (v, n) => Math.max(-12, Math.min(n + 12, v));
     if (!blockAt(W, nx, h.z, h.y)) h.x = lim(nx, W.g.W);
@@ -280,7 +290,8 @@ function stepHero(W, dt) {
   }
   // the tapped block: smash it once it is in reach (and keep smashing while the finger holds)
   if (h.aim && !W.g.get(h.aim.x, h.aim.y, h.aim.z)) { h.aim = null; if (!h.hold) h.goal = null; }
-  if (h.aim && distToCell(W, h.aim) <= H.reach) { h.goal = null; h.moving = false; if (swing(h.aim) && !h.hold) h.aim = null; } // a tap is one swing, a hold keeps swinging
+  if (h.aim && distToCell(W, h.aim) <= H.reach) { h.goal = null; h.moving = !!(mv && (mv.x || mv.z)); if (swing(h.aim) && !h.hold) h.aim = null; } // a tap is one swing, a hold keeps swinging
+  else if (h.aim && !h.goal) h.aim = null;
   else if (h.goal) {
     const dx = h.goal.x - h.x, dz = h.goal.z - h.z, d = Math.hypot(dx, dz);
     const near = W.phase !== 'done' && !W.chest.open && Math.hypot(W.chest.x - h.x, W.chest.z - h.z) < 1.0;

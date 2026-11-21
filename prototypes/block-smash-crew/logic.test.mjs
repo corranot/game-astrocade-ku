@@ -138,32 +138,39 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   if (top) { const f = top.fall, c = f.cells.reduce((a, b) => (b.y > a.y ? b : a)); f.th = 1.35; const p = WD.placeOf(f, c); check(p[1] < c.y * 0.5, `a tipped piece lies down (top block y ${c.y} → ${p[1].toFixed(1)})`); }
 }
 
-// ---- the child pilot: taps near (not at) what matters, hesitates, uses the bomb only half the time it is told to
+// ---- the child pilot: walks with the stick (only the stick walks), heading roughly (±0.6 rad) at what matters,
+// holds HIT at what blocks the way, taps shining stars now and then, hesitates, bombs only half the time it is told to
 {
   const { rng } = await import('./levels.js');
-  function childTap(r) {
+  function childPlan(r) {
     return (W) => {
-      if (W.t > 1 && r() < 0.25) return null; // looking around, thinking (never on the very first touch)
-      // children tap what shines: a star still in the building, now and then
+      if (W.t > 1 && r() < 0.25) return { idle: true }; // looking around, thinking (never on the very first touch)
       const shining = W.starCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.star);
       if (shining.length && r() < 0.3) return { star: shining[Math.floor(r() * shining.length)] };
       const lh = W.lastHard;
-      if (lh && W.t - lh.t < 3 && (W.cool.bomb || 0) <= 0 && r() < 0.5) return { tool: 'bomb', p: { x: lh.x + 0.5, y: lh.y + 0.5, z: lh.z + 0.5 } };
-      const left = W.starCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.star);
-      const aim = !W.chest.open || !left.length ? { x: W.chest.x, y: 1, z: W.chest.z } : left[Math.floor(r() * left.length)];
-      const tx = aim.x + (r() - 0.5) * 12, tz = aim.z + (r() - 0.5) * 12, h = W.hero;
-      // the first block on the way to that point is what a child would tap
-      const dx = tx - h.x, dz = tz - h.z, d = Math.hypot(dx, dz) || 1;
-      for (let s = 0.5; s < d + 4; s += 0.5) { const x = Math.floor(h.x + dx / d * s), z = Math.floor(h.z + dz / d * s); for (let y = 0; y < 3; y++) if (W.g.get(x, y, z)) return { tool: 'hammer', t: { type: 'block', x, y, z, nx: -Math.sign(dx), ny: 0, nz: -Math.sign(dz) } }; }
-      return { tool: 'hammer', t: { type: 'ground', x: tx, z: tz } };
+      if (lh && W.t - lh.t < 3 && (W.cool.bomb || 0) <= 0 && r() < 0.5) return { bomb: { x: lh.x + 0.5, y: lh.y + 0.5, z: lh.z + 0.5 } };
+      const aim = !W.chest.open || !shining.length ? { x: W.chest.x, y: 1, z: W.chest.z } : shining[Math.floor(r() * shining.length)];
+      return { aim, wobble: (r() - 0.5) * 1.2 };
     };
+  }
+  /** What the crosshair shows straight ahead in reach (low rows first), the block HIT swings at. */
+  function ahead(W, ux, uz) {
+    const h = W.hero;
+    for (let s = 0.6; s <= cfg.hero.reach - 0.3; s += 0.3) for (let y = 0; y < 3; y++) { const x = Math.floor(h.x + ux * s), z = Math.floor(h.z + uz * s); if (W.g.get(x, y, z)) return { x, y, z }; }
+    return null;
   }
   const res = [];
   for (let lv = 0; lv < 16; lv++) for (let seed = 1; seed <= 3; seed++) {
-    const r = rng(seed * 101 + lv), tap = childTap(r), W = WD.createWorld(cfg, lv, {});
-    let t = 0, tt = 0, first = null, lastSmash = 0, gap = 0, fever = null;
+    const r = rng(seed * 101 + lv), plan = childPlan(r), W = WD.createWorld(cfg, lv, {});
+    let t = 0, tt = 0, first = null, lastSmash = 0, gap = 0, fever = null, cur = { idle: true };
     while (t < 240 && fever === null) {
-      if ((tt -= 1 / 30) <= 0) { tt = 0.4 + r(); const b = tap(W); if (b) { if (b.star) WD.starShot(W, b.star); else if (b.tool === 'hammer') WD.aimHammer(W, b.t, false); else WD.useTool(W, b.tool, b.p); } }
+      if ((tt -= 1 / 30) <= 0) { tt = 0.4 + r(); cur = plan(W); if (cur.star) WD.starShot(W, cur.star); if (cur.bomb) WD.useTool(W, 'bomb', cur.bomb); }
+      WD.setMove(W, 0, 0);
+      if (cur.aim) {
+        const h = W.hero, a = Math.atan2(cur.aim.x + 0.5 - h.x, cur.aim.z + 0.5 - h.z) + cur.wobble, ux = Math.sin(a), uz = Math.cos(a);
+        const b = ahead(W, ux, uz);
+        if (b) WD.hitBlock(W, b); else if (Math.hypot(cur.aim.x + 0.5 - h.x, cur.aim.z + 0.5 - h.z) > 0.8) WD.setMove(W, ux, uz);
+      }
       for (const e of WD.step(W, 1 / 30)) { if (e.type === 'smash' || e.type === 'land') { if (first === null) first = t; gap = Math.max(gap, t - lastSmash); lastSmash = t; } if (e.type === 'fever') fever = t; }
       t += 1 / 30;
     }
@@ -174,6 +181,29 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   const stuck = res.filter((x) => x.fever === null).map((x) => `${x.lv}:${x.kind}`);
   check(done.length >= res.length * 0.9, `child pilot: at least 90% of runs find all 3 stars within 4 min${stuck.length ? ' (stuck: ' + stuck.join(', ') + ')' : ''}`);
   check(res.every((x) => x.first !== null && x.first < 3), 'child pilot: the first smash comes within 3 s on every level');
+}
+
+// ---- the player's taps never walk: a far block is not aimed at, a block in reach is swung at in place
+{
+  const W = WD.createWorld(cfg, 0, {}), h = W.hero, x0 = h.x, z0 = h.z;
+  WD.aimHammer(W, { type: 'block', x: Math.floor(W.chest.x), y: 1, z: W.box.z1, nx: 0, ny: 0, nz: 1 }, false, false);
+  for (let i = 0; i < 60; i++) WD.step(W, 1 / 30);
+  check(Math.hypot(h.x - x0, h.z - z0) < 0.01 && !h.goal && !h.aim, 'a tap on a far block: the hero stays where it is');
+  WD.aimHammer(W, { type: 'ground', x: x0 + 5, z: z0 - 5 }, false, false); WD.aimHammer(W, { type: 'chest' }, false, false);
+  for (let i = 0; i < 60; i++) WD.step(W, 1 / 30);
+  check(Math.hypot(h.x - x0, h.z - z0) < 0.01, 'a tap on the ground or the chest: the hero stays where it is');
+  const W2 = WD.createWorld(cfg, 0, {}), h2 = W2.hero; let c = null;
+  for (let z = Math.floor(h2.z) - 1; z > h2.z - 3 && !c; z--) for (let x = Math.floor(h2.x) - 1; x <= h2.x + 1 && !c; x++) if (W2.g.get(x, 1, z)) c = { x, y: 1, z };
+  if (!c) { c = { x: Math.floor(h2.x), y: 1, z: Math.floor(h2.z) - 2 }; W2.g.set(c.x, c.y, c.z, W2.ids.wood || 1); }
+  const before = [h2.x, h2.z], ev = [];
+  WD.aimHammer(W2, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false);
+  for (let i = 0; i < 30; i++) ev.push(...WD.step(W2, 1 / 30));
+  check(ev.some((e) => e.type === 'hit') && Math.hypot(h2.x - before[0], h2.z - before[1]) < 0.01, 'a tap on a block in reach: one swing, no step taken');
+  // walking with the stick while holding on a block in reach: the hammer keeps swinging (walking once dropped the aim)
+  const W3 = WD.createWorld(cfg, 0, {}), h3 = W3.hero, c3 = { x: Math.floor(h3.x), y: 1, z: Math.floor(h3.z) - 2 };
+  W3.g.set(c3.x, c3.y, c3.z, 1); const ev3 = [];
+  for (let i = 0; i < 30; i++) { WD.setMove(W3, 0.3, 0); WD.aimHammer(W3, { type: 'block', ...c3, nx: 0, ny: 0, nz: 1 }, true, false); ev3.push(...WD.step(W3, 1 / 30)); }
+  check(ev3.some((e) => e.type === 'hit') && h3.x > c3.x + 0.5, 'walking with the stick while holding a block in reach: it is smashed on the way');
 }
 
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);

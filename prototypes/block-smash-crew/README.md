@@ -25,7 +25,7 @@ dislike), learned from, not copied: own theme, own camera, own controls, own cod
 A demolition kid in a hard hat smashes cheerful voxel buildings to find the treasure chest hidden in each one.
 - **First person like the leader (owner's call, 21 Nov), but portrait:** hands + tool on screen, crosshair, outline on
   the target block. Device found by itself: phone = stick + drag-look + HIT button; desktop = WASD + mouse (pointer
-  lock after the keys are used) + click/Space. Tap a block = run there and smash (kept for little kids).
+  lock after the keys are used) + click/Space. Only the stick / WASD walk (no auto-walk); a tap smashes a block in reach, a far one pulses the resting stick.
 - **Real collapse:** anything no longer connected to the ground falls as one piece and shatters ("CRASH!").
 - **Tools (verbs):** hammer, bomb, rocket, wrecking ball, black hole, meteor. Cooldown, no ammo, no ads.
   Locked tools can be tried free once per level; coins unlock them.
@@ -33,12 +33,13 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   → card: 3 stars (treasure / ≥50% wrecked / 3 gems), coins, big NEXT. No timer fail, no death.
 - **Levels:** 8 building generators (cottage, candy shop, castle, lighthouse, toy factory, ice palace, jungle temple,
   space base), endless with growing size.
-- **Hook:** demo hero smashing the fence before any touch; first tap = first smash in < 1 s.
+- **Hook:** demo hero smashing the fence before any touch; the first tap anywhere hits the TNT barrel in reach of the start = first boom in < 1 s.
 
 ## Layout numbers (720×1280 units; measured target, frame full 3D)
 - Building ≥ 70% of frame width at spawn, centre at y ≈ 45%; hero at y ≈ 70–75%.
 - HUD: coins pill top-left, 3-star pill + wreck bar (trophies at 50% / 80%) top centre, ⚙️ top-right; 96 u buttons.
-- Toolbar: 6 buttons × 104 u at bottom 170 u (guest login sheet covers the lowest ±13%).
+- Toolbar: 6 buttons × 104 u at bottom 34 u (user 21 Nov: no empty band at the bottom; the guest login sheet
+  covers the lowest ±13% only for a few seconds); resting stick + HIT sit in one row above it.
 
 ## Findings (first build)
 - A level where the bot reaches the chest in 2 s is too short: 3 stars (vault + high + deep) with inner walls → bot 5–8.5 s, a child far longer, plus the free phase.
@@ -56,6 +57,9 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - P3: 13 recorded sounds + music from the asset map (code sounds as fallback), 16-tile pixel atlas, glove.
 - P4: shop (tap coins) with 5 upgrade levels per tool, album, daily challenge ×2 (never moves the level path).
 - P5: boss every 5th level (biggest size, ×2), day / sunset / snow looks.
+- Controls pass (user): no auto-walk (only stick / WASD walk; swipe elsewhere looks), resting stick shown on phones,
+  tools at the bottom edge (no empty band), spawn 1.5 closer so the front TNT is in hammer reach. Child pilot now
+  walks with the stick + holds HIT: 48/48, median 12 s.
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
