@@ -18,6 +18,7 @@ winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FP
 - `node playtest.js <out>` — first cup + a full cup with real finger input, screenshots of every step.
 - `node soak.js 14` — 14 cups in one page: saves, payouts, gifts, flat GPU memory.
 - `node look.js <out> [langs]` — every screen in 7 languages, text inside the screen.
+- `node layout.js` — spacing: HUD margins and gaps, rating and gift cards.
 
 **Status.** In progress (2026-11-21): playable end to end; artifact https://claude.ai/artifact/7M1bGkY1o7Ykc6qFE9rNUH; Astrocade draft `01M7Y5W8MM2NWA5KPRQN4GNRC8` (private, no thumbnail yet, not published).
 
@@ -42,3 +43,7 @@ winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FP
 - Finishing an order (owner's report): the cherry floated without cream. Toppings now rest on what is there (roll tops,
   or the cream once added; adding cream later rebuilds the cherry and sprinkles). Extra toppings no longer cost a star,
   the rating card lists the customer's own items, and the frozen sheet reads clearly on a darker steel plate.
+- Rating and gift cards (owner's report: the Next button margins were off): the card had no padding, so content taller
+  than its min-height pushed the button onto the bottom edge and clipped its shadow. Cards now size to their content
+  with 2 x margin padding (button shadow counted), every gap = margin, stars drawn as SVG (a font glyph's ink sits
+  differently in every fallback font), badges and shadows counted in their row. `layout.js` measures both cards.

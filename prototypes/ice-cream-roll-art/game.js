@@ -523,14 +523,18 @@ function startGame(mode) {
     // a short beat for the customer to enjoy it before the card comes up
     const cupNow = S; setTimeout(() => { if (alive && S === cupNow) showRating(res, coins); }, 550);
   }
+  // drawn, not a font glyph: the box is the shape on every phone (a glyph's ink sits differently in each fallback font)
+  const STAR = '<svg viewBox="1.75 1.45 20.5 19.6" aria-hidden="true"><path d="M12 2.2l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17l-5.9 3.3 1.3-6.6L2.5 9.1l6.6-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  /** Next button label; the arrow points the way the text reads (left in Arabic). */
+  const nextLabel = () => T('next') + (lang === 'ar' ? ' ◀' : ' ▶');
   function showRating(res, coins) {
     S.ratingUp = true; const p = $('panel'); p.hidden = false;
     const cell = custCell(S.order.customer, 1);
-    p.innerHTML = `<div class="card"><div class="rays"></div><div class="face" style="${cell}"></div>
-      <div class="stars">${[0, 1, 2].map((i) => `<span class="star ${i < res.stars ? 'on' : ''}" style="animation-delay:${0.15 + i * 0.22}s">★</span>`).join('')}</div>
+    p.innerHTML = `<div class="card fit"><div class="rays"></div><div class="face" style="${cell}"></div>
+      <div class="stars">${[0, 1, 2].map((i) => `<span class="star ${i < res.stars ? 'on' : ''}" style="animation-delay:${0.15 + i * 0.22}s">${STAR}</span>`).join('')}</div>
       <div class="parts${S.order.fruits.length + S.order.toppings.length + (S.order.art ? 1 : 0) + 3 > 7 ? ' many' : ''}">${partsHtml(res.parts)}</div>
       <div class="earn out"><i class="coin"></i>+<b id="earnN">0</b></div>
-      <button id="nextBtn" class="big gloss out">${T('next')} ▶</button></div>`;
+      <button id="nextBtn" class="big gloss out">${nextLabel()}</button></div>`;
     for (let i = 0; i < res.stars; i++) setTimeout(() => { if (alive) { Sound.play('sfx_coin', 0.5, 1 + i * 0.15); buzz('tick'); } }, 250 + i * 220);
     let shown = 0; const step = () => { if (!alive || $('panel').hidden) return; shown = Math.min(coins, shown + Math.ceil(coins / 12)); const el = $('earnN'); if (el) el.textContent = shown; if (shown < coins) setTimeout(step, 50); };
     setTimeout(step, 600);
@@ -565,18 +569,19 @@ function startGame(mode) {
     if (g.kind === 'item') { if (!save.owned.includes(g.id)) save.owned.push(g.id); } else save.coins += g.amount;
     persist();
     const p = $('panel'); p.hidden = false;
-    p.innerHTML = `<div class="card"><div class="rays"></div><div class="gtitle out">${title}</div><button id="giftBox" class="giftbox" aria-label="gift">🎁</button><div class="tap out">${T('tapOpen')}</div></div>`;
+    // closed and open share one frame (title, 260-unit stage, 100-unit action row), so the card keeps its size when the gift opens
+    p.innerHTML = `<div class="card fit"><div class="rays"></div><div class="gtitle out">${title}</div><div class="stage"><button id="giftBox" class="giftbox" aria-label="gift">🎁</button></div><button id="openBtn" class="big gloss out tap">${T('tapOpen')}</button></div>`;
     let opened = false;
     const open = () => {
       if (opened || !alive) return; opened = true; Sound.play('sfx_win', 0.5); buzz('success');
       const inner = g.kind === 'item' ? itemIcon(g.list, g.id) : `<span class="earn out"><i class="coin"></i>+${g.amount}</span>`;
       renderCoins();
-      p.querySelector('.card').innerHTML = `<div class="rays"></div><div class="gtitle out">${g.kind === 'item' ? T('new') : title}</div><div class="prize">${inner}</div><button id="nextBtn" class="big gloss out">${T('next')} ▶</button>`;
+      p.querySelector('.card').innerHTML = `<div class="rays"></div><div class="gtitle out">${g.kind === 'item' ? T('new') : title}</div><div class="stage"><div class="prize">${inner}</div></div><button id="nextBtn" class="big gloss out">${nextLabel()}</button>`;
       let gone = false; const goOn = () => { if (gone || !alive) return; gone = true; afterRating(); };
       $('nextBtn').addEventListener('click', (e) => { e.stopPropagation(); goOn(); });
       const cupNow = S; setTimeout(() => { if (S === cupNow && !$('panel').hidden && $('nextBtn')) goOn(); }, (cfg.ratingAutoNext || 6) * 1000);
     };
-    $('giftBox').addEventListener('click', (e) => { e.stopPropagation(); open(); });
+    for (const id of ['giftBox', 'openBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); open(); });
     setTimeout(open, 3000); // a gift opens itself after a few seconds
   }
 

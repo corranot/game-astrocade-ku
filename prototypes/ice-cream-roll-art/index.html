@@ -136,8 +136,9 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes spin{to{transform:rotate(1turn)}}
 .card .face{position:relative;height:calc(var(--u)*230px);width:auto}
 .stars{position:relative;display:flex;gap:calc(var(--u)*8px)}
-.star{font-size:calc(var(--u)*110px);line-height:1;color:#f1d2df;text-shadow:0 calc(var(--u)*5px) 0 #e8b3c9;transform:scale(0);animation:starin .45s ease-out forwards}
-.star.on{color:#ffd23c;text-shadow:0 calc(var(--u)*5px) 0 #d79a00,0 0 calc(var(--u)*20px) #fff3a0}
+.star{display:block;height:calc(var(--u)*100px);color:#f1d2df;filter:drop-shadow(0 calc(var(--u)*5px) 0 #e8b3c9);transform:scale(0);animation:starin .45s ease-out forwards}
+.star svg{display:block;height:100%;width:auto;overflow:visible}
+.star.on{color:#ffd23c;filter:drop-shadow(0 calc(var(--u)*5px) 0 #d79a00) drop-shadow(0 0 calc(var(--u)*10px) #fff3a0)}
 @keyframes starin{0%{transform:scale(0) rotate(-60deg)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
 .earn{position:relative;display:flex;align-items:center;gap:calc(var(--u)*10px);font-size:calc(var(--u)*64px)}
 .earn .coin{width:calc(var(--u)*60px);height:calc(var(--u)*60px)}
@@ -145,9 +146,20 @@ body{display:flex;align-items:center;justify-content:center}
 .giftbox{position:relative;font-size:calc(var(--u)*200px);background:none!important;animation:wiggle 1s ease-in-out infinite}
 @keyframes wiggle{25%{transform:rotate(-8deg) scale(1.05)}75%{transform:rotate(8deg) scale(1.05)}}
 .tap{position:relative;font-size:calc(var(--u)*40px)}
-.prize{position:relative;transform:scale(2.4);margin:calc(var(--u)*70px);animation:cardin .5s ease-out}
-.prize img{width:calc(var(--u)*100px);height:calc(var(--u)*100px)}
+/* gift: 254-unit plate + its 6-unit shadow fill the 260 stage exactly; the prize sits on a white plate so a pale item (wafer, vanilla) never melts into the yellow rays */
+.stage{position:relative;width:calc(var(--u)*260px);height:calc(var(--u)*260px);display:grid;place-items:center}
+.prize{align-self:start;width:calc(var(--u)*254px);height:calc(var(--u)*254px);border-radius:50%;background:#fff;box-shadow:0 calc(var(--u)*6px) 0 #f3b9d3;display:grid;place-items:center;animation:cardin .5s ease-out}
+.prize img{width:66%;height:66%;object-fit:contain;filter:drop-shadow(0 0 calc(var(--u)*2px) #5b2a4a) drop-shadow(0 0 calc(var(--u)*2px) #5b2a4a)}
+.prize .bottle{transform:scale(2.3)}.prize .drop{transform:scale(2.3) rotate(-45deg)}.prize .sten{font-size:calc(var(--u)*150px)}
+.prize .earn{font-size:calc(var(--u)*56px)}.prize .earn .coin{width:calc(var(--u)*52px);height:calc(var(--u)*52px)}
+.card.fit .gtitle{line-height:1}/* the gift glyph's ink sits high in its line box: 15 units down centres it in the stage */
+.card.fit .giftbox{line-height:1;padding:0;font-size:calc(var(--u)*220px);top:calc(var(--u)*15px)}
 .card .big{position:relative}
+/* rating and gift cards: sized by their content, even inner margins (2 x --m; the bottom adds the button's 7-unit shadow), every row box tight so each gap is exactly --m */
+.card.fit{box-sizing:border-box;min-height:0;gap:var(--m);padding:calc(var(--m)*2) calc(var(--m)*2) calc(var(--m)*2 + var(--u)*7px)}
+.card.fit .earn{line-height:1}
+/* decorations belong to their row: the star's 5-unit drop shadow, the tick badges hanging 6 units right and down (right side only, so the row's ink is centred) */
+.card.fit .stars{padding-bottom:calc(var(--u)*5px)}.card.fit .parts{padding:0 calc(var(--u)*6px) calc(var(--u)*6px) 0}
 @media (prefers-reduced-motion: reduce){.hud *{animation-duration:.01s!important;animation-iteration-count:1!important}}
 #load{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vmin;background:radial-gradient(circle at 50% 40%,#fff3f8,#ffc9e1 60%,#ff9ec9);transition:opacity .35s}
 #load.out{opacity:0;pointer-events:none}
