@@ -1,0 +1,579 @@
+{
+ "pour": {
+  "rate": 0.42,
+  "band": [
+   0.85,
+   1.05
+  ],
+  "max": 1.3,
+  "blob": 0.05,
+  "blobGrow": 0.2
+ },
+ "fruitTint": 0.4,
+ "chop": {
+  "hits": 3
+ },
+ "spread": {
+  "done": 0.9,
+  "brush": 0.085
+ },
+ "freeze": {
+  "time": 2.2
+ },
+ "roll": {
+  "lanes": 4,
+  "inner": 0.05,
+  "thick": 0.045,
+  "autoAt": 0.18,
+  "speed": 2.6
+ },
+ "cup": {
+  "height": 0.5,
+  "radius": 0.85,
+  "ring": 0.33,
+  "floor": 0.06
+ },
+ "order": {
+  "mixFrom": 4,
+  "mixChance": 0.4,
+  "twoToppingsFrom": 2,
+  "maxToppings": 3,
+  "artFrom": 2,
+  "artChance": 0.55
+ },
+ "score": {
+  "weights": {
+   "base": 1,
+   "fruit": 2,
+   "pour": 1,
+   "spread": 1.5,
+   "rolls": 1,
+   "toppings": 2,
+   "art": 1.5
+  },
+  "stars": [
+   0.85,
+   0.6
+  ]
+ },
+ "coins": {
+  "base": 10,
+  "perStar": 5,
+  "artTip": 5,
+  "giftCoins": 60,
+  "daily": 30
+ },
+ "gift": {
+  "every": 3
+ },
+ "hintAfter": 3.5,
+ "customers": [
+  "customer_bunny",
+  "customer_panda",
+  "customer_kitty",
+  "customer_pup"
+ ],
+ "stencils": [
+  "heart",
+  "star",
+  "smile"
+ ],
+ "bases": [
+  {
+   "id": "milk",
+   "color": "#fff1cf"
+  },
+  {
+   "id": "strawberry",
+   "color": "#ffb3c9"
+  },
+  {
+   "id": "chocolate",
+   "color": "#a8673f"
+  },
+  {
+   "id": "matcha",
+   "color": "#bde08a",
+   "cost": 40
+  },
+  {
+   "id": "ocean",
+   "color": "#a3dcff",
+   "cost": 60
+  },
+  {
+   "id": "taro",
+   "color": "#d3b5ff",
+   "cost": 80
+  }
+ ],
+ "fruits": [
+  {
+   "id": "strawberry",
+   "cream": "#ff6f97",
+   "flesh": "#ff2d55"
+  },
+  {
+   "id": "banana",
+   "cream": "#ffe27a",
+   "flesh": "#fff0a6"
+  },
+  {
+   "id": "mango",
+   "cream": "#ffb23c",
+   "flesh": "#ff9a1f"
+  },
+  {
+   "id": "kiwi",
+   "cream": "#9fd65a",
+   "flesh": "#5fae2e"
+  },
+  {
+   "id": "cookie",
+   "cream": "#c9b8a6",
+   "flesh": "#2c1a14",
+   "cost": 30
+  },
+  {
+   "id": "blueberry",
+   "cream": "#8f8be8",
+   "flesh": "#3d4ac4",
+   "cost": 50
+  },
+  {
+   "id": "dragonfruit",
+   "cream": "#ff69b4",
+   "flesh": "#ff3c96",
+   "cost": 70
+  },
+  {
+   "id": "watermelon",
+   "cream": "#ff7f8f",
+   "flesh": "#ff3d5a",
+   "cost": 90
+  }
+ ],
+ "toppings": [
+  {
+   "id": "whip"
+  },
+  {
+   "id": "choco"
+  },
+  {
+   "id": "sprinkles"
+  },
+  {
+   "id": "cherry"
+  },
+  {
+   "id": "wafer",
+   "cost": 25
+  },
+  {
+   "id": "slices",
+   "cost": 35
+  },
+  {
+   "id": "gummy",
+   "cost": 55
+  },
+  {
+   "id": "marshmallow",
+   "cost": 75
+  }
+ ],
+ "syrups": [
+  {
+   "id": "chocsyrup",
+   "color": "#5a2c16"
+  },
+  {
+   "id": "berrysyrup",
+   "color": "#e8194f"
+  },
+  {
+   "id": "whitesyrup",
+   "color": "#fffaf0"
+  },
+  {
+   "id": "bluesyrup",
+   "color": "#1f7cff",
+   "cost": 30
+  },
+  {
+   "id": "rainbow",
+   "color": "rainbow",
+   "cost": 60
+  }
+ ],
+ "langNames": {
+  "en": "English",
+  "ar": "العربية",
+  "es": "Español",
+  "vi": "Tiếng Việt",
+  "hi": "हिन्दी",
+  "bn": "বাংলা",
+  "id": "Indonesia"
+ },
+ "strings": {
+  "en": {
+   "pour": "Hold to pour!",
+   "fruit": "Add the fruit!",
+   "chop": "Tap to chop!",
+   "spread": "Drag to spread!",
+   "draw": "Draw with syrup!",
+   "freeze": "Hold to freeze!",
+   "roll": "Swipe up to roll!",
+   "cup": "Into the cup!",
+   "topping": "Add toppings!",
+   "serve": "Serve",
+   "done": "Done",
+   "next": "Next",
+   "perfect": "PERFECT!",
+   "great": "GREAT!",
+   "yummy": "YUMMY!",
+   "tooMuch": "Too much!",
+   "more": "A bit more!",
+   "chopWord": "CHOP!",
+   "frozen": "FROZEN!",
+   "new": "NEW!",
+   "try": "TRY!",
+   "gift": "Gift box!",
+   "daily": "Daily gift!",
+   "makeOwn": "Now make your own!",
+   "tapOpen": "Tap to open!"
+  },
+  "ar": {
+   "pour": "اضغط مطولاً للصب!",
+   "fruit": "أضف الفاكهة!",
+   "chop": "انقر للتقطيع!",
+   "spread": "اسحب للفرد!",
+   "draw": "ارسم بالشراب!",
+   "freeze": "اضغط مطولاً للتجميد!",
+   "roll": "اسحب لأعلى للف!",
+   "cup": "إلى الكوب!",
+   "topping": "أضف الإضافات!",
+   "serve": "قدّم",
+   "done": "تم",
+   "next": "التالي",
+   "perfect": "ممتاز!",
+   "great": "رائع!",
+   "yummy": "لذيذ!",
+   "tooMuch": "كثير جداً!",
+   "more": "أكثر قليلاً!",
+   "chopWord": "قطّع!",
+   "frozen": "تجمّد!",
+   "new": "جديد!",
+   "try": "جرّب!",
+   "gift": "صندوق هدية!",
+   "daily": "هدية اليوم!",
+   "makeOwn": "الآن اصنع بنفسك!",
+   "tapOpen": "انقر للفتح!"
+  },
+  "es": {
+   "pour": "¡Mantén para verter!",
+   "fruit": "¡Añade la fruta!",
+   "chop": "¡Toca para picar!",
+   "spread": "¡Arrastra para extender!",
+   "draw": "¡Dibuja con sirope!",
+   "freeze": "¡Mantén para congelar!",
+   "roll": "¡Desliza arriba!",
+   "cup": "¡A la copa!",
+   "topping": "¡Añade toppings!",
+   "serve": "Servir",
+   "done": "Listo",
+   "next": "Siguiente",
+   "perfect": "¡PERFECTO!",
+   "great": "¡GENIAL!",
+   "yummy": "¡QUÉ RICO!",
+   "tooMuch": "¡Demasiado!",
+   "more": "¡Un poco más!",
+   "chopWord": "¡PICA!",
+   "frozen": "¡CONGELADO!",
+   "new": "¡NUEVO!",
+   "try": "¡PRUEBA!",
+   "gift": "¡Caja regalo!",
+   "daily": "¡Regalo diario!",
+   "makeOwn": "¡Ahora haz el tuyo!",
+   "tapOpen": "¡Toca para abrir!"
+  },
+  "vi": {
+   "pour": "Giữ để rót!",
+   "fruit": "Thêm trái cây!",
+   "chop": "Chạm để băm!",
+   "spread": "Kéo để dàn đều!",
+   "draw": "Vẽ bằng siro!",
+   "freeze": "Giữ để làm đông!",
+   "roll": "Vuốt lên để cuộn!",
+   "cup": "Vào cốc nào!",
+   "topping": "Thêm topping!",
+   "serve": "Phục vụ",
+   "done": "Xong",
+   "next": "Tiếp",
+   "perfect": "HOÀN HẢO!",
+   "great": "TUYỆT!",
+   "yummy": "NGON QUÁ!",
+   "tooMuch": "Nhiều quá!",
+   "more": "Thêm chút nữa!",
+   "chopWord": "BĂM!",
+   "frozen": "ĐÔNG RỒI!",
+   "new": "MỚI!",
+   "try": "THỬ!",
+   "gift": "Hộp quà!",
+   "daily": "Quà mỗi ngày!",
+   "makeOwn": "Giờ tự làm nào!",
+   "tapOpen": "Chạm để mở!"
+  },
+  "hi": {
+   "pour": "डालने को दबाए रखो!",
+   "fruit": "फल डालो!",
+   "chop": "काटने को टैप करो!",
+   "spread": "फैलाने को खींचो!",
+   "draw": "सिरप से बनाओ!",
+   "freeze": "जमाने को दबाए रखो!",
+   "roll": "रोल को ऊपर स्वाइप!",
+   "cup": "कप में डालो!",
+   "topping": "टॉपिंग डालो!",
+   "serve": "परोसो",
+   "done": "हो गया",
+   "next": "अगला",
+   "perfect": "परफेक्ट!",
+   "great": "शानदार!",
+   "yummy": "स्वादिष्ट!",
+   "tooMuch": "बहुत ज़्यादा!",
+   "more": "थोड़ा और!",
+   "chopWord": "काटो!",
+   "frozen": "जम गया!",
+   "new": "नया!",
+   "try": "आज़माओ!",
+   "gift": "गिफ्ट बॉक्स!",
+   "daily": "आज का तोहफ़ा!",
+   "makeOwn": "अब खुद बनाओ!",
+   "tapOpen": "खोलने को टैप करो!"
+  },
+  "bn": {
+   "pour": "ঢালতে চেপে ধরো!",
+   "fruit": "ফল দাও!",
+   "chop": "কাটতে ট্যাপ করো!",
+   "spread": "ছড়াতে টানো!",
+   "draw": "সিরাপ দিয়ে আঁকো!",
+   "freeze": "জমাতে চেপে ধরো!",
+   "roll": "রোল করতে উপরে টানো!",
+   "cup": "কাপে রাখো!",
+   "topping": "টপিং দাও!",
+   "serve": "পরিবেশন",
+   "done": "হয়েছে",
+   "next": "পরের",
+   "perfect": "পারফেক্ট!",
+   "great": "দারুণ!",
+   "yummy": "মজাদার!",
+   "tooMuch": "অনেক বেশি!",
+   "more": "আরেকটু!",
+   "chopWord": "কাটো!",
+   "frozen": "জমে গেছে!",
+   "new": "নতুন!",
+   "try": "চেষ্টা করো!",
+   "gift": "উপহার বাক্স!",
+   "daily": "আজকের উপহার!",
+   "makeOwn": "এবার নিজে বানাও!",
+   "tapOpen": "খুলতে ট্যাপ করো!"
+  },
+  "id": {
+   "pour": "Tahan untuk tuang!",
+   "fruit": "Masukkan buah!",
+   "chop": "Ketuk untuk cincang!",
+   "spread": "Geser untuk ratakan!",
+   "draw": "Gambar pakai sirup!",
+   "freeze": "Tahan untuk bekukan!",
+   "roll": "Usap ke atas!",
+   "cup": "Masuk ke cup!",
+   "topping": "Tambah topping!",
+   "serve": "Sajikan",
+   "done": "Selesai",
+   "next": "Lanjut",
+   "perfect": "SEMPURNA!",
+   "great": "HEBAT!",
+   "yummy": "ENAK!",
+   "tooMuch": "Kebanyakan!",
+   "more": "Sedikit lagi!",
+   "chopWord": "CINCANG!",
+   "frozen": "BEKU!",
+   "new": "BARU!",
+   "try": "COBA!",
+   "gift": "Kotak hadiah!",
+   "daily": "Hadiah harian!",
+   "makeOwn": "Sekarang buat sendiri!",
+   "tapOpen": "Ketuk untuk buka!"
+  }
+ },
+ "sprites": {
+  "customer_bunny": {
+   "w": 907,
+   "h": 1509,
+   "cells": [
+    [
+     0,
+     0,
+     418,
+     739
+    ],
+    [
+     487,
+     0,
+     420,
+     739
+    ],
+    [
+     0,
+     769,
+     417,
+     740
+    ],
+    [
+     488,
+     769,
+     418,
+     740
+    ]
+   ]
+  },
+  "customer_panda": {
+   "w": 941,
+   "h": 1239,
+   "cells": [
+    [
+     4,
+     0,
+     442,
+     597
+    ],
+    [
+     488,
+     0,
+     453,
+     597
+    ],
+    [
+     0,
+     640,
+     446,
+     599
+    ],
+    [
+     488,
+     641,
+     453,
+     598
+    ]
+   ]
+  },
+  "customer_kitty": {
+   "w": 892,
+   "h": 951,
+   "cells": [
+    [
+     0,
+     0,
+     408,
+     457
+    ],
+    [
+     484,
+     0,
+     408,
+     457
+    ],
+    [
+     0,
+     491,
+     409,
+     460
+    ],
+    [
+     484,
+     492,
+     408,
+     459
+    ]
+   ]
+  },
+  "customer_pup": {
+   "w": 918,
+   "h": 1204,
+   "cells": [
+    [
+     2,
+     0,
+     426,
+     572
+    ],
+    [
+     489,
+     0,
+     428,
+     572
+    ],
+    [
+     0,
+     627,
+     428,
+     577
+    ],
+    [
+     489,
+     627,
+     429,
+     577
+    ]
+   ]
+  }
+ },
+ "sounds": {
+  "sfx_chop": [
+   0,
+   -0.5
+  ],
+  "sfx_coin": [
+   0,
+   0
+  ],
+  "sfx_freeze": [
+   0,
+   -12.9
+  ],
+  "sfx_pop": [
+   0,
+   0
+  ],
+  "sfx_pour": [
+   0,
+   -2.6
+  ],
+  "sfx_scrape": [
+   0,
+   -1.7
+  ],
+  "sfx_sprinkle": [
+   0.031,
+   -8.3
+  ],
+  "sfx_squeeze": [
+   0.079,
+   -6.7
+  ],
+  "sfx_whip": [
+   0,
+   -2.8
+  ],
+  "sfx_win": [
+   0,
+   0
+  ]
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ }
+}

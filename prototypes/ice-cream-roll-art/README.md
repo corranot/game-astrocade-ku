@@ -1,0 +1,37 @@
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+# Ice Cream Roll Art: DIY Rolled Ice Cream Maker (prototype)
+
+Step-by-step rolled ice cream maker for kids, Three.js r187, multi-file Astrocade game. The upload copy of this
+README (no working notes) is `README.upload.md`.
+
+**Hypothesis.** The rolled-ice-cream maker genre is proven on Astrocade (Ice Cream Roll Shop: 680k plays in ~37 days,
+17k shares; Poké Ice Cream Rolls: highest share rate seen). A version that fixes that game's weaknesses — slow entry,
+invisible white milk on a white plate, rolls that are plain cylinders, a freeze step with no visible change, a
+"Too slow!" fail after minutes of work, English only — and adds one new verb (draw with syrup, and the drawing really
+winds into the spiral) can pass the day-one test (significant plays ≥ 80 %, FPS Optimal).
+
+**Run.** Serve this folder (`.js` as `text/javascript`, `.mp3` as `audio/mpeg`) and open `index.html?local`
+(`&speed=2` speeds it up, `&mode=edit` shows edit mode).
+
+**Tests.**
+- `node logic.test.mjs` — rules and spiral math.
+- `node playtest.js <out>` — first cup + a full cup with real finger input, screenshots of every step.
+- `node soak.js 14` — 14 cups in one page: saves, payouts, gifts, flat GPU memory.
+- `node look.js <out> [langs]` — every screen in 7 languages, text inside the screen.
+
+**Status.** In progress (2026-11-21): playable end to end; artifact https://claude.ai/artifact/7M1bGkY1o7Ykc6qFE9rNUH. Not yet uploaded to Astrocade.
+
+**Findings so far.**
+- Seen from above, a lying roll reads as a flat block. Standing each roll on its end as soon as it is scraped shows
+  the spiral, which is the money shot.
+- The spiral end cap needs its inner edge shaded (vertex colour) or the layers blend into one disc.
+- A `setPointerCapture` on the game root steals the click of every HUD button under the finger; buttons must be
+  skipped before capturing.
+- A finger still down when a step ends carried its gesture into the next step (spread finished the drawing step
+  by itself); every step change now clears gestures.
+- Mid-line `//` comment inserted by a script swallowed the cup reset (cup stayed at 25 % size): same class as
+  ASTROCADE.md §0.5. Covered by a playtest check.
+- A fresh-eyes bug hunt found 10 bugs the tests missed (late save paying the daily gift twice, the PERFECT band
+  mirrored wrong in Arabic, a re-rendered tray moving the highlight, a listener kept per `run()`, a canvas made per
+  fruit because cache arguments were evaluated on every call, the mute icon, the hint hand over a still finger,
+  coins spent on a tap that did nothing). `playtest.js` `bugChecks` covers them; each check failed before its fix.
