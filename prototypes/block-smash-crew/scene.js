@@ -566,7 +566,12 @@ export function createScene(cv, cfg) {
     /** Star beacons in view: [{cell, x, y}] in frame units (a tap near one throws a star bomb). */
     starMarks() { const out = []; for (const b of beacons) { if (b.chest || !b.mark.visible) continue; const [x, y, behind] = screenOf(b.mark.position.x, b.mark.position.y, b.mark.position.z); if (!behind) out.push({ cell: b.cell, x, y }); } return out; },
     /** Attract mode: the view sweeps slowly across the building's front. */
-    demoLook(b) { if (!W) return; const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1, h = W.hero; cam.follow = false; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12; },
+    /** The attract mode's view: sweeping along the building, or turned smoothly towards focus {x, z} (a robot in flight). */
+    demoLook(b, focus) {
+      if (!W) return; const h = W.hero; cam.follow = false;
+      if (focus) { let d = Math.atan2(-(focus.x - h.x), -(focus.z - h.z)) - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * 0.12; const want = Math.atan2((focus.y || 0.9) - (h.y + cfg.camera.eye), Math.hypot(focus.x - h.x, focus.z - h.z)); cam.pitch += (Math.max(-0.5, Math.min(0.4, want)) - cam.pitch) * 0.12; return; }
+      const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12;
+    },
     get coinArrive() { return coinArrive; },
     get counts() { return { debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
     get quality() { return quality; },

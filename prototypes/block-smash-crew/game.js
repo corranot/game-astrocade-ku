@@ -174,6 +174,8 @@ function startGame(mode) {
   function newLevel(n, opts = {}) {
     W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned, lv: save.lv, daily: !!opts.daily, coinMult: opts.daily ? cfg.daily.mult : 1 });
     demo = !!opts.demo;
+    // the attract mode: a beat to see the robot strolling, then the first rocket goes to it
+    if (demo) { demoT = 0.7; demoN = 0; }
     scene.setLevel(W);
     sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; firstTap = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
@@ -608,7 +610,9 @@ function startGame(mode) {
       if (demo) { // attract: the hero smashes the fence by himself
         demoT -= dt;
         if (demoT <= 0) { demoT = 1.6; const t = demoTarget(); if (t) { W.cool.rocket = 0; WD.useTool(W, 'rocket', t); } }
-        scene.demoLook(W.box);
+        // the view follows the front-yard robot for the first seconds (it is the one the first rocket sends flying)
+        const b0 = W.bots[0], fb = b0 && W.t < 4 && (b0.state === 'walk' || (b0.state === 'down' && b0.t < 1.1)) ? (b0.pts ? { x: b0.pts[1][0], y: b0.pts[1][1], z: b0.pts[1][2] } : { x: b0.x, y: 0.9, z: b0.z }) : null;
+        scene.demoLook(W.box, fb);
       } else if (resultsOpen) WD.setMove(W, 0, 0);
       else {
         // walking: the stick or the keys, turned by where the view looks
@@ -648,6 +652,10 @@ function startGame(mode) {
   /** The attract mode's next rocket target: a block high on the building's front, picked in turn left to right. */
   let demoN = 0;
   function demoTarget() {
+    // the attract mode's opening: the first rocket (and every third) goes to the robot strolling in the front yard
+    const bot = W.bots.find((o) => o.state === 'walk' && Math.hypot(o.x - W.hero.x, o.z - W.hero.z) < 9);
+    // just in front of it (towards the hero): the blast throws it away from the view, towards the building
+    if (bot && demoN % 3 === 0) { demoN++; const dx = bot.x - W.hero.x, dz = bot.z - W.hero.z, d = Math.hypot(dx, dz) || 1; return { x: bot.x - dx / d * 0.7, y: 0.7, z: bot.z - dz / d * 0.7 }; }
     const b = W.box, xs = [b.x0 + 2, (b.x0 + b.x1) >> 1, b.x1 - 2], x = xs[demoN++ % 3];
     for (let y = W.g.H - 1; y >= 3; y--) for (let z = b.z1 + 2; z >= b.z0; z--) if (W.g.get(x, y, z)) return { x: x + 0.5, y: y + 0.5, z: z + 0.5 };
     return null;

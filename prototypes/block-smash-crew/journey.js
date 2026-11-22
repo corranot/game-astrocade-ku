@@ -18,7 +18,10 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   const coach = () => g(() => { const c = document.getElementById('coach'); if (c.hidden) return null; const a = document.getElementById('app').getBoundingClientRect(), r = c.querySelector('.clabel').getBoundingClientRect(), k = 720 / a.width; return { cls: c.className, text: c.querySelector('.clabel').textContent, inside: r.left >= a.left - 1 && r.right <= a.right + 1 && (r.bottom - a.top) * k <= 934 }; });
   const until = (fn, ms = 6000) => page.waitForFunction(fn, null, { timeout: ms, polling: 50 }).then(() => true, () => false);
   const touch = (id, type, x, y) => g(([id, type, x, y]) => { const c = __game.client(x, y); (type === 'pointerdown' ? document.getElementById('app') : window).dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: c[0], clientY: c[1], bubbles: true })); }, [id, type, x, y]);
-  await page.waitForTimeout(1200); await shot('01-demo');
+  // the feed preview (before any touch): the first rocket sends the front-yard robot flying within 2.5 s
+  const preview = await until(() => __game.demo && __game.W.t < 2.5 && __game.W.bots[0] && __game.W.bots[0].state === 'down', 4000);
+  check(preview, 'feed preview: a robot flies in the first 2.5 s, before any touch');
+  await page.waitForTimeout(300); await shot('01-demo');
   // the first tap anywhere: the real level starts with its card and the TNT ahead blows up
   await touch(1, 'pointerdown', 360, 420); await touch(1, 'pointerup', 360, 420);
   await page.waitForTimeout(450);
