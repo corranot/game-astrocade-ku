@@ -60,6 +60,8 @@ const Sound = (() => {
     treasure() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.22, 0.3, i * 0.08)); hiss(6000, 3000, 0.6, 0.12, 'highpass', 0.1); },
     fever() { for (let i = 0; i < 8; i++) tone('square', 400 + i * 120, 500 + i * 140, 0.08, 0.12, i * 0.05); },
     clear() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.22, 0.3, i * 0.1)); },
+    fanfare() { [784, 988, 1175, 1568, 1319, 1568].forEach((f, i) => tone('square', f, f, 0.16, 0.09, i * 0.08)); [392, 523].forEach((f, i) => tone('triangle', f, f, 0.6, 0.25, i * 0.16)); hiss(7000, 4000, 0.7, 0.1, 'highpass', 0.2); },
+    horn() { [392, 392, 523].forEach((f, i) => tone('sawtooth', f, f * 1.01, 0.18, 0.07, i * 0.2)); },
     blip(f = 660) { tone('square', f, f, 0.06, 0.1); },
     unlock() { [659, 784, 988, 1319, 1568].forEach((f, i) => tone('sine', f, f * 1.01, 0.16, 0.3, i * 0.06)); },
     no() { tone('square', 220, 160, 0.14, 0.12); },
@@ -163,15 +165,18 @@ function startGame(mode) {
 
   // ---- save: one slot; nothing is written until the player's own save has been read
   const LESSONS = ['bomb', 'drag', 'shop', 'walk', 'hit'];
-  const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], lv: {}, learned: { bomb: false, drag: false, shop: false, walk: false, hit: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0, dailyDone: 0 };
+  const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], lv: {}, learned: { bomb: false, drag: false, shop: false, walk: false, hit: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0, dailyDone: 0, bestBlast: 0 };
   let saveLoaded = false, persistT = 0, dirtySave = false;
   const persist = () => { if (mode === 'play' && saveLoaded) { dirtySave = false; Promise.resolve().then(() => lib.saveUserGameState(JSON.parse(JSON.stringify(save)))).catch(() => {}); } };
   const persistSoon = () => { dirtySave = true; };
 
   // ---- scene and world
   const cv = $('cv'), scene = createScene(cv, cfg);
+  const signLang = () => scene.setSignLang(lang, (cfg.signs || {})[lang] || (cfg.signs || {}).en || []);
+  signLang();
   let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
   function newLevel(n, opts = {}) {
+    celGen++; celAt = 0;
     W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned, lv: save.lv, daily: !!opts.daily, coinMult: opts.daily ? cfg.daily.mult : 1 });
     demo = !!opts.demo;
     // the attract mode: a beat to see the robot strolling, then the first rocket goes to it
@@ -192,6 +197,11 @@ function startGame(mode) {
   const toolEls = {};
   $('tools').innerHTML = cfg.tools.map((t) => `<button class="tool gloss" data-t="${t.id}" aria-label="${t.id}"><span class="ic">${t.icon}</span><i class="cd"></i><span class="free" hidden></span><span class="lock" hidden><i class="coin"></i><b></b></span></button>`).join('');
   for (const b of $('tools').querySelectorAll('.tool')) toolEls[b.dataset.t] = b;
+  // the HIT button's verb follows the tool (BONK, BOOM, FIRE, SWING, PULL, CRASH); its ready pulse is tuned in the config
+  const VERB = { hammer: 'vHammer', bomb: 'vBomb', rocket: 'vRocket', ball: 'vBall', hole: 'vHole', meteor: 'vMeteor' };
+  { const hp = cfg.hitPulse; root.style.setProperty('--wave-dur', cfg.waves.banner + 's'); root.style.setProperty('--hp-cycle', hp.cycle + 's'); root.style.setProperty('--hp-glow', String(hp.glow)); root.style.setProperty('--hp-bright', String(hp.bright)); root.style.setProperty('--hp-dim', String(hp.dim)); }
+  let hitLabel = '';
+  function labelHit() { const el = $('hit').querySelector('.hl'), t = T(VERB[sel] || 'vHammer'); if (hitLabel === t + lang) return; hitLabel = t + lang; el.textContent = t; fitText(el, 132, 28); }
   $('stars').innerHTML = '<img class="st" alt=""><img class="st" alt=""><img class="st" alt="">';
   $('stars').querySelectorAll('img').forEach((i) => { i.src = STAR_SVG; });
   $('bar').innerHTML = `<b></b><i style="left:${cfg.stars.wreck1 * 100}%"></i><i style="left:${cfg.stars.wreck2 * 100}%"></i><span class="pct"></span>`;
@@ -209,18 +219,22 @@ function startGame(mode) {
       if (!free.hidden && free.dataset.l !== lang) { free.dataset.l = lang; fitText(free, 100, 18); }
       el.classList.toggle('can', !owned && save.coins >= t.cost);
     }
+    labelHit();
   }
   function renderTop() {
     const coins = save.coins;
-    if (coins !== shown.coins) { const can = !save.learned.shop && cfg.tools.some((t) => (save.owned.includes(t.id) ? (L.upgradeCost(cfg, t.id, Math.max(1, save.lv[t.id] || 1)) || Infinity) : t.cost) <= coins); $('coins').classList.toggle('can', can); }
+    // something to buy: a red "!" on the coins (always), and the pulse until the shop has been opened once
+    if (coins !== shown.coins || shown.dot === undefined) { const can = saveLoaded && L.canBuy(cfg, save.owned, save.lv, coins); $('coins').classList.toggle('can', can && !save.learned.shop); $('dot').hidden = !can; shown.dot = can; }
     if (coins !== shown.coins) { const el = $('coins'); el.querySelector('b').textContent = fmt(coins); if (shown.coins >= 0 && coins > shown.coins) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } shown.coins = coins; renderTools(); }
     const got = W ? Math.min(3, W.got) : 0;
     if (got !== shown.got) { $('stars').querySelectorAll('img').forEach((im, i) => im.classList.toggle('on', i < got)); shown.got = got; }
     const wr = W ? Math.round(WD.wreck(W) * 100) : 0;
-    if (wr !== shown.wreck) { const bar = $('bar'); bar.querySelector('b').style.width = wr + '%'; bar.querySelector('.pct').textContent = wr + '%'; const is = bar.querySelectorAll('i'); is[0].classList.toggle('on', wr >= cfg.stars.wreck1 * 100); is[1].classList.toggle('on', wr >= cfg.stars.wreck2 * 100); if (shown.wreck >= 0 && W && !demo) { if (shown.wreck < cfg.stars.wreck1 * 100 && wr >= cfg.stars.wreck1 * 100) starPop(); if (shown.wreck < cfg.stars.wreck2 * 100 && wr >= cfg.stars.wreck2 * 100) starPop(); } shown.wreck = wr; }
+    if (wr !== shown.wreck) { const bar = $('bar'); bar.querySelector('b').style.width = wr + '%'; bar.querySelector('.pct').textContent = wr + '%'; const is = bar.querySelectorAll('i'); is[0].classList.toggle('on', wr >= cfg.stars.wreck1 * 100); is[1].classList.toggle('on', wr >= cfg.stars.wreck2 * 100); if (shown.wreck >= 0 && W && !demo) { if (shown.wreck < cfg.stars.wreck1 * 100 && wr >= cfg.stars.wreck1 * 100) starPop(); if (shown.wreck < cfg.stars.wreck2 * 100 && wr >= cfg.stars.wreck2 * 100) { starPop(); celebrate(T('flat'), 'flat'); } } shown.wreck = wr; }
     $('langs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.l === lang));
   }
-  const fmt = (n) => (n >= 10000 ? (Math.floor(n / 100) / 10).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n));
+  const fmt = (n) => (n >= 1e6 ? (Math.floor(n / 1e5) / 10).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 10000 ? (Math.floor(n / 100) / 10).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n));
+  /** A whole number with thousands commas (1,234), for the brag line. */
+  const commas = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   function starPop() { const p = document.createElement('img'); p.src = TROPHY_SVG; p.className = 'pop trophy'; p.style.left = 'calc(var(--u)*360px)'; p.style.top = 'calc(var(--u)*600px)'; $('pops').appendChild(p); setTimeout(() => p.remove(), 950); Sound.play('star'); buzz('success'); }
   /** A word at frame point (x, y). */
   function pop(text, x, y, cls = '', color) {
@@ -228,7 +242,7 @@ function startGame(mode) {
     p.style.left = `calc(var(--u)*${Math.max(110, Math.min(610, x))}px)`; p.style.top = `calc(var(--u)*${Math.max(150, Math.min(920, y))}px)`;
     if (color) p.style.color = color;
     $('pops').appendChild(p); setTimeout(() => p.remove(), 950);
-    const base = cls.includes('p-big') ? 88 : cls.includes('p-mid') ? 62 : cls.includes('p-coin') ? 38 : 44; fitText(p, 690, base);
+    const base = cls.includes('p-big') ? 88 : cls.includes('p-mid') ? 62 : cls.includes('p-coin') ? 38 : 44; fitText(p, 690, base, cls.includes('p-big') ? 2 : 1);
     const w = p.offsetWidth / (root.getBoundingClientRect().width / 720 || 1); // keep long words inside the frame
     if (w) p.style.left = `calc(var(--u)*${Math.max(w / 2 + 12, Math.min(708 - w / 2, x))}px)`;
   }
@@ -444,7 +458,46 @@ function startGame(mode) {
   window.addEventListener('blur', onBlur);
 
   // ---- world events → sounds, words, coins
-  let hitSnd = 0;
+  let hitSnd = 0, beepT = 0;
+  /** Hit-stop: the world runs at feel.stopScale for a moment sized by the tool (hammer short, ball and meteor long). */
+  const hitStop = (kind) => { if (!demo) stopT = Math.max(stopT, cfg.feel.stop[kind] || cfg.feel.stop.bomb); };
+  /** A batch of n blocks: the biggest ever (from a minimum size on) is a new record. */
+  function recordCheck(n) {
+    // a new record beats the old one by a margin (no fanfare for every slightly bigger blast)
+    if (demo || !saveLoaded || n < cfg.celebrate.recordMin || n < save.bestBlast * cfg.celebrate.recordMargin) return;
+    save.bestBlast = n; persistSoon(); celebrate(T('record', commas(n)), 'record');
+  }
+  // ---- big moments: fanfare, big words at eye level, confetti, a buzz and the score on the leaderboard
+  let celAt = 0, boardAt = -1e9, celGen = 0;
+  function celebrate(text, kind) {
+    if (demo) return;
+    const now = performance.now(), at = Math.max(now, celAt + cfg.celebrate.gap * 1000), gen = celGen;
+    // never a long queue: one waiting too long is dropped
+    if (at - now > cfg.celebrate.maxWait * 1000) return;
+    celAt = at;
+    // a celebration still waiting when the level changes or the result card opens is dropped
+    const go = () => { if (!alive || gen !== celGen || resultsOpen) return; Sound.play('fanfare'); buzz('success'); banner(text, 'p-big', -40); confetti(); lastCelebration = kind; board(); };
+    if (at <= now) go(); else setTimeout(go, at - now);
+  }
+  let lastCelebration = '';
+  /** The blocks smashed so far go to the leaderboard (at most once every boardGap seconds). */
+  function board() { const now = performance.now(); if (!saveLoaded || now - boardAt < cfg.celebrate.boardGap * 1000) return; boardAt = now; try { Promise.resolve(lib.addPlayerScoreToLeaderboard(save.blocks)).catch(() => {}); } catch (er) { /* no board here */ } }
+  /** A burst of paper confetti from the middle of the view (a fixed pool of pieces, moved with translate). */
+  function confetti() {
+    const box = $('confetti'), N = cfg.celebrate.confetti, cols = ['#ff5fa8', '#ffd23c', '#4fd1c5', '#7aa8ff', '#9be15d', '#ff9a3c'];
+    while (box.children.length < N) box.appendChild(document.createElement('i'));
+    [...box.children].forEach((el, i) => {
+      const a = (i / N) * Math.PI * 2 + Math.random() * 0.4, d = 180 + Math.random() * 220;
+      el.style.setProperty('--dx', String(Math.round(Math.cos(a) * d))); el.style.setProperty('--dy', String(Math.round(Math.sin(a) * d * 0.7 - 120))); el.style.setProperty('--r', Math.round(Math.random() * 720 - 360) + 'deg');
+      el.style.background = cols[i % cols.length]; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+    });
+    box.hidden = false; clearTimeout(confetti.t); confetti.t = setTimeout(() => { box.hidden = true; }, 1700);
+  }
+  /** WAVE n ARRIVING! for a few seconds at eye level. */
+  function waveBanner(n) {
+    const el = $('wavebn'); el.textContent = T('wave', n); el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); fitText(el, 640, 64, 2);
+    clearTimeout(waveBanner.t); waveBanner.t = setTimeout(() => { el.hidden = true; }, cfg.waves.banner * 1000);
+  }
   function onEvent(e) {
     scene.event(e);
     if (e.type === 'smash') {
@@ -454,6 +507,7 @@ function startGame(mode) {
       else if (e.by === 'hole' || e.by === 'ball') { if ((hitSnd -= 1) <= 0) { hitSnd = 3; Sound.play('brick', 0.5); } }
       if (mat.snd === 'glass' && e.by !== 'hammer') Sound.play('glass', 0.7);
       if (e.gold) Sound.play('gem');
+      recordCheck(n);
       if (!demo) {
         save.coins += e.coins; save.total += e.coins; save.blocks += n; persistSoon();
         coinPop(e.coins, e.x, e.y, e.z);
@@ -462,7 +516,7 @@ function startGame(mode) {
         if (!dailyChecked && saveLoaded) daily();
       }
     } else if (e.type === 'swing') Sound.play('swing');
-    else if (e.type === 'hit') { if (e.n > 0 && !demo) { stopT = Math.max(stopT, cfg.feel.hitStop); scene.kick(0.022); } }
+    else if (e.type === 'hit') { if (e.n > 0 && !demo) { hitStop('hammer'); scene.kick(0.022); } }
     else if (e.type === 'topple') { Sound.play('timber'); buzz('warning'); if (!demo) { slowT = Math.max(slowT, cfg.feel.toppleSlow); banner(T('timber'), 'p-big', -80); } }
     else if (e.type === 'fuse') Sound.play('fuse');
     else if (e.type === 'clang') { Sound.play('metal'); buzz('warning'); }
@@ -472,25 +526,32 @@ function startGame(mode) {
       const teach = sel === 'hammer' && usable('bomb') && !save.learned.bomb; // the first times: the tip line + hand say it
       if (!teach) { const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('tooHard'), sx, sy - 100, 'p-mid', '#ffd0d0'); }
       if (sel === 'hammer' && usable('bomb')) { toolEls.bomb.classList.add('hint'); hardHint = { x: e.x, y: e.y, z: e.z, t: 4 }; if (teach) setTip('tooHard'); }
-    } else if (e.type === 'boom') { Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); if (!demo) stopT = Math.max(stopT, cfg.feel.boomStop); }
+    } else if (e.type === 'boom') { Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); hitStop(e.kind); }
     else if (e.type === 'throw') { Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
-    else if (e.type === 'roll') Sound.play('roll');
+    else if (e.type === 'roll') { Sound.play('roll'); if (e.first) hitStop('ball'); }
     else if (e.type === 'fall') { /* the crash comes when it lands */ }
     else if (e.type === 'land') {
       Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud'); if (!demo && e.n >= 120) slowT = Math.max(slowT, cfg.feel.landSlow);
+      recordCheck(e.n);
       if (!demo) { save.coins += e.coins; save.total += e.coins; save.blocks += e.n; persistSoon(); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (e.n >= 12) pop(T('crash'), sx, sy - 120, e.n > 120 ? 'p-big' : 'p-mid', '#ffb02e'); coinPop(e.coins, e.x, e.y + 1, e.z); }
     } else if (e.type === 'step') Sound.play('step');
     else if (e.type === 'treasure') { Sound.play('treasure'); buzz('success'); if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); banner(T('treasure'), 'p-big', -40); } }
     else if (e.type === 'bonk') {
-      Sound.play('boing', e.again ? 0.6 : 1); buzz(e.again ? 'tap' : 'thud');
+      Sound.play('boing', e.again ? 0.6 : 1); buzz(e.again ? 'tap' : 'thud'); if (e.by === 'hammer' && !e.again) hitStop('hammer');
       if (!demo && !e.again) {
         save.coins += e.coins; save.total += e.coins; persistSoon(); idleT = 0;
         const [sx, sy, behind] = scene.screenOf(e.x, e.y, e.z); if (!behind) { pop(T('bonk'), sx, sy - 110, 'p-mid', '#7dfcff'); coinPop(e.coins, e.x, e.y, e.z); }
       }
     }
-    else if (e.type === 'reboot') { if (!demo) Sound.play('reboot', 0.7); }
+    else if (e.type === 'reboot') {
+      if (demo) return; Sound.play('reboot', 0.7);
+      // back up and happy: BEEP! (one word at a time when many get up together)
+      if (beepT <= 0) { const [sx, sy, behind] = scene.screenOf(e.x, e.y + 1, e.z); if (!behind && sx > 0 && sx < 720 && sy > 0 && sy < 1280) { beepT = 0.4; pop(T('beep'), sx, sy - 60, 'p-coin', '#7dfcff'); } }
+    }
+    else if (e.type === 'wave') { if (!demo && e.n > 1) { waveBanner(e.n); Sound.play('horn'); buzz('warning'); } }
+    else if (e.type === 'waveClear') { if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); celebrate(T('waveClear'), 'wave'); setTimeout(() => { if (alive) pop('+' + fmt(e.coins), 360, 640, 'p-mid', '#ffe14a'); }, 300); } }
     else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); flyStar(sx, sy); persist(); } } // the chest's star: TREASURE! says it
-    else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); banner(T('smashTime'), 'p-big'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); }
+    else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); celebrate(T('smashTime'), 'fever'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); }
     else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); results(); }
     else if (e.type === 'pop') { /* the look handles it */ }
   }
@@ -523,6 +584,7 @@ function startGame(mode) {
       <div class="bigstars">${[0, 1, 2].map((i) => `<img src="${STAR_SVG}" class="on" style="animation-delay:${0.15 + i * 0.15}s" alt="">`).join('')}</div>
       <div class="cups"><span class="pct out">💥 ${Math.round(wr * 100)}%</span>${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</div>
       <div class="stat out"><i class="coin"></i>+<b class="cnt">${fmt(W.coins + (bonus || 0))}</b></div>
+      <div class="brag">${T('brag', commas(W.smashed))}</div>
       ${nt ? `<div class="nexttool out"><span class="hi">${nt.tool.icon}</span><i><b style="width:${Math.round(nt.have / nt.need * 100)}%"></b></i><span>${fmt(nt.have)}/${fmt(nt.need)}</span></div>` : ''}
       <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date()) ? `<button id="dailyBtn" class="small daily out">📅 ${T('dailyGo')}</button>` : ''}${share ? `<button id="shareBtn" class="small share out">✈️ ${T('shareCta')}</button>` : ''}</div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
@@ -532,14 +594,14 @@ function startGame(mode) {
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
     if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
     $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); $('panel').hidden = true; resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
-    if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('share') })).catch(() => {}); });
+    if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('brag', commas(W.smashed)) + ' ' + T('share') })).catch(() => {}); });
   }
   function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); const n = W.daily ? save.level : Math.max(W.n + 1, save.level); wipeTo(() => newLevel(n)); } // a save that came late still counts; after the daily, back to the path
   function startDaily() { Sound.unlock(cfg); Sound.play('unlock'); const n = L.dailyLevel(cfg, L.dayNum(new Date())); wipeTo(() => newLevel(n, { daily: true })); }
   // ---- the shop (tap the coins): tools to unlock and upgrade (5 levels each), and the album of buildings
   const KIND_ICON = { cottage: '🏠', candy: '🍬', castle: '🏰', lighthouse: '🗼', factory: '🏭', ice: '🧊', temple: '🛕', space: '🚀' };
   let shopTab = 'tools';
-  const lvOf = (id) => Math.max(1, Math.min(cfg.upgrade.max, save.lv[id] || 1));
+  const lvOf = (id) => L.clampLv(cfg, save.lv[id] || 1);
   function openShop(tab) {
     if (mode !== 'play' || !W || resultsOpen || !saveLoaded) return; // nothing is bought before the save is read: a late save would undo it
     shopTab = tab || shopTab; save.learned.shop = true; $('coins').classList.remove('can');
@@ -549,7 +611,8 @@ function startGame(mode) {
       body = `<div class="srows">${cfg.tools.map((t) => {
         const owned = save.owned.includes(t.id), lv = lvOf(t.id), cost = owned ? L.upgradeCost(cfg, t.id, lv) : t.cost;
         const btn = cost === null ? `<span class="sbtn max">${T('max')}</span>` : `<button class="sbtn ${save.coins >= cost ? '' : 'no'}" data-buy="${t.id}">${owned ? '⬆' : '🔓'} <i class="coin"></i>${fmt(cost)}</button>`;
-        return `<div class="srow"><span class="sic">${t.icon}</span><span class="pips">${[1, 2, 3, 4, 5].map((k) => `<i class="${owned && k <= lv ? 'on' : ''}"></i>`).join('')}</span>${btn}</div>`;
+        // the level as a number (30 levels: pips would not fit), with a thin bar towards the top
+        return `<div class="srow"><span class="sic">${t.icon}</span><span class="slv">${owned ? `<b>${T('lv', lv)}</b><i><u style="width:${Math.round(lv / cfg.upgrade.max * 100)}%"></u></i>` : ''}</span>${btn}</div>`;
       }).join('')}</div>`;
     } else {
       const seen = {}; for (const [k, v] of Object.entries(save.best)) { const n = Number(k); if (!Number.isFinite(n)) continue; const kind = WD.KINDS[n % WD.KINDS.length]; seen[kind] = Math.max(seen[kind] || 0, v); }
@@ -561,6 +624,7 @@ function startGame(mode) {
     // building names: two balanced lines in their tile before a smaller font
     const k = root.getBoundingClientRect().width / 720 || 1;
     for (const n of $('shop').querySelectorAll('.anm')) if (n.textContent) fitText(n, n.parentElement.clientWidth / k - 12, 24, 2);
+    for (const n of $('shop').querySelectorAll('.slv b')) fitText(n, n.parentElement.clientWidth / k - 4, 30);
   }
   function buyOrUpgrade(id) {
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
@@ -589,22 +653,30 @@ function startGame(mode) {
   $('gear').addEventListener('click', (e) => { e.stopPropagation(); blur(e); Sound.unlock(cfg); Sound.play('blip'); $('settings').hidden = !$('settings').hidden; renderTop(); });
   $('mute').addEventListener('click', (e) => { e.stopPropagation(); blur(e); muteTouched = true; Sound.unlock(cfg); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; $('mute').textContent = Sound.muted ? '🔇' : '🔊'; persist(); });
   $('langs').innerHTML = LANGS.map((l) => `<button data-l="${l}" class="gloss">${cfg.langNames[l]}</button>`).join('');
-  $('langs').addEventListener('click', (e) => { e.stopPropagation(); const l = e.target.dataset && e.target.dataset.l; if (!l) return; try { e.target.blur(); } catch (er) { /* fine */ } lang = l; save.lang = l; setDir(); $('settings').hidden = true; renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); persist(); });
+  $('langs').addEventListener('click', (e) => { e.stopPropagation(); const l = e.target.dataset && e.target.dataset.l; if (!l) return; try { e.target.blur(); } catch (er) { /* fine */ } lang = l; save.lang = l; setDir(); signLang(); $('settings').hidden = true; renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); persist(); });
   $('settings').addEventListener('pointerdown', (e) => e.stopPropagation());
 
   // ---- frame loop
   let stopT = 0, slowT = 0;
-  let fpsT = 0, fpsN = 0, slow = 0, fast = 0, quality = 1, coinTickT = 0, arrowKey = '';
+  let qT = 0, qN = 0, coinTickT = 0, arrowKey = '', hitState = '';
+  // quality: a weak phone starts on the low tier (no shadows, half the particles, a lower resolution); everywhere the
+  // resolution follows the average frame over a window: slow → down a step, fast → up a step
+  const Q = cfg.quality; let qs8 = { dpr: scene.dpr, max: scene.dprBase, low: false, capped: false, dropped: null, slow: 0 };
+  { let weak = false; try { weak = touchUI && ((navigator.hardwareConcurrency || 8) <= Q.weakCores || (navigator.deviceMemory || 8) <= Q.weakMemory); } catch (e) { weak = false; } if (weak || qs.has('low')) { qs8.low = true; qs8.max = Math.min(scene.dprBase, Q.lowMax); qs8.dpr = Math.min(qs8.max, Q.minDpr); scene.setLow(true); scene.setDpr(qs8.dpr); } }
   function frame(now) {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
     const real = Math.min(0.1, (now - last) / 1000); last = now;
     if (document.hidden) return;
-    fpsT += real; fpsN++;
-    if (fpsT >= 1) { const fps = fpsN / fpsT; fpsT = 0; fpsN = 0; if (fps < 40) { slow++; fast = 0; } else if (fps > 55) { fast++; slow = 0; } if (slow >= 3 && quality > 0.7) { quality = 0.7; scene.setQuality(quality); slow = 0; } if (fast >= 6 && quality < 1) { quality = 1; scene.setQuality(quality); fast = 0; } }
-    // hit-stop on a solid hit, slow motion while a tower tips and as a big piece lands
+    qT += real; qN++;
+    if (qT >= Q.window) {
+      const avg = qT / qN; qT = 0; qN = 0;
+      qs8 = L.qualityStep(Q, qs8, avg); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low);
+    }
+    // hit-stop on a solid hit (time slowed to feel.stopScale), slow motion while a tower tips and as a big piece lands
     if (stopT > 0) stopT -= real; if (slowT > 0) slowT -= real;
-    const dt = real * speed * (stopT > 0 ? 0.06 : slowT > 0 ? 0.4 : 1);
+    const dt = real * speed * (stopT > 0 ? cfg.feel.stopScale : slowT > 0 ? 0.4 : 1);
+    beepT -= real;
     coinPopT -= dt; coinFlyT -= dt;
     if (mode === 'play' && W) {
       if (demo) { // attract: the hero smashes the fence by himself
@@ -635,10 +707,14 @@ function startGame(mode) {
       }
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
+      W.frozen = stopT > 0;
       if ($('shop').hidden) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
       if (W.fever > 0) $('ftime').textContent = '⏱ ' + Math.ceil(W.fever);
       // cooldown rings
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
+      // HIT pulses when the tool is ready, dims while it cools down
+      const hs = W.phase === 'done' || resultsOpen ? '' : sel === 'hammer' || ((W.cool[sel] || 0) <= 0 && usable(sel)) ? 'ready' : 'cool';
+      if (hs !== hitState) { hitState = hs; hitBtn.classList.toggle('ready', hs === 'ready'); hitBtn.classList.toggle('cool', hs === 'cool'); }
       if (hardHint) { hardHint.t -= dt; if (hardHint.t <= 0) { hardHint = null; toolEls.bomb.classList.remove('hint'); } }
       idleT = W.phase === 'play' && !demo ? idleT + dt : 0;
       placeHand(); placeArrows(); coachTick(dt);
@@ -744,6 +820,7 @@ function startGame(mode) {
     const k = root.getBoundingClientRect().width / 720 || 1, cs = getComputedStyle(card);
     const inner = (card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / k;
     const title = card.querySelector('.title'); if (title) fitText(title, inner, 68, 2);
+    const brag = card.querySelector('.brag'); if (brag) fitText(brag, inner, 38, 2);
     const bs = [...card.querySelectorAll('.btns .big, .btns .small')];
     for (const b of bs) { b.style.width = ''; b.style.whiteSpace = 'nowrap'; }
     const w = Math.min(inner, Math.max(340, ...bs.map((b) => Math.ceil(b.offsetWidth / k))));
@@ -790,6 +867,8 @@ function startGame(mode) {
       'Smash time (s)': { key: 'fever.dur', type: 'slider', min: 3, max: 20, step: 1 },
       'Coins per level': { key: 'coins.level', type: 'slider', min: 0, max: 5000, step: 50 },
       'Wreck for star 3 (%)': { key: 'stars.wreck2', type: 'slider', min: 0.5, max: 1, step: 0.05 },
+      'Robots per wave': { key: 'waves.count', type: 'slider', min: 5, max: 20, step: 1 },
+      'Next wave (s)': { key: 'waves.every', type: 'slider', min: 12, max: 60, step: 1 },
     } });
   } catch (e) { /* host without a settings panel */ }
 
@@ -805,7 +884,7 @@ function startGame(mode) {
       const st = r && r.state;
       if (st && typeof st === 'object') {
         // what was earned before the save arrived is added on top, never lost
-        const earned = save.coins, earnedTotal = save.total, blocks = save.blocks, owned = save.owned.slice(), picked = save.lang, learned = { ...save.learned }, mutedLocal = Sound.muted, levelLocal = save.level, levelsLocal = save.levels, best = { ...save.best }, dayLocal = save.day, dailyLocal = save.dailyDone, lvLocal = { ...save.lv };
+        const earned = save.coins, earnedTotal = save.total, blocks = save.blocks, owned = save.owned.slice(), picked = save.lang, learned = { ...save.learned }, mutedLocal = Sound.muted, levelLocal = save.level, levelsLocal = save.levels, best = { ...save.best }, dayLocal = save.day, dailyLocal = save.dailyDone, lvLocal = { ...save.lv }, bestLocal = save.bestBlast;
         const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
         save.coins = Math.max(0, num(st.coins)) + earned; save.total = num(st.total) + earnedTotal; save.blocks = num(st.blocks) + blocks;
         save.level = Math.max(num(st.level), levelLocal); save.levels = num(st.levels) + levelsLocal;
@@ -815,12 +894,14 @@ function startGame(mode) {
         { const f = {}; for (const [k, v] of Object.entries(save.best)) { const n = Number(k); if (Number.isFinite(n) && n >= 0) f[n % WD.KINDS.length] = Math.max(f[n % WD.KINDS.length] || 0, num(v)); } save.best = f; }
         // every lesson learned on either side stays learned (the coach never comes back for it)
         save.learned = {}; for (const k of LESSONS) save.learned[k] = !!(st.learned && st.learned[k]) || !!learned[k];
-        save.day = Math.max(num(st.day), dayLocal); save.dailyDone = Math.max(num(st.dailyDone), dailyLocal);
+        save.day = Math.max(num(st.day), dayLocal); save.dailyDone = Math.max(num(st.dailyDone), dailyLocal); save.bestBlast = Math.max(num(st.bestBlast), bestLocal);
         save.lv = { ...(st.lv && typeof st.lv === 'object' ? st.lv : {}) }; for (const [k, v] of Object.entries(lvLocal)) save.lv[k] = Math.max(num(save.lv[k]) || 1, v);
+        // a save from the 5-level shop keeps its levels; only known tools, whole levels inside 1..max (bounded)
+        { const f = {}; for (const t of cfg.tools) if (save.lv[t.id] != null) f[t.id] = L.clampLv(cfg, num(save.lv[t.id])); save.lv = f; }
         // lessons learned on another day: the coach on screen goes quietly (no thumbs-up for them)
         coachK = '-'; showCoach(null);
         save.lang = picked || (LANGS.includes(st.lang) ? st.lang : null);
-        if (save.lang) { lang = save.lang; setDir(); }
+        if (save.lang) { lang = save.lang; setDir(); signLang(); }
         save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊';
         if (W) { for (const id of save.owned) if (!W.owned.includes(id)) W.owned.push(id); for (const t of W.cfg.tools) Object.assign(t, L.toolAt(cfg, cfg.tools.find((x) => x.id === t.id), save.lv[t.id] || 1)); } // the saved upgrades apply to the level already running
         localGain = earnedTotal > 0 || levelsLocal > 0 || blocks > 0;
@@ -833,7 +914,7 @@ function startGame(mode) {
     read(0);
   }
   scene.compile();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (alive && tipKey) setTip(tipKey); }); // measure again with the real font
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!alive) return; if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); }); // measure again with the real font
   renderTop(); renderTools();
   if (window.__load) window.__load.done();
   raf = requestAnimationFrame((t) => { last = t; frame(t); });
@@ -849,9 +930,10 @@ function startGame(mode) {
     },
     debug: {
       get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; },
-      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); },
+      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); signLang(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); }, celebrate, get lastCelebration() { return lastCelebration; }, canBuy: () => L.canBuy(cfg, save.owned, save.lv, save.coins),
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
+      get hitState() { return hitState; }, get stopT() { return stopT; }, get quality() { return { ...qs8, base: scene.dprBase }; },
       get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
     },
   };
@@ -861,7 +943,7 @@ const HTML = `
 <canvas id="cv"></canvas>
 <div id="hud" class="hud">
   <div class="top">
-    <div id="coins" class="pill coins gloss"><i class="coin"></i><b>0</b></div>
+    <div id="coins" class="pill coins gloss"><i class="coin"></i><b>0</b><span id="dot" class="dot" hidden>!</span></div>
     <div class="mid"><div id="stars" class="pill stars gloss"></div><div id="bar" class="bar"></div><button id="nextpill" class="nextpill out" hidden>▶▶</button></div>
     <button id="gear" class="round gloss" aria-label="settings">⚙️</button>
   </div>
@@ -872,13 +954,15 @@ const HTML = `
   <div id="cross" class="cross"></div>
   <div id="stickHome" class="stick home"><i></i></div>
   <div id="stick" class="stick" hidden><i></i></div>
-  <button id="hit" class="hitbtn gloss" aria-label="hit">💥</button>
+  <button id="hit" class="hitbtn gloss" aria-label="hit"><span class="hic">💥</span><span class="hl out"></span></button>
   <div id="keys" class="keys out">WASD · 🖱️ · 1-6</div>
   <div id="tip" class="tip out" hidden></div>
   <div id="tools" class="tools"></div>
   <div id="coach" class="coach" hidden><i class="cring"></i><div class="clabel"></div><div class="chand">👆</div></div>
   <div id="lvcard" class="lvcard" hidden></div>
   <div id="pops" class="pops"></div>
+  <div id="wavebn" class="wavebn out" hidden></div>
+  <div id="confetti" class="confetti" hidden></div>
   <div id="flies" class="flies"></div>
   <div id="hand" class="hand" hidden>👆</div>
   <div id="panel" class="panel" hidden></div>

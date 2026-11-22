@@ -46,7 +46,7 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Portrait framing: camera dist 15, height 10.5 shows the whole building with the hero at 68–76% (above the tools).
 - Inside view by footprint with hysteresis; roofs peel from the top; occlusion pull only outside.
 - Wreck rating uses trophies, not stars (two meanings of "star" confused).
-- Tests: `node logic.test.mjs`, `node playtest.js <out>`, `node soak.js 10`, `node look.js <out>`, `node checks.js`.
+- Tests: `node logic.test.mjs`, `node playtest.js <out>`, `node journey.js <out> <lang>`, `node soak.js 10`, `node look.js <out>`, `node checks.js <out>`, `node perf.js`.
 
 ## Upgrade P1–P5 (21 Nov, "setuju semuanya")
 - P1 day-one safety: child pilot (taps near the goal, hesitates, bombs half the time) went 9/48 → 48/48 runs (median 23 s) with
@@ -74,6 +74,29 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   hammer, blasts, TNT and landing pieces knock flying as a time-corrected Verlet ragdoll (7 points, 12 sticks, ground
   and voxel push-out), BONK! + coins once per knock-over, then a reboot back on their feet. One strolls in the front
   yard, so the first boom sends it flying. 14 tests in `logic.test.mjs`, journey checks the boom and a tap.
+
+## Horde package (22 Nov, owner: "kerjakan semuanya sebagai satu paket"; numbers from the two competitor analyses)
+- **Waves of BONK-BOTs:** 15 per wave appear 4.5–12 m ahead in a 270° arc and march (0.45 m/s, catch-up ≤ 2.6×) into
+  golden-angle ring slots (`1.45 + √idx·0.72`, idx from 2 so no robot stands in your face) gathered in the 120° arc you
+  look at (first person portrait: a full ring stands mostly out of view). Within 6.5 m they face you, stomp and lift
+  their sign. Half carry a cardboard dare sign (512×340 canvas, 34 friendly dares × 7 languages, a pool of 18 textures);
+  faces: X / dizzy eyes when knocked, 5 mouths, a smile + BEEP! on getting up. Knocked robots reboot and walk off
+  through one of 4 gates. Next wave at 28 s or when ≤ 22% still march (≥ 12 s), "WAVE n ARRIVING!" 3.5 s, 6 costume
+  sets (party, astronaut, chef, pirate, construction, disco) mixed with plain, a cleared wave pays coins. Caps: 30 robots,
+  20 lying down. The front-yard robot keeps its old spot and stroll (demo rocket + first TNT).
+- **Feel:** hit-stop `dt × 0.15` for 0.04 s (hammer) … 0.09 s (meteor); shake = max(now, a·(1 − d/30)), decays exp(−9dt);
+  chain bonks (a robot flying > 3.5 m/s knocks a standing one within 0.77 m, 55% speed); bombs inside a blast go off
+  0.12–0.24 s later; falling blocks still knock robots.
+- **Upgrades, cheap and often:** 30 levels per tool, price c0·1.42^lv (c0 9,500–60,000 in our coin scale: the
+  competitor's "12–40 coins" is ~15 s of its income, ours is ~15 s of child-pilot income), size/cooldown with
+  diminishing steps, coins +30% per level (×1.3 at level 2; compounding made the pilot max every tool in 5 minutes).
+  Pilot child: first buy 14–18 s, a buy moment every ~20 s for 5 min (a real child is slower: ~30 s). Shop shows
+  "Lv n" + a bar; red "!" (38 u) on the coins when anything is affordable. Old saves keep their levels.
+- **Celebrations:** SMASH TIME, ≥ 80% wrecked, wave cleared, new biggest blast → fanfare, big words, confetti, haptic,
+  leaderboard (≤ once per 10 s). Result card brag line "I smashed 1,234 blocks!" goes out with ✈️.
+- **HIT button:** the tool's verb (BONK, BOOM, FIRE, SWING, PULL, CRASH) under 💥, ready pulse 1.1 s (glow 0→14,
+  brightness 1→1.28), dimmed 0.78 while cooling. **Quality:** weak phone (≤ 4 cores or ≤ 3 GB) starts low (no shadows,
+  half particles, DPR 0.6); everywhere the frame average over 1.2 s moves DPR −0.15 (> 1/45 s) / +0.1 (< 1/58 s).
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with

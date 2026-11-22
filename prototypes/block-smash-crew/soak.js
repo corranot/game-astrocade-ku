@@ -16,6 +16,16 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   const fresh = () => g(async () => { const n = __game.W.n; __game.newLevel(0); await new Promise((r) => setTimeout(r, 600)); const geo = __game.geometries; __game.newLevel(n); return geo; });
   // warm up: every tool thrown once (each shot kind builds its shared geometry the first time, then reuses it)
   await g(async () => { const W = __game.W; W.fever = 5; for (const t of W.cfg.tools) if (t.id !== 'hammer') { W.cool[t.id] = 0; __game.WD.useTool(W, t.id, { x: W.chest.x, y: 1, z: W.chest.z }); } await new Promise((r) => setTimeout(r, 3000)); });
+  // and the robots' bounded pools: every costume, face and the full pool of sign cards drawn once
+  await g(async () => { const W = __game.W, base = W.bots[1], sc = __game.scene, extra = [];
+    // in front of the eye (what is out of view is never drawn, so never uploaded)
+    const fx = -Math.sin(sc.yaw), fz = -Math.cos(sc.yaw), h = W.hero;
+    for (let k = 0; k < 30; k++) { const d = 3 + Math.floor(k / 6) * 0.8, side = ((k % 6) - 2.5) * 0.35 * d / 3; extra.push({ ...base, id: 7000 + k, sign: k, costume: (k % 7) - 1, mouth: k % 5, happy: 0, pts: null, x: h.x + fx * d - fz * side, z: h.z + fz * d + fx * side, yaw: Math.atan2(-fx, -fz) }); }
+    W.bots.push(...extra);
+    // marching, knocked (X and dizzy eyes), getting up (the smile): every face cell once
+    // (all in one go, drawn by hand: the game's own loop never steps these stand-ins)
+    for (const st of ['march', 'down', 'reboot']) { for (const b of extra) b.state = st; sc.update(W, 0.016); }
+    W.bots.splice(W.bots.length - extra.length, extra.length); sc.update(W, 0.016); });
   const geo0 = await fresh();
   const mem = [], kinds = new Set(); let coins0 = 0;
   for (let i = 0; i < levels; i++) {

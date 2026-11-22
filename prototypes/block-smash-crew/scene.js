@@ -16,7 +16,8 @@ export function createScene(cv, cfg) {
   const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.05;
-  let quality = 1, dprBase = Math.min(window.devicePixelRatio || 1, 1.5);
+  // resolution and the quality tier: dpr follows the frame time (game.js), low = no shadows and half the particles
+  const dprBase = Math.min(window.devicePixelRatio || 1, 1.5); let dpr = dprBase, low = false;
   renderer.setPixelRatio(dprBase);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 720 / 1280, 0.1, 400);
@@ -152,7 +153,7 @@ export function createScene(cv, cfg) {
   const sparkMax = 80, sparkMesh = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.09, 0.09, 0.09)), keep(new THREE.MeshBasicMaterial({ color: '#ffd84a', fog: false })), sparkMax);
   sparkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); sparkMesh.frustumCulled = false; scene.add(sparkMesh);
   const SP = { n: 0, p: new Float32Array(sparkMax * 3), v: new Float32Array(sparkMax * 3), life: new Float32Array(sparkMax) };
-  function sparks(x, y, z, n) { for (let k = 0; k < n && SP.n < sparkMax; k++) { const i = SP.n++; SP.p[i * 3] = x; SP.p[i * 3 + 1] = y; SP.p[i * 3 + 2] = z; SP.v[i * 3] = (Math.random() - 0.5) * 9; SP.v[i * 3 + 1] = 2 + Math.random() * 6; SP.v[i * 3 + 2] = (Math.random() - 0.5) * 9; SP.life[i] = 0.25 + Math.random() * 0.25; } }
+  function sparks(x, y, z, n) { if (low) n = Math.ceil(n / 2); for (let k = 0; k < n && SP.n < sparkMax; k++) { const i = SP.n++; SP.p[i * 3] = x; SP.p[i * 3 + 1] = y; SP.p[i * 3 + 2] = z; SP.v[i * 3] = (Math.random() - 0.5) * 9; SP.v[i * 3 + 1] = 2 + Math.random() * 6; SP.v[i * 3 + 2] = (Math.random() - 0.5) * 9; SP.life[i] = 0.25 + Math.random() * 0.25; } }
   // TNT barrels: red with a white band, standing on their blocks (the block itself is not drawn)
   const tntMax = 24, barrel = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.44, 0.44, 0.96, 14)), keep(new THREE.MeshLambertMaterial({ color: '#e8322b' })), tntMax);
   const band = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.455, 0.455, 0.22, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#553300' })), tntMax);
@@ -205,7 +206,7 @@ export function createScene(cv, cfg) {
   const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4(), tmpS = new THREE.Vector3(), tmpC = new THREE.Color();
 
   function spawnDebris(x, y, z, m, cx, cy, cz, power, pullTo) {
-    if (D.n >= debrisMax * (quality < 1 ? 0.5 : 1)) return;
+    if (D.n >= debrisMax * (low ? 0.5 : 1)) return;
     const i = D.n++, p = dcol[m] || [1, 1, 1];
     let dx = x - cx, dy = y - cy, dz = z - cz; const d = Math.hypot(dx, dy, dz) || 1; dx /= d; dy /= d; dz /= d;
     const sp = power * (0.6 + Math.random() * 0.8);
@@ -224,7 +225,7 @@ export function createScene(cv, cfg) {
   function killDebris(i) { const j = --D.n; if (i !== j) { for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; for (let k = 0; k < 3; k++) D.sh[i * 3 + k] = D.sh[j * 3 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
   function puff(x, y, z, size, color = '#f4ead8', n = 3) {
     for (let k = 0; k < n; k++) {
-      if (U.n >= dustMax * (quality < 1 ? 0.5 : 1)) return;
+      if (U.n >= dustMax * (low ? 0.5 : 1)) return;
       const i = U.n++;
       U.p[i * 3] = x + (Math.random() - 0.5) * size; U.p[i * 3 + 1] = y + Math.random() * size * 0.5; U.p[i * 3 + 2] = z + (Math.random() - 0.5) * size;
       U.v[i * 3] = (Math.random() - 0.5) * 2; U.v[i * 3 + 1] = 0.8 + Math.random() * 1.2; U.v[i * 3 + 2] = (Math.random() - 0.5) * 2;
@@ -250,7 +251,7 @@ export function createScene(cv, cfg) {
       for (let k = 0; k < cap; k++) { const c = e.removed[Math.floor(k * step)]; spawnDebris(c.x + 0.5, c.y + 0.5, c.z + 0.5, c.m, cx, cy, cz, power, e.by === 'hole' ? [e.x, e.y, e.z] : null); }
       if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), '#fbf6ec', Math.min(6, 1 + (e.removed.length >> 4)));
       if (!W.demo) spawnCoins(e.x, e.y, e.z, Math.min(6, 1 + Math.floor(e.removed.length / 8)) + e.gold * 3);
-      addTrauma(e.by === 'hammer' ? 0.06 : Math.min(0.5, e.removed.length / 300));
+      addTrauma(e.by === 'hammer' ? 0.06 : Math.min(0.5, e.removed.length / 300), e);
     } else if (e.type === 'fall' || e.type === 'topple') {
       const f = e.fall; for (const c of f.cells) markCell(c.x, c.y, c.z);
       // the piece as one mesh, turning a little around its middle as it drops
@@ -274,22 +275,26 @@ export function createScene(cv, cfg) {
       if (e.topple) kick(0.07);
       puff(e.x, 0.3, e.z, Math.min(5, 1.5 + e.n / 60), '#efe4cf', Math.min(10, 3 + (e.n >> 5)));
       if (!W.demo) spawnCoins(e.x, e.y + 1, e.z, Math.min(8, 2 + (e.n >> 5)));
-      addTrauma(Math.min(0.6, 0.15 + e.n / 250));
+      addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
-      addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06)); sparks(e.x, e.y, e.z, 10);
+      addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
     } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); }
     else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); }
-    else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05); }
-    else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08); }
+    else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); }
+    else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); }
     else if (e.type === 'reboot') { sparks(e.x, e.y + 0.4, e.z, 8); puff(e.x, 0.5, e.z, 0.5, '#bdf3ff', 2); }
     else if (e.type === 'treasure') { spawnCoins(e.x, 1.4, e.z, 24); puff(e.x, 1, e.z, 2, '#fff3a0', 6); }
     else if (e.type === 'star') { puff(e.x, e.y, e.z, 1.6, '#fff3a0', 5); }
   }
   function kick(a) { cam.kick = (cam.kick || 0) + (reduced ? a * 0.3 : a); }
-  function addTrauma(k) { cam.trauma = Math.min(1, cam.trauma + (reduced ? k * 0.3 : k)); }
+  /** Shake from an event at point p: a·(1 − d/range) by its distance d from the hero, the strongest one wins (no sum). */
+  function addTrauma(k, p) {
+    const d = p && W ? Math.hypot((p.x || 0) - W.hero.x, (p.z || 0) - W.hero.z) : 0, v = k * Math.max(0, 1 - d / cfg.feel.shakeRange);
+    cam.trauma = Math.min(1, Math.max(cam.trauma, reduced ? v * 0.3 : v));
+  }
 
   /** Shows level W: rebuilds every chunk, the chest, the beacons and the path. */
   // snow: flakes drifting around the eye (one Points object, 260 flakes)
@@ -302,29 +307,74 @@ export function createScene(cv, cfg) {
     SKY_TOP.set(t.top); SKY_LOW.set(t.low); scene.fog.color.set(t.low); sun.color.set(t.sun); hemi.groundColor.set(t.hemiG);
     ground.material.color.set(t.ground); ground.material.map = name === 'snow' ? snowTex : grassTex; flakes.visible = name === 'snow';
   }
-  // ---- BONK-BOTs: toy robots drawn from their points (strolling, flying as a ragdoll, putting themselves together)
+  // ---- BONK-BOTs: toy robots drawn from their points (marching, flying as a ragdoll, putting themselves together)
   const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
-  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botVisor = keep(new THREE.MeshBasicMaterial({ color: '#1b2440' })), botEye = keep(new THREE.MeshBasicMaterial({ color: '#7dfcff' })), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' }));
-  const unitBox = box(1, 1, 1), botMeshes = [];
+  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' }));
+  const unitBox = box(1, 1, 1), botMeshes = new Map();
   const UPV = new THREE.Vector3(0, 1, 0), bva = new THREE.Vector3(), bvb = new THREE.Vector3(), bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), bm = new THREE.Matrix4(), bq = new THREE.Quaternion();
-  /** One robot: a coloured body with a chest panel, a white head with a dark visor, cyan eyes and an antenna, arms and legs. */
-  function makeBot(i) {
-    const g = new THREE.Group(), col = BOT_COLORS[i % BOT_COLORS.length];
-    const add = (parent, mat, sx, sy, sz, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(unitBox, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
-    const head = new THREE.Group(), body = new THREE.Group(); g.add(head, body);
-    add(head, botWhite, 0.42, 0.34, 0.36); add(head, botVisor, 0.34, 0.2, 0.02, 0, 0, 0.18);
-    add(head, botEye, 0.06, 0.07, 0.02, -0.08, 0.01, 0.195); add(head, botEye, 0.06, 0.07, 0.02, 0.08, 0.01, 0.195);
-    add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0);
-    const trunk = add(body, col, 0.46, 0.5, 0.34); add(body, botWhite, 0.22, 0.16, 0.02, 0, 0.02, 0.175);
-    const limbs = [add(g, col, 0.1, 1, 0.1), add(g, col, 0.1, 1, 0.1), add(g, botDark, 0.13, 1, 0.13), add(g, botDark, 0.13, 1, 0.13)];
-    scene.add(g);
-    return { g, head, body, trunk, limbs };
+  // faces: one atlas of 4 eye kinds (normal, X, dizzy swirl, happy) × 5 mouths; each cell a shared material
+  const faceTex = tex(640, 256, (x) => drawFaces(x)), faceGeo = keep(new THREE.PlaneGeometry(0.36, 0.18)), faceMats = {};
+  const faceMat = (eye, mouth) => { const k = eye * 5 + mouth; if (!faceMats[k]) { const t = keep(faceTex.clone()); t.repeat.set(1 / 5, 1 / 4); t.offset.set(mouth / 5, 1 - (eye + 1) / 4); faceMats[k] = keep(new THREE.MeshBasicMaterial({ map: t })); } return faceMats[k]; };
+  // costumes: 6 sets of shared parts on the head (party hat, astronaut, chef, pirate, construction, disco)
+  const cg = {}, geo = (k, make) => cg[k] || (cg[k] = keep(make()));
+  const cm = {}, cmat = (c) => cm[c] || (cm[c] = lam(c));
+  const COSTUMES = [
+    [['head', () => new THREE.ConeGeometry(0.15, 0.34, 14), '#ff5fa8', 0, 0.33, 0], ['head', () => new THREE.SphereGeometry(0.06, 10, 8), '#ffe14a', 0, 0.51, 0]],
+    [['head', () => new THREE.TorusGeometry(0.27, 0.05, 8, 20), '#f4f7ff', 0, -0.19, 0, Math.PI / 2], ['body', () => new THREE.BoxGeometry(0.34, 0.38, 0.16), '#e8eef8', 0, 0.02, -0.24]],
+    [['head', () => new THREE.CylinderGeometry(0.15, 0.15, 0.2, 14), '#ffffff', 0, 0.27, 0], ['head', () => new THREE.SphereGeometry(0.2, 14, 10), '#ffffff', 0, 0.42, 0, 0, [1, 0.7, 1]]],
+    [['head', () => new THREE.BoxGeometry(0.56, 0.1, 0.24), '#2a2d3a', 0, 0.22, 0], ['head', () => new THREE.CylinderGeometry(0.15, 0.17, 0.14, 12), '#2a2d3a', 0, 0.3, 0], ['head', () => new THREE.BoxGeometry(0.1, 0.08, 0.02), '#111522', -0.08, 0.02, 0.19]],
+    [['head', () => new THREE.SphereGeometry(0.24, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), '#ffd21f', 0, 0.12, 0], ['head', () => new THREE.CylinderGeometry(0.3, 0.3, 0.03, 18), '#ff9f1c', 0, 0.13, 0.03]],
+    [['head', () => new THREE.SphereGeometry(0.29, 14, 10), '#a46bff', 0, 0.16, -0.05], ['head', () => new THREE.BoxGeometry(0.36, 0.07, 0.03), '#16141f', 0, 0.03, 0.2]],
+  ];
+  // dare signs: cardboard canvases (512 × 340) in a small pool, each painted once per phrase and language
+  let signLang = 'en', signList = (cfg.signs && cfg.signs.en) || [];
+  const signPool = [], SIGN_MAX = 18, signGeo = keep(new THREE.BoxGeometry(0.8, 0.53, 0.04)), stickGeo = keep(new THREE.BoxGeometry(0.05, 0.62, 0.05)), cardMat = lam('#c98f52'), stickMat = lam('#9a6a3a');
+  function signFor(idx) {
+    const k = signList.length ? idx % signList.length : 0;
+    let s = signPool.find((x) => x.k === k);
+    if (!s) s = signPool.find((x) => x.users === 0) || null;
+    if (!s && signPool.length < SIGN_MAX) { const c = document.createElement('canvas'); c.width = 512; c.height = 340; const t = keep(new THREE.CanvasTexture(c)); t.colorSpace = THREE.SRGBColorSpace; s = { c, t, mat: [cardMat, cardMat, cardMat, cardMat, keep(new THREE.MeshLambertMaterial({ map: t })), cardMat], k: -1, users: 0 }; signPool.push(s); }
+    // a full pool: share a sign already painted, as it is (repainting it would change the text robots already hold)
+    if (!s) { s = signPool[k % signPool.length]; s.users++; return s; }
+    if (s.k !== k) { s.k = k; paintSign(s); }
+    s.users++; return s;
   }
-  /** Points of a strolling bot: the standing pose with swinging legs and arms and a little bob. */
+  function paintSign(s) { drawSign(s.c.getContext('2d'), signList[s.k] || '', signLang === 'ar', s.k); s.t.needsUpdate = true; }
+  /** One robot: a coloured body with a chest panel, a white head with its face, an antenna, arms and legs; a costume, a sign. */
+  function makeBot(b) {
+    const g = new THREE.Group(), col = BOT_COLORS[b.hue % BOT_COLORS.length];
+    const add = (parent, mat, sx, sy, sz, x = 0, y = 0, z = 0, sh = false) => { const m = new THREE.Mesh(unitBox, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.castShadow = sh; parent.add(m); return m; };
+    const head = new THREE.Group(), body = new THREE.Group(); g.add(head, body);
+    add(head, botWhite, 0.42, 0.34, 0.36, 0, 0, 0, true);
+    const face = new THREE.Mesh(faceGeo, faceMat(0, b.mouth)); face.position.set(0, 0, 0.181); head.add(face);
+    const cos = b.costume >= 0 ? COSTUMES[b.costume] : null;
+    // a hat hides the antenna (the astronaut keeps it)
+    if (!cos || b.costume === 1) { add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0); }
+    const trunk = add(body, col, 0.46, 0.5, 0.34, 0, 0, 0, true); add(body, botWhite, 0.22, 0.16, 0.02, 0, 0.02, 0.175);
+    if (cos) for (const [where, make, c, x, y, z, rx = 0, sc] of cos) { const m = new THREE.Mesh(geo(make.toString(), make), cmat(c)); m.position.set(x, y, z); m.rotation.x = rx; if (sc) m.scale.set(sc[0], sc[1], sc[2]); (where === 'head' ? head : body).add(m); }
+    const limbs = [add(g, col, 0.1, 1, 0.1), add(g, col, 0.1, 1, 0.1), add(g, botDark, 0.13, 1, 0.13), add(g, botDark, 0.13, 1, 0.13)];
+    let sign = null;
+    if (b.sign >= 0) { const sp = signFor(b.sign), sg = new THREE.Group(), board = new THREE.Mesh(signGeo, sp.mat), stick = new THREE.Mesh(stickGeo, stickMat); board.castShadow = true; stick.position.y = -0.5; sg.add(board, stick); g.add(sg); sign = { g: sg, sp }; }
+    scene.add(g);
+    return { g, head, body, trunk, limbs, face, sign, fk: -1 };
+  }
+  function dropBot(v) { scene.remove(v.g); if (v.sign) v.sign.sp.users--; }
+  /** Points of a standing bot: the standing pose with swinging legs and arms and a bob; close to the hero it stomps and lifts its sign (or pumps a fist). */
   function walkPoints(b) {
-    const P = standingPoints(b), s = Math.sin(b.step), fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), bob = Math.abs(s) * 0.035 * b.h;
+    const P = standingPoints(b), s = Math.sin(b.step), fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), rx = Math.cos(b.yaw), rz = -Math.sin(b.yaw), H = b.h;
     const sw = (k, a) => { P[k][0] += fx * a; P[k][2] += fz * a; };
-    sw(5, s * 0.16 * b.h); sw(6, -s * 0.16 * b.h); sw(3, -s * 0.1 * b.h); sw(4, s * 0.1 * b.h);
+    if (b.near) {
+      // stomping in place: feet lift in turn, the body bobs
+      P[5][1] += Math.max(0, s) * 0.1 * H; P[6][1] += Math.max(0, -s) * 0.1 * H;
+      const bob = Math.abs(s) * 0.05 * H; for (const k of [0, 1, 2, 3, 4]) P[k][1] += bob;
+      if (b.sign >= 0) for (const [k, side] of [[3, -1], [4, 1]]) { P[k][0] = b.x + rx * side * 0.12 * H + fx * 0.1 * H; P[k][1] = 1.02 * H + bob; P[k][2] = b.z + rz * side * 0.12 * H + fz * 0.1 * H; }
+      else { const up = s > 0 ? 4 : 3; P[up][1] = (1.0 + 0.08 * Math.abs(s)) * H; sw(up, 0.08 * H); }
+      return P;
+    }
+    const bob = Math.abs(s) * 0.035 * H;
+    sw(5, s * 0.16 * H); sw(6, -s * 0.16 * H);
+    if (b.sign >= 0) { for (const k of [3, 4]) { sw(k, 0.16 * H); P[k][1] = 0.62 * H; } }
+    else { sw(3, -s * 0.1 * H); sw(4, s * 0.1 * H); }
     for (const k of [0, 1, 2, 3, 4]) P[k][1] += bob;
     return P;
   }
@@ -334,9 +384,12 @@ export function createScene(cv, cfg) {
     m.position.copy(bva).add(bvb).multiplyScalar(0.5); m.scale.set(t, Math.max(0.02, len), t);
     if (len > 1e-4) m.quaternion.setFromUnitVectors(UPV, bvb.sub(bva).divideScalar(len));
   }
+  let botFrame = 0;
   function updateBots() {
+    botFrame++;
     for (let i = 0; i < W.bots.length; i++) {
-      const b = W.bots[i], v = botMeshes[i]; if (!v) continue;
+      const b = W.bots[i]; let v = botMeshes.get(b.id); if (!v) { v = makeBot(b); botMeshes.set(b.id, v); }
+      v.seen = botFrame;
       const P = b.pts || walkPoints(b); b.drawn = P;
       // the body's frame: up from pelvis to head, right from the left hand to the right one
       by.set(P[0][0] - P[2][0], P[0][1] - P[2][1], P[0][2] - P[2][2]).normalize();
@@ -346,7 +399,17 @@ export function createScene(cv, cfg) {
       v.head.position.set(P[0][0], P[0][1], P[0][2]); v.head.quaternion.copy(bq);
       v.body.position.set((P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2, (P[1][2] + P[2][2]) / 2); v.body.quaternion.copy(bq);
       along(v.limbs[0], P[1], P[3], 0.1); along(v.limbs[1], P[1], P[4], 0.1); along(v.limbs[2], P[2], P[5], 0.13); along(v.limbs[3], P[2], P[6], 0.13);
+      // the face: X or dizzy eyes when knocked, a happy smile while getting up and walking off, else its own mouth
+      const eye = b.state === 'down' ? 1 + (b.id % 2) : b.state === 'reboot' || b.happy > 0 ? 3 : 0, fk = eye * 5 + (eye === 3 ? 0 : b.mouth);
+      if (fk !== v.fk) { v.fk = fk; v.face.material = faceMat(eye, eye === 3 ? 0 : b.mouth); }
+      // the sign: between the hands, raised over the head close to the hero, facing where the body faces
+      if (v.sign) {
+        const raised = b.near && !b.pts, mx = (P[3][0] + P[4][0]) / 2, my = (P[3][1] + P[4][1]) / 2, mz = (P[3][2] + P[4][2]) / 2;
+        const up = raised ? 0.46 : 0.08, fwd = raised ? 0 : 0.12;
+        v.sign.g.position.set(mx + by.x * up + bz.x * fwd, my + by.y * up + bz.y * fwd, mz + by.z * up + bz.z * fwd); v.sign.g.quaternion.copy(bq);
+      }
     }
+    for (const [id, v] of botMeshes) if (v.seen !== botFrame) { dropBot(v); botMeshes.delete(id); }
   }
   /** The nearest bot the ray (o, d) passes within reach of (its head or chest), closer than maxT: {i, t, p}. */
   function botOnRay(o, d, maxT) {
@@ -362,8 +425,7 @@ export function createScene(cv, cfg) {
 
   function setLevel(world) {
     W = world;
-    for (const v of botMeshes) scene.remove(v.g); botMeshes.length = 0;
-    for (let i = 0; i < (W.bots || []).length; i++) botMeshes.push(makeBot(i));
+    for (const v of botMeshes.values()) dropBot(v); botMeshes.clear();
     for (const m of chunks.values()) { chunkRoot.remove(m); m.geometry.dispose(); } chunks.clear(); dirty.clear();
     for (const it of falls.values()) { scene.remove(it.holder); it.mesh.geometry.dispose(); } falls.clear();
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
@@ -376,7 +438,7 @@ export function createScene(cv, cfg) {
     const bc = makeBeacon(); bc.chest = true; beacons.push(bc);
     for (const c of W.starCells) { const b = makeBeacon(); b.cell = c; beacons.push(b); }
     const pz0 = W.box.z1 + 0.5, pz1 = W.g.D + 30; path.scale.set(1, pz1 - pz0, 1); path.position.set((W.box.x0 + W.box.x1 + 1) / 2, 0.01, (pz0 + pz1) / 2);
-    cam.yaw = 0; cam.pitch = cfg.camera.pitch0; cam.eyeY = cfg.camera.eye;
+    cam.yaw = 0; cam.pitch = cfg.camera.pitch0; cam.eyeY = cfg.camera.eye; cam.target = null;
     setTheme(W.theme);
   }
 
@@ -518,7 +580,7 @@ export function createScene(cv, cfg) {
     if (cam.follow) { let d = h.yaw + Math.PI - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * Math.min(1, dt * 4); cam.pitch += (cc.pitch0 - 0.1 - cam.pitch) * Math.min(1, dt * 2); }
     cam.bob += (h.moving ? dt * 9 : 0);
     const bob = h.moving ? Math.abs(Math.sin(cam.bob)) * 0.06 : 0;
-    cam.trauma = Math.max(0, cam.trauma - dt * 1.6);
+    cam.trauma *= Math.exp(-cfg.feel.shakeDecay * dt);
     // the kick: a short upward nod on hits and blasts that dies away (exponential: stable at any frame time; no roll)
     cam.kick = Math.min(0.12, (cam.kick || 0)) * Math.exp(-dt * 14);
     const sh = cam.trauma * cam.trauma * 0.25;
@@ -547,7 +609,7 @@ export function createScene(cv, cfg) {
     return { type: 'air', dist: gy, p: { x: o.x + d.x * gy, y: Math.max(0.5, o.y + d.y * gy), z: o.z + d.z * gy } };
   }
 
-  function resize(w, h) { renderer.setPixelRatio(dprBase * quality); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); }
+  function resize(w, h) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); }
 
   return {
     renderer, camera, event, setLevel, update, pick, screenOf, resize,
@@ -574,8 +636,22 @@ export function createScene(cv, cfg) {
     },
     get coinArrive() { return coinArrive; },
     get counts() { return { debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
-    get quality() { return quality; },
-    setQuality(q) { quality = q; sun.castShadow = q >= 1; const r = cv.getBoundingClientRect(); resize(r.width || 360, r.height || 640); },
+    /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
+    get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
+    /** Sets the pixel ratio (the dynamic resolution); a change of less than 0.01 is ignored. */
+    setDpr(d) { if (Math.abs(d - dpr) < 0.01) return; dpr = d; const r = cv.getBoundingClientRect(); resize(r.width || 360, r.height || 640); },
+    /** The dare signs' language: every sign in the pool is painted again in it. */
+    setSignLang(lang, list) { signLang = lang; signList = list || []; for (const x of signPool) if (x.k >= 0) paintSign(x); },
+    /** Paints the signs again (the web font has arrived). */
+    redrawSigns() { for (const x of signPool) if (x.k >= 0) paintSign(x); },
+    /** Sign textures made so far (a fixed pool) and robots drawn. */
+    get signCount() { return signPool.length; }, get botsDrawn() { return botMeshes.size; },
+    /** A robot's sign as drawn: {text, raised, x, y, z} of its board, or null. */
+    signOf(id) { const v = botMeshes.get(id); if (!v || !v.sign) return null; const p = v.sign.g.position; return { text: signList[v.sign.sp.k] || '', k: v.sign.sp.k, x: p.x, y: p.y, z: p.z }; },
+    /** A robot's face cell (eye kind × 5 + mouth). */
+    faceOf(id) { const v = botMeshes.get(id); return v ? v.fk : -1; },
+    /** The low tier: no sun shadows, half the debris, dust and sparks. */
+    setLow(v) { low = !!v; sun.castShadow = !low; },
     /** Is world point (x, y, z) inside the view? */
     seen(x, y, z) { const [sx, sy, behind] = screenOf(x, y, z); return !behind && sx >= 0 && sx <= 720 && sy >= 0 && sy <= 1280; },
     compile() { try { renderer.compile(scene, camera); } catch (e) { /* first frame compiles instead */ } },
@@ -639,4 +715,50 @@ function drawStar(x) {
   x.lineWidth = 12; x.strokeStyle = '#7a4a00'; x.stroke();
   const g = x.createLinearGradient(0, 14, 0, 120); g.addColorStop(0, '#fff7b0'); g.addColorStop(0.5, '#ffd21f'); g.addColorStop(1, '#ff9f00'); x.fillStyle = g; x.fill();
   x.fillStyle = 'rgba(255,255,255,.7)'; x.beginPath(); x.ellipse(52, 48, 9, 6, -0.6, 0, 7); x.fill();
+}
+
+/** The robots' face atlas: rows = eyes (normal, X, dizzy swirl, happy), columns = 5 mouths; cyan on a dark visor. */
+function drawFaces(x) {
+  x.fillStyle = '#1b2440'; x.fillRect(0, 0, 640, 256);
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  for (let e = 0; e < 4; e++) for (let m = 0; m < 5; m++) {
+    x.save(); x.translate(m * 128, e * 64); x.strokeStyle = x.fillStyle = '#7dfcff'; x.lineWidth = 6;
+    for (const ex of [40, 88]) {
+      const ey = 24; x.beginPath();
+      if (e === 0) { x.ellipse(ex, ey, 8, 11, 0, 0, Math.PI * 2); x.fill(); }
+      else if (e === 1) { x.moveTo(ex - 9, ey - 9); x.lineTo(ex + 9, ey + 9); x.moveTo(ex + 9, ey - 9); x.lineTo(ex - 9, ey + 9); x.stroke(); }
+      else if (e === 2) { for (let a = 0; a < 12; a += 0.3) x.lineTo(ex + Math.cos(a) * a * 0.9, ey + Math.sin(a) * a * 0.9); x.lineWidth = 4; x.stroke(); x.lineWidth = 6; }
+      else { x.arc(ex, ey + 7, 10, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); }
+    }
+    x.beginPath();
+    if (m === 0) { x.arc(64, 38, 14, 0.15 * Math.PI, 0.85 * Math.PI); x.stroke(); }
+    else if (m === 1) { x.arc(64, 49, 7, 0, Math.PI * 2); x.stroke(); }
+    else if (m === 2) { x.moveTo(50, 50); x.lineTo(78, 50); x.stroke(); }
+    else if (m === 3) { x.arc(64, 42, 14, 0, Math.PI); x.closePath(); x.fill(); }
+    else { x.moveTo(46, 50); x.quadraticCurveTo(55, 42, 64, 50); x.quadraticCurveTo(73, 58, 82, 50); x.stroke(); }
+    x.restore();
+  }
+}
+
+/** A cardboard dare sign (512 × 340): duct tape on two corners, the text as big as fits in up to 3 lines, outlined. */
+function drawSign(x, text, rtl, k) {
+  const W = 512, H = 340, g = x.createLinearGradient(0, 0, 0, H);
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, W, H);
+  g.addColorStop(0, '#e6b679'); g.addColorStop(1, '#cf9a5c'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = 'rgba(150,95,45,.2)'; x.lineWidth = 3;
+  for (let i = 0; i < 9; i++) { x.beginPath(); x.moveTo(20, 40 + i * 32); x.lineTo(W - 20, 44 + i * 32); x.stroke(); }
+  x.strokeStyle = 'rgba(120,70,30,.55)'; x.lineWidth = 14; x.strokeRect(7, 7, W - 14, H - 14);
+  x.fillStyle = 'rgba(214,220,230,.94)';
+  for (const [cx, a] of [[44, -0.6], [W - 44, 0.6]]) { x.save(); x.translate(cx, 28); x.rotate(a); x.fillRect(-48, -15, 96, 30); x.restore(); }
+  const font = (n) => `800 ${n}px "Baloo 2","Baloo Bhaijaan 2","Baloo Da 2","Noto Sans","Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Arabic",sans-serif`;
+  const words = String(text).split(' '); let size = 92, lines = [];
+  for (; size >= 30; size -= 4) {
+    x.font = font(size); lines = []; let cur = '';
+    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (!cur || x.measureText(t).width <= 440) cur = t; else { lines.push(cur); cur = w; } }
+    if (cur) lines.push(cur);
+    if (lines.length <= 3 && lines.every((l) => x.measureText(l).width <= 440) && lines.length * size * 1.1 <= 260) break;
+  }
+  x.direction = rtl ? 'rtl' : 'ltr'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+  const fills = ['#ffffff', '#fff07a', '#bff6ff', '#ffd0ec'], lh = size * 1.1, y0 = H / 2 + 6 - (lines.length - 1) * lh / 2;
+  lines.forEach((l, i) => { x.lineWidth = size * 0.24; x.strokeStyle = '#2b1d4f'; x.strokeText(l, W / 2, y0 + i * lh); x.fillStyle = fills[k % 4]; x.fillText(l, W / 2, y0 + i * lh); });
 }

@@ -14,12 +14,12 @@ fs.mkdirSync(out, { recursive: true });
     // a host that can share: the ✈️ button shows
     const { page, errors } = await open(browser, '', { port: server.address().port, locale: lang, dpr: 2, touch: true, init: 'window.__share = true;' }); // phone layout: stick + HIT
     const g = (fn, a) => page.evaluate(fn, a), shot = (n) => page.screenshot({ path: path.join(out, `${lang}-${n}.jpg`), type: 'jpeg', quality: 82 });
-    const overflow = () => g(() => { const a = document.getElementById('app').getBoundingClientRect(); return [...document.querySelectorAll('.pop, .tip, .title, .card, .big, .small, .cups, .stat, .nexttool, .tool, .pill, .bar, .round, .srow, .sbtn, .tab, .atile, .anm')].filter((el) => !el.closest('[hidden]') && el.offsetParent !== null).map((el) => [el.className, el.getBoundingClientRect()]).filter(([, r]) => r.width && (r.left < a.left - 1 || r.right > a.right + 1)).map(([c]) => c); });
+    const overflow = () => g(() => { const a = document.getElementById('app').getBoundingClientRect(); return [...document.querySelectorAll('.pop, .tip, .title, .card, .big, .small, .cups, .stat, .nexttool, .tool, .pill, .bar, .round, .srow, .sbtn, .tab, .atile, .anm, .wavebn, .brag, .dot, .hitbtn')].filter((el) => !el.closest('[hidden]') && el.offsetParent !== null).map((el) => [el.className, el.getBoundingClientRect()]).filter(([, r]) => r.width && (r.left < a.left - 1 || r.right > a.right + 1)).map(([c]) => c); });
     // every text inside its own box (not clipped, not spilling), no text under 12 units, the result buttons one
     // width, the shop tabs in the middle of the card
     const textOk = () => g(() => {
       const bad = [], a = document.getElementById('app').getBoundingClientRect(), k = 720 / a.width;
-      for (const el of document.querySelectorAll('.tip, .clabel, .title, .big, .small, .tab, .anm, .sbtn, .lvnm, .lvtag, .free, .langs button, .stat, .nexttool span')) {
+      for (const el of document.querySelectorAll('.tip, .clabel, .title, .big, .small, .tab, .anm, .sbtn, .lvnm, .lvtag, .free, .langs button, .stat, .nexttool span, .hl, .brag, .wavebn, .slv b')) {
         if (el.closest('[hidden]') || !el.offsetParent || !el.textContent.trim()) continue;
         const fs = parseFloat(getComputedStyle(el).fontSize);
         // sideways only: a line-height 1 box always lets accents and outlines stand out above and below
@@ -44,7 +44,15 @@ fs.mkdirSync(out, { recursive: true });
     await page.waitForTimeout(1500); await shot('1-demo'); over.push(...await overflow(), ...await textOk());
     // a player who has done the walk / look / smash lessons (the coach screens are journey.js's)
     await g(() => { Object.assign(__game.save.learned, { walk: true, drag: true, hit: true }); __game.newLevel(0); const W = __game.W; __game.WD.aimHammer(W, { type: 'block', x: Math.floor(W.chest.x), y: 1, z: W.box.z1, nx: 0, ny: 0, nz: 1 }, true); });
+    // enough coins for something in the shop: the red "!" on the coins
+    await g(() => { __game.save.coins = 12000; });
     await page.waitForTimeout(1800); await shot('2-play'); over.push(...await overflow(), ...await textOk());
+    // the wave close by: robots facing the hero, signs raised, in this language
+    await g(() => { const W = __game.W; __game.WD.aimHammer(W, null); W.hero.x = (W.box.x0 + W.box.x1) / 2 + 0.5; W.hero.z = W.box.z1 + 7; W.hero.yaw = Math.PI; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.05); for (const b of W.bots) if (b.state === 'march') { b.x = W.hero.x + (b.x - W.hero.x) * 0.5; b.z = Math.min(W.hero.z - 1.5, b.z); } });
+    await page.waitForFunction(() => __game.W.bots.filter((b) => b.near && b.sign >= 0).length >= 3, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(1500); await shot('2b-crowd'); over.push(...await overflow(), ...await textOk());
+    const signs = await g((l) => { const W = __game.W, list = window.gameConfig.signs[l]; return W.bots.filter((b) => b.sign >= 0).map((b) => __game.scene.signOf(b.id)).filter(Boolean).map((x) => x.text === list[x.k]); }, lang);
+    if (!signs.length || signs.some((x) => !x)) over.push(`signs not in ${lang}: ${signs.join(',')}`);
     // inside: the hero in the room in front of the vault, roof peeled away
     await g(() => { const W = __game.W; __game.WD.aimHammer(W, null); W.hero.x = W.chest.x + 0.5; W.hero.z = W.chest.z + 4; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.2); });
     await page.waitForTimeout(1600); await shot('3-inside'); over.push(...await overflow(), ...await textOk());
@@ -52,6 +60,10 @@ fs.mkdirSync(out, { recursive: true });
     await page.waitForTimeout(350); await shot('4-too-hard'); over.push(...await overflow(), ...await textOk());
     await g(() => { const W = __game.W; W.got = 3; W.phase = 'fever'; W.fever = 8; __game.onEvent({ type: 'fever' }); __game.WD.useTool(W, 'bomb', { x: W.chest.x, y: 1, z: W.chest.z }); });
     await page.waitForTimeout(700); await shot('5-smash-time'); over.push(...await overflow(), ...await textOk());
+    // the next wave's banner and a celebration (wave cleared: fanfare, big words, confetti)
+    await g(() => { const W = __game.W; W.wave.t = window.gameConfig.waves.every; __game.onEvent({ type: 'waveClear', n: 1, coins: 300 }); });
+    await page.waitForTimeout(80); await g(() => __game.WD.step(__game.W, 0.05).forEach((e) => __game.onEvent(e)));
+    await page.waitForTimeout(900); await shot('5b-wave'); over.push(...await overflow(), ...await textOk());
     // the fullest result card: NEXT, KEEP SMASHING, the daily challenge and the share button
     await g(() => { const W = __game.W; __game.save.level = Math.max(2, __game.save.level); __game.save.dailyDone = 0; W.fever = 0; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
     await page.waitForTimeout(1200); await shot('6-result'); over.push(...await overflow(), ...await textOk());
@@ -62,7 +74,7 @@ fs.mkdirSync(out, { recursive: true });
     // the settings panel (sound and the languages): its buttons too
     await g(() => { document.querySelector('#shopX').click(); document.querySelector('#gear').click(); });
     await page.waitForTimeout(300); await shot('9-settings'); over.push(...await overflow(), ...await textOk());
-    if (over.length || errors.length) { bad++; console.log(`FAIL ${lang}: ${[...new Set(over)].join(' | ')} errors ${errors.join('|')}`); } else console.log(`ok   ${lang}: 9 screens, everything inside the frame, text fits, touch targets ≥ 96`);
+    if (over.length || errors.length) { bad++; console.log(`FAIL ${lang}: ${[...new Set(over)].join(' | ')} errors ${errors.join('|')}`); } else console.log(`ok   ${lang}: 11 screens, everything inside the frame, text fits, touch targets ≥ 96`);
     await page.close();
   }
   await browser.close(); server.close(); process.exit(bad ? 1 : 0);
