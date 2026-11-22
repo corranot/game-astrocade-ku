@@ -4,7 +4,7 @@ description: "Names the one next step: make a game, change it after play, grow i
 argument-hint: "[optional: what you just finished, e.g. 'finished design-review' or 'stuck on ADRs']"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(bash "*/.claude/skills/next-step/../../hooks/yaml-helper.sh" resolve_config *), Bash(bash "*/.claude/skills/next-step/../../scripts/story-status.sh"), Bash(bash .claude/scripts/story-status.sh*), Bash(bash .claude/scripts/artifact-check.sh *), Bash(bash ".claude/scripts/artifact-check.sh" *), Bash(bash ./.claude/scripts/artifact-check.sh *), Bash(git log *)
-model: haiku
+model: claude-opus-5-5
 ---
 
 # Next Step — What Do I Do Next?

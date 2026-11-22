@@ -228,9 +228,9 @@ Fixture defaults.
 **Fixture:**
 - `catalog.yaml` lists `creative-director` under `agents:` with
   `spec: studio-tests/agents/directors/creative-director.md`
-- `.claude/agents/creative-director.md` declares `model: opus`; there is no
+- `.claude/agents/creative-director.md` declares `model: claude-fable-5-2`; there is no
   `.claude/skills/creative-director/`
-- The spec asserts "Model tier is `opus`"
+- The spec asserts "Model tier is heavy"
 - Suppose one spec case is a redirect: the agent is asked to pick the project's
   engine. The agent's "What This Agent Must NOT Do" list says "Make engine or
   architecture choices (delegate to technical-director)"; it never restates the
@@ -243,7 +243,7 @@ Fixture defaults.
    report "Skill 'creative-director' not found"
 2. Skill reads the agent file and the agent spec
 3. Static assertions are compared exactly with the frontmatter: "Model tier is
-   `opus`" PASSES against `model: opus`, and would FAIL (not PARTIAL) against
+   heavy" PASSES against `model: claude-fable-5-2`, and would FAIL (not PARTIAL) against
    `model: inherit`
 4. Test cases are evaluated against the agent's instructions; Protocol
    Compliance uses the spec's own list
