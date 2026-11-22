@@ -22,6 +22,8 @@ const buzz = (kind) => { try { lib.haptics.play(kind); } catch (e) { /* no vibra
 // ---------------------------------------------------------------- sound: all made in code, no files to load
 const Sound = (() => {
   let ctx = null, master = null, music = null, muted = false, noise = null, seq = 0, step = 0, nextT = 0, tempo = 118, lastCoin = 0;
+  // det: the pitch of the code-made sound being started (1 = as written); lastRate: the last hammer hit's pitch
+  let det = 1, lastRate = 1;
   const buf = {}; let loading = false, song = null; // recorded sounds (from the asset map), the music loop playing
   const ensure = () => {
     if (ctx) return ctx;
@@ -32,13 +34,13 @@ const Sound = (() => {
   };
   function tone(type, f0, f1, dur, vol, at = 0, dest = master) {
     const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    o.type = type; o.frequency.setValueAtTime(f0 * det, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1 * det), t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.02);
   }
   function hiss(f0, f1, dur, vol, type = 'bandpass', at = 0, q = 1.2) {
     const t = ctx.currentTime + at, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    s.buffer = noise; f.type = type; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur); f.Q.value = q;
+    s.buffer = noise; f.type = type; f.frequency.setValueAtTime(f0 * det, t); f.frequency.exponentialRampToValueAtTime(f1 * det, t + dur); f.Q.value = q;
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f).connect(g).connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   }
@@ -46,7 +48,7 @@ const Sound = (() => {
     // a toy robot knocked flying: a springy boing over a tin clank; back on its feet: a happy rising beep
     boing() { tone('sine', 180, 720, 0.28, 0.45); tone('triangle', 900, 300, 0.12, 0.18); hiss(2500, 900, 0.08, 0.16); },
     reboot() { [660, 880, 1320].forEach((f, i) => tone('square', f, f, 0.07, 0.07, i * 0.07)); },
-    swing() { hiss(500, 2200, 0.14, 0.12); },
+    swing(k = 1) { hiss(500, 2200, 0.14, 0.12 * k); },
     wood(k) { hiss(900, 300, 0.16, 0.45 * k); tone('sine', 190, 80, 0.12, 0.5 * k); },
     brick(k) { hiss(1300, 200, 0.22, 0.5 * k, 'lowpass'); tone('sine', 120, 50, 0.16, 0.55 * k); },
     glass(k) { hiss(5000, 3000, 0.25, 0.25 * k, 'highpass'); for (let i = 0; i < 4; i++) tone('sine', 1800 + Math.random() * 1800, 1500, 0.18, 0.12 * k, i * 0.035); },
@@ -99,13 +101,33 @@ const Sound = (() => {
       fetch(a.url).then((r) => r.arrayBuffer()).then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej))).then((b) => { buf[name] = { b, ...sd }; if (name === 'music') startSong(); }).catch(() => { /* keep the code-made sound */ });
     }
   }
-  function playBuf(id, vol) {
+  function playBuf(id, vol, rate) {
     const sd = buf[id], src = ctx.createBufferSource(), g = ctx.createGain();
-    src.buffer = sd.b; src.playbackRate.value = 0.94 + Math.random() * 0.12; g.gain.value = sd.gain * Math.min(1.2, vol);
+    src.buffer = sd.b; src.playbackRate.value = rate || 0.94 + Math.random() * 0.12; g.gain.value = sd.gain * Math.min(1.2, vol);
     src.connect(g).connect(master);
     const end = sd.end ? sd.end - sd.skip : undefined;
     if (end) { const t = ctx.currentTime; g.gain.setValueAtTime(sd.gain * Math.min(1.2, vol), t + end * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + end); }
     src.start(0, sd.skip || 0, end);
+  }
+  /**
+   * The hammer landing, in three layers: a sharp click, the body of the material hit (its recorded sound, or the
+   * code-made one), and a low thump that grows with the n blocks broken. Each hit gets its own pitch within
+   * ±H.pitch, never the last hit's. H = cfg.feel.hammer.sound; clang = it bounced off steel.
+   */
+  function hammer(H, body, n, clang) {
+    let rate = 1 + (Math.random() * 2 - 1) * H.pitch;
+    if (Math.abs(rate - lastRate) < H.pitch * 0.3) rate += (rate >= lastRate ? 1 : -1) * H.pitch * 0.45;
+    lastRate = rate;
+    const C = H.click, T = H.thump, k = clang ? H.clang.body : H.body;
+    det = rate;
+    // 1. the click: a few milliseconds of bright noise and a tick
+    hiss(C.f * 1.6, C.f, C.dur, C.gain, 'highpass'); tone('square', C.f * 0.5, C.f * 0.22, C.dur, C.gain * 0.5);
+    // 2. the body
+    if (buf[body]) playBuf(body, k, rate); else fx[body](k);
+    // 3. the thump: low, longer and louder the more blocks broke
+    const g = clang ? H.clang.thump : Math.min(T.max, T.gain + T.per * n), d = Math.min(T.durMax, T.dur + T.durPer * n);
+    tone('sine', T.f0, T.f1, d, g); if (n > 6) hiss(260, 70, d, g * 0.5, 'lowpass');
+    det = 1;
   }
   function startSong() {
     if (!buf.music || song || !ctx) return;
@@ -115,6 +137,9 @@ const Sound = (() => {
   return {
     unlock(cfg) { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
     play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a); else fx[id](a); },
+    /** The hammer's hit sound (see hammer above); silent like play() while muted or before the first touch. */
+    hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running') return; hammer(H, body, n, clang); },
+    get lastRate() { return lastRate; },
     setTempo(t) { tempo = t; if (song) song.playbackRate.value = t / 118; },
     get recorded() { return Object.keys(buf).length; },
     get musicLevel() { return music ? music.gain.value : null; }, get songOn() { return !!song; },
@@ -503,7 +528,7 @@ function startGame(mode) {
     if (e.type === 'smash') {
       idleT = 0;
       const n = e.removed.length, mat = cfg.materials[(e.removed[0] || {}).m - 1] || {};
-      if (e.by === 'hammer') { Sound.play(mat.snd === 'wood' || mat.snd === 'glass' || mat.snd === 'soft' ? mat.snd : mat.snd === 'metal' ? 'brick' : 'brick', 0.8); buzz('tap'); }
+      if (e.by === 'hammer') { Sound.hammer(cfg.feel.hammer.sound, mat.snd === 'wood' || mat.snd === 'glass' || mat.snd === 'soft' ? mat.snd : 'brick', n); buzz('tap'); }
       else if (e.by === 'hole' || e.by === 'ball') { if ((hitSnd -= 1) <= 0) { hitSnd = 3; Sound.play('brick', 0.5); } }
       if (mat.snd === 'glass' && e.by !== 'hammer') Sound.play('glass', 0.7);
       if (e.gold) Sound.play('gem');
@@ -515,12 +540,12 @@ function startGame(mode) {
         else if (e.mult >= 3 && e.by === 'hammer') { const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(`×${e.mult}`, sx + 60, sy - 90, 'p-mid', '#ffe14a'); }
         if (!dailyChecked && saveLoaded) daily();
       }
-    } else if (e.type === 'swing') Sound.play('swing');
-    else if (e.type === 'hit') { if (e.n > 0 && !demo) { hitStop('hammer'); scene.kick(0.022); } }
+    } else if (e.type === 'swing') Sound.play('swing', W.hero.swingCell || W.hero.swingBot ? 1 : cfg.feel.hammer.sound.whiff);
+    else if (e.type === 'hit') { if (e.n > 0 && !demo) hitStop('hammer'); }
     else if (e.type === 'topple') { Sound.play('timber'); buzz('warning'); if (!demo) { slowT = Math.max(slowT, cfg.feel.toppleSlow); banner(T('timber'), 'p-big', -80); } }
     else if (e.type === 'fuse') Sound.play('fuse');
     else if (e.type === 'detonate') { buzz('success'); if (!demo && e.n > 0) banner(T('kaboom'), 'p-big', -80); }
-    else if (e.type === 'clang') { Sound.play('metal'); buzz('warning'); }
+    else if (e.type === 'clang') { Sound.hammer(cfg.feel.hammer.sound, 'metal', 0, true); buzz('warning'); }
     else if (e.type === 'super') { Sound.play('boom', 0.5); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('super'), sx, sy - 110, 'p-mid', '#ffd23c'); toolEls.bomb.classList.remove('hint'); if (tipKey === 'tooHard') setTip(null); }
     else if (e.type === 'tooHard') {
       if (demo) return;

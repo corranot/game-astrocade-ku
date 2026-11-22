@@ -131,6 +131,24 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Cost: 8 more boxes per robot (30 robots at most). Here the bundle run stayed at 18–19 fps and `perf.js` at
   3.2 ms of game code; a real phone is not measured.
 
+## Hammer benchmark (22 Nov, owner: "heavy toy"; the pattern the other five tools follow)
+- **Model:** one geometry, one draw call, 326 triangles, built in `scene.js hammerGeometry`: steel core, two flared
+  striking faces, red band, collar, wooden handle with grain, grip wrap, pommel; cut edges everywhere. One 256×128
+  colour texture and one for roughness/metalness, both painted in code. The steel mirrors a 128×64 sky picture per
+  theme (PMREM, made on first use) that turns with the view. Colours and sizes: `feel.hammer.look`.
+- **Motion in layers** (`feel.hammer.motion`): wind-up → strike landing exactly at `SWING_HIT` → hold on a hit or
+  swing-through on a miss; a recoil spring kicked by the landing (blocks broken, robot, steel bounce); a second spring
+  for the lag behind the view's turning, the walk bob and the idle sway; head squash. The arm reaches from a fixed
+  elbow so the hand can rise to the crosshair (before: the head landed at 79–88% of the height, under the buttons).
+  View: nod + a brief wider view (`feel.hammer.camera`), ×0.3 with reduced motion, never a roll.
+- **Impact** (`feel.hammer.impact`): one flash sprite, sparks and a puff in the material's colour at the point of the
+  block nearest the eye, sized by the blocks broken; steel that holds: more sparks, a cold flash. Old pools only.
+- **Sound** (`feel.hammer.sound`): click + the material's body (recorded or code-made) + a low thump that grows with
+  the blocks broken; each hit its own pitch within ±7%, never the last one's. A swing at the air is quieter.
+- **Low tier:** a plain material without the reflection (no sky picture is ever made), half the sparks and puffs.
+- Not proven here: FPS on a real phone, how the three sound layers mix on a phone speaker, whether the sleeve's
+  yellow stripe is too loud when the hand is up (it is the old arm, now seen from above at the strike).
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.
