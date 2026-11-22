@@ -98,6 +98,22 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   brightness 1→1.28), dimmed 0.78 while cooling. **Quality:** weak phone (≤ 4 cores or ≤ 3 GB) starts low (no shadows,
   half particles, DPR 0.6); everywhere the frame average over 1.2 s moves DPR −0.15 (> 1/45 s) / +0.1 (< 1/58 s).
 
+## BOOM update (22 Nov; lesson from a competitor's "16 kinds of TNT + one BOOM button", own content)
+- **Special barrels:** the barrels inside a building are special, two kinds per level in turn (`tnt.kinds`): orange
+  **cluster** (throws 6 bombs outward), purple **black hole** (swallows what is around it), blue **meteor** (calls one
+  down on itself). Each still booms like a plain barrel first. They show the locked tools at work before they are
+  bought. What they throw pays at the barrel's rate, not at the player's upgraded tool's (otherwise the pilot bought
+  something every 11 s). The barrel in front of the start stays plain: the first tap is unchanged.
+- **BOOM box:** a red box with a yellow T-handle and a bobbing arrow, behind the fence and left of the hammer in the
+  hand, outside the front barrel's blast. Smashing it with anything lights every barrel still standing, nearest first,
+  ≤ 0.28 s apart and ≤ 2.6 s in all, with a KABOOM! banner. It stood to the side at first: outside the portrait view
+  (61° off the look direction at a 49° wide view), so nobody would have found it.
+- **Found on the way:** barrels inside buildings were sometimes not drawn at all (an instanced mesh's bounding sphere
+  is measured once; fixed with `frustumCulled = false`, checked in `checks.js` by the barrel's colour on screen); a
+  robot facing a block dropped its goal every frame and could stand still for good (`bots.js walk`).
+- Tests: 12 new in `logic.test.mjs` (114), 4 barrel-colour checks in `checks.js`. Pilot child unchanged: 48/48,
+  median 11 s. Not proven here: how it feels on a phone, and whether a child notices the box without being told.
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.

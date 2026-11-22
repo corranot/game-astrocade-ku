@@ -448,5 +448,52 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   }
 }
 
+// ---- BOOM update: special TNT barrels and the BOOM box that sets every barrel off
+{
+  const kinds = cfg.tnt.kinds.map((k) => k.id);
+  let boxOk = true, kindsSeen = new Set(), frontPlain = true, far = true;
+  for (let lv = 0; lv < 40; lv++) {
+    const Lv = buildLevel(cfg, lv), b = Lv.boomBox, front = Lv.tnt[Lv.tnt.length - 1];
+    if (!b || Lv.grid.get(b.x, b.y, b.z) !== M.boomBox) boxOk = false;
+    for (const c of Lv.tnt) if (c.k) kindsSeen.add(c.k);
+    if (front.k) frontPlain = false;
+    // the first tap blows the front barrel: the BOOM box must survive that blast, or every level starts with all of it
+    if (b && Math.hypot(b.x - front.x, b.z - front.z) <= cfg.tnt.r + 1) far = false;
+  }
+  check(boxOk, 'every level has a BOOM box standing in the yard');
+  check(kinds.length >= 3 && kinds.every((k) => kindsSeen.has(k)), 'every special barrel kind appears within the first 40 levels');
+  check(frontPlain, 'the barrel in front of the start stays a plain one (the first tap is a plain boom)');
+  check(far, 'the BOOM box stands outside the front barrel\'s blast');
+
+  // a bomb on the BOOM box lights every barrel; they go off one after the other and the specials do their own thing
+  const W = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), b = W.boomBox, total = W.tntCells.length;
+  const special = W.tntCells.filter((c) => c.k).map((c) => c.k);
+  check(WD.useTool(W, 'bomb', { x: b.x + 0.5, y: b.y + 0.5, z: b.z + 0.5 }), 'a bomb can be thrown at the BOOM box');
+  const seen = { detonate: null, booms: [], shots: new Set() }; let t = 0;
+  while (t < 9) {
+    for (const e of WD.step(W, 1 / 60)) {
+      if (e.type === 'detonate') seen.detonate = e;
+      if (e.type === 'boom' && e.kind === 'tnt') seen.booms.push(t);
+      if (e.type === 'throw' && e.shot.from === 'tnt') seen.shots.add(e.shot.kind);
+    }
+    t += 1 / 60;
+  }
+  check(seen.detonate && seen.detonate.n === total, `the BOOM box lights all ${total} barrels (${seen.detonate && seen.detonate.n})`);
+  check(seen.booms.length === total, `every barrel goes off (${seen.booms.length} of ${total})`);
+  check(seen.booms.length > 1 && seen.booms[seen.booms.length - 1] - seen.booms[0] >= 0.2, 'the barrels go off one after the other, not in one frame');
+  check(W.tntCells.every((c) => W.g.get(c.x, c.y, c.z) !== M.tnt), 'no barrel is left standing afterwards');
+  const want = { cluster: 'bomb', hole: 'hole', meteor: 'meteor' };
+  check(special.length > 0 && special.every((k) => seen.shots.has(want[k])), `each special barrel did its own thing (${special.join(', ')} → ${[...seen.shots].join(', ')})`);
+  check(W.left >= 0 && W.left === W.g.count(), `the block count still matches the grid after the chain (${W.left} / ${W.g.count()})`);
+
+  // a cluster barrel hit on its own throws its bombs outward
+  const C = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), cl = C.tntCells.find((c) => c.k === 'cluster');
+  if (cl) {
+    WD.useTool(C, 'bomb', { x: cl.x + 0.5, y: cl.y + 0.5, z: cl.z + 0.5 }); let bombs = 0;
+    for (let i = 0; i < 240; i++) for (const e of WD.step(C, 1 / 60)) if (e.type === 'throw' && e.shot.from === 'tnt' && e.shot.kind === 'bomb') bombs++;
+    check(bombs === cfg.tnt.kinds.find((k) => k.id === 'cluster').n, `a cluster barrel throws ${bombs} bombs`);
+  } else check(false, 'level 2 has a cluster barrel to test');
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);

@@ -519,6 +519,7 @@ function startGame(mode) {
     else if (e.type === 'hit') { if (e.n > 0 && !demo) { hitStop('hammer'); scene.kick(0.022); } }
     else if (e.type === 'topple') { Sound.play('timber'); buzz('warning'); if (!demo) { slowT = Math.max(slowT, cfg.feel.toppleSlow); banner(T('timber'), 'p-big', -80); } }
     else if (e.type === 'fuse') Sound.play('fuse');
+    else if (e.type === 'detonate') { buzz('success'); if (!demo && e.n > 0) banner(T('kaboom'), 'p-big', -80); }
     else if (e.type === 'clang') { Sound.play('metal'); buzz('warning'); }
     else if (e.type === 'super') { Sound.play('boom', 0.5); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('super'), sx, sy - 110, 'p-mid', '#ffd23c'); toolEls.bomb.classList.remove('hint'); if (tipKey === 'tooHard') setTip(null); }
     else if (e.type === 'tooHard') {

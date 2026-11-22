@@ -155,13 +155,31 @@ export function createScene(cv, cfg) {
   const SP = { n: 0, p: new Float32Array(sparkMax * 3), v: new Float32Array(sparkMax * 3), life: new Float32Array(sparkMax) };
   function sparks(x, y, z, n) { if (low) n = Math.ceil(n / 2); for (let k = 0; k < n && SP.n < sparkMax; k++) { const i = SP.n++; SP.p[i * 3] = x; SP.p[i * 3 + 1] = y; SP.p[i * 3 + 2] = z; SP.v[i * 3] = (Math.random() - 0.5) * 9; SP.v[i * 3 + 1] = 2 + Math.random() * 6; SP.v[i * 3 + 2] = (Math.random() - 0.5) * 9; SP.life[i] = 0.25 + Math.random() * 0.25; } }
   // TNT barrels: red with a white band, standing on their blocks (the block itself is not drawn)
-  const tntMax = 24, barrel = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.44, 0.44, 0.96, 14)), keep(new THREE.MeshLambertMaterial({ color: '#e8322b' })), tntMax);
+  const tntMax = 24, barrel = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.44, 0.44, 0.96, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff' })), tntMax);
   const band = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.455, 0.455, 0.22, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#553300' })), tntMax);
+  // never culled: the bounding sphere of an instanced mesh is measured once, so barrels placed later vanished from some views
+  barrel.frustumCulled = band.frustumCulled = false;
   barrel.castShadow = true; scene.add(barrel, band); barrel.count = band.count = 0;
+  // the BOOM box: a red box with a yellow lid and a T-handle; smashing it sets off every barrel
+  const boomBox = new THREE.Group();
+  {
+    const bx = (w, h, d, color, y, emissive = '#000000') => { const m = new THREE.Mesh(keep(new THREE.BoxGeometry(w, h, d)), keep(new THREE.MeshLambertMaterial({ color, emissive }))); m.position.y = y; m.castShadow = true; boomBox.add(m); return m; };
+    bx(0.86, 0.5, 0.86, '#e8322b', 0.25); bx(0.94, 0.1, 0.94, '#ffd12e', 0.55, '#5a4200'); bx(0.12, 0.5, 0.12, '#3a3340', 0.85); bx(0.66, 0.14, 0.16, '#ffd12e', 1.14, '#5a4200');
+  }
+  // a bobbing arrow over it, tall enough to show above the fence
+  const boomArrow = new THREE.Mesh(keep(new THREE.ConeGeometry(0.34, 0.62, 4)), keep(new THREE.MeshLambertMaterial({ color: '#ff3b30', emissive: '#7a1410' })));
+  boomArrow.rotation.x = Math.PI; boomBox.add(boomArrow);
+  boomBox.visible = false; scene.add(boomBox);
   function placeBarrels() {
     let n = 0;
-    if (W && W.tntCells) for (const c of W.tntCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.tnt || n >= tntMax) continue; tmpM.compose(tmpV.set(c.x + 0.5, c.y + 0.48, c.z + 0.5), tmpQ.identity(), tmpS.set(1, 1, 1)); barrel.setMatrixAt(n, tmpM); band.setMatrixAt(n, tmpM); n++; }
+    // each kind of barrel has its own colour (config); a plain one is red
+    const kinds = (W && W.cfg.tnt.kinds) || [];
+    if (W && W.tntCells) for (const c of W.tntCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.tnt || n >= tntMax) continue; tmpM.compose(tmpV.set(c.x + 0.5, c.y + 0.48, c.z + 0.5), tmpQ.identity(), tmpS.set(1, 1, 1)); barrel.setMatrixAt(n, tmpM); band.setMatrixAt(n, tmpM); const K = kinds.find((k) => k.id === c.k); barrel.setColorAt(n, tmpC.set(K ? K.color : '#e8322b')); n++; }
     barrel.count = band.count = n; barrel.instanceMatrix.needsUpdate = band.instanceMatrix.needsUpdate = true;
+    if (barrel.instanceColor) barrel.instanceColor.needsUpdate = true;
+    const b = W && W.boomBox;
+    boomBox.visible = !!(b && W.g.get(b.x, b.y, b.z) === W.ids.boomBox);
+    if (boomBox.visible) boomBox.position.set(b.x + 0.5, b.y, b.z + 0.5);
   }
   const coinMax = 90, coinGeo = keep(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14)), coinMat = keep(new THREE.MeshLambertMaterial({ color: '#ffcf1f', emissive: '#7a5000' }));
   const coins = new THREE.InstancedMesh(coinGeo, coinMat, coinMax); coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage); coins.frustumCulled = false; scene.add(coins);
@@ -243,7 +261,7 @@ export function createScene(cv, cfg) {
   function event(e) {
     if (e.type === 'smash') {
       for (const c of e.removed) markCell(c.x, c.y, c.z);
-      if (e.removed.some((c) => c.m === W.ids.tnt)) placeBarrels();
+      if (e.removed.some((c) => c.m === W.ids.tnt || c.m === W.ids.boomBox)) placeBarrels();
       const cap = Math.min(e.removed.length, e.by === 'hammer' ? 30 : cfg.debris.perBlast), step = e.removed.length / cap;
       const power = e.by === 'hammer' ? 5 : e.by === 'ball' ? 7 : 6 + e.r * 2.2;
       const hx = W.hero.x, hz = W.hero.z;
@@ -280,6 +298,7 @@ export function createScene(cv, cfg) {
       addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
+    } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
     } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); }
     else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); }
@@ -471,6 +490,7 @@ export function createScene(cv, cfg) {
     for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
     dirty.clear();
     updateCamera(dt); updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
+    if (boomBox.visible) { boomArrow.position.y = 2.25 + Math.sin(time * 4) * 0.16; boomArrow.rotation.y = time * 2; }
     renderer.autoClear = true; renderer.render(scene, camera);
     renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; // the hands on top
   }

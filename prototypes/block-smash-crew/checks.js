@@ -41,6 +41,34 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
   note(Math.abs(c['.card'].l - c['.card'].r) <= 2, `result card centred (${c['.card'].l.toFixed(0)} / ${c['.card'].r.toFixed(0)})`);
   note(Math.abs(c['#nextBtn'].l - c['#nextBtn'].r) <= 2, `NEXT centred on the card (${c['#nextBtn'].l.toFixed(0)} / ${c['#nextBtn'].r.toFixed(0)})`);
   note(inB >= inL - 2, `card inner margin: top ${inL.toFixed(0)}, bottom ${inB.toFixed(0)} (bottom includes the button shadow)`);
+  // every special barrel is drawn in its own colour where it stands: seen from a free cell next to it, the patch of
+  // screen at the barrel holds pixels of that colour (the barrels were once culled away inside buildings)
+  console.log('-- special barrels (drawn, in their colour)');
+  const hueOf = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; return ((mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360; };
+  for (const lv of [0, 2]) {
+    await page.evaluate((n) => __game.newLevel(n), lv); await page.waitForTimeout(900);
+    for (const c of await page.evaluate(() => __game.W.tntCells.filter((c) => c.k))) {
+      const stood = await page.evaluate(([c]) => { const G = __game, W = G.W, h = W.hero; let best = null;
+        for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) { const d = Math.hypot(dx, dz); if (d < 2.2 || d > 4) continue; const x = c.x + dx, z = c.z + dz; let ok = true;
+          for (let y = 0; y < 3; y++) if (W.g.get(x, y, z)) ok = false;
+          for (let k = 1; k < 8 && ok; k++) { const px = Math.floor(x + 0.5 + (c.x - x) * k / 8), pz = Math.floor(z + 0.5 + (c.z - z) * k / 8); if ((px !== c.x || pz !== c.z) && (W.g.get(px, 0, pz) || W.g.get(px, 1, pz))) ok = false; }
+          if (ok && (!best || d < best[2])) best = [x, z, d]; }
+        if (!best) return false; h.x = best[0] + 0.5; h.z = best[1] + 0.5;
+        let d = Math.atan2(c.x + 0.5 - h.x, c.z + 0.5 - h.z) - Math.PI - G.scene.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.scene.look(d, -0.42 - G.scene.pitch); return true; }, [c]);
+      if (!stood) { note(false, `level ${lv + 1} ${c.k} barrel: no free cell with a clear view next to it`); continue; }
+      await page.waitForTimeout(700);
+      const [cx, cy] = await page.evaluate(([c]) => { const G = __game; return G.client(...G.scene.screenOf(c.x + 0.5, c.y + 0.5, c.z + 0.5)); }, [c]);
+      const png = await page.screenshot({ clip: { x: Math.max(0, cx - 22), y: Math.max(0, cy - 22), width: 44, height: 44 } });
+      const want = hueOf(cfg.tnt.kinds.find((k) => k.id === c.k).color);
+      const share = await page.evaluate(async ([b64, want]) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const x = cv.getContext('2d'); x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0;
+        for (let i = 0; i < d.length; i += 4) { const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dl = mx - mn; if (dl < 0.25 * mx || mx < 0.25) continue;
+          const h = ((mx === r ? ((g - b) / dl) % 6 : mx === g ? (b - r) / dl + 2 : (r - g) / dl + 4) * 60 + 360) % 360, off = Math.abs(((h - want + 540) % 360) - 180); if (off < 28) n++; }
+        return n / (d.length / 4); }, [png.toString('base64'), want]);
+      note(share > 0.12, `level ${lv + 1} ${c.k} barrel shows its colour (${Math.round(share * 100)}% of the patch at the barrel)`);
+    }
+  }
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} OFF` : '\nspacing all even'); process.exit(fails.length ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
