@@ -1,5 +1,20 @@
 # Model Tier Assignment
 
+> ### This project's pins (2026-11-22)
+>
+> | Tier | `model:` | Used by |
+> |---|---|---|
+> | **Heavy** | `claude-fable-5-2` | Session model (`.claude/settings.json` `model` + `ANTHROPIC_MODEL`), every `inherit` agent, the 3 directors, the 3 synthesis skills |
+> | **Light** | `claude-opus-5-5` | Every other pinned agent and skill, and background tasks (`ANTHROPIC_SMALL_FAST_MODEL`) |
+>
+> Effort is `medium` everywhere (`effortLevel` + `CLAUDE_CODE_EFFORT_LEVEL`).
+> `CLAUDE_CODE_SUBAGENT_MODEL` is deliberately **not** set: it would move the
+> 30 `inherit` agents off Fable. The former Opus tier is now Heavy; the former
+> Sonnet and Haiku tiers are both Light. Below, "Opus" reads as Heavy and
+> "Sonnet"/"Haiku" as Light; the `haiku`-in-auto-mode caveat no longer applies.
+> Pins are written as full model IDs, not aliases, so a new model release needs
+> a deliberate edit here and in the frontmatter.
+
 > ### When a skill's `model:` is used — skills only
 >
 > On Claude Code 2.1.287: when it is used, a skill's `model:` overrides the
@@ -32,19 +47,18 @@
 > order, after a `model` Claude passes for one invocation. See the agent section
 > below.
 
-Skills and agents are assigned tiers by task complexity. A tier is written as
-the alias `model:` takes, never as a model ID: Claude Code resolves each alias
-to the current model in that family, so this table does not change when a new
-model ships.
+Skills and agents are assigned tiers by task complexity. This project writes
+tiers as full model IDs (see the pins at the top), so this table must be edited
+by hand when a new model ships; an alias would follow new releases on its own.
 
 | Tier | `model:` | When to use |
 |------|----------|-------------|
-| **Haiku** | `haiku` | Read-only status checks, formatting, simple lookups — no creative judgment needed |
-| **Sonnet** | `sonnet` | Implementation, design authoring, analysis of individual systems — default for most work |
-| **Opus** | `opus` | Multi-document synthesis, high-stakes phase gate verdicts, cross-system holistic review |
+| **Haiku** → Light | `claude-opus-5-5` | Read-only status checks, formatting, simple lookups — no creative judgment needed |
+| **Sonnet** → Light | `claude-opus-5-5` | Implementation, design authoring, analysis of individual systems — default for most work |
+| **Opus** → Heavy | `claude-fable-5-2` | Multi-document synthesis, high-stakes phase gate verdicts, cross-system holistic review |
 | **Session** | `inherit` | Agents only — runs on whatever model the session runs |
 
-Skills with `model: haiku` (6): `/next-step`, `/onboard`, `/project-stage-detect`,
+Skills formerly `haiku`, now `model: claude-opus-5-5` (6): `/next-step`, `/onboard`, `/project-stage-detect`,
 `/scope-check`, `/sprint-status`, and `/help`, the old name of `/next-step`
 
 > `/help`, `/settings` and `/changelog` are the old names of `/next-step`,
@@ -61,11 +75,11 @@ Skills with `model: haiku` (6): `/next-step`, `/onboard`, `/project-stage-detect
 > configured rigor against the project's observable working practice. That is
 > synthesis, which is what the Haiku row is defined as excluding.
 
-Skills with `model: opus` (3): `/architecture-review`, `/gate-check`, `/review-all-gdds`
+Skills with `model: claude-fable-5-2` (3): `/architecture-review`, `/gate-check`, `/review-all-gdds`
 
-All other skills are Sonnet. When creating a new skill, assign Haiku if it only
-reads and formats; assign Opus if it must synthesize 5+ documents with
-high-stakes output; otherwise write `model: sonnet` explicitly. Every skill
+All other skills are Sonnet. When creating a new skill, write `model: claude-fable-5-2` if it must
+synthesize 5+ documents with high-stakes output; otherwise write
+`model: claude-opus-5-5` explicitly. Every skill
 declares a tier except `/prototype`, which has no `model:` line, so it runs on
 the session's model. Whether the tier takes effect depends on how the skill starts
 (see the table at the top of this file).
@@ -73,10 +87,10 @@ the session's model. Whether the tier takes effect depends on how the skill star
 **Agent model tiers.** 30 agents use `model: inherit` and run on the session's
 model. 19 are pinned:
 
-- **opus (3):** `creative-director`, `producer`, `technical-director`. Under an
+- **claude-fable-5-2 (3, formerly opus):** `creative-director`, `producer`, `technical-director`. Under an
   Opus session an `opus` pin runs on the session's exact model, `[1m]` included,
   so it never gets a smaller window than its parent.
-- **sonnet (16):** `lead-programmer`, `prototyper`, `devops-engineer`,
+- **claude-opus-5-5 (16, formerly sonnet):** `lead-programmer`, `prototyper`, `devops-engineer`,
   `community-manager` and the 12 engine sub-specialists:
   `godot-csharp-specialist`, `godot-gdextension-specialist`,
   `godot-gdscript-specialist`, `godot-shader-specialist`,

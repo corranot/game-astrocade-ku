@@ -4,7 +4,7 @@ description: "Writes missing design or architecture docs, or a game's brief, fro
 argument-hint: "<type> <path> (e.g., 'design src/gameplay/combat', 'architecture Assets/Scripts/Core' or 'brief prototypes/my-game')"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash(bash "*/.claude/skills/reverse-document/../../hooks/yaml-helper.sh" resolve_config *), Bash(bash .claude/scripts/game-read.sh *)
-model: sonnet
+model: claude-opus-5-5
 # Read-only diagnostic skill — no specialist agent delegation needed
 ---
 

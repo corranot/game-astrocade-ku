@@ -3,7 +3,7 @@
 ## Skill Summary
 
 `/next-step` tells the user where they are in the pipeline and the one thing to do
-next. It is read-only and declares the Haiku tier (`model: haiku`), which is
+next. It is read-only and declares the light tier (`model: claude-opus-5-5`), which is
 used only when the user types `/next-step` in Manual mode — in auto mode, or when
 Claude starts the skill itself, the session model runs it
 (`.claude/docs/model-tiers.md`). Before it runs, it is handed the resolved
@@ -33,7 +33,7 @@ director gates are invoked.
 Checked against the SKILL.md by `/skill-test spec` — no fixture needed.
 
 - [ ] Has required frontmatter fields: `name`, `description`, `argument-hint`, `user-invocable`, `allowed-tools`
-- [ ] Frontmatter sets `model: haiku`
+- [ ] Frontmatter sets `model: claude-opus-5-5`
 - [ ] Has ≥2 phase headings
 - [ ] Contains verdict keyword: COMPLETE
 - [ ] Does NOT contain "May I write" language, and `allowed-tools` has no Write or Edit (skill is read-only)

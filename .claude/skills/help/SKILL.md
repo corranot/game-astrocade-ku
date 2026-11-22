@@ -5,7 +5,7 @@ argument-hint: "[optional: what you just finished, e.g. 'finished design-review'
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Skill(next-step)
-model: haiku
+model: claude-opus-5-5
 ---
 
 # /help — old name of /next-step

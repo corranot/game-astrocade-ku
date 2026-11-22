@@ -13,7 +13,7 @@ Verified by reading the agent's `.claude/agents/technical-director.md` frontmatt
 
 - [ ] `description:` field is present and domain-specific (references architecture, feasibility, ADR — not generic)
 - [ ] `tools:` reads Read, Glob, Grep, Write, Edit, Bash, WebSearch
-- [ ] Model tier is `opus` — frontmatter `model:` reads exactly `opus` (tiers: `.claude/docs/model-tiers.md`)
+- [ ] Model tier is heavy — frontmatter `model:` reads exactly `claude-fable-5-2` (tiers: `.claude/docs/model-tiers.md`)
 - [ ] Agent definition does not claim authority over game design decisions or creative direction
 
 ---
