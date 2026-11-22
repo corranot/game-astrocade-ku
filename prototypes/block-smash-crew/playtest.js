@@ -609,6 +609,21 @@ async function main() {
     await page.waitForTimeout(500);
     const p2b = await g(page, () => { document.querySelector('#shop [data-buy="rocket"]').click(); return (__game.save.lv || {}).rocket || 1; });
     check(p2b === 2, `p2 a second, separate tap a moment later does buy the upgrade (level ${p2b})`);
+    // w1: a big word always shows, also while the status column is tall (clock + wave banner + NEXT pill) and in the
+    // languages whose words wrap to two lines (they were dropped with only the fanfare left)
+    const dropped = [];
+    for (const lang of ['en', 'es', 'ar', 'id']) {
+      await g(page, (l) => { const G = __game; G.setLang(l); G.newLevel(5); }, lang); await page.waitForTimeout(400);
+      for (const key of ['record', 'waveClear', 'smashTime', 'treasure']) {
+        await g(page, () => { document.querySelector('#ftime').hidden = false; document.querySelector('#nextpill').hidden = false; __game.waveBanner(3); document.querySelector('#pops').innerHTML = ''; });
+        await page.waitForTimeout(250);
+        const text = await g(page, (k) => { const t = k === 'record' ? __game.T('record', '1,234') : __game.T(k); __game.banner(t); return t; }, key);
+        const shown = await page.waitForFunction((t) => [...document.querySelectorAll('#pops .pop')].some((e) => e.textContent.replace(/\s+/g, ' ').trim() === t.replace(/\s+/g, ' ').trim()), text, { timeout: 1500, polling: 30 }).then(() => true, () => false);
+        if (!shown) dropped.push(`${lang}:${key}`);
+        await page.waitForTimeout(1000);
+      }
+    }
+    check(dropped.length === 0, `w1 big words show with a full status column in en, es, ar, id (dropped: ${dropped.join(', ') || 'none'})`);
     check(errors.length === 0, 'panel bug checks: no page errors: ' + (errors.join(' | ') || 'none'));
     await page.close();
   }

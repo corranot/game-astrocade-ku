@@ -310,15 +310,17 @@ function startGame(mode) {
   /**
    * The free place for a w × h word wanted at (x, y): its centre [x, y] and its box, or null when the view is full.
    * `loose` 1 = it may pass over the arrows to stars (a big word is as wide as the frame), 2 = over other words too
-   * (the last try of a word that waited): never over the crosshair, the status lines or the coach's label.
+   * (the last try of a word that waited): never over the crosshair, the status lines or the coach's label;
+   * 3 = over the status lines and the coach's label but not over other words; 4 = over everything but the crosshair
+   * (a word the player must see is never dropped).
    */
   function wordPlace(x, y, w, h, loose = 0) {
     const G = WORDS, now = performance.now(), up = h * G.rise, pad = G.gap - 0.5;
     for (let i = G.up.length - 1; i >= 0; i--) if (G.up[i].until <= now) G.up.splice(i, 1);
-    const taken = loose > 1 ? [G.cross] : [G.cross, ...G.up];
-    for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
+    const taken = loose === 2 || loose >= 4 ? [G.cross] : [G.cross, ...G.up];
+    if (loose < 3) for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
     if (!loose) for (const el of $('arrows').children) { const r = frameRect(el); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
-    if (!$('coach').hidden) { const r = frameRect($('coach').querySelector('.clabel')); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
+    if (loose < 3 && !$('coach').hidden) { const r = frameRect($('coach').querySelector('.clabel')); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
     const cx = Math.max(w / 2 + G.side, Math.min(720 - G.side - w / 2, x)), cy = Math.max(G.top + up + h / 2, Math.min(G.bottom - h / 2, y));
     const sx = w + G.gap, sy = h + up + G.gap, spots = [];
     // up and down in quarter steps (a tall word must be able to slide into a band only just its size)
@@ -350,22 +352,30 @@ function startGame(mode) {
       const b = p._box; if (!b || !lane.some((o) => b.l < o.r + pad && b.r > o.l - pad && b.t < o.b + pad && b.b > o.t - pad)) continue;
       const i = WORDS.up.indexOf(b); if (i >= 0) WORDS.up.splice(i, 1);
       const at = wordPlace(p._x, p._y, b.r - b.l, (b.b - b.t) / (1 + WORDS.rise));
-      if (!at) { p.remove(); continue; }
+      // nowhere to go at its size: it is made again from its one-line try on (a big word then fits under the crosshair)
+      if (!at) { const a = p._args; p.remove(); if (a) pop(a[0], a[1], a[2], a[3], a[4], a[5], 0, 1); continue; }
       p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`; p._box = at[2];
     }
   }
   /** A trophy won: the cup under the crosshair. */
   function starPop() { const p = document.createElement('img'); p.src = TROPHY_SVG; p.className = 'pop trophy'; $('pops').appendChild(p); wordShow(p, 360, 830); Sound.play('star'); buzz('success'); }
   /** A word at frame point (x, y), with one of the game's icons before it when `ic` names one. */
-  function pop(text, x, y, cls = '', color, ic = '', turn = 0) {
+  function pop(text, x, y, cls = '', color, ic = '', turn = 0, stage = 0) {
     const p = document.createElement('div'); p.className = `pop out ${cls}`;
     if (ic) { p.classList.add('p-row'); p.innerHTML = UI.icon(ic); p.appendChild(Object.assign(document.createElement('span'), { textContent: text })); } else p.textContent = text;
     if (color) p.style.color = color;
+    p._args = [text, x, y, cls, color, ic];
     $('pops').appendChild(p);
-    const base = cls.includes('p-big') ? 88 : cls.includes('p-mid') ? 60 : 44; fitText(p, 690, base, cls.includes('p-big') ? 2 : 1);
-    const big = cls.includes('p-big');
-    if (wordShow(p, x, y, turn >= WORDS.tries ? 2 : big ? 1 : 0) || cls.includes('p-coin') || turn >= WORDS.tries) return;
-    const gen = celGen; setTimeout(() => { if (alive && gen === celGen) pop(text, x, y, cls, color, ic, turn + 1); }, WORDS.wait);
+    // a big word is never dropped. Its tries, at once and in this order: two lines in a free place; one line (half
+    // the height: it fits under the crosshair); two lines over the status lines (it comes with its fanfare, not a
+    // second later). Other words are waited for; only its very last try may stand over them too.
+    const big = cls.includes('p-big'), last = turn >= WORDS.tries, oneLine = big && stage === 1 && !last;
+    // (on one line a big word takes the middle size, so a long one still fits the frame's width)
+    const base = oneLine ? 60 : big ? 88 : cls.includes('p-mid') ? 60 : 44; fitText(p, 690, base, big && !oneLine ? 2 : 1);
+    const loose = last ? (big ? 4 : 2) : big ? (stage === 2 ? 3 : 1) : 0;
+    if (wordShow(p, x, y, loose) || cls.includes('p-coin') || last) return;
+    if (big && stage < 2) { pop(text, x, y, cls, color, ic, turn, stage + 1); return; }
+    const gen = celGen; setTimeout(() => { if (alive && gen === celGen) pop(text, x, y, cls, color, ic, turn + 1, 0); }, WORDS.wait);
   }
   /** One of the game's own icons, big, at frame point (x, y). */
   function popIcon(name, x, y) { const p = document.createElement('div'); p.className = 'pop p-ico'; p.innerHTML = UI.icon(name); $('pops').appendChild(p); wordShow(p, x, y); }
