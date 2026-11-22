@@ -19,7 +19,7 @@ export function createScene(cv, cfg, sheet) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // soft since r182; PCFSoftShadowMap only warns and falls back
   let dpr = Math.min(window.devicePixelRatio || 1, DPR_MAX);
   // a phone with few cores or little memory starts at the low tier: 1x resolution, no shadows (FPS gate)
   const lowTier = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
