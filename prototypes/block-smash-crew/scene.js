@@ -34,7 +34,7 @@ export function createScene(cv, cfg) {
   scene.add(new THREE.HemisphereLight('#e4f4ff', '#8fcf6a', 1.7));
   const sun = new THREE.DirectionalLight('#fff4dc', 2.3); sun.position.set(0.55, 1, 0.38).multiplyScalar(50); scene.add(sun); scene.add(sun.target);
   // soft sun shadows over the whole lot (off on a slow phone)
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; // soft since r182; PCFSoftShadowMap only warns and falls back
   sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.04;
   Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 1, far: 140 }); sun.shadow.camera.updateProjectionMatrix();
   const flash = new THREE.PointLight('#ffb347', 0, 30, 1.6); scene.add(flash);
@@ -396,7 +396,8 @@ export function createScene(cv, cfg) {
     const bob = h.moving ? Math.abs(Math.sin(cam.bob)) * 0.06 : 0;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6);
     const sh = cam.trauma * cam.trauma * 0.25;
-    camera.position.set(h.x + (Math.random() - 0.5) * sh, h.y + cam.eyeY + bob + (Math.random() - 0.5) * sh, h.z + (Math.random() - 0.5) * sh);
+    const st = performance.now() / 1000, sa = sh * 0.5; // summed sines at unrelated rates: a per-frame random offset buzzes like static
+    camera.position.set(h.x + Math.sin(st * 39) * sa, h.y + cam.eyeY + bob + Math.sin(st * 53 + 1) * sa, h.z + Math.sin(st * 47 + 2) * sa);
     camera.rotation.set(cam.pitch, cam.yaw, 0, 'YXZ'); // yaw 0 looks along -z; never a roll
     sky.position.copy(camera.position);
     sun.position.set(W.g.W / 2 + 27, 50, W.g.D / 2 + 19); sun.target.position.set(W.g.W / 2, 0, W.g.D / 2); // fixed over the lot: shadows never swim
