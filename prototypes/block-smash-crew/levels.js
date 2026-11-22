@@ -188,12 +188,18 @@ export function buildLevel(cfg, n) {
   const putTnt = (x, z) => { if (!g.get(x, 0, z) && !nearVault(x, z)) { g.set(x, 0, z, M.tnt); tnt.push({ x, y: 0, z }); return true; } return false; };
   const inside = [];
   for (let z = b.z0 + 1; z < b.z1; z++) for (let x = b.x0 + 1; x < b.x1; x++) if (!g.get(x, 0, z) && !g.get(x, 1, z) && !nearVault(x, z) && (g.get(x - 1, 0, z) || g.get(x + 1, 0, z) || g.get(x, 0, z - 1) || g.get(x, 0, z + 1))) inside.push([x, z]);
-  for (let i = 0; i < 2 + s && inside.length; i++) { const [x, z] = inside.splice(Math.floor(rnd() * inside.length), 1)[0]; putTnt(x, z); }
+  // the barrels inside are special ones, a different kind each (the level number turns the order)
+  const kinds = (cfg.tnt && cfg.tnt.kinds) || [];
+  for (let i = 0; i < 2 + s && inside.length; i++) { const [x, z] = inside.splice(Math.floor(rnd() * inside.length), 1)[0]; if (putTnt(x, z) && kinds.length) tnt[tnt.length - 1].k = kinds[(n + i) % kinds.length].id; }
   // yard: fence across the front, trees at the sides
   const fz = Math.min(L.D - 6, b.z1 + 4);
   fence(g, M, b.x0 - 2, b.x1 + 2, fz);
   for (const [x, z] of [[3, b.z0 + 2], [L.W - 4, b.z0 + 2], [3, b.z1 - 1], [L.W - 4, b.z1 - 1]]) if (!g.get(x, 0, z)) tree(g, M, x, z, 4 + Math.floor(rnd() * 2), rnd);
   putTnt(Math.floor(L.W / 2) - 1, fz + 2) || putTnt(Math.floor(L.W / 2) - 2, fz + 2); // straight ahead (just left of the hammer) in front of the fence: the first tap is a boom
+  // the BOOM box: ahead behind the fence, left of the hammer in the hand (in view once the front barrel opens the fence),
+  // outside that barrel's blast; smashing it sets off every barrel
+  let boomBox = null;
+  if (M.boomBox) for (const dx of [cfg.tnt.boxSide, cfg.tnt.boxSide - 1, 1, 2]) { const x = Math.floor(L.W / 2) + dx, z = fz - cfg.tnt.boxAhead; if (!g.get(x, 0, z) && !g.get(x, 1, z)) { g.set(x, 0, z, M.boomBox); boomBox = { x, y: 0, z }; break; } }
   const total = g.count();
-  return { grid: g, kind, boss, theme, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 5) }, stars, tnt, total, box: b, fenceZ: fz, top };
+  return { grid: g, kind, boss, theme, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 5) }, stars, tnt, total, box: b, fenceZ: fz, top, boomBox };
 }

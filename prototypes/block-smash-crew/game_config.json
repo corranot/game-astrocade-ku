@@ -216,6 +216,16 @@
    "hidden": true,
    "frag": "chunk",
    "tile": 0
+  },
+  {
+   "id": "boomBox",
+   "color": "#ffd12e",
+   "value": 25,
+   "snd": "metal",
+   "jitter": 0,
+   "hidden": true,
+   "frag": "chunk",
+   "tile": 0
   }
  ],
  "tools": [
@@ -790,7 +800,16 @@
  "tnt": {
   "r": 2.7,
   "delay": 0.22,
-  "step": 0.12
+  "step": 0.12,
+  "chainStep": 0.28,
+  "chainMax": 2.6,
+  "boxSide": -2,
+  "boxAhead": 2,
+  "kinds": [
+   { "id": "cluster", "color": "#ff9a1f", "n": 6, "spread": 4.2, "r": 2.1 },
+   { "id": "hole", "color": "#8a3aff", "r": 3.4, "dur": 1.8 },
+   { "id": "meteor", "color": "#2fb8ff", "r": 4.4 }
+  ]
  },
  "topple": {
   "minH": 6,

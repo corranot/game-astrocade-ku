@@ -247,7 +247,9 @@ function walk(W, b, dt, B) {
   const want = Math.atan2(dx, dz); let turn = want - b.yaw; turn = Math.atan2(Math.sin(turn), Math.cos(turn));
   b.yaw += Math.max(-4 * dt, Math.min(4 * dt, turn));
   const sp = B.speed * dt * (Math.abs(turn) < 1 ? 1 : 0.2), nx = b.x + Math.sin(b.yaw) * sp, nz = b.z + Math.cos(b.yaw) * sp;
-  if (free(W, nx, nz)) { b.x = nx; b.z = nz; } else b.goal = null;
+  // blocked while still turning: keep the goal and finish the turn (dropping it every frame left a bot facing a
+  // block picking new goals forever); blocked while facing the goal: pick another
+  if (free(W, nx, nz)) { b.x = nx; b.z = nz; } else if (Math.abs(turn) < 0.3) b.goal = null;
 }
 
 /** Moves point p (inside a block) out through the closest face whose neighbour cell is free, plus margin R. */
