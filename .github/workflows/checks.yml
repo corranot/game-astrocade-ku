@@ -48,6 +48,7 @@ jobs:
           done
           exit $fail
       - name: Baked sprites match their drawing code
+        if: success() || failure() # report it even when a bundle above failed
         run: |
           fail=0
           for d in tools/fixtures/bake-demo/ prototypes/*/; do

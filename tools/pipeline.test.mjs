@@ -9,7 +9,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { pack, recipeHash } from './kit/bake.js';
+import http from 'node:http';
+import { pack, recipeKey } from './kit/bake.js';
 
 const require = createRequire(import.meta.url);
 const assets = require('./assets.js');
@@ -36,14 +37,14 @@ test('pack refuses what cannot fit', () => {
   assert.throws(() => pack(Array.from({ length: 9 }, (_, i) => ({ name: 'p' + i, w: 2000, h: 500 }))), /sheet holds/);
 });
 
-test('recipeHash changes with the drawing, the size and the options, and only then', () => {
-  const draw = (c, w) => c.fillRect(0, 0, w, 1);
-  const h = recipeHash('coin', 96, 96, draw, {});
-  assert.equal(recipeHash('coin', 96, 96, draw, {}), h);
-  assert.notEqual(recipeHash('coin', 96, 97, draw, {}), h);
-  assert.notEqual(recipeHash('coin', 96, 96, draw, { scale: 2 }), h);
-  assert.notEqual(recipeHash('coin', 96, 96, (c, w) => c.fillRect(0, 0, w, 2), {}), h);
-  assert.notEqual(recipeHash('star', 96, 96, draw, {}), h);
+test('recipeKey is name, size and options only: a bundler rewriting the draw code cannot change it', () => {
+  const k = recipeKey('coin', 96, 96, {});
+  assert.equal(recipeKey('coin', 96, 96, {}), k);
+  assert.equal(recipeKey('coin', 96, 96, undefined), k);
+  assert.notEqual(recipeKey('coin', 96, 97, {}), k);
+  assert.notEqual(recipeKey('coin', 96, 96, { scale: 2 }), k);
+  assert.notEqual(recipeKey('coin', 96, 96, { v: 2 }), k);
+  assert.notEqual(recipeKey('star', 96, 96, {}), k);
 });
 
 test('assets: NEW, then recorded (lock + asset_map), then CHANGED when the bytes change', () => {
@@ -79,7 +80,54 @@ test('assets: image sizes come from the header, and a preview is locked but kept
   assert.equal(JSON.parse(fs.readFileSync(path.join(d, 'asset_map.json'), 'utf8')).thumb, undefined, 'a preview adds nothing to asset_map');
 });
 
-test('upload set drops dev blocks and refuses an unpaired marker', () => {
+test('assets: a broken asset_map is never rewritten from scratch, and short headers read as no size', () => {
+  const d = tmp();
+  fs.writeFileSync(path.join(d, 'coin.webp'), 'x');
+  const broken = '{ "music": { "url": "https://cdn/m.mp3", "type": "audio" }, }';
+  fs.writeFileSync(path.join(d, 'asset_map.json'), broken);
+  assert.throws(() => assets.record(d, 'coin.webp', 'https://cdn/coin.webp'), /not valid JSON/);
+  assert.equal(fs.readFileSync(path.join(d, 'asset_map.json'), 'utf8'), broken);
+  for (const b of [Buffer.alloc(0), Buffer.from('RIFF'), Buffer.from('RIFF\0\0\0\0WEBPVP8X')]) assert.equal(assets.imageSize(b), null);
+});
+
+test('assets --adopt: records byte-equal files, only names likely previews, survives a 404', async () => {
+  const png = (w, h, fill = 0) => { const b = Buffer.alloc(40, fill); b.writeUInt32BE(0x89504e47, 0); b.writeUInt32BE(w, 16); b.writeUInt32BE(h, 20); return b; };
+  const served = { '/same.png': png(10, 10, 1), '/big.png': png(200, 100, 2) };
+  const srv = http.createServer((q, r) => { const b = served[q.url]; r.writeHead(b ? 200 : 404); r.end(b || ''); });
+  await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  const u = (p) => `http://127.0.0.1:${srv.address().port}${p}`;
+  const d = tmp();
+  fs.writeFileSync(path.join(d, 'same.png'), png(10, 10, 1));
+  fs.writeFileSync(path.join(d, 'small.png'), png(100, 50, 3));
+  fs.writeFileSync(path.join(d, 'gone.png'), png(8, 8));
+  fs.writeFileSync(path.join(d, 'asset_map.json'), JSON.stringify({ same: { url: u('/same.png') }, small: { url: u('/big.png') }, gone: { url: u('/missing.png') } }));
+  // record() wants https, so adopt records through it only with an https url; the local server is http
+  const lines = await assets.adopt(d).finally(() => srv.close());
+  assert.ok(lines.some((l) => /gone\.png: 'gone' answered 404/.test(l)), lines.join('\n'));
+  assert.ok(lines.some((l) => /small\.png: 100x50, same shape as 'small' \(200x100\).*--preview/.test(l)), lines.join('\n'));
+  assert.ok(lines.some((l) => /same\.png: could not compare|same\.png: same bytes/.test(l)), lines.join('\n'));
+  const st = Object.fromEntries(assets.status(d).map((r) => [r.file, r.state]));
+  assert.equal(st['small.png'], 'NEW', 'a likely preview is not recorded without a look');
+  assert.equal(st['gone.png'], 'NEW');
+});
+
+test('upload set refuses dev markers that could cut real code', () => {
+  const d = tmp();
+  fs.writeFileSync(path.join(d, 'index.html'), '<!-- dev:start -->\n<p>debug panel</p>\n<!-- dev:end -->\n<script type="module" src="./game.js"></script>\n');
+  const run = (code) => { fs.writeFileSync(path.join(d, 'game.js'), code); const out = tmp(); execFileSync('bash', [path.join(here, 'astrocade-upload-set.sh'), d, out], { stdio: 'pipe' }); return out; };
+  const out = run('const a = 1;\r\n  // dev:start\r\nwindow.cheat = 1;\r\n  // dev:end\r\nwindow.run = () => a;\r\n');
+  assert.ok(!/cheat/.test(fs.readFileSync(path.join(out, 'game.js'), 'utf8')), 'CRLF and indented markers still strip');
+  assert.ok(!/debug panel/.test(fs.readFileSync(path.join(out, 'index.html'), 'utf8')), 'HTML comment markers strip');
+  for (const [why, code] of [
+    ['same line', 'cheat(); // dev:start one-liner dev:end\nwindow.run = 1;\n// dev:start\nx();\n// dev:end\n'],
+    ['reversed', '// dev:end\nwindow.run = 1;\n// dev:start\n'],
+    ['in a string', 'const s = "dev:start";\nwindow.run = 1;\nconst e = "dev:end";\n'],
+    ['nested', '// dev:start\n// dev:start\nx();\n// dev:end\n// dev:end\n'],
+    ['left open', 'window.run = 1;\n// dev:start\nx();\n'],
+  ]) assert.throws(() => run(code), /FAIL/, why);
+});
+
+test('upload set drops dev blocks and refuses one left open', () => {
   const d = tmp(), out = tmp();
   fs.writeFileSync(path.join(d, 'index.html'), '<script type="module" src="./game.js"></script>\n');
   fs.writeFileSync(path.join(d, 'game.js'), [
@@ -91,5 +139,5 @@ test('upload set drops dev blocks and refuses an unpaired marker', () => {
   assert.ok(!/cheat|dev:|PROTOTYPE/.test(shipped), shipped);
   assert.match(shipped, /window\.run/);
   fs.writeFileSync(path.join(d, 'game.js'), 'const a = 1;\n// dev:start\nwindow.cheat = 1;\nwindow.run = () => a;\n');
-  assert.throws(() => execFileSync('bash', [path.join(here, 'astrocade-upload-set.sh'), d, tmp()], { stdio: 'pipe' }), /unpaired/);
+  assert.throws(() => execFileSync('bash', [path.join(here, 'astrocade-upload-set.sh'), d, tmp()], { stdio: "pipe" }), /never closed/);
 });

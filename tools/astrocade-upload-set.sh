@@ -8,10 +8,17 @@ mkdir -p "$out"
 for p in "$src"/index.html "$src"/*.js; do # every module the game loads; test scripts stay home
   f=$(basename "$p")
   grep -q "require('playwright')" "$p" && continue # test and check scripts drive a browser; they never ship
-  # dev-only code (cheats, test hooks) sits between a line holding "dev:start" and one holding "dev:end"
-  # and never ships; an unpaired marker would cut the file short, so it fails instead
-  [ "$(grep -c 'dev:start' "$p")" = "$(grep -c 'dev:end' "$p")" ] || { echo "FAIL: unpaired dev:start/dev:end in $p" >&2; exit 1; }
-  grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$p" | sed '/dev:start/,/dev:end/d' > "$out/$f"
+  # dev-only code (cheats, test hooks) sits between a line that is only "// dev:start" (or "<!-- dev:start -->")
+  # and one that is only "// dev:end", and never ships. Any other use of the markers (same line, inside a string,
+  # nested, reversed, left open) could cut real code, so it fails instead.
+  grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$p" | awk -v f="$p" '
+    /dev:(start|end)/ {
+      if ($0 ~ /^[ \t]*(\/\/|<!--)[ \t]*dev:start[ \t]*(-->)?[ \t\r]*$/) { if (on) { bad = "nested dev:start"; exit } on = 1; next }
+      if ($0 ~ /^[ \t]*(\/\/|<!--)[ \t]*dev:end[ \t]*(-->)?[ \t\r]*$/) { if (!on) { bad = "dev:end before any dev:start"; exit } on = 0; next }
+      bad = "dev marker that is not a whole comment line: " $0; exit
+    }
+    !on { print }
+    END { if (!bad && on) bad = "dev:start never closed"; if (bad) { print "FAIL: " bad " in " f > "/dev/stderr"; exit 1 } }' > "$out/$f"
 done
 # README.md is a required game file (overview + code structure); the game folder's own README holds dev notes,
 # so a game-only one lives in README.upload.md

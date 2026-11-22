@@ -8,6 +8,7 @@ fail=0
 note() { echo "$1"; [ "${1%% *}" = "FAIL" ] && fail=1; return 0; }
 
 for f in prototypes/*/*.js tools/*.js tools/kit/*.js tools/fixtures/*/*.js; do
+  [ -f "$f" ] || continue # a glob with no match stays literal
   node --check "$f" 2>/dev/null || note "FAIL syntax $f"
 done
 # shared kit files are copied into games unchanged (like an engine copied verbatim); an edited copy drifts
@@ -24,7 +25,7 @@ for d in prototypes/*/; do
   grep -lq "THREE\." "$d"*.js 2>/dev/null && grep -q "^import " "$d"game.js 2>/dev/null || continue
   node tools/no-three-import.mjs "$d" || note "FAIL three-at-import $d"
 done
-for d in prototypes/*/; do
+for d in prototypes/*/ tools/fixtures/*/; do
   [ -f "$d/README.upload.md" ] || continue
   out=$(mktemp -d)
   bash tools/astrocade-upload-set.sh "$d" "$out" >/dev/null 2>&1 || note "FAIL upload-set $d"
