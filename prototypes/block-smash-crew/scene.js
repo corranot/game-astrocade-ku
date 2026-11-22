@@ -6,6 +6,7 @@
 /* global THREE */
 import { meshRegion, raycast } from './voxels.js';
 import { placeOf } from './world.js';
+import { standingPoints } from './bots.js';
 
 const CS = 12; // chunk size in blocks
 const SWING_HIT = 0.4;
@@ -282,6 +283,8 @@ export function createScene(cv, cfg) {
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); }
     else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); }
     else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05); }
+    else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08); }
+    else if (e.type === 'reboot') { sparks(e.x, e.y + 0.4, e.z, 8); puff(e.x, 0.5, e.z, 0.5, '#bdf3ff', 2); }
     else if (e.type === 'treasure') { spawnCoins(e.x, 1.4, e.z, 24); puff(e.x, 1, e.z, 2, '#fff3a0', 6); }
     else if (e.type === 'star') { puff(e.x, e.y, e.z, 1.6, '#fff3a0', 5); }
   }
@@ -299,8 +302,66 @@ export function createScene(cv, cfg) {
     SKY_TOP.set(t.top); SKY_LOW.set(t.low); scene.fog.color.set(t.low); sun.color.set(t.sun); hemi.groundColor.set(t.hemiG);
     ground.material.color.set(t.ground); ground.material.map = name === 'snow' ? snowTex : grassTex; flakes.visible = name === 'snow';
   }
+  // ---- BONK-BOTs: toy robots drawn from their points (strolling, flying as a ragdoll, putting themselves together)
+  const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
+  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botVisor = keep(new THREE.MeshBasicMaterial({ color: '#1b2440' })), botEye = keep(new THREE.MeshBasicMaterial({ color: '#7dfcff' })), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' }));
+  const unitBox = box(1, 1, 1), botMeshes = [];
+  const UPV = new THREE.Vector3(0, 1, 0), bva = new THREE.Vector3(), bvb = new THREE.Vector3(), bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), bm = new THREE.Matrix4(), bq = new THREE.Quaternion();
+  /** One robot: a coloured body with a chest panel, a white head with a dark visor, cyan eyes and an antenna, arms and legs. */
+  function makeBot(i) {
+    const g = new THREE.Group(), col = BOT_COLORS[i % BOT_COLORS.length];
+    const add = (parent, mat, sx, sy, sz, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(unitBox, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
+    const head = new THREE.Group(), body = new THREE.Group(); g.add(head, body);
+    add(head, botWhite, 0.42, 0.34, 0.36); add(head, botVisor, 0.34, 0.2, 0.02, 0, 0, 0.18);
+    add(head, botEye, 0.06, 0.07, 0.02, -0.08, 0.01, 0.195); add(head, botEye, 0.06, 0.07, 0.02, 0.08, 0.01, 0.195);
+    add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0);
+    const trunk = add(body, col, 0.46, 0.5, 0.34); add(body, botWhite, 0.22, 0.16, 0.02, 0, 0.02, 0.175);
+    const limbs = [add(g, col, 0.1, 1, 0.1), add(g, col, 0.1, 1, 0.1), add(g, botDark, 0.13, 1, 0.13), add(g, botDark, 0.13, 1, 0.13)];
+    scene.add(g);
+    return { g, head, body, trunk, limbs };
+  }
+  /** Points of a strolling bot: the standing pose with swinging legs and arms and a little bob. */
+  function walkPoints(b) {
+    const P = standingPoints(b), s = Math.sin(b.step), fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), bob = Math.abs(s) * 0.035 * b.h;
+    const sw = (k, a) => { P[k][0] += fx * a; P[k][2] += fz * a; };
+    sw(5, s * 0.16 * b.h); sw(6, -s * 0.16 * b.h); sw(3, -s * 0.1 * b.h); sw(4, s * 0.1 * b.h);
+    for (const k of [0, 1, 2, 3, 4]) P[k][1] += bob;
+    return P;
+  }
+  /** Puts mesh m along the segment a→b (a box of thickness t). */
+  function along(m, a, b, t) {
+    bva.set(a[0], a[1], a[2]); bvb.set(b[0], b[1], b[2]); const len = bva.distanceTo(bvb);
+    m.position.copy(bva).add(bvb).multiplyScalar(0.5); m.scale.set(t, Math.max(0.02, len), t);
+    if (len > 1e-4) m.quaternion.setFromUnitVectors(UPV, bvb.sub(bva).divideScalar(len));
+  }
+  function updateBots() {
+    for (let i = 0; i < W.bots.length; i++) {
+      const b = W.bots[i], v = botMeshes[i]; if (!v) continue;
+      const P = b.pts || walkPoints(b);
+      // the body's frame: up from pelvis to head, right from the left hand to the right one
+      by.set(P[0][0] - P[2][0], P[0][1] - P[2][1], P[0][2] - P[2][2]).normalize();
+      bx.set(P[4][0] - P[3][0], P[4][1] - P[3][1], P[4][2] - P[3][2]); bx.addScaledVector(by, -bx.dot(by));
+      if (bx.lengthSq() < 1e-4) bx.set(Math.cos(b.yaw), 0, -Math.sin(b.yaw)); bx.normalize();
+      bz.crossVectors(bx, by); bm.makeBasis(bx, by, bz); bq.setFromRotationMatrix(bm);
+      v.head.position.set(P[0][0], P[0][1], P[0][2]); v.head.quaternion.copy(bq);
+      v.body.position.set((P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2, (P[1][2] + P[2][2]) / 2); v.body.quaternion.copy(bq);
+      along(v.limbs[0], P[1], P[3], 0.1); along(v.limbs[1], P[1], P[4], 0.1); along(v.limbs[2], P[2], P[5], 0.13); along(v.limbs[3], P[2], P[6], 0.13);
+    }
+  }
+  /** The nearest bot the ray (o, d) passes within reach of (its head or chest), closer than maxT: {i, t, p}. */
+  function botOnRay(o, d, maxT) {
+    let best = null; if (!W || !W.bots) return null;
+    for (let i = 0; i < W.bots.length; i++) {
+      const b = W.bots[i], P = b.pts || standingPoints(b);
+      for (const k of [0, 1]) { bva.set(P[k][0], P[k][1], P[k][2]); const t = bva.clone().sub(o).dot(d); if (t <= 0 || t > maxT) continue; const off = bva.distanceTo(bvb.copy(o).addScaledVector(d, t)); if (off < 0.5 && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
+    }
+    return best;
+  }
+
   function setLevel(world) {
     W = world;
+    for (const v of botMeshes) scene.remove(v.g); botMeshes.length = 0;
+    for (let i = 0; i < (W.bots || []).length; i++) botMeshes.push(makeBot(i));
     for (const m of chunks.values()) { chunkRoot.remove(m); m.geometry.dispose(); } chunks.clear(); dirty.clear();
     for (const it of falls.values()) { scene.remove(it.holder); it.mesh.geometry.dispose(); } falls.clear();
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
@@ -326,6 +387,7 @@ export function createScene(cv, cfg) {
     ray.setFromCamera(ndc, camera);
     const o = ray.ray.origin, d = ray.ray.direction;
     const hit = W ? raycast(W.g, o.x, o.y, o.z, d.x, d.y, d.z, 120) : null;
+    const bt = W ? botOnRay(o, d, hit ? hit.t : 80) : null; if (bt) return { type: 'bot', i: bt.i, dist: bt.t, x: bt.p.x, y: bt.p.y, z: bt.p.z, p: bt.p };
     // the chest wins when the ray passes close to it before any block
     if (W && !W.chest.open) { const c = tmpV.set(W.chest.x, 0.6, W.chest.z); const t = c.clone().sub(o).dot(d); if (t > 0 && (!hit || t < hit.t + 0.5) && ray.ray.distanceToPoint(c) < 1.1) return { type: 'chest', x: W.chest.x, y: 0.6, z: W.chest.z, p: { x: W.chest.x, y: 0.6, z: W.chest.z } }; }
     if (hit) return { type: 'block', x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz, p: { x: hit.x + 0.5, y: hit.y + 0.5, z: hit.z + 0.5 } };
@@ -344,7 +406,7 @@ export function createScene(cv, cfg) {
     // remesh what changed
     for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
     dirty.clear();
-    updateCamera(dt); updateHero(dt); updateShots(dt); updateFx(dt);
+    updateCamera(dt); updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
     renderer.autoClear = true; renderer.render(scene, camera);
     renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; // the hands on top
   }
@@ -475,6 +537,8 @@ export function createScene(cv, cfg) {
     if (!W) return null;
     camera.updateMatrixWorld(); const d = tmpV.set(0, 0, -1).applyQuaternion(camera.quaternion), o = camera.position;
     const hit = raycast(W.g, o.x, o.y, o.z, d.x, d.y, d.z, 90);
+    // a bot in front of the first block is the target
+    const bt = botOnRay(o, d, hit ? hit.t : 60); if (bt) return { type: 'bot', i: bt.i, dist: bt.t, x: bt.p.x, y: bt.p.y, z: bt.p.z, p: bt.p };
     if (!W.chest.open) { const c = new THREE.Vector3(W.chest.x, 0.6, W.chest.z), tt = c.clone().sub(o).dot(d); if (tt > 0 && (!hit || tt < hit.t + 0.5) && new THREE.Ray(o, d).distanceToPoint(c) < 1.1) return { type: 'chest', x: W.chest.x, y: 0.6, z: W.chest.z, dist: tt, p: { x: W.chest.x, y: 0.6, z: W.chest.z } }; }
     if (hit) return { type: 'block', x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz, dist: hit.t, p: { x: hit.x + 0.5 + hit.nx * 0.5, y: hit.y + 0.5 + hit.ny * 0.5, z: hit.z + 0.5 + hit.nz * 0.5 } };
     const far = 40, gy = d.y < -0.01 ? Math.min(far, -o.y / d.y) : far;

@@ -25,6 +25,9 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   const card = await g(() => { const e = document.getElementById('lvcard'), a = document.getElementById('app').getBoundingClientRect(); return !e.hidden && [...e.children].every((x) => { const r = x.getBoundingClientRect(); return r.left >= a.left - 1 && r.right <= a.right + 1; }) && e.textContent; });
   await shot('02-first-tap');
   check(!!card, `first level: the level card shows (${card})`);
+  // the first boom also sends the robot strolling in the front yard flying (BONK!)
+  const hook = await until(() => __game.W.bots[0] && __game.W.bots[0].state === 'down', 3000);
+  check(hook, 'the first tap: the TNT boom knocks the front-yard robot flying');
   // the coach: walk
   await until(() => !document.getElementById('coach').hidden); const c1 = await coach(); await shot('03-coach-walk');
   check(c1 && /drag/.test(c1.cls) && c1.inside, `coach 1: walk, spotlight on the stick (${c1 && c1.text})`);
@@ -58,6 +61,17 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   check(held, 'holding a finger on the block in reach completes the smash lesson');
   await until(() => document.getElementById('coach').hidden, 2000);
   const c4 = await coach(); check(!c4, 'after smashing: no coach left on screen');
+  // a tap on a robot in reach: the hammer knocks it flying, BONK!, coins
+  const bonk = await g(() => { const W = __game.W, i = W.bots.findIndex((b) => b.state === 'walk'); if (i < 0) return null; const b = W.bots[i]; b.goal = [b.x, b.z]; W.hero.x = b.x; W.hero.z = b.z + 2.2; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.2); return { i, c0: __game.save.coins }; });
+  await page.waitForTimeout(300);
+  if (bonk) {
+    const pt = await g((i) => { const b = __game.W.bots[i], p = __game.scene.screenOf(b.x, 1.0, b.z); return p; }, bonk.i);
+    await touch(7, 'pointerdown', pt[0], pt[1]); await touch(7, 'pointerup', pt[0], pt[1]);
+    const flew = await until(() => __game.W.bots.some((b) => b.state === 'down'), 1500);
+    await page.waitForTimeout(150); await shot('06b-bonk');
+    const c1 = await g(() => __game.save.coins);
+    check(flew && c1 > bonk.c0, `a tap on a robot in reach knocks it flying and pays (${bonk.c0} → ${c1})`);
+  } else check(false, 'a walking robot to tap');
   // steel: the bomb coach
   await g(() => { const W = __game.W; __game.onEvent({ type: 'tooHard', x: W.chest.x, y: 1, z: W.chest.z + 2 }); });
   await page.waitForTimeout(400); const c5 = await coach(); await shot('07-coach-bomb');

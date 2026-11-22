@@ -206,5 +206,55 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(ev3.some((e) => e.type === 'hit') && h3.x > c3.x + 0.5, 'walking with the stick while holding a block in reach: it is smashed on the way');
 }
 
+// ---- BONK-BOTs: toy robots that fly when hit and get back up
+{
+  const solidAt = (W, p) => p[1] >= 0 && !!W.g.get(Math.floor(p[0]), Math.floor(p[1]), Math.floor(p[2]));
+  const okPts = (W, b) => b.pts.every((p) => p.every(Number.isFinite) && p[1] >= 0.05);
+  let spawnOk = true, counts = [];
+  for (let lv = 0; lv < 8; lv++) {
+    const W = WD.createWorld(cfg, lv, {}); counts.push(W.bots.length);
+    for (const b of W.bots) if (W.g.get(Math.floor(b.x), 0, Math.floor(b.z)) || W.g.get(Math.floor(b.x), 1, Math.floor(b.z)) || Math.hypot(b.x - W.hero.x, b.z - W.hero.z) < 3) spawnOk = false;
+  }
+  check(spawnOk && counts.every((c) => c >= cfg.bots.count && c <= cfg.bots.max), `bots stand on free ground away from the hero on every building (${counts.join(',')})`);
+  // strolling: never inside a block, never off the lot, no NaN
+  const W = WD.createWorld(cfg, 2, {}); let walkOk = true;
+  for (let i = 0; i < 600; i++) { WD.step(W, 1 / 30); for (const b of W.bots) if (b.state === 'walk' && (!Number.isFinite(b.x) || W.g.get(Math.floor(b.x), 0, Math.floor(b.z)) || b.x < W.botLot.x0 || b.x > W.botLot.x1 || b.z < W.botLot.z0 || b.z > W.botLot.z1)) walkOk = false; }
+  check(walkOk && W.bots.some((b) => b.goal), '20 s of strolling: bots stay on free ground inside the lot');
+  // a blast next to a bot: it flies, the player gets coins; the ragdoll keeps its shape, lands, and the bot reboots
+  const b = W.bots[0], c0 = coinsBefore(W);
+  function coinsBefore(w) { return w.coins; }
+  const ev = []; const { knockBots } = await import('./bots.js');
+  knockBots(W, b.x + 0.6, 0.8, b.z, 2.5, cfg.bots.knock, 'bomb'); ev.push(...W.ev);
+  const bonk = ev.find((e) => e.type === 'bonk');
+  check(b.state === 'down' && bonk && bonk.coins > 0 && W.coins > c0, `a blast knocks the bot flying and pays (${bonk && bonk.coins} coins)`);
+  let maxStretch = 1, peak = 0, rebooted = false, insideAtRest = false;
+  for (let i = 0; i < 300 && !rebooted; i++) {
+    for (const e of WD.step(W, 1 / 30)) if (e.type === 'reboot') rebooted = true;
+    if (b.pts && b.state === 'down') { peak = Math.max(peak, b.pts[1][1]); const d = Math.hypot(...[0, 1, 2].map((a) => b.pts[0][a] - b.pts[1][a])) / (0.24 * b.h); maxStretch = Math.max(maxStretch, d); }
+  }
+  check(peak > 1.2, `the bot really flies (chest up to ${peak.toFixed(1)} m)`);
+  check(maxStretch < 1.35, `the ragdoll keeps its shape (head-chest stretch ${maxStretch.toFixed(2)}×)`);
+  check(rebooted, 'after resting on the ground the bot reboots');
+  for (let i = 0; i < 40; i++) WD.step(W, 1 / 30);
+  check(b.state === 'walk' && !W.g.get(Math.floor(b.x), 0, Math.floor(b.z)), 'rebooted: it stands on free ground and walks on');
+  // hit again while down: it flies again, no second payment
+  const W2 = WD.createWorld(cfg, 0, {}), b2 = W2.bots[0];
+  knockBots(W2, b2.x, 0.8, b2.z, 2, cfg.bots.knock, 'bomb'); const c1 = W2.coins;
+  WD.step(W2, 1 / 30); knockBots(W2, b2.pts[1][0], b2.pts[1][1], b2.pts[1][2], 2, cfg.bots.knock, 'bomb');
+  check(W2.coins === c1 && W2.ev.some((e) => e.type === 'bonk' && e.again), 'a bot already down flies again but pays only once');
+  // ragdolls never sink into the ground or into blocks, whatever hits them
+  let sane = true;
+  for (let lv = 0; lv < 4; lv++) { const w = WD.createWorld(cfg, lv, {}); for (const bb of w.bots) knockBots(w, bb.x, 0.3, bb.z - 0.5, 2, cfg.bots.knock * 1.6, 'bomb'); for (let i = 0; i < 200; i++) { WD.step(w, 1 / 30); for (const bb of w.bots) if (bb.state === 'down' && (!okPts(w, bb) || (bb.still > 0.3 && bb.pts.some((p) => solidAt(w, p))))) sane = false; } }
+  check(sane, 'ragdolls rest on top of the ground and blocks, never inside, no NaN');
+  // the hammer: walk up to a bot and swing
+  const W3 = WD.createWorld(cfg, 0, {}), b3 = W3.bots[0]; b3.state = 'walk'; b3.goal = null;
+  W3.hero.x = b3.x; W3.hero.z = b3.z + 1.5; const sw = WD.swingBot(W3, 0); const ev3 = [];
+  for (let i = 0; i < 20; i++) ev3.push(...WD.step(W3, 1 / 30));
+  check(sw && ev3.some((e) => e.type === 'bonk' && e.by === 'hammer') && b3.state === 'down', 'the hammer knocks a bot flying');
+  // the attract mode: bots fly but nothing pays
+  const D = WD.createWorld(cfg, 0, { demo: true }), bd = D.bots[0]; knockBots(D, bd.x, 0.8, bd.z, 2, cfg.bots.knock, 'rocket');
+  check(D.coins === 0 && D.ev.some((e) => e.type === 'bonk' && e.coins === 0), 'the attract mode: bots fly, nothing pays');
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);

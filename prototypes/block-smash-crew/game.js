@@ -43,6 +43,9 @@ const Sound = (() => {
     s.connect(f).connect(g).connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   }
   const fx = {
+    // a toy robot knocked flying: a springy boing over a tin clank; back on its feet: a happy rising beep
+    boing() { tone('sine', 180, 720, 0.28, 0.45); tone('triangle', 900, 300, 0.12, 0.18); hiss(2500, 900, 0.08, 0.16); },
+    reboot() { [660, 880, 1320].forEach((f, i) => tone('square', f, f, 0.07, 0.07, i * 0.07)); },
     swing() { hiss(500, 2200, 0.14, 0.12); },
     wood(k) { hiss(900, 300, 0.16, 0.45 * k); tone('sine', 190, 80, 0.12, 0.5 * k); },
     brick(k) { hiss(1300, 200, 0.22, 0.5 * k, 'lowpass'); tone('sine', 120, 50, 0.16, 0.55 * k); },
@@ -344,7 +347,10 @@ function startGame(mode) {
     const mk = scene.starMarks().find((m) => Math.hypot(m.x - fx, m.y - fy) < 80);
     if (mk && WD.starShot(W, mk.cell)) { idleT = 0; return; }
     if (sel !== 'hammer') { useSelected(cx, cy); return; }
-    const t = scene.pick(cx, cy); if (t) WD.aimHammer(W, t, false, false);
+    const t = scene.pick(cx, cy);
+    // a bot in reach: the hammer swings at it (a far one: walk closer, like a far block)
+    if (t && t.type === 'bot') { if (t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); firstTap = false; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } return; } }
+    else if (t) WD.aimHammer(W, t, false, false);
     if (W.hero.aim && !firstTap && !save.learned.hit) { save.learned.hit = true; persistSoon(); }
     // the very first tap of the game is a boom: the hammer swings at the TNT barrel straight ahead (in reach of the start)
     if (!W.hero.aim && firstTap) { const c = frontTnt(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
@@ -374,6 +380,7 @@ function startGame(mode) {
   }
   function hammerAtCrosshair() {
     const t = scene.target;
+    if (t && t.type === 'bot') { if (t.dist <= cfg.hero.reach + 0.6) WD.swingBot(W, t.i); else WD.hitBlock(W, null); return; }
     if (t && t.type === 'block' && W.g.get(t.x, t.y, t.z) === W.ids.star && t.dist > cfg.hero.reach && WD.starShot(W, t)) return; // aiming at a far star: the star bomb
     WD.hitBlock(W, t && t.type === 'block' && t.dist <= cfg.hero.reach ? t : null);
   }
@@ -472,6 +479,14 @@ function startGame(mode) {
       if (!demo) { save.coins += e.coins; save.total += e.coins; save.blocks += e.n; persistSoon(); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (e.n >= 12) pop(T('crash'), sx, sy - 120, e.n > 120 ? 'p-big' : 'p-mid', '#ffb02e'); coinPop(e.coins, e.x, e.y + 1, e.z); }
     } else if (e.type === 'step') Sound.play('step');
     else if (e.type === 'treasure') { Sound.play('treasure'); buzz('success'); if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); banner(T('treasure'), 'p-big', -40); } }
+    else if (e.type === 'bonk') {
+      Sound.play('boing', e.again ? 0.6 : 1); buzz(e.again ? 'tap' : 'thud');
+      if (!demo && !e.again) {
+        save.coins += e.coins; save.total += e.coins; persistSoon(); idleT = 0;
+        const [sx, sy, behind] = scene.screenOf(e.x, e.y, e.z); if (!behind) { pop(T('bonk'), sx, sy - 110, 'p-mid', '#7dfcff'); coinPop(e.coins, e.x, e.y, e.z); }
+      }
+    }
+    else if (e.type === 'reboot') { if (!demo) Sound.play('reboot', 0.7); }
     else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); flyStar(sx, sy); persist(); } } // the chest's star: TREASURE! says it
     else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); banner(T('smashTime'), 'p-big'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); }
     else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); results(); }
@@ -610,7 +625,9 @@ function startGame(mode) {
       }
       if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && performance.now() - ptr.t > 120) { // holding on a block: keep aiming at what is under the finger
         // only a block in reach makes it a hold: a slow press on a far block or a star is still a tap on release
-        const t = scene.pick(ptr.cx, ptr.cy); if (t) { WD.aimHammer(W, t, true, false); if (W.hero.aim) { ptr.held = true; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } } }
+        const t = scene.pick(ptr.cx, ptr.cy);
+        if (t && t.type === 'bot' && t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); ptr.held = true; }
+        else if (t) { WD.aimHammer(W, t, true, false); if (W.hero.aim) { ptr.held = true; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } } }
       }
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
