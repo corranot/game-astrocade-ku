@@ -108,14 +108,16 @@ export function collapse(g, removed, maxCells = 6000) {
 }
 
 // Face table: normal, the quad's u and v edges (u × v = normal) and the corner the quad starts from.
+// up: which quad edge runs up the wall (so a texture's rows stay level); none on the top and bottom faces
 const FACES = [
-  { n: [1, 0, 0], u: [0, 1, 0], v: [0, 0, 1], o: [1, 0, 0] },
-  { n: [-1, 0, 0], u: [0, 0, 1], v: [0, 1, 0], o: [0, 0, 0] },
-  { n: [0, 1, 0], u: [0, 0, 1], v: [1, 0, 0], o: [0, 1, 0] },
-  { n: [0, -1, 0], u: [1, 0, 0], v: [0, 0, 1], o: [0, 0, 0] },
-  { n: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0], o: [0, 0, 1] },
-  { n: [0, 0, -1], u: [0, 1, 0], v: [1, 0, 0], o: [0, 0, 0] },
+  { n: [1, 0, 0], u: [0, 1, 0], v: [0, 0, 1], o: [1, 0, 0], up: 'u' },
+  { n: [-1, 0, 0], u: [0, 0, 1], v: [0, 1, 0], o: [0, 0, 0], up: 'v' },
+  { n: [0, 1, 0], u: [0, 0, 1], v: [1, 0, 0], o: [0, 1, 0], up: 'v' },
+  { n: [0, -1, 0], u: [1, 0, 0], v: [0, 0, 1], o: [0, 0, 0], up: 'v' },
+  { n: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0], o: [0, 0, 1], up: 'v' },
+  { n: [0, 0, -1], u: [0, 1, 0], v: [1, 0, 0], o: [0, 0, 0], up: 'u' },
 ];
+const ATLAS = 4, INSET = 0.03; // tiles per row in the texture atlas, edge inset against bleeding
 const AO = [0.42, 0.62, 0.8, 1];
 /** A small stable hash in 0..1 for a cell, for the per-block colour jitter. */
 export const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -123,16 +125,18 @@ export const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z *
 /**
  * Builds the visible faces of the cells in [x0, x1)×[y0, y1)×[z0, z1). get(x, y, z) gives a material id for any cell
  * (also outside the range, for culling and occlusion); palette[m] = [r, g, b] linear; jitter[m] = 0..1 strength.
- * Faces below y = 0 are never built (the ground hides them). Returns typed arrays for a geometry, positions
- * relative to (ox, oy, oz).
+ * Faces below y = 0 are never built (the ground hides them). shade(x, y, z) optionally darkens a block (scorch);
+ * tiles[m] picks a texture-atlas tile per material (uvs are then built, rows level on the walls).
+ * Returns typed arrays for a geometry, positions relative to (ox, oy, oz).
  */
-export function meshRegion(get, x0, y0, z0, x1, y1, z1, palette, jitter, ox = 0, oy = 0, oz = 0, floorY = 0) {
-  const pos = [], nor = [], col = [], ind = [];
+export function meshRegion(get, x0, y0, z0, x1, y1, z1, palette, jitter, ox = 0, oy = 0, oz = 0, floorY = 0, shade = null, tiles = null) {
+  const pos = [], nor = [], col = [], ind = [], uv = [];
   let vi = 0;
-  const solid = (x, y, z) => (y < floorY ? 1 : get(x, y, z) ? 1 : 0);
+  // a material without a palette colour (TNT: drawn as a barrel by the look) counts as empty here
+  const solid = (x, y, z) => { if (y < floorY) return 1; const m = get(x, y, z); return m && palette[m] ? 1 : 0; };
   for (let y = y0; y < y1; y++) for (let z = z0; z < z1; z++) for (let x = x0; x < x1; x++) {
-    const m = get(x, y, z); if (!m) continue;
-    const base = palette[m] || [1, 0, 1], j = 1 + ((hash3(x, y, z) - 0.5) * 2) * (jitter[m] || 0);
+    const m = get(x, y, z); if (!m || !palette[m]) continue;
+    const base = palette[m], j = (1 + ((hash3(x, y, z) - 0.5) * 2) * (jitter[m] || 0)) * (shade ? shade(x, y, z) : 1);
     for (const f of FACES) {
       const X = x + f.n[0], Y = y + f.n[1], Z = z + f.n[2];
       if (solid(X, Y, Z)) continue;
@@ -149,6 +153,7 @@ export function meshRegion(get, x0, y0, z0, x1, y1, z1, palette, jitter, ox = 0,
         pos.push(x + f.o[0] + f.u[0] * du + f.v[0] * dv - ox, y + f.o[1] + f.u[1] * du + f.v[1] * dv - oy, z + f.o[2] + f.u[2] * du + f.v[2] * dv - oz);
         nor.push(f.n[0], f.n[1], f.n[2]);
         const k = AO[ao[c]] * j; col.push(base[0] * k, base[1] * k, base[2] * k);
+        if (tiles) { const t = tiles[m] || 0, a = f.up === 'u' ? dv : du, b = f.up === 'u' ? du : dv; uv.push(((t % ATLAS) + INSET + a * (1 - 2 * INSET)) / ATLAS, 1 - (Math.floor(t / ATLAS) + 1 - INSET - b * (1 - 2 * INSET)) / ATLAS); }
       }
       if (ao[1] + ao[3] > ao[0] + ao[2]) ind.push(vi, vi + 1, vi + 3, vi + 1, vi + 2, vi + 3);
       else ind.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
@@ -156,7 +161,7 @@ export function meshRegion(get, x0, y0, z0, x1, y1, z1, palette, jitter, ox = 0,
     }
   }
   return {
-    positions: new Float32Array(pos), normals: new Float32Array(nor), colors: new Float32Array(col),
+    positions: new Float32Array(pos), normals: new Float32Array(nor), colors: new Float32Array(col), uvs: tiles ? new Float32Array(uv) : null,
     indices: vi > 65000 ? new Uint32Array(ind) : new Uint16Array(ind), faces: vi / 4,
   };
 }

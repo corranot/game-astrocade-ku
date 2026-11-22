@@ -32,7 +32,7 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
   note(Math.abs(b['#coins'].l - b['#gear'].r) <= 2, `top bar margins: coins ${b['#coins'].l.toFixed(0)} left, gear ${b['#gear'].r.toFixed(0)} right`);
   note(Math.abs(b['#stars'].l - b['#stars'].r) <= 2, `star pill centred (${b['#stars'].l.toFixed(0)} / ${b['#stars'].r.toFixed(0)})`);
   note(Math.abs(b['.tool:first-child'].l - b['.tool:last-child'].r) <= 2, `tool row centred (${b['.tool:first-child'].l.toFixed(0)} / ${b['.tool:last-child'].r.toFixed(0)})`);
-  note(b['#tools'].b >= 168, `tools above the guest login sheet (bottom ${b['#tools'].b.toFixed(0)} ≥ 168)`);
+  note(Math.abs(b['#tools'].b - 34) < 3, `tools at the bottom edge, no empty band (bottom ${b['#tools'].b.toFixed(0)} = 34: margin 20 + the price tag 14)`);
   note(b['.tool:first-child'].w >= 96, `tool buttons ≥ 96 (${b['.tool:first-child'].w.toFixed(0)})`);
   await page.evaluate(() => { __game.newLevel(0); const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
   await page.waitForTimeout(400);
