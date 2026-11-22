@@ -348,9 +348,9 @@ function startGame(mode) {
     if (mk && WD.starShot(W, mk.cell)) { idleT = 0; return; }
     if (sel !== 'hammer') { useSelected(cx, cy); return; }
     const t = scene.pick(cx, cy);
-    // a bot in reach: the hammer swings at it (a far one: walk closer, like a far block)
-    if (t && t.type === 'bot') { if (t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); firstTap = false; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } return; } }
-    else if (t) WD.aimHammer(W, t, false, false);
+    // a bot in reach: the hammer swings at it (a far one, like a far block: nothing walks, the stick pulses)
+    if (t && t.type === 'bot' && !firstTap) { if (t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); firstTap = false; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } return; } }
+    else if (t && t.type !== 'bot') WD.aimHammer(W, t, false, false);
     if (W.hero.aim && !firstTap && !save.learned.hit) { save.learned.hit = true; persistSoon(); }
     // the very first tap of the game is a boom: the hammer swings at the TNT barrel straight ahead (in reach of the start)
     if (!W.hero.aim && firstTap) { const c = frontTnt(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
@@ -626,7 +626,7 @@ function startGame(mode) {
       if (ptr && sel === 'hammer' && !ptr.drag && !resultsOpen && performance.now() - ptr.t > 120) { // holding on a block: keep aiming at what is under the finger
         // only a block in reach makes it a hold: a slow press on a far block or a star is still a tap on release
         const t = scene.pick(ptr.cx, ptr.cy);
-        if (t && t.type === 'bot' && t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); ptr.held = true; }
+        if (t && t.type === 'bot' && t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); ptr.held = true; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } }
         else if (t) { WD.aimHammer(W, t, true, false); if (W.hero.aim) { ptr.held = true; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } } }
       }
       const sub = dt > 1 / 45 ? 2 : 1;
@@ -689,7 +689,7 @@ function startGame(mode) {
     const h = W.hero, d = Math.hypot(h.x - lastHX, h.z - lastHZ); lastHX = h.x; lastHZ = h.z;
     if (h.move && (h.move.x || h.move.z)) walkD += Math.min(d, 1);
     if (!save.learned.walk && walkD > 2) { save.learned.walk = true; persistSoon(); }
-    const t = scene.target, near = t && t.type === 'block' && t.dist <= cfg.hero.reach;
+    const t = scene.target, near = t && ((t.type === 'block' && t.dist <= cfg.hero.reach) || (t.type === 'bot' && t.dist <= cfg.hero.reach + 0.6));
     aimT = near ? aimT + dt : 0; lostT = near ? 0 : lostT + dt;
     let k = null;
     if (tipKey === 'tooHard' && !save.learned.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';

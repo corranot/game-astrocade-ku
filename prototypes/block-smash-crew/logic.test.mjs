@@ -251,6 +251,19 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   W3.hero.x = b3.x; W3.hero.z = b3.z + 1.5; const sw = WD.swingBot(W3, 0); const ev3 = [];
   for (let i = 0; i < 20; i++) ev3.push(...WD.step(W3, 1 / 30));
   check(sw && ev3.some((e) => e.type === 'bonk' && e.by === 'hammer') && b3.state === 'down', 'the hammer knocks a bot flying');
+  // a knock during hit-stop (a few tiny steps first) still sends the bot flying at full height
+  { const travel = (steps) => { const w = WD.createWorld(cfg, 0, {}), bb = w.bots[0]; knockBots(w, bb.x - 0.6, 0.8, bb.z, 2.5, cfg.bots.knock, 'bomb'); const x0 = bb.x, z0 = bb.z;
+      let t = 0; for (const dt of steps) { WD.step(w, dt); if (dt >= 1 / 200) t += dt; if (t > 0.6) break; } return Math.hypot(bb.pts[2][0] - x0, bb.pts[2][2] - z0); };
+    const N = (dt, n) => Array(n).fill(dt), normal = travel(N(1 / 30, 40)), stopped = travel([...N(0.002, 6), ...N(1 / 30, 40)]), mixed = travel(Array.from({ length: 80 }, (_, k) => (k % 3 ? 1 / 60 : 1 / 30)));
+    check(Math.abs(stopped - normal) / normal < 0.25 && Math.abs(mixed - normal) / normal < 0.25, `a knock throws as far after hit-stop or with changing steps (${normal.toFixed(2)} / ${stopped.toFixed(2)} / ${mixed.toFixed(2)} m)`); }
+  // buried where it walks (a landed piece): it steps out to free ground
+  { const w = WD.createWorld(cfg, 1, {}), bb = w.bots[1]; for (let y = 0; y < 2; y++) w.g.set(Math.floor(bb.x), y, Math.floor(bb.z), 1);
+    WD.step(w, 1 / 30); check(!w.g.get(Math.floor(bb.x), 0, Math.floor(bb.z)) && !w.g.get(Math.floor(bb.x), 1, Math.floor(bb.z)), 'a bot buried by a block steps out to free ground'); }
+  // a knock while it puts itself back together: it flies from where its parts are, and pays nothing
+  { const w = WD.createWorld(cfg, 0, {}), bb = w.bots[0]; knockBots(w, bb.x, 0.8, bb.z, 2, cfg.bots.knock, 'bomb');
+    for (let i = 0; i < 300 && bb.state !== 'reboot'; i++) WD.step(w, 1 / 30); WD.step(w, 1 / 30); const before = bb.pts.map((p) => p.slice()), c = w.coins;
+    knockBots(w, bb.pts[1][0], bb.pts[1][1], bb.pts[1][2], 2, cfg.bots.knock, 'bomb');
+    check(bb.state === 'down' && w.coins === c && Math.hypot(...[0, 1, 2].map((a) => bb.pts[0][a] - before[0][a])) < 0.01, 'a knock during the reboot: no pay, no jump of its parts'); }
   // the attract mode: bots fly but nothing pays
   const D = WD.createWorld(cfg, 0, { demo: true }), bd = D.bots[0]; knockBots(D, bd.x, 0.8, bd.z, 2, cfg.bots.knock, 'rocket');
   check(D.coins === 0 && D.ev.some((e) => e.type === 'bonk' && e.coins === 0), 'the attract mode: bots fly, nothing pays');

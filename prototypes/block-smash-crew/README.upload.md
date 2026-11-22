@@ -22,6 +22,8 @@ control (walk, look, smash, bomb) until you have used it.
 
 - Tap a shining star to throw a free star bomb at it. If the hammer bounces off steel a few times, SUPER HAMMER breaks it.
 - Red TNT barrels blow up and set off the ones next to them; tall towers tip over — TIMBER!
+- Little toy BONK-BOTs stroll around: hit them (hammer, bombs, TNT, falling pieces) and they fly — BONK! — then reboot
+  and walk on. They are toys: they never break for good.
 
 Every 5th building is a BOSS (the biggest, double coins). Levels change between day, sunset and snow. Tap your coins to
 open the shop: unlock tools and upgrade each one 5 times, and see your album of buildings and trophies. A daily
@@ -39,6 +41,7 @@ under ⚙️.
 - `voxels.js` — block grid, ray cast, smashing, collapse check, mesh builder with corner shading.
 - `levels.js` — the eight building generators.
 - `logic.js` — coins, combo, trophies, unlocks, daily gift.
+- `bots.js` — the BONK-BOT toy robots: strolling, the floppy ragdoll, rebooting.
 - `scene.js` — the 3D look: blocks, first-person camera, hands and tools, flying pieces, dust, coins, explosions.
 - `game_config.json` — tuning values, sounds and all player text in 7 languages; leaderboard of blocks smashed.
 - `asset_map.json` — the recorded sound effects and music.

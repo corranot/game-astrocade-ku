@@ -68,6 +68,12 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   smaller font (≥70%); result buttons share the longest label's width; shop tabs centred between an empty cell and ✕;
   album names in two readable lines. `look.js` measures it in 7 languages (no sideways spill, no text under 12 u,
   equal buttons, centred tabs).
+- Astrocade guide pass: touch targets ≥ 96 (invisible tap areas on small pills), trophies saved per building kind
+  (bounded), arrows and the hint hand moved with `translate`; `look.js` checks touch targets on 9 screens.
+- BONK-BOTs (user asked for ragdoll NPCs; made toy robots for a kids' game): `bots.js` — strolling robots that the
+  hammer, blasts, TNT and landing pieces knock flying as a time-corrected Verlet ragdoll (7 points, 12 sticks, ground
+  and voxel push-out), BONK! + coins once per knock-over, then a reboot back on their feet. One strolls in the front
+  yard, so the first boom sends it flying. 14 tests in `logic.test.mjs`, journey checks the boom and a tap.
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with

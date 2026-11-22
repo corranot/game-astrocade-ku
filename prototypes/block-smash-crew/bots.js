@@ -74,8 +74,9 @@ export function knockBots(W, x, y, z, R, power, by) {
 /** Knocks bot i in direction (dx, dz) with the given power; true when it was standing (it pays coins). */
 export function knock(W, i, dx, dz, power, by) {
   const b = W.bots[i]; if (!b) return false;
-  const was = b.state !== 'down';
-  if (!b.pts || b.state === 'reboot') { b.pts = standingPoints(b); b.prev = b.pts.map((p) => p.slice()); }
+  const was = b.state === 'walk';
+  if (!b.pts) b.pts = standingPoints(b);
+  b.prev = b.pts.map((p) => p.slice()); b.dt = 0;
   const len = Math.hypot(dx, dz) || 1, ux = dx / len, uz = dz / len;
   // each part gets its own little kick (m/s), applied on the next step with that step's dt: the bot tumbles and spins
   b.kick = b.pts.map((p) => { const wob = 0.75 + 0.5 * b.r(), up = 0.55 + 0.35 * (p[1] / b.h); return [ux * power * wob, power * up * wob, uz * power * wob]; });
@@ -104,7 +105,16 @@ export function stepBots(W, dt) {
   }
 }
 
+/** The nearest free spot on the lot around (x, z) (a spiral out to 9 m), else the free spot next to the hero. */
+function nearestFree(W, x, z) {
+  for (let a = 0; a < 60; a++) { const rr = 0.6 + a * 0.15, an = a * 2.4; const tx = x + Math.cos(an) * rr, tz = z + Math.sin(an) * rr; if (free(W, tx, tz)) return [tx, tz]; }
+  for (const [ox, oz] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) if (free(W, W.hero.x + ox, W.hero.z + oz)) return [W.hero.x + ox, W.hero.z + oz];
+  return [W.hero.x, W.hero.z];
+}
+
 function walk(W, b, dt, B) {
+  // buried by a landed piece (or stood where the ground changed): it steps out to the nearest free spot
+  if (!free(W, b.x, b.z)) { [b.x, b.z] = nearestFree(W, b.x, b.z); b.goal = null; }
   b.step += dt * B.speed * 3;
   if (!b.goal || Math.hypot(b.goal[0] - b.x, b.goal[1] - b.z) < 0.4) {
     // a new stroll: somewhere free on the lot, not too far
@@ -120,8 +130,6 @@ function walk(W, b, dt, B) {
   b.yaw += Math.max(-4 * dt, Math.min(4 * dt, turn));
   const sp = B.speed * dt * (Math.abs(turn) < 1 ? 1 : 0.2), nx = b.x + Math.sin(b.yaw) * sp, nz = b.z + Math.cos(b.yaw) * sp;
   if (free(W, nx, nz)) { b.x = nx; b.z = nz; } else b.goal = null;
-  // the ground under it was smashed away or a block landed on it: it stands where it can
-  if (!free(W, b.x, b.z)) b.goal = null;
 }
 
 /** Moves point p (inside a block) out through the closest face whose neighbour cell is free, plus margin R. */
@@ -141,12 +149,16 @@ function pushOut(g, p, q, R) {
 }
 
 function ragdoll(W, b, dt, B, i) {
+  // hit-stop (tiny steps): the ragdoll holds still like everything on screen, and its kick waits for real time
+  if (dt < 1 / 200) return;
   b.t += dt; const g = W.g, P = b.pts, Q = b.prev, R = 0.12, lot = W.botLot;
   let speed = 0;
-  if (b.kick) { for (let k = 0; k < P.length; k++) for (let a = 0; a < 3; a++) Q[k][a] = P[k][a] - b.kick[k][a] * dt; b.kick = null; }
+  // time-corrected Verlet: the last move is rescaled to this step's length (slow motion, one or two sub-steps)
+  if (b.kick) { for (let k = 0; k < P.length; k++) for (let a = 0; a < 3; a++) Q[k][a] = P[k][a] - b.kick[k][a] * dt; b.kick = null; b.dt = dt; }
+  const kt = b.dt ? Math.max(0.25, Math.min(4, dt / b.dt)) : 1; b.dt = dt;
   for (let k = 0; k < P.length; k++) {
     const p = P[k], q = Q[k];
-    const vx = (p[0] - q[0]) * 0.995, vy = (p[1] - q[1]) * 0.995, vz = (p[2] - q[2]) * 0.995;
+    const vx = (p[0] - q[0]) * 0.995 * kt, vy = (p[1] - q[1]) * 0.995 * kt, vz = (p[2] - q[2]) * 0.995 * kt;
     q[0] = p[0]; q[1] = p[1]; q[2] = p[2];
     p[0] += vx; p[1] += vy - B.gravity * dt * dt; p[2] += vz;
     speed = Math.max(speed, Math.hypot(vx, vy, vz) / dt);
@@ -169,10 +181,10 @@ function ragdoll(W, b, dt, B, i) {
     }
   }
   b.still = speed < 0.6 ? b.still + dt : 0;
-  if (b.t > B.rebootAfter && b.still > 0.4) {
+  if ((b.t > B.rebootAfter && b.still > 0.4) || b.t > B.rebootAfter * 3) {
     // back on its feet where its body came to rest (or the nearest free spot on the lot)
     let x = P[2][0], z = P[2][2];
-    if (!free(W, x, z)) { let best = null; for (let a = 0; a < 16 && !best; a++) { const rr = 0.8 + a * 0.3, an = a * 2.4; const tx = x + Math.cos(an) * rr, tz = z + Math.sin(an) * rr; if (free(W, tx, tz)) best = [tx, tz]; } if (best) [x, z] = best; else { x = W.hero.x + 2; z = W.hero.z; } }
+    if (!free(W, x, z)) [x, z] = nearestFree(W, x, z);
     b.x = x; b.z = z; b.yaw = Math.atan2(P[0][0] - P[2][0], P[0][2] - P[2][2]) || b.yaw;
     b.rest = P.map((p) => p.slice()); b.state = 'reboot'; b.t = 0;
     W.ev.push({ type: 'reboot', i, x, y: 0.8, z });

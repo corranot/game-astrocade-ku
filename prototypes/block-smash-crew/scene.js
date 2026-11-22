@@ -337,7 +337,7 @@ export function createScene(cv, cfg) {
   function updateBots() {
     for (let i = 0; i < W.bots.length; i++) {
       const b = W.bots[i], v = botMeshes[i]; if (!v) continue;
-      const P = b.pts || walkPoints(b);
+      const P = b.pts || walkPoints(b); b.drawn = P;
       // the body's frame: up from pelvis to head, right from the left hand to the right one
       by.set(P[0][0] - P[2][0], P[0][1] - P[2][1], P[0][2] - P[2][2]).normalize();
       bx.set(P[4][0] - P[3][0], P[4][1] - P[3][1], P[4][2] - P[3][2]); bx.addScaledVector(by, -bx.dot(by));
@@ -352,8 +352,10 @@ export function createScene(cv, cfg) {
   function botOnRay(o, d, maxT) {
     let best = null; if (!W || !W.bots) return null;
     for (let i = 0; i < W.bots.length; i++) {
-      const b = W.bots[i], P = b.pts || standingPoints(b);
-      for (const k of [0, 1]) { bva.set(P[k][0], P[k][1], P[k][2]); const t = bva.clone().sub(o).dot(d); if (t <= 0 || t > maxT) continue; const off = bva.distanceTo(bvb.copy(o).addScaledVector(d, t)); if (off < 0.5 && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
+      // a standing bot is picked by the points it was drawn with last frame
+      const b = W.bots[i], P = b.pts || b.drawn || standingPoints(b);
+      // ray-point distance with plain numbers (no new vectors per bot per frame)
+      for (const k of [0, 1]) { const px = P[k][0] - o.x, py = P[k][1] - o.y, pz = P[k][2] - o.z, t = px * d.x + py * d.y + pz * d.z; if (t <= 0 || t > maxT) continue; const off = Math.hypot(px - d.x * t, py - d.y * t, pz - d.z * t); if (off < 0.5 && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
     }
     return best;
   }
