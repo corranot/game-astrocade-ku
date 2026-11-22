@@ -6,6 +6,7 @@
 /* global THREE */
 import { meshRegion, raycast } from './voxels.js';
 import { placeOf } from './world.js';
+import { cooldownOf } from './logic.js';
 import { standingPoints, limbJoint } from './bots.js';
 
 const CS = 12; // chunk size in blocks
@@ -113,9 +114,19 @@ export function createScene(cv, cfg) {
   const rig = new THREE.Group(); rig.position.set(0.1, -0.29, -0.6); rig.scale.setScalar(0.36); vmScene.add(rig); // sized for the narrow portrait view: the hammer head ±1/3 of the width // the right hand, low right of the view
   // the sleeve is long enough to leave the view at the bottom wherever the hand goes (its hand end is where it always was)
   const arm = new THREE.Group(); rig.add(arm);
-  const sleeve = part(box(0.2, 0.2, 1), lam('#ff8a1f'), 0.06, -0.1247, 0.5205, arm); sleeve.rotation.x = 0.2;
-  part(box(0.22, 0.05, 1.01), lam('#fff36b'), 0.06, -0.0247, 0.5205, arm).rotation.x = 0.2;
-  part(box(0.19, 0.19, 0.19), lam('#ff9f1c'), 0.02, 0, 0, rig); part(box(0.21, 0.06, 0.21), lam('#ffffff'), 0.02, -0.1, 0.02, rig); // work glove with a white cuff
+  {
+    // the forearm along the old sleeve line: a round sleeve, narrow at the wrist and wider towards the elbow, a white
+    // knit cuff at the glove and two thin hi-vis bands (the full-length yellow stripe read as a plank from above)
+    const AR = cfg.feel.arm, ax = [0, -Math.sin(0.2), Math.cos(0.2)], he = [0.06, -0.0254, 0.0305];
+    const tube = (r0, r1, len, t, mat) => { const m = part(keep(new THREE.CylinderGeometry(r1, r0, len, 10)), mat, he[0] + ax[0] * (t + len / 2), he[1] + ax[1] * (t + len / 2), he[2] + ax[2] * (t + len / 2), arm); m.rotation.x = Math.PI / 2 + 0.2; return m; };
+    tube(AR.wrist, AR.elbow, AR.len, 0.06, lam(AR.sleeve));
+    tube(AR.wrist + 0.012, AR.wrist + 0.012, 0.09, 0, lam(AR.cuff));
+    const bm = lam(AR.band);
+    for (const t of AR.bands) { const r = AR.wrist + (AR.elbow - AR.wrist) * (t / AR.len) + 0.006; tube(r, r, AR.bandW, t, bm); }
+    // the work glove: palm, a darker row of fingers wrapped around the grip, a thumb
+    const gl = lam(AR.glove), gd = lam(AR.gloveDark);
+    part(box(0.19, 0.19, 0.19), gl, 0.02, 0, 0, rig); part(box(0.2, 0.09, 0.1), gd, 0.02, 0.03, -0.08, rig); part(box(0.07, 0.11, 0.09), gl, -0.1, 0.02, -0.02, rig);
+  }
   const held = {};
   // the hammer: one geometry and one material (a heavy toy sledge: steel head with chamfered edges and two striking
   // faces, a red band, a collar, a wooden handle with a grip wrap and a pommel). Its steel mirrors a tiny sky map;
@@ -138,14 +149,28 @@ export function createScene(cv, cfg) {
     }
     return rt.texture;
   }
+  // a lost WebGL context takes the sky maps with it (they are render targets): on restore they are dropped and made
+  // again on the next frame; the canvas textures and geometries are uploaded again by the renderer itself
+  const onRestored = () => { for (const rt of envs.values()) rt.dispose(); envs.clear(); envOn = ''; };
+  cv.addEventListener('webglcontextrestored', onRestored);
   /** The hammer's material for the tier: mirrored steel, or the plain one (low tier). */
   function hammerLook() {
-    if (low) { hamMesh.material = hamLow; return; }
-    hamMesh.material = hamStd;
-    if (envOn !== envName) { envOn = envName; hamStd.envMap = envFor(envName); hamStd.needsUpdate = true; }
+    hamMesh.material = low ? hamLow : hamStd;
+    const key = (low ? 'L' : 'S') + envName; if (key === envOn) return; envOn = key;
+    // the other tools in the hand follow the tier the same way
+    for (const k of Object.keys(held)) held[k].traverse((m) => { if (m.userData.pair) m.material = low ? m.userData.pair.low : m.userData.pair.std; });
+    if (!low) { const t = envFor(envName); hamStd.envMap = t; hamStd.needsUpdate = true; for (const pr of tierMats) { pr.std.envMap = t; pr.std.needsUpdate = true; } }
   }
+  // toy materials for the other tools: a mirrored one and its plain twin for the low tier
+  const tierMats = [];
+  const toy = (o) => { const pr = { std: keep(new THREE.MeshStandardMaterial({ envMapIntensity: HL.envIntensity, ...o })), low: keep(new THREE.MeshLambertMaterial({ color: o.color || '#ffffff', map: o.map || null, emissive: o.emissive || '#000000', emissiveIntensity: o.emissiveIntensity === undefined ? 1 : o.emissiveIntensity, flatShading: !!o.flatShading, side: o.side || THREE.FrontSide })) }; tierMats.push(pr); return pr; };
+  const tpart = (geo, pr, x, y, z, parent) => { const m = part(geo, low ? pr.low : pr.std, x, y, z, parent); m.userData.pair = pr; return m; };
+  const TG = {}, tg = (k, make) => TG[k] || (TG[k] = keep(make()));
+  // the tool that just left the hand: its kind and the seconds since (the fire animation runs on it)
+  const fr = { kind: null, t: 0 };
   // the hammer's motion: springs for the look lag and the recoil, the swing's own state
-  const ham = { sx: 0, sy: 0, svx: 0, svy: 0, rec: 0, recV: 0, imp: 0, run: 0, yaw: 0, pitch: 0, landed: false, aimed: true, clang: false };
+  let frameN = 0;
+  const ham = { prevT: -1, landF: -9, swingEv: false, sx: 0, sy: 0, svx: 0, svy: 0, rec: 0, recV: 0, imp: 0, run: 0, yaw: 0, pitch: 0, landed: false, aimed: true, clang: false };
   const motionK = reduced ? MO.reduced : 1;
   const armRest = new THREE.Vector3(0, -Math.sin(0.2), Math.cos(0.2)), armNow = new THREE.Vector3(), armQ = new THREE.Quaternion(), rigQ = new THREE.Quaternion();
   const elbow = new THREE.Vector3(MO.rest[0], MO.rest[1], MO.rest[2]).addScaledVector(armRest, MO.elbow);
@@ -153,11 +178,12 @@ export function createScene(cv, cfg) {
   const hitFlash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: tex(64, 64, (x) => drawFlash(x)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })));
   hitFlash.visible = false; hitFlash.renderOrder = 5; scene.add(hitFlash);
   const HF = { t: 1, life: 0.1, size: 1 };
-  { const g = new THREE.Group(); part(keep(new THREE.SphereGeometry(0.17, 14, 10)), lam('#2a2d3a'), 0, 0.17, -0.05, g); part(box(0.05, 0.08, 0.05), lam('#c9a46b'), 0, 0.36, -0.05, g); held.bomb = g; }
-  { const g = new THREE.Group(); const t = part(keep(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 12)), lam('#8fae5a'), 0, 0.08, -0.25, g); t.rotation.x = Math.PI / 2; part(keep(new THREE.ConeGeometry(0.09, 0.2, 12)), lam('#ff4a4a'), 0, 0.08, -0.78, g).rotation.x = -Math.PI / 2; held.rocket = g; }
-  { const g = new THREE.Group(); held.ball = g; } // the ball mesh is the ball texture sphere, made below
-  { const g = new THREE.Group(); part(keep(new THREE.SphereGeometry(0.12, 12, 10)), keep(new THREE.MeshBasicMaterial({ color: '#16052a' })), 0, 0.2, -0.05, g); const r = part(keep(new THREE.TorusGeometry(0.2, 0.025, 6, 24)), keep(new THREE.MeshBasicMaterial({ color: '#b65cff' })), 0, 0.2, -0.05, g); g.userData.ring = r; held.hole = g; }
-  { const g = new THREE.Group(); part(keep(new THREE.IcosahedronGeometry(0.17, 0)), keep(new THREE.MeshLambertMaterial({ color: '#7a4b2a', emissive: '#ff5a00', emissiveIntensity: 0.6, flatShading: true })), 0, 0.18, -0.05, g); held.meteor = g; }
+  // a second one for blasts, sized by the blast's radius
+  const boomFlash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: hitFlash.material.map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })));
+  boomFlash.visible = false; boomFlash.renderOrder = 5; scene.add(boomFlash);
+  const BF = { t: 1, life: 0.1, size: 1 };
+  // the other five are built further down (they share parts with the shots that fly)
+  for (const k of ['bomb', 'rocket', 'ball', 'hole', 'meteor']) held[k] = new THREE.Group();
   for (const k of Object.keys(held)) { held[k].visible = false; rig.add(held[k]); }
   let heldTool = 'hammer';
   // the block under the crosshair: a white outline (red on steel the hammer cannot break)
@@ -226,21 +252,99 @@ export function createScene(cv, cfg) {
 
   // ---- shots and blasts
   const shotMeshes = new Map();
-  const bombGeo = keep(new THREE.SphereGeometry(0.42, 16, 12)), black = lam('#2a2d3a'), red = lam('#ff4a4a'), white = lam('#f4f7ff');
   const ballTex = tex(128, 64, (x, w, h) => { x.fillStyle = '#ff5a8a'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; for (let i = 0; i < 4; i++) x.fillRect(i * 32, 0, 12, h); x.fillStyle = '#ffd12e'; x.fillRect(0, h * 0.42, w, h * 0.16); });
-  const ballMat = keep(new THREE.MeshLambertMaterial({ map: ballTex }));
-  part(keep(new THREE.SphereGeometry(0.2, 18, 12)), ballMat, 0, 0.2, -0.05, held.ball);
+  // ---- the five other tools: one builder each, used for the tool in the hand and for the shot that flies
+  const FL = cfg.feel, basic = (c, o = {}) => keep(new THREE.MeshBasicMaterial({ color: c, ...o }));
+  const glowTex = tex(32, 32, (x) => { const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); });
+  const glowMats = {}, glow = (c, size, parent, own) => { const m = own ? keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })) : (glowMats[c] || (glowMats[c] = keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })))); const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); parent.add(sp); return sp; };
+  const rockOpts = { color: FL.meteor.look.rock, emissive: FL.meteor.look.glow, emissiveIntensity: FL.meteor.look.heat, roughness: 0.9, metalness: 0, flatShading: true };
+  const TM = {
+    iron: toy({ color: FL.bomb.look.iron, roughness: 0.36, metalness: 0.9 }), brass: toy({ color: FL.bomb.look.cap, roughness: 0.3, metalness: 1 }), fuse: toy({ color: FL.bomb.look.fuse, roughness: 0.9, metalness: 0 }),
+    shell: toy({ color: FL.rocket.look.body, roughness: 0.3, metalness: 0.1 }), red: toy({ color: FL.rocket.look.nose, roughness: 0.35, metalness: 0.05 }), tube: toy({ color: FL.rocket.look.tube, roughness: 0.5, metalness: 0.25, side: THREE.DoubleSide }),
+    dark: toy({ color: FL.rocket.look.metal, roughness: 0.35, metalness: 1 }), ball: toy({ map: ballTex, roughness: 0.3, metalness: 0.05 }),
+    rock: toy(rockOpts), rockHeld: toy(rockOpts),
+  };
+  const emberMat = basic(FL.bomb.look.ember), coreMat = basic(FL.hole.look.core), rimMat = basic(FL.hole.look.rim), rimHeld = basic(FL.hole.look.rim), lampMat = basic(FL.rocket.look.wait), beaconMat = basic(FL.meteor.look.lamp);
+  /** A bomb of radius 1: iron ball, brass cap, a braided fuse leaning over, an ember with its glow at the tip. */
+  function mBomb(g) {
+    tpart(tg('sph', () => new THREE.SphereGeometry(1, 18, 12)), TM.iron, 0, 0, 0, g);
+    tpart(tg('bcap', () => new THREE.CylinderGeometry(0.3, 0.36, 0.26, 12)), TM.brass, 0, 1.02, 0, g);
+    let x = 0, y = 1.15;
+    for (let i = 0; i < 3; i++) { const f = tpart(tg('bfuse', () => new THREE.CylinderGeometry(0.075, 0.075, 0.27, 6)), TM.fuse, x + 0.05, y + 0.11, 0, g); f.rotation.z = -0.35 - i * 0.28; x += 0.1 + i * 0.05; y += 0.2 - i * 0.04; }
+    g.userData.ember = part(tg('ember', () => new THREE.SphereGeometry(0.15, 8, 6)), emberMat, x + 0.03, y + 0.05, 0, g);
+    g.userData.halo = glow(FL.bomb.look.glow, 1, g); g.userData.halo.position.copy(g.userData.ember.position);
+    return g;
+  }
+  /** A rocket of body radius 1 pointing along +y: white body, red nose cone and band, four fins, a dark nozzle. */
+  function mRocket(g) {
+    tpart(tg('rbody', () => new THREE.CylinderGeometry(1, 1, 5, 12)), TM.shell, 0, 0, 0, g);
+    tpart(tg('rnose', () => new THREE.ConeGeometry(1, 2.1, 12)), TM.red, 0, 3.55, 0, g);
+    tpart(tg('rband', () => new THREE.CylinderGeometry(1.05, 1.05, 0.5, 12)), TM.red, 0, 1.5, 0, g);
+    tpart(tg('rnoz', () => new THREE.CylinderGeometry(0.7, 0.95, 0.6, 10)), TM.dark, 0, -2.8, 0, g);
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, f = tpart(tg('rfin', () => new THREE.BoxGeometry(0.16, 1.6, 1.3)), TM.red, Math.cos(a) * 1.45, -1.9, Math.sin(a) * 1.45, g); f.rotation.y = Math.PI / 2 - a; }
+    return g;
+  }
+  /** A wrecking ball of radius 1 with a shackle on top. */
+  function mBall(g) {
+    g.userData.ball = tpart(tg('ball', () => new THREE.SphereGeometry(1, 24, 16)), TM.ball, 0, 0, 0, g);
+    tpart(tg('shack', () => new THREE.TorusGeometry(0.3, 0.09, 6, 14)), TM.dark, 0, 1.12, 0, g.userData.ball);
+    return g;
+  }
+  /** A meteor of radius 1: a glowing rock with a halo. */
+  function mRock(g, pr, own) {
+    g.userData.rock = tpart(tg('rock', () => new THREE.IcosahedronGeometry(1, 1)), pr, 0, 0, 0, g);
+    g.userData.halo = glow(FL.meteor.look.halo, 3.4, g, own);
+    return g;
+  }
+  // in the hand (the rig's units): each has charge(k), k = 0 just used ... 1 ready again; hold.rot turns it for its outline
+  for (const k of ['bomb', 'rocket', 'ball', 'hole', 'meteor']) { const r = FL[k].hold.rot; if (r) held[k].rotation.set(r[0], r[1], r[2]); }
+  {
+    const g = held.bomb, b = mBomb(new THREE.Group()); b.scale.setScalar(0.17); b.position.set(0, 0.2, -0.05); b.rotation.z = -0.2; g.add(b);
+    // just thrown: the hand is empty; the next bomb comes up into it, and its fuse is lit the moment it is ready
+    g.userData.charge = (k, ready) => { const s = Math.max(0, Math.min(1, (k - 0.45) / 0.5)); b.visible = s > 0; b.scale.setScalar(0.17 * (0.3 + 0.7 * s * (2 - s))); b.position.y = 0.2 - (1 - s) * 0.16; b.userData.ember.visible = b.userData.halo.visible = ready; if (ready) { const f = 0.8 + Math.random() * 0.5; b.userData.ember.scale.setScalar(f); b.userData.halo.scale.set(f, f, 1); } };
+  }
+  {
+    // a launcher tube on the hand with the rocket's nose looking out of its mouth; a lamp on top: red loading, green ready
+    const g = held.rocket, tb = tpart(tg('ltube', () => new THREE.CylinderGeometry(0.105, 0.105, 0.75, 14, 1, true)), TM.tube, 0, 0.12, -0.2, g); tb.rotation.x = Math.PI / 2;
+    tpart(tg('lring', () => new THREE.TorusGeometry(0.108, 0.022, 6, 16)), TM.dark, 0, 0.12, -0.575, g);
+    tpart(tg('lrear', () => new THREE.CylinderGeometry(0.108, 0.135, 0.1, 14, 1, true)), TM.dark, 0, 0.12, 0.2, g).rotation.x = Math.PI / 2;
+    tpart(box(0.05, 0.05, 0.2), TM.dark, 0, 0.245, -0.3, g);
+    const lamp = part(tg('llamp', () => new THREE.SphereGeometry(0.028, 8, 6)), lampMat, 0, 0.285, -0.25, g);
+    const rk = mRocket(new THREE.Group()); rk.scale.setScalar(0.075); rk.rotation.x = -Math.PI / 2; rk.position.set(0, 0.12, -0.38); g.add(rk);
+    g.userData.charge = (k, ready) => { const s = Math.max(0, Math.min(1, (k - 0.5) / 0.5)), e = s * s * (3 - 2 * s); rk.visible = s > 0; rk.position.z = -0.02 - 0.36 * e; lampMat.color.set(ready ? FL.rocket.look.ready : FL.rocket.look.wait); lamp.scale.setScalar(ready ? 1.25 : 1); };
+  }
+  {
+    // the ball rests on the hand, a short chain from its shackle falls over the glove
+    const g = held.ball, b = mBall(new THREE.Group()); b.scale.setScalar(0.2); b.position.set(0, 0.27, -0.05); g.add(b);
+    [[0.06, 0.545, 0.3], [0.125, 0.52, 0.7], [0.175, 0.47, 1.1], [0.2, 0.4, 1.45]].forEach(([x, y, rz], i) => { const l = tpart(tg('link', () => new THREE.TorusGeometry(0.045, 0.015, 6, 12)), TM.dark, x, y, -0.05, g); l.rotation.set(0, i % 2 ? Math.PI / 2 : 0, 0); l.rotation.z = i % 2 ? 0 : rz; });
+    // just thrown: only the chain; the next ball grows back onto it
+    g.userData.charge = (k) => { const s = Math.max(0, Math.min(1, (k - 0.4) / 0.6)), e = s * s * (3 - 2 * s); b.visible = s > 0; b.scale.setScalar(0.2 * e); b.position.y = 0.27 - (1 - e) * 0.1; };
+  }
+  {
+    // an emitter cup on the hand; over it the dark core inside its bright rim, which spins up as it charges
+    const g = held.hole; tpart(tg('hcup', () => new THREE.CylinderGeometry(0.1, 0.05, 0.1, 12)), TM.dark, 0, 0.13, -0.05, g); tpart(tg('hstem', () => new THREE.CylinderGeometry(0.03, 0.03, 0.1, 8)), TM.brass, 0, 0.05, -0.05, g);
+    const core = part(tg('sph', () => new THREE.SphereGeometry(1, 18, 12)), coreMat, 0, 0.36, -0.05, g), rim = part(tg('hrim', () => new THREE.TorusGeometry(0.2, 0.026, 6, 24)), rimHeld, 0, 0.36, -0.05, g), halo = glow(FL.hole.look.rim, 0.7, g, true); halo.position.set(0, 0.36, -0.08);
+    const cA = new THREE.Color(FL.hole.look.dim), cB = new THREE.Color(FL.hole.look.rim);
+    g.userData.ring = rim;
+    g.userData.charge = (k, ready) => { core.scale.setScalar(0.12 * (0.25 + 0.75 * k)); rimHeld.color.copy(cA).lerp(cB, k * k); halo.scale.setScalar(0.7 * k * (ready ? 1 + Math.sin(time * 6) * 0.08 : 0.7)); g.userData.spin = 1 + k * 5; };
+  }
+  {
+    // a beacon dish on the hand with a lamp; over it the rock, cold and small after a call, glowing when ready
+    const g = held.meteor; tpart(tg('mdish', () => new THREE.CylinderGeometry(0.12, 0.06, 0.06, 12)), TM.dark, 0, 0.12, -0.05, g); tpart(tg('hstem', () => new THREE.CylinderGeometry(0.03, 0.03, 0.1, 8)), TM.brass, 0, 0.05, -0.05, g);
+    const lamp = part(tg('llamp', () => new THREE.SphereGeometry(0.028, 8, 6)), beaconMat, 0.1, 0.17, -0.05, g);
+    const r = mRock(new THREE.Group(), TM.rockHeld, true); r.position.set(0, 0.36, -0.05); g.add(r);
+    g.userData.charge = (k, ready) => { r.scale.setScalar(0.15 * (0.55 + 0.45 * k)); r.rotation.y = time * 0.9; r.rotation.x = time * 0.5; const heat = FL.meteor.look.heat * k * k; TM.rockHeld.std.emissiveIntensity = TM.rockHeld.low.emissiveIntensity = heat; r.userData.halo.scale.setScalar(3.4 * k * (ready ? 1 + Math.sin(time * 7) * 0.06 : 0.6)); lamp.visible = ready ? Math.sin(time * 9) > -0.3 : false; };
+  }
   const holeMat = keep(new THREE.MeshBasicMaterial({ color: '#16052a' })), ringMat = keep(new THREE.MeshBasicMaterial({ color: '#b65cff', transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-  const rockMat = keep(new THREE.MeshLambertMaterial({ color: '#7a4b2a', emissive: '#ff5a00', emissiveIntensity: 0.6, flatShading: true }));
   // shot parts are made once and shared by every throw (a new geometry per bomb grew GPU memory all level)
   const SH = {}, sh = (k, make) => SH[k] || (SH[k] = keep(make()));
   function shotMesh(s) {
     const g = new THREE.Group();
-    if (s.kind === 'bomb') { part(bombGeo, black, 0, 0, 0, g); part(sh('fuse', () => new THREE.BoxGeometry(0.12, 0.2, 0.12)), sh('fuseM', () => new THREE.MeshLambertMaterial({ color: '#c9a46b' })), 0, 0.46, 0, g); g.userData.spark = part(sh('spark', () => new THREE.SphereGeometry(0.12, 8, 6)), sh('sparkM', () => new THREE.MeshBasicMaterial({ color: '#ffe14a' })), 0, 0.6, 0, g); }
-    else if (s.kind === 'rocket') { const r = new THREE.Group(); g.add(r); part(sh('rBody', () => new THREE.CylinderGeometry(0.22, 0.22, 1.1, 10)), white, 0, 0, 0, r); part(sh('rNose', () => new THREE.ConeGeometry(0.22, 0.45, 10)), red, 0, 0.78, 0, r); for (let i = 0; i < 3; i++) { const f = part(sh('rFin', () => new THREE.BoxGeometry(0.06, 0.34, 0.3)), red, Math.cos(i * 2.1) * 0.22, -0.45, Math.sin(i * 2.1) * 0.22, r); f.rotation.y = -i * 2.1; } r.rotation.x = Math.PI / 2; }
-    else if (s.kind === 'ball') { g.userData.ball = part(sh('ball' + s.r, () => new THREE.SphereGeometry(s.r, 24, 16)), ballMat, 0, 0, 0, g); }
-    else if (s.kind === 'hole') { part(sh('hole', () => new THREE.SphereGeometry(0.6, 16, 12)), holeMat, 0, 0, 0, g); for (let i = 0; i < 3; i++) { const t = part(sh('ring' + i, () => new THREE.TorusGeometry(1.1 + i * 0.5, 0.08, 6, 32)), ringMat, 0, 0, 0, g); t.rotation.x = Math.PI / 2 + i * 0.3; t.userData.spin = 2 + i; } }
-    else if (s.kind === 'meteor') { part(sh('rock', () => new THREE.IcosahedronGeometry(1.3, 0)), rockMat, 0, 0, 0, g); }
+    if (s.kind === 'bomb') { const b = mBomb(new THREE.Group()); b.scale.setScalar(0.42); g.add(b); g.userData.spark = b.userData.ember; g.userData.halo = b.userData.halo; }
+    else if (s.kind === 'rocket') { const r = mRocket(new THREE.Group()); r.scale.setScalar(0.22); r.rotation.x = Math.PI / 2; g.add(r); }
+    else if (s.kind === 'ball') { const b = mBall(new THREE.Group()); b.scale.setScalar(s.r); g.add(b); g.userData.ball = b.userData.ball; }
+    else if (s.kind === 'hole') { part(sh('hole', () => new THREE.SphereGeometry(0.6, 16, 12)), holeMat, 0, 0, 0, g); glow(FL.hole.look.rim, 3.6, g); for (let i = 0; i < 3; i++) { const t = part(sh('ring' + i, () => new THREE.TorusGeometry(1.1 + i * 0.5, 0.08, 6, 32)), ringMat, 0, 0, 0, g); t.rotation.x = Math.PI / 2 + i * 0.3; t.userData.spin = 2 + i; } }
+    else if (s.kind === 'meteor') { const r = mRock(new THREE.Group(), TM.rock, false); r.scale.setScalar(1.3); g.add(r); }
     scene.add(g); return g;
   }
   const fireMat = keep(new THREE.MeshBasicMaterial({ color: '#ffd23c', transparent: true, depthWrite: false, fog: false }));
@@ -335,16 +439,17 @@ export function createScene(cv, cfg) {
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
       if (e.kind === 'tnt') placeBarrels();
-      addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
+      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
     } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
     } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
-    } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); }
-    else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); }
+    } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); if (!e.shot.from && FL[e.shot.kind] && FL[e.shot.kind].fire) toolFired(e.shot.kind); }
+    else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); blastFx(e, e.kind === 'hole' ? 2.5 : 1.5); }
+    else if (e.type === 'roll') { if (e.first) blastFx({ kind: 'ball', x: e.x, y: e.y, z: e.z }, 1.9); }
     else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); hammerImpact(e, 0, null, true); hammerLanded(MO.recoil.clang, true); }
     else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); if (e.by === 'hammer' && !e.again) hammerLanded(MO.recoil.bot, false); }
-    else if (e.type === 'swing') { ham.landed = false; ham.clang = false; ham.aimed = !!(W && (W.hero.swingCell || W.hero.swingBot)); }
+    else if (e.type === 'swing') { ham.swingEv = true; ham.landed = false; ham.clang = false; ham.aimed = !!(W && (W.hero.swingCell || W.hero.swingBot)); }
     else if (e.type === 'hit') hammerLanded(e.n > 0 ? MO.recoil.base + MO.recoil.perBlock * e.n : MO.recoil.air, false, e.n);
     else if (e.type === 'super') hammerLanded(MO.recoil.super, false);
     else if (e.type === 'reboot') { sparks(e.x, e.y + 0.4, e.z, 8); puff(e.x, 0.5, e.z, 0.5, '#bdf3ff', 2); }
@@ -358,9 +463,25 @@ export function createScene(cv, cfg) {
    */
   function hammerLanded(k, clang, n = 0) {
     const R = MO.recoil, C = HM.camera; k = Math.min(R.max, k);
+    ham.landF = frameN;
     ham.landed = true; ham.clang = !!clang; ham.recV += R.kick * k; ham.imp = Math.min(1, k);
     if (W && W.demo) return;
     if (clang) { kick(C.kickClang); punch(C.fovClang); } else if (n > 0) { kick(Math.min(C.kickMax, C.kick + C.kickPer * n)); punch(C.fov + C.fovPer * n); }
+  }
+  /**
+   * A thrown tool has just left the hand (the world lets it go the moment it is used): the fire animation starts,
+   * the hand recoils by the tool's size and the view nods and widens a touch (not in the attract mode).
+   */
+  function toolFired(kind) {
+    const T = FL[kind]; fr.kind = kind; fr.t = 0; ham.recV += MO.recoil.kick * T.recoil.kick;
+    if (W && W.demo) return;
+    kick(T.camera.kick); punch(T.camera.fov);
+  }
+  /** A blast of radius r at e: a flash sized by it, and the view widens by the tool's size, less the farther away. */
+  function blastFx(e, r) {
+    const T = FL[e.kind] && FL[e.kind].flash ? FL[e.kind] : FL.bomb, d = W ? Math.hypot(e.x - W.hero.x, e.z - W.hero.z) : 0, fall = Math.max(0, 1 - d / FL.shakeRange);
+    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = true;
+    if (!(W && W.demo)) punch(T.camera.boomFov * fall);
   }
   /** A brief widening of the view (degrees), the biggest one wins; smaller with reduced motion. */
   function punch(deg) { const C = HM.camera, v = Math.min(C.fovMax, deg) * (reduced ? MO.reduced : 1); cam.punch = Math.max(cam.punch || 0, v); }
@@ -540,7 +661,7 @@ export function createScene(cv, cfg) {
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
     for (const b of blasts) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); } blasts.length = 0;
     D.n = 0; U.n = 0; C.n = 0; SP.n = 0; cam.kick = 0; cam.punch = 0;
-    ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.landed = false; ham.yaw = 0; ham.pitch = cfg.camera.pitch0; hitFlash.visible = false; HF.t = 1;
+    ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.landed = false; ham.yaw = 0; ham.pitch = cfg.camera.pitch0; hitFlash.visible = false; HF.t = 1; boomFlash.visible = false; BF.t = 1; fr.kind = null; ham.eq = 1;
     for (let cy = 0; cy * CS < W.g.H; cy++) for (let cz = 0; cz * CS < W.g.D; cz++) for (let cx = 0; cx * CS < W.g.W; cx++) buildChunk(cx, cy, cz);
     chest.position.set(W.chest.x, 0, W.chest.z); chest.rotation.y = 0; lid.rotation.x = 0; chest.visible = true;
     placeBarrels();
@@ -575,7 +696,7 @@ export function createScene(cv, cfg) {
   // ---- per frame
   let time = 0;
   function update(world, dt) {
-    W = world; time += dt;
+    W = world; time += dt; frameN++;
     if (!W) { renderer.render(scene, camera); return; }
     // remesh what changed
     for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
@@ -588,21 +709,20 @@ export function createScene(cv, cfg) {
   function updateHero(dt) {
     const h = W.hero;
     // the tool in the hand: the hammer swings down at SWING_HIT, a thrown tool is pushed forward
-    const want = h.swingT >= 0 && h.throwKind ? h.throwKind : cam.tool || 'hammer'; // a throw shows the thrown tool, even when the hand goes back to the hammer
-    if (want !== heldTool) { held[heldTool].visible = false; heldTool = want; }
+    // a tool that was just thrown stays in the hand for its fire animation, even when the hand goes back to the hammer
+    fr.t += dt;
+    const firing = fr.kind && fr.t < fireDur(fr.kind), want = firing ? fr.kind : cam.tool || 'hammer';
+    // a newly picked tool comes up from below (a thrown one is already up)
+    if (want !== heldTool) { held[heldTool].visible = false; heldTool = want; ham.eq = firing ? 1 : 0; }
     held[heldTool].visible = true;
-    if (heldTool === 'hammer') { hammerLook(); hammerPose(h, dt); }
-    else {
-      let rz = 0, py = 0;
-      if (h.swingT >= 0) { const k = Math.sin(Math.min(1, h.swingT * 1.6) * Math.PI); rz = -k * 0.35; py = k * 0.12; }
-      const run = h.moving ? 1 : 0;
-      rig.position.set(0.1 + Math.cos(time * 9) * 0.007 * run, -0.29 + py * 0.45 + Math.abs(Math.sin(time * 9)) * 0.011 * run + Math.sin(time * 2) * 0.003, -0.6 + rz * 0.45);
-      rig.rotation.set(0, 0, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
-      arm.quaternion.identity();
-      // the hammer's springs rest while another tool is in the hand
-      ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.yaw = cam.yaw; ham.pitch = cam.pitch;
-    }
-    if (held.hole.userData.ring) held.hole.userData.ring.rotation.z += dt * 4;
+    hammerLook();
+    if (heldTool === 'hammer') hammerPose(h, dt); else toolPose(h, dt);
+    const EQ = FL.equip; ham.eq = Math.min(1, (ham.eq === undefined ? 1 : ham.eq) + dt / EQ.dur);
+    { const d = Math.pow(1 - ham.eq, 3) * EQ.drop; rig.position.y -= d; rig.rotation.x += d * EQ.tilt; }
+    // the arm reaches from the same elbow, off the bottom of the view, to wherever the hand is
+    armNow.copy(elbow).sub(rig.position).normalize(); armQ.setFromUnitVectors(armRest, armNow); arm.quaternion.copy(rigQ.copy(rig.quaternion).invert()).multiply(armQ);
+    if (hamStd.envMapRotation) { hamStd.envMapRotation.y = cam.yaw; for (const pr of tierMats) pr.std.envMapRotation.y = cam.yaw; }
+    held.hole.userData.ring.rotation.z += dt * (held.hole.userData.spin || 4);
     // chest
     if (W.chest.open) { lid.rotation.x = Math.max(-1.9, lid.rotation.x - dt * 8); } else { chest.rotation.y = Math.sin(time * 3) * 0.04; }
     // beacons: on the stars still in the building; the mark floats above it, always visible
@@ -622,9 +742,13 @@ export function createScene(cv, cfg) {
    * walk bob and the idle sway. Every number is in cfg.feel.hammer.motion.
    */
   function hammerPose(h, dt) {
-    const R = MO.recoil, SW = MO.sway, t = h.swingT;
+    const R = MO.recoil, SW = MO.sway, I = MO.idle, t = h.swingT;
     // 1. the swing: rx is the pitch around the hand (+ back, - forward and down), o the hand's way to the strike pose
     let rx = 0, ox = 0, oy = 0, oz = 0;
+    // a swing has started (the swing clock went back to its beginning): if its `swing` event did not come, the last
+    // swing's state is dropped here all the same (unless this very swing has already landed, in one long frame)
+    if (t >= 0 && (ham.prevT < 0 || t < ham.prevT) && !ham.swingEv) { if (ham.landF !== frameN - 1) { ham.landed = false; ham.clang = false; } ham.aimed = !!(h.swingCell || h.swingBot) || ham.landed; }
+    ham.swingEv = false; ham.prevT = t;
     if (t >= 0) {
       const amp = ham.aimed ? 1 : MO.whiff, wE = Math.min(MO.windEnd, SWING_HIT - 0.05), Wd = MO.wind, St = MO.strike;
       if (t < wE) { const u = 1 - Math.pow(1 - t / wE, 3); rx = Wd.rx * u; ox = Wd.x * u; oy = Wd.y * u; oz = Wd.z * u; }
@@ -640,40 +764,59 @@ export function createScene(cv, cfg) {
       }
       rx *= amp; ox *= amp; oy *= amp; oz *= amp;
     }
-    // 2. the springs, in small steps (stable at any frame time)
+    // 2. the springs
+    const rawRec = vmSprings(h, dt);
+    ham.imp *= Math.exp(-dt * MO.squashDecay);
+    // 3. put together: the recoil tips the hammer back and pulls the hand towards the eye
+    const rec = rawRec;
+    rig.position.set(MO.rest[0] + ox + ham.sx, MO.rest[1] + oy + ham.sy + rec * R.y, MO.rest[2] + oz + rec * R.z);
+    rig.rotation.set(rx + rec + Math.sin(time * I.rate + 1) * I.tilt * motionK, ham.sx * SW.turn, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
+    const q = MO.squash * ham.imp; held.hammer.scale.set(1 + q * 0.5, 1 - q, 1 + q * 0.5);
+  }
+  /** Seconds a thrown tool's fire animation lasts: its own length, never longer than its cooldown. */
+  function fireDur(kind) { const cd = W ? cooldownOf(W.cfg, kind, W.fever > 0) : 0; return cd > 0 ? Math.min(FL[kind].fire.dur, cd) : FL[kind].fire.dur; }
+  /** The lag spring (view turns, walk bob, idle sway) and the recoil spring, in small steps; returns the recoil. */
+  function vmSprings(h, dt) {
+    const R = MO.recoil, SW = MO.sway, I = MO.idle;
     let dy = cam.yaw - ham.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const dp = cam.pitch - ham.pitch; ham.yaw = cam.yaw; ham.pitch = cam.pitch;
     ham.run += ((h.moving ? 1 : 0) - ham.run) * Math.min(1, dt * MO.bob.blend);
-    // the hand is left behind by a turn of the view, then catches up
     ham.sx = Math.max(-SW.max, Math.min(SW.max, ham.sx + dy * SW.look * motionK)); ham.sy = Math.max(-SW.max, Math.min(SW.max, ham.sy - dp * SW.look * motionK));
-    const ph = cam.bob, I = MO.idle;
-    const tx = (Math.cos(ph) * MO.bob.x * ham.run + Math.cos(time * I.rate * 0.5) * I.x) * motionK;
-    const ty = (-Math.abs(Math.sin(ph)) * MO.bob.y * ham.run + Math.sin(time * I.rate) * I.y) * motionK;
+    const tx = (Math.cos(cam.bob) * MO.bob.x * ham.run + Math.cos(time * I.rate * 0.5) * I.x) * motionK;
+    const ty = (-Math.abs(Math.sin(cam.bob)) * MO.bob.y * ham.run + Math.sin(time * I.rate) * I.y) * motionK;
     const n = Math.max(1, Math.min(10, Math.ceil(dt / 0.006))), sd = dt / n, ws = SW.hz * Math.PI * 2, wr = R.hz * Math.PI * 2;
     for (let i = 0; i < n; i++) {
       ham.svx += ((tx - ham.sx) * ws * ws - ham.svx * 2 * SW.damp * ws) * sd; ham.sx += ham.svx * sd;
       ham.svy += ((ty - ham.sy) * ws * ws - ham.svy * 2 * SW.damp * ws) * sd; ham.sy += ham.svy * sd;
       ham.recV += (-ham.rec * wr * wr - ham.recV * 2 * R.damp * wr) * sd; ham.rec += ham.recV * sd;
     }
-    ham.imp *= Math.exp(-dt * MO.squashDecay);
-    // 3. put together: the recoil tips the hammer back and pulls the hand towards the eye
-    const rec = Math.max(-0.6, Math.min(1.2, ham.rec));
-    rig.position.set(MO.rest[0] + ox + ham.sx, MO.rest[1] + oy + ham.sy + rec * R.y, MO.rest[2] + oz + rec * R.z);
-    rig.rotation.set(rx + rec + Math.sin(time * I.rate + 1) * I.tilt * motionK, ham.sx * SW.turn, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
-    const q = MO.squash * ham.imp; held.hammer.scale.set(1 + q * 0.5, 1 - q, 1 + q * 0.5);
-    // the arm reaches from the same elbow, off the bottom of the view, to wherever the hand is
-    armNow.copy(elbow).sub(rig.position).normalize(); armQ.setFromUnitVectors(armRest, armNow); arm.quaternion.copy(rigQ.copy(rig.quaternion).invert()).multiply(armQ);
-    if (hamStd.envMapRotation) hamStd.envMapRotation.y = cam.yaw;
+    return Math.max(-0.6, Math.min(1.2, ham.rec));
+  }
+  /**
+   * Any other tool in the hand: the fire animation from the moment the shot left (a quick push to the tool's own
+   * pose, then home), the shared springs, and the tool's charge: how far its cooldown has run (1 = ready again).
+   */
+  function toolPose(h, dt) {
+    const T = FL[heldTool], F = T.fire, SW = MO.sway, I = MO.idle, dur = fireDur(heldTool), busy = fr.kind === heldTool && fr.t < dur;
+    let b = 0;
+    if (busy) { const u = fr.t / dur; if (u < F.peak) b = 1 - Math.pow(1 - u / F.peak, 2); else { const w = (u - F.peak) / (1 - F.peak); b = 1 - w * w * (3 - 2 * w); } }
+    const rec = vmSprings(h, dt);
+    rig.position.set(T.hold.pos[0] + F.to[0] * b + ham.sx, T.hold.pos[1] + F.to[1] * b + ham.sy + rec * T.recoil.y, T.hold.pos[2] + F.to[2] * b + rec * T.recoil.z);
+    rig.rotation.set(F.rx * b + rec * T.recoil.rx + Math.sin(time * I.rate + 1) * I.tilt * motionK, ham.sx * SW.turn, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
+    const total = cooldownOf(W.cfg, heldTool, W.fever > 0) || 1, k = 1 - Math.max(0, Math.min(1, (W.cool[heldTool] || 0) / total));
+    // while its shot is leaving the hand, the tool shows as just used whatever the cooldown says (a free star bomb)
+    ham.charge = busy ? Math.min(k, fr.t / dur * 0.4) : k;
+    held[heldTool].userData.charge(ham.charge, !busy && k >= 1);
   }
   function updateShots(dt) {
     for (const [id, g] of shotMeshes) {
       const s = W.shots.find((x) => x.id === id);
       if (!s) { scene.remove(g); shotMeshes.delete(id); continue; }
       g.position.set(s.x, s.y, s.z);
-      if (s.kind === 'bomb') { g.rotation.x += dt * 8; g.userData.spark.scale.setScalar(0.8 + Math.random() * 0.6); }
-      else if (s.kind === 'rocket') { g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); if (Math.random() < 0.7) puff(s.x - s.dx, s.y - s.dy, s.z - s.dz, 0.5, '#ffffff', 1); }
-      else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; }
+      if (s.kind === 'bomb') { g.rotation.x += dt * 8; const f = 0.8 + Math.random() * 0.6; g.userData.spark.scale.setScalar(f); g.userData.halo.scale.set(f, f, 1); if (Math.random() < FL.bomb.trail) sparks(s.x, s.y + 0.3, s.z, 1); }
+      else if (s.kind === 'rocket') { g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); if (Math.random() < FL.rocket.trail) { puff(s.x - s.dx, s.y - s.dy, s.z - s.dz, 0.5, '#ffffff', 1); sparks(s.x - s.dx * 0.8, s.y - s.dy * 0.8, s.z - s.dz * 0.8, 1); } }
+      else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (Math.random() < FL.ball.trail) puff(s.x, 0.2, s.z, 0.7, '#efe4cf', 1); }
       else if (s.kind === 'hole') { const k = Math.min(1, s.t / (s.dur * 0.6)); g.scale.setScalar(0.4 + k * 1.2 * (1 - Math.max(0, (s.t - s.dur + 0.3) / 0.3))); for (const c of g.children) if (c.userData.spin) c.rotation.z += dt * c.userData.spin; }
-      else if (s.kind === 'meteor') { g.rotation.x += dt * 5; g.rotation.y += dt * 3; puff(s.x, s.y + 0.5, s.z, 1.2, '#ffb347', 1); }
+      else if (s.kind === 'meteor') { g.rotation.x += dt * 5; g.rotation.y += dt * 3; if (Math.random() < FL.meteor.trail) { puff(s.x, s.y + 0.5, s.z, 1.2, '#ffb347', 1); sparks(s.x, s.y, s.z, 1); } }
     }
     for (const it of falls.values()) {
       const T = it.f.topple;
@@ -733,7 +876,7 @@ export function createScene(cv, cfg) {
     }
     flash.intensity *= Math.exp(-dt * 9);
     // the hammer's flash: grows a little and fades over its short life
-    if (hitFlash.visible) { HF.t += dt; const k = HF.t / HF.life; if (k >= 1) hitFlash.visible = false; else { const sc = HF.size * (0.65 + 0.35 * k); hitFlash.scale.set(sc, sc, 1); hitFlash.material.opacity = (1 - k * k) * (reduced ? 0.5 : 1); } }
+    for (const [sp, S] of [[hitFlash, HF], [boomFlash, BF]]) { if (!sp.visible) continue; S.t += dt; const k = S.t / S.life; if (k >= 1) sp.visible = false; else { const sc = S.size * (0.65 + 0.35 * k); sp.scale.set(sc, sc, 1); sp.material.opacity = (1 - k * k) * (reduced ? 0.5 : 1); } }
     // the flakes' box rides with the eye: snow always falls around the player
     if (flakes.visible) { const p = flakeGeo.attributes.position.array, cx = camera.position.x, cz = camera.position.z; for (let i = 0; i < flakeN; i++) { p[i * 3 + 1] -= dt * (1.2 + (i % 5) * 0.2); p[i * 3] += Math.sin(time + i) * dt * 0.3; if (p[i * 3 + 1] < 0) p[i * 3 + 1] += 18; } flakes.position.set(cx, 0, cz); flakeGeo.attributes.position.needsUpdate = true; }
   }
@@ -819,6 +962,8 @@ export function createScene(cv, cfg) {
     faceOf(id) { const v = botMeshes.get(id); return v ? v.fk : -1; },
     /** The low tier: no sun shadows, half the debris, dust and sparks, the hammer without its reflection. */
     setLow(v) { low = !!v; sun.castShadow = !low; hammerLook(); },
+    /** The tool in the hand as drawn: which, its charge (1 = ready), seconds since it fired, the hand's place. */
+    get hand() { return { landed: ham.landed, aimed: ham.aimed, envs: envs.size, tool: heldTool, charge: heldTool === 'hammer' ? 1 : ham.charge, fired: fr.kind ? fr.t : -1, kind: fr.kind, eq: ham.eq, pos: rig.position.toArray(), rx: rig.rotation.x, recoil: ham.rec, punch: cam.punch || 0, flash: boomFlash.visible, mirrored: !low && !!hamStd.envMap }; },
     /** The hammer as drawn: its tier's material, triangles, the swing's layers (for tests and tuning). */
     get hammer() { return { mirrored: hamMesh.material === hamStd && !!hamStd.envMap, tris: hamMesh.geometry.attributes.position.count / 3, rx: rig.rotation.x, pos: rig.position.toArray(), recoil: ham.rec, sway: [ham.sx, ham.sy], punch: cam.punch || 0, landed: ham.landed, flash: hitFlash.visible }; },
     /** Is world point (x, y, z) inside the view? */
@@ -829,6 +974,7 @@ export function createScene(cv, cfg) {
       for (const b of blasts) { b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); }
       for (const x of disposables) x.dispose();
       for (const rt of envs.values()) rt.dispose();
+      cv.removeEventListener('webglcontextrestored', onRestored);
       debris.dispose(); dust.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
       renderer.dispose(); try { renderer.forceContextLoss(); } catch (e) { /* already gone */ }
     },
