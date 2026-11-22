@@ -92,7 +92,8 @@ jobs:
   automerge:
     name: Merge the owner's PR once checks pass
     needs: [fast, bundle]
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'corranot'
+    # skill updates copied from outside repos (auto-sync/*) are instructions for the agents: a person merges those
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'corranot' && !startsWith(github.head_ref, 'auto-sync/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -101,6 +102,12 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          REPO: ${{ github.repository }}
         run: |
           gh pr ready "$PR_URL" || true
-          gh pr merge "$PR_URL" --squash
+          # only the commit these checks ran on: a push after them waits for its own run
+          gh pr merge "$PR_URL" --squash --match-head-commit "$HEAD_SHA"
+          # the branch is in main now (squashed): remove it so finished work does not pile up as branches
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null || echo "::warning::branch $HEAD_REF not deleted"
