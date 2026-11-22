@@ -312,7 +312,8 @@ function land(W, f) {
 function swingAt(W, c) {
   const h = W.hero; if (h.cool > 0 || h.swingT >= 0) return false;
   h.swingT = 0; h.cool = tool(W, 'hammer').cd; h.swingCell = c ? { x: c.x, y: c.y, z: c.z } : null; h.swingBot = null; h.throwKind = null;
-  W.ev.push({ type: 'swing' }); return true;
+  // started between frames (HIT button, Space, a tap on a robot): step() replaces W.ev, so the event waits in the queue
+  (W.stepping ? W.ev : (W.queued = W.queued || [])).push({ type: 'swing' }); return true;
 }
 /** First person: the player swings at the block under the crosshair (null = a swing at the air). */
 export function hitBlock(W, c) { if (W.phase === 'done') return false; return swingAt(W, c); }
@@ -399,7 +400,7 @@ function gotStar(W, x, y, z, chest = false) {
 
 /** Advances the world by dt seconds and returns what happened. */
 export function step(W, dt) {
-  W.ev = W.queued || []; W.queued = [];
+  W.ev = W.queued || []; W.queued = []; W.stepping = true;
   W.t += dt; W.hardT = Math.max(0, W.hardT - dt);
   for (const k of Object.keys(W.cool)) W.cool[k] = Math.max(0, W.cool[k] - dt);
   comboTick(W.combo, dt);
@@ -409,6 +410,7 @@ export function step(W, dt) {
   stepFuses(W, dt);
   stepBots(W, dt);
   if (W.phase === 'fever') { W.fever -= dt; if (W.fever <= 0) { W.fever = 0; W.phase = 'free'; W.ev.push({ type: 'clear' }); } } // free: keep smashing, NEXT is up
+  W.stepping = false;
   return W.ev;
 }
 

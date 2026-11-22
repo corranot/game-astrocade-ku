@@ -564,5 +564,19 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(straight, 'limb joint: a limb pulled longer than its length stays straight');
 }
 
+// ---- a swing started between frames (HIT button, Space, a tap on a robot) still reports itself
+{
+  const W = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] });
+  WD.step(W, 1 / 60);
+  const started = WD.hitBlock(W, null), ev = WD.step(W, 1 / 60);
+  check(started && ev.some((e) => e.type === 'swing'), `a swing at the air from outside step() reaches the next frame's events (${ev.map((e) => e.type).join(', ') || 'none'})`);
+  // and one started inside step() (the hero reaching a tapped block) is reported once, in that same frame
+  const V = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] }); let swings = 0, frames = 0;
+  const c = V.tntCells[V.tntCells.length - 1]; WD.aimHammer(V, { x: c.x, y: c.y, z: c.z }, false);
+  for (let i = 0; i < 120 && !swings; i++) { swings += WD.step(V, 1 / 60).filter((e) => e.type === 'swing').length; frames++; }
+  for (let i = 0; i < 10; i++) swings += WD.step(V, 1 / 60).filter((e) => e.type === 'swing').length;
+  check(swings === 1, `a swing started by the world itself is reported exactly once (${swings}, after ${frames} frames)`);
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);
