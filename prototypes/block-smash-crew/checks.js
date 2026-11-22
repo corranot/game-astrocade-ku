@@ -66,7 +66,8 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
         for (let i = 0; i < d.length; i += 4) { const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dl = mx - mn; if (dl < 0.25 * mx || mx < 0.25) continue;
           const h = ((mx === r ? ((g - b) / dl) % 6 : mx === g ? (b - r) / dl + 2 : (r - g) / dl + 4) * 60 + 360) % 360, off = Math.abs(((h - want + 540) % 360) - 180); if (off < 28) n++; }
         return n / (d.length / 4); }, [png.toString('base64'), want]);
-      note(share > 0.12, `level ${lv + 1} ${c.k} barrel shows its colour (${Math.round(share * 100)}% of the patch at the barrel)`);
+      // a barrel that is not drawn gives 0%; the hammer in the hand and the white band cover part of a drawn one
+      note(share > 0.05, `level ${lv + 1} ${c.k} barrel shows its colour (${Math.round(share * 100)}% of the patch at the barrel)`);
     }
   }
   await browser.close(); server.close();

@@ -111,8 +111,16 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - **Found on the way:** barrels inside buildings were sometimes not drawn at all (an instanced mesh's bounding sphere
   is measured once; fixed with `frustumCulled = false`, checked in `checks.js` by the barrel's colour on screen); a
   robot facing a block dropped its goal every frame and could stand still for good (`bots.js walk`).
-- Tests: 12 new in `logic.test.mjs` (114), 4 barrel-colour checks in `checks.js`. Pilot child unchanged: 48/48,
-  median 11 s. Not proven here: how it feels on a phone, and whether a child notices the box without being told.
+- **Bug hunt on the first build (4 real defects, each with a test that failed first):** (1) a special barrel near the
+  box took the box with it and set off the whole level (12 of the first 40 levels) → no barrel within `tnt.boxClear`
+  of the box; (2) every barrel vanished the moment the box went and then boomed from bare ground → a lit barrel stands
+  until its own fuse ends; (3) cluster bombs and hole ticks ran the combo to ×5, one box paid 4× a plain chain → what
+  a barrel throws pays flat (no combo, no tool power; now ≤ 2.5×); (4) a barrel's black hole was reported as "tnt", so
+  debris was not pulled in → the kind stays, the payout rule is a separate flag. Also: the box is two cells tall, so a
+  tap on its handle hits it.
+- Tests: 21 new in `logic.test.mjs` (123), 4 barrel-colour checks in `checks.js`. Pilot child: 48/48, median 12 s;
+  economy pilot 16–21 buys in 5 min (17–22 before the update). Not proven here: how it feels on a phone, whether a
+  child notices the box without being told, and the hit-stop of a long boss chain (7 barrels + their bombs).
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with

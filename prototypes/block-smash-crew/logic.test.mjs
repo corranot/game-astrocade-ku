@@ -495,5 +495,53 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   } else check(false, 'level 2 has a cluster barrel to test');
 }
 
+// ---- BOOM update, found by the bug hunt (22 Nov)
+{
+  const run = (W, secs, each) => { for (let i = 0; i < secs * 60; i++) { const ev = WD.step(W, 1 / 60); if (each) each(ev, i / 60); } };
+  // 1. one barrel hit on its own never takes the BOOM box with it (it did on 12 of the first 40 levels)
+  const accident = [];
+  for (let lv = 0; lv < 40; lv++) for (let i = 0; i < buildLevel(cfg, lv).tnt.length; i++) {
+    const W = WD.createWorld(cfg, lv, { owned: ['hammer', 'bomb'] }), c = W.tntCells[i];
+    WD.useTool(W, 'bomb', { x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 });
+    // only the barrels inside the bomb's own blast count as hit together with it
+    run(W, 10, (ev) => { if (ev.some((e) => e.type === 'detonate')) accident.push(`L${lv} ${c.k || 'plain'}`); });
+  }
+  check(accident.length === 0, `a barrel's own effect never sets the BOOM box off (${accident.length ? [...new Set(accident)].slice(0, 6).join(', ') : 'none'})`);
+
+  // 2. after the box is hit the barrels stay standing until their own boom
+  const W = WD.createWorld(cfg, 9, { owned: ['hammer', 'bomb'] }), b = W.boomBox, n0 = W.tntCells.length;
+  WD.useTool(W, 'bomb', { x: b.x + 0.5, y: 0.5, z: b.z + 0.5 });
+  const standing = () => W.tntCells.filter((c) => W.g.get(c.x, c.y, c.z) === M.tnt).length;
+  let atDetonate = null, early = 0, booms = 0, leftOk = true;
+  run(W, 9, (ev) => {
+    for (const e of ev) { if (e.type === 'detonate') atDetonate = standing(); if (e.type === 'boom' && e.kind === 'tnt') booms++; }
+    // a barrel is gone only once it (or a blast that reached it) has gone off
+    if (atDetonate !== null && n0 - standing() > booms + 1) early++;
+    if (W.left !== W.g.count()) leftOk = false;
+  });
+  check(atDetonate >= n0 - 1 && n0 >= 4, `when the BOOM box goes, the barrels are still standing (${atDetonate} of ${n0})`);
+  check(early === 0 && standing() === 0 && booms === n0, `each barrel disappears with its own boom (${booms} booms, ${early} frames with a barrel gone early)`);
+  check(leftOk, 'the block count matches the grid on every frame of the chain');
+
+  // 3. what the barrels throw does not run up the combo (one box paid 2,245 coins on level 1 against 595 with plain barrels)
+  const pay = (kinds) => { const c2 = { ...cfg, tnt: { ...cfg.tnt, kinds } }, V = WD.createWorld(c2, 0, { owned: ['hammer', 'bomb'] }); WD.useTool(V, 'bomb', { x: V.boomBox.x + 0.5, y: 0.5, z: V.boomBox.z + 0.5 }); let top = 0; run(V, 12, () => { top = Math.max(top, V.combo.mult); }); return { coins: V.coins, top }; };
+  const withKinds = pay(cfg.tnt.kinds), plain = pay([]);
+  check(withKinds.top <= plain.top, `special barrels do not push the combo higher than plain ones (×${withKinds.top} against ×${plain.top})`);
+  check(withKinds.coins <= plain.coins * 2.5, `a BOOM box on level 1 pays at most 2.5× the plain chain (${withKinds.coins} against ${plain.coins})`);
+
+  // 4. a barrel's black hole is still a hole to the look and the sound
+  const H = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] }), hb = H.tntCells.find((c) => c.k === 'hole'); const bys = new Set();
+  WD.useTool(H, 'bomb', { x: hb.x + 0.5, y: 0.5, z: hb.z + 0.5 });
+  run(H, 6, (ev) => { for (const e of ev) if (e.type === 'smash' && H.shots.some((s) => s.kind === 'hole')) bys.add(e.by); });
+  check(bys.has('hole'), `blocks a barrel's black hole swallows are reported as swallowed by a hole (${[...bys].join(', ')})`);
+
+  // 5. the box is two cells tall (a tap on its handle hits it too) and both cells go together
+  const T2 = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), tb = T2.boomBox;
+  check(T2.g.get(tb.x, 0, tb.z) === M.boomBox && T2.g.get(tb.x, 1, tb.z) === M.boomBox, 'the BOOM box fills two cells, base and handle');
+  WD.useTool(T2, 'bomb', { x: tb.x + 0.5, y: 2.6, z: tb.z + 0.5 }); let det = 0;
+  run(T2, 8, (ev) => { det += ev.filter((e) => e.type === 'detonate').length; });
+  check(det === 1 && !T2.g.get(tb.x, 0, tb.z) && !T2.g.get(tb.x, 1, tb.z) && T2.left === T2.g.count(), `a hit on the handle sets it off once and both cells go (${det})`);
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);

@@ -41,13 +41,13 @@ const heroChest = (W) => [W.hero.x, W.hero.y + 1.3, W.hero.z];
 const distToCell = (W, c) => { const [x, y, z] = heroChest(W); return Math.hypot(c.x + 0.5 - x, c.y + 0.5 - y, c.z + 0.5 - z); };
 
 /** Removes blocks around a point and turns the result into events, coins, gems and falling pieces. */
-function blast(W, x, y, z, r, canHard, by) {
+function blast(W, x, y, z, r, canHard, by, flat) {
   const res = smashSphere(W.g, x, y, z, r, W.mats, canHard);
   // bombs still flying inside the blast, and lit TNT, go off a moment later (a chain)
   if (canHard) refuse(W, x, y, z, r);
   // bots near a blast fly (a bigger blast throws them harder)
   if (W.bots.length) knockBots(W, x, y, z, r + 1.2, W.cfg.bots.knock * Math.min(2, 0.6 + r / 3), by);
-  if (res.removed.length) afterRemove(W, res.removed, by, x, y, z, r);
+  if (res.removed.length) afterRemove(W, res.removed, by, x, y, z, r, flat);
   return res;
 }
 /** Bombs in flight and burning TNT fuses within r of a blast: they blow up 0.12–0.24 s later. */
@@ -55,10 +55,11 @@ function refuse(W, x, y, z, r) {
   for (const s of W.shots) if (s.kind === 'bomb' && s.refuse == null && Math.hypot(s.x - x, s.y - y, s.z - z) < r + 0.5) s.refuse = 0.12 + 0.12 * ((s.id * 0.618) % 1);
   for (const f of W.fuses) if (!f.held && Math.hypot(f.x + 0.5 - x, f.y - y, f.z + 0.5 - z) < r + 0.5) f.t = Math.min(f.t, 0.12 + 0.12 * ((f.x * 7 + f.z * 3) % 10) / 10);
 }
-function afterRemove(W, removed, by, x, y, z, r) {
-  // an upgraded tool earns more per block (×power per level)
-  const pw = (tool(W, by) || {}).power || 1;
-  const mult = comboHit(W.combo) * (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult * pw;
+function afterRemove(W, removed, by, x, y, z, r, flat) {
+  // an upgraded tool earns more per block (×power per level); flat = thrown by a special barrel: no tool power and
+  // no combo (a barrel's cluster bombs and hole ticks ran the combo to ×5 and paid four times a plain chain)
+  const pw = flat ? 1 : (tool(W, by) || {}).power || 1;
+  const mult = (flat ? 1 : comboHit(W.combo)) * (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult * pw;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult);
   W.coins += coins; W.left -= removed.length; W.smashed += removed.length;
   let gold = 0;
@@ -183,7 +184,7 @@ function stepShots(W, dt) {
     } else if (s.kind === 'hole') {
       s.tick -= dt;
       const r = s.r * Math.min(1, s.t / (s.dur * 0.6));
-      if (s.tick <= 0) { s.tick = 0.1; const res = smashSphere(W.g, s.x, s.y, s.z, r, W.mats, true); if (res.removed.length) afterRemove(W, res.removed, s.from || 'hole', s.x, s.y, s.z, r); }
+      if (s.tick <= 0) { s.tick = 0.1; const res = smashSphere(W.g, s.x, s.y, s.z, r, W.mats, true); if (res.removed.length) afterRemove(W, res.removed, 'hole', s.x, s.y, s.z, r, s.from === 'tnt'); }
       if (s.t >= s.dur) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'hole' }); }
     } else if (s.kind === 'meteor') {
       const k = Math.min(1, s.t / s.dur);
@@ -195,8 +196,7 @@ function stepShots(W, dt) {
 }
 function boom(W, s, x, y, z) {
   W.ev.push({ type: 'boom', kind: s.kind, x, y, z, r: s.r });
-  // what a special barrel throws pays like the barrel (not like the player's upgraded tool of that kind)
-  blast(W, x, y, z, s.r, true, s.from || s.kind);
+  blast(W, x, y, z, s.r, true, s.kind, s.from === 'tnt');
   scorch(W, x, y, z, s.r + 1.6);
 }
 /** Darkens the blocks left around a blast (the look reads g.scorch). */
@@ -211,22 +211,29 @@ function scorch(W, x, y, z, R) {
 /** TNT blocks that were smashed or landed: each blows up a moment later (and can set off the next). */
 function lightFuses(W, cells) {
   let k = 0;
-  for (const c of cells) if (c.m === W.ids.tnt) { W.fuses.push({ x: c.x, y: Math.max(0.5, c.y), z: c.z, k: c.k, t: W.cfg.tnt.delay + k++ * W.cfg.tnt.step }); W.ev.push({ type: 'fuse', x: c.x, y: c.y, z: c.z }); }
+  for (const c of cells) if (c.m === W.ids.tnt) {
+    // a barrel already lit by the BOOM box and now smashed by another blast: its own fuse goes off soon, no second one
+    const held = W.fuses.find((f) => f.cell && Math.abs(f.x - c.x) < 0.01 && Math.abs(f.z - c.z) < 0.01);
+    if (held) { held.cell = null; held.held = false; held.t = Math.min(held.t, W.cfg.tnt.delay); continue; }
+    W.fuses.push({ x: c.x, y: Math.max(0.5, c.y), z: c.z, k: c.k, t: W.cfg.tnt.delay + k++ * W.cfg.tnt.step }); W.ev.push({ type: 'fuse', x: c.x, y: c.y, z: c.z });
+  }
 }
 /** The kind of the barrel that stood in cell c (cluster, hole, meteor), or undefined for a plain one. */
 function kindAt(W, c) { const t = W.tntCells.find((q) => q.x === c.x && q.y === c.y && q.z === c.z); return t && t.k; }
 /**
  * The BOOM box was smashed: every barrel still standing is lit, nearest first, one after the other (the whole chain
- * lasts at most cfg.tnt.chainMax seconds).
+ * lasts at most cfg.tnt.chainMax seconds). A lit barrel stays standing until its own fuse ends.
  */
 function detonateAll(W) {
   const T = W.cfg.tnt, b = W.boomBox, live = W.tntCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.tnt);
   const d = (c) => Math.hypot(c.x - b.x, c.y - b.y, c.z - b.z);
   live.sort((p, q) => d(p) - d(q));
   const gap = Math.min(T.chainStep, T.chainMax / Math.max(1, live.length));
+  // the box is two cells: whichever was not smashed goes with it
+  for (let y = 0; y < 2; y++) if (W.g.get(b.x, y, b.z) === W.ids.boomBox) { W.g.set(b.x, y, b.z, 0); W.left--; }
   live.forEach((c, i) => {
-    W.g.set(c.x, c.y, c.z, 0); W.left--;
-    W.fuses.push({ x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5, k: c.k, t: T.delay + i * gap, held: true });
+    if (W.fuses.some((f) => f.cell === c)) return;
+    W.fuses.push({ x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5, k: c.k, t: T.delay + i * gap, held: true, cell: c });
     W.ev.push({ type: 'fuse', x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 });
   });
   W.ev.push({ type: 'detonate', x: b.x + 0.5, y: b.y + 0.5, z: b.z + 0.5, n: live.length });
@@ -240,7 +247,13 @@ function special(W, f) {
   else if (K.id === 'meteor') shot({ kind: 'meteor', sx: f.x + 8, sy: 42, sz: f.z + 10, x: f.x + 8, y: 42, z: f.z + 10, tx: f.x, ty: f.y, tz: f.z, dur: 0.9 });
 }
 function stepFuses(W, dt) {
-  for (const f of W.fuses) { f.t -= dt; if (f.t <= 0) { f.done = true; boom(W, { kind: 'tnt', r: W.cfg.tnt.r }, f.x, f.y, f.z); special(W, f); } }
+  for (const f of W.fuses) {
+    f.t -= dt; if (f.t > 0) continue;
+    f.done = true;
+    // a barrel lit by the BOOM box stood until now: it goes with its boom
+    if (f.cell && W.g.get(f.cell.x, f.cell.y, f.cell.z) === W.ids.tnt) { W.g.set(f.cell.x, f.cell.y, f.cell.z, 0); W.left--; }
+    boom(W, { kind: 'tnt', r: W.cfg.tnt.r }, f.x, f.y, f.z); special(W, f);
+  }
   W.fuses = W.fuses.filter((f) => !f.done);
 }
 /**

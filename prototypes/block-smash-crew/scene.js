@@ -295,6 +295,7 @@ export function createScene(cv, cfg) {
       if (!W.demo) spawnCoins(e.x, e.y + 1, e.z, Math.min(8, 2 + (e.n >> 5)));
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
+      if (e.kind === 'tnt') placeBarrels();
       addBlast(e.x, e.y, e.z, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
