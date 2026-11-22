@@ -13,6 +13,7 @@
 import * as L from './logic.js';
 import * as WD from './world.js';
 import { createScene } from './scene.js';
+import * as UI from './ui.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const STAR_SVG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7b0"/><stop offset=".5" stop-color="#ffd21f"/><stop offset="1" stop-color="#ff9f00"/></linearGradient></defs><path d="M50 6 61 37 94 37 67 57 77 90 50 70 23 90 33 57 6 37 39 37Z" fill="url(#g)" stroke="#7a4a00" stroke-width="7" stroke-linejoin="round"/><ellipse cx="40" cy="34" rx="7" ry="4" fill="#fff" opacity=".7" transform="rotate(-35 40 34)"/></svg>');
@@ -185,7 +186,7 @@ function startGame(mode) {
   // ---- language
   let lang = L.detectLang(typeof navigator !== 'undefined' ? navigator.languages || [navigator.language] : [], LANGS);
   const T = (k, v) => String((cfg.strings[lang] || {})[k] || cfg.strings.en[k] || k).replace('{n}', v);
-  const setDir = () => { root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.lang = lang; const np = root.querySelector('#nextpill'); if (np) np.textContent = lang === 'ar' ? '◀◀' : '▶▶'; };
+  const setDir = () => { root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.lang = lang; const np = root.querySelector('#nextpill'); if (np && !np.firstChild) np.innerHTML = UI.icon('play', 'flip') + UI.icon('play', 'flip'); };
   setDir();
 
   // ---- save: one slot; nothing is written until the player's own save has been read
@@ -220,7 +221,7 @@ function startGame(mode) {
 
   // ---- HUD
   const toolEls = {};
-  $('tools').innerHTML = cfg.tools.map((t) => `<button class="tool gloss" data-t="${t.id}" aria-label="${t.id}"><span class="ic">${t.icon}</span><i class="cd"></i><span class="free" hidden></span><span class="lock" hidden><i class="coin"></i><b></b></span></button>`).join('');
+  $('tools').innerHTML = cfg.tools.map((t) => `<button class="tool gloss" data-t="${t.id}" aria-label="${t.id}"><span class="ic">${UI.icon(t.id)}</span><i class="cd"></i><span class="free" hidden></span><span class="lock" hidden><i class="coin"></i><b></b></span></button>`).join('');
   for (const b of $('tools').querySelectorAll('.tool')) toolEls[b.dataset.t] = b;
   // the HIT button's verb follows the tool (BONK, BOOM, FIRE, SWING, PULL, CRASH); its ready pulse is tuned in the config
   const VERB = { hammer: 'vHammer', bomb: 'vBomb', rocket: 'vRocket', ball: 'vBall', hole: 'vHole', meteor: 'vMeteor' };
@@ -232,6 +233,8 @@ function startGame(mode) {
   $('bar').innerHTML = `<b></b><i style="left:${cfg.stars.wreck1 * 100}%"></i><i style="left:${cfg.stars.wreck2 * 100}%"></i><span class="pct"></span>`;
   $('bar').querySelectorAll('i').forEach((i) => { const im = document.createElement('img'); im.src = TROPHY_SVG; im.style.width = '100%'; i.appendChild(im); });
   const shown = { coins: -1, got: -1, wreck: -1, tools: '' };
+  /** A panel that pauses the world is open (the shop and album, the settings). */
+  const modalOpen = () => !$('shop').hidden || !$('settings').hidden;
   const usable = (id) => save.owned.includes(id) || (W && (W.fever > 0 || !W.tried.has(id)));
   function renderTools() {
     for (const t of cfg.tools) {
@@ -255,7 +258,6 @@ function startGame(mode) {
     if (got !== shown.got) { $('stars').querySelectorAll('img').forEach((im, i) => im.classList.toggle('on', i < got)); shown.got = got; }
     const wr = W ? Math.round(WD.wreck(W) * 100) : 0;
     if (wr !== shown.wreck) { const bar = $('bar'); bar.querySelector('b').style.width = wr + '%'; bar.querySelector('.pct').textContent = wr + '%'; const is = bar.querySelectorAll('i'); is[0].classList.toggle('on', wr >= cfg.stars.wreck1 * 100); is[1].classList.toggle('on', wr >= cfg.stars.wreck2 * 100); if (shown.wreck >= 0 && W && !demo) { if (shown.wreck < cfg.stars.wreck1 * 100 && wr >= cfg.stars.wreck1 * 100) starPop(); if (shown.wreck < cfg.stars.wreck2 * 100 && wr >= cfg.stars.wreck2 * 100) { starPop(); celebrate(T('flat'), 'flat'); } } shown.wreck = wr; }
-    $('langs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.l === lang));
   }
   const fmt = (n) => (n >= 1e6 ? (Math.floor(n / 1e5) / 10).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 10000 ? (Math.floor(n / 100) / 10).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n));
   /** A whole number with thousands commas (1,234), for the brag line. */
@@ -271,6 +273,8 @@ function startGame(mode) {
     const w = p.offsetWidth / (root.getBoundingClientRect().width / 720 || 1); // keep long words inside the frame
     if (w) p.style.left = `calc(var(--u)*${Math.max(w / 2 + 12, Math.min(708 - w / 2, x))}px)`;
   }
+  /** One of the game's own icons, big, at frame point (x, y). */
+  function popIcon(name, x, y) { const p = document.createElement('div'); p.className = 'pop p-ico'; p.innerHTML = UI.icon(name); p.style.left = `calc(var(--u)*${x}px)`; p.style.top = `calc(var(--u)*${y}px)`; $('pops').appendChild(p); setTimeout(() => p.remove(), 950); }
   const banner = (text, cls = 'p-big', dy = 0) => pop(text, 360, 560 + dy, cls);
   /**
    * Fits a text to its room, the box following its text: one line when it fits in maxW frame units; else (lines > 1)
@@ -333,7 +337,7 @@ function startGame(mode) {
   }
   function onDown(e) {
     if (mode !== 'play' || !W) return;
-    if (e.target.closest && e.target.closest('button, .settings, #panel, #shop, .pill')) return; // the coins pill opens the shop, it is not a tap on the world
+    if (e.target.closest && e.target.closest('button, #settings, #panel, #shop, .pill')) return; // the coins pill opens the shop, it is not a tap on the world
     Sound.unlock(cfg); $('settings').hidden = true;
     const [x, y] = toFrame(e);
     if (demo) firstTouch();
@@ -411,7 +415,7 @@ function startGame(mode) {
     el.querySelector('i').style.transform = `translate(calc(var(--u)*${stick.dx}px),calc(var(--u)*${stick.dy}px))`;
   }
   /** HIT (button, held mouse, space): the hammer swings at the crosshair while held; a tool is thrown there once. */
-  function onHitDown() { if (mode !== 'play' || !W || resultsOpen || !$('shop').hidden) return; firstTap = false; if (!demo && !save.learned.hit) { save.learned.hit = true; persistSoon(); } Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
+  function onHitDown() { if (mode !== 'play' || !W || resultsOpen || modalOpen()) return; firstTap = false; if (!demo && !save.learned.hit) { save.learned.hit = true; persistSoon(); } Sound.unlock(cfg); if (demo) firstTouch(); if (sel === 'hammer') hitHeld = true; else useCrosshair(); if (tipKey === 'find' || tipKey === 'tap') setTip(null); }
   function useCrosshair() {
     const t = scene.target || scene.pickCenter(); if (!t) return;
     const id = sel, wasOwned = save.owned.includes(id);
@@ -442,7 +446,7 @@ function startGame(mode) {
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id);
     if (!owned && !usable(id) && save.coins >= t.cost && saveLoaded) { // buy it, only once its free try is used (and never in smash time, which lends it)
       save.coins -= t.cost; save.owned.push(id); W.owned.push(id); persist();
-      Sound.play('unlock'); buzz('success'); banner(T('newTool'), 'p-mid'); pop(t.icon, 360, 700, 'p-big');
+      Sound.play('unlock'); buzz('success'); banner(T('newTool'), 'p-mid'); popIcon(t.id, 360, 700);
       root.appendChild(Object.assign(document.createElement('div'), { className: 'flash' })); setTimeout(() => { const f = root.querySelector('.flash'); if (f) f.remove(); }, 460);
       sel = id; renderTools(); renderTop(); return;
     }
@@ -464,7 +468,7 @@ function startGame(mode) {
   const onLockError = () => { lockRefused = true; };
   document.addEventListener('pointerlockerror', onLockError);
   const noMenu = (e) => e.preventDefault(); root.addEventListener('contextmenu', noMenu);
-  const onWheel = (e) => { if (mode !== 'play' || !W || !$('shop').hidden) return; const ids = cfg.tools.map((t) => t.id).filter(usable); const i = ids.indexOf(sel); if (ids.length) pickTool(ids[(i + (e.deltaY > 0 ? 1 : -1) + ids.length) % ids.length]); };
+  const onWheel = (e) => { if (mode !== 'play' || !W || modalOpen()) return; const ids = cfg.tools.map((t) => t.id).filter(usable); const i = ids.indexOf(sel); if (ids.length) pickTool(ids[(i + (e.deltaY > 0 ? 1 : -1) + ids.length) % ids.length]); };
   root.addEventListener('wheel', onWheel, { passive: true });
   const MOVE_KEYS = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'];
   const onKey = (e) => {
@@ -475,7 +479,8 @@ function startGame(mode) {
     if (mode !== 'play' || !W) return;
     if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); firstTap = false; Sound.unlock(cfg); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
-    if (!$('shop').hidden) return; // nothing is picked or bought behind the open shop
+    // nothing is picked or bought behind an open panel
+    if (modalOpen()) return;
     const dm = /^Digit([1-6])$/.exec(e.code || ''), i = dm ? Number(dm[1]) - 1 : '123456'.indexOf(e.key); if (i >= 0 && cfg.tools[i]) { pickTool(cfg.tools[i].id); e.preventDefault(); }
   };
   window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
@@ -588,73 +593,112 @@ function startGame(mode) {
     if (L.dailyDue(save.day, today)) { save.day = today; save.coins += cfg.coins.daily; save.total += cfg.coins.daily; persist(); setTimeout(() => { if (alive) { banner(T('daily'), 'p-mid', -120); pop('+' + fmt(cfg.coins.daily), 360, 560, 'p-big', '#ffe14a'); Sound.play('unlock'); } }, 600); }
   }
 
-  // ---- results: stars, coins, next tool, NEXT
+  // ---- panels: the result card, the shop and album, the settings share one shell (ui.js) and one way in and out
+  /** Closes a panel at once (the game reads `hidden`); a copy without ids plays the way out and is then removed. */
+  function hidePanel(el) {
+    if (el.hidden) return;
+    const gh = el.cloneNode(true); gh.removeAttribute('id'); for (const n of gh.querySelectorAll('[id]')) n.removeAttribute('id');
+    gh.classList.add('ghost'); gh.setAttribute('aria-hidden', 'true'); el.hidden = true; el.after(gh);
+    setTimeout(() => gh.remove(), 180);
+  }
+  /** The room inside an element, in frame units (its width without its padding). */
+  const roomIn = (el) => { const cs = getComputedStyle(el); return (el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / (root.getBoundingClientRect().width / 720 || 1); };
+  /** Fits every element matching sel inside box to the room of its parent (or its own box when it fills a row). */
+  const fitAll = (box, sel, base, lines = 1, own = false) => { for (const n of box.querySelectorAll(sel)) if (n.textContent) fitText(n, own ? roomIn(n) : roomIn(n.parentElement), base, lines); };
+  const NAME = { hammer: 'nHammer', bomb: 'nBomb', rocket: 'nRocket', ball: 'nBall', hole: 'nHole', meteor: 'nMeteor' };
+
+  // ---- results: stars, coins, the wreck figure, the next tool, NEXT and the quiet row under it
   function results() {
     if (!W || demo) return;
-    $('shop').hidden = true;
-    WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false; // a finger, key or stick still down stops behind the card
-    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ } // the cursor comes back for NEXT
-    const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1; // trophies for wrecking 50% and 80%
+    $('shop').hidden = true; $('settings').hidden = true;
+    // a finger, key or stick still down stops behind the card
+    WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false;
+    // the cursor comes back for NEXT
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ }
+    // trophies for wrecking 50% and 80%
+    const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1;
     // the level bonus is paid once; later visits (after smashing more) only add the stars' difference
     const bonus = paidStars === null ? L.levelBonus(cfg, W.n, stars) : (stars.every(Boolean) && !paidStars.every(Boolean) ? L.levelBonus(cfg, W.n, stars) / 2 : 0);
     paidStars = stars;
     save.coins += bonus; save.total += bonus;
-    if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); } // today's challenge: done for today
+    // today's challenge: done for today
+    if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); }
     else { const key = String(W.n % WD.KINDS.length); save.best[key] = Math.max(save.best[key] || 0, cups); if (save.level <= W.n) { save.level = W.n + 1; save.levels++; } }
     persist(); renderTop();
     try { if (saveLoaded) lib.addPlayerScoreToLeaderboard(save.blocks).catch(() => {}); } catch (er) { /* no board here */ }
-    const nt = L.nextTool(cfg, save.owned, save.coins);
+    const nt = L.nextTool(cfg, save.owned, save.coins), miss = nt ? nt.need - nt.have : 0;
     const share = typeof lib !== 'undefined' && typeof lib.share === 'function';
-    $('panel').innerHTML = `<div class="card"><div class="rays"></div>
+    // the wreck figure: its name, the share wrecked, and a bar with the two trophies standing at their thresholds
+    const marks = `<span class="cups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="inset-inline-start:${cfg.stars['wreck' + i] * 100}%;animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</span>`;
+    const quiet = [UI.secondary('keepBtn', 'hammer', T('keep'))];
+    if (!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date())) quiet.push(UI.secondary('dailyBtn', 'calendar', T('dailyGo')));
+    if (share) quiet.push(UI.secondary('shareBtn', 'plane', T('shareCta')));
+    $('panel').innerHTML = `<div class="card rcard"><div class="rays"></div>
       <div class="title out">${T('clear')}</div>
       <div class="bigstars">${[0, 1, 2].map((i) => `<img src="${STAR_SVG}" class="on" style="animation-delay:${0.15 + i * 0.15}s" alt="">`).join('')}</div>
-      <div class="cups"><span class="pct out">💥 ${Math.round(wr * 100)}%</span>${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</div>
-      <div class="stat out"><i class="coin"></i>+<b class="cnt">${fmt(W.coins + (bonus || 0))}</b></div>
+      <div class="stat out">${UI.COIN}+<b class="cnt">${fmt(W.coins + (bonus || 0))}</b></div>
       <div class="brag">${T('brag', commas(W.smashed))}</div>
-      ${nt ? `<div class="nexttool out"><span class="hi">${nt.tool.icon}</span><i><b style="width:${Math.round(nt.have / nt.need * 100)}%"></b></i><span>${fmt(nt.have)}/${fmt(nt.need)}</span></div>` : ''}
-      <div class="btns"><button id="nextBtn" class="big out">${T('next')} ${lang === 'ar' ? '◀' : '▶'}</button><button id="keepBtn" class="small out">🔨 ${T('keep')}</button>${!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date()) ? `<button id="dailyBtn" class="small daily out">📅 ${T('dailyGo')}</button>` : ''}${share ? `<button id="shareBtn" class="small share out">✈️ ${T('shareCta')}</button>` : ''}</div></div>`;
+      ${UI.meter({ ic: 'burst', label: T('wrecked'), value: `<b>${Math.round(wr * 100)}%</b>`, part: wr, marks })}
+      ${nt ? UI.meter({ ic: nt.tool.id, label: T(NAME[nt.tool.id]), value: miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(nt.need)}</b>`, part: nt.have / nt.need, cls: 'ntool' }) : ''}
+      <div class="btns">${UI.primary('nextBtn', T('next'), UI.icon('play', 'flip'))}<div class="brow">${quiet.join('')}</div></div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
     countUp($('panel').querySelector('.cnt'), W.coins + (bonus || 0));
     layoutCard($('panel'));
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
     if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
-    $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); $('panel').hidden = true; resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
+    $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); hidePanel($('panel')); resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
     if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('brag', commas(W.smashed)) + ' ' + T('share') })).catch(() => {}); });
   }
-  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); const n = W.daily ? save.level : Math.max(W.n + 1, save.level); wipeTo(() => newLevel(n)); } // a save that came late still counts; after the daily, back to the path
+  // a save that came late still counts; after the daily, back to the path
+  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); const n = W.daily ? save.level : Math.max(W.n + 1, save.level); wipeTo(() => newLevel(n)); }
   function startDaily() { Sound.unlock(cfg); Sound.play('unlock'); const n = L.dailyLevel(cfg, L.dayNum(new Date())); wipeTo(() => newLevel(n, { daily: true })); }
-  // ---- the shop (tap the coins): tools to unlock and upgrade (5 levels each), and the album of buildings
-  const KIND_ICON = { cottage: '🏠', candy: '🍬', castle: '🏰', lighthouse: '🗼', factory: '🏭', ice: '🧊', temple: '🛕', space: '🚀' };
+
+  // ---- the shop (tap the coins): a card per tool to unlock and upgrade, and the album of buildings
   let shopTab = 'tools';
   const lvOf = (id) => L.clampLv(cfg, save.lv[id] || 1);
+  /** Two numbers as text with just enough decimals to tell them apart ([now, next]; next null when there is none). */
+  const pair = (a, b) => { if (b == null) return [String(+a.toFixed(1)), null]; for (const d of [1, 2, 3]) if (a.toFixed(d) !== b.toFixed(d)) return [a.toFixed(d), b.toFixed(d)]; return [a.toFixed(1), null]; };
+  /**
+   * One tool's card: icon, name, level, what the next level changes (size, wait, coins: now → next) and the price
+   * button in one of its states: can pay (green), too expensive (grey, says how much is missing), max.
+   * A locked tool shows its lock and, while its free try of this level is unused, the tool bar's FREE badge.
+   */
+  function shopCard(t) {
+    const owned = save.owned.includes(t.id), lv = lvOf(t.id), cost = owned ? L.upgradeCost(cfg, t.id, lv) : t.cost;
+    const now = L.toolAt(cfg, t, owned ? lv : 1), nx = owned && cost !== null ? L.toolAt(cfg, t, lv + 1) : null;
+    const times = (p) => '×' + (+p.toFixed(1));
+    const fx = UI.change('size', ...pair(now.r, nx && nx.r)) + UI.change('clock', ...pair(now.cd, nx && nx.cd)) + (owned ? UI.change(UI.COIN, times(now.power), nx && times(nx.power)) : '');
+    const tryIt = !owned && W && W.fever <= 0 && !W.tried.has(t.id) ? `<span class="stry">${T('tryFree')}</span>` : '';
+    const miss = cost === null ? 0 : cost - save.coins, lead = UI.icon(owned ? 'up' : 'lock');
+    const btn = cost === null ? `<span class="pbtn max">${UI.icon('check')}<span class="tx">${T('max')}</span></span>`
+      : miss <= 0 ? `<button class="btn pbtn can" data-buy="${t.id}">${lead}${UI.COIN}<b>${fmt(cost)}</b></button>`
+        : `<button class="btn pbtn no" data-buy="${t.id}"><span class="pl">${lead}${UI.COIN}<b>${fmt(cost)}</b></span><span class="need"><bdi>${T('need', fmt(miss))}</bdi></span></button>`;
+    // the level as a number (30 levels: pips would not fit), with a thin bar towards the top
+    const level = owned ? `<b>${T('lv', lv)}</b><i><u style="width:${Math.round(lv / cfg.upgrade.max * 100)}%"></u></i>` : '';
+    return `<div class="srow tile${owned ? '' : ' locked'}"><span class="sic">${UI.icon(t.id)}${owned ? '' : `<i class="slock">${UI.icon('lock')}</i>`}</span><span class="slv">${level}${tryIt}</span><span class="sinfo"><span class="snm">${T(NAME[t.id])}</span><span class="sfx">${fx}</span></span>${btn}</div>`;
+  }
   function openShop(tab) {
-    if (mode !== 'play' || !W || resultsOpen || !saveLoaded) return; // nothing is bought before the save is read: a late save would undo it
+    // nothing is bought before the save is read: a late save would undo it
+    if (mode !== 'play' || !W || resultsOpen || !saveLoaded) return;
     shopTab = tab || shopTab; save.learned.shop = true; $('coins').classList.remove('can');
-    const tabs = `<div class="tabs"><button class="tab gloss ${shopTab === 'tools' ? 'on' : ''}" data-tab="tools">🛠️ ${T('tools')}</button><button class="tab gloss ${shopTab === 'album' ? 'on' : ''}" data-tab="album">📖 ${T('album')}</button></div>`;
     let body = '';
-    if (shopTab === 'tools') {
-      body = `<div class="srows">${cfg.tools.map((t) => {
-        const owned = save.owned.includes(t.id), lv = lvOf(t.id), cost = owned ? L.upgradeCost(cfg, t.id, lv) : t.cost;
-        const btn = cost === null ? `<span class="sbtn max">${T('max')}</span>` : `<button class="sbtn ${save.coins >= cost ? '' : 'no'}" data-buy="${t.id}">${owned ? '⬆' : '🔓'} <i class="coin"></i>${fmt(cost)}</button>`;
-        // the level as a number (30 levels: pips would not fit), with a thin bar towards the top
-        return `<div class="srow"><span class="sic">${t.icon}</span><span class="slv">${owned ? `<b>${T('lv', lv)}</b><i><u style="width:${Math.round(lv / cfg.upgrade.max * 100)}%"></u></i>` : ''}</span>${btn}</div>`;
-      }).join('')}</div>`;
-    } else {
+    if (shopTab === 'tools') body = `<div class="sgrid">${cfg.tools.map(shopCard).join('')}</div>`;
+    else {
       const seen = {}; for (const [k, v] of Object.entries(save.best)) { const n = Number(k); if (!Number.isFinite(n)) continue; const kind = WD.KINDS[n % WD.KINDS.length]; seen[kind] = Math.max(seen[kind] || 0, v); }
-      body = `<div class="agrid">${WD.KINDS.map((k) => { const has = k in seen; return `<div class="atile ${has ? '' : 'off'}"><span class="aic">${has ? KIND_ICON[k] : '❓'}</span><span class="anm">${has ? T(k) : ''}</span><span class="acups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${has && seen[k] >= i ? 'on' : ''}" alt="">`).join('')}</span></div>`; }).join('')}</div>`;
+      body = `<div class="agrid">${WD.KINDS.map((k) => { const has = k in seen; return `<div class="atile tile ${has ? '' : 'off'}"><span class="aic">${UI.icon(has ? k : 'unknown')}</span><span class="ainfo"><span class="anm">${has ? T(k) : ''}</span><span class="acups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${has && seen[k] >= i ? 'on' : ''}" alt="">`).join('')}</span></span></div>`; }).join('')}</div>`;
     }
-    $('shop').innerHTML = `<div class="card shopcard"><div class="shead"><i></i>${tabs}<button id="shopX" class="round gloss sx" aria-label="close">✕</button></div>${body}</div>`;
-    $('shop').hidden = false; Sound.play('blip');
-    const tabsEl = $('shop').querySelector('.tabs'); fitRow(tabsEl, [...tabsEl.querySelectorAll('.tab')], 30);
-    // building names: two balanced lines in their tile before a smaller font
-    const k = root.getBoundingClientRect().width / 720 || 1;
-    for (const n of $('shop').querySelectorAll('.anm')) if (n.textContent) fitText(n, n.parentElement.clientWidth / k - 12, 24, 2);
-    for (const n of $('shop').querySelectorAll('.slv b')) fitText(n, n.parentElement.clientWidth / k - 4, 30);
+    const sh = $('shop'), still = !sh.hidden;
+    $('settings').hidden = true;
+    sh.innerHTML = UI.panel({ head: UI.tabs([{ id: 'tools', icon: 'hammer', text: T('tools'), on: shopTab === 'tools' }, { id: 'album', icon: 'book', text: T('album'), on: shopTab === 'album' }]), body, closeId: 'shopX', cls: 'shopcard', still });
+    sh.hidden = false; Sound.play('blip');
+    const tabsEl = sh.querySelector('.tabs'); fitRow(tabsEl, [...tabsEl.querySelectorAll('.tab')], 30);
+    // names: two balanced lines in their card before a smaller font
+    fitAll(sh, '.snm, .anm', 24, 2); fitAll(sh, '.slv b', 20); for (const n of sh.querySelectorAll('.stry')) fitText(n, 100, 18); fitAll(sh, '.need', 18); fitAll(sh, '.pbtn.max .tx', 30);
   }
   function buyOrUpgrade(id) {
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
-    if (cost === null || save.coins < cost) { Sound.play('no'); return false; }
+    if (cost === null || save.coins < cost) { Sound.play('no'); const b = $('shop').querySelector(`[data-buy="${id}"]`); if (b) { b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); } return false; }
     save.coins -= cost;
     if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
     persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
@@ -663,9 +707,9 @@ function startGame(mode) {
   $('shop').addEventListener('pointerdown', (e) => e.stopPropagation());
   $('shop').addEventListener('click', (e) => {
     e.stopPropagation();
-    const b = e.target.closest('button'); if (!b) { if (!e.target.closest('.card')) { $('shop').hidden = true; } return; }
+    const b = e.target.closest('button'); if (!b) { if (!e.target.closest('.card')) hidePanel($('shop')); return; }
     try { b.blur(); } catch (er) { /* fine */ }
-    if (b.id === 'shopX') { $('shop').hidden = true; Sound.play('blip'); return; }
+    if (b.id === 'shopX') { hidePanel($('shop')); Sound.play('blip'); return; }
     if (b.dataset.tab) { openShop(b.dataset.tab); return; }
     if (b.dataset.buy) buyOrUpgrade(b.dataset.buy);
   });
@@ -673,14 +717,31 @@ function startGame(mode) {
   $('nextpill').addEventListener('click', (e) => { e.stopPropagation(); results(); });
   $('panel').addEventListener('pointerdown', (e) => e.stopPropagation());
 
-  // ---- top bar
+  // ---- settings (the gear): sound and the language, in the same panel shell
   let muteTouched = false;
-  const blur = (e) => { try { e.currentTarget.blur(); } catch (er) { /* fine */ } };
-  $('gear').addEventListener('click', (e) => { e.stopPropagation(); blur(e); Sound.unlock(cfg); Sound.play('blip'); $('settings').hidden = !$('settings').hidden; renderTop(); });
-  $('mute').addEventListener('click', (e) => { e.stopPropagation(); blur(e); muteTouched = true; Sound.unlock(cfg); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; $('mute').textContent = Sound.muted ? '🔇' : '🔊'; persist(); });
-  $('langs').innerHTML = LANGS.map((l) => `<button data-l="${l}" class="gloss">${cfg.langNames[l]}</button>`).join('');
-  $('langs').addEventListener('click', (e) => { e.stopPropagation(); const l = e.target.dataset && e.target.dataset.l; if (!l) return; try { e.target.blur(); } catch (er) { /* fine */ } lang = l; save.lang = l; setDir(); signLang(); $('settings').hidden = true; renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); persist(); });
+  /** The sound button shows the sound's state. */
+  function syncMute() { const m = $('mute'); if (m) m.querySelector('.ico').outerHTML = UI.icon(Sound.muted ? 'soundOff' : 'soundOn'); }
+  function openSettings() {
+    const st = $('settings'), still = !st.hidden;
+    $('shop').hidden = true;
+    const body = `<button id="mute" class="btn sec wide" aria-label="sound">${UI.icon(Sound.muted ? 'soundOff' : 'soundOn')}<span class="tx">${T('sound')}</span></button>
+      <div class="plabel">${UI.icon('globe')}<span class="tx">${T('language')}</span></div>
+      <div id="langs" class="langs">${LANGS.map((l) => `<button data-l="${l}" class="btn sec${l === lang ? ' on' : ''}"><span class="tx">${cfg.langNames[l]}</span></button>`).join('')}</div>`;
+    st.innerHTML = UI.panel({ head: UI.title(T('settings'), 'gear'), body, closeId: 'setX', cls: 'setcard', still });
+    st.hidden = false;
+    fitAll(st, '.ptitle .tx', 44); fitAll(st, '#mute .tx', 30); fitAll(st, '.plabel .tx', 24); fitAll(st, '.langs .tx', 30);
+  }
+  $('gear').addEventListener('click', (e) => { e.stopPropagation(); try { e.currentTarget.blur(); } catch (er) { /* fine */ } Sound.unlock(cfg); Sound.play('blip'); if ($('settings').hidden) openSettings(); else hidePanel($('settings')); renderTop(); });
   $('settings').addEventListener('pointerdown', (e) => e.stopPropagation());
+  $('settings').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const b = e.target.closest('button'); if (!b) { if (!e.target.closest('.card')) hidePanel($('settings')); return; }
+    try { b.blur(); } catch (er) { /* fine */ }
+    if (b.id === 'setX') { hidePanel($('settings')); Sound.play('blip'); return; }
+    if (b.id === 'mute') { muteTouched = true; Sound.unlock(cfg); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; syncMute(); persist(); return; }
+    const l = b.dataset.l; if (!l) return;
+    lang = l; save.lang = l; setDir(); signLang(); hidePanel($('settings')); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); persist();
+  });
 
   // ---- frame loop
   let stopT = 0, slowT = 0;
@@ -734,7 +795,7 @@ function startGame(mode) {
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
       W.frozen = stopT > 0;
-      if ($('shop').hidden) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
+      if (!modalOpen()) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
       if (W.fever > 0) $('ftime').textContent = '⏱ ' + Math.ceil(W.fever);
       // cooldown rings
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
@@ -795,7 +856,7 @@ function startGame(mode) {
     c.hidden = false; fitText(lb, 600, 44, 2); $('tip').hidden = true;
   }
   function coachTick(dt) {
-    if (demo || resultsOpen || !$('shop').hidden || W.phase === 'free') { showCoach(null); return; }
+    if (demo || resultsOpen || modalOpen() || W.phase === 'free') { showCoach(null); return; }
     const h = W.hero, d = Math.hypot(h.x - lastHX, h.z - lastHZ); lastHX = h.x; lastHZ = h.z;
     if (h.move && (h.move.x || h.move.z)) walkD += Math.min(d, 1);
     if (!save.learned.walk && walkD > 2) { save.learned.walk = true; persistSoon(); }
@@ -819,7 +880,7 @@ function startGame(mode) {
   /** A new level: a card with the building's icon, its number and name (and BOSS / DAILY). */
   function levelCard(n) {
     const el = $('lvcard'), tag = W.daily ? `<span class="lvtag d">📅 ${T('dailyGo')}</span>` : W.boss ? `<span class="lvtag">👑 ${T('boss')}</span>` : '';
-    el.innerHTML = `<span class="lvic">${KIND_ICON[W.kind] || '🏠'}</span><b class="out">${T('level', n + 1)}</b><span class="lvnm">${T(W.kind)}</span>${tag}`;
+    el.innerHTML = `<span class="lvic">${UI.icon(W.kind in UI.ICONS ? W.kind : 'cottage')}</span><b class="out">${T('level', n + 1)}</b><span class="lvnm">${T(W.kind)}</span>${tag}`;
     el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
     clearTimeout(levelCard.t); levelCard.t = setTimeout(() => { el.hidden = true; }, 2300);
     for (const x of el.querySelectorAll('b, .lvnm, .lvtag')) fitText(x, 600, x.tagName === 'B' ? 72 : 40, x.classList.contains('lvnm') ? 2 : 1);
@@ -838,19 +899,17 @@ function startGame(mode) {
   let starsFlown = 0;
   const flyStar = (sx, sy) => { const slots = $('stars').querySelectorAll('img'), i = Math.min(2, starsFlown++); fly(`<img class="fst" src="${STAR_SVG}" alt="">`, sx, sy, slots[i], 'land'); };
   /**
-   * A card's text follows its length: the title fits the card, and the buttons (NEXT, KEEP SMASHING, DAILY) share
-   * one width set by the longest label (at least 340, at most the card's inner width), a long label wrapping in two.
+   * The result card's text follows its length: the title and the brag line fit the card, a meter's label fits beside
+   * its value, NEXT fits the card, and the quiet buttons (equal shares of one row) wrap their words in two lines.
    */
   function layoutCard(panel) {
     const card = panel.querySelector('.card'); if (!card) return;
-    const k = root.getBoundingClientRect().width / 720 || 1, cs = getComputedStyle(card);
-    const inner = (card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / k;
-    const title = card.querySelector('.title'); if (title) fitText(title, inner, 68, 2);
-    const brag = card.querySelector('.brag'); if (brag) fitText(brag, inner, 38, 2);
-    const bs = [...card.querySelectorAll('.btns .big, .btns .small')];
-    for (const b of bs) { b.style.width = ''; b.style.whiteSpace = 'nowrap'; }
-    const w = Math.min(inner, Math.max(340, ...bs.map((b) => Math.ceil(b.offsetWidth / k))));
-    for (const b of bs) { b.style.width = `calc(var(--u)*${w}px)`; fitText(b, w, b.classList.contains('big') ? 52 : 32, 2); }
+    const inner = roomIn(card);
+    const title = card.querySelector('.title'); if (title) fitText(title, inner, 60, 2);
+    const brag = card.querySelector('.brag'); if (brag) fitText(brag, inner, 30, 2);
+    fitAll(card, '.mlab', 24, 1, true);
+    const nx = card.querySelector('.pri .tx'); if (nx) fitText(nx, roomIn(nx.parentElement) - 60, 52);
+    fitAll(card, '.brow .tx', 24, 2);
   }
   /** The result card's coins count up from 0. */
   function countUp(el, to) {
@@ -928,7 +987,7 @@ function startGame(mode) {
         coachK = '-'; showCoach(null);
         save.lang = picked || (LANGS.includes(st.lang) ? st.lang : null);
         if (save.lang) { lang = save.lang; setDir(); signLang(); }
-        save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊';
+        save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); syncMute();
         if (W) { for (const id of save.owned) if (!W.owned.includes(id)) W.owned.push(id); for (const t of W.cfg.tools) Object.assign(t, L.toolAt(cfg, cfg.tools.find((x) => x.id === t.id), save.lv[t.id] || 1)); } // the saved upgrades apply to the level already running
         localGain = earnedTotal > 0 || levelsLocal > 0 || blocks > 0;
       }
@@ -970,17 +1029,16 @@ const HTML = `
 <div id="hud" class="hud">
   <div class="top">
     <div id="coins" class="pill coins gloss"><i class="coin"></i><b>0</b><span id="dot" class="dot" hidden>!</span></div>
-    <div class="mid"><div id="stars" class="pill stars gloss"></div><div id="bar" class="bar"></div><button id="nextpill" class="nextpill out" hidden>▶▶</button></div>
-    <button id="gear" class="round gloss" aria-label="settings">⚙️</button>
+    <div class="mid"><div id="stars" class="pill stars gloss"></div><div id="bar" class="bar"></div><button id="nextpill" class="nextpill out" hidden></button></div>
+    <button id="gear" class="btn ibtn" aria-label="settings">${UI.icon('gear')}</button>
   </div>
-  <div id="settings" class="settings gloss" hidden><button id="mute" class="round gloss" aria-label="sound">🔊</button><div id="langs" class="langs"></div></div>
   <div id="fever" class="fever" hidden></div>
   <div id="ftime" class="ftime out" hidden></div>
   <div id="arrows"></div>
   <div id="cross" class="cross"></div>
   <div id="stickHome" class="stick home"><i></i></div>
   <div id="stick" class="stick" hidden><i></i></div>
-  <button id="hit" class="hitbtn gloss" aria-label="hit"><span class="hic">💥</span><span class="hl out"></span></button>
+  <button id="hit" class="hitbtn gloss" aria-label="hit"><span class="hic">${UI.icon('burst')}</span><span class="hl out"></span></button>
   <div id="keys" class="keys out">WASD · 🖱️ · 1-6</div>
   <div id="tip" class="tip out" hidden></div>
   <div id="tools" class="tools"></div>
@@ -993,6 +1051,7 @@ const HTML = `
   <div id="hand" class="hand" hidden>👆</div>
   <div id="panel" class="panel" hidden></div>
   <div id="shop" class="panel" hidden></div>
+  <div id="settings" class="panel" hidden></div>
   <div id="wipe" class="wipe" hidden></div>
 </div>`;
 
