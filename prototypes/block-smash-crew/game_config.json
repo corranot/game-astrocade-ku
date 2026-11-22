@@ -423,7 +423,18 @@
    "vRocket": "FIRE",
    "vBall": "SWING",
    "vHole": "PULL",
-   "vMeteor": "CRASH"
+   "vMeteor": "CRASH",
+   "nHammer": "HAMMER",
+   "nBomb": "BOMB",
+   "nRocket": "ROCKET",
+   "nBall": "WRECKING BALL",
+   "nHole": "BLACK HOLE",
+   "nMeteor": "METEOR",
+   "settings": "SETTINGS",
+   "sound": "SOUND",
+   "language": "LANGUAGE",
+   "wrecked": "WRECKED",
+   "need": "NEED {n}"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -484,7 +495,18 @@
    "vRocket": "أطلق",
    "vBall": "دحرج",
    "vHole": "اسحب",
-   "vMeteor": "ارتطام"
+   "vMeteor": "ارتطام",
+   "nHammer": "مطرقة",
+   "nBomb": "قنبلة",
+   "nRocket": "صاروخ",
+   "nBall": "كرة الهدم",
+   "nHole": "ثقب أسود",
+   "nMeteor": "نيزك",
+   "settings": "الإعدادات",
+   "sound": "الصوت",
+   "language": "اللغة",
+   "wrecked": "التحطيم",
+   "need": "ينقص {n}"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -545,7 +567,18 @@
    "vRocket": "LANZA",
    "vBall": "BOLA",
    "vHole": "ATRAE",
-   "vMeteor": "IMPACTO"
+   "vMeteor": "IMPACTO",
+   "nHammer": "MARTILLO",
+   "nBomb": "BOMBA",
+   "nRocket": "COHETE",
+   "nBall": "BOLA DEMOLEDORA",
+   "nHole": "AGUJERO NEGRO",
+   "nMeteor": "METEORITO",
+   "settings": "AJUSTES",
+   "sound": "SONIDO",
+   "language": "IDIOMA",
+   "wrecked": "DESTRUIDO",
+   "need": "FALTAN {n}"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -606,7 +639,18 @@
    "vRocket": "PHÓNG",
    "vBall": "LĂN",
    "vHole": "HÚT",
-   "vMeteor": "RẦM"
+   "vMeteor": "RẦM",
+   "nHammer": "BÚA",
+   "nBomb": "BOM",
+   "nRocket": "TÊN LỬA",
+   "nBall": "QUẢ CẦU PHÁ",
+   "nHole": "HỐ ĐEN",
+   "nMeteor": "THIÊN THẠCH",
+   "settings": "CÀI ĐẶT",
+   "sound": "ÂM THANH",
+   "language": "NGÔN NGỮ",
+   "wrecked": "ĐÃ PHÁ",
+   "need": "THIẾU {n}"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -667,7 +711,18 @@
    "vRocket": "छोड़ो",
    "vBall": "घुमाओ",
    "vHole": "खींचो",
-   "vMeteor": "टक्कर"
+   "vMeteor": "टक्कर",
+   "nHammer": "हथौड़ा",
+   "nBomb": "बम",
+   "nRocket": "रॉकेट",
+   "nBall": "तोड़ू गोला",
+   "nHole": "ब्लैक होल",
+   "nMeteor": "उल्का",
+   "settings": "सेटिंग्स",
+   "sound": "आवाज़",
+   "language": "भाषा",
+   "wrecked": "तोड़-फोड़",
+   "need": "{n} और चाहिए"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -728,7 +783,18 @@
    "vRocket": "ছোড়ো",
    "vBall": "ঘোরাও",
    "vHole": "টানো",
-   "vMeteor": "ধাম"
+   "vMeteor": "ধাম",
+   "nHammer": "হাতুড়ি",
+   "nBomb": "বোমা",
+   "nRocket": "রকেট",
+   "nBall": "ভাঙার গোলা",
+   "nHole": "ব্ল্যাক হোল",
+   "nMeteor": "উল্কা",
+   "settings": "সেটিংস",
+   "sound": "শব্দ",
+   "language": "ভাষা",
+   "wrecked": "ভাঙা হয়েছে",
+   "need": "আরও {n} চাই"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -789,7 +855,18 @@
    "vRocket": "LUNCUR",
    "vBall": "AYUN",
    "vHole": "SEDOT",
-   "vMeteor": "BRAK"
+   "vMeteor": "BRAK",
+   "nHammer": "PALU",
+   "nBomb": "BOM",
+   "nRocket": "ROKET",
+   "nBall": "BOLA PENGHANCUR",
+   "nHole": "LUBANG HITAM",
+   "nMeteor": "METEOR",
+   "settings": "PENGATURAN",
+   "sound": "SUARA",
+   "language": "BAHASA",
+   "wrecked": "HANCUR",
+   "need": "KURANG {n}"
   }
  },
  "persistent_storage_config": {

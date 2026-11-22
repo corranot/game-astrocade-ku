@@ -148,6 +148,30 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - **Low tier:** a plain material without the reflection (no sky picture is ever made), half the sparks and puffs.
 - Not proven here: FPS on a real phone, how the three sound layers mix on a phone speaker, whether the sleeve's
   yellow stripe is too loud when the hand is up (it is the old arm, now seen from above at the strike).
+## One design system for the panels (22 Nov, owner: menus and panels rebuilt)
+- **Own icons (`ui.js`):** 6 tools, 8 buildings and the panel furniture (close, lock, sound, calendar, share plane,
+  gear, play, check, arrow, globe, book, size, clock, burst) as inline SVG in one style (48 box, 3.5 outline, 2–3 flat
+  colours). Used in the tool bar, HIT, shop, album, result card, level card and the unlock pop. The config's emoji
+  `icon` stays only as a text fallback. Emoji inside translated sentences (💣, 💥) stay.
+- **Tokens (`index.html`, on `#app`):** spacing `--m` 20, `--g` 12, `--g2` 6, `--pad` 40 (2 × margin); sizes `--i0…8`
+  (icons), `--f0…6` (text), `--h-*`; motion `--t-in` .22 s, `--t-out` .16 s. Panels use no other spacing values.
+- **One panel shell (`UI.panel`):** card 680 wide (page margin left and right), radius 48, padding 40 (+7 at the
+  bottom for the button shadow), header 96 with title or tabs at the start and the close button in the far corner
+  (left in Arabic), one scrim. Shop, album and settings use it; the result card uses the same card and tokens. Every
+  card stays between the wreck bar and the tool bar (≤ 968 tall), so no HUD button is half covered. Settings now
+  pauses the world like the shop.
+- **Buttons, one colour per role:** green = primary (NEXT, one per screen) and a price that can be paid; white-blue =
+  secondary (icon above words), icon button, tab; yellow = picked (tab, language); grey = too expensive.
+- **Result card:** NEXT, then one row of quiet buttons (KEEP / DAILY / SHARE, equal width and height). Two meters:
+  WRECKED n% with the two trophies standing at 50% and 80% on the bar, and the next tool by name with the coins
+  still missing (or a tick and its price).
+- **Shop cards (2 × 3):** icon, name, "Lv n" + bar, now → next for size, wait and coins (`toolAt`), and one price
+  button: can pay (green), too expensive (grey + "NEED 30k"), locked (lock + price, FREE badge while this level's
+  try is unused), MAX. Album: 2 × 4 cards with the building's icon, name and trophies.
+- **Measured (`look.js panelGeo`, 7 languages, 4 panels):** card centred on the page margin, clear of the top bar
+  and the tool bar, children even left/right, rows on the inner margin 48, top 48 / bottom 55, rows of cards and
+  buttons one height, columns sharing edges, price buttons 12 from their card, close button in its corner, one primary.
+- Not proven here: the icons and fonts on real phones, touch feel of the 72-unit price buttons (their tap area is 96).
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
