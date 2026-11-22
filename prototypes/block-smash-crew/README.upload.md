@@ -9,15 +9,29 @@ and each one hides 3 stars: one in the treasure chest inside a steel vault, one 
 one deep inside behind the rooms.
 
 ## How to play
-First person: you see your hands and your tool. The game finds your device by itself.
-- Phone or tablet: the stick (lower left) walks, drag anywhere to look around, hold the 💥 button to smash what the
-  crosshair shows. Or just tap a block: you run there and smash it; hold on a block to keep smashing.
+First person: you see your hands and your tool. The game finds your device by itself. The first times, a bright spotlight shows each
+control (walk, look, smash, bomb) until you have used it.
+- Phone or tablet: the stick (lower left) walks, swipe anywhere else to look around, hold the 💥 button to smash what
+  the crosshair shows. Or tap a block close to you to smash it; hold on it to keep smashing.
 - Computer: WASD or the arrow keys walk (Shift runs), the mouse looks around, click or Space smashes, 1–6 or the
   wheel pick a tool.
 - Steel is too hard for the hammer: pick the 💣 bomb and throw it at the steel.
 - Anything left without support falls down and shatters — knock out the bottom of a tower and watch it crash!
 - Find all 3 stars for SMASH TIME: every tool unlocked, no waiting, double coins.
 - Trophies for wrecking 50% and 80% of the building. Keep smashing as long as you like, then press NEXT.
+
+- Tap a shining star to throw a free star bomb at it. If the hammer bounces off steel a few times, SUPER HAMMER breaks it.
+- Red TNT barrels blow up and set off the ones next to them; tall towers tip over — TIMBER!
+- Waves of little toy BONK-BOTs march at you, holding funny cardboard signs ("CAN'T TOPPLE OUR TOWER!") and wearing
+  party hats, chef hats, pirate hats and more. Hit them (hammer, bombs, TNT, falling pieces, even another flying robot)
+  and they fly — BONK! — then reboot with a smile, beep and walk away. A new wave comes every half minute; knock over a
+  whole wave for bonus coins. They are toys: they never break for good.
+
+Every 5th building is a BOSS (the biggest, double coins). Levels change between day, sunset and snow. Tap your coins to
+open the shop (a red "!" says you can buy something): unlock tools and upgrade each one up to level 30, and see your
+album of buildings and trophies. Big moments (SMASH TIME, a flattened building, a cleared wave, a new record blast) get
+confetti, and the result card tells how many blocks you smashed — show a friend with ✈️. A daily
+challenge (double coins) waits on the result card.
 
 Tools: hammer, bomb, rocket, wrecking ball, black hole and meteor. Coins unlock tools; every locked tool has one
 free try per level. Daily gift, endless levels (the buildings grow), a leaderboard of blocks smashed. No timer, no
@@ -31,5 +45,7 @@ under ⚙️.
 - `voxels.js` — block grid, ray cast, smashing, collapse check, mesh builder with corner shading.
 - `levels.js` — the eight building generators.
 - `logic.js` — coins, combo, trophies, unlocks, daily gift.
-- `scene.js` — the 3D look: blocks, first-person camera, hands and tools, flying pieces, dust, coins, explosions.
-- `game_config.json` — tuning values and all player text in 7 languages; leaderboard of blocks smashed.
+- `bots.js` — the BONK-BOT toy robots: waves, marching, signs and costumes, the floppy ragdoll, rebooting, leaving.
+- `scene.js` — the 3D look: blocks, first-person camera, hands and tools, robots with faces, signs and costumes, flying pieces, dust, coins, explosions.
+- `game_config.json` — tuning values, sounds and all player text in 7 languages; leaderboard of blocks smashed.
+- `asset_map.json` — the recorded sound effects and music.

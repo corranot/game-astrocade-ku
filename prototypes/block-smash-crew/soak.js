@@ -16,10 +16,27 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   await g(() => { window.__ft = []; let last = performance.now(); const tick = (t) => { window.__ft.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
   const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
   await g(() => { const a = document.querySelector('#app').getBoundingClientRect(); document.querySelector('#app').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, clientX: a.left + a.width / 2, clientY: a.top + a.height * 0.4, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true })); __bot(true); });
+  // the same fresh building before and after the run: a leak shows as more GPU geometries the second time
+  const fresh = () => g(async () => { const n = __game.W.n; __game.newLevel(0); await new Promise((r) => setTimeout(r, 600)); const geo = __game.geometries; __game.newLevel(n); return geo; });
+  // warm up: every tool thrown once (each shot kind builds its shared geometry the first time, then reuses it)
+  await g(async () => { const W = __game.W; W.fever = 5; for (const t of W.cfg.tools) if (t.id !== 'hammer') { W.cool[t.id] = 0; __game.WD.useTool(W, t.id, { x: W.chest.x, y: 1, z: W.chest.z }); } await new Promise((r) => setTimeout(r, 3000)); });
+  // and the robots' bounded pools: every costume, face and the full pool of sign cards drawn once
+  await g(async () => { const W = __game.W, base = W.bots[1], sc = __game.scene, extra = [];
+    // in front of the eye (what is out of view is never drawn, so never uploaded)
+    const fx = -Math.sin(sc.yaw), fz = -Math.cos(sc.yaw), h = W.hero;
+    for (let k = 0; k < 30; k++) { const d = 3 + Math.floor(k / 6) * 0.8, side = ((k % 6) - 2.5) * 0.35 * d / 3; extra.push({ ...base, id: 7000 + k, sign: k, costume: (k % 7) - 1, mouth: k % 5, happy: 0, pts: null, x: h.x + fx * d - fz * side, z: h.z + fz * d + fx * side, yaw: Math.atan2(-fx, -fz) }); }
+    W.bots.push(...extra);
+    // marching, knocked (X and dizzy eyes), getting up (the smile): every face cell once
+    // (all in one go, drawn by hand: the game's own loop never steps these stand-ins)
+    for (const st of ['march', 'down', 'reboot']) { for (const b of extra) b.state = st; sc.update(W, 0.016); }
+    W.bots.splice(W.bots.length - extra.length, extra.length); sc.update(W, 0.016); });
+  const geo0 = await fresh();
   const mem = [], kinds = new Set(), ft = []; let coins0 = 0;
   for (let i = 0; i < levels; i++) {
     const t0 = Date.now();
     while (Date.now() - t0 < 120000) { if (await g(() => __game.resultsOpen)) break; await page.waitForTimeout(200); }
+    // count GPU objects once nothing is falling (a falling piece holds its own geometry until it lands)
+    await page.waitForFunction(() => !__game.W.falls.length && !__game.W.fuses.length, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(400);
     const st = await g(() => ({ open: __game.resultsOpen, n: __game.W.n, kind: __game.W.kind, lvl: __game.save.level, coins: __game.save.coins, t: __game.textures, geo: __game.geometries, last: (window.__writes || []).slice(-1)[0], c: __game.scene.counts }));
     kinds.add(st.kind);
     check(st.open && st.lvl === i + 1 && st.coins > coins0 && st.last && st.last.level === st.lvl, `level ${i + 1} (${st.kind}): finished, paid (${st.coins} coins), saved`);
@@ -29,15 +46,15 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
     await page.waitForTimeout(300);
   }
   console.log('gpu [textures, geometries] after each level:', JSON.stringify(mem));
-  // geometry per level depends on the building (chunks), so compare the same building kind a full cycle apart
-  const same = mem.length > 8 ? Math.abs(mem[mem.length - 1][1] - mem[mem.length - 1 - 8][1]) : 0;
+  // buildings grow every cycle of 8, so a level 8 apart is not the same size: compare the same fresh level 1
+  const geo1 = await fresh(), same = geo1 - geo0;
   console.log('median frame ms per level:', JSON.stringify(ft));
   // level 1 is warm-up (shader compile, first textures); compare levels 2-4 with the last 3. rAF gaps snap to
   // 16.7 ms steps, so one step up is already 2x slower: fail on a climb of half a 60 Hz frame (8 ms)
   if (ft.length >= 7) { const early = med(ft.slice(1, 4)), late = med(ft.slice(-3)); check(late - early < 8, `frame time does not climb (early ${early} ms, late ${late} ms)`); }
   const tex = mem.slice(1).map((m) => m[0]);
   check(Math.max(...tex) - Math.min(...tex) <= 1, 'GPU textures stay flat');
-  check(same <= 4, `geometries do not pile up (same building 8 levels apart differs by ${same})`);
+  check(same <= 2, `geometries do not pile up (the same fresh level 1: ${geo0} before, ${geo1} after 10 levels)`);
   check(kinds.size === Math.min(8, levels), `every building came up (${[...kinds].join(', ')})`);
   check(errors.length === 0, 'no page errors: ' + (errors.join(' | ') || 'none'));
   await browser.close(); server.close();

@@ -103,7 +103,7 @@ const BUILD = {
     cylinder(g, cx, cz, 3.6, top + 2, top + 4, M.glass);
     cone(g, cx, top + 5, cz, 4.4, M.roofRed);
     // keeper's cottage in front, where the vault is
-    const hx0 = x0 + 1, hz0 = z0 + 12, hx1 = x1 - 1, hz1 = z1; walls(g, hx0, hz0, hx1, hz1, 0, 4, M.plaster); windows(g, hx0, hz0, hx1, hz1, [1], M.glass, 4); gable(g, hx0, hz0, hx1, hz1, 5, M.roofBlue, M.plaster);
+    const hx0 = x0 + 1, hz0 = z0 + 13, hx1 = x1 - 1, hz1 = z1; walls(g, hx0, hz0, hx1, hz1, 0, 4, M.plaster); windows(g, hx0, hz0, hx1, hz1, [1], M.glass, 4); gable(g, hx0, hz0, hx1, hz1, 5, M.roofBlue, M.plaster);
     return { chest: vault(g, M, ((hx0 + hx1) >> 1) - 1, ((hz0 + hz1) >> 1) - 1) };
   },
   factory(g, M, b, rnd) {
@@ -163,7 +163,9 @@ export const KINDS = Object.keys(BUILD);
  */
 export function buildLevel(cfg, n) {
   const M = matIds(cfg), L = cfg.level;
-  const kind = KINDS[n % KINDS.length], s = Math.min(L.maxStep, Math.floor(n / KINDS.length));
+  // every 5th level is a boss: the biggest size of its building; the look also changes with the level (theme)
+  const boss = n % 5 === 4 && n < 1000, kind = KINDS[n % KINDS.length], s = boss ? L.maxStep : Math.min(L.maxStep, Math.floor(n / KINDS.length));
+  const theme = ['day', 'sunset', 'snow'][n % 3] === 'snow' && kind === 'ice' ? 'day' : ['day', 'sunset', 'snow'][n % 3];
   const rnd = rng(1000 + n * 7919);
   const g = createGrid(L.W, L.H, L.D);
   const w = Math.min(L.W - 12, L.bw + s * 2 + (kind === 'castle' ? 4 : 0)), d = Math.min(L.D - 18, L.bd + s * 2 + (kind === 'lighthouse' ? 8 : 0));
@@ -180,10 +182,18 @@ export function buildLevel(cfg, n) {
   const high = pick((x, y, z) => y >= Math.max(5, Math.floor(top * 0.6)) && y <= top - 1);
   const deep = pick((x, y, z) => y >= 1 && y <= 2 && z <= chest.z - 2 && z >= b.z0);
   for (const c of [high, deep]) if (c) { g.set(c[0], c[1], c[2], M.star); stars.push({ x: c[0], y: c[1], z: c[2] }); }
+  // TNT: one in front of the building (seen from the start: the first chain of booms), a few inside along the walls
+  const tnt = [];
+  const mid = (b.x0 + b.x1) >> 1, nearVault = (x, z) => Math.abs(x + 0.5 - chest.x) < 3 && Math.abs(z + 0.5 - chest.z) < 3;
+  const putTnt = (x, z) => { if (!g.get(x, 0, z) && !nearVault(x, z)) { g.set(x, 0, z, M.tnt); tnt.push({ x, y: 0, z }); return true; } return false; };
+  const inside = [];
+  for (let z = b.z0 + 1; z < b.z1; z++) for (let x = b.x0 + 1; x < b.x1; x++) if (!g.get(x, 0, z) && !g.get(x, 1, z) && !nearVault(x, z) && (g.get(x - 1, 0, z) || g.get(x + 1, 0, z) || g.get(x, 0, z - 1) || g.get(x, 0, z + 1))) inside.push([x, z]);
+  for (let i = 0; i < 2 + s && inside.length; i++) { const [x, z] = inside.splice(Math.floor(rnd() * inside.length), 1)[0]; putTnt(x, z); }
   // yard: fence across the front, trees at the sides
   const fz = Math.min(L.D - 6, b.z1 + 4);
   fence(g, M, b.x0 - 2, b.x1 + 2, fz);
   for (const [x, z] of [[3, b.z0 + 2], [L.W - 4, b.z0 + 2], [3, b.z1 - 1], [L.W - 4, b.z1 - 1]]) if (!g.get(x, 0, z)) tree(g, M, x, z, 4 + Math.floor(rnd() * 2), rnd);
+  putTnt(Math.floor(L.W / 2) - 1, fz + 2) || putTnt(Math.floor(L.W / 2) - 2, fz + 2); // straight ahead (just left of the hammer) in front of the fence: the first tap is a boom
   const total = g.count();
-  return { grid: g, kind, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 6.5) }, stars, total, box: b, fenceZ: fz, top };
+  return { grid: g, kind, boss, theme, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 5) }, stars, tnt, total, box: b, fenceZ: fz, top };
 }
