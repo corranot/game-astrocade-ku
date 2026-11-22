@@ -5,7 +5,7 @@ argument-hint: "[key | key=value | --local key=value]"
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Skill(project-settings)
-model: sonnet
+model: claude-opus-5-5
 ---
 
 # /settings — old name of /project-settings

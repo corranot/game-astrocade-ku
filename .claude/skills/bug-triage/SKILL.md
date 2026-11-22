@@ -4,7 +4,7 @@ description: "Re-evaluate open bugs — priority vs severity, assign to sprints,
 argument-hint: "[sprint | full | trend]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash(bash "*/.claude/skills/bug-triage/../../hooks/yaml-helper.sh" resolve_config *)
-model: sonnet
+model: claude-opus-5-5
 ---
 
 !`bash "${CLAUDE_SKILL_DIR}/../../hooks/yaml-helper.sh" resolve_config --keys automation,workflow`

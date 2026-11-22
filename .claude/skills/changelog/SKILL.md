@@ -5,7 +5,7 @@ argument-hint: "[version|sprint-number]"
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Skill(write-changelog)
-model: sonnet
+model: claude-opus-5-5
 ---
 
 # /changelog — old name of /write-changelog
