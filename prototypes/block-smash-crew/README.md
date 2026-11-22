@@ -122,6 +122,15 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   economy pilot 16–21 buys in 5 min (17–22 before the update). Not proven here: how it feels on a phone, whether a
   child notices the box without being told, and the hit-stop of a long boss chain (7 barrels + their bombs).
 
+## Robot limbs (22 Nov, owner: "anggota tubuh npc nya masih cacat")
+- Seen close up: each arm and leg was one straight stick, both arms leaving one point in the middle of the chest and
+  both legs one point at the pelvis, with no hands or feet. The ragdoll's 7 points stay as they are; only the drawing
+  changed: shoulders at the sides of the chest, hips under the pelvis, an upper and a lower part per limb meeting at
+  an elbow (bends back and out) or a knee (bends forward), white hands, feet with toes forward. The joint is plain
+  maths in `bots.js limbJoint` (4 tests); a limb pulled longer than its length stays straight.
+- Cost: 8 more boxes per robot (30 robots at most). Here the bundle run stayed at 18–19 fps and `perf.js` at
+  3.2 ms of game code; a real phone is not measured.
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.
