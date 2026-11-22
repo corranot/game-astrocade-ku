@@ -4,7 +4,7 @@ description: "Guides a first-time user through onboarding and picks the right wo
 argument-hint: "[no arguments]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, AskUserQuestion, Skill, Bash(bash .claude/scripts/project-state.sh*), Bash(bash .claude/scripts/set-stage.sh *), Bash(bash .claude/scripts/config-set.sh *)
-model: sonnet
+model: claude-opus-5-5
 ---
 
 # Guided Onboarding
