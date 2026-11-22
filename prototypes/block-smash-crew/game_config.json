@@ -805,6 +805,7 @@
   "chainMax": 2.6,
   "boxSide": -2,
   "boxAhead": 2,
+  "boxClear": 7.5,
   "kinds": [
    { "id": "cluster", "color": "#ff9a1f", "n": 6, "spread": 4.2, "r": 2.1 },
    { "id": "hole", "color": "#8a3aff", "r": 3.4, "dur": 1.8 },
