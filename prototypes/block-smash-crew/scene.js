@@ -35,8 +35,10 @@ export function createScene(cv, cfg) {
     fragmentShader: 'uniform vec3 top; uniform vec3 low; varying vec3 vP; void main(){ float k = smoothstep(-0.05, 0.55, vP.y); gl_FragColor = vec4(mix(low, top, k), 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
   }));
   const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(300, 24, 12)), skyMat); scene.add(sky);
-  const hemi = new THREE.HemisphereLight('#e4f4ff', '#8fcf6a', 1.7); scene.add(hemi);
-  const sun = new THREE.DirectionalLight('#fff4dc', 2.3); sun.position.set(0.55, 1, 0.38).multiplyScalar(50); scene.add(sun); scene.add(sun.target);
+  // the sun stands in front and to the right of the building (cfg.look): the front is lit, the left side in shade
+  const LK = cfg.look;
+  const hemi = new THREE.HemisphereLight('#e4f4ff', '#8fcf6a', LK.hemi); scene.add(hemi);
+  const sun = new THREE.DirectionalLight('#fff4dc', LK.sun); sun.position.set(LK.sunDir[0], LK.sunDir[1], LK.sunDir[2]).multiplyScalar(50); scene.add(sun); scene.add(sun.target);
   // soft sun shadows over the whole lot (off on a slow phone)
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; // soft since r182; PCFSoftShadowMap only warns and falls back
   sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.04;
@@ -67,6 +69,15 @@ export function createScene(cv, cfg) {
     for (let i = 0; i < 9; i++) { // voxel clouds
       const cx = rnd() * 160 - 60, cz = rnd() * 60 - 120, cy = 38 + rnd() * 14;
       for (let k = 0; k < 5; k++) { m4.compose(new THREE.Vector3(cx + k * 3 - 6, cy + (k % 2), cz + rnd() * 3), new THREE.Quaternion(), new THREE.Vector3(5 + rnd() * 3, 2.5, 4)); const g = geo.clone().applyMatrix4(m4); const c = new Float32Array(g.attributes.position.count * 3).fill(1); g.setAttribute('color', new THREE.BufferAttribute(c, 3)); parts.push(g); }
+    }
+    // voxel trees in the middle distance, so the land between the lot and the hills is not bare
+    for (let i = 0; i < LK.trees; i++) {
+      const a = rnd() * Math.PI * 2, r = 58 + rnd() * 30, tx = 18 + Math.cos(a) * r, tz = 20 + Math.sin(a) * r, th = 3 + rnd() * 3;
+      for (const [w, hh, y, c] of [[1.2, th, th / 2, '#8a5a2e'], [4.6, 3.6, th + 1.6, rnd() < 0.5 ? '#3fae4a' : '#58c456'], [3, 2, th + 4.2, '#58c456']]) {
+        m4.compose(new THREE.Vector3(tx, y, tz), new THREE.Quaternion(), new THREE.Vector3(w, hh, w)); const g = geo.clone().applyMatrix4(m4); col.set(c);
+        const ca = new Float32Array(g.attributes.position.count * 3); for (let k = 0; k < ca.length; k += 3) { ca[k] = col.r; ca[k + 1] = col.g; ca[k + 2] = col.b; }
+        g.setAttribute('color', new THREE.BufferAttribute(ca, 3)); parts.push(g);
+      }
     }
     const merged = mergeGeos(parts); parts.forEach((g) => g.dispose()); geo.dispose();
     scene.add(new THREE.Mesh(keep(merged), keep(new THREE.MeshLambertMaterial({ vertexColors: true }))));
@@ -209,6 +220,11 @@ export function createScene(cv, cfg) {
   const debris = new THREE.InstancedMesh(dGeo, dMat, debrisMax); debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage); debris.frustumCulled = false; debris.castShadow = true; scene.add(debris);
   debris.setColorAt(0, new THREE.Color(1, 1, 1));
   const D = { n: 0, p: new Float32Array(debrisMax * 3), v: new Float32Array(debrisMax * 3), r: new Float32Array(debrisMax * 3), w: new Float32Array(debrisMax * 3), s: new Float32Array(debrisMax), life: new Float32Array(debrisMax), pull: new Float32Array(debrisMax * 4), sh: new Float32Array(debrisMax * 3) }; // sh: the piece's shape (x, y, z scale)
+  // per piece: how it bounces, seconds of glint left, its own colour (the glint brightens it for a moment)
+  D.b = new Float32Array(debrisMax); D.g = new Float32Array(debrisMax); D.g0 = new Float32Array(debrisMax); D.c = new Float32Array(debrisMax * 3);
+  // fragments, hanging dust, scorch marks and dust rings follow the tier's caps (cfg.quality.fx)
+  const FR = cfg.feel.frags, FB = cfg.feel.blast, fxTier = () => (low ? cfg.quality.fx.low : cfg.quality.fx.high);
+  let fragBudget = Infinity;
   const dustMax = 160, dustGeo = keep(new THREE.IcosahedronGeometry(0.5, 1)), dustMat = keep(new THREE.MeshLambertMaterial({ emissive: '#5a5040' }));
   const dust = new THREE.InstancedMesh(dustGeo, dustMat, dustMax); dust.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dust.frustumCulled = false; scene.add(dust);
   dust.setColorAt(0, new THREE.Color(1, 1, 1));
@@ -365,33 +381,61 @@ export function createScene(cv, cfg) {
   const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4(), tmpS = new THREE.Vector3(), tmpC = new THREE.Color();
   const WHITE = new THREE.Color(1, 1, 1);
 
+  /**
+   * A broken block at (x, y, z) of material m becomes fragments of its kind (cfg.feel.frags.kinds): long tumbling
+   * splinters, thin glinting shards, crumbs, bouncing soft bits, shiny chunks; steel also throws sparks. All in the one
+   * debris pool (shape, colour and spin per instance). The pieces per block follow the tier and the event's budget.
+   */
   function spawnDebris(x, y, z, m, cx, cy, cz, power, pullTo) {
-    if (D.n >= debrisMax * (low ? 0.5 : 1)) return;
-    const i = D.n++, p = dcol[m] || [1, 1, 1];
-    let dx = x - cx, dy = y - cy, dz = z - cz; const d = Math.hypot(dx, dy, dz) || 1; dx /= d; dy /= d; dz /= d;
-    const sp = power * (0.6 + Math.random() * 0.8);
-    D.p[i * 3] = x; D.p[i * 3 + 1] = y; D.p[i * 3 + 2] = z;
-    D.v[i * 3] = dx * sp + (Math.random() - 0.5) * 3; D.v[i * 3 + 1] = Math.max(0, dy) * sp + 3 + Math.random() * 5; D.v[i * 3 + 2] = dz * sp + (Math.random() - 0.5) * 3;
-    for (let k = 0; k < 3; k++) { D.r[i * 3 + k] = Math.random() * 6; D.w[i * 3 + k] = (Math.random() - 0.5) * 14; }
-    D.s[i] = 0.42 + Math.random() * 0.4; D.life[i] = cfg.debris.life * (0.7 + Math.random() * 0.5);
-    // each material breaks its own way: wood splinters, glass shards, brick crumbs, soft stuff in round lumps
-    const frag = (cfg.materials[m - 1] || {}).frag;
-    const SH = frag === 'splinter' ? [0.32, 0.32, 1.9] : frag === 'shard' ? [1.1, 0.14, 0.8] : frag === 'crumb' ? [0.7, 0.7, 0.7] : frag === 'soft' ? [0.85, 0.85, 0.85] : [1, 1, 1];
-    D.sh[i * 3] = SH[0]; D.sh[i * 3 + 1] = SH[1]; D.sh[i * 3 + 2] = SH[2];
-    if (frag === 'spark' && Math.random() < 0.7) sparks(x, y, z, 2);
-    if (pullTo) { D.pull[i * 4] = pullTo[0]; D.pull[i * 4 + 1] = pullTo[1]; D.pull[i * 4 + 2] = pullTo[2]; D.pull[i * 4 + 3] = 1; D.life[i] = 1.2; } else D.pull[i * 4 + 3] = 0;
-    const j = 0.9 + Math.random() * 0.2; tmpC.setRGB(p[0] * j, p[1] * j, p[2] * j); debris.setColorAt(i, tmpC);
+    const K = FR.kinds[(cfg.materials[m - 1] || {}).frag] || FR.kinds.chunk, want = K.n * fxTier().frag, p = dcol[m] || [1, 1, 1];
+    let pieces = Math.floor(want) + (Math.random() < want - Math.floor(want) ? 1 : 0);
+    if (K.sparks && Math.random() < 0.7) sparks(x, y, z, K.sparks);
+    for (; pieces > 0; pieces--) {
+      if (D.n >= debrisMax * (low ? 0.5 : 1) || fragBudget <= 0) return;
+      fragBudget--;
+      const i = D.n++, o = i * 3, px = x + (Math.random() - 0.5) * 0.5, py = y + (Math.random() - 0.5) * 0.5, pz = z + (Math.random() - 0.5) * 0.5;
+      let dx = px - cx, dy = py - cy, dz = pz - cz; const d = Math.hypot(dx, dy, dz) || 1; dx /= d; dy /= d; dz /= d;
+      const sp = power * (0.6 + Math.random() * 0.8);
+      D.p[o] = px; D.p[o + 1] = py; D.p[o + 2] = pz;
+      D.v[o] = dx * sp + (Math.random() - 0.5) * 3; D.v[o + 1] = Math.max(0, dy) * sp + 3 + Math.random() * 5; D.v[o + 2] = dz * sp + (Math.random() - 0.5) * 3;
+      for (let k = 0; k < 3; k++) { D.r[o + k] = Math.random() * 6; D.w[o + k] = (Math.random() - 0.5) * K.spin; }
+      D.s[i] = K.size[0] + Math.random() * K.size[1]; D.life[i] = cfg.debris.life * (0.7 + Math.random() * 0.5);
+      D.sh[o] = K.shape[0]; D.sh[o + 1] = K.shape[1]; D.sh[o + 2] = K.shape[2];
+      D.b[i] = K.bounce; D.g[i] = D.g0[i] = K.glint * (0.6 + Math.random() * 0.8);
+      if (pullTo) { D.pull[i * 4] = pullTo[0]; D.pull[i * 4 + 1] = pullTo[1]; D.pull[i * 4 + 2] = pullTo[2]; D.pull[i * 4 + 3] = 1; D.life[i] = 1.2; } else D.pull[i * 4 + 3] = 0;
+      const j = 0.9 + Math.random() * 0.2;
+      D.c[o] = p[0] * j + (1 - p[0] * j) * K.lift; D.c[o + 1] = p[1] * j + (1 - p[1] * j) * K.lift; D.c[o + 2] = p[2] * j + (1 - p[2] * j) * K.lift;
+      tmpC.setRGB(D.c[o], D.c[o + 1], D.c[o + 2]); debris.setColorAt(i, tmpC);
+    }
   }
-  function killDebris(i) { const j = --D.n; if (i !== j) { for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; for (let k = 0; k < 3; k++) D.sh[i * 3 + k] = D.sh[j * 3 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
-  function puff(x, y, z, size, color = '#f4ead8', n = 3) {
+  function killDebris(i) { const j = --D.n; if (i !== j) { D.b[i] = D.b[j]; D.g[i] = D.g[j]; D.g0[i] = D.g0[j]; for (let k = 0; k < 3; k++) D.c[i * 3 + k] = D.c[j * 3 + k]; for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; for (let k = 0; k < 3; k++) D.sh[i * 3 + k] = D.sh[j * 3 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
+  /** n puffs of dust; hang = a slow cloud that stays in the air and drifts before it fades (cfg.feel.frags.dust). */
+  function puff(x, y, z, size, color = '#f4ead8', n = 3, hang = false) {
+    const HD = FR.dust, sp = hang ? HD.speed : 1;
     for (let k = 0; k < n; k++) {
       if (U.n >= dustMax * (low ? 0.5 : 1)) return;
       const i = U.n++;
       U.p[i * 3] = x + (Math.random() - 0.5) * size; U.p[i * 3 + 1] = y + Math.random() * size * 0.5; U.p[i * 3 + 2] = z + (Math.random() - 0.5) * size;
-      U.v[i * 3] = (Math.random() - 0.5) * 2; U.v[i * 3 + 1] = 0.8 + Math.random() * 1.2; U.v[i * 3 + 2] = (Math.random() - 0.5) * 2;
-      U.s[i * 2] = size * (0.5 + Math.random() * 0.6); U.life[i * 2] = 0; U.life[i * 2 + 1] = 0.7 + Math.random() * 0.6;
+      U.v[i * 3] = (Math.random() - 0.5) * 2 * sp + (hang ? 0.35 : 0); U.v[i * 3 + 1] = (0.8 + Math.random() * 1.2) * sp; U.v[i * 3 + 2] = (Math.random() - 0.5) * 2 * sp;
+      U.s[i * 2] = size * (0.5 + Math.random() * 0.6); U.life[i * 2] = 0; U.life[i * 2 + 1] = hang ? HD.life * (0.75 + Math.random() * 0.5) : 0.7 + Math.random() * 0.6;
       tmpC.set(color).offsetHSL(0, 0, (Math.random() - 0.5) * 0.06); dust.setColorAt(i, tmpC);
     }
+  }
+  // scorch marks on the ground: a few flat discs with one texture, each fading out at the end of its life
+  const scorchTex = tex(64, 64, (x) => { x.clearRect(0, 0, 64, 64); const g = x.createRadialGradient(32, 32, 2, 32, 32, 31); g.addColorStop(0, 'rgba(30,22,18,.95)'); g.addColorStop(0.55, 'rgba(40,30,24,.7)'); g.addColorStop(1, 'rgba(40,30,24,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); for (let i = 0; i < 14; i++) { const a = i * 2.4, r = 14 + (i * 37 % 13); x.fillStyle = 'rgba(30,22,18,.35)'; x.beginPath(); x.arc(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 4 + (i % 4), 0, 7); x.fill(); } });
+  const scorchGeo = keep(new THREE.PlaneGeometry(2, 2)), scorches = []; let scorchN = 0;
+  /** The ground under a blast: a scorch mark and a ring of dust rolling outwards (only for blasts near the ground). */
+  function groundFx(e) {
+    const SC = FB.scorch, RG = FB.ring, T = fxTier();
+    if (e.y - e.r > SC.ground) return;
+    if (T.scorch > 0) {
+      // a new mark while the tier's cap allows, else the oldest one moves here
+      let it = scorches.length < T.scorch ? null : scorches.reduce((a, b) => (a.t > b.t ? a : b));
+      if (!it) { const mesh = new THREE.Mesh(scorchGeo, keep(new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }))); mesh.rotation.x = -Math.PI / 2; scene.add(mesh); it = { mesh, t: 0 }; scorches.push(it); }
+      it.t = 0; it.mesh.visible = true; it.mesh.position.set(e.x, 0.02 + (scorchN++ % 8) * 0.002, e.z); it.mesh.rotation.z = Math.random() * 6; it.mesh.scale.setScalar(e.r * SC.size);
+    }
+    const n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring), a0 = Math.random() * 6;
+    for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; puff(e.x + Math.cos(a) * e.r * 0.8, 0.25, e.z + Math.sin(a) * e.r * 0.8, RG.size, RG.color, 1, T.hangDust); }
   }
   function killDust(i) { const j = --U.n; if (i !== j) { for (let k = 0; k < 3; k++) { U.p[i * 3 + k] = U.p[j * 3 + k]; U.v[i * 3 + k] = U.v[j * 3 + k]; } U.s[i * 2] = U.s[j * 2]; U.life[i * 2] = U.life[j * 2]; U.life[i * 2 + 1] = U.life[j * 2 + 1]; dust.getColorAt(j, tmpC); dust.setColorAt(i, tmpC); } }
   function spawnCoins(x, y, z, n) {
@@ -405,11 +449,15 @@ export function createScene(cv, cfg) {
       for (const c of e.removed) markCell(c.x, c.y, c.z);
       if (e.removed.some((c) => c.m === W.ids.tnt || c.m === W.ids.boomBox)) placeBarrels();
       const cap = Math.min(e.removed.length, e.by === 'hammer' ? 30 : cfg.debris.perBlast), step = e.removed.length / cap;
+      // the pieces of one break: more for a bigger one, never above the cap for a hit or a blast
+      fragBudget = e.by === 'hammer' ? cfg.debris.perHit : cfg.debris.perBlast;
       const power = e.by === 'hammer' ? 5 : e.by === 'ball' ? 7 : 6 + e.r * 2.2;
       const hx = W.hero.x, hz = W.hero.z;
       const cx = e.by === 'hammer' ? hx : e.x, cz = e.by === 'hammer' ? hz : e.z, cy = e.by === 'hammer' ? e.y - 0.5 : e.y - 1;
       for (let k = 0; k < cap; k++) { const c = e.removed[Math.floor(k * step)]; spawnDebris(c.x + 0.5, c.y + 0.5, c.z + 0.5, c.m, cx, cy, cz, power, e.by === 'hole' ? [e.x, e.y, e.z] : null); }
       if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), '#fbf6ec', Math.min(6, 1 + (e.removed.length >> 4)));
+      // brick, stone and plaster leave a cloud in their own colour that hangs and drifts (not on the low tier)
+      { const m0 = cfg.materials[(e.removed[0] || {}).m - 1]; if (e.by !== 'hole' && m0 && m0.frag === 'crumb' && fxTier().hangDust) { tmpC.set(m0.color).lerp(WHITE, FR.dust.lift); puff(e.x, e.y, e.z, FR.dust.size, '#' + tmpC.getHexString(), Math.min(FR.dust.max, 1 + Math.round(e.removed.length * FR.dust.per)), true); } }
       if (!W.demo) spawnCoins(e.x, e.y, e.z, Math.min(6, 1 + Math.floor(e.removed.length / 8)) + e.gold * 3);
       addTrauma(e.by === 'hammer' ? 0.06 : Math.min(0.5, e.removed.length / 300), e);
       if (e.by === 'hammer') hammerImpact(e, e.removed.length, (cfg.materials[(e.removed[0] || {}).m - 1] || {}), false);
@@ -432,6 +480,7 @@ export function createScene(cv, cfg) {
       const it = falls.get(e.fall.id);
       if (it) { scene.remove(it.holder); it.mesh.geometry.dispose(); falls.delete(e.fall.id); }
       const cells = e.fall.cells, cap = Math.min(cells.length, cfg.debris.perBlast), step = cells.length / cap;
+      fragBudget = cfg.debris.perBlast;
       for (let k = 0; k < cap; k++) { const c = cells[Math.floor(k * step)], p = placeOf(e.fall, c); spawnDebris(p[0], Math.max(0.5, p[1]), p[2], c.m, e.x, e.y - 2, e.z, 4 + Math.min(8, e.n / 40)); }
       if (e.topple) kick(0.07);
       puff(e.x, 0.3, e.z, Math.min(5, 1.5 + e.n / 60), '#efe4cf', Math.min(10, 3 + (e.n >> 5)));
@@ -439,7 +488,7 @@ export function createScene(cv, cfg) {
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
       if (e.kind === 'tnt') placeBarrels();
-      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
+      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); groundFx(e); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
     } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
@@ -480,7 +529,7 @@ export function createScene(cv, cfg) {
   /** A blast of radius r at e: a flash sized by it, and the view widens by the tool's size, less the farther away. */
   function blastFx(e, r) {
     const T = FL[e.kind] && FL[e.kind].flash ? FL[e.kind] : FL.bomb, d = W ? Math.hypot(e.x - W.hero.x, e.z - W.hero.z) : 0, fall = Math.max(0, 1 - d / FL.shakeRange);
-    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = true;
+    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = true; flash.color.set(T.flash.color);
     if (!(W && W.demo)) punch(T.camera.boomFov * fall);
   }
   /** A brief widening of the view (degrees), the biggest one wins; smaller with reduced motion. */
@@ -511,12 +560,38 @@ export function createScene(cv, cfg) {
   const flakeN = 260, flakePos = new Float32Array(flakeN * 3); for (let i = 0; i < flakeN; i++) { flakePos[i * 3] = Math.random() * 40 - 20; flakePos[i * 3 + 1] = Math.random() * 18; flakePos[i * 3 + 2] = Math.random() * 40 - 20; }
   const flakeGeo = keep(new THREE.BufferGeometry()); flakeGeo.setAttribute('position', new THREE.BufferAttribute(flakePos, 3));
   const flakes = new THREE.Points(flakeGeo, keep(new THREE.PointsMaterial({ color: '#ffffff', size: 0.16, fog: false }))); flakes.frustumCulled = false; flakes.visible = false; scene.add(flakes);
+  // the lawn around the lot: tone patches and grass tufts as one mesh, made again for each level
+  const decoMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true })); let deco = null;
+  function buildDeco() {
+    if (deco) { scene.remove(deco); deco.geometry.dispose(); deco = null; }
+    const P = [], C = [], b = W.box, S = LK.spread, px = (b.x0 + b.x1 + 1) / 2;
+    let a = 1234 + W.n * 77; const rnd = () => ((a = (a * 16807) % 2147483647) / 2147483647);
+    const x0 = b.x0 - S, x1 = b.x1 + 1 + S, z0 = b.z0 - S, z1 = W.g.D + 14;
+    // free lawn only: not under a block, not inside the building's footprint, not on the path
+    const free = (x, z, m) => !(x > b.x0 - m && x < b.x1 + 1 + m && z > b.z0 - m && z < b.z1 + 1 + m) && !(Math.abs(x - px) < 2.2 + m && z > b.z1) && !(x >= 0 && z >= 0 && x < W.g.W && z < W.g.D && W.g.get(Math.floor(x), 0, Math.floor(z)));
+    const tri = (p, q, r, v) => { P.push(p[0], p[1], p[2], q[0], q[1], q[2], r[0], r[1], r[2]); for (let i = 0; i < 3; i++) C.push(v, v, v); };
+    for (let i = 0; i < LK.patches; i++) {
+      const x = x0 + rnd() * (x1 - x0), z = z0 + rnd() * (z1 - z0), r = 0.9 + rnd() * 1.6, v = rnd() < 0.6 ? 0.76 + rnd() * 0.1 : 1.1 + rnd() * 0.08, y = 0.012 + i * 0.0004, sq = 0.6 + rnd() * 0.4, a0 = rnd() * 6;
+      if (!free(x, z, r)) continue;
+      for (let k = 0; k < 6; k++) { const a1 = a0 + k * Math.PI / 3, a2 = a1 + Math.PI / 3; tri([x, y, z], [x + Math.cos(a2) * r, y, z + Math.sin(a2) * r * sq], [x + Math.cos(a1) * r, y, z + Math.sin(a1) * r * sq], v); }
+    }
+    for (let i = 0; i < LK.tufts; i++) {
+      const x = x0 + rnd() * (x1 - x0), z = z0 + rnd() * (z1 - z0), w = 0.1 + rnd() * 0.1, h = 0.25 + rnd() * 0.35, v = 0.72 + rnd() * 0.4;
+      if (!free(x, z, 0.3)) continue;
+      const t = [x + (rnd() - 0.5) * 0.1, h, z + (rnd() - 0.5) * 0.1], c = [[x - w, 0, z - w], [x + w, 0, z - w], [x + w, 0, z + w], [x - w, 0, z + w]];
+      for (let k = 0; k < 4; k++) tri(c[k], t, c[(k + 1) % 4], v * (k % 2 ? 0.9 : 1));
+    }
+    const g = new THREE.BufferGeometry(), N = new Float32Array(P.length); for (let i = 1; i < N.length; i += 3) N[i] = 1;
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+    deco = new THREE.Mesh(g, decoMat); deco.receiveShadow = true; deco.frustumCulled = false; scene.add(deco);
+  }
   /** The level's look: day, warm sunset or snow (always bright: sky, light, ground tint, snowflakes). */
   function setTheme(name) {
     const t = cfg.themes[name] || cfg.themes.day;
     SKY_TOP.set(t.top); SKY_LOW.set(t.low); scene.fog.color.set(t.low); sun.color.set(t.sun); hemi.groundColor.set(t.hemiG);
     ground.material.color.set(t.ground); ground.material.map = name === 'snow' ? snowTex : grassTex; flakes.visible = name === 'snow';
     envName = cfg.themes[name] ? name : 'day';
+    decoMat.color.set(t.tuft || '#63c843');
   }
   // ---- BONK-BOTs: toy robots drawn from their points (marching, flying as a ragdoll, putting themselves together)
   const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
@@ -670,6 +745,7 @@ export function createScene(cv, cfg) {
     for (const c of W.starCells) { const b = makeBeacon(); b.cell = c; beacons.push(b); }
     const pz0 = W.box.z1 + 0.5, pz1 = W.g.D + 30; path.scale.set(1, pz1 - pz0, 1); path.position.set((W.box.x0 + W.box.x1 + 1) / 2, 0.01, (pz0 + pz1) / 2);
     cam.yaw = 0; cam.pitch = cfg.camera.pitch0; cam.eyeY = cfg.camera.eye; cam.target = null;
+    buildDeco(); for (const it of scorches) it.mesh.visible = false;
     setTheme(W.theme);
   }
 
@@ -836,10 +912,16 @@ export function createScene(cv, cfg) {
       if (!D.pull[i * 4 + 3]) {
         let floor = s * 0.5; const cx = Math.floor(D.p[o]), cz = Math.floor(D.p[o + 2]), cy = Math.floor(D.p[o + 1] - s * 0.5);
         if (cy >= 0 && g.get(cx, cy, cz)) floor = cy + 1 + s * 0.5;
-        if (D.p[o + 1] < floor) { D.p[o + 1] = floor; if (D.v[o + 1] < 0) D.v[o + 1] *= -0.32; D.v[o] *= 0.72; D.v[o + 2] *= 0.72; for (let k = 0; k < 3; k++) D.w[o + k] *= 0.7; }
+        if (D.p[o + 1] < floor) {
+          D.p[o + 1] = floor; if (D.v[o + 1] < 0) D.v[o + 1] *= -D.b[i]; D.v[o] *= 0.72; D.v[o + 2] *= 0.72; for (let k = 0; k < 3; k++) D.w[o + k] *= 0.7;
+          // come to rest: it lies there for a moment, then shrinks away
+          if (Math.abs(D.v[o + 1]) < 1.2 && Math.abs(D.v[o]) + Math.abs(D.v[o + 2]) < FR.rest) { D.v[o] = D.v[o + 1] = D.v[o + 2] = 0; D.w[o] = D.w[o + 1] = D.w[o + 2] = 0; if (D.life[i] > FR.linger + FR.shrink) D.life[i] = FR.linger + FR.shrink; }
+        }
       }
       for (let k = 0; k < 3; k++) D.r[o + k] += D.w[o + k] * dt;
-      const sc = s * Math.min(1, D.life[i] / 0.5);
+      const sc = s * Math.min(1, D.life[i] / FR.shrink);
+      // glass, gold and steel glint: brighter for a moment, flickering as the piece turns
+      if (D.g[i] > 0) { D.g[i] -= dt; const gk = D.g[i] > 0 ? (D.g[i] / D.g0[i]) * (0.55 + 0.45 * Math.sin(D.r[o] * 3)) : 0; const gt = LK.glint; tmpC.setRGB(D.c[o] + Math.max(0, gt - D.c[o]) * gk, D.c[o + 1] + Math.max(0, gt - D.c[o + 1]) * gk, D.c[o + 2] + Math.max(0, gt - D.c[o + 2]) * gk); debris.setColorAt(i, tmpC); }
       tmpM.compose(tmpV.set(D.p[o], D.p[o + 1], D.p[o + 2]), tmpQ.setFromEuler(tmpE.set(D.r[o], D.r[o + 1], D.r[o + 2])), tmpS.set(sc * D.sh[o], sc * D.sh[o + 1], sc * D.sh[o + 2]));
       debris.setMatrixAt(i, tmpM);
     }
@@ -875,6 +957,7 @@ export function createScene(cv, cfg) {
       b.w.scale.setScalar(b.r * 2.4 * k); b.w.material.opacity = 0.7 * (1 - k);
     }
     flash.intensity *= Math.exp(-dt * 9);
+    for (const it of scorches) { if (!it.mesh.visible) continue; it.t += dt; const SC = FB.scorch; if (it.t >= SC.life) it.mesh.visible = false; else it.mesh.material.opacity = SC.opacity * Math.min(1, (SC.life - it.t) / SC.fade); }
     // the hammer's flash: grows a little and fades over its short life
     for (const [sp, S] of [[hitFlash, HF], [boomFlash, BF]]) { if (!sp.visible) continue; S.t += dt; const k = S.t / S.life; if (k >= 1) sp.visible = false; else { const sc = S.size * (0.65 + 0.35 * k); sp.scale.set(sc, sc, 1); sp.material.opacity = (1 - k * k) * (reduced ? 0.5 : 1); } }
     // the flakes' box rides with the eye: snow always falls around the player
@@ -897,7 +980,7 @@ export function createScene(cv, cfg) {
     camera.position.set(h.x + Math.sin(st * 39) * sa, h.y + cam.eyeY + bob + Math.sin(st * 53 + 1) * sa, h.z + Math.sin(st * 47 + 2) * sa);
     camera.rotation.set(cam.pitch + (cam.kick || 0), cam.yaw, 0, 'YXZ'); // yaw 0 looks along -z; never a roll
     sky.position.copy(camera.position);
-    sun.position.set(W.g.W / 2 + 27, 50, W.g.D / 2 + 19); sun.target.position.set(W.g.W / 2, 0, W.g.D / 2); // fixed over the lot: shadows never swim
+    sun.position.set(W.g.W / 2 + LK.sunDir[0] * 50, LK.sunDir[1] * 50, W.g.D / 2 + LK.sunDir[2] * 50); sun.target.position.set(W.g.W / 2, 0, W.g.D / 2); // fixed over the lot: shadows never swim
     // what the crosshair points at
     const t = pickCenter(); cam.target = t;
     if (t && t.type === 'block' && (cam.tool !== 'hammer' || t.dist <= cfg.hero.reach)) {
@@ -945,7 +1028,7 @@ export function createScene(cv, cfg) {
       const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12;
     },
     get coinArrive() { return coinArrive; },
-    get counts() { return { debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
+    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
     /** Sets the pixel ratio (the dynamic resolution); a change of less than 0.01 is ignored. */
@@ -975,6 +1058,7 @@ export function createScene(cv, cfg) {
       for (const x of disposables) x.dispose();
       for (const rt of envs.values()) rt.dispose();
       cv.removeEventListener('webglcontextrestored', onRestored);
+      if (deco) deco.geometry.dispose();
       debris.dispose(); dust.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
       renderer.dispose(); try { renderer.forceContextLoss(); } catch (e) { /* already gone */ }
     },
