@@ -106,15 +106,53 @@ export function createScene(cv, cfg) {
   const lam = (c) => keep(new THREE.MeshLambertMaterial({ color: c }));
   const box = (w, h, d) => keep(new THREE.BoxGeometry(w, h, d));
   const part = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const vmScene = new THREE.Scene();
   vmScene.add(new THREE.HemisphereLight('#e4f4ff', '#a08060', 2.2)); const vmSun = new THREE.DirectionalLight('#fff4dc', 2); vmSun.position.set(1, 2, 1.5); vmScene.add(vmSun);
   const vmCam = new THREE.PerspectiveCamera(60, 720 / 1280, 0.01, 10);
   const rig = new THREE.Group(); rig.position.set(0.1, -0.29, -0.6); rig.scale.setScalar(0.36); vmScene.add(rig); // sized for the narrow portrait view: the hammer head ±1/3 of the width // the right hand, low right of the view
-  const sleeve = part(box(0.2, 0.2, 0.55), lam('#ff8a1f'), 0.06, -0.08, 0.3, rig); sleeve.rotation.x = 0.2;
-  part(box(0.22, 0.05, 0.56), lam('#fff36b'), 0.06, -0.08 + 0.1, 0.3, rig).rotation.x = 0.2;
+  // the sleeve is long enough to leave the view at the bottom wherever the hand goes (its hand end is where it always was)
+  const arm = new THREE.Group(); rig.add(arm);
+  const sleeve = part(box(0.2, 0.2, 1), lam('#ff8a1f'), 0.06, -0.1247, 0.5205, arm); sleeve.rotation.x = 0.2;
+  part(box(0.22, 0.05, 1.01), lam('#fff36b'), 0.06, -0.0247, 0.5205, arm).rotation.x = 0.2;
   part(box(0.19, 0.19, 0.19), lam('#ff9f1c'), 0.02, 0, 0, rig); part(box(0.21, 0.06, 0.21), lam('#ffffff'), 0.02, -0.1, 0.02, rig); // work glove with a white cuff
   const held = {};
-  { const g = new THREE.Group(); part(keep(new THREE.CylinderGeometry(0.035, 0.035, 0.85, 8)), lam('#c98a4b'), 0, 0.3, 0, g); const hd = part(box(0.42, 0.24, 0.24), lam('#8a96a8'), 0, 0.72, 0, g); part(box(0.44, 0.08, 0.26), lam('#ff4a4a'), 0, 0.72, 0, g); hd.rotation.y = 0; g.rotation.set(-0.3, 0, 0.15); held.hammer = g; }
+  // the hammer: one geometry and one material (a heavy toy sledge: steel head with chamfered edges and two striking
+  // faces, a red band, a collar, a wooden handle with a grip wrap and a pommel). Its steel mirrors a tiny sky map;
+  // the low tier draws it with a plain material and no reflection.
+  const HM = cfg.feel.hammer, HL = HM.look, MO = HM.motion;
+  const hamMap = tex(256, 128, (x) => drawHammerMap(x, HL)); hamMap.generateMipmaps = false; hamMap.minFilter = THREE.LinearFilter;
+  const hamOrm = tex(256, 128, (x) => drawHammerOrm(x)); hamOrm.colorSpace = THREE.NoColorSpace; hamOrm.generateMipmaps = false; hamOrm.minFilter = THREE.LinearFilter;
+  const hamStd = keep(new THREE.MeshStandardMaterial({ map: hamMap, roughnessMap: hamOrm, metalnessMap: hamOrm, roughness: 1, metalness: 1, envMapIntensity: HL.envIntensity }));
+  const hamLow = keep(new THREE.MeshLambertMaterial({ map: hamMap }));
+  const hamMesh = new THREE.Mesh(keep(hammerGeometry(HL)), hamStd);
+  { const g = new THREE.Group(); g.add(hamMesh); g.rotation.set(HL.tilt[0], HL.tilt[1], HL.tilt[2]); held.hammer = g; }
+  // the sky the steel mirrors: one small map per theme, made the first time it is needed (never on the low tier)
+  const envs = new Map(); let envName = 'day', envOn = '';
+  function envFor(name) {
+    let rt = envs.get(name);
+    if (!rt) {
+      const t = cfg.themes[name] || cfg.themes.day, c = document.createElement('canvas'); c.width = 128; c.height = 64; drawEnv(c.getContext('2d'), t, 128, 64);
+      const src = new THREE.CanvasTexture(c); src.colorSpace = THREE.SRGBColorSpace; src.mapping = THREE.EquirectangularReflectionMapping;
+      const pm = new THREE.PMREMGenerator(renderer); rt = pm.fromEquirectangular(src); pm.dispose(); src.dispose(); envs.set(name, rt);
+    }
+    return rt.texture;
+  }
+  /** The hammer's material for the tier: mirrored steel, or the plain one (low tier). */
+  function hammerLook() {
+    if (low) { hamMesh.material = hamLow; return; }
+    hamMesh.material = hamStd;
+    if (envOn !== envName) { envOn = envName; hamStd.envMap = envFor(envName); hamStd.needsUpdate = true; }
+  }
+  // the hammer's motion: springs for the look lag and the recoil, the swing's own state
+  const ham = { sx: 0, sy: 0, svx: 0, svy: 0, rec: 0, recV: 0, imp: 0, run: 0, yaw: 0, pitch: 0, landed: false, aimed: true, clang: false };
+  const motionK = reduced ? MO.reduced : 1;
+  const armRest = new THREE.Vector3(0, -Math.sin(0.2), Math.cos(0.2)), armNow = new THREE.Vector3(), armQ = new THREE.Quaternion(), rigQ = new THREE.Quaternion();
+  const elbow = new THREE.Vector3(MO.rest[0], MO.rest[1], MO.rest[2]).addScaledVector(armRest, MO.elbow);
+  // the flash where the hammer lands: one sprite, shown for a few frames
+  const hitFlash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: tex(64, 64, (x) => drawFlash(x)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })));
+  hitFlash.visible = false; hitFlash.renderOrder = 5; scene.add(hitFlash);
+  const HF = { t: 1, life: 0.1, size: 1 };
   { const g = new THREE.Group(); part(keep(new THREE.SphereGeometry(0.17, 14, 10)), lam('#2a2d3a'), 0, 0.17, -0.05, g); part(box(0.05, 0.08, 0.05), lam('#c9a46b'), 0, 0.36, -0.05, g); held.bomb = g; }
   { const g = new THREE.Group(); const t = part(keep(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 12)), lam('#8fae5a'), 0, 0.08, -0.25, g); t.rotation.x = Math.PI / 2; part(keep(new THREE.ConeGeometry(0.09, 0.2, 12)), lam('#ff4a4a'), 0, 0.08, -0.78, g).rotation.x = -Math.PI / 2; held.rocket = g; }
   { const g = new THREE.Group(); held.ball = g; } // the ball mesh is the ball texture sphere, made below
@@ -220,8 +258,8 @@ export function createScene(cv, cfg) {
 
   // ---- camera rig
   const cam = { yaw: 0, pitch: cfg.camera.pitch0, trauma: 0, follow: true, bob: 0, eyeY: cfg.camera.eye };
-  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4(), tmpS = new THREE.Vector3(), tmpC = new THREE.Color();
+  const WHITE = new THREE.Color(1, 1, 1);
 
   function spawnDebris(x, y, z, m, cx, cy, cz, power, pullTo) {
     if (D.n >= debrisMax * (low ? 0.5 : 1)) return;
@@ -270,6 +308,7 @@ export function createScene(cv, cfg) {
       if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), '#fbf6ec', Math.min(6, 1 + (e.removed.length >> 4)));
       if (!W.demo) spawnCoins(e.x, e.y, e.z, Math.min(6, 1 + Math.floor(e.removed.length / 8)) + e.gold * 3);
       addTrauma(e.by === 'hammer' ? 0.06 : Math.min(0.5, e.removed.length / 300), e);
+      if (e.by === 'hammer') hammerImpact(e, e.removed.length, (cfg.materials[(e.removed[0] || {}).m - 1] || {}), false);
     } else if (e.type === 'fall' || e.type === 'topple') {
       const f = e.fall; for (const c of f.cells) markCell(c.x, c.y, c.z);
       // the piece as one mesh, turning a little around its middle as it drops
@@ -303,13 +342,43 @@ export function createScene(cv, cfg) {
     } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); }
     else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); }
-    else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); }
-    else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); }
+    else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); hammerImpact(e, 0, null, true); hammerLanded(MO.recoil.clang, true); }
+    else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); if (e.by === 'hammer' && !e.again) hammerLanded(MO.recoil.bot, false); }
+    else if (e.type === 'swing') { ham.landed = false; ham.clang = false; ham.aimed = !!(W && (W.hero.swingCell || W.hero.swingBot)); }
+    else if (e.type === 'hit') hammerLanded(e.n > 0 ? MO.recoil.base + MO.recoil.perBlock * e.n : MO.recoil.air, false, e.n);
+    else if (e.type === 'super') hammerLanded(MO.recoil.super, false);
     else if (e.type === 'reboot') { sparks(e.x, e.y + 0.4, e.z, 8); puff(e.x, 0.5, e.z, 0.5, '#bdf3ff', 2); }
     else if (e.type === 'treasure') { spawnCoins(e.x, 1.4, e.z, 24); puff(e.x, 1, e.z, 2, '#fff3a0', 6); }
     else if (e.type === 'star') { puff(e.x, e.y, e.z, 1.6, '#fff3a0', 5); }
   }
   function kick(a) { cam.kick = (cam.kick || 0) + (reduced ? a * 0.3 : a); }
+  /**
+   * The hammer has landed with strength k (0..recoil.max): the hand bounces back, the head squashes, and the view
+   * nods and widens for a moment (not in the attract mode). n = blocks broken; clang = it bounced off steel.
+   */
+  function hammerLanded(k, clang, n = 0) {
+    const R = MO.recoil, C = HM.camera; k = Math.min(R.max, k);
+    ham.landed = true; ham.clang = !!clang; ham.recV += R.kick * k; ham.imp = Math.min(1, k);
+    if (W && W.demo) return;
+    if (clang) { kick(C.kickClang); punch(C.fovClang); } else if (n > 0) { kick(Math.min(C.kickMax, C.kick + C.kickPer * n)); punch(C.fov + C.fovPer * n); }
+  }
+  /** A brief widening of the view (degrees), the biggest one wins; smaller with reduced motion. */
+  function punch(deg) { const C = HM.camera, v = Math.min(C.fovMax, deg) * (reduced ? MO.reduced : 1); cam.punch = Math.max(cam.punch || 0, v); }
+  /**
+   * Where the hammer lands: a flash and sparks sized by the n blocks broken and a puff in the material's colour, at
+   * the point of the hit block nearest the eye. clang = steel that did not break (more sparks, a cold flash).
+   */
+  function hammerImpact(e, n, mat, clang) {
+    const I = HM.impact, F = I.flash, S = I.sparks;
+    tmpV.set(camera.position.x - e.x, camera.position.y - e.y, camera.position.z - e.z); const d = tmpV.length() || 1, k = Math.min(I.toEye, d * 0.5) / d;
+    const x = e.x + tmpV.x * k, y = e.y + tmpV.y * k, z = e.z + tmpV.z * k;
+    HF.t = 0; HF.life = F.life; HF.size = Math.min(F.max, F.size + F.per * Math.sqrt(n)) * (clang ? 1.25 : 1);
+    hitFlash.position.set(x, y, z); hitFlash.material.color.set(clang ? F.clang : F.color); hitFlash.material.rotation = Math.random() * Math.PI; hitFlash.visible = true;
+    flash.position.set(x, y, z); flash.intensity = Math.max(flash.intensity, Math.min(F.lightMax, F.light + n));
+    const soft = mat && mat.frag === 'soft';
+    sparks(x, y, z, clang ? S.clang : Math.round(Math.min(S.max, S.base + S.per * n) * (soft ? S.soft : 1)));
+    if (mat && mat.color) { const D = I.dust, pn = low ? Math.ceil(D.n / 2) : D.n; tmpC.set(mat.color).lerp(WHITE, 0.45); puff(x, y, z, D.size + D.per * n, '#' + tmpC.getHexString(), pn); }
+  }
   /** Shake from an event at point p: a·(1 − d/range) by its distance d from the hero, the strongest one wins (no sum). */
   function addTrauma(k, p) {
     const d = p && W ? Math.hypot((p.x || 0) - W.hero.x, (p.z || 0) - W.hero.z) : 0, v = k * Math.max(0, 1 - d / cfg.feel.shakeRange);
@@ -326,6 +395,7 @@ export function createScene(cv, cfg) {
     const t = cfg.themes[name] || cfg.themes.day;
     SKY_TOP.set(t.top); SKY_LOW.set(t.low); scene.fog.color.set(t.low); sun.color.set(t.sun); hemi.groundColor.set(t.hemiG);
     ground.material.color.set(t.ground); ground.material.map = name === 'snow' ? snowTex : grassTex; flakes.visible = name === 'snow';
+    envName = cfg.themes[name] ? name : 'day';
   }
   // ---- BONK-BOTs: toy robots drawn from their points (marching, flying as a ragdoll, putting themselves together)
   const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
@@ -469,7 +539,8 @@ export function createScene(cv, cfg) {
     for (const it of falls.values()) { scene.remove(it.holder); it.mesh.geometry.dispose(); } falls.clear();
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
     for (const b of blasts) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); } blasts.length = 0;
-    D.n = 0; U.n = 0; C.n = 0; SP.n = 0; cam.kick = 0;
+    D.n = 0; U.n = 0; C.n = 0; SP.n = 0; cam.kick = 0; cam.punch = 0;
+    ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.landed = false; ham.yaw = 0; ham.pitch = cfg.camera.pitch0; hitFlash.visible = false; HF.t = 1;
     for (let cy = 0; cy * CS < W.g.H; cy++) for (let cz = 0; cz * CS < W.g.D; cz++) for (let cx = 0; cx * CS < W.g.W; cx++) buildChunk(cx, cy, cz);
     chest.position.set(W.chest.x, 0, W.chest.z); chest.rotation.y = 0; lid.rotation.x = 0; chest.visible = true;
     placeBarrels();
@@ -520,15 +591,17 @@ export function createScene(cv, cfg) {
     const want = h.swingT >= 0 && h.throwKind ? h.throwKind : cam.tool || 'hammer'; // a throw shows the thrown tool, even when the hand goes back to the hammer
     if (want !== heldTool) { held[heldTool].visible = false; heldTool = want; }
     held[heldTool].visible = true;
-    let rx = 0, rz = 0, py = 0;
-    if (h.swingT >= 0) {
-      const t = h.swingT;
-      if (heldTool === 'hammer') { if (t < 0.25) rx = (t / 0.25) * 0.9; else if (t < SWING_HIT) rx = 0.9 - ((t - 0.25) / (SWING_HIT - 0.25)) * 2.5; else rx = -1.6 + ((t - SWING_HIT) / (1 - SWING_HIT)) * 1.6; }
-      else { const k = Math.sin(Math.min(1, t * 1.6) * Math.PI); rz = -k * 0.35; py = k * 0.12; }
+    if (heldTool === 'hammer') { hammerLook(); hammerPose(h, dt); }
+    else {
+      let rz = 0, py = 0;
+      if (h.swingT >= 0) { const k = Math.sin(Math.min(1, h.swingT * 1.6) * Math.PI); rz = -k * 0.35; py = k * 0.12; }
+      const run = h.moving ? 1 : 0;
+      rig.position.set(0.1 + Math.cos(time * 9) * 0.007 * run, -0.29 + py * 0.45 + Math.abs(Math.sin(time * 9)) * 0.011 * run + Math.sin(time * 2) * 0.003, -0.6 + rz * 0.45);
+      rig.rotation.set(0, 0, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
+      arm.quaternion.identity();
+      // the hammer's springs rest while another tool is in the hand
+      ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.yaw = cam.yaw; ham.pitch = cam.pitch;
     }
-    const run = h.moving ? 1 : 0;
-    rig.position.set(0.1 + Math.cos(time * 9) * 0.007 * run, -0.29 + py * 0.45 + Math.abs(Math.sin(time * 9)) * 0.011 * run + Math.sin(time * 2) * 0.003, -0.6 + rz * 0.45);
-    rig.rotation.set(rx, 0, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
     if (held.hole.userData.ring) held.hole.userData.ring.rotation.z += dt * 4;
     // chest
     if (W.chest.open) { lid.rotation.x = Math.max(-1.9, lid.rotation.x - dt * 8); } else { chest.rotation.y = Math.sin(time * 3) * 0.04; }
@@ -542,6 +615,54 @@ export function createScene(cv, cfg) {
       b.mark.position.set(x, Math.max(y + 2.2, Math.min(W.top + 3, y + 7)) + Math.sin(time * 3 + x) * 0.3, z);
       const s = 0.085 + Math.sin(time * 5 + z) * 0.006; b.mark.scale.set(s, s, 1);
     }
+  }
+  /**
+   * The hammer in the hand, in layers: the swing (wind-up, strike landing exactly at SWING_HIT, follow-through or
+   * hold), the recoil spring (kicked when it lands), and a second spring that lags behind the view's turning, the
+   * walk bob and the idle sway. Every number is in cfg.feel.hammer.motion.
+   */
+  function hammerPose(h, dt) {
+    const R = MO.recoil, SW = MO.sway, t = h.swingT;
+    // 1. the swing: rx is the pitch around the hand (+ back, - forward and down), o the hand's way to the strike pose
+    let rx = 0, ox = 0, oy = 0, oz = 0;
+    if (t >= 0) {
+      const amp = ham.aimed ? 1 : MO.whiff, wE = Math.min(MO.windEnd, SWING_HIT - 0.05), Wd = MO.wind, St = MO.strike;
+      if (t < wE) { const u = 1 - Math.pow(1 - t / wE, 3); rx = Wd.rx * u; ox = Wd.x * u; oy = Wd.y * u; oz = Wd.z * u; }
+      else if (t < SWING_HIT) {
+        // the strike speeds up all the way to the landing
+        const u = (t - wE) / (SWING_HIT - wE), a = u * u;
+        rx = Wd.rx + (St.rx - Wd.rx) * a; ox = Wd.x + (St.x - Wd.x) * a; oy = Wd.y + (St.y - Wd.y) * a; oz = Wd.z + (St.z - Wd.z) * a;
+      } else {
+        // after the landing: a hit holds on the block for a moment, a miss swings on through; both ease home
+        const v = (t - SWING_HIT) / (1 - SWING_HIT), w = ham.landed ? Math.max(0, (v - MO.hold) / (1 - MO.hold)) : v, back = 1 - w * w * (3 - 2 * w);
+        rx = St.rx * back; ox = St.x * back; oy = St.y * back; oz = St.z * back;
+        if (!ham.landed) rx -= MO.overshoot * Math.sin(Math.min(1, v * 2) * Math.PI);
+      }
+      rx *= amp; ox *= amp; oy *= amp; oz *= amp;
+    }
+    // 2. the springs, in small steps (stable at any frame time)
+    let dy = cam.yaw - ham.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const dp = cam.pitch - ham.pitch; ham.yaw = cam.yaw; ham.pitch = cam.pitch;
+    ham.run += ((h.moving ? 1 : 0) - ham.run) * Math.min(1, dt * MO.bob.blend);
+    // the hand is left behind by a turn of the view, then catches up
+    ham.sx = Math.max(-SW.max, Math.min(SW.max, ham.sx + dy * SW.look * motionK)); ham.sy = Math.max(-SW.max, Math.min(SW.max, ham.sy - dp * SW.look * motionK));
+    const ph = cam.bob, I = MO.idle;
+    const tx = (Math.cos(ph) * MO.bob.x * ham.run + Math.cos(time * I.rate * 0.5) * I.x) * motionK;
+    const ty = (-Math.abs(Math.sin(ph)) * MO.bob.y * ham.run + Math.sin(time * I.rate) * I.y) * motionK;
+    const n = Math.max(1, Math.min(10, Math.ceil(dt / 0.006))), sd = dt / n, ws = SW.hz * Math.PI * 2, wr = R.hz * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      ham.svx += ((tx - ham.sx) * ws * ws - ham.svx * 2 * SW.damp * ws) * sd; ham.sx += ham.svx * sd;
+      ham.svy += ((ty - ham.sy) * ws * ws - ham.svy * 2 * SW.damp * ws) * sd; ham.sy += ham.svy * sd;
+      ham.recV += (-ham.rec * wr * wr - ham.recV * 2 * R.damp * wr) * sd; ham.rec += ham.recV * sd;
+    }
+    ham.imp *= Math.exp(-dt * MO.squashDecay);
+    // 3. put together: the recoil tips the hammer back and pulls the hand towards the eye
+    const rec = Math.max(-0.6, Math.min(1.2, ham.rec));
+    rig.position.set(MO.rest[0] + ox + ham.sx, MO.rest[1] + oy + ham.sy + rec * R.y, MO.rest[2] + oz + rec * R.z);
+    rig.rotation.set(rx + rec + Math.sin(time * I.rate + 1) * I.tilt * motionK, ham.sx * SW.turn, h.happy > 0 ? Math.sin(time * 10) * 0.2 : 0);
+    const q = MO.squash * ham.imp; held.hammer.scale.set(1 + q * 0.5, 1 - q, 1 + q * 0.5);
+    // the arm reaches from the same elbow, off the bottom of the view, to wherever the hand is
+    armNow.copy(elbow).sub(rig.position).normalize(); armQ.setFromUnitVectors(armRest, armNow); arm.quaternion.copy(rigQ.copy(rig.quaternion).invert()).multiply(armQ);
+    if (hamStd.envMapRotation) hamStd.envMapRotation.y = cam.yaw;
   }
   function updateShots(dt) {
     for (const [id, g] of shotMeshes) {
@@ -611,6 +732,8 @@ export function createScene(cv, cfg) {
       b.w.scale.setScalar(b.r * 2.4 * k); b.w.material.opacity = 0.7 * (1 - k);
     }
     flash.intensity *= Math.exp(-dt * 9);
+    // the hammer's flash: grows a little and fades over its short life
+    if (hitFlash.visible) { HF.t += dt; const k = HF.t / HF.life; if (k >= 1) hitFlash.visible = false; else { const sc = HF.size * (0.65 + 0.35 * k); hitFlash.scale.set(sc, sc, 1); hitFlash.material.opacity = (1 - k * k) * (reduced ? 0.5 : 1); } }
     // the flakes' box rides with the eye: snow always falls around the player
     if (flakes.visible) { const p = flakeGeo.attributes.position.array, cx = camera.position.x, cz = camera.position.z; for (let i = 0; i < flakeN; i++) { p[i * 3 + 1] -= dt * (1.2 + (i % 5) * 0.2); p[i * 3] += Math.sin(time + i) * dt * 0.3; if (p[i * 3 + 1] < 0) p[i * 3 + 1] += 18; } flakes.position.set(cx, 0, cz); flakeGeo.attributes.position.needsUpdate = true; }
   }
@@ -623,6 +746,9 @@ export function createScene(cv, cfg) {
     cam.trauma *= Math.exp(-cfg.feel.shakeDecay * dt);
     // the kick: a short upward nod on hits and blasts that dies away (exponential: stable at any frame time; no roll)
     cam.kick = Math.min(0.12, (cam.kick || 0)) * Math.exp(-dt * 14);
+    // the punch: the view widens a touch when the hammer lands and comes back (exponential, like the kick)
+    cam.punch = (cam.punch || 0) * Math.exp(-dt * HM.camera.fovDecay);
+    { const f = cc.fov + (cam.punch > 0.02 ? cam.punch : 0); if (Math.abs(f - camera.fov) > 0.005) { camera.fov = f; camera.updateProjectionMatrix(); } }
     const sh = cam.trauma * cam.trauma * 0.25;
     const st = performance.now() / 1000, sa = sh * 0.5; // summed sines at unrelated rates: a per-frame random offset buzzes like static
     camera.position.set(h.x + Math.sin(st * 39) * sa, h.y + cam.eyeY + bob + Math.sin(st * 53 + 1) * sa, h.z + Math.sin(st * 47 + 2) * sa);
@@ -691,8 +817,10 @@ export function createScene(cv, cfg) {
     signOf(id) { const v = botMeshes.get(id); if (!v || !v.sign) return null; const p = v.sign.g.position; return { text: signList[v.sign.sp.k] || '', k: v.sign.sp.k, x: p.x, y: p.y, z: p.z }; },
     /** A robot's face cell (eye kind × 5 + mouth). */
     faceOf(id) { const v = botMeshes.get(id); return v ? v.fk : -1; },
-    /** The low tier: no sun shadows, half the debris, dust and sparks. */
-    setLow(v) { low = !!v; sun.castShadow = !low; },
+    /** The low tier: no sun shadows, half the debris, dust and sparks, the hammer without its reflection. */
+    setLow(v) { low = !!v; sun.castShadow = !low; hammerLook(); },
+    /** The hammer as drawn: its tier's material, triangles, the swing's layers (for tests and tuning). */
+    get hammer() { return { mirrored: hamMesh.material === hamStd && !!hamStd.envMap, tris: hamMesh.geometry.attributes.position.count / 3, rx: rig.rotation.x, pos: rig.position.toArray(), recoil: ham.rec, sway: [ham.sx, ham.sy], punch: cam.punch || 0, landed: ham.landed, flash: hitFlash.visible }; },
     /** Is world point (x, y, z) inside the view? */
     seen(x, y, z) { const [sx, sy, behind] = screenOf(x, y, z); return !behind && sx >= 0 && sx <= 720 && sy >= 0 && sy <= 1280; },
     compile() { try { renderer.compile(scene, camera); } catch (e) { /* first frame compiles instead */ } },
@@ -700,6 +828,7 @@ export function createScene(cv, cfg) {
       for (const m of chunks.values()) m.geometry.dispose(); for (const it of falls.values()) it.mesh.geometry.dispose();
       for (const b of blasts) { b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); }
       for (const x of disposables) x.dispose();
+      for (const rt of envs.values()) rt.dispose();
       debris.dispose(); dust.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
       renderer.dispose(); try { renderer.forceContextLoss(); } catch (e) { /* already gone */ }
     },
@@ -802,4 +931,142 @@ function drawSign(x, text, rtl, k) {
   x.direction = rtl ? 'rtl' : 'ltr'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
   const fills = ['#ffffff', '#fff07a', '#bff6ff', '#ffd0ec'], lh = size * 1.1, y0 = H / 2 + 6 - (lines.length - 1) * lh / 2;
   lines.forEach((l, i) => { x.lineWidth = size * 0.24; x.strokeStyle = '#2b1d4f'; x.strokeText(l, W / 2, y0 + i * lh); x.fillStyle = fills[k % 4]; x.fillText(l, W / 2, y0 + i * lh); });
+}
+
+// ---- the hammer in the hand: its shape and its three small textures, all made here
+// tiles of the hammer's 256 × 128 texture, in pixels: [x, y, w, h]
+const HAM_TILES = { steel: [0, 0, 64, 64], face: [64, 0, 64, 64], band: [128, 0, 64, 64], wood: [192, 0, 64, 128], grip: [0, 64, 64, 64], pommel: [64, 64, 64, 64], collar: [128, 64, 64, 64] };
+
+/**
+ * The hammer as one geometry (position, normal, uv into HAM_TILES), the handle along +y with the hand at the origin
+ * and the head's two striking faces along z. K = cfg.feel.hammer.look (sizes). About 400 triangles, one draw call.
+ */
+function hammerGeometry(K) {
+  const P = [], N = [], UV = [];
+  const uv = (r, u, v) => { const [x, y, w, h] = HAM_TILES[r], m = 2.5; UV.push((x + m + u * (w - 2 * m)) / 256, 1 - (y + m + v * (h - 2 * m)) / 128); };
+  // one triangle, turned so that it faces away from the point ref; flat unless normals are given
+  const tri = (r, a, b, c, ref, uvs, nrm) => {
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    const mx = (a[0] + b[0] + c[0]) / 3 - ref[0], my = (a[1] + b[1] + c[1]) / 3 - ref[1], mz = (a[2] + b[2] + c[2]) / 3 - ref[2];
+    const flip = nx * mx + ny * my + nz * mz < 0, order = flip ? [0, 2, 1] : [0, 1, 2], pts = [a, b, c];
+    if (flip) { nx = -nx; ny = -ny; nz = -nz; }
+    for (const i of order) { const p = pts[i]; P.push(p[0], p[1], p[2]); if (nrm) N.push(nrm[i][0], nrm[i][1], nrm[i][2]); else N.push(nx, ny, nz); uv(r, uvs[i][0], uvs[i][1]); }
+  };
+  /** A box with every edge and corner cut off by c; rz = the tile of its two z faces (the striking faces). */
+  const chamferBox = (r, cx, cy, cz, w, h, d, c, rz) => {
+    const H = [w / 2, h / 2, d / 2], O = [cx, cy, cz], polys = [];
+    const pt = (v) => [O[0] + v[0], O[1] + v[1], O[2] + v[2]];
+    for (let a = 0; a < 3; a++) {
+      const b = (a + 1) % 3, k = (a + 2) % 3;
+      for (const s of [-1, 1]) {
+        // the flat face
+        polys.push([[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([sb, sk]) => { const v = [0, 0, 0]; v[a] = s * H[a]; v[b] = sb * (H[b] - c); v[k] = sk * (H[k] - c); return pt(v); }));
+        // the cut edges between this face and the two faces of the next axis
+        for (const sb of [-1, 1]) {
+          const q = (ia, ib, sk) => { const v = [0, 0, 0]; v[a] = s * (H[a] - (ia ? c : 0)); v[b] = sb * (H[b] - (ib ? c : 0)); v[k] = sk * (H[k] - c); return pt(v); };
+          polys.push([q(0, 1, 1), q(0, 1, -1), q(1, 0, -1), q(1, 0, 1)]);
+        }
+      }
+    }
+    // the cut corners
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) polys.push([pt([sx * H[0], sy * (H[1] - c), sz * (H[2] - c)]), pt([sx * (H[0] - c), sy * H[1], sz * (H[2] - c)]), pt([sx * (H[0] - c), sy * (H[1] - c), sz * H[2]])]);
+    for (const poly of polys) {
+      // the texture is laid flat on whichever way the piece faces most
+      const a = poly[0], b = poly[1], e = poly[2], n = [(b[1] - a[1]) * (e[2] - a[2]) - (b[2] - a[2]) * (e[1] - a[1]), (b[2] - a[2]) * (e[0] - a[0]) - (b[0] - a[0]) * (e[2] - a[2]), (b[0] - a[0]) * (e[1] - a[1]) - (b[1] - a[1]) * (e[0] - a[0])].map(Math.abs);
+      const ax = n[2] >= n[0] && n[2] >= n[1] ? 2 : n[0] >= n[1] ? 0 : 1, i = (ax + 1) % 3, j = (ax + 2) % 3, reg = ax === 2 && rz ? rz : r;
+      const uvs = poly.map((p) => [(p[i] - O[i]) / (2 * H[i]) + 0.5, (p[j] - O[j]) / (2 * H[j]) + 0.5]);
+      for (let t = 1; t + 1 < poly.length; t++) tri(reg, poly[0], poly[t], poly[t + 1], O, [uvs[0], uvs[t], uvs[t + 1]]);
+    }
+  };
+  /** A round piece along y from y0 (radius r0) to y1 (radius r1), smooth around, with flat caps where asked. */
+  const cyl = (r, y0, y1, r0, r1, sides, cap0, cap1) => {
+    const ring = (y, rad, i) => { const a = i / sides * Math.PI * 2; return [Math.cos(a) * rad, y, Math.sin(a) * rad]; };
+    const nr = (i) => { const a = i / sides * Math.PI * 2; return [Math.cos(a), 0, Math.sin(a)]; };
+    for (let i = 0; i < sides; i++) {
+      const a = ring(y0, r0, i), b = ring(y0, r0, i + 1), c = ring(y1, r1, i + 1), e = ring(y1, r1, i), ref = [0, (y0 + y1) / 2, 0], u0 = i / sides, u1 = (i + 1) / sides;
+      tri(r, a, b, c, ref, [[u0, 1], [u1, 1], [u1, 0]], [nr(i), nr(i + 1), nr(i + 1)]); tri(r, a, c, e, ref, [[u0, 1], [u1, 0], [u0, 0]], [nr(i), nr(i + 1), nr(i)]);
+    }
+    for (const [on, y, rad] of [[cap0, y0, r0], [cap1, y1, r1]]) {
+      if (!on) continue;
+      for (let i = 0; i < sides; i++) { const a = ring(y, rad, i), b = ring(y, rad, i + 1); tri(r, [0, y, 0], a, b, [0, (y0 + y1) / 2, 0], [[0.5, 0.5], [a[0] / rad * 0.5 + 0.5, a[2] / rad * 0.5 + 0.5], [b[0] / rad * 0.5 + 0.5, b[2] / rad * 0.5 + 0.5]]); }
+    }
+  };
+  const S = K.headSize, L = K.headLen, c = K.chamfer, hr = K.handleR, top = K.handleLen - 0.16, hy = top, ft = L * 0.15;
+  // handle (thicker towards the head), grip wrap, pommel
+  cyl('wood', -0.13, top - S * 0.3, hr, hr * 1.12, 10, false, false);
+  cyl('grip', -0.13, 0.2, hr + 0.014, hr + 0.012, 10, false, true);
+  cyl('pommel', -0.2, -0.13, hr + 0.034, hr + 0.022, 10, true, true);
+  // collar where the handle enters the head, and the handle's end showing on top
+  cyl('collar', hy - S * 0.5 - 0.06, hy - S * 0.5 + 0.01, hr * 1.9, hr * 1.7, 10, true, false);
+  cyl('wood', hy + S * 0.5, hy + S * 0.5 + 0.025, hr * 1.3, hr * 1.1, 10, false, true);
+  // head: a steel core, a wider red band around the middle, two flared striking faces
+  chamferBox('steel', 0, hy, 0, S * 0.84, S * 0.84, L - ft * 1.6, c * 0.7, null);
+  chamferBox('band', 0, hy, 0, S * 1.02, S * 1.02, L * 0.36, c, null);
+  for (const s of [-1, 1]) chamferBox('steel', 0, hy, s * (L - ft) / 2, S + K.faceFlare * 2, S + K.faceFlare * 2, ft, c, 'face');
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(N), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(UV), 2));
+  g.computeBoundingSphere();
+  return g;
+}
+
+/** The hammer's colours (256 × 128, tiles as in HAM_TILES): brushed steel, polished faces, red paint, wood grain, grip wrap. */
+function drawHammerMap(x, K) {
+  const R = (() => { let a = 4242; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  const tile = (name, draw) => { const [tx, ty, w, h] = HAM_TILES[name]; x.save(); x.translate(tx, ty); x.beginPath(); x.rect(0, 0, w, h); x.clip(); draw(w, h); x.restore(); };
+  const fill = (c, w, h) => { x.fillStyle = c; x.fillRect(0, 0, w, h); };
+  const streaks = (n, w, h, light, dark, len, across) => { for (let i = 0; i < n; i++) { x.fillStyle = R() < 0.5 ? light : dark; const a = R() * w, b = R() * h, l = len * (0.4 + R()); if (across) x.fillRect(a, b, l, 1); else x.fillRect(a, b, 1, l); } };
+  tile('steel', (w, h) => { fill(K.steel, w, h); streaks(60, w, h, 'rgba(255,255,255,.1)', 'rgba(20,30,50,.08)', 40, true); x.fillStyle = 'rgba(255,255,255,.2)'; x.fillRect(0, 0, w, 5); x.fillStyle = 'rgba(10,20,40,.2)'; x.fillRect(0, h - 6, w, 6); });
+  tile('face', (w, h) => {
+    fill(K.face, w, h);
+    // a struck face: worn rings and a few dents
+    x.strokeStyle = 'rgba(40,55,80,.1)'; x.lineWidth = 2; for (const r of [12, 24]) { x.beginPath(); x.arc(w / 2, h / 2, r, 0, 7); x.stroke(); }
+    x.strokeStyle = 'rgba(30,40,60,.4)'; x.lineWidth = 5; x.strokeRect(1, 1, w - 2, h - 2);
+    for (let i = 0; i < 9; i++) { x.fillStyle = 'rgba(30,40,60,.3)'; x.fillRect(8 + R() * (w - 16), 8 + R() * (h - 16), 2 + R() * 3, 1.5); }
+  });
+  tile('band', (w, h) => {
+    fill(K.band, w, h); x.fillStyle = K.bandLight; x.fillRect(0, 4, w, 7);
+    x.fillStyle = 'rgba(90,0,0,.3)'; x.fillRect(0, h - 9, w, 9);
+    // paint chipped at the edges
+    for (let i = 0; i < 10; i++) { x.fillStyle = 'rgba(215,222,232,.75)'; x.fillRect(R() < 0.5 ? R() * 3 : w - 3 - R() * 3, R() * h, 2 + R() * 2, 2 + R() * 3); }
+  });
+  tile('wood', (w, h) => {
+    fill(K.wood, w, h);
+    // grain runs along the handle: wavy darker lines, a few light ones, two knots
+    for (let i = 0; i < 16; i++) { const x0 = (i + R() * 0.8) * w / 16, ph = R() * 6; x.strokeStyle = K.grain; x.globalAlpha = 0.3 + R() * 0.45; x.lineWidth = 0.8 + R() * 1.6; x.beginPath(); for (let y = 0; y <= h; y += 8) x.lineTo(x0 + Math.sin(y * 0.05 + ph) * 2, y); x.stroke(); }
+    x.globalAlpha = 1; streaks(24, w, h, 'rgba(255,236,200,.3)', 'rgba(255,236,200,.18)', 34, false);
+    for (const [kx, ky] of [[20, 40], [46, 92]]) { x.strokeStyle = K.grain; x.globalAlpha = 0.7; x.lineWidth = 1.4; for (const r of [2, 4.5]) { x.beginPath(); x.ellipse(kx, ky, r, r * 1.8, 0, 0, 7); x.stroke(); } }
+    x.globalAlpha = 1;
+  });
+  tile('grip', (w, h) => { fill(K.grip, w, h); x.strokeStyle = K.gripRib; x.lineWidth = 3; for (let i = -2; i < 9; i++) { x.beginPath(); x.moveTo(0, i * 9 + 12); x.lineTo(w, i * 9); x.stroke(); } x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(0, 0, w, 4); });
+  tile('pommel', (w, h) => { fill(K.pommel, w, h); x.fillStyle = K.bandLight; x.fillRect(0, 6, w, 6); x.fillStyle = 'rgba(90,0,0,.3)'; x.fillRect(0, h - 10, w, 10); });
+  tile('collar', (w, h) => { fill(K.steel, w, h); x.fillStyle = 'rgba(20,30,50,.3)'; x.fillRect(0, 0, w, h); x.fillStyle = 'rgba(255,255,255,.3)'; x.fillRect(0, h * 0.4, w, 5); });
+}
+
+/** How the hammer's surface takes light, same tiles: green = roughness, blue = metalness (steel mirrors, wood does not). */
+function drawHammerOrm(x) {
+  const R = (() => { let a = 777; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  const put = (name, rough, metal, marks) => {
+    const [tx, ty, w, h] = HAM_TILES[name]; x.fillStyle = `rgb(0,${Math.round(rough * 255)},${Math.round(metal * 255)})`; x.fillRect(tx, ty, w, h);
+    // scratches are rougher than the surface around them
+    for (let i = 0; i < marks; i++) { x.fillStyle = `rgb(0,${Math.round(Math.min(1, rough + 0.25) * 255)},${Math.round(metal * 255)})`; x.fillRect(tx + R() * (w - 14), ty + R() * h, 6 + R() * 14, 1); }
+  };
+  put('steel', 0.36, 1, 30); put('face', 0.2, 1, 14); put('band', 0.42, 0, 0); put('wood', 0.78, 0, 0); put('grip', 0.95, 0, 0); put('pommel', 0.42, 0, 0); put('collar', 0.3, 1, 8);
+}
+
+/** The sky the steel mirrors (a small equirectangular picture): the theme's sky, a bright sun, a pale horizon, the ground. */
+function drawEnv(x, t, w, h) {
+  const sky = x.createLinearGradient(0, 0, 0, h / 2); sky.addColorStop(0, t.top); sky.addColorStop(1, t.low); x.fillStyle = sky; x.fillRect(0, 0, w, h / 2);
+  const gr = x.createLinearGradient(0, h / 2, 0, h); gr.addColorStop(0, t.hemiG); gr.addColorStop(1, '#4a4038'); x.fillStyle = gr; x.fillRect(0, h / 2, w, h / 2);
+  // a white band at the horizon and the sun: what makes the highlight on the head
+  x.fillStyle = 'rgba(255,255,255,.75)'; x.fillRect(0, h / 2 - 5, w, 5);
+  for (const [sx, sy, r] of [[w * 0.3, h * 0.2, h * 0.2], [w * 0.8, h * 0.3, h * 0.1]]) { const g = x.createRadialGradient(sx, sy, 0, sx, sy, r); g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, t.sun); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(sx - r, sy - r, r * 2, r * 2); }
+}
+
+/** The flash where the hammer lands: a soft glow with an eight-point burst. */
+function drawFlash(x) {
+  x.clearRect(0, 0, 64, 64);
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 30); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  x.fillStyle = 'rgba(255,255,255,.95)'; x.translate(32, 32);
+  for (let i = 0; i < 8; i++) { const r = i % 2 ? 19 : 31; x.rotate(Math.PI / 4); x.beginPath(); x.moveTo(0, -r); x.lineTo(2.6, 0); x.lineTo(0, 3); x.lineTo(-2.6, 0); x.closePath(); x.fill(); }
 }
