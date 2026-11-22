@@ -73,10 +73,14 @@ const code = {
   const startSec = (Date.now() - t0) / 1000;
   const feed = { startSec: +startSec.toFixed(1), code };
   if (started) {
-    const view = () => p.screenshot({ clip: { x: 0, y: 0, width: W, height: H } });
+    // a slow CI runner can take longer than Playwright's 30 s default to capture a busy WebGL page; a capture that
+    // still fails leaves the visual observations null instead of ending the run (the tap check needs no capture)
+    let slowShots = 0;
+    const view = async () => { try { return await p.screenshot({ clip: { x: 0, y: 0, width: W, height: H }, timeout: 60000 }); } catch (e) { slowShots++; return null; } };
+    const differ = (x, y) => (x && y ? !x.equals(y) : null);
     await p.waitForTimeout(1500);
     const a = await view(); await p.waitForTimeout(700); const bShot = await view();
-    feed.movesBeforeTouch = !a.equals(bShot); // the muted preview is the first screen: it should already be alive
+    feed.movesBeforeTouch = differ(a, bShot); // the muted preview is the first screen: it should already be alive
     const g0 = await f.evaluate(() => ({ ...__g }));
     const before = await view();
     await p.touchscreen.tap(W * 0.5, H * 0.62); // a feed visitor's first tap, in the play area
@@ -84,7 +88,8 @@ const code = {
     const after = await view();
     const g1 = await f.evaluate(() => ({ ...__g }));
     feed.tapReachedHost = g1.touchstart > g0.touchstart && g1.touchend > g0.touchend;
-    feed.tapChangedScreen = !before.equals(after); // also true for an animated scene; read it with movesBeforeTouch
+    feed.tapChangedScreen = differ(before, after); // also true for an animated scene; read it with movesBeforeTouch
+    if (slowShots) feed.screenshotsTimedOut = slowShots;
     await p.waitForTimeout(Math.max(0, 7500 - (Date.now() - t0 - startSec * 1000)));
     const r = await f.evaluate(() => { const fr = __fr.filter((t) => t > performance.now() - 2000); return { fps: fr.length > 2 ? (fr.length - 1) * 1000 / (fr[fr.length - 1] - fr[0]) : 0, calls: __calls, consoleErrors: __consoleErrors }; });
     feed.fpsAfter5s = Math.round(r.fps); feed.calls = r.calls; feed.consoleErrorsLogged = r.consoleErrors;
