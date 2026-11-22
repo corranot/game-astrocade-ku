@@ -206,6 +206,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "echo `# <#` >/dev/null; bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/shrink-evidence.sh\"; exit 0 #> ; exit 0",
+            "timeout": 60
+          },
+          {
+            "type": "command",
             "command": "echo `# <#` >/dev/null; bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-commit.sh\"; exit $? #> ; exit 0",
             "timeout": 15
           },

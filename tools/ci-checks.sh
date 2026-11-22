@@ -30,5 +30,11 @@ for d in prototypes/*/ tools/fixtures/*/; do
   out=$(mktemp -d)
   bash tools/astrocade-upload-set.sh "$d" "$out" >/dev/null 2>&1 || note "FAIL upload-set $d"
 done
+# every committed screenshot version stays in history: new evidence goes through tools/evidence-shrink.py
+# (the commit hook runs it); a file this big skipped it
+for f in production/qa/evidence/*/* production/qa/evidence/*/*/*; do
+  [ -f "$f" ] || continue
+  [ "$(wc -c < "$f")" -le 256000 ] || note "FAIL evidence-size $f is over 250 KB (python3 tools/evidence-shrink.py $f)"
+done
 [ $fail = 0 ] && echo "ok: all checks passed"
 exit $fail
