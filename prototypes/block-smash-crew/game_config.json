@@ -352,7 +352,8 @@
  "debris": {
   "max": 700,
   "life": 3.2,
-  "perBlast": 220
+  "perBlast": 220,
+  "perHit": 40
  },
  "langNames": {
   "en": "English",
@@ -894,6 +895,7 @@
   "ratio": 1.3,
   "landAt": 1.5
  },
+ "look": {"hemi": 1.3, "sun": 2.9, "sunDir": [0.5, 1, 0.72], "tufts": 520, "patches": 56, "glint": 1.3, "spread": 15, "trees": 28},
  "feel": {
   "stopScale": 0.15,
   "stop": {
@@ -917,6 +919,8 @@
   "ball": {"hold": {"pos": [0.11, -0.16, -0.6]}, "fire": {"dur": 0.5, "peak": 0.3, "to": [-0.02, -0.02, -0.2], "rx": -0.55}, "recoil": {"kick": 0.5, "z": 0.08, "y": 0.03, "rx": 0.5}, "camera": {"kick": 0.008, "fov": 0.6, "boomFov": 1.2}, "flash": {"size": 1.2, "life": 0.1, "color": "#ffd0e0"}, "trail": 0.25, "look": {"metal": "#59616e"}, "sound": {"launch": {"pitch": 0.06, "layers": [{"t": "play", "id": "throwS", "g": 1}, {"t": "tone", "w": "sine", "f0": 95, "f1": 60, "d": 0.3, "g": 0.32}]}, "impact": {"pitch": 0.06, "layers": [{"t": "hiss", "f0": 5200, "f1": 3000, "d": 0.03, "g": 0.22, "ft": "highpass"}, {"t": "play", "id": "roll", "g": 1}, {"t": "tone", "w": "sine", "f0": 62, "f1": 34, "d": 0.4, "g": 0.45}]}}},
   "hole": {"hold": {"pos": [0.11, -0.16, -0.6]}, "fire": {"dur": 0.5, "peak": 0.3, "to": [-0.02, 0.06, -0.14], "rx": -0.3}, "recoil": {"kick": 0.35, "z": 0.08, "y": 0.03, "rx": 0.5}, "camera": {"kick": 0.006, "fov": 0.8, "boomFov": 1.4}, "flash": {"size": 1.4, "life": 0.14, "color": "#d9a8ff"}, "trail": 0, "look": {"core": "#16052a", "rim": "#b65cff", "dim": "#4a2a6a", "metal": "#59616e"}, "sound": {"launch": {"pitch": 0.06, "layers": [{"t": "play", "id": "hole", "g": 1}, {"t": "tone", "w": "sine", "f0": 900, "f1": 220, "d": 0.25, "g": 0.1}]}, "impact": {"pitch": 0.06, "layers": [{"t": "tone", "w": "sine", "f0": 210, "f1": 60, "d": 0.3, "g": 0.35}, {"t": "hiss", "f0": 2000, "f1": 300, "d": 0.25, "g": 0.18}]}}},
   "meteor": {"hold": {"pos": [0.11, -0.16, -0.6]}, "fire": {"dur": 0.6, "peak": 0.3, "to": [-0.03, 0.14, -0.02], "rx": 0.35}, "recoil": {"kick": 0.3, "z": 0.08, "y": 0.03, "rx": 0.5}, "camera": {"kick": 0.006, "fov": 0.6, "boomFov": 2.4}, "flash": {"size": 1.7, "life": 0.13, "color": "#ffc27a"}, "trail": 1, "look": {"rock": "#7a4b2a", "glow": "#ff5a00", "heat": 0.8, "halo": "#ff8a2e", "metal": "#59616e", "lamp": "#ff4a4a"}, "sound": {"launch": {"pitch": 0.06, "layers": [{"t": "play", "id": "meteor", "g": 1}, {"t": "tone", "w": "triangle", "f0": 1400, "f1": 1800, "d": 0.1, "g": 0.07}]}, "impact": {"pitch": 0.06, "layers": [{"t": "hiss", "f0": 5200, "f1": 3000, "d": 0.03, "g": 0.22, "ft": "highpass"}, {"t": "play", "id": "boom", "g": 1, "k": true}, {"t": "tone", "w": "sine", "f0": 58, "f1": 24, "d": 0.8, "g": 0.6, "k": true}]}}},
+  "frags": {"linger": 0.9, "shrink": 0.5, "rest": 0.6, "kinds": {"splinter": {"shape": [0.3, 0.3, 1.9], "n": 2, "size": [0.32, 0.3], "spin": 22, "bounce": 0.3, "lift": 0, "glint": 0, "sparks": 0}, "shard": {"shape": [1.1, 0.12, 0.8], "n": 2, "size": [0.3, 0.3], "spin": 18, "bounce": 0.25, "lift": 0.35, "glint": 0.4, "sparks": 0}, "crumb": {"shape": [0.75, 0.7, 0.75], "n": 1.6, "size": [0.34, 0.36], "spin": 10, "bounce": 0.3, "lift": 0, "glint": 0, "sparks": 0}, "spark": {"shape": [0.8, 0.3, 0.8], "n": 1, "size": [0.3, 0.25], "spin": 16, "bounce": 0.4, "lift": 0.15, "glint": 0.25, "sparks": 3}, "soft": {"shape": [0.9, 0.9, 0.9], "n": 1.6, "size": [0.28, 0.22], "spin": 6, "bounce": 0.62, "lift": 0.08, "glint": 0, "sparks": 0}, "chunk": {"shape": [1, 1, 1], "n": 1, "size": [0.42, 0.38], "spin": 14, "bounce": 0.35, "lift": 0.2, "glint": 0.5, "sparks": 1}}, "dust": {"size": 1.3, "life": 2.6, "per": 0.12, "max": 5, "speed": 0.25, "lift": 0.5}},
+  "blast": {"scorch": {"size": 1.15, "life": 7, "fade": 2, "opacity": 0.78, "ground": 1.2}, "ring": {"per": 1.6, "max": 10, "size": 0.9, "color": "#e9dfcc"}},
   "hammer": {
    "look": {
     "steel": "#9aa7b8",
@@ -1063,22 +1067,19 @@
   "mult": 2
  },
  "themes": {
-  "day": {
-   "top": "#3aa8ff",
+  "day": {"tuft": "#63c843", "top": "#3aa8ff",
    "low": "#d9f3ff",
    "sun": "#fff4dc",
    "hemiG": "#8fcf6a",
    "ground": "#ffffff"
   },
-  "sunset": {
-   "top": "#4f8dff",
+  "sunset": {"tuft": "#74c247", "top": "#4f8dff",
    "low": "#ffd2a1",
    "sun": "#ffd9a8",
    "hemiG": "#c9b37a",
    "ground": "#fff1d8"
   },
-  "snow": {
-   "top": "#4aa8ff",
+  "snow": {"tuft": "#e6effb", "top": "#4aa8ff",
    "low": "#eaf6ff",
    "sun": "#ffffff",
    "hemiG": "#dfefff",
@@ -1106,7 +1107,8 @@
   "lowSlowWindows": 3,
   "weakCores": 4,
   "weakMemory": 3,
-  "noGain": 0.92
+  "noGain": 0.92,
+  "fx": {"high": {"frag": 1, "hangDust": true, "scorch": 6, "ring": 1}, "low": {"frag": 0.5, "hangDust": false, "scorch": 3, "ring": 0.5}}
  },
  "celebrate": {
   "recordMin": 40,

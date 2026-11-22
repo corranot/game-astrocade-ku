@@ -186,6 +186,21 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Seen here: one strip per tool (rest, fire, flight, impact). Not proven: how any of it sounds on a phone speaker,
   motion at full speed in the hand, real-phone FPS (the bundle run stayed at 14–17 fps on a GPU-less machine).
 
+## Breaks per material, blast marks, world look (stage 4)
+- **Fragments** (`feel.frags.kinds`, one debris pool, shape/colour/spin per instance): splinter (long, fast tumble),
+  shard (thin, lifted towards white, glints for ~0.4 s), crumb (+ a cloud in the material's colour that hangs ~2.6 s,
+  `feel.frags.dust`), spark (flat plates + sparks), soft (small, bounce 0.62), chunk (glint + a spark). Pieces per block
+  = kind `n` × tier; one break never spawns more than `debris.perHit` (40) or `debris.perBlast` (220) pieces.
+- **Settling:** a piece at rest (`feel.frags.rest`) lies for `linger` 0.9 s, then shrinks over `shrink` 0.5 s.
+- **Blasts near the ground** (`feel.blast`): a scorch mark (≤ 6 discs, 7 s, fades the last 2 s), a ring of dust puffs,
+  the light pulse in the tool's flash colour.
+- **World** (`look`): sun in front-right of the building (front lit, left side shaded; hemisphere 1.3, sun 2.9), lawn
+  tone patches + grass tufts as one mesh per level (`themes.*.tuft`), 28 voxel trees in the middle distance.
+- **Tier caps** (`quality.fx`): high = pieces ×1, hanging dust, 6 scorch marks, full dust ring; low = pieces ×0.5, no
+  hanging dust, 3 scorch marks, half the ring (on top of the old low tier: half the pools, no shadows).
+- Soft bits are still boxes (round ones would need a second instanced mesh); robots were left as they are, they only
+  take the new light.
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.
