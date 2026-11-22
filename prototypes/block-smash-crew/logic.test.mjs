@@ -543,5 +543,26 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(det === 1 && !T2.g.get(tb.x, 0, tb.z) && !T2.g.get(tb.x, 1, tb.z) && T2.left === T2.g.count(), `a hit on the handle sets it off once and both cells go (${det})`);
 }
 
+// ---- robot limbs: shoulders, hips, elbows and knees (the arms and legs were single sticks from one point)
+{
+  const { limbJoint } = await import('./bots.js');
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  let ok = true, bends = true, straight = true, finite = true;
+  for (const [r, e, len, nrm] of [[[0, 1, 0], [0.2, 0.7, 0.1], 0.5, [0, 0, -1]], [[0, 0.6, 0], [0.05, 0, 0.2], 0.6, [0, 0, 1]], [[1, 1, 1], [1, 0.9, 1], 0.5, [1, 0, 0]], [[0, 1, 0], [0, 0.6, 0], 0.5, [0, -1, 0]], [[0, 1, 0], [0, 1, 0], 0.5, [0, 0, 1]]]) {
+    const j = limbJoint(r, e, len, nrm), d = dist(r, e), half = Math.max(len, d) / 2;
+    if (!j.every(Number.isFinite)) finite = false;
+    if (Math.abs(dist(r, j) - half) > 1e-6 || Math.abs(dist(j, e) - half) > 1e-6) ok = false;
+    // the joint lies on the side asked for (when that side is not along the limb)
+    const side = (j[0] - (r[0] + e[0]) / 2) * nrm[0] + (j[1] - (r[1] + e[1]) / 2) * nrm[1] + (j[2] - (r[2] + e[2]) / 2) * nrm[2];
+    if (d > 1e-6 && d < len && Math.abs((e[0] - r[0]) * nrm[0] + (e[1] - r[1]) * nrm[1] + (e[2] - r[2]) * nrm[2]) < 0.9 * d && side <= 0) bends = false;
+  }
+  const far = limbJoint([0, 1, 0], [0, 0, 0], 0.6, [0, 0, 1]);
+  if (dist(far, [0, 0.5, 0]) > 1e-6) straight = false;
+  check(finite, 'limb joint: never NaN, also for a zero-length limb or a bend direction along the limb');
+  check(ok, 'limb joint: upper and lower part are equally long and meet at the joint');
+  check(bends, 'limb joint: a limb shorter than its length bends towards the side asked for');
+  check(straight, 'limb joint: a limb pulled longer than its length stays straight');
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);

@@ -6,7 +6,7 @@
 /* global THREE */
 import { meshRegion, raycast } from './voxels.js';
 import { placeOf } from './world.js';
-import { standingPoints } from './bots.js';
+import { standingPoints, limbJoint } from './bots.js';
 
 const CS = 12; // chunk size in blocks
 const SWING_HIT = 0.4;
@@ -372,7 +372,10 @@ export function createScene(cv, cfg) {
     if (!cos || b.costume === 1) { add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0); }
     const trunk = add(body, col, 0.46, 0.5, 0.34, 0, 0, 0, true); add(body, botWhite, 0.22, 0.16, 0.02, 0, 0.02, 0.175);
     if (cos) for (const [where, make, c, x, y, z, rx = 0, sc] of cos) { const m = new THREE.Mesh(geo(make.toString(), make), cmat(c)); m.position.set(x, y, z); m.rotation.x = rx; if (sc) m.scale.set(sc[0], sc[1], sc[2]); (where === 'head' ? head : body).add(m); }
-    const limbs = [add(g, col, 0.1, 1, 0.1), add(g, col, 0.1, 1, 0.1), add(g, botDark, 0.13, 1, 0.13), add(g, botDark, 0.13, 1, 0.13)];
+    // arms and legs: an upper and a lower part each, a hand or a foot at the end
+    const arm = () => ({ up: add(g, col, 0.11, 1, 0.11), low: add(g, col, 0.11, 1, 0.11), end: add(g, botWhite, 0.15, 0.15, 0.15) });
+    const leg = () => ({ up: add(g, botDark, 0.14, 1, 0.14), low: add(g, botDark, 0.14, 1, 0.14), end: add(g, botDark, 0.17, 0.1, 0.27) });
+    const limbs = [arm(), arm(), leg(), leg()];
     let sign = null;
     if (b.sign >= 0) { const sp = signFor(b.sign), sg = new THREE.Group(), board = new THREE.Mesh(signGeo, sp.mat), stick = new THREE.Mesh(stickGeo, stickMat); board.castShadow = true; stick.position.y = -0.5; sg.add(board, stick); g.add(sg); sign = { g: sg, sp }; }
     scene.add(g);
@@ -399,6 +402,19 @@ export function createScene(cv, cfg) {
     return P;
   }
   /** Puts mesh m along the segment a→b (a box of thickness t). */
+  /**
+   * One arm or leg of a bot: from its shoulder or hip (the body point c moved sideways by `out` and along the spine
+   * by `drop`) to the hand or foot e, bent at an elbow (backwards and outwards) or a knee (forwards).
+   */
+  const limbR = [0, 0, 0];
+  function limb(L, c, e, out, drop, len, t, knee) {
+    limbR[0] = c[0] + bx.x * out + by.x * drop; limbR[1] = c[1] + bx.y * out + by.y * drop; limbR[2] = c[2] + bx.z * out + by.z * drop;
+    const s = Math.sign(out), j = knee ? limbJoint(limbR, e, len, [bz.x, bz.y, bz.z]) : limbJoint(limbR, e, len, [bx.x * s * 0.6 - bz.x, bx.y * s * 0.6 - bz.y, bx.z * s * 0.6 - bz.z]);
+    along(L.up, limbR, j, t); along(L.low, j, e, t);
+    // the hand sits on the end; the foot stands on it, toes forward
+    if (knee) L.end.position.set(e[0] + by.x * 0.05 + bz.x * 0.05, e[1] + by.y * 0.05 + bz.y * 0.05, e[2] + by.z * 0.05 + bz.z * 0.05); else L.end.position.set(e[0], e[1], e[2]);
+    L.end.quaternion.copy(bq);
+  }
   function along(m, a, b, t) {
     bva.set(a[0], a[1], a[2]); bvb.set(b[0], b[1], b[2]); const len = bva.distanceTo(bvb);
     m.position.copy(bva).add(bvb).multiplyScalar(0.5); m.scale.set(t, Math.max(0.02, len), t);
@@ -418,7 +434,10 @@ export function createScene(cv, cfg) {
       bz.crossVectors(bx, by); bm.makeBasis(bx, by, bz); bq.setFromRotationMatrix(bm);
       v.head.position.set(P[0][0], P[0][1], P[0][2]); v.head.quaternion.copy(bq);
       v.body.position.set((P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2, (P[1][2] + P[2][2]) / 2); v.body.quaternion.copy(bq);
-      along(v.limbs[0], P[1], P[3], 0.1); along(v.limbs[1], P[1], P[4], 0.1); along(v.limbs[2], P[2], P[5], 0.13); along(v.limbs[3], P[2], P[6], 0.13);
+      // shoulders at the sides of the chest, hips under the pelvis; lengths follow the bot's height
+      const hs = b.h / 1.5;
+      limb(v.limbs[0], P[1], P[3], -0.29, 0.03, 0.5 * hs, 0.11, false); limb(v.limbs[1], P[1], P[4], 0.29, 0.03, 0.5 * hs, 0.11, false);
+      limb(v.limbs[2], P[2], P[5], -0.12, -0.04, 0.62 * hs, 0.14, true); limb(v.limbs[3], P[2], P[6], 0.12, -0.04, 0.62 * hs, 0.14, true);
       // the face: X or dizzy eyes when knocked, a happy smile while getting up and walking off, else its own mouth
       const eye = b.state === 'down' ? 1 + (b.id % 2) : b.state === 'reboot' || b.happy > 0 ? 3 : 0, fk = eye * 5 + (eye === 3 ? 0 : b.mouth);
       if (fk !== v.fk) { v.fk = fk; v.face.material = faceMat(eye, eye === 3 ? 0 : b.mouth); }

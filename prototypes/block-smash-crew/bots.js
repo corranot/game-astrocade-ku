@@ -105,6 +105,22 @@ function leave(W, b) {
   b.state = 'leave'; b.goal = best.slice(); b.life = 0;
 }
 
+/**
+ * The elbow or knee of a two-part limb from root r to end e (points [x, y, z]): both parts are max(len, distance) / 2
+ * long, and the joint leaves the straight line towards n (any direction not along the limb). A limb pulled longer
+ * than len stays straight. Pure, so the look's arms and legs are tested without drawing.
+ */
+export function limbJoint(r, e, len, n) {
+  const dx = e[0] - r[0], dy = e[1] - r[1], dz = e[2] - r[2], d = Math.hypot(dx, dy, dz), half = Math.max(len, d) / 2;
+  let nx = n[0], ny = n[1], nz = n[2];
+  if (d > 1e-6) { const k = (nx * dx + ny * dy + nz * dz) / (d * d); nx -= dx * k; ny -= dy * k; nz -= dz * k; }
+  let nl = Math.hypot(nx, ny, nz);
+  // a bend direction along the limb gives no side to bend to: any side then (up, or forward for a vertical limb)
+  if (nl < 1e-6) { if (Math.abs(dy) < 0.9 * d || d < 1e-6) { nx = 0; ny = 1; nz = 0; } else { nx = 0; ny = 0; nz = 1; } const k = d > 1e-6 ? (nx * dx + ny * dy + nz * dz) / (d * d) : 0; nx -= dx * k; ny -= dy * k; nz -= dz * k; nl = Math.hypot(nx, ny, nz) || 1; }
+  const off = Math.sqrt(Math.max(0, half * half - d * d / 4)) / nl;
+  return [(r[0] + e[0]) / 2 + nx * off, (r[1] + e[1]) / 2 + ny * off, (r[2] + e[2]) / 2 + nz * off];
+}
+
 /** Points of a standing bot (also used to start a ragdoll from where it stands). */
 export function standingPoints(b) { return POSE.map((_, k) => posePoint(b, k, b.x, b.z, b.yaw)); }
 
