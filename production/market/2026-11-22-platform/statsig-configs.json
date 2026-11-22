@@ -1,0 +1,3485 @@
+{
+ "captured": "2026-11-22 guest Statsig /v1/initialize",
+ "note": "values only; config names are hashed; user and game id lists removed",
+ "configs": {
+  "dynamic_configs/97816540": {
+   "max_daily_publishes": 10
+  },
+  "dynamic_configs/288433364": {
+   "plays_threshold": 200,
+   "min_p50_secs": 40
+  },
+  "dynamic_configs/338691910": {
+   "score_p50_weight": 1,
+   "score_spr_weight": 1,
+   "score_feed_ctr_weight": 0.2,
+   "gumbel_temperature": 0.05,
+   "shuffle_percentage": 0.1,
+   "min_plays": 150,
+   "min_games_for_language_filter": 50,
+   "fallback_language": "en",
+   "variant_name": "gallery-v0-hybrid",
+   "include_retired_games": false,
+   "gbdt_enabled": true,
+   "gbdt_model_name": "production_fixed",
+   "gbdt_retriever_max_candidates": 300,
+   "gbdt_retriever_gumbel_temperature": 0.1,
+   "gbdt_rank_gumbel_temperature": 0.3,
+   "gbdt_replay_reduce_enabled": true,
+   "gbdt_replay_reduce_top_clear": 3,
+   "gbdt_replay_reduce_min_gap": 3,
+   "gbdt_creator_reduce_min_gap": 3,
+   "gbdt_remix_family_dedup_enabled": true,
+   "gbdt_serving": {
+    "mode": "remote",
+    "endpoint_name": "gbdt-ranker",
+    "timeout_ms": 150
+   },
+   "cold_game_insert_enabled": true,
+   "cold_game_insert_fraction": 0.05,
+   "cold_game_insert_protected_head": 3,
+   "cold_game_insert_min_separation": 0,
+   "cold_game_lower_play_threshold": 75,
+   "cold_game_min_p50": 40
+  },
+  "dynamic_configs/398306563": {
+   "feed_config": {
+    "tags": [
+     {
+      "id": "all",
+      "isAll": true,
+      "label": "All"
+     },
+     {
+      "id": "saved",
+      "isSaved": true,
+      "label": "Favorites"
+     },
+     {
+      "id": "simulation",
+      "categories": [
+       "simulation"
+      ],
+      "label": "Simulation"
+     },
+     {
+      "id": "horror",
+      "categories": [
+       "horror"
+      ],
+      "label": "Horror"
+     },
+     {
+      "id": "meme",
+      "categories": [
+       "meme"
+      ],
+      "label": "Meme"
+     },
+     {
+      "id": "puzzle",
+      "categories": [
+       "puzzle"
+      ],
+      "label": "Puzzle"
+     },
+     {
+      "id": "survival",
+      "categories": [
+       "survival"
+      ],
+      "label": "Survival"
+     },
+     {
+      "id": "adventure",
+      "categories": [
+       "adventure"
+      ],
+      "label": "Adventure"
+     },
+     {
+      "id": "action",
+      "categories": [
+       "action"
+      ],
+      "label": "Action"
+     },
+     {
+      "id": "sports",
+      "categories": [
+       "sports"
+      ],
+      "label": "Sports"
+     },
+     {
+      "id": "rhythm",
+      "categories": [
+       "tempo"
+      ],
+      "label": "Rhythm"
+     }
+    ],
+    "feed_rows": [
+     {
+      "category": "top_picks",
+      "size": "netflix_large",
+      "label": "Players' Choice"
+     },
+     {
+      "category": "new",
+      "size": "netflix_small",
+      "label": "New"
+     },
+     {
+      "category": "featured",
+      "size": "netflix_large",
+      "label": "Featured"
+     },
+     {
+      "category": "physics_jam",
+      "size": "netflix_small",
+      "label": "Physics Game Jam",
+      "tooltip": "Community competition - you be the judge!"
+     },
+     {
+      "category": "beta",
+      "size": "netflix_small",
+      "label": "Community Playtests",
+      "description": "Be the first to play and leave feedback!",
+      "borderColor": "#AD00FF",
+      "backgroundColor": "#AD00FF1C"
+     },
+     {
+      "category": "meme",
+      "size": "netflix_small",
+      "label": "Meme"
+     },
+     {
+      "category": "creative",
+      "size": "netflix_small",
+      "label": "Creative"
+     },
+     {
+      "category": "arcade",
+      "size": "netflix_small",
+      "label": "Arcade"
+     },
+     {
+      "category": "horror",
+      "size": "netflix_small",
+      "label": "Horror"
+     },
+     {
+      "category": "sports",
+      "size": "netflix_small",
+      "label": "Sports"
+     },
+     {
+      "category": "zen",
+      "size": "netflix_small",
+      "label": "Zen"
+     },
+     {
+      "category": "platformer",
+      "size": "netflix_small",
+      "label": "Platformer"
+     },
+     {
+      "category": "tactics",
+      "size": "netflix_small",
+      "label": "Tactics"
+     },
+     {
+      "category": "simulation",
+      "size": "netflix_small",
+      "label": "Simulation"
+     },
+     {
+      "category": "farm",
+      "size": "netflix_small",
+      "label": "Farming"
+     },
+     {
+      "category": "chess",
+      "size": "netflix_small",
+      "label": "Chess"
+     },
+     {
+      "category": "puzzle",
+      "size": "netflix_small",
+      "label": "Puzzle"
+     },
+     {
+      "category": "survival",
+      "size": "netflix_small",
+      "label": "Survival"
+     },
+     {
+      "category": "adventure",
+      "size": "netflix_small",
+      "label": "Adventure"
+     },
+     {
+      "category": "action",
+      "size": "netflix_small",
+      "label": "Action"
+     },
+     {
+      "category": "educational",
+      "size": "netflix_small",
+      "label": "Educational"
+     },
+     {
+      "category": "incremental",
+      "size": "netflix_small",
+      "label": "Incremental"
+     },
+     {
+      "category": "cooking",
+      "size": "netflix_small",
+      "label": "Cooking"
+     },
+     {
+      "category": "merge",
+      "size": "netflix_small",
+      "label": "Merge"
+     }
+    ],
+    "feed_games": [
+     {
+      "gameId": "01KNMYWV7FVTQ7B5QN393W2FZP",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KMR1VFKS76EF39BH0FGFA6A7",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KKMR69EE06FDVRS2PHQG6HR3",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KAGEYQKN10YFQNN0GTGXK0RR",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KHV7PCABD4465HY0YANEDD7K",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KN6Y14MCRCQR9M11GM1BETNF",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KPDDXDES9Y3ZSCDBXTR72JQG",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KP5PP9RBTTSP4QHTDW1QR0E5",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KPV0PGZ3HGS79ZZ3K1C2PNCF",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KP734P3J9F5CW4ST3SY1K8ZH",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KPKV7T0C1YC38XZ455S7VWFQ",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KQAZXBVRKQDPVMN6EEXF8XZT",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KMGFGH3T6P2DN09FZGATSRG7",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KQJHF255Y47XQZR64KAMTZHA",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KR6CQQT4421PHH1DAFVYFXWW",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KQG9TS7WV5MH2S95C88V7141",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KPQB74QVJ0C5RX3H41WEWFNV",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KQ6ZBTVPGGGXMT6V82G1CD7N",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRPVQ3XBBBEM0VM0FB6D58AM",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSZE49FXR3WPDZACXQXNAZ91",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSG4XBY7X9EBX3NYTH4RG274",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KQYFCNA3PZEBF5G5BBB9XW00",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRZXR2W1036YKDGG1V0CFBWZ",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRTN91P9CXSJ41BM4RDV2HKX",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSEDNMD1G288092SE29M2Y8J",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KS3WQ1TENSVVHXSS3447XVYS",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSJG9RFGAD8P9QZ44Z9JT5DC",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRSQ2S6M23F1WXT67KBBV6YP",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRFDFVSJ4715JYD89QPQM2ZV",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRRB0WM3VTACHNFYB39RW558",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KT85076C36HE15R1AH6EVJFF",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTFYAMQ7AH14F8RDERKNMEZW",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSN4Y9VAG9B052K5ET9Z1DD3",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSV2NJ18KFK610FMQK197B4D",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRS141VVFG0DD8D89WXXQ82D",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTF3D06B9VV84N0QSP041E39",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSQK014Z4DPC4RDEP9JGKV91",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KT3EK93F0Q8EEQRS1P7YTPDC",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTAY1SBS09VMAVSEHX34EKHV",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTGD1RZF3GX6BKA312DQ0MTZ",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KVB0CTCM9YPBSX0637C8FK1D",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTPEAC926G5Q2A3HMXAFW7WN",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTNJ3H49H6CJG5JWZWDSP9RB",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSXXGQFFEE1XZGPV4M6A4W39",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTMQWFX820YBVAH659J6H9Z7",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTG9SHNB65HM9RSEPV2ZDKAF",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSWTS6PGBK6WVJGY2JA1CKD6",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTYJ8FQASMKDRC9KGY172YM0",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KVW5M11DE9F6QV3TXFAAX9KQ",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KVW76GW0G66FQD8Z1PH0VKV7",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KRGPPY4CG9N1B5F5Y4ZBQX2Y",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSF4PBFG08P7B243E5J6VSQ7",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KT4QXWQJ2M8MZN5FCRNT3T42",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KVG8CR3YPGSP4FA3RCNTCTS6",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KT4KSEQEVDQ899GEADDJ9X5P",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KS8VQGGBMYFM47N91KPCX194",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KPHFZGYS49QY4W3YA0JF93PW",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KSB225ZD9HR2D41TDZVVTW0B",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KVC0DF6TXY7E48NFTEZGG5AX",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTNFKNSJV2QC0E7YJQVN4P50",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KF6F4CC76KC411F7DBYP3XKG",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KTJPQDA18WN4PHJMC8HTT472",
+      "categories": [
+       "top_picks"
+      ]
+     },
+     {
+      "gameId": "01KVQ3HWH557YYMEXDBEAD4ZDK",
+      "categories": [
+       "top_picks"
+      ]
+     }
+    ]
+   }
+  },
+  "dynamic_configs/709560354": {
+   "games": [
+    {
+     "id": "01KPV0PGZ3HGS79ZZ3K1C2PNCF",
+     "score": 0.885665
+    },
+    {
+     "id": "01KK1RAJAJBMQJ7EPMJKJCTMAE",
+     "score": 0.798165
+    },
+    {
+     "id": "01KMBMNGHA8AD9PAZ48BV66RD9",
+     "score": 0.797166
+    },
+    {
+     "id": "01KQ81BJY6XSSG6PE82GM27MR1",
+     "score": 0.764392
+    },
+    {
+     "id": "01KGJED88XQZWX2BYPR4CYRRCP",
+     "score": 0.701986
+    },
+    {
+     "id": "01K7VN0NXKJQ7Q84781PXRPTBR",
+     "score": 0.691267
+    },
+    {
+     "id": "01KF94XZVJ439MCSQQREN47TPD",
+     "score": 0.651376
+    },
+    {
+     "id": "01KKVPDSJD2H1063VWZAR25520",
+     "score": 0.554256
+    },
+    {
+     "id": "01KBEZXB06FWDQX9PBCA1WNQTF",
+     "score": 0.548421
+    },
+    {
+     "id": "01KM3YJ4GH97YEN65GP5KVT7S3",
+     "score": 0.509098
+    },
+    {
+     "id": "01KP734P3J9F5CW4ST3SY1K8ZH",
+     "score": 0.485536
+    },
+    {
+     "id": "01KN54BTT630FVA8R01K6JXP5V",
+     "score": 0.45911
+    },
+    {
+     "id": "01KKMR69EE06FDVRS2PHQG6HR3",
+     "score": 0.440619
+    },
+    {
+     "id": "01KHDGASM7XZ422CS7NAQYKQYH",
+     "score": 0.410059
+    },
+    {
+     "id": "01K86XME9BKZPJ1HYF0TQ34A2W",
+     "score": 0.392846
+    },
+    {
+     "id": "01KGS66GPZWTWC37M75T5G4YYN",
+     "score": 0.391677
+    },
+    {
+     "id": "01KJT9N23KPNG8HTCC41TFVJFP",
+     "score": 0.379984
+    },
+    {
+     "id": "01KMX6FS7VG096TTFTA38HDD6P",
+     "score": 0.374955
+    },
+    {
+     "id": "01K5SHF85TZ7CW4S58JRRHH80B",
+     "score": 0.352046
+    },
+    {
+     "id": "01KQ632P1FSFAEYMQ6DWK89MV1",
+     "score": 0.346877
+    },
+    {
+     "id": "01KMADK1SGNDA9W36HTZMH06J0",
+     "score": 0.341081
+    },
+    {
+     "id": "01KFHW89JSTT45NZ8AK2J9M2XX",
+     "score": 0.336942
+    },
+    {
+     "id": "01KQ7AWD9044FMJXA8Q44SCZQT",
+     "score": 0.323011
+    },
+    {
+     "id": "01KHNVK956D0V094PF2TBGQ5W7",
+     "score": 0.316054
+    },
+    {
+     "id": "01KPHTNFY7NGBFZRR2XE15K1RJ",
+     "score": 0.30972
+    },
+    {
+     "id": "01KM7AVNQKWHV0439AEPMGNVGR",
+     "score": 0.295162
+    },
+    {
+     "id": "01KJ7GS40RAYH25J7C22T5CEAW",
+     "score": 0.28593
+    },
+    {
+     "id": "01KJGS1TP17A2DK0HTE75DMVP0",
+     "score": 0.285582
+    },
+    {
+     "id": "01KPEBWG1FN4XRVEEN21C84GE9",
+     "score": 0.274662
+    },
+    {
+     "id": "01KMWE21X5GP47D141VD2E57JE",
+     "score": 0.271706
+    },
+    {
+     "id": "01KB1SJ0X6N7HD6NM9ZCVVW7B7",
+     "score": 0.257079
+    },
+    {
+     "id": "01KF58M3PCXG986CC61FM12KSN",
+     "score": 0.254217
+    },
+    {
+     "id": "01KQ1D79DEVSTCVYV4NMC1JYB6",
+     "score": 0.241241
+    },
+    {
+     "id": "01KNFR1V0N0D9Y6T1Y4BC8JTKV",
+     "score": 0.235741
+    },
+    {
+     "id": "01KMNBPKXKYKZB3SGD54VMBZZR",
+     "score": 0.232549
+    },
+    {
+     "id": "01KPC0NJ4DBS4JGV44YF1337R9",
+     "score": 0.229482
+    },
+    {
+     "id": "01KHXBCHDA8QZNYVTVNSMRM9YJ",
+     "score": 0.217298
+    },
+    {
+     "id": "01KGM59WMX260X3PQ23P0FX31D",
+     "score": 0.215497
+    },
+    {
+     "id": "01KNGPACK7792SAYC0HPWSE0V5",
+     "score": 0.209526
+    },
+    {
+     "id": "01KNWCH7KY7YE5E1PK2F7SC95E",
+     "score": 0.20894
+    },
+    {
+     "id": "01KFV4AB5KDQ8KNXV8PHSJ4WC7",
+     "score": 0.205222
+    },
+    {
+     "id": "01KP62ZWKVFCR1EPXH2AFH1E32",
+     "score": 0.195063
+    },
+    {
+     "id": "01KQ674X9SD3ZQX9DPRC06ETSE",
+     "score": 0.193526
+    },
+    {
+     "id": "01KGCSM1AEDSPRQ6XCSQAXE9KH",
+     "score": 0.193157
+    },
+    {
+     "id": "01KBV9PCQA978B5RJNHFGH3S8P",
+     "score": 0.191756
+    },
+    {
+     "id": "01KMR1VFKS76EF39BH0FGFA6A7",
+     "score": 0.191732
+    },
+    {
+     "id": "01KKFN7ABEG640EDCFCJF2SJ69",
+     "score": 0.191481
+    },
+    {
+     "id": "01KMDZNBHKKWVP74SYQACBPKB0",
+     "score": 0.18883
+    },
+    {
+     "id": "01K4C4R7572YX0N18KEQ14P1X0",
+     "score": 0.181714
+    },
+    {
+     "id": "01K85WF6BHTKEW3MRFG8HZWR2Q",
+     "score": 0.180441
+    },
+    {
+     "id": "01KM59MQEMQ2PH92E5PKFQ4Z60",
+     "score": 0.176508
+    },
+    {
+     "id": "01KQ0C093WRWB7B1NVZ4Z2C5VD",
+     "score": 0.173531
+    },
+    {
+     "id": "01KBSK7D4HWR2E7ZPP3H4QHZZ7",
+     "score": 0.16811
+    },
+    {
+     "id": "01KMWZG0HBH9FF7YV831NXDGAJ",
+     "score": 0.16389
+    },
+    {
+     "id": "01KJ4WEM0EHG51GAVGGTM26FD9",
+     "score": 0.159212
+    },
+    {
+     "id": "01KM1CKKGMXYED4ZYDNV68X623",
+     "score": 0.152216
+    },
+    {
+     "id": "01KPTH60MVMC8C811NR2ZVN5V4",
+     "score": 0.146393
+    },
+    {
+     "id": "01KKXWGKSN0ES72WA4R9PPZ4WD",
+     "score": 0.146379
+    },
+    {
+     "id": "01KMT90JJRSE8MQPC9VWA0F57M",
+     "score": 0.143275
+    },
+    {
+     "id": "01KQ6G07J28KNXD6RH5P5J0V20",
+     "score": 0.142934
+    },
+    {
+     "id": "01KJZ5WATA3XBXN96WMNK2RVRH",
+     "score": 0.133057
+    },
+    {
+     "id": "01KG3JYY33SSF8952NB0BGPF8F",
+     "score": 0.131076
+    },
+    {
+     "id": "01KJEB059QBTZ0GX13STVW9E70",
+     "score": 0.128948
+    },
+    {
+     "id": "01KHE3JYS7P0XMRM697WHDRZV9",
+     "score": 0.127659
+    },
+    {
+     "id": "01KNE3SH7WYVM4RQWRNG3KMWM4",
+     "score": 0.125604
+    },
+    {
+     "id": "01KP4TAF88V2DDBR72RS3KDAV1",
+     "score": 0.121915
+    },
+    {
+     "id": "01KNV9H3PXKVEFPBVDEXS70M10",
+     "score": 0.120112
+    },
+    {
+     "id": "01KKTKERB600DNFMF98GPDFX7R",
+     "score": 0.117814
+    },
+    {
+     "id": "01KN150A0DQYK72G1RHXZX9653",
+     "score": 0.117787
+    },
+    {
+     "id": "01KC1Y5RYCX5YMMG54JPCBVJ9E",
+     "score": 0.1162
+    },
+    {
+     "id": "01KAP548EN6DNQ8RYNWQD4VJ8F",
+     "score": 0.115343
+    },
+    {
+     "id": "01KK13MEQAVW3GC2AK7ATSJGQB",
+     "score": 0.114308
+    },
+    {
+     "id": "01KMFMZ204VGN64D2QP0HZKRN0",
+     "score": 0.111151
+    },
+    {
+     "id": "01KF6F4CC76KC411F7DBYP3XKG",
+     "score": 0.10478
+    },
+    {
+     "id": "01KJ55869KGP6MNVJBC2R0E60E",
+     "score": 0.104478
+    },
+    {
+     "id": "01KFHZC3S8022SYKF7F48ZDX4F",
+     "score": 0.102692
+    },
+    {
+     "id": "01KP5PP9RBTTSP4QHTDW1QR0E5",
+     "score": 0.100677
+    },
+    {
+     "id": "01K7507T8PCTR96SBXPTBAYX4W",
+     "score": 0.096131
+    },
+    {
+     "id": "01KPFYRBA2SA1MWHR5TTG05HYD",
+     "score": 0.094831
+    },
+    {
+     "id": "01KK6E3G4AKPNQE66EMDNX739H",
+     "score": 0.09397
+    },
+    {
+     "id": "01K9V5TA09H00DKTXFBV66CZFE",
+     "score": 0.092017
+    },
+    {
+     "id": "01KK1JFFFTBT0VJ4RCMX39Y0ZY",
+     "score": 0.09111
+    },
+    {
+     "id": "01KM209EF6STXANM6KNNDNJQVP",
+     "score": 0.090937
+    },
+    {
+     "id": "01KP1CZS66H55NYADBJER1XSPB",
+     "score": 0.090756
+    },
+    {
+     "id": "01KMSYRWY4EV1T5DT8WCF4Z5Y5",
+     "score": 0.090583
+    },
+    {
+     "id": "01KNH9S91V48205FYW8SNMFP7B",
+     "score": 0.087373
+    },
+    {
+     "id": "01KQ8F116SM0CMT8P662XEMPGE",
+     "score": 0.085097
+    },
+    {
+     "id": "01KF95P00SCR39K1MTG8E5X0P1",
+     "score": 0.082166
+    },
+    {
+     "id": "01KJXMFFJ0RPE5XN67DXMVR59F",
+     "score": 0.082062
+    },
+    {
+     "id": "01KPE0MN2TCKHFGETHGJPW1ES2",
+     "score": 0.081863
+    },
+    {
+     "id": "01KB403PPEGTVWS154RD9YY3FS",
+     "score": 0.081684
+    },
+    {
+     "id": "01KBFV79W9FTMD1F07454RNT0J",
+     "score": 0.079662
+    },
+    {
+     "id": "01KKPPFH3PE3D2MXY8K1BNATBW",
+     "score": 0.079301
+    },
+    {
+     "id": "01KDQVHKT73C9J5C31EFSN64HS",
+     "score": 0.077039
+    },
+    {
+     "id": "01KPHB8FF9CW0VP4GQHPNMVGSA",
+     "score": 0.072812
+    },
+    {
+     "id": "01KE8C8YFASPC90TPSN3E8QPS1",
+     "score": 0.072685
+    },
+    {
+     "id": "01KC9Z3XCTD9P2DNVVX876QKSP",
+     "score": 0.071466
+    },
+    {
+     "id": "01KND7CZ64J599SSHQ7V2NMT16",
+     "score": 0.07084
+    },
+    {
+     "id": "01KJ8SBTH38VG5MNX1131XP84D",
+     "score": 0.067867
+    },
+    {
+     "id": "01KN6YJK68WF59HVR8NR8R2QBZ",
+     "score": 0.067033
+    }
+   ],
+   "top_picks_size": 30,
+   "trending_size": 30,
+   "prepend_size": 30,
+   "_meta": {
+    "generated_at": "2026-05-22T23:31:56.965952+00:00",
+    "experiment": "gallery-d0-v2 (one shared list; cell selects ordering only \u2014 random/sorted/gumbel).",
+    "score": "variant='engagement_length', sig_threshold=90s, EB shrinkage k=200",
+    "cohort": "D0, non-iOS, first D0 play",
+    "window": {
+     "start": "2026-04-15",
+     "end": "2026-05-11"
+    },
+    "floors": {
+     "min_first_plays": 200
+    },
+    "shrinkage_priors": {
+     "p_sig": 0.28096,
+     "p_2nd": 0.56687,
+     "p_ret": 0.28061
+    },
+    "dedup_themes": [],
+    "dedup_drops": {
+     "retired": 0,
+     "ip": 41,
+     "junk": 1,
+     "language_locked": 2,
+     "creator": 33,
+     "family": 0,
+     "bigram": 14,
+     "concept_tag": 3,
+     "theme": 0,
+     "missing_meta": 0
+    },
+    "row_sizes": {
+     "top_picks": 30,
+     "trending": 30
+    },
+    "n_eligible_scored": 1037,
+    "n_games": 100,
+    "note": "Upload to the Statsig gallery_d0_v2 dynamic config manually. See d0_live/analysis/SCORING_LESSONS.md for v3 -> v3.1 rationale."
+   }
+  },
+  "dynamic_configs/709560355": {
+   "_meta": {
+    "generated_at": "2026-05-29T18:48:11.330069+00:00",
+    "experiment": "gallery-d0-v3 (gumbel ordering for every cell; cell selects the score variant).",
+    "cohort": "D0, non-iOS, first D0 play",
+    "window": {
+     "start": "2026-05-22",
+     "end": "2026-05-28"
+    },
+    "shrinkage_priors": {
+     "p_sig": 0.26595,
+     "p_2nd": 0.52557,
+     "p_ret": 0.177
+    },
+    "dedup_themes": [],
+    "row_sizes": {
+     "top_picks": 30,
+     "trending": 30
+    },
+    "n_eligible_scored": 256,
+    "note": "Unified A/B/C config. Paste into the Statsig `gallery_d0_v3` dynamic config; backend dispatches per-cell via load_d0_config.",
+    "variants": {
+     "d0_v0_eng_length": {
+      "score": "variant='engagement_length', sig_threshold=90s, EB shrinkage k=200",
+      "floors": {
+       "min_first_plays": 200
+      },
+      "n_gallery_games": 100,
+      "dedup_drops": {
+       "gallery": {
+        "retired": 0,
+        "ip": 15,
+        "junk": 0,
+        "language_locked": 0,
+        "creator": 29,
+        "family": 0,
+        "bigram": 3,
+        "concept_tag": 1,
+        "theme": 0,
+        "missing_meta": 0
+       }
+      }
+     },
+     "d0_v0_eng_length_slot_adj": {
+      "score": "variant='engagement_length_slot_adj', sig_threshold=90s, EB shrinkage k=200",
+      "floors": {
+       "min_first_plays": 200,
+       "min_slot_adj_plays": 200
+      },
+      "n_gallery_games": 100,
+      "dedup_drops": {
+       "gallery": {
+        "retired": 0,
+        "ip": 9,
+        "junk": 0,
+        "language_locked": 0,
+        "creator": 27,
+        "family": 0,
+        "bigram": 1,
+        "concept_tag": 1,
+        "theme": 0,
+        "missing_meta": 0
+       }
+      }
+     },
+     "d0_v0_dual_surface": {
+      "score": "variant='dual_surface', sig_threshold=90s, EB shrinkage k=200",
+      "floors": {
+       "min_first_plays": 200,
+       "min_slot_adj_plays": 200,
+       "min_feed_source_plays": 200
+      },
+      "n_gallery_games": 100,
+      "n_feed_games": 60,
+      "dedup_drops": {
+       "gallery": {
+        "retired": 0,
+        "ip": 9,
+        "junk": 0,
+        "language_locked": 0,
+        "creator": 27,
+        "family": 0,
+        "bigram": 1,
+        "concept_tag": 1,
+        "theme": 0,
+        "missing_meta": 0
+       },
+       "feed": {
+        "retired": 0,
+        "ip": 2,
+        "junk": 0,
+        "language_locked": 0,
+        "creator": 6,
+        "family": 0,
+        "bigram": 1,
+        "concept_tag": 0,
+        "theme": 0,
+        "missing_meta": 0
+       }
+      }
+     }
+    }
+   },
+   "prepend_size": 30,
+   "trending_size": 30,
+   "top_picks_size": 30,
+   "d0_v0_eng_length": {
+    "gallery_games": [
+     {
+      "id": "01KBEZXB06FWDQX9PBCA1WNQTF",
+      "score": 0.857777
+     },
+     {
+      "id": "01KM3YJ4GH97YEN65GP5KVT7S3",
+      "score": 0.793933
+     },
+     {
+      "id": "01KHDGASM7XZ422CS7NAQYKQYH",
+      "score": 0.75717
+     },
+     {
+      "id": "01KPSQC42CRS7X726ZW343EGDV",
+      "score": 0.747827
+     },
+     {
+      "id": "01KP734P3J9F5CW4ST3SY1K8ZH",
+      "score": 0.747641
+     },
+     {
+      "id": "01KFHW89JSTT45NZ8AK2J9M2XX",
+      "score": 0.682155
+     },
+     {
+      "id": "01KNAYV5DP8BH7B3VMMW29NKXD",
+      "score": 0.642494
+     },
+     {
+      "id": "01KKMR69EE06FDVRS2PHQG6HR3",
+      "score": 0.635734
+     },
+     {
+      "id": "01KR35PAGA4RH7PHJ0WYPAFWB9",
+      "score": 0.634571
+     },
+     {
+      "id": "01KM7AVNQKWHV0439AEPMGNVGR",
+      "score": 0.558904
+     },
+     {
+      "id": "01K7VN0NXKJQ7Q84781PXRPTBR",
+      "score": 0.552652
+     },
+     {
+      "id": "01KMX6FS7VG096TTFTA38HDD6P",
+      "score": 0.539731
+     },
+     {
+      "id": "01K8BC3XMC9QZK1YVFVJBR6BFN",
+      "score": 0.531096
+     },
+     {
+      "id": "01KQ6ZBTVPGGGXMT6V82G1CD7N",
+      "score": 0.529591
+     },
+     {
+      "id": "01KGS66GPZWTWC37M75T5G4YYN",
+      "score": 0.521805
+     },
+     {
+      "id": "01KNGPACK7792SAYC0HPWSE0V5",
+      "score": 0.519008
+     },
+     {
+      "id": "01KN0ADVE3RMBDGWQD02304EA7",
+      "score": 0.518871
+     },
+     {
+      "id": "01KN6Y14MCRCQR9M11GM1BETNF",
+      "score": 0.51848
+     },
+     {
+      "id": "01KFV4AB5KDQ8KNXV8PHSJ4WC7",
+      "score": 0.501575
+     },
+     {
+      "id": "01KP1CZS66H55NYADBJER1XSPB",
+      "score": 0.488132
+     },
+     {
+      "id": "01KBV9PCQA978B5RJNHFGH3S8P",
+      "score": 0.484925
+     },
+     {
+      "id": "01KKVPDSJD2H1063VWZAR25520",
+      "score": 0.466938
+     },
+     {
+      "id": "01K61QN7R1P1RCZ1BA3VJFMAD3",
+      "score": 0.466085
+     },
+     {
+      "id": "01KQ632P1FSFAEYMQ6DWK89MV1",
+      "score": 0.464018
+     },
+     {
+      "id": "01KPKV7T0C1YC38XZ455S7VWFQ",
+      "score": 0.457709
+     },
+     {
+      "id": "01KNFR1V0N0D9Y6T1Y4BC8JTKV",
+      "score": 0.455945
+     },
+     {
+      "id": "01KP5PP9RBTTSP4QHTDW1QR0E5",
+      "score": 0.437666
+     },
+     {
+      "id": "01KQ81BJY6XSSG6PE82GM27MR1",
+      "score": 0.429455
+     },
+     {
+      "id": "01KPB1XNFVAT4H403FMXGQJP2B",
+      "score": 0.402758
+     },
+     {
+      "id": "01K5SHF85TZ7CW4S58JRRHH80B",
+      "score": 0.383305
+     },
+     {
+      "id": "01KN150A0DQYK72G1RHXZX9653",
+      "score": 0.379397
+     },
+     {
+      "id": "01KKCTKN5BB2EGCWZN4TMF9DZW",
+      "score": 0.360901
+     },
+     {
+      "id": "01KPTH60MVMC8C811NR2ZVN5V4",
+      "score": 0.351385
+     },
+     {
+      "id": "01KMNBPKXKYKZB3SGD54VMBZZR",
+      "score": 0.349327
+     },
+     {
+      "id": "01KRRB0WM3VTACHNFYB39RW558",
+      "score": 0.332904
+     },
+     {
+      "id": "01KPC0NJ4DBS4JGV44YF1337R9",
+      "score": 0.331398
+     },
+     {
+      "id": "01KRPVQ3XBBBEM0VM0FB6D58AM",
+      "score": 0.326927
+     },
+     {
+      "id": "01KK1JFFFTBT0VJ4RCMX39Y0ZY",
+      "score": 0.326752
+     },
+     {
+      "id": "01KF94XZVJ439MCSQQREN47TPD",
+      "score": 0.322534
+     },
+     {
+      "id": "01KMR1VFKS76EF39BH0FGFA6A7",
+      "score": 0.310078
+     },
+     {
+      "id": "01KQ674X9SD3ZQX9DPRC06ETSE",
+      "score": 0.297451
+     },
+     {
+      "id": "01KK6E3G4AKPNQE66EMDNX739H",
+      "score": 0.293054
+     },
+     {
+      "id": "01KGJED88XQZWX2BYPR4CYRRCP",
+      "score": 0.291342
+     },
+     {
+      "id": "01KGCSM1AEDSPRQ6XCSQAXE9KH",
+      "score": 0.289259
+     },
+     {
+      "id": "01KPHTNFY7NGBFZRR2XE15K1RJ",
+      "score": 0.269224
+     },
+     {
+      "id": "01KGHF0JT2V17MJAEA8DVV921G",
+      "score": 0.24637
+     },
+     {
+      "id": "01KQ1D79DEVSTCVYV4NMC1JYB6",
+      "score": 0.240589
+     },
+     {
+      "id": "01KP8YMS3WKTXPKEH8JK3047A5",
+      "score": 0.237148
+     },
+     {
+      "id": "01KG8GN712XDZYVKVX44C5B6TP",
+      "score": 0.227028
+     },
+     {
+      "id": "01KMBMNGHA8AD9PAZ48BV66RD9",
+      "score": 0.222173
+     },
+     {
+      "id": "01KQ448ZMMRYCEA1E4PH5B3CF0",
+      "score": 0.221949
+     },
+     {
+      "id": "01KM4J6VKZ3ZBEX0WZ99G0FZ38",
+      "score": 0.215126
+     },
+     {
+      "id": "01KRB1JW5BNQETRW0V9F564VMX",
+      "score": 0.210381
+     },
+     {
+      "id": "01KMWZG0HBH9FF7YV831NXDGAJ",
+      "score": 0.207732
+     },
+     {
+      "id": "01KEM5F1WDZCC0CCSQRZGV19J2",
+      "score": 0.203326
+     },
+     {
+      "id": "01KKXWGKSN0ES72WA4R9PPZ4WD",
+      "score": 0.182358
+     },
+     {
+      "id": "01KB1SJ0X6N7HD6NM9ZCVVW7B7",
+      "score": 0.17754
+     },
+     {
+      "id": "01KB636R4JSF2AT6JJZRCE1G8K",
+      "score": 0.168577
+     },
+     {
+      "id": "01KQG9TS7WV5MH2S95C88V7141",
+      "score": 0.167048
+     },
+     {
+      "id": "01KKPPFH3PE3D2MXY8K1BNATBW",
+      "score": 0.166285
+     },
+     {
+      "id": "01KKX2PDK11ABHMNE52PJY9Q4V",
+      "score": 0.154974
+     },
+     {
+      "id": "01KPV0PGZ3HGS79ZZ3K1C2PNCF",
+      "score": 0.151708
+     },
+     {
+      "id": "01KMDZNBHKKWVP74SYQACBPKB0",
+      "score": 0.149546
+     },
+     {
+      "id": "01K9V5TA09H00DKTXFBV66CZFE",
+      "score": 0.141149
+     },
+     {
+      "id": "01K97AE04D2TZYC26DF8SNEN20",
+      "score": 0.137195
+     },
+     {
+      "id": "01KNE3SH7WYVM4RQWRNG3KMWM4",
+      "score": 0.131385
+     },
+     {
+      "id": "01KDQVHKT73C9J5C31EFSN64HS",
+      "score": 0.126288
+     },
+     {
+      "id": "01K4C4R7572YX0N18KEQ14P1X0",
+      "score": 0.122725
+     },
+     {
+      "id": "01KHNVK956D0V094PF2TBGQ5W7",
+      "score": 0.122516
+     },
+     {
+      "id": "01KJCMS8AH3V86WWWEYK71219C",
+      "score": 0.121646
+     },
+     {
+      "id": "01KJGS1TP17A2DK0HTE75DMVP0",
+      "score": 0.120977
+     },
+     {
+      "id": "01KNV9H3PXKVEFPBVDEXS70M10",
+      "score": 0.120544
+     },
+     {
+      "id": "01KHE3JYS7P0XMRM697WHDRZV9",
+      "score": 0.117768
+     },
+     {
+      "id": "01KENBRZ8V6RHXSJY9BP9N31YJ",
+      "score": 0.114325
+     },
+     {
+      "id": "01KHXBCHDA8QZNYVTVNSMRM9YJ",
+      "score": 0.105103
+     },
+     {
+      "id": "01KPTX5Z2C9NQAT3WJ90WP8KQE",
+      "score": 0.10298
+     },
+     {
+      "id": "01KNH9S91V48205FYW8SNMFP7B",
+      "score": 0.0906
+     },
+     {
+      "id": "01KQY4YRX73A28CNBWGAZS1C9K",
+      "score": 0.089914
+     },
+     {
+      "id": "01KG3JYY33SSF8952NB0BGPF8F",
+      "score": 0.08881
+     },
+     {
+      "id": "01KQDCE7CF9KQYSTD68R0EGGSW",
+      "score": 0.087636
+     },
+     {
+      "id": "01KND7CZ64J599SSHQ7V2NMT16",
+      "score": 0.086455
+     },
+     {
+      "id": "01KJ8DX7EEKJQ86AB26SEJ8TY1",
+      "score": 0.081661
+     },
+     {
+      "id": "01KMB7AYKPAQPWJSJ45J007BVJ",
+      "score": 0.077366
+     },
+     {
+      "id": "01KFHZC3S8022SYKF7F48ZDX4F",
+      "score": 0.076232
+     },
+     {
+      "id": "01KCY9YRDK60EEVNHMMVFJH00X",
+      "score": 0.074966
+     },
+     {
+      "id": "01KF95P00SCR39K1MTG8E5X0P1",
+      "score": 0.074015
+     },
+     {
+      "id": "01KG5AAXJJ8A80J36KAZSGKF76",
+      "score": 0.072117
+     },
+     {
+      "id": "01KJT9N23KPNG8HTCC41TFVJFP",
+      "score": 0.06588
+     },
+     {
+      "id": "01KGM59WMX260X3PQ23P0FX31D",
+      "score": 0.063992
+     },
+     {
+      "id": "01KPFJERC0GP7W1YQGATSB1Z2X",
+      "score": 0.063022
+     },
+     {
+      "id": "01KHXH026T6SQ2E4R0SPHYWEAA",
+      "score": 0.061688
+     },
+     {
+      "id": "01KQ2A4PZCF36P8Q87A8BCB66A",
+      "score": 0.056127
+     },
+     {
+      "id": "01KMFMZ204VGN64D2QP0HZKRN0",
+      "score": 0.055776
+     },
+     {
+      "id": "01KG2KE8QCN18Z3ETT06TT7XWF",
+      "score": 0.055438
+     },
+     {
+      "id": "01KMSYRWY4EV1T5DT8WCF4Z5Y5",
+      "score": 0.055016
+     },
+     {
+      "id": "01KHV7PCABD4465HY0YANEDD7K",
+      "score": 0.053461
+     },
+     {
+      "id": "01KJYBDZ8WC3FWFRG6SV4H5HX4",
+      "score": 0.04639
+     },
+     {
+      "id": "01KJ7GS40RAYH25J7C22T5CEAW",
+      "score": 0.045452
+     },
+     {
+      "id": "01KS2SC3YG5RQ9CG486DYAVECE",
+      "score": 0.039418
+     },
+     {
+      "id": "01KGH2JKV2W895NB4SQS8VVTQV",
+      "score": 0.037951
+     }
+    ]
+   },
+   "d0_v0_eng_length_slot_adj": {
+    "gallery_games": [
+     {
+      "id": "01KM3YJ4GH97YEN65GP5KVT7S3",
+      "score": 0.828806
+     },
+     {
+      "id": "01KBEZXB06FWDQX9PBCA1WNQTF",
+      "score": 0.736224
+     },
+     {
+      "id": "01KQ81BJY6XSSG6PE82GM27MR1",
+      "score": 0.614341
+     },
+     {
+      "id": "01KQ7AWD9044FMJXA8Q44SCZQT",
+      "score": 0.609619
+     },
+     {
+      "id": "01KHDGASM7XZ422CS7NAQYKQYH",
+      "score": 0.57874
+     },
+     {
+      "id": "01KMX6FS7VG096TTFTA38HDD6P",
+      "score": 0.555969
+     },
+     {
+      "id": "01KP734P3J9F5CW4ST3SY1K8ZH",
+      "score": 0.539784
+     },
+     {
+      "id": "01K7VN0NXKJQ7Q84781PXRPTBR",
+      "score": 0.526256
+     },
+     {
+      "id": "01KKMR69EE06FDVRS2PHQG6HR3",
+      "score": 0.481
+     },
+     {
+      "id": "01KFHW89JSTT45NZ8AK2J9M2XX",
+      "score": 0.467798
+     },
+     {
+      "id": "01KPTH60MVMC8C811NR2ZVN5V4",
+      "score": 0.441799
+     },
+     {
+      "id": "01KM7AVNQKWHV0439AEPMGNVGR",
+      "score": 0.424409
+     },
+     {
+      "id": "01KR35PAGA4RH7PHJ0WYPAFWB9",
+      "score": 0.419841
+     },
+     {
+      "id": "01KBV9PCQA978B5RJNHFGH3S8P",
+      "score": 0.419821
+     },
+     {
+      "id": "01KNFR1V0N0D9Y6T1Y4BC8JTKV",
+      "score": 0.413375
+     },
+     {
+      "id": "01KFV4AB5KDQ8KNXV8PHSJ4WC7",
+      "score": 0.393221
+     },
+     {
+      "id": "01KK1RAJAJBMQJ7EPMJKJCTMAE",
+      "score": 0.389091
+     },
+     {
+      "id": "01KMBMNGHA8AD9PAZ48BV66RD9",
+      "score": 0.387421
+     },
+     {
+      "id": "01KN6Y14MCRCQR9M11GM1BETNF",
+      "score": 0.381972
+     },
+     {
+      "id": "01KGS66GPZWTWC37M75T5G4YYN",
+      "score": 0.380951
+     },
+     {
+      "id": "01KQ674X9SD3ZQX9DPRC06ETSE",
+      "score": 0.367472
+     },
+     {
+      "id": "01KPC0NJ4DBS4JGV44YF1337R9",
+      "score": 0.363313
+     },
+     {
+      "id": "01KNGPACK7792SAYC0HPWSE0V5",
+      "score": 0.335128
+     },
+     {
+      "id": "01KPV0PGZ3HGS79ZZ3K1C2PNCF",
+      "score": 0.321424
+     },
+     {
+      "id": "01KKVPDSJD2H1063VWZAR25520",
+      "score": 0.320522
+     },
+     {
+      "id": "01KNAYV5DP8BH7B3VMMW29NKXD",
+      "score": 0.315506
+     },
+     {
+      "id": "01KP5PP9RBTTSP4QHTDW1QR0E5",
+      "score": 0.310849
+     },
+     {
+      "id": "01KQ6ZBTVPGGGXMT6V82G1CD7N",
+      "score": 0.283391
+     },
+     {
+      "id": "01KF94XZVJ439MCSQQREN47TPD",
+      "score": 0.27778
+     },
+     {
+      "id": "01KQ632P1FSFAEYMQ6DWK89MV1",
+      "score": 0.255609
+     },
+     {
+      "id": "01KK1JFFFTBT0VJ4RCMX39Y0ZY",
+      "score": 0.253264
+     },
+     {
+      "id": "01KKCTKN5BB2EGCWZN4TMF9DZW",
+      "score": 0.249398
+     },
+     {
+      "id": "01KRY16ESBF1AJK7GERK1Y76NP",
+      "score": 0.246756
+     },
+     {
+      "id": "01KGJED88XQZWX2BYPR4CYRRCP",
+      "score": 0.21745
+     },
+     {
+      "id": "01KPKV7T0C1YC38XZ455S7VWFQ",
+      "score": 0.212033
+     },
+     {
+      "id": "01KPB1XNFVAT4H403FMXGQJP2B",
+      "score": 0.202578
+     },
+     {
+      "id": "01KKPPFH3PE3D2MXY8K1BNATBW",
+      "score": 0.196401
+     },
+     {
+      "id": "01KMNBPKXKYKZB3SGD54VMBZZR",
+      "score": 0.193661
+     },
+     {
+      "id": "01KMWZG0HBH9FF7YV831NXDGAJ",
+      "score": 0.187711
+     },
+     {
+      "id": "01KMDZNBHKKWVP74SYQACBPKB0",
+      "score": 0.187511
+     },
+     {
+      "id": "01KMR1VFKS76EF39BH0FGFA6A7",
+      "score": 0.174366
+     },
+     {
+      "id": "01KN150A0DQYK72G1RHXZX9653",
+      "score": 0.167636
+     },
+     {
+      "id": "01KND7CZ64J599SSHQ7V2NMT16",
+      "score": 0.153589
+     },
+     {
+      "id": "01K5SHF85TZ7CW4S58JRRHH80B",
+      "score": 0.149877
+     },
+     {
+      "id": "01KK6E3G4AKPNQE66EMDNX739H",
+      "score": 0.143829
+     },
+     {
+      "id": "01KB1SJ0X6N7HD6NM9ZCVVW7B7",
+      "score": 0.138554
+     },
+     {
+      "id": "01KDQVHKT73C9J5C31EFSN64HS",
+      "score": 0.128714
+     },
+     {
+      "id": "01KPHTNFY7NGBFZRR2XE15K1RJ",
+      "score": 0.127139
+     },
+     {
+      "id": "01K9V5TA09H00DKTXFBV66CZFE",
+      "score": 0.123222
+     },
+     {
+      "id": "01KQ1D79DEVSTCVYV4NMC1JYB6",
+      "score": 0.114181
+     },
+     {
+      "id": "01KHNVK956D0V094PF2TBGQ5W7",
+      "score": 0.106563
+     },
+     {
+      "id": "01K86XME9BKZPJ1HYF0TQ34A2W",
+      "score": 0.106466
+     },
+     {
+      "id": "01KKXWGKSN0ES72WA4R9PPZ4WD",
+      "score": 0.104807
+     },
+     {
+      "id": "01KNV9H3PXKVEFPBVDEXS70M10",
+      "score": 0.102469
+     },
+     {
+      "id": "01KP4TAF88V2DDBR72RS3KDAV1",
+      "score": 0.092662
+     },
+     {
+      "id": "01KHXH026T6SQ2E4R0SPHYWEAA",
+      "score": 0.079826
+     },
+     {
+      "id": "01KFHZC3S8022SYKF7F48ZDX4F",
+      "score": 0.076165
+     },
+     {
+      "id": "01KG3JYY33SSF8952NB0BGPF8F",
+      "score": 0.075519
+     },
+     {
+      "id": "01KQ2A4PZCF36P8Q87A8BCB66A",
+      "score": 0.061747
+     },
+     {
+      "id": "01KB403PPEGTVWS154RD9YY3FS",
+      "score": 0.058937
+     },
+     {
+      "id": "01KP8YMS3WKTXPKEH8JK3047A5",
+      "score": 0.055107
+     },
+     {
+      "id": "01KPTX5Z2C9NQAT3WJ90WP8KQE",
+      "score": 0.054178
+     },
+     {
+      "id": "01KNE3SH7WYVM4RQWRNG3KMWM4",
+      "score": 0.05295
+     },
+     {
+      "id": "01KG8GN712XDZYVKVX44C5B6TP",
+      "score": 0.049943
+     },
+     {
+      "id": "01KC1Y5RYCX5YMMG54JPCBVJ9E",
+      "score": 0.047628
+     },
+     {
+      "id": "01KNH9S91V48205FYW8SNMFP7B",
+      "score": 0.044384
+     },
+     {
+      "id": "01KHXBCHDA8QZNYVTVNSMRM9YJ",
+      "score": 0.044218
+     },
+     {
+      "id": "01KG3JG2ZGZYBTZGQ0AT5N5A72",
+      "score": 0.034717
+     },
+     {
+      "id": "01KJTQZC009D6RFC3YJJ8PK4P8",
+      "score": 0.032302
+     },
+     {
+      "id": "01KMFMZ204VGN64D2QP0HZKRN0",
+      "score": 0.030657
+     },
+     {
+      "id": "01KHE3JYS7P0XMRM697WHDRZV9",
+      "score": 0.029359
+     },
+     {
+      "id": "01KNWCH7KY7YE5E1PK2F7SC95E",
+      "score": 0.027526
+     },
+     {
+      "id": "01KN6YJK68WF59HVR8NR8R2QBZ",
+      "score": 0.026451
+     },
+     {
+      "id": "01KJT9N23KPNG8HTCC41TFVJFP",
+      "score": 0.023641
+     },
+     {
+      "id": "01KNF3P87YBTA5TWNC2XE693YW",
+      "score": 0.021846
+     },
+     {
+      "id": "01KPHB8FF9CW0VP4GQHPNMVGSA",
+      "score": 0.021245
+     },
+     {
+      "id": "01KKX2PDK11ABHMNE52PJY9Q4V",
+      "score": 0.016899
+     },
+     {
+      "id": "01KJZ5WATA3XBXN96WMNK2RVRH",
+      "score": 0.010825
+     },
+     {
+      "id": "01KE8C8YFASPC90TPSN3E8QPS1",
+      "score": 0.009919
+     },
+     {
+      "id": "01KM209EF6STXANM6KNNDNJQVP",
+      "score": 0.009211
+     },
+     {
+      "id": "01K7507T8PCTR96SBXPTBAYX4W",
+      "score": 0.0091
+     },
+     {
+      "id": "01KMP390R1JF32PJ5VFJAA8QJW",
+      "score": 0.007577
+     },
+     {
+      "id": "01KJ7GS40RAYH25J7C22T5CEAW",
+      "score": 0.00679
+     },
+     {
+      "id": "01KKFN7ABEG640EDCFCJF2SJ69",
+      "score": 0.006408
+     },
+     {
+      "id": "01KQ8F116SM0CMT8P662XEMPGE",
+      "score": 0.00591
+     },
+     {
+      "id": "01KPE0MN2TCKHFGETHGJPW1ES2",
+      "score": 0.005535
+     },
+     {
+      "id": "01KM59MQEMQ2PH92E5PKFQ4Z60",
+      "score": 0.005228
+     },
+     {
+      "id": "01KMSYRWY4EV1T5DT8WCF4Z5Y5",
+      "score": 0.005015
+     },
+     {
+      "id": "01KM1CKKGMXYED4ZYDNV68X623",
+      "score": 0.00368
+     },
+     {
+      "id": "01KMT90JJRSE8MQPC9VWA0F57M",
+      "score": 0.002593
+     },
+     {
+      "id": "01KJ8SBTH38VG5MNX1131XP84D",
+      "score": 0.002568
+     },
+     {
+      "id": "01KF6F4CC76KC411F7DBYP3XKG",
+      "score": 0.002393
+     },
+     {
+      "id": "01KAP548EN6DNQ8RYNWQD4VJ8F",
+      "score": 0.001885
+     },
+     {
+      "id": "01K8VWDC60PYE74RXW4BRVYPV5",
+      "score": 0.001864
+     },
+     {
+      "id": "01KF8BNVJ3GQBX282S8CT9P0JQ",
+      "score": 0.001286
+     },
+     {
+      "id": "01KMADK1SGNDA9W36HTZMH06J0",
+      "score": 0.001047
+     },
+     {
+      "id": "01KPQB74QVJ0C5RX3H41WEWFNV",
+      "score": 0.000921
+     },
+     {
+      "id": "01KPEBWG1FN4XRVEEN21C84GE9",
+      "score": 0.000853
+     },
+     {
+      "id": "01KJ4WEM0EHG51GAVGGTM26FD9",
+      "score": 1.9e-05
+     },
+     {
+      "id": "01KHV7PCABD4465HY0YANEDD7K",
+      "score": 0
+     }
+    ]
+   },
+   "d0_v0_dual_surface": {
+    "gallery_games": [
+     {
+      "id": "01KM3YJ4GH97YEN65GP5KVT7S3",
+      "score": 0.828806
+     },
+     {
+      "id": "01KBEZXB06FWDQX9PBCA1WNQTF",
+      "score": 0.736224
+     },
+     {
+      "id": "01KQ81BJY6XSSG6PE82GM27MR1",
+      "score": 0.614341
+     },
+     {
+      "id": "01KQ7AWD9044FMJXA8Q44SCZQT",
+      "score": 0.609619
+     },
+     {
+      "id": "01KHDGASM7XZ422CS7NAQYKQYH",
+      "score": 0.57874
+     },
+     {
+      "id": "01KMX6FS7VG096TTFTA38HDD6P",
+      "score": 0.555969
+     },
+     {
+      "id": "01KP734P3J9F5CW4ST3SY1K8ZH",
+      "score": 0.539784
+     },
+     {
+      "id": "01K7VN0NXKJQ7Q84781PXRPTBR",
+      "score": 0.526256
+     },
+     {
+      "id": "01KKMR69EE06FDVRS2PHQG6HR3",
+      "score": 0.481
+     },
+     {
+      "id": "01KFHW89JSTT45NZ8AK2J9M2XX",
+      "score": 0.467798
+     },
+     {
+      "id": "01KPTH60MVMC8C811NR2ZVN5V4",
+      "score": 0.441799
+     },
+     {
+      "id": "01KM7AVNQKWHV0439AEPMGNVGR",
+      "score": 0.424409
+     },
+     {
+      "id": "01KR35PAGA4RH7PHJ0WYPAFWB9",
+      "score": 0.419841
+     },
+     {
+      "id": "01KBV9PCQA978B5RJNHFGH3S8P",
+      "score": 0.419821
+     },
+     {
+      "id": "01KNFR1V0N0D9Y6T1Y4BC8JTKV",
+      "score": 0.413375
+     },
+     {
+      "id": "01KFV4AB5KDQ8KNXV8PHSJ4WC7",
+      "score": 0.393221
+     },
+     {
+      "id": "01KK1RAJAJBMQJ7EPMJKJCTMAE",
+      "score": 0.389091
+     },
+     {
+      "id": "01KMBMNGHA8AD9PAZ48BV66RD9",
+      "score": 0.387421
+     },
+     {
+      "id": "01KN6Y14MCRCQR9M11GM1BETNF",
+      "score": 0.381972
+     },
+     {
+      "id": "01KGS66GPZWTWC37M75T5G4YYN",
+      "score": 0.380951
+     },
+     {
+      "id": "01KQ674X9SD3ZQX9DPRC06ETSE",
+      "score": 0.367472
+     },
+     {
+      "id": "01KPC0NJ4DBS4JGV44YF1337R9",
+      "score": 0.363313
+     },
+     {
+      "id": "01KNGPACK7792SAYC0HPWSE0V5",
+      "score": 0.335128
+     },
+     {
+      "id": "01KPV0PGZ3HGS79ZZ3K1C2PNCF",
+      "score": 0.321424
+     },
+     {
+      "id": "01KKVPDSJD2H1063VWZAR25520",
+      "score": 0.320522
+     },
+     {
+      "id": "01KNAYV5DP8BH7B3VMMW29NKXD",
+      "score": 0.315506
+     },
+     {
+      "id": "01KP5PP9RBTTSP4QHTDW1QR0E5",
+      "score": 0.310849
+     },
+     {
+      "id": "01KQ6ZBTVPGGGXMT6V82G1CD7N",
+      "score": 0.283391
+     },
+     {
+      "id": "01KF94XZVJ439MCSQQREN47TPD",
+      "score": 0.27778
+     },
+     {
+      "id": "01KQ632P1FSFAEYMQ6DWK89MV1",
+      "score": 0.255609
+     },
+     {
+      "id": "01KK1JFFFTBT0VJ4RCMX39Y0ZY",
+      "score": 0.253264
+     },
+     {
+      "id": "01KKCTKN5BB2EGCWZN4TMF9DZW",
+      "score": 0.249398
+     },
+     {
+      "id": "01KRY16ESBF1AJK7GERK1Y76NP",
+      "score": 0.246756
+     },
+     {
+      "id": "01KGJED88XQZWX2BYPR4CYRRCP",
+      "score": 0.21745
+     },
+     {
+      "id": "01KPKV7T0C1YC38XZ455S7VWFQ",
+      "score": 0.212033
+     },
+     {
+      "id": "01KPB1XNFVAT4H403FMXGQJP2B",
+      "score": 0.202578
+     },
+     {
+      "id": "01KKPPFH3PE3D2MXY8K1BNATBW",
+      "score": 0.196401
+     },
+     {
+      "id": "01KMNBPKXKYKZB3SGD54VMBZZR",
+      "score": 0.193661
+     },
+     {
+      "id": "01KMWZG0HBH9FF7YV831NXDGAJ",
+      "score": 0.187711
+     },
+     {
+      "id": "01KMDZNBHKKWVP74SYQACBPKB0",
+      "score": 0.187511
+     },
+     {
+      "id": "01KMR1VFKS76EF39BH0FGFA6A7",
+      "score": 0.174366
+     },
+     {
+      "id": "01KN150A0DQYK72G1RHXZX9653",
+      "score": 0.167636
+     },
+     {
+      "id": "01KND7CZ64J599SSHQ7V2NMT16",
+      "score": 0.153589
+     },
+     {
+      "id": "01K5SHF85TZ7CW4S58JRRHH80B",
+      "score": 0.149877
+     },
+     {
+      "id": "01KK6E3G4AKPNQE66EMDNX739H",
+      "score": 0.143829
+     },
+     {
+      "id": "01KB1SJ0X6N7HD6NM9ZCVVW7B7",
+      "score": 0.138554
+     },
+     {
+      "id": "01KDQVHKT73C9J5C31EFSN64HS",
+      "score": 0.128714
+     },
+     {
+      "id": "01KPHTNFY7NGBFZRR2XE15K1RJ",
+      "score": 0.127139
+     },
+     {
+      "id": "01K9V5TA09H00DKTXFBV66CZFE",
+      "score": 0.123222
+     },
+     {
+      "id": "01KQ1D79DEVSTCVYV4NMC1JYB6",
+      "score": 0.114181
+     },
+     {
+      "id": "01KHNVK956D0V094PF2TBGQ5W7",
+      "score": 0.106563
+     },
+     {
+      "id": "01K86XME9BKZPJ1HYF0TQ34A2W",
+      "score": 0.106466
+     },
+     {
+      "id": "01KKXWGKSN0ES72WA4R9PPZ4WD",
+      "score": 0.104807
+     },
+     {
+      "id": "01KNV9H3PXKVEFPBVDEXS70M10",
+      "score": 0.102469
+     },
+     {
+      "id": "01KP4TAF88V2DDBR72RS3KDAV1",
+      "score": 0.092662
+     },
+     {
+      "id": "01KHXH026T6SQ2E4R0SPHYWEAA",
+      "score": 0.079826
+     },
+     {
+      "id": "01KFHZC3S8022SYKF7F48ZDX4F",
+      "score": 0.076165
+     },
+     {
+      "id": "01KG3JYY33SSF8952NB0BGPF8F",
+      "score": 0.075519
+     },
+     {
+      "id": "01KQ2A4PZCF36P8Q87A8BCB66A",
+      "score": 0.061747
+     },
+     {
+      "id": "01KB403PPEGTVWS154RD9YY3FS",
+      "score": 0.058937
+     },
+     {
+      "id": "01KP8YMS3WKTXPKEH8JK3047A5",
+      "score": 0.055107
+     },
+     {
+      "id": "01KPTX5Z2C9NQAT3WJ90WP8KQE",
+      "score": 0.054178
+     },
+     {
+      "id": "01KNE3SH7WYVM4RQWRNG3KMWM4",
+      "score": 0.05295
+     },
+     {
+      "id": "01KG8GN712XDZYVKVX44C5B6TP",
+      "score": 0.049943
+     },
+     {
+      "id": "01KC1Y5RYCX5YMMG54JPCBVJ9E",
+      "score": 0.047628
+     },
+     {
+      "id": "01KNH9S91V48205FYW8SNMFP7B",
+      "score": 0.044384
+     },
+     {
+      "id": "01KHXBCHDA8QZNYVTVNSMRM9YJ",
+      "score": 0.044218
+     },
+     {
+      "id": "01KG3JG2ZGZYBTZGQ0AT5N5A72",
+      "score": 0.034717
+     },
+     {
+      "id": "01KJTQZC009D6RFC3YJJ8PK4P8",
+      "score": 0.032302
+     },
+     {
+      "id": "01KMFMZ204VGN64D2QP0HZKRN0",
+      "score": 0.030657
+     },
+     {
+      "id": "01KHE3JYS7P0XMRM697WHDRZV9",
+      "score": 0.029359
+     },
+     {
+      "id": "01KNWCH7KY7YE5E1PK2F7SC95E",
+      "score": 0.027526
+     },
+     {
+      "id": "01KN6YJK68WF59HVR8NR8R2QBZ",
+      "score": 0.026451
+     },
+     {
+      "id": "01KJT9N23KPNG8HTCC41TFVJFP",
+      "score": 0.023641
+     },
+     {
+      "id": "01KNF3P87YBTA5TWNC2XE693YW",
+      "score": 0.021846
+     },
+     {
+      "id": "01KPHB8FF9CW0VP4GQHPNMVGSA",
+      "score": 0.021245
+     },
+     {
+      "id": "01KKX2PDK11ABHMNE52PJY9Q4V",
+      "score": 0.016899
+     },
+     {
+      "id": "01KJZ5WATA3XBXN96WMNK2RVRH",
+      "score": 0.010825
+     },
+     {
+      "id": "01KE8C8YFASPC90TPSN3E8QPS1",
+      "score": 0.009919
+     },
+     {
+      "id": "01KM209EF6STXANM6KNNDNJQVP",
+      "score": 0.009211
+     },
+     {
+      "id": "01K7507T8PCTR96SBXPTBAYX4W",
+      "score": 0.0091
+     },
+     {
+      "id": "01KMP390R1JF32PJ5VFJAA8QJW",
+      "score": 0.007577
+     },
+     {
+      "id": "01KJ7GS40RAYH25J7C22T5CEAW",
+      "score": 0.00679
+     },
+     {
+      "id": "01KKFN7ABEG640EDCFCJF2SJ69",
+      "score": 0.006408
+     },
+     {
+      "id": "01KQ8F116SM0CMT8P662XEMPGE",
+      "score": 0.00591
+     },
+     {
+      "id": "01KPE0MN2TCKHFGETHGJPW1ES2",
+      "score": 0.005535
+     },
+     {
+      "id": "01KM59MQEMQ2PH92E5PKFQ4Z60",
+      "score": 0.005228
+     },
+     {
+      "id": "01KMSYRWY4EV1T5DT8WCF4Z5Y5",
+      "score": 0.005015
+     },
+     {
+      "id": "01KM1CKKGMXYED4ZYDNV68X623",
+      "score": 0.00368
+     },
+     {
+      "id": "01KMT90JJRSE8MQPC9VWA0F57M",
+      "score": 0.002593
+     },
+     {
+      "id": "01KJ8SBTH38VG5MNX1131XP84D",
+      "score": 0.002568
+     },
+     {
+      "id": "01KF6F4CC76KC411F7DBYP3XKG",
+      "score": 0.002393
+     },
+     {
+      "id": "01KAP548EN6DNQ8RYNWQD4VJ8F",
+      "score": 0.001885
+     },
+     {
+      "id": "01K8VWDC60PYE74RXW4BRVYPV5",
+      "score": 0.001864
+     },
+     {
+      "id": "01KF8BNVJ3GQBX282S8CT9P0JQ",
+      "score": 0.001286
+     },
+     {
+      "id": "01KMADK1SGNDA9W36HTZMH06J0",
+      "score": 0.001047
+     },
+     {
+      "id": "01KPQB74QVJ0C5RX3H41WEWFNV",
+      "score": 0.000921
+     },
+     {
+      "id": "01KPEBWG1FN4XRVEEN21C84GE9",
+      "score": 0.000853
+     },
+     {
+      "id": "01KJ4WEM0EHG51GAVGGTM26FD9",
+      "score": 1.9e-05
+     },
+     {
+      "id": "01KHV7PCABD4465HY0YANEDD7K",
+      "score": 0
+     }
+    ],
+    "feed_games": [
+     {
+      "id": "01KKCTKN5BB2EGCWZN4TMF9DZW",
+      "score": 0.74197
+     },
+     {
+      "id": "01KBEZXB06FWDQX9PBCA1WNQTF",
+      "score": 0.730036
+     },
+     {
+      "id": "01KP734P3J9F5CW4ST3SY1K8ZH",
+      "score": 0.685463
+     },
+     {
+      "id": "01KFHW89JSTT45NZ8AK2J9M2XX",
+      "score": 0.664055
+     },
+     {
+      "id": "01KNGPACK7792SAYC0HPWSE0V5",
+      "score": 0.635925
+     },
+     {
+      "id": "01KKVPDSJD2H1063VWZAR25520",
+      "score": 0.619123
+     },
+     {
+      "id": "01KHDGASM7XZ422CS7NAQYKQYH",
+      "score": 0.581638
+     },
+     {
+      "id": "01K7VN0NXKJQ7Q84781PXRPTBR",
+      "score": 0.533021
+     },
+     {
+      "id": "01KM7AVNQKWHV0439AEPMGNVGR",
+      "score": 0.524746
+     },
+     {
+      "id": "01KPSQC42CRS7X726ZW343EGDV",
+      "score": 0.512418
+     },
+     {
+      "id": "01KM3YJ4GH97YEN65GP5KVT7S3",
+      "score": 0.43526
+     },
+     {
+      "id": "01KNFR1V0N0D9Y6T1Y4BC8JTKV",
+      "score": 0.426654
+     },
+     {
+      "id": "01K85WF6BHTKEW3MRFG8HZWR2Q",
+      "score": 0.413566
+     },
+     {
+      "id": "01KF94XZVJ439MCSQQREN47TPD",
+      "score": 0.354739
+     },
+     {
+      "id": "01KPC0NJ4DBS4JGV44YF1337R9",
+      "score": 0.332225
+     },
+     {
+      "id": "01KQ632P1FSFAEYMQ6DWK89MV1",
+      "score": 0.324875
+     },
+     {
+      "id": "01KKMR69EE06FDVRS2PHQG6HR3",
+      "score": 0.286083
+     },
+     {
+      "id": "01KQ81BJY6XSSG6PE82GM27MR1",
+      "score": 0.273702
+     },
+     {
+      "id": "01KFV4AB5KDQ8KNXV8PHSJ4WC7",
+      "score": 0.270096
+     },
+     {
+      "id": "01KMBMNGHA8AD9PAZ48BV66RD9",
+      "score": 0.243328
+     },
+     {
+      "id": "01KMWZG0HBH9FF7YV831NXDGAJ",
+      "score": 0.238521
+     },
+     {
+      "id": "01KMDPEMPRQV6B4TZK3MJMHZRC",
+      "score": 0.229759
+     },
+     {
+      "id": "01KP5PP9RBTTSP4QHTDW1QR0E5",
+      "score": 0.225134
+     },
+     {
+      "id": "01KQ1D79DEVSTCVYV4NMC1JYB6",
+      "score": 0.190476
+     },
+     {
+      "id": "01KMNBPKXKYKZB3SGD54VMBZZR",
+      "score": 0.187409
+     },
+     {
+      "id": "01KGJED88XQZWX2BYPR4CYRRCP",
+      "score": 0.184099
+     },
+     {
+      "id": "01K5SHF85TZ7CW4S58JRRHH80B",
+      "score": 0.183409
+     },
+     {
+      "id": "01KN150A0DQYK72G1RHXZX9653",
+      "score": 0.16247
+     },
+     {
+      "id": "01KRRB0WM3VTACHNFYB39RW558",
+      "score": 0.149246
+     },
+     {
+      "id": "01KN54BTT630FVA8R01K6JXP5V",
+      "score": 0.137636
+     },
+     {
+      "id": "01KQ6G07J28KNXD6RH5P5J0V20",
+      "score": 0.113226
+     },
+     {
+      "id": "01K86XME9BKZPJ1HYF0TQ34A2W",
+      "score": 0.106312
+     },
+     {
+      "id": "01KHXBCHDA8QZNYVTVNSMRM9YJ",
+      "score": 0.094976
+     },
+     {
+      "id": "01KKPPFH3PE3D2MXY8K1BNATBW",
+      "score": 0.08762
+     },
+     {
+      "id": "01KKXWGKSN0ES72WA4R9PPZ4WD",
+      "score": 0.085271
+     },
+     {
+      "id": "01KB1SJ0X6N7HD6NM9ZCVVW7B7",
+      "score": 0.08478
+     },
+     {
+      "id": "01KNE3SH7WYVM4RQWRNG3KMWM4",
+      "score": 0.067054
+     },
+     {
+      "id": "01KGS66GPZWTWC37M75T5G4YYN",
+      "score": 0.063719
+     },
+     {
+      "id": "01KQ6ZBTVPGGGXMT6V82G1CD7N",
+      "score": 0.056734
+     },
+     {
+      "id": "01KS0Q11J35MCJ2D6N76CAGP9P",
+      "score": 0.052061
+     },
+     {
+      "id": "01KHNVK956D0V094PF2TBGQ5W7",
+      "score": 0.049797
+     },
+     {
+      "id": "01KK1RAJAJBMQJ7EPMJKJCTMAE",
+      "score": 0.049359
+     },
+     {
+      "id": "01KMT90JJRSE8MQPC9VWA0F57M",
+      "score": 0.040849
+     },
+     {
+      "id": "01KPV0PGZ3HGS79ZZ3K1C2PNCF",
+      "score": 0.039847
+     },
+     {
+      "id": "01K7507T8PCTR96SBXPTBAYX4W",
+      "score": 0.037269
+     },
+     {
+      "id": "01KC1Y5RYCX5YMMG54JPCBVJ9E",
+      "score": 0.035997
+     },
+     {
+      "id": "01KMR1VFKS76EF39BH0FGFA6A7",
+      "score": 0.026287
+     },
+     {
+      "id": "01KMFMZ204VGN64D2QP0HZKRN0",
+      "score": 0.025684
+     },
+     {
+      "id": "01KS11H0S8Q8GYGQERE3QRAP3Q",
+      "score": 0.019877
+     },
+     {
+      "id": "01KJT9N23KPNG8HTCC41TFVJFP",
+      "score": 0.018741
+     },
+     {
+      "id": "01KQ674X9SD3ZQX9DPRC06ETSE",
+      "score": 0.016155
+     },
+     {
+      "id": "01KJGS1TP17A2DK0HTE75DMVP0",
+      "score": 0.016108
+     },
+     {
+      "id": "01KPHTNFY7NGBFZRR2XE15K1RJ",
+      "score": 0.013342
+     },
+     {
+      "id": "01KF58M3PCXG986CC61FM12KSN",
+      "score": 0.013289
+     },
+     {
+      "id": "01KRT9XPN909Q2J1GZTHYCXHMW",
+      "score": 0.010514
+     },
+     {
+      "id": "01KRTWD1BY85R69VJE8YR7KJD4",
+      "score": 0.00993
+     },
+     {
+      "id": "01KMX6FS7VG096TTFTA38HDD6P",
+      "score": 0.006857
+     },
+     {
+      "id": "01KMDZNBHKKWVP74SYQACBPKB0",
+      "score": 0.006328
+     },
+     {
+      "id": "01KMWE21X5GP47D141VD2E57JE",
+      "score": 0.0046
+     },
+     {
+      "id": "01KJ8SBTH38VG5MNX1131XP84D",
+      "score": 0.002142
+     }
+    ]
+   }
+  },
+  "dynamic_configs/1005514169": {
+   "ranking": {
+    "name_match_weight": 0.5,
+    "game_quality_weight": 0.7,
+    "game_plays_weight": 0.8,
+    "min_game_plays": 500
+   }
+  },
+  "dynamic_configs/1130303889": {
+   "themes": {
+    "action": {
+     "description": "Challenging high octane gameplay, such as fighting, shooting, racing, exploding"
+    },
+    "adventure": {
+     "description": "Exploration, main character, rpg elements. Adventure games are about the emotion of being in an expansive environment and being a hero. Less intense gameplay than action"
+    },
+    "arcade": {
+     "description": "Classic challenging gameplay, such as shoot-em-up, themepark and festival classics, often single-mechanic gameplay that repeats in high frequency."
+    },
+    "cooking": {
+     "description": "Cooking games are about cooking, serving, and managing a restaurant or kitchen"
+    },
+    "farm": {
+     "description": "Focused on farming or farming-adjacent. Plant, collect, sell. Manage resources. Includes games that are farming gameplay reskined as other themes"
+    },
+    "horror": {
+     "description": "Scary, dark, violent, creepy, haunted. Can sometimes be funny, but usually contains jump scares. Horror games are about the theme, can have a variety of gameplay mechanics"
+    },
+    "meme": {
+     "description": "Gimicky or uses popular meme elements. Quirky games that don't fit anywhere else"
+    },
+    "platformer": {
+     "description": "The core mechanic is running and jumping onto platforms with a main character"
+    },
+    "puzzle": {
+     "description": "Mentally challenging. Often spatial challenges, sometimes with math, other times sorting, sequencing or merging challenges, question-based, etc."
+    },
+    "rhythm": {
+     "description": "Games requiring timing to the beat"
+    },
+    "simulation": {
+     "description": "Gameplay simulates a real-world concept, such as tycoon, god-sim, city building. Sometimes resource management and operationalization, other times can be sandbox"
+    },
+    "sports": {
+     "description": "Related to classical sports, such as soccer, basketball, but also gymnastics, pool, etc."
+    },
+    "survival": {
+     "description": "Centered around a main character or troop of characters. Limited resources, crafting, death and defeat, rpg elements"
+    },
+    "tactics": {
+     "description": "Strategy and tactical gameplay. Auto-battler, card battler, tower defense, turn-based combat, etc"
+    },
+    "zen": {
+     "description": "Relaxing gameplay, without competition, combat or time preassure. Often sandbox, decoration or exploration"
+    },
+    "incremental": {
+     "description": "Clicker and similar gameplay. The core theme is 'number goes up'. Spend resource to buy upgrades, click to get resource, or get resource passively"
+    },
+    "creative": {
+     "description": "Self-expressive artistic experience. Drawing, painting, pixel-art, collage, scrapbook, etc. Can have specific challenges, but sometimes not"
+    },
+    "chess": {
+     "description": "Specifically games that center around Chess"
+    },
+    "educational": {
+     "description": "Math, word and trivia games that center around question and answer. Sometimes with multiple choice and other times with a field to type answers."
+    },
+    "merge": {
+     "description": "Games where the central mechanic is merging: Combine smaller objects to make bigger ones (or low tier combine to make high tier)."
+    },
+    "chat": {
+     "description": "Games in which you primarily chat or role-play with one or more characters."
+    },
+    "toys": {
+     "description": "A simple interactive experience with no purpose other than pure fun: no winning or losing, no fail state, no levels, no currency or upgrade shops, no leaderboards. Just a single, mindlessly entertaining mechanic that is inherently enjoyable without any overall goal. Physics play (spinning, dragging and dropping, pushing and pulling, popping, smashing, ragdolls, destruction) and creative play (doodling, drawing, coloring, tracing, decorating) both count. A passive tally of actions is fine, but if the game presents a score to beat, a leaderboard, levels to clear, or any way to fail or win, it is NOT toys."
+    },
+    "minecraft": {
+     "description": "A Minecraft game or a direct clone of one. Strong signals: 'Minecraft', 'craft' or 'mine' in the title; a first-person or third-person 3D voxel world made of cube blocks that the player breaks and places; open-world exploration with mining, crafting, building, and surviving mobs. Do NOT tag a game just because is blocky, low-poly, has cubes, or mentions Minecraft in passing \u2014 a voxel racer, a block puzzle, or a 2D platformer with pixel blocks is not minecraft."
+    }
+   },
+   "dead_game_config": {
+    "plays_threshold": 200,
+    "min_p50_secs": 40
+   },
+   "max_games_per_run": 2000,
+   "game_taxonomy": {
+    "max_games_per_run": 1000,
+    "max_concurrent_llm_calls": 40,
+    "extract_chunk_size": 1000
+   }
+  },
+  "dynamic_configs/1244603571": {
+   "dimensions": {
+    "user:edit_request:expensive:day": {
+     "window_seconds": 86400,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 200000000,
+      "internal": -1
+     }
+    },
+    "user:edit_request:expensive:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 500000000,
+      "internal": -1
+     }
+    },
+    "user:edit_request:medium:day": {
+     "window_seconds": 86400,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 100000000,
+      "internal": -1
+     }
+    },
+    "user:edit_request:medium:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 250000000,
+      "internal": -1
+     }
+    },
+    "user:edit_request:cheap:day": {
+     "window_seconds": 86400,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": -1,
+      "free": -1,
+      "internal": -1
+     }
+    },
+    "user:claude_agent_sdk_gcm_request:expensive:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 800000000,
+      "internal": -1
+     }
+    },
+    "user:claude_agent_sdk_gcm_request:medium:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 0,
+      "internal": -1
+     }
+    },
+    "user:claude_agent_sdk_gcm_request:cheap:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": -1,
+      "free": -1,
+      "internal": -1
+     }
+    },
+    "user:pydantic_ai_codex_sub_gcm_request:expensive:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 0,
+      "internal": -1
+     }
+    },
+    "user:pydantic_ai_codex_sub_gcm_request:medium:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 1500000000,
+      "internal": -1
+     }
+    },
+    "user:pydantic_ai_codex_sub_gcm_request:cheap:week": {
+     "window_seconds": 604800,
+     "unit": "dollar_cost",
+     "tiers": {
+      "shadowbanned": -1,
+      "free": -1,
+      "internal": -1
+     }
+    },
+    "user:soc_request:expensive:lifetime": {
+     "window_seconds": 0,
+     "unit": "count",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": 2,
+      "internal": -1
+     }
+    },
+    "user:soc_request:medium:lifetime": {
+     "window_seconds": 0,
+     "unit": "count",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": -1,
+      "internal": -1
+     }
+    },
+    "user:soc_request:cheap:lifetime": {
+     "window_seconds": 0,
+     "unit": "count",
+     "tiers": {
+      "shadowbanned": -1,
+      "free": -1,
+      "internal": -1
+     }
+    },
+    "user:assets:audio_music_premium:lifetime": {
+     "window_seconds": 0,
+     "unit": "count",
+     "tiers": {
+      "shadowbanned": 0,
+      "free": -1,
+      "internal": -1
+     }
+    },
+    "user:publishes:day": {
+     "window_seconds": 86400,
+     "unit": "count",
+     "tiers": {
+      "free": 2,
+      "internal": -1
+     }
+    },
+    "user:republishes:day": {
+     "window_seconds": 86400,
+     "unit": "count",
+     "tiers": {
+      "free": 5,
+      "internal": -1
+     }
+    },
+    "user:profile_picture_uploads:day": {
+     "window_seconds": 86400,
+     "unit": "count",
+     "tiers": {
+      "free": 20,
+      "internal": -1
+     }
+    },
+    "user:cover_photo_uploads:day": {
+     "window_seconds": 86400,
+     "unit": "count",
+     "tiers": {
+      "free": 20,
+      "internal": -1
+     }
+    },
+    "user:push:newgame:day": {
+     "window_seconds": 86400,
+     "unit": "count",
+     "tiers": {
+      "free": 10,
+      "internal": -1
+     }
+    },
+    "user:ai_wallet:balance": {
+     "type": "balance",
+     "window_seconds": 0,
+     "unit": "dollar_cost",
+     "tiers": {
+      "internal": -1,
+      "shadowbanned": -1,
+      "free": 0
+     }
+    }
+   },
+   "actions": {
+    "edit_request_expensive": {
+     "dims": [
+      "user:edit_request:expensive:day",
+      "user:edit_request:expensive:week",
+      "user:ai_wallet:balance"
+     ]
+    },
+    "edit_request_medium": {
+     "dims": [
+      "user:edit_request:medium:day",
+      "user:edit_request:medium:week"
+     ]
+    },
+    "edit_request_cheap": {
+     "dims": [
+      "user:edit_request:cheap:day"
+     ]
+    },
+    "claude_agent_sdk_gcm_request_expensive": {
+     "dims": [
+      "user:claude_agent_sdk_gcm_request:expensive:week"
+     ]
+    },
+    "claude_agent_sdk_gcm_request_medium": {
+     "dims": [
+      "user:claude_agent_sdk_gcm_request:medium:week"
+     ]
+    },
+    "claude_agent_sdk_gcm_request_cheap": {
+     "dims": [
+      "user:claude_agent_sdk_gcm_request:cheap:week"
+     ]
+    },
+    "pydantic_ai_codex_sub_gcm_request_expensive": {
+     "dims": [
+      "user:pydantic_ai_codex_sub_gcm_request:expensive:week"
+     ]
+    },
+    "pydantic_ai_codex_sub_gcm_request_medium": {
+     "dims": [
+      "user:pydantic_ai_codex_sub_gcm_request:medium:week"
+     ]
+    },
+    "pydantic_ai_codex_sub_gcm_request_cheap": {
+     "dims": [
+      "user:pydantic_ai_codex_sub_gcm_request:cheap:week"
+     ]
+    },
+    "soc_request_expensive": {
+     "dims": [
+      "user:soc_request:expensive:lifetime"
+     ]
+    },
+    "soc_request_medium": {
+     "dims": [
+      "user:soc_request:medium:lifetime"
+     ]
+    },
+    "soc_request_cheap": {
+     "dims": [
+      "user:soc_request:cheap:lifetime"
+     ]
+    },
+    "publish_submit": {
+     "dims": [
+      "user:publishes:day"
+     ]
+    },
+    "republish_submit": {
+     "dims": [
+      "user:republishes:day"
+     ]
+    },
+    "profile_picture_upload": {
+     "dims": [
+      "user:profile_picture_uploads:day"
+     ]
+    },
+    "cover_photo_upload": {
+     "dims": [
+      "user:cover_photo_uploads:day"
+     ]
+    },
+    "push_newgame": {
+     "dims": [
+      "user:push:newgame:day"
+     ]
+    },
+    "soc_spend_expensive": {
+     "dims": [
+      "user:ai_wallet:balance"
+     ]
+    }
+   }
+  },
+  "dynamic_configs/1653160424": {
+   "lists": {
+    "global": "<game id list>",
+    "by_language": {
+     "en": "<game id list>",
+     "ar": "<game id list>",
+     "fr": "<game id list>",
+     "es": "<game id list>",
+     "id": "<game id list>"
+    }
+   },
+   "top_picks_size": 15,
+   "trending_size": 15,
+   "prepend_size": 30
+  },
+  "dynamic_configs/1881526868": {
+   "model_name": "production_fixed",
+   "feed_enabled": true,
+   "feed_default": {
+    "retriever_max_candidates": 2500,
+    "retriever_gumbel_temperature": 0.1,
+    "rank_gumbel_temperature": 0.3,
+    "replay_reduce_enabled": true,
+    "replay_reduce_top_clear": 3,
+    "replay_reduce_min_gap": 3,
+    "creator_reduce_min_gap": 3,
+    "remix_family_dedup_enabled": true
+   },
+   "serving": {
+    "mode": "remote",
+    "endpoint_name": "gbdt-ranker",
+    "retriever_max_candidates": 300,
+    "timeout_ms": 150
+   }
+  },
+  "dynamic_configs/2308516397": {
+   "premium_rows_gumbel_temperature": 0.25,
+   "theme_rows_gumbel_temperature": 0.25,
+   "diversity_total_candidates": 30,
+   "featured_min_p50": 50,
+   "play_boost": {
+    "rise_start_plays": 0,
+    "peak_plays": 5000,
+    "fall_end_plays": 10000,
+    "max_multiplier": 1.2,
+    "max_age_days": 30
+   },
+   "update_recency_boost": {
+    "enabled": true,
+    "alpha": 0.12,
+    "half_life_days": 3,
+    "max_age_days": 30
+   }
+  },
+  "dynamic_configs/2545188187": {
+   "themes": {
+    "definition": "Mood, aesthetic, and gameplay themes that describe the game's feel and content. Multiple themes can apply.",
+    "valid_values": {
+     "action": "Challenging high-octane gameplay \u2014 fighting, shooting, racing, explosions",
+     "adventure": "Exploration, main character, rpg elements. Adventure games are about the emotion of being in an expansive environment and being a hero. Less intense gameplay than action",
+     "arcade": "Classic challenging gameplay, such as shoot-em-up, themepark and festival classics, often single-mechanic gameplay that repeats in high frequency.",
+     "cooking": "Cooking games are about cooking, serving, and managing a restaurant or kitchen",
+     "farm": "Focused on farming or farming-adjacent. Plant, collect, sell. Manage resources. Includes games that are farming gameplay reskinned as other themes",
+     "horror": "Scary, dark, violent, creepy, haunted. Can sometimes be funny, but usually contains jump scares. Horror games are about the theme, can have a variety of gameplay mechanics",
+     "meme": "Gimmicky or uses popular meme elements. Quirky games that don't fit anywhere else",
+     "platformer": "The core mechanic is running and jumping onto platforms with a main character",
+     "puzzle": "Mentally challenging. Often spatial challenges, sometimes with math, other times sorting, sequencing or merging challenges, question-based, etc.",
+     "rhythm": "Games requiring timing to the beat",
+     "simulation": "Gameplay simulates a real-world concept, such as tycoon, god-sim, city building. Resource management and systems-thinking, sometimes sandbox",
+     "sports": "Related to classical sports, such as soccer, basketball, but also gymnastics, pool, etc.",
+     "survival": "Centered around a main character or troop of characters. Limited resources, crafting, death and defeat, rpg elements",
+     "tactics": "Strategy and tactical gameplay. Auto-battler, card battler, tower defense, turn-based combat, etc.",
+     "zen": "Relaxing gameplay, without competition, combat or time pressure. Often sandbox, decoration or exploration",
+     "incremental": "Clicker and similar gameplay. The core theme is 'number goes up'. Spend resource to buy upgrades, click to get resource, or get resource passively",
+     "creative": "Self-expressive artistic experience. Drawing, painting, pixel-art, collage, scrapbook, etc. Can have specific challenges, but sometimes not",
+     "chess": "Chess or chess-derived strategy \u2014 pieces, boards, and positional tactics",
+     "educational": "Math, word and trivia games that center around question and answer. Sometimes with multiple choice and other times with a field to type answers.",
+     "merge": "Games where the central mechanic is merging: Combine smaller objects to make bigger ones (or low tier combine to make high tier)."
+    }
+   },
+   "genre": {
+    "definition": "The primary genre classification of the game. Choose the most specific genre that best describes the core gameplay experience.",
+    "valid_values": {
+     "Action RPG": "Real-time combat with RPG character progression",
+     "Adventure": "Exploration and narrative-driven gameplay with a main character",
+     "Arcade": "Classic score-chasing reflex gameplay, often single-mechanic",
+     "Auto Battler": "Units fight automatically; player manages composition and strategy",
+     "Base Building": "Construct and expand a base or settlement",
+     "Beat 'em up": "Melee combat against waves of enemies, side-scrolling",
+     "Board Game": "Digital adaptation of a tabletop board game",
+     "Breakout": "Bounce a ball to destroy blocks (Breakout/Arkanoid style)",
+     "Bullet Hell": "Dodge dense patterns of projectiles",
+     "Card Game": "Card-based gameplay \u2014 hand management, deck play",
+     "City Builder": "Plan and grow a city or civilization",
+     "Clicker": "Tap or click repeatedly; number goes up",
+     "Cooking": "Cook, serve, and manage a kitchen or restaurant",
+     "Creative": "Open-ended self-expression: drawing, building, decorating",
+     "Deckbuilder": "Construct a card deck through play and use it in combat",
+     "Dungeon Crawler": "Explore procedural dungeons, fight monsters, collect loot",
+     "Educational": "Math, word, trivia, or quiz-based learning",
+     "Endless Runner": "Run indefinitely, dodge obstacles, score goes up",
+     "Escape Room": "Solve interconnected puzzles to escape a space",
+     "Farming Sim": "Plant, tend, harvest, and sell crops",
+     "Fighting": "1v1 or team combat with dedicated move sets",
+     "Hack and Slash": "Fast melee combat against many enemies simultaneously",
+     "Hidden Object": "Find specific items within a detailed scene",
+     "Incremental": "Passive or active resource accumulation with upgrades",
+     "Mahjong": "Tile-matching in the Mahjong style",
+     "Match 3": "Swap and match three or more identical tiles",
+     "Memory": "Flip cards or recall sequences",
+     "Merge": "Combine identical objects to create higher-tier ones",
+     "Metroidvania": "Exploration with ability gating and backtracking",
+     "Pinball": "Keep a ball in play with flippers, hit targets for score",
+     "Platformer": "Run and jump across platforms with a main character",
+     "Point & Click": "Navigate scenes and solve puzzles by clicking objects",
+     "Puzzle": "Logic and spatial problem-solving as the core loop",
+     "Puzzle Platformer": "Platforming combined with environmental puzzles",
+     "Racing": "Compete for speed against opponents or the clock",
+     "Rhythm": "Hit inputs in time to music beats",
+     "Roguelike": "Procedural runs, permadeath, build variety",
+     "RPG": "Character stats, leveling, and narrative progression",
+     "Run 'n' Gun": "Run and shoot simultaneously in action levels",
+     "Sandbox": "Open freeform play with no fixed objectives",
+     "Shoot 'em up": "Shoot waves of enemies from a scrolling perspective",
+     "Shooter": "Aim and shoot from a fixed or free-roaming perspective (not a shmup)",
+     "Simulation": "Simulate a real-world system \u2014 tycoon, god-game, city-building",
+     "Sokoban": "Push boxes onto targets in confined grid spaces",
+     "Sports": "Soccer, basketball, or other classical sports",
+     "Stealth": "Avoid detection; sneaking is the core mechanic",
+     "Strategy": "Plan and outmaneuver \u2014 resource management, map control",
+     "Survival": "Gather resources, craft, and survive against threats",
+     "Survival Horror": "Survive in a terrifying environment with limited resources",
+     "Tactics": "Turn-based or positional strategic combat",
+     "Tower Defense": "Place units or towers to stop waves of enemies",
+     "Trivia": "Answer knowledge-based questions",
+     "Twin Stick Shooter": "Move with one joystick, aim/shoot with the other",
+     "Tycoon": "Build and manage a business for profit",
+     "Typing Game": "Type words or letters as the core mechanic",
+     "Visual Novel": "Story-driven with dialogue choices and branching paths",
+     "Walking Sim": "Narrative exploration with minimal mechanics",
+     "Word Game": "Form, guess, or arrange words",
+     "Zen": "Relaxing, low-pressure, often no lose state"
+    }
+   },
+   "art_style": {
+    "definition": "The visual aesthetic style of the game.",
+    "valid_values": {
+     "cartoon": "Bold outlines, bright flat colors, exaggerated proportions",
+     "minimalist": "Simple geometric shapes, clean sparse design",
+     "neon": "Glowing neon colors on dark backgrounds",
+     "pixel-art": "Retro pixelated aesthetic with visible pixel grid",
+     "realistic": "Photorealistic or highly detailed illustration",
+     "voxel": "3D block-based aesthetic (Minecraft style)",
+     "none": "No distinct or consistent art style"
+    }
+   },
+   "setting": {
+    "definition": "The world or aesthetic identity the game takes place in. Use 'none' if no clear setting applies.",
+    "valid_values": {
+     "anime": "Japanese animation setting and culture \u2014 manga visuals, anime tropes, Japanese world-building",
+     "contemporary": "Modern real-world setting",
+     "fantasy": "Magic, medieval, swords and sorcery",
+     "historical": "Past eras \u2014 ancient, classical, or early modern periods",
+     "horror": "Dark, eerie, threatening atmosphere",
+     "mythology": "Gods, legends, ancient myths",
+     "sci-fi": "Space, robots, futuristic technology",
+     "steampunk": "Victorian-era industrial machinery and aesthetics",
+     "post-apocalyptic": "Ruined world after civilization's collapse",
+     "none": "No distinct world setting or aesthetic"
+    }
+   },
+   "tone": {
+    "definition": "The emotional register of the game \u2014 how it feels to play.",
+    "valid_values": {
+     "chill": "Relaxed, low-pressure, meditative",
+     "dark": "Grim, heavy, or oppressive atmosphere",
+     "wholesome": "Warm, uplifting, feel-good",
+     "funny": "Comedic, absurd, lighthearted humor",
+     "intense": "High-stakes, fast-paced, adrenaline",
+     "neutral": "No strong emotional tone, matter-of-fact"
+    }
+   },
+   "difficulty": {
+    "definition": "The skill and attention demand placed on the player.",
+    "valid_values": {
+     "casual": "Anyone can play, low skill demand, very forgiving",
+     "moderate": "Some challenge, requires attention and practice",
+     "challenging": "Demands real skill, regular failures expected",
+     "hardcore": "High skill ceiling, punishing mistakes, mastery required"
+    }
+   },
+   "main_activity": {
+    "definition": "What the player does moment-to-moment as the core gameplay loop.",
+    "valid_values": {
+     "combat": "Defeat enemies or survive threats",
+     "puzzle": "Solve spatial or logic problems",
+     "management": "Allocate resources or direct units",
+     "collection": "Gather items, resources, or characters",
+     "exploration": "Move through and discover an environment",
+     "creative": "Build, paint, or express freely",
+     "reflex": "React quickly to on-screen events"
+    }
+   },
+   "progression": {
+    "definition": "How the game rewards or advances the player over time. Use 'none' if there is no meaningful progression system. This vocabulary applies to both primary and secondary progression.",
+    "valid_values": {
+     "none": "No meaningful progression system",
+     "score-based": "Points accumulate, leaderboard focus",
+     "levels": "Unlock or complete sequential stages",
+     "upgrades": "Buy or earn permanent improvements",
+     "prestige": "Reset progress for compounding bonuses",
+     "narrative": "Story unlocks and character development"
+    }
+   },
+   "loop_length": {
+    "definition": "The typical duration of a single play session or meaningful game loop.",
+    "valid_values": {
+     "under 1 min": "Very quick sessions, instant restart",
+     "1-5 min": "Short focused sessions",
+     "5-15 min": "Medium sessions with some depth",
+     "15+ min": "Long form, sustained engagement",
+     "open-ended": "No defined end, player decides when to stop"
+    }
+   },
+   "learning_curve": {
+    "definition": "How long it takes for a new player to understand and meaningfully engage with the core mechanic.",
+    "valid_values": {
+     "instant": "Self-evident in seconds, no instruction needed",
+     "easy": "Understood within the first session",
+     "moderate": "Takes several sessions to fully grasp",
+     "steep": "Significant time investment before competence"
+    }
+   },
+   "primary_control": {
+    "definition": "The main way the player interacts with the game on mobile.",
+    "valid_values": {
+     "tap": "Single tap interactions",
+     "swipe": "Directional swipe gestures",
+     "drag": "Pick up and place items by dragging",
+     "ui": "Button or menu-driven controls",
+     "single joystick": "Virtual joystick for movement",
+     "dual joystick": "Two virtual joysticks for movement and aim"
+    }
+   },
+   "secondary_control": {
+    "definition": "A meaningful secondary control scheme if the game uses two distinct input methods. Use 'none' if there is only one control scheme.",
+    "valid_values": {
+     "tap": "Single tap interactions",
+     "swipe": "Directional swipe gestures",
+     "drag": "Pick up and place items by dragging",
+     "ui": "Button or menu-driven controls",
+     "single joystick": "Virtual joystick for movement",
+     "none": "No secondary control scheme"
+    }
+   },
+   "perspective": {
+    "definition": "The visual perspective from which the game is presented.",
+    "valid_values": {
+     "ui_based": "No world perspective \u2014 purely UI/menu-driven (e.g. card games, clickers)",
+     "2d_side_view": "Classic side-scrolling 2D view",
+     "2d_top_down": "Top-down or bird's-eye 2D view",
+     "2d_isometric": "Isometric or diagonal 2D view",
+     "3d_first_person": "Three-dimensional first-person perspective",
+     "3d_third_person": "Three-dimensional third-person perspective"
+    }
+   },
+   "polish_level": {
+    "definition": "How much attention to detail the game has beyond its basic implementation. Most games are 'standard'. Only assign 'high' or 'exceptional' when there are clear extra touches \u2014 tutorials, particle effects, satisfying audio feedback, smooth animations, or other signs of deliberate craft.",
+    "valid_values": {
+     "low": "Minimal effort beyond making the game functional. May have basic sound or visuals, but little craft or attention to feel. Often true.",
+     "standard": "The default. The game is complete and plays well with VFX, SFX, and all other standard aspects of polished games, but does not go above and beyond. Applies to the majority of games.",
+     "high": "Noticeable extra craft - well thought out 'juicy' feedback for interactions, optimized loading times, leaderboard support, etc. Somewhat rare.",
+     "exceptional": "A high level of polish akin to a professionally released mobile game \u2014 multiple layered polish systems working together. The code is clearly very thoght out to make sure each aspect of gameplay shines. Very rare."
+    }
+   }
+  },
+  "dynamic_configs/2694162980": {
+   "dimension_key": "user:ai_wallet:balance",
+   "initial_grant_micro_usd": {},
+   "wallet_cap_micro_usd": 200000000,
+   "rate_micro_usd_per_1000_plays": 1000000,
+   "min_significant_plays": 200
+  },
+  "dynamic_configs/3478718458": {
+   "max_plays_for_new": 150,
+   "max_plays_for_beta": 75,
+   "max_top_picks": 60,
+   "max_featured": 30,
+   "max_trending": 30,
+   "score_p50_weight": 1,
+   "score_spr_weight": 1,
+   "score_gallery_ctr_weight": 0,
+   "gumbel_temperature": 0.1,
+   "premium_rows_gumbel_temperature": 0.25,
+   "theme_retriever_max_candidates": 8000,
+   "theme_rows_gumbel_temperature": 0.05,
+   "theme_row_affinity_gumbel_temperature": 0.1,
+   "diversity_total_candidates": 30,
+   "play_boost": {
+    "rise_start_plays": 0,
+    "peak_plays": 5000,
+    "fall_end_plays": 10000,
+    "max_multiplier": 1.2,
+    "max_age_days": 30
+   },
+   "update_recency_boost": {
+    "enabled": true,
+    "alpha": 0.12,
+    "half_life_days": 3,
+    "max_age_days": 30
+   },
+   "theme": {
+    "min_p50": 40,
+    "min_p75": 75
+   },
+   "min_games_for_language_filter": 5000,
+   "fallback_language": "en",
+   "row_configs": [
+    {
+     "category": "top_picks",
+     "label": "Players' Choice",
+     "size": "netflix_large"
+    },
+    {
+     "category": "featured",
+     "label": "Recommended For You",
+     "size": "netflix_small"
+    },
+    {
+     "category": "trending",
+     "label": "Trending",
+     "size": "netflix_small"
+    },
+    {
+     "category": "new",
+     "label": "New",
+     "size": "netflix_small"
+    },
+    {
+     "category": "beta",
+     "label": "Community Playtests",
+     "size": "netflix_large",
+     "description": "Be the first to play and leave feedback!",
+     "border_color": "#AD00FF",
+     "background_color": "#AD00FF1C"
+    },
+    {
+     "category": "fue_picks",
+     "label": "Start Here",
+     "size": "netflix_large"
+    },
+    {
+     "category": "because_you_played",
+     "label": "Because You Played",
+     "size": "netflix_small"
+    }
+   ],
+   "row_order": [
+    "top_picks",
+    "featured",
+    "trending",
+    "because_you_played",
+    "local_multiplayer",
+    "beta",
+    "halloween_2026"
+   ],
+   "because_you_played_enabled": true,
+   "include_retired_games": false,
+   "game_jam_tooltip": "Community competition - you be the judge!",
+   "diversity": {
+    "num_score_candidates": 20,
+    "num_score_pool": 200,
+    "spr_groups": [
+     {
+      "threshold_sec": 120,
+      "num_candidates": 20
+     },
+     {
+      "threshold_sec": 300,
+      "num_candidates": 20
+     }
+    ],
+    "min_p50": 50,
+    "top_creator_min_p50": 60,
+    "max_top_creator_candidates": 20
+   },
+   "featured_min_p50": 50,
+   "premium_row_dedup_themes": [
+    "chess",
+    "merge",
+    "creative",
+    "minecraft"
+   ],
+   "hidden_theme_rows": [
+    "minecraft",
+    "chess"
+   ],
+   "beta_min_day_n": 1,
+   "game_jam_min_day_n": 2,
+   "beta_quality_ranking_enabled": true,
+   "beta_rows_gumbel_temperature": 1,
+   "beta_remix_penalty": 0.9,
+   "beta_same_creator_penalty": 0.25,
+   "top_picks": {
+    "min_plays": 50000,
+    "pool_size": 60,
+    "min_pool_size": 20,
+    "deep_spr_threshold_sec": 300,
+    "p50_weight": 0.033,
+    "p75_weight": 0.01,
+    "deep_spr_weight": 10,
+    "retention_weight": 15,
+    "selection_temperature": 0.25,
+    "knn_dedup_enabled": true,
+    "neighbor_model": "dedup-description",
+    "manually_added": [],
+    "manually_removed": []
+   },
+   "gbdt_model_name": "production_fixed",
+   "gbdt_retriever_max_candidates": 2500,
+   "gbdt_rank_gumbel_temperature": 1,
+   "gbdt_replay_reduce_top_clear": 3,
+   "gbdt_replay_reduce_min_gap": 3,
+   "gbdt_creator_reduce_min_gap": 3,
+   "gbdt_serving": {
+    "mode": "remote",
+    "endpoint_name": "gbdt-ranker",
+    "timeout_ms": 150,
+    "retriever_max_candidates": 300
+   },
+   "theme_row_cold_game_insert_enabled": true,
+   "theme_row_cold_game_insert_fraction": 0.25,
+   "theme_row_cold_game_insert_protected_head": 1,
+   "theme_row_cold_game_insert_min_separation": 0
+  },
+  "dynamic_configs/4059574170": {
+   "sampling_rates": {
+    "combined_feed": 0.01,
+    "categorized_feed": 0.01,
+    "get_leaderboard": 0.01,
+    "add_score": 0.01,
+    "get_user_state": 0.01,
+    "set_user_state": 0.01,
+    "delete_user_state": 0.01,
+    "log_events": 0.001,
+    "get_bookmarked_games": 0.01,
+    "get_recently_played_games": 0.01,
+    "get_game_by_id": 0.01,
+    "get_games_created_by_user": 0.01,
+    "restore_game": 0.01,
+    "save_game": 0.01,
+    "create_named_version": 0.01,
+    "update_game": 0.01,
+    "update_game_review": 0.01,
+    "get_game_version_history": 0.01,
+    "delete_game": 0.01,
+    "submit_game_feedback": 0.01,
+    "snapshot": 0.01,
+    "flush_usage": 0.01,
+    "get_quota": 0.01,
+    "playlists": 0.01,
+    "gallery": 0.01,
+    "feed": 0.01,
+    "handle_wish_request": 0.01,
+    "get_my_wish_requests": 0.01,
+    "add_game_plays": 0.01,
+    "get_inapp_unread_count": 0.01
+   }
+  },
+  "dynamic_configs/4142972848": {
+   "max_fue_games": 30,
+   "gumbel_temperature": 0
+  }
+ }
+}
