@@ -244,7 +244,7 @@ function startGame(mode) {
     scene.setLevel(W);
     sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; firstTap = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
-    $('panel').hidden = true; $('shop').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
+    $('panel').hidden = true; $('shop').hidden = true; $('settings').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
     renderTools(); renderTop();
     if (!demo && lastLevelShown !== n && W.boss) setTimeout(() => { if (alive && W && W.n === n) Sound.play('fever'); }, 500);
@@ -511,6 +511,8 @@ function startGame(mode) {
     const k = CODE[e.code] || (e.key || '').toLowerCase();
     if (e.type === 'keyup') { keys.delete(k); if (k === ' ') hitHeld = false; return; }
     if (mode !== 'play' || !W) return;
+    // Escape closes the open shop or settings panel
+    if (e.code === 'Escape' && modalOpen()) { for (const id of ['shop', 'settings']) if (!$(id).hidden) hidePanel($(id)); Sound.play('blip'); renderTop(); e.preventDefault(); return; }
     if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); firstTap = false; Sound.unlock(cfg); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
     // nothing is picked or bought behind an open panel
@@ -730,10 +732,13 @@ function startGame(mode) {
     // names: two balanced lines in their card before a smaller font
     fitAll(sh, '.snm, .anm', 24, 2); fitAll(sh, '.slv b', 20); for (const n of sh.querySelectorAll('.stry')) fitText(n, 100, 18); fitAll(sh, '.need', 18); fitAll(sh, '.pbtn.max .tx', 30);
   }
+  let boughtAt = -1e9;
   function buyOrUpgrade(id) {
+    // a double tap lands on the fresh button in the same place: one purchase per tap, not two
+    if (performance.now() - boughtAt < 350) return false;
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
     if (cost === null || save.coins < cost) { Sound.play('no'); const b = $('shop').querySelector(`[data-buy="${id}"]`); if (b) { b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); } return false; }
-    save.coins -= cost;
+    save.coins -= cost; boughtAt = performance.now();
     if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
     persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
     return true;
@@ -801,7 +806,8 @@ function startGame(mode) {
     coinPopT -= dt; coinFlyT -= dt;
     if (mode === 'play' && W) {
       if (demo) { // attract: the hero smashes the fence by himself
-        demoT -= dt;
+        // a panel pauses the world: the demo waits too (it piled up rockets and fired them all when the panel closed)
+        if (!modalOpen()) demoT -= dt;
         if (demoT <= 0) { demoT = 1.6; const t = demoTarget(); if (t) { W.cool.rocket = 0; WD.useTool(W, 'rocket', t); } }
         // the view follows the front-yard robot for the first seconds (it is the one the first rocket sends flying)
         const b0 = W.bots[0], fb = b0 && W.t < 4 && (b0.state === 'walk' || (b0.state === 'down' && b0.t < 1.1)) ? (b0.pts ? { x: b0.pts[1][0], y: b0.pts[1][1], z: b0.pts[1][2] } : { x: b0.x, y: 0.9, z: b0.z }) : null;

@@ -586,6 +586,33 @@ async function main() {
     await page.close();
   }
 
+  // panels (found by the bug hunt on the new panel system)
+  {
+    const { page, errors } = await open(browser, '', { port });
+    // p1: the gear on the attract screen pauses the world; the demo must not pile up rockets meanwhile
+    await page.click('#gear'); await page.waitForTimeout(6000);
+    const p1 = await g(page, () => ({ open: !document.querySelector('#settings').hidden, shots: __game.W.shots.length + (__game.W.queued || []).length, demo: __game.demo }));
+    check(p1.open && p1.shots <= 1, `p1 settings open on the attract screen: no rockets pile up behind the pause (${JSON.stringify(p1)})`);
+    // p3: Escape closes the open panel
+    await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+    check(await g(page, () => document.querySelector('#settings').hidden), 'p3 Escape closes the settings panel');
+    // p4: a new level never starts behind an open settings panel
+    await page.click('#gear'); await page.waitForTimeout(300);
+    await g(page, () => __game.newLevel(1)); await page.waitForTimeout(300);
+    check(await g(page, () => document.querySelector('#settings').hidden), 'p4 a level change closes the settings panel');
+    // p2: a double tap on a price buys once (it unlocked the rocket and then upgraded it: 29,000 coins for an 8,000 tap)
+    await g(page, () => { __game.save.coins = 60000; });
+    // (the coins pill pulses while something is affordable, so it is clicked from the page)
+    await g(page, () => document.querySelector('#coins').click()); await page.waitForTimeout(400);
+    const p2 = await g(page, () => { const q = () => document.querySelector('#shop [data-buy="rocket"]'); q().click(); const again = q(); if (again) again.click(); return { coins: __game.save.coins, owned: __game.save.owned.includes('rocket'), lv: (__game.save.lv || {}).rocket || 1 }; });
+    check(p2.owned && p2.lv === 1 && p2.coins === 60000 - 8000, `p2 a double tap on a price buys once (${JSON.stringify(p2)})`);
+    await page.waitForTimeout(500);
+    const p2b = await g(page, () => { document.querySelector('#shop [data-buy="rocket"]').click(); return (__game.save.lv || {}).rocket || 1; });
+    check(p2b === 2, `p2 a second, separate tap a moment later does buy the upgrade (level ${p2b})`);
+    check(errors.length === 0, 'panel bug checks: no page errors: ' + (errors.join(' | ') || 'none'));
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);
