@@ -88,6 +88,14 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   // the same daily level opened again (it was the last card shown) still shows its card
   const daily = await g(() => { __game.newLevel(33, { daily: true }); const e = document.getElementById('lvcard'); e.hidden = true; __game.newLevel(33, { daily: true }); return !e.hidden && e.textContent; });
   check(daily && daily.includes('📅'), `the daily challenge has its card with the DAILY tag (${daily})`);
+  // an old save with trophies for levels 2, 18 and 100: kept per building kind (8 entries at most, never growing)
+  {
+    const { page: p2 } = await open(browser, '', { port: server.address().port, init: 'window.__preset = { v: 1, level: 101, best: { 1: 1, 17: 2, 99: 1 } };' });
+    await p2.waitForFunction(() => window.__game && __game.saveLoaded, null, { timeout: 15000 });
+    const best = await p2.evaluate(() => ({ ...__game.save.best }));
+    check(Object.keys(best).every((k) => +k >= 0 && +k < 8) && best[1] === 2 && best[3] === 1, `saved trophies stay per building kind: ${JSON.stringify(best)}`);
+    await p2.close();
+  }
   check(errors.length === 0, 'no page errors: ' + (errors.join(' | ') || 'none'));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed'); process.exit(fails.length ? 1 : 0);

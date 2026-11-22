@@ -496,7 +496,7 @@ function startGame(mode) {
     paidStars = stars;
     save.coins += bonus; save.total += bonus;
     if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); } // today's challenge: done for today
-    else { const key = String(W.n); save.best[key] = Math.max(save.best[key] || 0, cups); if (save.level <= W.n) { save.level = W.n + 1; save.levels++; } }
+    else { const key = String(W.n % WD.KINDS.length); save.best[key] = Math.max(save.best[key] || 0, cups); if (save.level <= W.n) { save.level = W.n + 1; save.levels++; } }
     persist(); renderTop();
     try { if (saveLoaded) lib.addPlayerScoreToLeaderboard(save.blocks).catch(() => {}); } catch (er) { /* no board here */ }
     const nt = L.nextTool(cfg, save.owned, save.coins);
@@ -640,13 +640,13 @@ function startGame(mode) {
     if (coachK) { hand.hidden = true; hand._k = ''; return; }
     // stuck for a while: the hand points at a shining star (tapping it throws a star bomb)
     const help = idleT > 8 && !demo && tipKey !== 'tooHard' ? scene.starMarks()[0] : null;
-    if (help) { hand.hidden = false; const k = `s${Math.round(help.x / 4)},${Math.round(help.y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.left = `calc(var(--u)*${help.x}px)`; hand.style.top = `calc(var(--u)*${help.y + 30}px)`; } return; }
+    if (help) { hand.hidden = false; const k = `s${Math.round(help.x / 4)},${Math.round(help.y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.translate = `calc(var(--u)*${help.x}px) calc(var(--u)*${help.y + 30}px)`; } return; }
     if (hand._k && hand._k[0] === 's') { hand._k = ''; hand.hidden = !(tipKey === 'tap' || tipKey === 'tooHard'); }
     if (hand.hidden) return;
     let x, y;
     if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = root.getBoundingClientRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
     else { x = 400; y = 560; } // first person: point at the middle of the view
-    const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.left = `calc(var(--u)*${x}px)`; hand.style.top = `calc(var(--u)*${y}px)`; }
+    const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.translate = `calc(var(--u)*${x}px) calc(var(--u)*${y}px)`; }
   }
   // ---- coach: the first times, a spotlight shows each control (walk, look, smash, bomb) until it has been used once
   let coachK = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0;
@@ -746,7 +746,9 @@ function startGame(mode) {
     }
     const key = list.map((l) => l.map((v) => Math.round(v / 6)).join(',')).join(';');
     if (key === arrowKey) return; arrowKey = key;
-    box.innerHTML = list.map(([x, y, a]) => `<div class="arrow" style="left:calc(var(--u)*${x}px);top:calc(var(--u)*${y}px);--a:${a}deg"><i></i><img src="${STAR_SVG}" alt=""></div>`).join('');
+    // a pool of arrows moved with translate (no new elements, no left/top while the view turns)
+    while (box.children.length < list.length) box.insertAdjacentHTML('beforeend', `<div class="arrow"><i></i><img src="${STAR_SVG}" alt=""></div>`);
+    [...box.children].forEach((el, i) => { const l = list[i]; el.hidden = !l; if (l) { el.style.translate = `calc(var(--u)*${l[0]}px) calc(var(--u)*${l[1]}px)`; el.style.setProperty('--a', l[2] + 'deg'); } });
   }
 
   function fit() { const r = root.getBoundingClientRect(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
@@ -784,6 +786,8 @@ function startGame(mode) {
         save.level = Math.max(num(st.level), levelLocal); save.levels = num(st.levels) + levelsLocal;
         save.owned = [...new Set(['hammer', 'bomb', ...(Array.isArray(st.owned) ? st.owned : []), ...owned])].filter((id) => cfg.tools.some((t) => t.id === id));
         save.best = { ...(st.best && typeof st.best === 'object' ? st.best : {}) }; for (const [k, v] of Object.entries(best)) save.best[k] = Math.max(num(save.best[k]), v);
+        // trophies are kept per building kind (8 entries at most, however many levels are played)
+        { const f = {}; for (const [k, v] of Object.entries(save.best)) { const n = Number(k); if (Number.isFinite(n) && n >= 0) f[n % WD.KINDS.length] = Math.max(f[n % WD.KINDS.length] || 0, num(v)); } save.best = f; }
         // every lesson learned on either side stays learned (the coach never comes back for it)
         save.learned = {}; for (const k of LESSONS) save.learned[k] = !!(st.learned && st.learned[k]) || !!learned[k];
         save.day = Math.max(num(st.day), dayLocal); save.dailyDone = Math.max(num(st.dailyDone), dailyLocal);

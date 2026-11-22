@@ -27,6 +27,13 @@ fs.mkdirSync(out, { recursive: true });
         if (fs * k < 12) bad.push(`text too small: ${el.className} ${(fs * k).toFixed(1)}`);
       }
       // offsetWidth: NEXT pulses (a scale), its layout width does not
+      // every touch target at least 96×96 units (Astrocade), counting the invisible tap area of smaller pills
+      for (const el of document.querySelectorAll('button, .coins, .tool')) {
+        if (el.closest('[hidden]') || !el.offsetParent || getComputedStyle(el).pointerEvents === 'none' || el.closest('.hud.edit')) continue;
+        const r = el.getBoundingClientRect(), af = getComputedStyle(el, '::after'), aw = af.content !== 'none' ? parseFloat(af.width) || 0 : 0, ah = af.content !== 'none' ? parseFloat(af.height) || 0 : 0;
+        const w = Math.max(el.offsetWidth, aw) * k, h = Math.max(el.offsetHeight, ah) * k;
+        if (w < 95.5 || h < 95.5) bad.push(`touch target ${el.id || el.className} ${w.toFixed(0)}×${h.toFixed(0)}`);
+      }
       const bs = [...document.querySelectorAll('#panel .btns .big, #panel .btns .small')].filter((b) => !b.closest('[hidden]')).map((b) => Math.round(b.offsetWidth * k));
       if (bs.length > 1 && Math.max(...bs) - Math.min(...bs) > 1) bad.push('result buttons differ: ' + bs.join('/'));
       const tabs = document.querySelector('#shop .tabs');
@@ -52,7 +59,10 @@ fs.mkdirSync(out, { recursive: true });
     await page.waitForTimeout(400); await shot('7-shop'); over.push(...await overflow(), ...await textOk());
     await g(() => { document.querySelector('[data-tab=album]').click(); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
     await page.waitForTimeout(400); await shot('8-album'); over.push(...await overflow(), ...await textOk());
-    if (over.length || errors.length) { bad++; console.log(`FAIL ${lang}: ${[...new Set(over)].join(' | ')} errors ${errors.join('|')}`); } else console.log(`ok   ${lang}: 8 screens, everything inside the frame`);
+    // the settings panel (sound and the languages): its buttons too
+    await g(() => { document.querySelector('#shopX').click(); document.querySelector('#gear').click(); });
+    await page.waitForTimeout(300); await shot('9-settings'); over.push(...await overflow(), ...await textOk());
+    if (over.length || errors.length) { bad++; console.log(`FAIL ${lang}: ${[...new Set(over)].join(' | ')} errors ${errors.join('|')}`); } else console.log(`ok   ${lang}: 9 screens, everything inside the frame, text fits, touch targets ≥ 96`);
     await page.close();
   }
   await browser.close(); server.close(); process.exit(bad ? 1 : 0);
