@@ -12,21 +12,15 @@ jobs:
   sync-everything:
     runs-on: ubuntu-latest
     steps:
-      # 1. Tekan tombol "Sync Fork" resmi milik GitHub lewat API
-      - name: Official GitHub Sync Fork
-        env:
-          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
-        run: |
-          gh api repos/corranot/game-astrocade-ku/merge-upstream -f branch=main || echo "Sudah sinkron atau skip upstream"
-
-      # 2. Ambil kode terbaru yang sudah tersinkron
+      # 1. Ambil kode main (tanpa "Sync Fork" dari repo induk: repo ini sudah jauh berbeda, sinkron selalu
+      #    gagal diam-diam, dan kalau berhasil akan push ke main tanpa PR/CI)
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.SYNC_TOKEN }}
           ref: main
 
-      # 3. Update otomatis 15 skill pilihan dari repo aslinya (clone gagal = langkah gagal, bukan diam-diam)
+      # 2. Update otomatis 15 skill pilihan dari repo aslinya (clone gagal = langkah gagal, bukan diam-diam)
       - name: Update 15 Selected Skills
         run: |
           set -e
@@ -40,7 +34,7 @@ jobs:
           git clone --depth 1 https://github.com/aicodeking/leanrea /tmp/leanrea
           copy /tmp/leanrea . leanrea
 
-      # 4. Perubahan skill masuk lewat PR (CI + automerge), tidak di-push langsung ke main
+      # 3. Perubahan skill masuk lewat PR (CI + automerge), tidak di-push langsung ke main
       - name: Open a PR with the skill updates
         env:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
