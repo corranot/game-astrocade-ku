@@ -173,6 +173,19 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   buttons one height, columns sharing edges, price buttons 12 from their card, close button in its corner, one primary.
 - Not proven here: the icons and fonts on real phones, touch feel of the 72-unit price buttons (their tap area is 96).
 
+## The other five tools follow the hammer (22 Nov)
+- Held models in the same heavy-toy style: iron bomb with a cap and a braided fuse with a lit ember, a launcher tube
+  with a ready light, a wrecking ball on a chain, a black-hole orb with a bright rim, a glowing meteor rock; the
+  flying shots match what is held. The arm reads as an arm in every pose (sleeve, bands, cuff, glove; `feel.arm`).
+- Motion per tool from `feel.<tool>`: equip raise (`feel.equip`), throw or fire with anticipation timed to when the
+  shot leaves, recoil, and the cooldown shown on the tool itself (the hand is empty or the launcher reloads until the
+  cooldown ends). Impact flash and camera reaction scale with the tool.
+- Sound: launch and impact in layers with random pitch per shot; a limiter on the master (`feel.mix.limiter`:
+  threshold -10 dB, ratio 12) so stacked layers and chains cannot clip; fade-outs follow the playback rate.
+- From the bug hunt: the reflection is rebuilt after a WebGL context loss (the hammer's steel stayed black).
+- Seen here: one strip per tool (rest, fire, flight, impact). Not proven: how any of it sounds on a phone speaker,
+  motion at full speed in the hand, real-phone FPS (the bundle run stayed at 14–17 fps on a GPU-less machine).
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.

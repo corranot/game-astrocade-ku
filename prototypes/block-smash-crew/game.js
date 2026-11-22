@@ -24,15 +24,23 @@ const buzz = (kind) => { try { lib.haptics.play(kind); } catch (e) { /* no vibra
 const Sound = (() => {
   let ctx = null, master = null, music = null, muted = false, noise = null, seq = 0, step = 0, nextT = 0, tempo = 118, lastCoin = 0;
   // det: the pitch of the code-made sound being started (1 = as written); lastRate: the last hammer hit's pitch
-  let det = 1, lastRate = 1;
+  let det = 1, lastRate = 1, comp = null;
   const buf = {}; let loading = false, song = null; // recorded sounds (from the asset map), the music loop playing
-  const ensure = () => {
+  const ensure = (cfg) => {
     if (ctx) return ctx;
     // the music gain starts at 0 for a muted save (setMuted may have run before the context existed)
-    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.75; master.connect(ctx.destination); music = ctx.createGain(); music.gain.value = muted ? 0 : 0.13; music.connect(master); } catch (e) { ctx = null; }
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.75; limit(cfg); music = ctx.createGain(); music.gain.value = muted ? 0 : 0.13; music.connect(master); } catch (e) { ctx = null; }
     if (ctx) { noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
     return ctx;
   };
+  /** The master bus ends in a limiter (feel.mix.limiter): stacked layers and chains of blasts cannot clip. */
+  function limit(cfg) {
+    const M = cfg && cfg.feel && cfg.feel.mix && cfg.feel.mix.limiter;
+    if (!M || !ctx.createDynamicsCompressor) { master.connect(ctx.destination); return; }
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = M.threshold; comp.knee.value = M.knee; comp.ratio.value = M.ratio; comp.attack.value = M.attack; comp.release.value = M.release;
+    master.connect(comp); comp.connect(ctx.destination);
+  }
   function tone(type, f0, f1, dur, vol, at = 0, dest = master) {
     const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f0 * det, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1 * det), t + dur);
@@ -107,7 +115,8 @@ const Sound = (() => {
     src.buffer = sd.b; src.playbackRate.value = rate || 0.94 + Math.random() * 0.12; g.gain.value = sd.gain * Math.min(1.2, vol);
     src.connect(g).connect(master);
     const end = sd.end ? sd.end - sd.skip : undefined;
-    if (end) { const t = ctx.currentTime; g.gain.setValueAtTime(sd.gain * Math.min(1.2, vol), t + end * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + end); }
+    // end is buffer time: at playback rate r the source stops after end / r seconds, so the fade-out is timed by that
+    if (end) { const t = ctx.currentTime, r = src.playbackRate.value; g.gain.setValueAtTime(sd.gain * Math.min(1.2, vol), t + end * 0.8 / r); g.gain.linearRampToValueAtTime(0.0001, t + end / r); }
     src.start(0, sd.skip || 0, end);
   }
   /**
@@ -120,15 +129,36 @@ const Sound = (() => {
     if (Math.abs(rate - lastRate) < H.pitch * 0.3) rate += (rate >= lastRate ? 1 : -1) * H.pitch * 0.45;
     lastRate = rate;
     const C = H.click, T = H.thump, k = clang ? H.clang.body : H.body;
+    // the pitch is put back even when a layer throws (it would detune every code-made sound after it)
     det = rate;
-    // 1. the click: a few milliseconds of bright noise and a tick
-    hiss(C.f * 1.6, C.f, C.dur, C.gain, 'highpass'); tone('square', C.f * 0.5, C.f * 0.22, C.dur, C.gain * 0.5);
-    // 2. the body
-    if (buf[body]) playBuf(body, k, rate); else fx[body](k);
-    // 3. the thump: low, longer and louder the more blocks broke
-    const g = clang ? H.clang.thump : Math.min(T.max, T.gain + T.per * n), d = Math.min(T.durMax, T.dur + T.durPer * n);
-    tone('sine', T.f0, T.f1, d, g); if (n > 6) hiss(260, 70, d, g * 0.5, 'lowpass');
-    det = 1;
+    try {
+      // 1. the click: a few milliseconds of bright noise and a tick
+      hiss(C.f * 1.6, C.f, C.dur, C.gain, 'highpass'); tone('square', C.f * 0.5, C.f * 0.22, C.dur, C.gain * 0.5);
+      // 2. the body
+      if (buf[body]) playBuf(body, k, rate); else fx[body](k);
+      // 3. the thump: low, longer and louder the more blocks broke
+      const g = clang ? H.clang.thump : Math.min(T.max, T.gain + T.per * n), d = Math.min(T.durMax, T.dur + T.durPer * n);
+      tone('sine', T.f0, T.f1, d, g); if (n > 6) hiss(260, 70, d, g * 0.5, 'lowpass');
+    } finally { det = 1; }
+  }
+  /**
+   * A sound made of layers from config (S = {pitch, layers}): each layer is a tone, a filtered noise, or a sound id
+   * (recorded if it has arrived, else code-made). k (0..1, a blast's size) scales the layers marked k. The whole
+   * sound gets its own pitch within ±S.pitch, never the last one's.
+   */
+  function layers(S, k) {
+    let rate = 1 + (Math.random() * 2 - 1) * S.pitch;
+    if (Math.abs(rate - lastRate) < S.pitch * 0.3) rate += (rate >= lastRate ? 1 : -1) * S.pitch * 0.45;
+    lastRate = rate; det = rate;
+    try {
+      for (const l of S.layers) {
+        const g = l.g * (l.k ? k : 1), d = l.d ? l.d * (l.k ? 0.6 + 0.8 * k : 1) : 0;
+        if (l.t === 'tone') tone(l.w || 'sine', l.f0, l.f1, d, Math.max(0.0002, g), l.at || 0);
+        else if (l.t === 'hiss') hiss(l.f0, l.f1, d, Math.max(0.0002, g), l.ft || 'bandpass', l.at || 0, l.q || 1.2);
+        else if (buf[l.id]) playBuf(l.id, g, rate);
+        else if (fx[l.id]) fx[l.id](g);
+      }
+    } finally { det = 1; }
   }
   function startSong() {
     if (!buf.music || song || !ctx) return;
@@ -136,11 +166,15 @@ const Sound = (() => {
     const g = ctx.createGain(); g.gain.value = buf.music.gain * 0.5; song.connect(g).connect(music); song.start();
   }
   return {
-    unlock(cfg) { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
+    unlock(cfg) { ensure(cfg); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
     play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a); else fx[id](a); },
     /** The hammer's hit sound (see hammer above); silent like play() while muted or before the first touch. */
     hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running') return; hammer(H, body, n, clang); },
     get lastRate() { return lastRate; },
+    /** A layered sound from config (see layers above); silent like play() while muted or before the first touch. */
+    layers(S, k = 1) { if (!ctx || muted || ctx.state !== 'running' || !S) return; layers(S, k); },
+    /** The limiter on the master bus: its settings and how many dB it is taking off right now (null without one). */
+    get limiter() { return comp ? { threshold: comp.threshold.value, knee: comp.knee.value, ratio: comp.ratio.value, attack: comp.attack.value, release: comp.release.value, reduction: comp.reduction } : null; },
     setTempo(t) { tempo = t; if (song) song.playbackRate.value = t / 118; },
     get recorded() { return Object.keys(buf).length; },
     get musicLevel() { return music ? music.gain.value : null; }, get songOn() { return !!song; },
@@ -210,7 +244,7 @@ function startGame(mode) {
     scene.setLevel(W);
     sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; firstTap = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
-    $('panel').hidden = true; $('shop').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
+    $('panel').hidden = true; $('shop').hidden = true; $('settings').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
     renderTools(); renderTop();
     if (!demo && lastLevelShown !== n && W.boss) setTimeout(() => { if (alive && W && W.n === n) Sound.play('fever'); }, 500);
@@ -477,6 +511,8 @@ function startGame(mode) {
     const k = CODE[e.code] || (e.key || '').toLowerCase();
     if (e.type === 'keyup') { keys.delete(k); if (k === ' ') hitHeld = false; return; }
     if (mode !== 'play' || !W) return;
+    // Escape closes the open shop or settings panel
+    if (e.code === 'Escape' && modalOpen()) { for (const id of ['shop', 'settings']) if (!$(id).hidden) hidePanel($(id)); Sound.play('blip'); renderTop(); e.preventDefault(); return; }
     if (MOVE_KEYS.includes(k)) { keys.add(k); usedKeys = true; if (demo) firstTouch(); firstTap = false; Sound.unlock(cfg); e.preventDefault(); return; }
     if (k === ' ') { e.preventDefault(); if (!e.repeat) onHitDown(); return; }
     // nothing is picked or bought behind an open panel
@@ -557,9 +593,9 @@ function startGame(mode) {
       const teach = sel === 'hammer' && usable('bomb') && !save.learned.bomb; // the first times: the tip line + hand say it
       if (!teach) { const [sx, sy] = scene.screenOf(e.x, e.y, e.z); pop(T('tooHard'), sx, sy - 100, 'p-mid', '#ffd0d0'); }
       if (sel === 'hammer' && usable('bomb')) { toolEls.bomb.classList.add('hint'); hardHint = { x: e.x, y: e.y, z: e.z, t: 4 }; if (teach) setTip('tooHard'); }
-    } else if (e.type === 'boom') { Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); hitStop(e.kind); }
-    else if (e.type === 'throw') { Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
-    else if (e.type === 'roll') { Sound.play('roll'); if (e.first) hitStop('ball'); }
+    } else if (e.type === 'boom') { const ts = cfg.feel[e.kind] && cfg.feel[e.kind].sound; if (ts) Sound.layers(ts.impact, Math.min(1, e.r / 5)); else Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); hitStop(e.kind); }
+    else if (e.type === 'throw') { const ts = !e.shot.from && cfg.feel[e.shot.kind] && cfg.feel[e.shot.kind].sound; if (ts) Sound.layers(ts.launch); else Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
+    else if (e.type === 'roll') { if (e.first) Sound.layers(cfg.feel.ball.sound.impact); else Sound.play('roll'); if (e.first) hitStop('ball'); }
     else if (e.type === 'fall') { /* the crash comes when it lands */ }
     else if (e.type === 'land') {
       Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud'); if (!demo && e.n >= 120) slowT = Math.max(slowT, cfg.feel.landSlow);
@@ -584,7 +620,7 @@ function startGame(mode) {
     else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); flyStar(sx, sy); persist(); } } // the chest's star: TREASURE! says it
     else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); celebrate(T('smashTime'), 'fever'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); }
     else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); results(); }
-    else if (e.type === 'pop') { /* the look handles it */ }
+    else if (e.type === 'pop') { if (e.kind === 'hole') Sound.layers(cfg.feel.hole.sound.impact); }
   }
   function daily() {
     dailyChecked = true;
@@ -696,10 +732,13 @@ function startGame(mode) {
     // names: two balanced lines in their card before a smaller font
     fitAll(sh, '.snm, .anm', 24, 2); fitAll(sh, '.slv b', 20); for (const n of sh.querySelectorAll('.stry')) fitText(n, 100, 18); fitAll(sh, '.need', 18); fitAll(sh, '.pbtn.max .tx', 30);
   }
+  let boughtAt = -1e9, boughtId = null;
   function buyOrUpgrade(id) {
+    // a double tap lands on the fresh button of the same tool: one purchase per tap, not two (another tool is free to buy)
+    if (id === boughtId && performance.now() - boughtAt < 350) return false;
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
     if (cost === null || save.coins < cost) { Sound.play('no'); const b = $('shop').querySelector(`[data-buy="${id}"]`); if (b) { b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); } return false; }
-    save.coins -= cost;
+    save.coins -= cost; boughtAt = performance.now(); boughtId = id;
     if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
     persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
     return true;
@@ -767,7 +806,8 @@ function startGame(mode) {
     coinPopT -= dt; coinFlyT -= dt;
     if (mode === 'play' && W) {
       if (demo) { // attract: the hero smashes the fence by himself
-        demoT -= dt;
+        // a panel pauses the world: the demo waits too (it piled up rockets and fired them all when the panel closed)
+        if (!modalOpen()) demoT -= dt;
         if (demoT <= 0) { demoT = 1.6; const t = demoTarget(); if (t) { W.cool.rocket = 0; WD.useTool(W, 'rocket', t); } }
         // the view follows the front-yard robot for the first seconds (it is the one the first rocket sends flying)
         const b0 = W.bots[0], fb = b0 && W.t < 4 && (b0.state === 'walk' || (b0.state === 'down' && b0.t < 1.1)) ? (b0.pts ? { x: b0.pts[1][0], y: b0.pts[1][1], z: b0.pts[1][2] } : { x: b0.x, y: 0.9, z: b0.z }) : null;
