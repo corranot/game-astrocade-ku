@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // The look of the menus in one place: the game's own icons (drawn here, so every phone shows the same shapes at the
-// same size) and the small builders every panel is made of (one panel shell, one button system, one meter).
+// same size) and the small builders every panel and the in-play HUD are made of (one panel shell, one button system, one meter).
 // Icons share one style: a 48 × 48 box, a thick dark outline with round corners, two or three flat colours.
 // Nothing here touches the page or the game: every function returns a string of HTML.
 
@@ -47,6 +47,12 @@ export const ICONS = {
   book: `<path d="M24 11.500C18 7.5 11 7.5 5 10v30c6-2.5 13-2.5 19 1.500z" fill="#fff" ${S}/><path d="M24 11.500c6-4 13-4 19-1.500v30c-6-2.5-13-2.5-19 1.500z" fill="#ffd23c" ${S}/><path d="M10.5 19c3-.8 6-.6 8.5.500M10.5 27c3-.8 6-.6 8.5.5" fill="none" stroke="#8fa3bd" stroke-width="3" stroke-linecap="round"/>`,
   size: `<circle cx="24" cy="24" r="19.5" fill="#ffe2b8" stroke="${INK}" stroke-width="3.5" stroke-dasharray="7 6.5" stroke-linecap="round"/><circle cx="24" cy="24" r="8.5" fill="#ff8a1f" ${S}/>`,
   clock: `<circle cx="24" cy="24" r="19.5" fill="#fff" ${S}/><path d="M24 12.500V24l8 5" fill="none" ${S}/>`,
+  // ---- HUD furniture: the smash-time stopwatch, the boss crown, the pointing hand, the thumbs-up, the mouse
+  timer: `<rect x="19.5" y="2.5" width="9" height="8" rx="2.5" fill="#ff4d5e" ${S}/><path d="M37 12.5l3-3" fill="none" ${S}/><circle cx="24" cy="27.5" r="16.5" fill="#fff" ${S}/><path d="M24 17.5v10l6.5 4" fill="none" ${S}/>`,
+  crown: `<path d="M7 37.5L4.5 13.5l11 9.5L24 6.5l8.5 16.5 11-9.5L41 37.5z" fill="#ffd23c" ${S}/><rect x="6.5" y="35" width="35" height="8.5" rx="3" fill="#ff9a2e" ${S}/><circle cx="24" cy="26.5" r="3" fill="#ff4d5e" stroke="${INK}" stroke-width="2.5"/>`,
+  hand: `<path d="M10.5 9.5a4.5 4.5 0 0 1 9 0V21h14a5 5 0 0 1 5 5v8.5a9.5 9.5 0 0 1-9.5 9.5H20a9.5 9.5 0 0 1-9.5-9.5z" fill="#fff" ${S}/><path d="M26.5 21.5v6M32.5 21.5v6" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M13.5 37.5h22" fill="none" stroke="#ffc531" stroke-width="4" stroke-linecap="round"/>`,
+  thumb: `<rect x="4.5" y="21" width="10.5" height="22.5" rx="3" fill="#5cc8ff" ${S}/><path d="M15 22.5l7-15.5a4.5 4.5 0 0 1 8 3.5l-2 8.5h10.5a4.5 4.5 0 0 1 4.4 5.5l-3 14a6 6 0 0 1-5.9 4.7H15z" fill="#ffd23c" ${S}/>`,
+  mouse: `<rect x="11.5" y="4.5" width="25" height="39" rx="12.5" fill="#fff" ${S}/><path d="M11.5 20v-3A12.5 12.5 0 0 1 24 4.5V20z" fill="#5cc8ff" ${S}/><path d="M11.5 20h25" fill="none" ${S}/>`,
 };
 
 /** One icon as inline SVG; cls adds classes (a size, "flip" to mirror it in right-to-left). */
@@ -61,6 +67,8 @@ export const COIN = '<i class="coin"></i>';
 export const panel = ({ head, body, closeId, cls = '', still = false }) => `<div class="card pcard${cls ? ' ' + cls : ''}${still ? ' still' : ''}"><div class="phead">${head}<button id="${closeId}" class="btn ibtn px" aria-label="close">${icon('close')}</button></div><div class="pbody">${body}</div></div>`;
 /** A panel title for the header. */
 export const title = (text, ic) => `<div class="ptitle">${ic ? icon(ic) : ''}<span class="tx">${text}</span></div>`;
+/** The coins in hand, for a panel's header. */
+export const balance = (text) => `<span class="pbal">${COIN}<b>${text}</b></span>`;
 /** Tabs for the header: [{ id, icon, text, on }]. */
 export const tabs = (list) => `<div class="tabs">${list.map((t) => `<button class="btn tab${t.on ? ' on' : ''}" data-tab="${t.id}">${icon(t.icon)}<span class="tx">${t.text}</span></button>`).join('')}</div>`;
 /** The primary button: one per screen. `after` is HTML behind the words (an arrow). */
