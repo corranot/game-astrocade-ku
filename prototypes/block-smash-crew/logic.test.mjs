@@ -67,9 +67,17 @@ check(KINDS.length === 8, '8 kinds of building');
 
 // ---- upgrades and the daily challenge
 {
-  const t = cfg.tools.find((x) => x.id === 'bomb'), a = L.toolAt(cfg, t, 1), b = L.toolAt(cfg, t, 5);
-  check(a.r === t.r && b.r > t.r * 1.4 && b.cd < t.cd, `upgrades grow a tool (bomb r ${a.r} → ${b.r}, cd ${a.cd} → ${b.cd})`);
-  check(L.upgradeCost(cfg, 'bomb', 1) < L.upgradeCost(cfg, 'bomb', 4) && L.upgradeCost(cfg, 'bomb', 5) === null, 'upgrade prices climb and stop at the top level');
+  const U = cfg.upgrade, t = cfg.tools.find((x) => x.id === 'bomb'), a = L.toolAt(cfg, t, 1), b = L.toolAt(cfg, t, 5), top = L.toolAt(cfg, t, U.max);
+  check(a.r === t.r && a.power === 1 && b.r > t.r * 1.3 && b.cd < t.cd && top.r <= t.r * (1 + U.rGain) + 1e-6 && top.cd >= t.cd * (1 - U.cdGain) - 1e-6, `upgrades grow a tool with smaller steps, never past the cap (bomb r ${a.r} → ${b.r} → ${top.r}, cd ${a.cd} → ${b.cd} → ${top.cd})`);
+  check(Math.abs(L.toolAt(cfg, t, 2).power - U.power) < 1e-3 && Math.abs(L.toolAt(cfg, t, 11).power - L.toolAt(cfg, t, 10).power - (U.power - 1)) < 1e-3, `level 2 earns ×${U.power} with the tool, each level after adds ${(U.power - 1).toFixed(1)}`);
+  check(U.max >= 20 && U.max <= 50 && L.upgradeCost(cfg, 'bomb', U.max) === null && L.upgradeCost(cfg, 'bomb', U.max - 1) > 0, `the top level is ${U.max} (20–50), with no price there`);
+  const firsts = cfg.tools.map((x) => L.upgradeCost(cfg, x.id, 1)), ratio = L.upgradeCost(cfg, 'hammer', 11) / L.upgradeCost(cfg, 'hammer', 10);
+  check(Math.abs(ratio - U.growth) < 0.06 && firsts.every((c, i) => i === 0 || c >= firsts[i - 1]), `prices c0 · ${U.growth}^lv (×${ratio.toFixed(2)} a level), the bigger tools cost more (${firsts.join(', ')})`);
+  check(L.clampLv(cfg, 5) === 5 && L.clampLv(cfg, 3.7) === 3 && L.clampLv(cfg, 999) === U.max && L.clampLv(cfg, 'x') === 1 && L.clampLv(cfg, -2) === 1, 'an old save keeps its levels (5 stays 5); junk and huge levels are clamped');
+  check(L.toolAt(cfg, t, 5).r === L.toolAt(cfg, t, '5').r && L.upgradeCost(cfg, 'bomb', 5) === L.nicePrice(U.c0.bomb * Math.pow(U.growth, 4)), 'an old level 5 bomb prices its next step from level 5');
+  check(L.nicePrice(12.4) === 12 && L.nicePrice(345) === 350 && L.nicePrice(4123) === 4100, 'prices round to two leading digits');
+  const cheapest = Math.min(...cfg.tools.map((x) => (['hammer', 'bomb'].includes(x.id) ? L.upgradeCost(cfg, x.id, 1) : x.cost)));
+  check(L.canBuy(cfg, ['hammer', 'bomb'], {}, cheapest) && !L.canBuy(cfg, ['hammer', 'bomb'], {}, cheapest - 1), `the "!" shows exactly when the cheapest thing is affordable (${cheapest})`);
   const W = WD.createWorld(cfg, 0, { lv: { hammer: 5 }, coinMult: 2 });
   check(W.cfg.tools[0].r > cfg.tools[0].r && cfg.tools[0].r === 1.45, 'a world uses the upgraded tools without changing the config');
   const DB = WD.createWorld(cfg, 34, { daily: true, coinMult: 2 }), BB = WD.createWorld(cfg, 34, {});
@@ -215,7 +223,7 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
     const W = WD.createWorld(cfg, lv, {}); counts.push(W.bots.length);
     for (const b of W.bots) if (W.g.get(Math.floor(b.x), 0, Math.floor(b.z)) || W.g.get(Math.floor(b.x), 1, Math.floor(b.z)) || Math.hypot(b.x - W.hero.x, b.z - W.hero.z) < 3) spawnOk = false;
   }
-  check(spawnOk && counts.every((c) => c >= cfg.bots.count && c <= cfg.bots.max), `bots stand on free ground away from the hero on every building (${counts.join(',')})`);
+  check(spawnOk && counts.every((c) => c >= cfg.waves.count - 1 && c <= cfg.waves.count + 1), `a wave of ${cfg.waves.count} + the front-yard robot stand on free ground away from the hero on every building (${counts.join(',')})`);
   // strolling: never inside a block, never off the lot, no NaN
   const W = WD.createWorld(cfg, 2, {}); let walkOk = true;
   for (let i = 0; i < 600; i++) { WD.step(W, 1 / 30); for (const b of W.bots) if (b.state === 'walk' && (!Number.isFinite(b.x) || W.g.get(Math.floor(b.x), 0, Math.floor(b.z)) || b.x < W.botLot.x0 || b.x > W.botLot.x1 || b.z < W.botLot.z0 || b.z > W.botLot.z1)) walkOk = false; }
@@ -236,11 +244,11 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(maxStretch < 1.35, `the ragdoll keeps its shape (head-chest stretch ${maxStretch.toFixed(2)}×)`);
   check(rebooted, 'after resting on the ground the bot reboots');
   for (let i = 0; i < 40; i++) WD.step(W, 1 / 30);
-  check(b.state === 'walk' && !W.g.get(Math.floor(b.x), 0, Math.floor(b.z)), 'rebooted: it stands on free ground and walks on');
+  check(b.state === 'leave' && !W.g.get(Math.floor(b.x), 0, Math.floor(b.z)), 'rebooted: it stands on free ground and walks off to a gate');
   // hit again while down: it flies again, no second payment
   const W2 = WD.createWorld(cfg, 0, {}), b2 = W2.bots[0];
-  knockBots(W2, b2.x, 0.8, b2.z, 2, cfg.bots.knock, 'bomb'); const c1 = W2.coins;
-  WD.step(W2, 1 / 30); knockBots(W2, b2.pts[1][0], b2.pts[1][1], b2.pts[1][2], 2, cfg.bots.knock, 'bomb');
+  knockBots(W2, b2.x, 0.8, b2.z, 2, cfg.bots.knock, 'bomb');
+  WD.step(W2, 1 / 30); const c1 = W2.coins; const { knock: knock2 } = await import('./bots.js'); knock2(W2, 0, 1, 0, cfg.bots.knock, 'bomb');
   check(W2.coins === c1 && W2.ev.some((e) => e.type === 'bonk' && e.again), 'a bot already down flies again but pays only once');
   // ragdolls never sink into the ground or into blocks, whatever hits them
   let sane = true;
@@ -253,20 +261,191 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(sw && ev3.some((e) => e.type === 'bonk' && e.by === 'hammer') && b3.state === 'down', 'the hammer knocks a bot flying');
   // a knock during hit-stop (a few tiny steps first) still sends the bot flying at full height
   { const travel = (steps) => { const w = WD.createWorld(cfg, 0, {}), bb = w.bots[0]; knockBots(w, bb.x - 0.6, 0.8, bb.z, 2.5, cfg.bots.knock, 'bomb'); const x0 = bb.x, z0 = bb.z;
-      let t = 0; for (const dt of steps) { WD.step(w, dt); if (dt >= 1 / 200) t += dt; if (t > 0.6) break; } return Math.hypot(bb.pts[2][0] - x0, bb.pts[2][2] - z0); };
+      // the game marks hit-stop frames (W.frozen), as it does in play
+      let t = 0; for (const dt of steps) { w.frozen = dt < 1 / 200; WD.step(w, dt); if (!w.frozen) t += dt; if (t > 0.6) break; } return Math.hypot(bb.pts[2][0] - x0, bb.pts[2][2] - z0); };
     const N = (dt, n) => Array(n).fill(dt), normal = travel(N(1 / 30, 40)), stopped = travel([...N(0.002, 6), ...N(1 / 30, 40)]), mixed = travel(Array.from({ length: 80 }, (_, k) => (k % 3 ? 1 / 60 : 1 / 30)));
     check(Math.abs(stopped - normal) / normal < 0.25 && Math.abs(mixed - normal) / normal < 0.25, `a knock throws as far after hit-stop or with changing steps (${normal.toFixed(2)} / ${stopped.toFixed(2)} / ${mixed.toFixed(2)} m)`); }
+  // a 240 Hz screen (or slow motion on 120 Hz) makes tiny steps that are not hit-stop: robots still fly and get up
+  { const w = WD.createWorld(cfg, 0, {}), bb = w.bots[0]; knockBots(w, bb.x - 0.6, 0.8, bb.z, 2.5, cfg.bots.knock, 'bomb'); const x0 = bb.x, z0 = bb.z; let up = false;
+    for (let i = 0; i < 240 * 10 && !up; i++) for (const e of WD.step(w, 1 / 240)) if (e.type === 'reboot' && w.bots[e.i] === bb) up = true;
+    const far = Math.hypot(bb.x - x0, bb.z - z0);
+    check(up && far > 2, `at 240 Hz a knocked robot flies (${far.toFixed(1)} m) and gets up again`); }
   // buried where it walks (a landed piece): it steps out to free ground
   { const w = WD.createWorld(cfg, 1, {}), bb = w.bots[1]; for (let y = 0; y < 2; y++) w.g.set(Math.floor(bb.x), y, Math.floor(bb.z), 1);
     WD.step(w, 1 / 30); check(!w.g.get(Math.floor(bb.x), 0, Math.floor(bb.z)) && !w.g.get(Math.floor(bb.x), 1, Math.floor(bb.z)), 'a bot buried by a block steps out to free ground'); }
   // a knock while it puts itself back together: it flies from where its parts are, and pays nothing
   { const w = WD.createWorld(cfg, 0, {}), bb = w.bots[0]; knockBots(w, bb.x, 0.8, bb.z, 2, cfg.bots.knock, 'bomb');
     for (let i = 0; i < 300 && bb.state !== 'reboot'; i++) WD.step(w, 1 / 30); WD.step(w, 1 / 30); const before = bb.pts.map((p) => p.slice()), c = w.coins;
-    knockBots(w, bb.pts[1][0], bb.pts[1][1], bb.pts[1][2], 2, cfg.bots.knock, 'bomb');
+    const { knock: knock3 } = await import('./bots.js'); knock3(w, w.bots.indexOf(bb), 1, 0, cfg.bots.knock, 'bomb');
     check(bb.state === 'down' && w.coins === c && Math.hypot(...[0, 1, 2].map((a) => bb.pts[0][a] - before[0][a])) < 0.01, 'a knock during the reboot: no pay, no jump of its parts'); }
   // the attract mode: bots fly but nothing pays
   const D = WD.createWorld(cfg, 0, { demo: true }), bd = D.bots[0]; knockBots(D, bd.x, 0.8, bd.z, 2, cfg.bots.knock, 'rocket');
   check(D.coins === 0 && D.ev.some((e) => e.type === 'bonk' && e.coins === 0), 'the attract mode: bots fly, nothing pays');
+}
+
+// ---- the horde: waves of BONK-BOTs marching at the hero, signs, costumes, gates, chains
+{
+  const B = cfg.bots, V = cfg.waves, { knockBots, ringRad, standing } = await import('./bots.js');
+  const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  // where the first wave appears: 4.5–12 m from the hero, inside the 270° arc around where he looks
+  let inRing = 0, inArc = 0, tot = 0, signs = 0, cost = 0, front = true;
+  for (let lv = 0; lv < 8; lv++) {
+    const W = WD.createWorld(cfg, lv, {}), h = W.hero, f = W.bots[0];
+    if (!(f.front && Math.abs(f.x - (h.x + 2.6)) < 1e-6 && Math.abs(f.z - (h.z - 3.2)) < 1e-6 && f.state === 'walk')) front = false;
+    for (const b of W.bots.filter((x) => x.wave === 1)) {
+      tot++; const d = Math.hypot(b.x - h.x, b.z - h.z), a = Math.atan2(b.x - h.x, b.z - h.z);
+      if (d >= B.spawnMin - 0.6 && d <= B.spawnMax + 0.6) inRing++;
+      if (Math.abs(ang(a - h.yaw)) <= B.spawnArc / 2 * Math.PI / 180 + 0.35) inArc++;
+      if (b.sign >= 0) signs++; if (b.costume === 0) cost++;
+    }
+  }
+  check(front, 'the front-yard robot stands where it always did (the demo rocket and the first TNT throw it)');
+  check(inRing >= tot * 0.85 && inArc >= tot * 0.85, `wave 1 starts 4.5–12 m away (${inRing}/${tot}) in the 270° arc ahead (${inArc}/${tot})`);
+  check(signs > tot * 0.3 && signs < tot * 0.7 && cost > tot * 0.35 && cost < tot * 0.85, `about half carry a dare sign (${signs}/${tot}); the wave's costume is mixed with plain robots (${cost}/${tot})`);
+  // marching: closer every second, never faster than catch-up, and close by they face the hero
+  const W = WD.createWorld(cfg, 0, {}), h = W.hero, wave1 = W.bots.filter((b) => b.wave === 1);
+  const mean = () => wave1.reduce((s, b) => s + Math.hypot(b.x - h.x, b.z - h.z), 0) / wave1.length, m0 = mean();
+  let maxSp = 0, firstReach = null;
+  for (let i = 0; i < 30 * 12; i++) {
+    const before = wave1.map((b) => [b.x, b.z]); WD.step(W, 1 / 30);
+    wave1.forEach((b, k) => { if (b.state === 'march') maxSp = Math.max(maxSp, Math.hypot(b.x - before[k][0], b.z - before[k][1]) * 30); });
+    if (firstReach === null && wave1.some((b) => Math.hypot(b.x - h.x, b.z - h.z) <= cfg.hero.reach + 0.6)) firstReach = i / 30;
+  }
+  const m1 = mean(), near = wave1.filter((b) => b.near), facing = near.filter((b) => Math.abs(ang(Math.atan2(h.x - b.x, h.z - b.z) - b.yaw)) < 0.6);
+  check(m1 < m0 - 2 && maxSp <= B.march * B.catchUp + 0.05, `the wave marches in (mean ${m0.toFixed(1)} → ${m1.toFixed(1)} m), at most ${(B.march * B.catchUp).toFixed(2)} m/s (fastest ${maxSp.toFixed(2)})`);
+  check(firstReach !== null && firstReach < 3, `a robot is in hammer reach within 3 s (${firstReach && firstReach.toFixed(1)} s): the first hit comes fast`);
+  check(near.length >= wave1.length * 0.6 && facing.length >= near.length * 0.8, `close by they face the hero (${facing.length}/${near.length} of ${wave1.length} near)`);
+  check(Math.abs(ringRad(B, 0) - 1.45) < 1e-9 && Math.abs(ringRad(B, 4) - (1.45 + 2 * 0.72)) < 1e-9, 'ring slots: 1.45 + √idx · 0.72');
+  // the next wave: at `every` seconds when nobody is knocked; survivors leave through a gate and are gone
+  const X = WD.createWorld(cfg, 1, {}); let waveAt = null, leftOk = true;
+  for (let i = 0; i < 30 * 40 && waveAt === null; i++) for (const e of WD.step(X, 1 / 30)) if (e.type === 'wave') waveAt = (i + 1) / 30;
+  const leavers = X.bots.filter((b) => b.wave === 1);
+  check(waveAt !== null && Math.abs(waveAt - V.every) < 0.1 && leavers.length && leavers.every((b) => b.state === 'march'), `wave 2 comes at ${waveAt && waveAt.toFixed(1)} s; wave 1's robots still march (one more wave to clear it)`);
+  for (let i = 0; i < 30 * V.every && X.wave.n < 3; i++) WD.step(X, 1 / 30);
+  check(X.wave.n === 3 && leavers.every((b) => b.state === 'leave' || b.gone), `wave 3: the robots of wave 1 still marching leave through the gates`);
+  for (let i = 0; i < 30 * (B.leaveMax + 1); i++) WD.step(X, 1 / 30);
+  check(X.bots.filter((b) => b.wave === 1).length === 0 && X.wave.n >= 2, `leavers are gone within ${B.leaveMax} s (through the gates)`);
+  void leftOk;
+  // most of a wave knocked: the next comes early, but never before minGap
+  const Y = WD.createWorld(cfg, 2, {}); let at2 = null;
+  for (let i = 0; i < 30 * 30 && at2 === null; i++) {
+    if (i === 30 * 3) { for (const b of Y.bots.filter((x) => x.wave === 1).slice(0, Math.ceil(V.count * (1 - V.leftRatio)) + 1)) knockBots(Y, b.x, 0.8, b.z, 0.6, B.knock, 'bomb'); }
+    for (const e of WD.step(Y, 1 / 30)) if (e.type === 'wave') at2 = (i + 1) / 30;
+  }
+  check(at2 !== null && at2 >= V.minGap - 0.05 && at2 < V.every - 1, `${Math.round((1 - V.leftRatio) * 100)}% knocked at 3 s: the next wave comes at ${at2 && at2.toFixed(1)} s (not before ${V.minGap} s)`);
+  // a cleared wave pays once; costume set changes each wave
+  const Z = WD.createWorld(cfg, 0, {}); let clears = [];
+  for (const b of Z.bots.filter((x) => x.wave === 1)) knockBots(Z, b.x, 0.8, b.z, 0.6, B.knock, 'bomb');
+  for (const b of Z.bots.filter((x) => x.wave === 1)) knockBots(Z, b.pts[1][0], b.pts[1][1], b.pts[1][2], 0.6, B.knock, 'bomb');
+  clears.push(...Z.ev.filter((e) => e.type === 'waveClear'));
+  check(clears.length === 1 && clears[0].coins >= V.coins, `knocking every robot of a wave clears it once (+${clears[0] && clears[0].coins} coins)`);
+  // one robot knocked twice (again after it got up) still counts once: 14 of 15 different robots do not clear the wave
+  { const Kw = WD.createWorld(cfg, 1, {}), w1 = Kw.bots.filter((x) => x.wave === 1), first = w1[0], last = w1[w1.length - 1]; let cleared = false;
+    last.x = Kw.botLot.x0 + 1; last.z = Kw.botLot.z0 + 1; last.state = 'walk'; last.goal = [last.x, last.z];
+    for (const b of w1.slice(0, -1)) knockBots(Kw, b.x, 0.8, b.z, 0.5, B.knock, 'bomb');
+    for (let i = 0; i < 30 * 8 && first.state !== 'leave'; i++) for (const e of WD.step(Kw, 1 / 30)) if (e.type === 'waveClear') cleared = true;
+    const { knock: kk } = await import('./bots.js'); kk(Kw, Kw.bots.indexOf(first), 1, 0, B.knock, 'bomb');
+    cleared = cleared || Kw.ev.some((e) => e.type === 'waveClear');
+    check(first.state === 'down' && !cleared && !last.knocked && !Kw.ev.some((e) => e.type === 'bonk' && e.coins > 0), `a robot knocked again after getting up counts once and pays nothing more: 14 of 15 robots do not clear the wave (cleared: ${cleared})`); }
+  const D = WD.createWorld(cfg, 0, { demo: true }); for (const b of D.bots) knockBots(D, b.x, 0.8, b.z, 0.6, B.knock, 'bomb');
+  check(D.coins === 0 && D.ev.some((e) => e.type === 'waveClear' && e.coins === 0), 'the attract mode clears waves without paying');
+  for (let i = 0; i < 30 * 13; i++) WD.step(Z, 1 / 30);
+  const c2 = Z.bots.filter((b) => b.wave === 2 && b.costume >= 0).map((b) => b.costume);
+  check(Z.wave.n === 2 && c2.length > 0 && c2.every((c) => c === 1), `wave 2 wears the next costume set (${[...new Set(c2)].join(',')})`);
+  // bounded: three minutes of waves with knocks now and then never pile up robots
+  const Q = WD.createWorld(cfg, 3, {}); let most = 0, mostDown = 0;
+  for (let i = 0; i < 30 * 180; i++) {
+    if (i % 45 === 0) { const s = Q.bots.find((b) => standing(b)); if (s) knockBots(Q, s.x, 0.8, s.z, 3, B.knock, 'bomb'); }
+    WD.step(Q, 1 / 30); most = Math.max(most, Q.bots.length); mostDown = Math.max(mostDown, Q.bots.filter((b) => b.state === 'down').length);
+  }
+  check(most <= B.maxBots + 1 && mostDown <= B.maxDown + 1 && Q.wave.n >= 6, `3 min of waves: at most ${most} robots (cap ${B.maxBots}), ${mostDown} down at once (cap ${B.maxDown}), ${Q.wave.n} waves`);
+  // chain: a robot flying fast through a standing one knocks it over too (55% of its speed passed on)
+  const C = WD.createWorld(cfg, 0, {}); C.bots.length = 0;
+  const { knock } = await import('./bots.js');
+  const mk = (x, z) => ({ id: 900 + C.bots.length, x, z, yaw: 0, h: B.height, state: 'march', t: 0, step: 0, goal: null, pts: null, prev: null, rest: [], hue: 0, r: (() => { let a = 3; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })(), sign: -1, costume: -1, mouth: 0, wave: 9, slot: 0, knocked: false, near: false, life: 0 });
+  C.hero.x = 2; C.hero.z = 34; C.bots.push(mk(18, 30), mk(19.2, 30));
+  knock(C, 0, 1, 0, 9, 'bomb'); const chainEv = [];
+  for (let i = 0; i < 30; i++) chainEv.push(...WD.step(C, 1 / 30).filter((e) => e.type === 'bonk'));
+  check(C.bots[1].state === 'down' && chainEv.some((e) => e.by === 'chain'), `a flying robot knocks a standing one over (chain: ${chainEv.map((e) => e.by).join(',')})`);
+  // the swing keeps its robot even when the list shifts (one leaves) before the hammer lands
+  const S = WD.createWorld(cfg, 0, {}), target = S.bots[3]; S.hero.x = target.x; S.hero.z = target.z + 1.5; target.goal = null;
+  WD.swingBot(S, 3); S.bots.splice(0, 1);
+  const sev = []; for (let i = 0; i < 12; i++) sev.push(...WD.step(S, 1 / 30));
+  check(target.state === 'down' && sev.some((e) => e.type === 'bonk' && e.by === 'hammer'), 'a swing lands on the robot it was aimed at, after the list shifted');
+  // a bomb flying inside a blast goes off 0.12–0.24 s later; lit TNT too
+  const R = WD.createWorld(cfg, 0, { owned: cfg.tools.map((x) => x.id) }), hx = R.hero.x, hz = R.hero.z;
+  WD.useTool(R, 'bomb', { x: hx, y: 1, z: hz - 9 }); WD.step(R, 1 / 30);
+  const bomb = R.shots[0]; R.cool.rocket = 0;
+  R.fuses.push({ x: Math.floor(bomb.x), y: bomb.y, z: Math.floor(bomb.z), t: 5 });
+  WD.useTool(R, 'meteor', { x: bomb.x, y: bomb.y, z: bomb.z }); R.shots[1].t = R.shots[1].dur - 1 / 60;
+  let t = 0, boomAt = null, tntAt = null; const tb = [];
+  for (let i = 0; i < 40; i++) { for (const e of WD.step(R, 1 / 60)) { if (e.type === 'boom') tb.push([e.kind, t]); } t += 1 / 60; }
+  const mt = (tb.find((x) => x[0] === 'meteor') || [])[1], bt = (tb.find((x) => x[0] === 'bomb') || [])[1], nt = (tb.find((x) => x[0] === 'tnt') || [])[1];
+  boomAt = bt != null && mt != null ? bt - mt : null; tntAt = nt != null && mt != null ? nt - mt : null;
+  check(boomAt !== null && boomAt >= 0.1 && boomAt <= 0.26 && tntAt !== null && tntAt <= 0.26, `a blast sets off a bomb in flight (${boomAt && boomAt.toFixed(2)} s later) and lit TNT (${tntAt && tntAt.toFixed(2)} s)`);
+  // a falling piece still knocks robots over where it lands
+  const F = WD.createWorld(cfg, 0, {}), fb = F.bots[2];
+  const fake = { id: 77, cells: [{ x: Math.floor(fb.x), y: 3, z: Math.floor(fb.z), m: M.brick }], total: 1, y: 0, vy: 0, drop: 3, spin: 0, th: 0, thv: 0, t: 0, topple: null };
+  F.falls.push(fake); let landHit = false; for (let i = 0; i < 40; i++) for (const e of WD.step(F, 1 / 30)) if (e.type === 'bonk' && e.by === 'land') landHit = true;
+  check(landHit, 'a falling block knocks over the robot it lands on');
+}
+
+// ---- dynamic resolution and the quality tier
+{
+  const Q = cfg.quality, q0 = { dpr: 1.5, max: 1.5, low: false, capped: false, dropped: null, slow: 0 };
+  let q = q0; const seq = [];
+  for (let i = 0; i < 12; i++) { q = L.qualityStep(Q, q, 1 / 30); seq.push(q.dpr.toFixed(2)); }
+  check(q.dpr >= Q.lowMax && q.capped, `a 30 fps cap: one step down that does not help is undone; the resolution is never crushed to ${Q.minDpr} (${seq.join(' ')})`);
+  // a really slow phone: frames get quicker as the resolution drops, down to the floor, then the low tier
+  // (a model phone: part of each frame scales with the pixels, part does not)
+  q = q0; const s2 = [], ftOf = (d) => 0.025 + 0.03 * (d / 1.5) ** 2;
+  for (let i = 0; i < 14; i++) { q = L.qualityStep(Q, q, ftOf(q.dpr)); s2.push(q.dpr.toFixed(2) + (q.low ? 'L' : '')); }
+  check(q.low && q.dpr <= Q.minDpr + 0.01 && q.max <= Q.lowMax, `a slow phone steps down to DPR ${Q.minDpr} and then the low tier (${s2.join(' ')})`);
+  q = { ...q0, dpr: 0.9 }; for (let i = 0; i < 8; i++) q = L.qualityStep(Q, q, 1 / 120);
+  check(q.dpr === 1.5, `fast frames climb back up by ${Q.up} a window to the device's own ratio (${q.dpr})`);
+}
+
+// ---- the economy, cheap and often (Prison style): a child who buys the cheapest thing whenever it can
+{
+  const { rng } = await import('./levels.js');
+  const U = cfg.upgrade;
+  /** One level as the child pilot plays it (stick + HIT + star taps + some bombs), with the given upgrades. */
+  function childLevel(lv, seed, lvs) {
+    const r = rng(seed * 101 + lv), W = WD.createWorld(cfg, lv, { lv: lvs });
+    let t = 0, tt = 0, cur = { idle: true }, fever = null;
+    const ahead = (ux, uz) => { const h = W.hero; for (let s = 0.6; s <= cfg.hero.reach - 0.3; s += 0.3) for (let y = 0; y < 3; y++) { const x = Math.floor(h.x + ux * s), z = Math.floor(h.z + uz * s); if (W.g.get(x, y, z)) return { x, y, z }; } return null; };
+    while (t < 240 && fever === null) {
+      if ((tt -= 1 / 30) <= 0) { tt = 0.4 + r(); const sh = W.starCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.star);
+        cur = W.t > 1 && r() < 0.25 ? { idle: true } : sh.length && r() < 0.3 ? { star: sh[0] } : W.lastHard && W.t - W.lastHard.t < 3 && r() < 0.5 ? { bomb: W.lastHard } : { aim: !W.chest.open || !sh.length ? { x: W.chest.x, z: W.chest.z } : sh[0], wobble: (r() - 0.5) * 1.2 };
+        if (cur.star) WD.starShot(W, cur.star); if (cur.bomb) WD.useTool(W, 'bomb', { x: cur.bomb.x + 0.5, y: cur.bomb.y + 0.5, z: cur.bomb.z + 0.5 }); }
+      WD.setMove(W, 0, 0);
+      if (cur.aim) { const h = W.hero, a = Math.atan2(cur.aim.x + 0.5 - h.x, cur.aim.z + 0.5 - h.z) + cur.wobble, ux = Math.sin(a), uz = Math.cos(a), b = ahead(ux, uz); if (b) WD.hitBlock(W, b); else WD.setMove(W, ux, uz); }
+      for (const e of WD.step(W, 1 / 30)) if (e.type === 'fever') fever = t;
+      t += 1 / 30;
+    }
+    // a few seconds of smash time, then the result card (read it, press NEXT)
+    for (let i = 0; i < 30 * 4; i++) { const b = WD.botTap(W); if (b && b.tool === 'bomb') WD.useTool(W, 'bomb', b.p); else if (b) WD.aimHammer(W, b.t, true); WD.step(W, 1 / 30); t += 1 / 30; }
+    const stars = L.starsFor(cfg, WD.wreck(W));
+    if (process.env.ECON) console.log('   lv', lv, 't', t.toFixed(0), 'coins', W.coins, 'bonus', L.levelBonus(cfg, lv, stars));
+    return { t: t + 6, coins: W.coins + L.levelBonus(cfg, lv, stars) };
+  }
+  for (const seed of [1, 2, 3]) {
+    const lvs = {}, owned = ['hammer', 'bomb']; let coins = 0, clock = 0, buys = [];
+    for (let lv = 0; clock < 300; lv++) {
+      const r = childLevel(lv, seed, lvs); coins += r.coins;
+      // coins arrive through the level: buying is checked a few times in it
+      for (let k = 1; k <= 4; k++) {
+        const at = clock + r.t * k / 4;
+        for (;;) { const opts = cfg.tools.map((x) => ({ id: x.id, c: owned.includes(x.id) ? L.upgradeCost(cfg, x.id, lvs[x.id] || 1) : x.cost })).filter((o) => o.c !== null).sort((a, b) => a.c - b.c); const o = opts[0];
+          if (!o || o.c > coins * k / 4 + coins * 0) break; if (o.c > coins) break; coins -= o.c; if (owned.includes(o.id)) lvs[o.id] = (lvs[o.id] || 1) + 1; else owned.push(o.id); buys.push(+at.toFixed(0)); }
+      }
+      clock += r.t;
+    }
+    // buy moments (several things bought at one visit to the shop count once)
+    const moments = [...new Set(buys)], gaps = moments.map((b, i) => b - (i ? moments[i - 1] : 0)), early = gaps.slice(0, 10), med = early.slice().sort((a, b) => a - b)[Math.floor(early.length / 2)], ends = Math.max(...moments.filter((b) => b < 300).map((b, i, a) => (i ? b - a[i - 1] : b)));
+    console.log(`  economy seed ${seed}: ${buys.filter((b) => b < 300).length} buys in 5 min at ${buys.slice(0, 14).join(', ')} s; levels ${JSON.stringify(lvs)}, owned ${owned.length}`);
+    check(buys[0] <= 40 && med >= 12 && med <= 45 && ends <= 90, `economy seed ${seed}: first buy at ${buys[0]} s, median gap ${med} s between the first 10 buy moments, longest gap in 5 min ${ends} s (target: something every ~30 s)`);
+  }
 }
 
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);

@@ -49,14 +49,42 @@ export const dailyDue = (lastDay, today) => !lastDay || today > lastDay;
 /** Seconds of cooldown for a tool; smash time cuts them to a fraction. */
 export function cooldownOf(cfg, id, fever) { const t = cfg.tools.find((x) => x.id === id); return t ? t.cd * (fever ? cfg.fever.cdScale : 1) : 0; }
 
-/** A tool at upgrade level lv (1..max): bigger and quicker. Returns {r, cd} (and len for the ball). */
+/** The upgrade level actually used: whole numbers 1..max (an old save's level stays as it was, capped at the top). */
+export function clampLv(cfg, lv) { const v = Math.floor(Number(lv)); return Math.max(1, Math.min(cfg.upgrade.max, Number.isFinite(v) ? v : 1)); }
+/**
+ * A tool at upgrade level lv (1..max): bigger and quicker with diminishing steps (size up to ×(1 + rGain), cooldown
+ * down to ×(1 − cdGain)), and its coins +(power − 1) per level: ×1.3 at level 2, ×1.6 at 3 (added, not compounded:
+ * compounded, the pilot child maxed all six tools within 5 minutes). Returns {r, cd, power} (and len for the ball).
+ */
 export function toolAt(cfg, t, lv) {
-  const u = cfg.upgrade, k = Math.max(1, Math.min(u.max, lv)) - 1;
-  const out = { r: +(t.r * (1 + u.rStep * k)).toFixed(3), cd: +(t.cd * (1 - u.cdStep * k)).toFixed(3) };
-  if (t.len) out.len = Math.round(t.len * (1 + u.rStep * k));
+  const u = cfg.upgrade, k = clampLv(cfg, lv) - 1, e = 1 - Math.exp(-k / u.k);
+  const out = { r: +(t.r * (1 + u.rGain * e)).toFixed(3), cd: +(t.cd * (1 - u.cdGain * e)).toFixed(3), power: +(1 + (u.power - 1) * k).toFixed(4) };
+  if (t.len) out.len = Math.round(t.len * (1 + u.rGain * e));
   return out;
 }
-/** Coins for the next upgrade of tool id from level lv, or null at the top level. */
-export function upgradeCost(cfg, id, lv) { const u = cfg.upgrade; return lv >= u.max ? null : Math.round(u.base[id] * Math.pow(u.growth, lv - 1) / 100) * 100; }
+/** A price rounded to two leading digits (12, 340, 4,100, 56,000). */
+export const nicePrice = (x) => { if (x < 100) return Math.max(1, Math.round(x)); const s = Math.pow(10, Math.floor(Math.log10(x)) - 1); return Math.round(x / s) * s; };
+/** Coins for the next upgrade of tool id from level lv: c0 · growth^(lv−1), or null at the top level. */
+export function upgradeCost(cfg, id, lv) { const u = cfg.upgrade, l = clampLv(cfg, lv); return l >= u.max ? null : nicePrice(u.c0[id] * Math.pow(u.growth, l - 1)); }
+/** Is anything in the shop affordable (an upgrade of an owned tool or a locked tool)? Drives the red "!" on the coins. */
+export function canBuy(cfg, owned, lv, coins) {
+  return cfg.tools.some((t) => (owned.includes(t.id) ? (upgradeCost(cfg, t.id, (lv || {})[t.id] || 1) ?? Infinity) : t.cost) <= coins);
+}
 /** Today's challenge: the biggest step of one of the 8 buildings, the kind changing every day. */
 export const dailyLevel = (cfg, day) => 8 * cfg.level.maxStep + (day % 8);
+
+/**
+ * Dynamic resolution, one window at a time: q = {dpr, max, low, capped, dropped, slow} and avg = the window's mean frame
+ * time. Slow → dpr down a step (at the floor for a few windows → the low tier); fast → up a step. A step down that did
+ * not make frames quicker (a 30 fps cap, battery saver, vsync) is undone and no more steps down follow until a fast
+ * window. Returns the new q (the caller applies dpr and low).
+ */
+export function qualityStep(Q, q, avg) {
+  const n = { ...q };
+  if (q.dropped && avg > q.dropped.avg * Q.noGain) { n.dpr = q.dropped.dpr; n.capped = true; n.dropped = null; n.slow = 0; return n; }
+  n.dropped = null;
+  // still slow with nothing left to gain from the resolution: the low tier (no shadows, half the particles)
+  if (avg > Q.slow && !q.capped && q.dpr > Q.minDpr + 0.01) { n.dropped = { dpr: q.dpr, avg }; n.dpr = Math.max(Q.minDpr, q.dpr - Q.down); }
+  else if (avg > Q.slow) { if (++n.slow >= Q.lowSlowWindows && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.dpr, n.max); } } else if (avg <= Q.slow) { n.slow = 0; if (avg < Q.fast) { n.capped = false; if (q.dpr < q.max - 0.01) n.dpr = Math.min(q.max, q.dpr + Q.up); } }
+  return n;
+}

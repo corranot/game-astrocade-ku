@@ -30,7 +30,8 @@ export function createWorld(cfg0, n, opts = {}) {
     hardT: 0, used: new Set(), ids, lastHard: null, coinMult: (opts.coinMult || 1) * (L.boss && !opts.daily ? cfg.boss.mult : 1), daily: !!opts.daily, boss: !!L.boss && !opts.daily, theme: L.theme,
   };
   // toy robots strolling around the building: targets that fly and get back up
-  W.bots = cfg.bots ? makeBots(W, cfg, n) : [];
+  W.bots = []; W.waves = []; W.wave = { n: 0, t: 0 };
+  if (cfg.bots) makeBots(W, cfg, n);
   return W;
 }
 
@@ -42,13 +43,22 @@ const distToCell = (W, c) => { const [x, y, z] = heroChest(W); return Math.hypot
 /** Removes blocks around a point and turns the result into events, coins, gems and falling pieces. */
 function blast(W, x, y, z, r, canHard, by) {
   const res = smashSphere(W.g, x, y, z, r, W.mats, canHard);
+  // bombs still flying inside the blast, and lit TNT, go off a moment later (a chain)
+  if (canHard) refuse(W, x, y, z, r);
   // bots near a blast fly (a bigger blast throws them harder)
   if (W.bots.length) knockBots(W, x, y, z, r + 1.2, W.cfg.bots.knock * Math.min(2, 0.6 + r / 3), by);
   if (res.removed.length) afterRemove(W, res.removed, by, x, y, z, r);
   return res;
 }
+/** Bombs in flight and burning TNT fuses within r of a blast: they blow up 0.12–0.24 s later. */
+function refuse(W, x, y, z, r) {
+  for (const s of W.shots) if (s.kind === 'bomb' && s.refuse == null && Math.hypot(s.x - x, s.y - y, s.z - z) < r + 0.5) s.refuse = 0.12 + 0.12 * ((s.id * 0.618) % 1);
+  for (const f of W.fuses) if (Math.hypot(f.x + 0.5 - x, f.y - y, f.z + 0.5 - z) < r + 0.5) f.t = Math.min(f.t, 0.12 + 0.12 * ((f.x * 7 + f.z * 3) % 10) / 10);
+}
 function afterRemove(W, removed, by, x, y, z, r) {
-  const mult = comboHit(W.combo) * (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult;
+  // an upgraded tool earns more per block (×power per level)
+  const pw = (tool(W, by) || {}).power || 1;
+  const mult = comboHit(W.combo) * (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult * pw;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult);
   W.coins += coins; W.left -= removed.length; W.smashed += removed.length;
   let gold = 0;
@@ -153,7 +163,8 @@ export function useTool(W, id, p) {
 function stepShots(W, dt) {
   for (const s of W.shots) {
     s.t += dt;
-    if (s.kind === 'bomb') {
+    if (s.kind === 'bomb' && s.refuse != null) { s.refuse -= dt; if (s.refuse <= 0) { s.done = true; boom(W, s, s.x, s.y, s.z); } }
+    else if (s.kind === 'bomb') {
       const k = Math.min(1, s.t / s.dur);
       s.x = s.sx + (s.tx - s.sx) * k; s.z = s.sz + (s.tz - s.sz) * k; s.y = s.sy + (s.ty - s.sy) * k + Math.sin(k * Math.PI) * (2 + s.dur * 6);
       if (k >= 1) { s.done = true; boom(W, s, s.tx, s.ty, s.tz); }
@@ -165,7 +176,7 @@ function stepShots(W, dt) {
     } else if (s.kind === 'ball') {
       const sp = 15 * dt; s.x += s.dx * sp; s.z += s.dz * sp; s.dist += sp; s.roll = (s.roll || 0) + sp / s.r;
       const res = smashSphere(W.g, s.x, s.y, s.z, s.r, W.mats, true);
-      if (res.removed.length) { afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length }); }
+      if (res.removed.length) { afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length, first: !s.rolled }); s.rolled = true; }
       const out = s.x < -4 || s.z < -4 || s.x > W.g.W + 4 || s.z > W.g.D + 4;
       if (s.dist > tool(W, 'ball').len || out) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'ball' }); }
     } else if (s.kind === 'hole') {
@@ -265,7 +276,7 @@ function swingAt(W, c) {
 /** First person: the player swings at the block under the crosshair (null = a swing at the air). */
 export function hitBlock(W, c) { if (W.phase === 'done') return false; return swingAt(W, c); }
 /** First person: the player swings at bot i (it flies when the hammer lands); false while the hammer is busy. */
-export function swingBot(W, i) { if (W.phase === 'done' || !W.bots[i] || !swingAt(W, null)) return false; W.hero.swingBot = i; return true; }
+export function swingBot(W, i) { if (W.phase === 'done' || !W.bots[i] || !swingAt(W, null)) return false; W.hero.swingBot = W.bots[i]; return true; }
 /** First person: the walking direction in world space, length 0..1 (null or 0 stops). */
 export function setMove(W, x, z) { W.hero.move = { x, z }; }
 
@@ -276,7 +287,8 @@ function stepHero(W, dt) {
   if (h.swingT >= 0) {
     const before = h.swingT; h.swingT += dt / hm.cd;
     // the hammer lands on a bot: away from the hero it goes
-    if (before < SWING_HIT && h.swingT >= SWING_HIT && h.swingBot != null) { const b = W.bots[h.swingBot], c = b.pts ? b.pts[1] : [b.x, 1, b.z]; knock(W, h.swingBot, c[0] - h.x, c[2] - h.z, W.cfg.bots.knock * 0.9, 'hammer'); h.swingBot = null; }
+    // (the bot itself is kept, not its place in the list: robots leave and the list shifts during the swing)
+    if (before < SWING_HIT && h.swingT >= SWING_HIT && h.swingBot) { const b = h.swingBot, j = W.bots.indexOf(b); if (j >= 0) { const c = b.pts ? b.pts[1] : [b.x, 1, b.z]; knock(W, j, c[0] - h.x, c[2] - h.z, W.cfg.bots.knock * 0.9, 'hammer'); } h.swingBot = null; }
     if (before < SWING_HIT && h.swingT >= SWING_HIT && h.swingCell) {
       const c = h.swingCell, m = W.g.get(c.x, c.y, c.z);
       if (m && isHard(W, m) && (W.clangs = (W.clangs || 0) + 1) >= W.cfg.hero.superAfter) {

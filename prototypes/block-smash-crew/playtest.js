@@ -13,6 +13,7 @@ const serve = () => http.createServer((q, s) => {
 }).listen(0);
 const GPU = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 const fails = [];
+const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json')));
 const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
 
 /** In-page bot: taps like a player who wants the stars (hammer at the chest, bombs on steel), through the real game. */
@@ -448,8 +449,9 @@ async function main() {
     const open1 = await g(page, () => !document.querySelector('#shop').hidden && document.querySelectorAll('.srow').length);
     const r0 = await g(page, () => __game.W.cfg.tools.find((t) => t.id === 'bomb').r);
     await g(page, () => document.querySelector('[data-buy=bomb]').click());
-    const up = await g(page, () => ({ lv: __game.save.lv.bomb, coins: __game.save.coins, r: __game.W.cfg.tools.find((t) => t.id === 'bomb').r, saved: (window.__writes || []).slice(-1)[0] }));
-    check(open1 === 6 && up.lv === 2 && up.coins === 47500 && up.r > r0 && up.saved && up.saved.lv && up.saved.lv.bomb === 2, `shop: 6 tools; bomb upgraded to level 2, paid 2500, bigger now (r ${r0} → ${up.r}), saved`);
+    const up = await g(page, () => ({ lv: __game.save.lv.bomb, coins: __game.save.coins, r: __game.W.cfg.tools.find((t) => t.id === 'bomb').r, saved: (window.__writes || []).slice(-1)[0], label: (document.querySelector('[data-buy=bomb]').closest('.srow').querySelector('.slv b') || {}).textContent }));
+    const price = cfg.upgrade.c0.bomb;
+    check(open1 === 6 && up.lv === 2 && up.coins === 50000 - price && up.r > r0 && up.saved && up.saved.lv && up.saved.lv.bomb === 2 && /2/.test(up.label || ''), `shop: 6 tools; bomb upgraded to level 2, paid ${price}, bigger now (r ${r0} → ${up.r}), saved, the row says "${up.label}"`);
     await g(page, () => document.querySelector('[data-buy=rocket]').click());
     check(await g(page, () => __game.save.owned.includes('rocket') && __game.W.owned.includes('rocket')), 'shop: a locked tool is bought from the shop');
     await g(page, () => { __game.save.best = { 0: 2, 3: 1 }; document.querySelector('[data-tab=album]').click(); });
@@ -550,6 +552,8 @@ async function main() {
     // f4: a quick look-drag that starts on a near block smashes nothing
     await page.waitForTimeout(500);
     await g(page, () => { const W = __game.W; W.hero.x = W.box.x0 + 4.5; W.hero.z = W.box.z1 + 2.2; __game.scene.look(-__game.scene.yaw, -__game.scene.pitch - 0.25); W.hero.cool = 0; });
+    // nothing from earlier still flying, falling or burning (its landing would count as smashed)
+    await waitFor(page, () => { const W = __game.W; return !W.shots.length && !W.falls.length && !W.fuses.length; }, null, 6000).catch(() => {});
     await page.waitForTimeout(200);
     const s0 = await g(page, () => __game.W.smashed);
     const [mx, my] = await g(page, () => __game.client(360, 640));

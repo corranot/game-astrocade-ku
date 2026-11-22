@@ -22,11 +22,15 @@ control (walk, look, smash, bomb) until you have used it.
 
 - Tap a shining star to throw a free star bomb at it. If the hammer bounces off steel a few times, SUPER HAMMER breaks it.
 - Red TNT barrels blow up and set off the ones next to them; tall towers tip over — TIMBER!
-- Little toy BONK-BOTs stroll around: hit them (hammer, bombs, TNT, falling pieces) and they fly — BONK! — then reboot
-  and walk on. They are toys: they never break for good.
+- Waves of little toy BONK-BOTs march at you, holding funny cardboard signs ("CAN'T TOPPLE OUR TOWER!") and wearing
+  party hats, chef hats, pirate hats and more. Hit them (hammer, bombs, TNT, falling pieces, even another flying robot)
+  and they fly — BONK! — then reboot with a smile, beep and walk away. A new wave comes every half minute; knock over a
+  whole wave for bonus coins. They are toys: they never break for good.
 
 Every 5th building is a BOSS (the biggest, double coins). Levels change between day, sunset and snow. Tap your coins to
-open the shop: unlock tools and upgrade each one 5 times, and see your album of buildings and trophies. A daily
+open the shop (a red "!" says you can buy something): unlock tools and upgrade each one up to level 30, and see your
+album of buildings and trophies. Big moments (SMASH TIME, a flattened building, a cleared wave, a new record blast) get
+confetti, and the result card tells how many blocks you smashed — show a friend with ✈️. A daily
 challenge (double coins) waits on the result card.
 
 Tools: hammer, bomb, rocket, wrecking ball, black hole and meteor. Coins unlock tools; every locked tool has one
@@ -41,7 +45,7 @@ under ⚙️.
 - `voxels.js` — block grid, ray cast, smashing, collapse check, mesh builder with corner shading.
 - `levels.js` — the eight building generators.
 - `logic.js` — coins, combo, trophies, unlocks, daily gift.
-- `bots.js` — the BONK-BOT toy robots: strolling, the floppy ragdoll, rebooting.
-- `scene.js` — the 3D look: blocks, first-person camera, hands and tools, flying pieces, dust, coins, explosions.
+- `bots.js` — the BONK-BOT toy robots: waves, marching, signs and costumes, the floppy ragdoll, rebooting, leaving.
+- `scene.js` — the 3D look: blocks, first-person camera, hands and tools, robots with faces, signs and costumes, flying pieces, dust, coins, explosions.
 - `game_config.json` — tuning values, sounds and all player text in 7 languages; leaderboard of blocks smashed.
 - `asset_map.json` — the recorded sound effects and music.
