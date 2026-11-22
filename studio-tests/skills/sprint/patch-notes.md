@@ -257,7 +257,7 @@ Fixture defaults.
 - [ ] Rewrites entries in plain language without internal IDs
 - [ ] Always asks "May I write" before writing patch notes
 - [ ] No director gates are invoked
-- [ ] Declares `model: sonnet` — it writes player-facing copy
+- [ ] Declares `model: claude-opus-5-5` — it writes player-facing copy
 
 ---
 
