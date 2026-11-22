@@ -1,0 +1,19 @@
+{
+ "id": "01M7D2FYKWG7YSXKJASJH81AFY",
+ "title": "Ragdoll Sandbox 3D",
+ "by": "TyoStudio69",
+ "plays": 14276,
+ "likes": 113,
+ "disableRemix": true,
+ "codeKB": 1384,
+ "libs": {
+  "three": 155,
+  "pixi": 0,
+  "phaser": 0,
+  "spine": 14,
+  "canvas2d": 10,
+  "webgl": 108
+ },
+ "assets": [],
+ "hasDesignDoc": false
+}

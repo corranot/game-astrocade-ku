@@ -1,0 +1,6 @@
+# raw downloads of other creators' games (their code, assets, chat and account records) stay local: only our
+# screenshots, stack summaries and analyses are kept in the repo
+*/ctx/
+*/contextCdnUrl.json
+*/playContextCdnUrl.json
+*/game.json
