@@ -171,8 +171,8 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   const card2 = await g(() => document.getElementById('lvcard').textContent);
   check(/2/.test(card2), `NEXT: level 2's card (${card2})`);
   // the same daily level opened again (it was the last card shown) still shows its card
-  const daily = await g(() => { __game.newLevel(33, { daily: true }); const e = document.getElementById('lvcard'); e.hidden = true; __game.newLevel(33, { daily: true }); return !e.hidden && e.textContent; });
-  check(daily && daily.includes('📅'), `the daily challenge has its card with the DAILY tag (${daily})`);
+  const daily = await g(() => { __game.newLevel(33, { daily: true }); const e = document.getElementById('lvcard'); e.hidden = true; __game.newLevel(33, { daily: true }); return !e.hidden && { text: e.textContent, tag: !!e.querySelector('.lvtag.d svg.ico'), words: e.querySelector('.lvtag.d .tx').textContent === __game.T('dailyGo') }; });
+  check(daily && daily.tag && daily.words, `the daily challenge has its card with the DAILY tag: calendar icon + words (${daily && daily.text})`);
   // an old save with trophies for levels 2, 18 and 100: kept per building kind (8 entries at most, never growing)
   {
     const { page: p2 } = await open(browser, '', { port: server.address().port, init: 'window.__preset = { v: 1, level: 101, best: { 1: 1, 17: 2, 99: 1 } };' });

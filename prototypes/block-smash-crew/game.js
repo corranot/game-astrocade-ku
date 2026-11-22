@@ -261,7 +261,7 @@ function startGame(mode) {
   const VERB = { hammer: 'vHammer', bomb: 'vBomb', rocket: 'vRocket', ball: 'vBall', hole: 'vHole', meteor: 'vMeteor' };
   { const hp = cfg.hitPulse; root.style.setProperty('--wave-dur', cfg.waves.banner + 's'); root.style.setProperty('--hp-cycle', hp.cycle + 's'); root.style.setProperty('--hp-glow', String(hp.glow)); root.style.setProperty('--hp-bright', String(hp.bright)); root.style.setProperty('--hp-dim', String(hp.dim)); }
   let hitLabel = '';
-  function labelHit() { const el = $('hit').querySelector('.hl'), t = T(VERB[sel] || 'vHammer'); if (hitLabel === t + lang) return; hitLabel = t + lang; el.textContent = t; fitText(el, 132, 28); }
+  function labelHit() { const el = $('hit').querySelector('.hl'), t = T(VERB[sel] || 'vHammer'); if (hitLabel === t + lang) return; hitLabel = t + lang; el.textContent = t; fitText(el, 132, 30); }
   $('stars').innerHTML = '<img class="st" alt=""><img class="st" alt=""><img class="st" alt="">';
   $('stars').querySelectorAll('img').forEach((i) => { i.src = STAR_SVG; });
   $('bar').innerHTML = `<b></b><i style="left:${cfg.stars.wreck1 * 100}%"></i><i style="left:${cfg.stars.wreck2 * 100}%"></i><span class="pct"></span>`;
@@ -296,20 +296,81 @@ function startGame(mode) {
   const fmt = (n) => (n >= 1e6 ? (Math.floor(n / 1e5) / 10).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 10000 ? (Math.floor(n / 100) / 10).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n));
   /** A whole number with thousands commas (1,234), for the brag line. */
   const commas = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  function starPop() { const p = document.createElement('img'); p.src = TROPHY_SVG; p.className = 'pop trophy'; p.style.left = 'calc(var(--u)*360px)'; p.style.top = 'calc(var(--u)*600px)'; $('pops').appendChild(p); setTimeout(() => p.remove(), 950); Sound.play('star'); buzz('success'); }
-  /** A word at frame point (x, y). */
-  function pop(text, x, y, cls = '', color) {
-    const p = document.createElement('div'); p.className = `pop out ${cls}`; p.textContent = text;
-    p.style.left = `calc(var(--u)*${Math.max(110, Math.min(610, x))}px)`; p.style.top = `calc(var(--u)*${Math.max(150, Math.min(920, y))}px)`;
+  // ---- words at eye level share the view. Each new one takes the free place nearest to where it belongs: clear of
+  // the crosshair, of the status lines under the top bar, of the coach's label, of the controls and of every word
+  // still up (its way up included). A word with no free place waits a moment and tries again; a coin count is dropped.
+  const WORDS = { top: 156, bottom: 920, side: 12, gap: 8, rise: 0.4, life: 950, wait: 220, tries: 4, cross: { l: 270, t: 566, r: 450, b: 714 }, up: [] };
+  /** Screen pixels per frame unit. */
+  const unit = () => root.getBoundingClientRect().width / 720 || 1;
+  /** A status line's box in frame units, from its layout (its entrance scale does not count). */
+  const laneBox = (el) => { const k = unit(), ln = $('lane'), l = (ln.offsetLeft + el.offsetLeft) / k, t = (ln.offsetTop + el.offsetTop) / k; return { l, t, r: l + el.offsetWidth / k, b: t + el.offsetHeight / k }; };
+  // where the status column ends, in frame units (0 when it is empty); kept up to date as its lines come and go
+  let laneBottom = 0;
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { const ln = $('lane'); laneBottom = ln.offsetHeight ? (ln.offsetTop + ln.offsetHeight) / unit() : 0; }).observe($('lane'));
+  /**
+   * The free place for a w × h word wanted at (x, y): its centre [x, y] and its box, or null when the view is full.
+   * `loose` 1 = it may pass over the arrows to stars (a big word is as wide as the frame), 2 = over other words too
+   * (the last try of a word that waited): never over the crosshair, the status lines or the coach's label.
+   */
+  function wordPlace(x, y, w, h, loose = 0) {
+    const G = WORDS, now = performance.now(), up = h * G.rise, pad = G.gap - 0.5;
+    for (let i = G.up.length - 1; i >= 0; i--) if (G.up[i].until <= now) G.up.splice(i, 1);
+    const taken = loose > 1 ? [G.cross] : [G.cross, ...G.up];
+    for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
+    if (!loose) for (const el of $('arrows').children) { const r = frameRect(el); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
+    if (!$('coach').hidden) { const r = frameRect($('coach').querySelector('.clabel')); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
+    const cx = Math.max(w / 2 + G.side, Math.min(720 - G.side - w / 2, x)), cy = Math.max(G.top + up + h / 2, Math.min(G.bottom - h / 2, y));
+    const sx = w + G.gap, sy = h + up + G.gap, spots = [];
+    // up and down in quarter steps (a tall word must be able to slide into a band only just its size)
+    for (let b = -20; b <= 20; b++) for (let a = -2; a <= 2; a++) spots.push([a * sx, b * sy / 4]);
+    // nearest first; of two as near, the upper one
+    spots.sort((p, q) => Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]) || p[1] - q[1]);
+    for (const [dx, dy] of spots) {
+      const r = { l: cx + dx - w / 2, r: cx + dx + w / 2, t: cy + dy - h / 2 - up, b: cy + dy + h / 2 };
+      if (r.l < G.side - 0.5 || r.r > 720 - G.side + 0.5 || r.t < G.top - 0.5 || r.b > G.bottom + 0.5) continue;
+      if (taken.some((o) => r.l < o.r + pad && r.r > o.l - pad && r.t < o.b + pad && r.b > o.t - pad)) continue;
+      const box = { ...r, until: now + G.life }; G.up.push(box);
+      return [cx + dx, cy + dy, box];
+    }
+    return null;
+  }
+  /** Puts a finished word element in its free place; false (and the element removed) when there is none. */
+  function wordShow(p, x, y, loose = 0) {
+    const k = unit(), at = wordPlace(x, y, p.offsetWidth / k, p.offsetHeight / k, loose);
+    if (!at) { p.remove(); return false; }
+    p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`;
+    p._box = at[2]; p._x = x; p._y = y;
+    setTimeout(() => p.remove(), WORDS.life);
+    return true;
+  }
+  /** A status line appeared or grew: a word standing where it now is moves to the next free place (or goes). */
+  function wordsYield() {
+    const lane = [...$('lane').children].filter((el) => !el.hidden).map(laneBox), pad = WORDS.gap - 0.5;
+    for (const p of [...$('pops').children]) {
+      const b = p._box; if (!b || !lane.some((o) => b.l < o.r + pad && b.r > o.l - pad && b.t < o.b + pad && b.b > o.t - pad)) continue;
+      const i = WORDS.up.indexOf(b); if (i >= 0) WORDS.up.splice(i, 1);
+      const at = wordPlace(p._x, p._y, b.r - b.l, (b.b - b.t) / (1 + WORDS.rise));
+      if (!at) { p.remove(); continue; }
+      p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`; p._box = at[2];
+    }
+  }
+  /** A trophy won: the cup under the crosshair. */
+  function starPop() { const p = document.createElement('img'); p.src = TROPHY_SVG; p.className = 'pop trophy'; $('pops').appendChild(p); wordShow(p, 360, 830); Sound.play('star'); buzz('success'); }
+  /** A word at frame point (x, y), with one of the game's icons before it when `ic` names one. */
+  function pop(text, x, y, cls = '', color, ic = '', turn = 0) {
+    const p = document.createElement('div'); p.className = `pop out ${cls}`;
+    if (ic) { p.classList.add('p-row'); p.innerHTML = UI.icon(ic); p.appendChild(Object.assign(document.createElement('span'), { textContent: text })); } else p.textContent = text;
     if (color) p.style.color = color;
-    $('pops').appendChild(p); setTimeout(() => p.remove(), 950);
-    const base = cls.includes('p-big') ? 88 : cls.includes('p-mid') ? 62 : cls.includes('p-coin') ? 38 : 44; fitText(p, 690, base, cls.includes('p-big') ? 2 : 1);
-    const w = p.offsetWidth / (root.getBoundingClientRect().width / 720 || 1); // keep long words inside the frame
-    if (w) p.style.left = `calc(var(--u)*${Math.max(w / 2 + 12, Math.min(708 - w / 2, x))}px)`;
+    $('pops').appendChild(p);
+    const base = cls.includes('p-big') ? 88 : cls.includes('p-mid') ? 60 : 44; fitText(p, 690, base, cls.includes('p-big') ? 2 : 1);
+    const big = cls.includes('p-big');
+    if (wordShow(p, x, y, turn >= WORDS.tries ? 2 : big ? 1 : 0) || cls.includes('p-coin') || turn >= WORDS.tries) return;
+    const gen = celGen; setTimeout(() => { if (alive && gen === celGen) pop(text, x, y, cls, color, ic, turn + 1); }, WORDS.wait);
   }
   /** One of the game's own icons, big, at frame point (x, y). */
-  function popIcon(name, x, y) { const p = document.createElement('div'); p.className = 'pop p-ico'; p.innerHTML = UI.icon(name); p.style.left = `calc(var(--u)*${x}px)`; p.style.top = `calc(var(--u)*${y}px)`; $('pops').appendChild(p); setTimeout(() => p.remove(), 950); }
-  const banner = (text, cls = 'p-big', dy = 0) => pop(text, 360, 560 + dy, cls);
+  function popIcon(name, x, y) { const p = document.createElement('div'); p.className = 'pop p-ico'; p.innerHTML = UI.icon(name); $('pops').appendChild(p); wordShow(p, x, y); }
+  /** A big word in the middle of the view, just above the crosshair. */
+  const banner = (text, cls = 'p-big', dy = 0) => pop(text, 360, 510 + dy / 2, cls);
   /**
    * Fits a text to its room, the box following its text: one line when it fits in maxW frame units; else (lines > 1)
    * balanced lines inside maxW; only then a smaller font, never below 70% of base (long translations).
@@ -341,9 +402,11 @@ function startGame(mode) {
   let coinFlyT = 0;
   function setTip(k) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
-    tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 600, 50, 2); } // room for its pulse
+    // 600 of the 680 wide column: room for its pulse
+    tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 600, 52, 2); }
     if (coachK && coachK !== '-') tip.hidden = true;
     hand.hidden = !(k === 'tap' || k === 'tooHard');
+    wordsYield();
   }
 
   // ---- input, picked by device: phone/tablet = stick (lower left) + look by dragging + HIT button;
@@ -480,7 +543,7 @@ function startGame(mode) {
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id);
     if (!owned && !usable(id) && save.coins >= t.cost && saveLoaded) { // buy it, only once its free try is used (and never in smash time, which lends it)
       save.coins -= t.cost; save.owned.push(id); W.owned.push(id); persist();
-      Sound.play('unlock'); buzz('success'); banner(T('newTool'), 'p-mid'); popIcon(t.id, 360, 700);
+      Sound.play('unlock'); buzz('success'); banner(T('newTool'), 'p-mid'); popIcon(t.id, 360, 830);
       root.appendChild(Object.assign(document.createElement('div'), { className: 'flash' })); setTimeout(() => { const f = root.querySelector('.flash'); if (f) f.remove(); }, 460);
       sel = id; renderTools(); renderTop(); return;
     }
@@ -561,8 +624,9 @@ function startGame(mode) {
   }
   /** WAVE n ARRIVING! for a few seconds at eye level. */
   function waveBanner(n) {
-    const el = $('wavebn'); el.textContent = T('wave', n); el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); fitText(el, 640, 64, 2);
+    const el = $('wavebn'); el.textContent = T('wave', n); el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); fitText(el, 640, 60, 2);
     clearTimeout(waveBanner.t); waveBanner.t = setTimeout(() => { el.hidden = true; }, cfg.waves.banner * 1000);
+    wordsYield();
   }
   function onEvent(e) {
     scene.event(e);
@@ -616,9 +680,9 @@ function startGame(mode) {
       if (beepT <= 0) { const [sx, sy, behind] = scene.screenOf(e.x, e.y + 1, e.z); if (!behind && sx > 0 && sx < 720 && sy > 0 && sy < 1280) { beepT = 0.4; pop(T('beep'), sx, sy - 60, 'p-coin', '#7dfcff'); } }
     }
     else if (e.type === 'wave') { if (!demo && e.n > 1) { waveBanner(e.n); Sound.play('horn'); buzz('warning'); } }
-    else if (e.type === 'waveClear') { if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); celebrate(T('waveClear'), 'wave'); setTimeout(() => { if (alive) pop('+' + fmt(e.coins), 360, 640, 'p-mid', '#ffe14a'); }, 300); } }
+    else if (e.type === 'waveClear') { if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); celebrate(T('waveClear'), 'wave'); setTimeout(() => { if (alive) pop('+' + fmt(e.coins), 360, 780, 'p-mid', '#ffe14a'); }, 300); } }
     else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); flyStar(sx, sy); persist(); } } // the chest's star: TREASURE! says it
-    else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); celebrate(T('smashTime'), 'fever'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); }
+    else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); celebrate(T('smashTime'), 'fever'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); wordsYield(); }
     else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); results(); }
     else if (e.type === 'pop') { if (e.kind === 'hole') Sound.layers(cfg.feel.hole.sound.impact); }
   }
@@ -683,7 +747,7 @@ function startGame(mode) {
     layoutCard($('panel'));
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
     if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
-    $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); hidePanel($('panel')); resultsOpen = false; $('nextpill').hidden = false; Sound.play('blip'); });
+    $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); hidePanel($('panel')); resultsOpen = false; $('nextpill').hidden = false; wordsYield(); Sound.play('blip'); });
     if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('brag', commas(W.smashed)) + ' ' + T('share') })).catch(() => {}); });
   }
   // a save that came late still counts; after the daily, back to the path
@@ -698,14 +762,16 @@ function startGame(mode) {
   /**
    * One tool's card: icon, name, level, what the next level changes (size, wait, coins: now → next) and the price
    * button in one of its states: can pay (green), too expensive (grey, says how much is missing), max.
-   * A locked tool shows its lock and, while its free try of this level is unused, the tool bar's FREE badge.
+   * A locked tool shows the same three lines at level 1, its lock, and its state where an owned one shows its level:
+   * the tool bar's FREE badge while its free try of this level is unused, LOCKED after it.
    */
   function shopCard(t) {
     const owned = save.owned.includes(t.id), lv = lvOf(t.id), cost = owned ? L.upgradeCost(cfg, t.id, lv) : t.cost;
     const now = L.toolAt(cfg, t, owned ? lv : 1), nx = owned && cost !== null ? L.toolAt(cfg, t, lv + 1) : null;
     const times = (p) => '×' + (+p.toFixed(1));
-    const fx = UI.change('size', ...pair(now.r, nx && nx.r)) + UI.change('clock', ...pair(now.cd, nx && nx.cd)) + (owned ? UI.change(UI.COIN, times(now.power), nx && times(nx.power)) : '');
-    const tryIt = !owned && W && W.fever <= 0 && !W.tried.has(t.id) ? `<span class="stry">${T('tryFree')}</span>` : '';
+    const fx = UI.change('size', ...pair(now.r, nx && nx.r)) + UI.change('clock', ...pair(now.cd, nx && nx.cd)) + UI.change(UI.COIN, times(now.power), nx && times(nx.power));
+    // a locked tool: FREE while this level's try is unused (the tool bar's badge), LOCKED after it
+    const canTry = !owned && W && W.fever <= 0 && !W.tried.has(t.id), tryIt = owned ? '' : `<span class="stry${canTry ? '' : ' off'}">${T(canTry ? 'tryFree' : 'locked')}</span>`;
     const miss = cost === null ? 0 : cost - save.coins, lead = UI.icon(owned ? 'up' : 'lock');
     const btn = cost === null ? `<span class="pbtn max">${UI.icon('check')}<span class="tx">${T('max')}</span></span>`
       : miss <= 0 ? `<button class="btn pbtn can" data-buy="${t.id}">${lead}${UI.COIN}<b>${fmt(cost)}</b></button>`
@@ -726,11 +792,11 @@ function startGame(mode) {
     }
     const sh = $('shop'), still = !sh.hidden;
     $('settings').hidden = true;
-    sh.innerHTML = UI.panel({ head: UI.tabs([{ id: 'tools', icon: 'hammer', text: T('tools'), on: shopTab === 'tools' }, { id: 'album', icon: 'book', text: T('album'), on: shopTab === 'album' }]), body, closeId: 'shopX', cls: 'shopcard', still });
+    sh.innerHTML = UI.panel({ head: UI.tabs([{ id: 'tools', icon: 'hammer', text: T('tools'), on: shopTab === 'tools' }, { id: 'album', icon: 'book', text: T('album'), on: shopTab === 'album' }]) + UI.balance(fmt(save.coins)), body, closeId: 'shopX', cls: 'shopcard', still });
     sh.hidden = false; Sound.play('blip');
-    const tabsEl = sh.querySelector('.tabs'); fitRow(tabsEl, [...tabsEl.querySelectorAll('.tab')], 30);
-    // names: two balanced lines in their card before a smaller font
-    fitAll(sh, '.snm, .anm', 24, 2); fitAll(sh, '.slv b', 20); for (const n of sh.querySelectorAll('.stry')) fitText(n, 100, 18); fitAll(sh, '.need', 18); fitAll(sh, '.pbtn.max .tx', 30);
+    const tabsEl = sh.querySelector('.tabs'); fitRow(tabsEl, [...tabsEl.querySelectorAll('.tab')], 24);
+    // a tool's name stays on one line (every card has three stat lines under it); an album name may take two
+    fitAll(sh, '.snm', 24); fitAll(sh, '.anm', 24, 2); fitAll(sh, '.slv b', 20); for (const n of sh.querySelectorAll('.stry')) fitText(n, 100, 18); fitAll(sh, '.need', 18); fitAll(sh, '.pbtn.max .tx', 30);
   }
   let boughtAt = -1e9, boughtId = null;
   function buyOrUpgrade(id) {
@@ -836,7 +902,7 @@ function startGame(mode) {
       // the shop pauses the world (smash time does not run out behind it)
       W.frozen = stopT > 0;
       if (!modalOpen()) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
-      if (W.fever > 0) $('ftime').textContent = '⏱ ' + Math.ceil(W.fever);
+      if (W.fever > 0) { const s = String(Math.ceil(W.fever)), el = $('ftime').lastElementChild; if (el.textContent !== s) el.textContent = s; }
       // cooldown rings
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
       // HIT pulses when the tool is ready, dims while it cools down
@@ -877,7 +943,7 @@ function startGame(mode) {
     const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.translate = `calc(var(--u)*${x}px) calc(var(--u)*${y}px)`; }
   }
   // ---- coach: the first times, a spotlight shows each control (walk, look, smash, bomb) until it has been used once
-  let coachK = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0;
+  let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0;
   /** An element's centre and size in frame units. */
   const frameRect = (el) => { const r = el.getBoundingClientRect(), a = root.getBoundingClientRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
   /** Shows the coach step k (null hides it): a dimmed screen with a lit hole on the control, a label and a moving hand. */
@@ -887,15 +953,18 @@ function startGame(mode) {
     if (!k) { c.hidden = true; if (tipKey) $('tip').hidden = false; return; }
     const desk = !touchUI; let cx, cy, cr, hx, hy, text, how;
     if (k === 'walk') { const r = desk ? frameRect($('keys')) : { x: 111, y: 1029, w: 190 }; cx = r.x; cy = r.y; cr = desk ? r.w / 2 + 24 : 118; hx = cx; hy = cy + (desk ? 10 : 30); text = T(desk ? 'cWalkKeys' : 'cWalk'); how = desk ? 'press' : 'drag'; }
-    else if (k === 'look') { cx = 400; cy = 560; cr = 210; hx = 400; hy = 600; text = T(desk ? 'cLookMouse' : 'cLook'); how = 'swipe'; }
+    else if (k === 'look') { cx = 360; cy = 620; cr = 180; hx = 400; hy = 660; text = T(desk ? 'cLookMouse' : 'cLook'); how = 'swipe'; }
     else if (k === 'hit') { const r = frameRect($(desk ? 'cross' : 'hit')); cx = r.x; cy = r.y; cr = desk ? 90 : r.w / 2 + 26; hx = cx; hy = cy + 20; text = T(desk ? 'cHitClick' : 'cHit'); how = 'press'; }
     else { const r = frameRect(toolEls.bomb); cx = r.x; cy = r.y; cr = r.w / 2 + 22; hx = cx; hy = cy - 10; text = T('tooHard'); how = 'press'; }
-    const ly = k === 'look' ? 300 : Math.max(330, Math.min(860, cy - cr - 70));
+    // the look label stands under the status column (a two-line wave banner ends at 292), above its ring
+    const ly = k === 'look' ? 364 : Math.max(330, Math.min(860, cy - cr - 70));
     for (const [n, v] of [['cx', cx], ['cy', cy], ['cr', cr], ['hx', hx], ['hy', hy], ['ly', ly]]) c.style.setProperty('--' + n, String(Math.round(v)));
     c.className = 'coach ' + how; const lb = c.querySelector('.clabel'); lb.textContent = text;
     c.hidden = false; fitText(lb, 600, 44, 2); $('tip').hidden = true;
   }
   function coachTick(dt) {
+    // a test holds one step on screen to measure and look at it
+    if (coachHeld) { showCoach(coachHeld); return; }
     if (demo || resultsOpen || modalOpen() || W.phase === 'free') { showCoach(null); return; }
     const h = W.hero, d = Math.hypot(h.x - lastHX, h.z - lastHZ); lastHX = h.x; lastHZ = h.z;
     if (h.move && (h.move.x || h.move.z)) walkD += Math.min(d, 1);
@@ -904,7 +973,8 @@ function startGame(mode) {
     aimT = near ? aimT + dt : 0; lostT = near ? 0 : lostT + dt;
     let k = null;
     if (tipKey === 'tooHard' && !save.learned.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';
-    else if (W.phase !== 'play' || W.t < 1.2) k = null;
+    // not while the level card is up: the look step's label would stand on it
+    else if (W.phase !== 'play' || W.t < 1.2 || !$('lvcard').hidden) k = null;
     else if (!save.learned.walk) k = 'walk';
     else if (!save.learned.drag) k = 'look';
     // the smash step stays up while the target only flickers away (a block breaking under the crosshair)
@@ -916,14 +986,15 @@ function startGame(mode) {
   /** A lesson done: a thumbs-up and a bright note. */
   /** The coach step on screen, drawn again (a new language). */
   function relabel() { if (coachK && coachK !== '-') { const k = coachK; coachK = '-'; showCoach(k); } }
-  function cheer() { pop('👍 ' + T('great'), 360, 470, 'p-mid', '#7dff9a'); Sound.play('blip', 990); buzz('tap'); }
+  function cheer() { pop(T('great'), 360, 470, 'p-mid', '#7dff9a', 'thumb'); Sound.play('blip', 990); buzz('tap'); }
   /** A new level: a card with the building's icon, its number and name (and BOSS / DAILY). */
   function levelCard(n) {
-    const el = $('lvcard'), tag = W.daily ? `<span class="lvtag d">📅 ${T('dailyGo')}</span>` : W.boss ? `<span class="lvtag">👑 ${T('boss')}</span>` : '';
+    const el = $('lvcard'), tagOf = (ic, text, cls) => `<span class="lvtag${cls}">${UI.icon(ic)}<span class="tx">${text}</span></span>`, tag = W.daily ? tagOf('calendar', T('dailyGo'), ' d') : W.boss ? tagOf('crown', T('boss'), '') : '';
     el.innerHTML = `<span class="lvic">${UI.icon(W.kind in UI.ICONS ? W.kind : 'cottage')}</span><b class="out">${T('level', n + 1)}</b><span class="lvnm">${T(W.kind)}</span>${tag}`;
     el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
     clearTimeout(levelCard.t); levelCard.t = setTimeout(() => { el.hidden = true; }, 2300);
-    for (const x of el.querySelectorAll('b, .lvnm, .lvtag')) fitText(x, 600, x.tagName === 'B' ? 72 : 40, x.classList.contains('lvnm') ? 2 : 1);
+    for (const x of el.querySelectorAll('b, .lvnm, .lvtag')) fitText(x, 600, x.tagName === 'B' ? 72 : x.classList.contains('lvnm') ? 44 : 30, x.classList.contains('lvnm') ? 2 : 1);
+    wordsYield();
   }
   /** Builds the next level at once under a white flash that fades away. */
   function wipeTo(fn) { $('panel').hidden = true; fn(); const w = $('wipe'); w.hidden = false; w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(wipeTo.t); wipeTo.t = setTimeout(() => { w.hidden = true; }, 650); }
@@ -953,21 +1024,29 @@ function startGame(mode) {
   }
   /** The result card's coins count up from 0. */
   function countUp(el, to) {
-    if (!el || to <= 0) return; const t0 = performance.now() + 450, dur = 700; el.textContent = '0';
+    if (!el || to <= 0) return; const t0 = performance.now() + 450, dur = 700;
+    // on the way up it passes 9999 and 99.9k, which can be wider than where it ends
+    let wide = 0; for (const s of [fmt(to), to >= 1e4 ? '9999' : '', to >= 1e5 ? '99.9k' : '', to >= 1e6 ? '999k' : '']) if (s) { el.textContent = s; wide = Math.max(wide, el.offsetWidth); }
+    if (wide) el.style.minWidth = `calc(var(--u)*${(wide / unit()).toFixed(1)}px)`;
+    el.textContent = '0';
     const tick = () => { if (!alive || !el.isConnected) return; const k = Math.max(0, Math.min(1, (performance.now() - t0) / dur)); el.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
   }
   /** An arrow at the frame's edge towards each star that is out of view. */
   function placeArrows() {
     const box = $('arrows'), list = [];
-    if (!demo && W.phase === 'play') {
+    // one thing at a time: no arrows under the level card or a coach step (their labels stand where arrows go)
+    if (!demo && W.phase === 'play' && $('lvcard').hidden && (!coachK || coachK === '-')) {
+      // the arrows' ring: x 60..660, y from under the status lines (350 at least, 480 at most) down to 770:
+      // clear of the top bar, the tip line, the stick and HIT
+      const upRoom = 560 - Math.max(350, Math.min(480, laneBottom ? laneBottom + 94 : 0));
       const pts = W.starCells.filter((c) => W.g.get(c.x, c.y, c.z) === W.ids.star).map((c) => [c.x + 0.5, c.y + 0.5, c.z + 0.5]);
       if (!W.chest.open) pts.push([W.chest.x, 0.8, W.chest.z]);
       for (const [x, y, z] of pts) {
         let [sx, sy, behind] = scene.screenOf(x, y, z);
         if (!behind && sx > 30 && sx < 690 && sy > 60 && sy < 1100) continue; // in view: its beacon shows it
         if (behind) { sx = 720 - sx; sy = 1280 - sy; }
-        const dx = sx - 360, dy = sy - 560, a = Math.atan2(dy, dx), k = Math.min(300 / Math.abs(Math.cos(a) || 1e-3), 210 / Math.abs(Math.sin(a) || 1e-3)); // inside y 350..770: clear of the top bar, the tip line, the stick and HIT
+        const dx = sx - 360, dy = sy - 560, a = Math.atan2(dy, dx), k = Math.min(300 / Math.abs(Math.cos(a) || 1e-3), (dy < 0 ? upRoom : 210) / Math.abs(Math.sin(a) || 1e-3));
         list.push([Math.round(360 + Math.cos(a) * k), Math.round(560 + Math.sin(a) * k), Math.round(a * 180 / Math.PI + 90)]);
       }
     }
@@ -1055,7 +1134,7 @@ function startGame(mode) {
     },
     debug: {
       get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; },
-      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, setLang(l) { lang = l; setDir(); signLang(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); }, celebrate, get lastCelebration() { return lastCelebration; }, canBuy: () => L.canBuy(cfg, save.owned, save.lv, save.coins),
+      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, pop, banner, popIcon, starPop, waveBanner, setTip, words: WORDS, coachHold(k) { coachHeld = k; }, setLang(l) { lang = l; setDir(); signLang(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); }, celebrate, get lastCelebration() { return lastCelebration; }, canBuy: () => L.canBuy(cfg, save.owned, save.lv, save.coins),
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       get hitState() { return hitState; }, get stopT() { return stopT; }, get quality() { return { ...qs8, base: scene.dprBase }; },
@@ -1073,22 +1152,19 @@ const HTML = `
     <button id="gear" class="btn ibtn" aria-label="settings">${UI.icon('gear')}</button>
   </div>
   <div id="fever" class="fever" hidden></div>
-  <div id="ftime" class="ftime out" hidden></div>
   <div id="arrows"></div>
   <div id="cross" class="cross"></div>
   <div id="stickHome" class="stick home"><i></i></div>
   <div id="stick" class="stick" hidden><i></i></div>
   <button id="hit" class="hitbtn gloss" aria-label="hit"><span class="hic">${UI.icon('burst')}</span><span class="hl out"></span></button>
-  <div id="keys" class="keys out">WASD · 🖱️ · 1-6</div>
-  <div id="tip" class="tip out" hidden></div>
+  <div id="keys" class="keys out"><span>WASD</span>${UI.icon('mouse')}<span>1-6</span></div>
   <div id="tools" class="tools"></div>
-  <div id="coach" class="coach" hidden><i class="cring"></i><div class="clabel"></div><div class="chand">👆</div></div>
-  <div id="lvcard" class="lvcard" hidden></div>
+  <div id="coach" class="coach" hidden><i class="cring"></i><div class="clabel"></div><div class="chand">${UI.icon('hand')}</div></div>
+  <div id="lane" class="lane"><div id="ftime" class="ftime pill gloss" hidden>${UI.icon('timer')}<b></b></div><div id="tip" class="tip out" hidden></div><div id="wavebn" class="wavebn out" hidden></div><div id="lvcard" class="lvcard" hidden></div></div>
   <div id="pops" class="pops"></div>
-  <div id="wavebn" class="wavebn out" hidden></div>
   <div id="confetti" class="confetti" hidden></div>
   <div id="flies" class="flies"></div>
-  <div id="hand" class="hand" hidden>👆</div>
+  <div id="hand" class="hand" hidden>${UI.icon('hand')}</div>
   <div id="panel" class="panel" hidden></div>
   <div id="shop" class="panel" hidden></div>
   <div id="settings" class="panel" hidden></div>

@@ -435,7 +435,8 @@
    "sound": "SOUND",
    "language": "LANGUAGE",
    "wrecked": "WRECKED",
-   "need": "NEED {n}"
+   "need": "NEED {n}",
+   "locked": "LOCKED"
   },
   "ar": {
    "tap": "اضغط للتحطيم!",
@@ -507,7 +508,8 @@
    "sound": "الصوت",
    "language": "اللغة",
    "wrecked": "التحطيم",
-   "need": "ينقص {n}"
+   "need": "ينقص {n}",
+   "locked": "مقفل"
   },
   "es": {
    "tap": "¡TOCA PARA ROMPER!",
@@ -579,7 +581,8 @@
    "sound": "SONIDO",
    "language": "IDIOMA",
    "wrecked": "DESTRUIDO",
-   "need": "FALTAN {n}"
+   "need": "FALTAN {n}",
+   "locked": "CERRADO"
   },
   "vi": {
    "tap": "CHẠM ĐỂ ĐẬP!",
@@ -651,7 +654,8 @@
    "sound": "ÂM THANH",
    "language": "NGÔN NGỮ",
    "wrecked": "ĐÃ PHÁ",
-   "need": "THIẾU {n}"
+   "need": "THIẾU {n}",
+   "locked": "ĐÃ KHÓA"
   },
   "hi": {
    "tap": "तोड़ने के लिए टैप करो!",
@@ -723,7 +727,8 @@
    "sound": "आवाज़",
    "language": "भाषा",
    "wrecked": "तोड़-फोड़",
-   "need": "{n} और चाहिए"
+   "need": "{n} और चाहिए",
+   "locked": "बंद है"
   },
   "bn": {
    "tap": "ভাঙতে ট্যাপ করো!",
@@ -795,7 +800,8 @@
    "sound": "শব্দ",
    "language": "ভাষা",
    "wrecked": "ভাঙা হয়েছে",
-   "need": "আরও {n} চাই"
+   "need": "আরও {n} চাই",
+   "locked": "বন্ধ আছে"
   },
   "id": {
    "tap": "KETUK UNTUK HANCURKAN!",
@@ -867,7 +873,8 @@
    "sound": "SUARA",
    "language": "BAHASA",
    "wrecked": "HANCUR",
-   "need": "KURANG {n}"
+   "need": "KURANG {n}",
+   "locked": "TERKUNCI"
   }
  },
  "persistent_storage_config": {

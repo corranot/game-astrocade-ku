@@ -200,6 +200,36 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   hanging dust, 3 scorch marks, half the ring (on top of the old low tier: half the pools, no shadows).
 - Soft bits are still boxes (round ones would need a second instanced mesh); robots were left as they are, they only
   take the new light.
+## The in-play HUD on the same system (22 Nov)
+- **Tokens added (`index.html`, on `#app`):** text `--f7` 72 and `--f8` 88 (level number, big words), `--h-pill` 80,
+  `--h-tool` 104, `--tools-b` (margin + the 14 the price badges hang down), `--lane-t` (where the status column
+  starts), shadows `--sh` / `--sh-soft`, motion `--t-tap` .08 s, `--t-bump` .5 s, `--t-wipe` .65 s, `--t-word` .9 s,
+  `--t-lv` 2.3 s with `--ease`, and one z-order: coach 3 < words, top bar, status column 4 < confetti 5 < panel 6 <
+  settings 7 < flash 8. Pills, tools, HIT label, tip, coach label, level card, clock and words use only these.
+- **Status column (`#lane`):** the smash-time clock (a pill with the stopwatch icon), the tip, WAVE n ARRIVING! and
+  the level card stand in one column under the wreck bar (under the NEXT pill when it shows), so they cannot cover
+  one another; an open panel hides the column. The coach waits for the level card; arrows to stars wait for both.
+- **Words (`game.js wordPlace`):** every word, coin count, trophy and icon takes the free place nearest to where it
+  belongs: clear of the crosshair zone (270–450 × 566–714), the status column, the coach's label, the star arrows,
+  the control row (y ≤ 920) and every word still up, its way up included. A word with no place waits 0.22 s and tries
+  again (4 times, the last over other words), a coin count is dropped; big words may pass over a star arrow; a status line that appears pushes a word standing there to the next place.
+- **Tool row:** from the left page margin to the right one like the top bar (gaps 11.2), lock badges on the bottom
+  margin; the picked tool moves with the motion tokens. HIT and the stick mirror each other about the centre line;
+  HIT stays right in Arabic too (the stick owns the left thumb).
+- **Icons instead of emoji:** stopwatch, crown, calendar (level-card tags), pointing hand (hint and coach), thumbs-up,
+  mouse (desktop key hint). `journey.js` now looks for the DAILY tag's calendar icon and words, not the 📅 character.
+- **Shop:** the coins in hand stand in the header; tabs carry their icon above their word (room for the coins); a
+  locked tool's card has the same three lines at level 1 and FREE / LOCKED (`locked`, 7 languages) where an owned one
+  shows its level; a tool's name stays on one line.
+- **No jumps:** the coins pill, the shop's coins and the clock keep their width while numbers change; the result
+  card's counting number keeps the width of its widest value. With reduced motion, words, the wave banner and the
+  level card stand still for their time and fade (before: they ended invisible after 0.01 s).
+- **Measured (`look.js hudGeo`, 7 languages, 16 states: play, too hard, smash time, wave, result ×2, shop, three level
+  cards, four coach steps, 8+ words at once, clock + tip + wave banner, NEXT pill + tip + banner):** top bar margins
+  and tops, centre line, tool row margins / gaps / bottom, lock badges on the margin, HIT–stick mirror, no two HUD
+  boxes overlapping, words inside the eye-level band, tappables ≥ 96; `shopGeo`: six cards, three lines each, one rhythm.
+- Not proven here: real phones (fonts, touch feel), how a child reads a word that moved aside, the desktop key hint
+  (drawn, not photographed), an arrow's pointer tip beside a two-line wave banner (its circle is measured, the tip is not).
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
