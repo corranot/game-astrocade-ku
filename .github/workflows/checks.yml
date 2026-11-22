@@ -44,7 +44,7 @@ jobs:
             grep -q '<script type="module" src="./game.js"></script>' "$d/index.html" 2>/dev/null || continue
             out=$(node tools/astrocade-bundle-test.js "$d") || { echo "::error::$d bundle test crashed"; fail=1; continue; }
             echo "$d $out" | tr -d '\n'; echo
-            echo "$out" | node -e 'const r = JSON.parse(require("fs").readFileSync(0, "utf8")); process.exit(r.started && !r.errors.length ? 0 : 1)' || { echo "::error::$d did not start cleanly"; fail=1; }
+            echo "$out" | node -e 'const r = JSON.parse(require("fs").readFileSync(0, "utf8")); process.exit(r.started && !r.errors.length && !(r.fail || []).length ? 0 : 1)' || { echo "::error::$d breaks a feed rule (see fail above)"; fail=1; }
           done
           exit $fail
       - name: Baked sprites match their drawing code
