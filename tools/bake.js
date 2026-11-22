@@ -5,7 +5,8 @@
 //   - a sprite is missing from the manifest, or listed there but no longer registered;
 //   - the sheet is missing or not the manifest size;
 //   - a sprite read from the sheet differs from its live drawing (pixel by pixel, so constants and helpers the
-//     draw function reads count too);
+//     draw function reads count too). Sprites that draw text or emoji are listed instead of compared: their
+//     live drawing depends on this machine's fonts (a CI runner's differ), which is what baking freezes;
 //   - in the esbuild bundle Astrocade runs (same pin as tools/astrocade-bundle-test.js), with the sheet served
 //     as the 'baked' asset, any sprite is still drawn live instead of read from the sheet.
 // Usage: node tools/bake.js <game folder> [--check]
@@ -36,19 +37,29 @@ const server = http.createServer((q, r) => {
   r.writeHead(200, { 'content-type': MIME[path.extname(f)] || 'application/octet-stream' }); r.end(body);
 });
 
-/** In the page: compares every sprite read from the sheet with its live drawing; returns the problems found. */
+/** In the page: compares every sprite read from the sheet with its live drawing; returns the problems found and the sprites that draw text. */
 async function comparePixels() {
-  const K = window.__bakeKit, list = K.bakeList(), baked = K.manifest, problems = [];
-  const live = (s) => { const c = document.createElement('canvas'); c.width = Math.ceil(s.w * s.scale); c.height = Math.ceil(s.h * s.scale); const x = c.getContext('2d'); x.scale(s.scale, s.scale); s.paint(x, s.w, s.h); return c; };
+  const K = window.__bakeKit, list = K.bakeList(), baked = K.manifest, problems = [], fontSprites = [];
+  // text and emoji come out in whatever fonts this machine has, so a sprite that draws them cannot be compared
+  // with a sheet baked elsewhere (that difference is what baking freezes); it is noted instead
+  const live = (s) => {
+    const c = document.createElement('canvas'); c.width = Math.ceil(s.w * s.scale); c.height = Math.ceil(s.h * s.scale);
+    const x = c.getContext('2d'), P = CanvasRenderingContext2D.prototype; let text = false;
+    x.fillText = function () { text = true; return P.fillText.apply(this, arguments); };
+    x.strokeText = function () { text = true; return P.strokeText.apply(this, arguments); };
+    x.scale(s.scale, s.scale); s.paint(x, s.w, s.h); c.text = text; return c;
+  };
   if (!list.length) problems.push('no sprite registered (define them with sprite() at module top level)');
   if (list.length && !baked) problems.push('never baked');
-  if (!baked) return problems;
+  if (!baked) return { problems, fontSprites };
   for (const s of list) { const it = baked.items[s.name]; if (!it) problems.push(`${s.name}: not in the manifest`); else if (it.key !== s.key) problems.push(`${s.name}: size or options changed since the bake`); }
   for (const n of Object.keys(baked.items)) if (!list.some((s) => s.name === n)) problems.push(`${n}: in the manifest but no longer registered`);
-  if (!(await K.bakeReady(5000))) { problems.push('baked.webp missing, unreadable or not the manifest size'); return problems; }
+  if (!(await K.bakeReady(5000))) { problems.push('baked.webp missing, unreadable or not the manifest size'); return { problems, fontSprites }; }
   for (const s of list) {
     const src = s.source(); if (!src.baked) continue; // already reported above
-    const a = live(s), b = document.createElement('canvas'); b.width = a.width; b.height = a.height;
+    const a = live(s);
+    if (a.text) { fontSprites.push(s.name); continue; }
+    const b = document.createElement('canvas'); b.width = a.width; b.height = a.height;
     b.getContext('2d').drawImage(src.img, src.sx, src.sy, src.sw, src.sh, 0, 0, a.width, a.height);
     const da = a.getContext('2d').getImageData(0, 0, a.width, a.height).data, db = b.getContext('2d').getImageData(0, 0, a.width, a.height).data;
     // compared as shown on screen (colour times alpha): a nearly transparent edge pixel can come back with a very
@@ -61,7 +72,7 @@ async function comparePixels() {
     }
     if (off) problems.push(`${s.name}: ${off} pixels differ from the live drawing (drawing or something it reads changed)`);
   }
-  return problems;
+  return { problems, fontSprites };
 }
 
 (async () => {
@@ -74,7 +85,7 @@ async function comparePixels() {
   if (!kit) { await b.close(); server.close(); console.error(`FAIL bake ${dir}: the page never loaded bake.js (page errors: ${errors.join('; ') || 'none'})`); process.exit(1); }
 
   if (check) {
-    const problems = await p.evaluate(comparePixels);
+    const { problems, fontSprites } = await p.evaluate(comparePixels);
     if (!problems.length) { // the same sprites, run the way Astrocade runs the game
       const js = execFileSync('npx', ['--yes', 'esbuild@0.24.0', path.join(root, 'game.js'), '--bundle', '--format=iife'], { encoding: 'utf8', maxBuffer: 64 << 20 });
       const page = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -91,7 +102,7 @@ async function comparePixels() {
     await b.close(); server.close();
     if (errors.length) problems.push('page errors: ' + errors.join('; '));
     if (problems.length) { console.error(`FAIL bake ${dir}\n  ` + problems.join('\n  ') + `\n  fix: node tools/bake.js ${dir}`); process.exit(1); }
-    console.log(`ok bake ${dir}: sprites match baked.webp, and the bundle reads them from it`); return;
+    console.log(`ok bake ${dir}: sprites match baked.webp, and the bundle reads them from it` + (fontSprites.length ? `\n  not pixel-checked (they draw text, which differs with each machine's fonts): ${fontSprites.join(', ')}` : '')); return;
   }
 
   const res = await p.evaluate(() => {

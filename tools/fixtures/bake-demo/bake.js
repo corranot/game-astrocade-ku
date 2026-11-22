@@ -11,8 +11,9 @@
 //
 // The sheet is used for a sprite when the manifest holds its name, size and options. Whether the baked pixels
 // still match the drawing code is checked by `node tools/bake.js <game> --check`, which compares every sprite
-// pixel by pixel (so constants, palettes and helpers a draw function reads count too) and also runs the
-// esbuild bundle to prove the sheet is really read there. Without a usable sheet every sprite is drawn live from
+// pixel by pixel (so constants, palettes and helpers a draw function reads count too; sprites that draw text or
+// emoji are only listed, since each machine's fonts differ) and also runs the esbuild bundle to prove the sheet
+// is really read there. Without a usable sheet every sprite is drawn live from
 // its own code, exactly as before baking: a player never sees a broken sprite.
 import { BAKED } from './bake-manifest.js';
 
