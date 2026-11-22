@@ -103,7 +103,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          REPO: ${{ github.repository }}
         run: |
           gh pr ready "$PR_URL" || true
           # only the commit these checks ran on: a push after them waits for its own run
           gh pr merge "$PR_URL" --squash --match-head-commit "$HEAD_SHA"
+          # the branch is in main now (squashed): remove it so finished work does not pile up as branches
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null || echo "::warning::branch $HEAD_REF not deleted"
