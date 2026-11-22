@@ -27,17 +27,37 @@ jobs:
     name: Each game starts as an Astrocade bundle
     runs-on: ubuntu-latest # Ubuntu 26.04: needs Playwright 1.61 or newer
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read # to list the PR's files
     steps:
+      # A PR that touches no game, tool or workflow (docs, research, agent settings) passes this job without
+      # starting a browser, so the owner's automerge below still runs. Pushes to main always test every game.
+      - name: Does this change touch a game?
+        id: scope
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "games=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(gh api "repos/${{ github.repository }}/pulls/$PR/files" --paginate --jq '.[].filename')
+          echo "$files" | sed 's/^/  /'
+          if echo "$files" | grep -qE '^(prototypes|tools|\.github)/'; then echo "games=true" >> "$GITHUB_OUTPUT"
+          else echo "games=false" >> "$GITHUB_OUTPUT"; echo "No game, tool or workflow file changed: bundle test skipped."; fi
       - uses: actions/checkout@v4
+        if: steps.scope.outputs.games == 'true'
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.games == 'true'
         with:
           node-version: 22
       - name: Playwright with Chromium
+        if: steps.scope.outputs.games == 'true'
         run: |
           npm init -y >/dev/null
           npm install --no-save playwright@1.64.1 esbuild@0.24.0 # same pin as docs/engine-reference/web
           npx playwright install --with-deps chromium
       - name: Start every game from its bundle
+        if: steps.scope.outputs.games == 'true'
         run: |
           fail=0
           for d in prototypes/*/; do
@@ -48,7 +68,7 @@ jobs:
           done
           exit $fail
       - name: Baked sprites match their drawing code
-        if: success() || failure() # report it even when a bundle above failed
+        if: steps.scope.outputs.games == 'true' && (success() || failure()) # report it even when a bundle above failed
         run: |
           fail=0
           for d in tools/fixtures/bake-demo/ prototypes/*/; do
