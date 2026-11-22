@@ -40,15 +40,18 @@ jobs:
           git clone --depth 1 https://github.com/aicodeking/leanrea /tmp/leanrea
           copy /tmp/leanrea . leanrea
 
-      # 4. Simpan otomatis ke GitHub jika ada perubahan versi baru
-      - name: Commit and Push
+      # 4. Perubahan skill masuk lewat PR (CI + automerge), tidak di-push langsung ke main
+      - name: Open a PR with the skill updates
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .claude/skills/
-          if ! git diff --staged --quiet; then
-            git commit -m "chore: auto-update 15 selected skills"
-            git push origin main
-          else
-            echo "Semua skill sudah versi paling baru!"
-          fi
+          if git diff --staged --quiet; then echo "Semua skill sudah versi paling baru!"; exit 0; fi
+          branch="auto-sync/skills-$(date -u +%Y%m%d)"
+          git checkout -b "$branch"
+          git commit -m "chore: auto-update skill pilihan (ponytail, caveman, leanrea)"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "chore: auto-update skill pilihan $(date -u +%Y-%m-%d)" \
+            --body "Dibuat otomatis oleh Auto Sync. Isi: salinan terbaru skill ponytail, caveman, leanrea dari repo aslinya. Masuk lewat CI seperti PR lain; tinjau isinya bila perlu, karena skill dibaca agen sebagai instruksi."
