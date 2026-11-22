@@ -732,13 +732,13 @@ function startGame(mode) {
     // names: two balanced lines in their card before a smaller font
     fitAll(sh, '.snm, .anm', 24, 2); fitAll(sh, '.slv b', 20); for (const n of sh.querySelectorAll('.stry')) fitText(n, 100, 18); fitAll(sh, '.need', 18); fitAll(sh, '.pbtn.max .tx', 30);
   }
-  let boughtAt = -1e9;
+  let boughtAt = -1e9, boughtId = null;
   function buyOrUpgrade(id) {
-    // a double tap lands on the fresh button in the same place: one purchase per tap, not two
-    if (performance.now() - boughtAt < 350) return false;
+    // a double tap lands on the fresh button of the same tool: one purchase per tap, not two (another tool is free to buy)
+    if (id === boughtId && performance.now() - boughtAt < 350) return false;
     const t = cfg.tools.find((x) => x.id === id), owned = save.owned.includes(id), lv = lvOf(id), cost = owned ? L.upgradeCost(cfg, id, lv) : t.cost;
     if (cost === null || save.coins < cost) { Sound.play('no'); const b = $('shop').querySelector(`[data-buy="${id}"]`); if (b) { b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); } return false; }
-    save.coins -= cost; boughtAt = performance.now();
+    save.coins -= cost; boughtAt = performance.now(); boughtId = id;
     if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
     persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
     return true;
