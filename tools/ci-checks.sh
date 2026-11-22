@@ -7,9 +7,15 @@ cd "$(dirname "$0")/.."
 fail=0
 note() { echo "$1"; [ "${1%% *}" = "FAIL" ] && fail=1; return 0; }
 
-for f in prototypes/*/*.js tools/*.js; do
+for f in prototypes/*/*.js tools/*.js tools/kit/*.js tools/fixtures/*/*.js; do
   node --check "$f" 2>/dev/null || note "FAIL syntax $f"
 done
+# shared kit files are copied into games unchanged (like an engine copied verbatim); an edited copy drifts
+for f in prototypes/*/bake.js tools/fixtures/*/bake.js; do
+  [ -f "$f" ] || continue
+  cmp -s "$f" tools/kit/bake.js || note "FAIL kit-copy $f differs from tools/kit/bake.js (copy it again)"
+done
+node --test tools/pipeline.test.mjs >/dev/null 2>&1 || note "FAIL pipeline tests (node --test tools/pipeline.test.mjs)"
 for f in prototypes/*/*.json; do
   node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f" 2>/dev/null || note "FAIL json $f"
 done

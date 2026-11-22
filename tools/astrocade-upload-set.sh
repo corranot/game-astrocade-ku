@@ -8,7 +8,10 @@ mkdir -p "$out"
 for p in "$src"/index.html "$src"/*.js; do # every module the game loads; test scripts stay home
   f=$(basename "$p")
   grep -q "require('playwright')" "$p" && continue # test and check scripts drive a browser; they never ship
-  grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$p" > "$out/$f"
+  # dev-only code (cheats, test hooks) sits between a line holding "dev:start" and one holding "dev:end"
+  # and never ships; an unpaired marker would cut the file short, so it fails instead
+  [ "$(grep -c 'dev:start' "$p")" = "$(grep -c 'dev:end' "$p")" ] || { echo "FAIL: unpaired dev:start/dev:end in $p" >&2; exit 1; }
+  grep -v 'PROTOTYPE - NOT FOR PRODUCTION' "$p" | sed '/dev:start/,/dev:end/d' > "$out/$f"
 done
 # README.md is a required game file (overview + code structure); the game folder's own README holds dev notes,
 # so a game-only one lives in README.upload.md

@@ -47,6 +47,14 @@ jobs:
             echo "$out" | node -e 'const r = JSON.parse(require("fs").readFileSync(0, "utf8")); process.exit(r.started && !r.errors.length ? 0 : 1)' || { echo "::error::$d did not start cleanly"; fail=1; }
           done
           exit $fail
+      - name: Baked sprites match their drawing code
+        run: |
+          fail=0
+          for d in tools/fixtures/bake-demo/ prototypes/*/; do
+            [ -f "$d/bake.js" ] || continue
+            node tools/bake.js "$d" --check || { echo "::error::$d bake is stale (node tools/bake.js $d)"; fail=1; }
+          done
+          exit $fail
 
   automerge:
     name: Merge the owner's PR once checks pass

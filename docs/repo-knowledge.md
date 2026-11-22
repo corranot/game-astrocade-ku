@@ -5,7 +5,7 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 
 ## 1. Apa repo ini
 - Fork dari template **Claude Code Game Studios v1.3.0** (upstream `Donchitos/Claude-Code-Game-Studios`, `framework.version` 1.3.0, upgrade terakhir 2026-11-09), dipakai untuk membuat game browser anak untuk **Astrocade**.
-- Isi milik fork: `ASTROCADE.md`, `prototypes/` (7 game), `tools/` (6 alat), `production/market/`, `production/qa/evidence/`, workflow GitHub tambahan, `.claude/settings.local.json`, `project.local.yaml`.
+- Isi milik fork: `ASTROCADE.md`, `prototypes/` (7 game), `tools/` (alat, tabel §3; `tools/kit/` = berkas bersama yang disalin utuh ke game), `production/market/`, `production/qa/evidence/`, workflow GitHub tambahan, `.claude/settings.local.json`, `project.local.yaml`.
 - Satu-satunya repo GitHub yang bisa diakses sesi; pencarian publik atas nama user tidak menemukan repo lain.
 
 ## 2. Game di `prototypes/`
@@ -28,6 +28,9 @@ Aturan kerja harian tetap di `ASTROCADE.md`; berkas ini menjawab "di mana, apa, 
 | `check-artifact.js <page> <png>` | Cek kanvas `#game` 2D tergambar + satu seret | Hanya game 2D (gagal di tata letak Three `#app`) |
 | `astrocade-bundle-test.js <dir> [png]` | Bundel esbuild 0.24 IIFE dalam iframe srcdoc dengan `lib` host, laporkan `started` + error | Wajib sebelum tiap `save_draft` |
 | `astrocade-upload-set.sh <dir> <out>` | Set unggah bersih: buang header prototipe, `README.upload.md` → `README.md`, tolak kata alur kerja, `node --check` | Sebelum unggah |
+| `bake.js <dir> [--check]` | Sprite kode-kanvas (didaftarkan `sprite()` dari `bake.js` game = salinan `tools/kit/bake.js`) dipanggang di browser jadi `baked.webp` + `bake-manifest.js`; `--check` gagal bila resep berubah, sheet hilang/beda ukuran, atau piksel sheet ≠ gambar langsung. Di game, sprite basi digambar langsung (pemain tak pernah rusak) | Game yang memakai `bake.js`; CI (job bundle) |
+| `assets.js <dir> [--adopt | --record <file> <url> [id]]` | `assets.lock.json` (sha256 per berkas media): ok / preview (salinan kecil untuk artifact) / NEW / CHANGED; `--record` menulis lock + `asset_map.json`; `--adopt` mencatat berkas yang sudah dilayani CDN | Sebelum unggah: hanya yang berubah naik |
+| `pipeline.test.mjs` | Uji Node: pack sheet, hash resep, lock aset, blok DEV di set unggah | Dijalankan `ci-checks.sh` |
 | `market-check.js [--report|--selftest]` | Tangkap astrotopper + flag beranda + feed ke `production/market/<UTC>/`, beda dengan cek sebelumnya | Saat "cek backend" |
 | `competitor-check.js <id> <folder>` | Main satu game Astrocade sebagai tamu: tangkapan layar awal, ketuk, seret + `stack.json` (pustaka, ukuran kode, daftar aset, `disableRemix`) dari context-nya | Sebelum memilih genre atau menggambar (ASTROCADE.md §0.13, §0.18) |
 
