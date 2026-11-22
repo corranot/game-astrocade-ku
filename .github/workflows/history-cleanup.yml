@@ -1,0 +1,50 @@
+name: History cleanup (one-time)
+
+# One click from the browser: drops old versions of screenshots (production/qa/evidence, production/market)
+# from main's history so every clone is ~90 MB instead of ~326 MB. The files as they are now stay exactly the
+# same: the run stops before pushing if main's content would differ by a single byte. Old commits stay
+# reachable on GitHub through each pull request (#1-#106). This file deletes itself in the cleanup commit.
+# Needs "Allow force pushes" on main while it runs; turn it off again afterwards.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Ketik HAPUS-RIWAYAT untuk menjalankan'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.inputs.confirm == 'HAPUS-RIWAYAT' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Rewrite history without old screenshot versions
+        run: |
+          set -euo pipefail
+          pip install --quiet git-filter-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          ORIG=$(git rev-parse HEAD)
+          echo "before: $(git count-objects -vH | grep size-pack)"
+          tar cf "$RUNNER_TEMP/media.tar" production/qa/evidence production/market
+          url=$(git remote get-url origin)
+          git filter-repo --force --path production/qa/evidence --path production/market --invert-paths
+          tar xf "$RUNNER_TEMP/media.tar"
+          git add -A production/qa/evidence production/market
+          git rm -q .github/workflows/history-cleanup.yml
+          git commit -q -m "chore: bukti QA dan riset versi terkini (riwayat lama screenshot dibuang)"
+          # main's files must be byte-identical (this workflow file is the only thing removed)
+          git fetch -q "$url" "$ORIG"
+          git diff --quiet FETCH_HEAD HEAD -- . ':(exclude).github/workflows/history-cleanup.yml' \
+            || { echo "::error::content differs, nothing pushed"; git diff --stat FETCH_HEAD HEAD | tail -5; exit 1; }
+          git reflog expire --expire=now --all && git gc -q --prune=now
+          echo "after: $(git count-objects -vH | grep size-pack)"
+          git remote add origin "$url"
+          git push --force-with-lease="main:$ORIG" origin HEAD:main
