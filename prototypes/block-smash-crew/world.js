@@ -155,7 +155,7 @@ export function useTool(W, id, p) {
   const shot = { id: W.nextId++, kind: id, t: 0, x: hx, y: hy + 0.6, z: hz, sx: hx, sy: hy + 0.6, sz: hz, tx: p.x, ty: p.y, tz: p.z, r: tl.r, free: !owned };
   if (id === 'bomb') { shot.dur = Math.max(0.35, Math.min(0.8, Math.hypot(p.x - hx, p.z - hz) / 22)); }
   else if (id === 'rocket') { const d = Math.hypot(p.x - hx, p.y - shot.y, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dy = (p.y - shot.y) / d; shot.dz = (p.z - hz) / d; shot.dist = 0; }
-  else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = tl.r; shot.dist = 0; shot.x = h.x + shot.dx * 1.2; shot.z = h.z + shot.dz * 1.2; }
+  else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = tl.r; shot.dist = 0; shot.x = h.x + shot.dx * (tl.r + tl.ahead); shot.z = h.z + shot.dz * (tl.r + tl.ahead); }
   else if (id === 'hole') { shot.x = p.x; shot.y = Math.max(1.5, p.y); shot.z = p.z; shot.dur = tl.dur; shot.tick = 0; }
   else if (id === 'meteor') { shot.sx = p.x + 8; shot.sy = 42; shot.sz = p.z + 10; shot.x = shot.sx; shot.y = shot.sy; shot.z = shot.sz; shot.dur = 0.9; }
   W.shots.push(shot);
@@ -173,18 +173,29 @@ function stepShots(W, dt) {
       if (k >= 1) { s.done = true; boom(W, s, s.tx, s.ty, s.tz); }
     } else if (s.kind === 'rocket') {
       const sp = 34 * dt; let hit = raycast(W.g, s.x, s.y, s.z, s.dx, s.dy, s.dz, sp);
+      // a robot in its way sets it off too (it used to fly through them and blow up on the wall behind)
+      const px = s.x, pz = s.z;
       s.x += s.dx * sp; s.y += s.dy * sp; s.z += s.dz * sp; s.dist += sp;
+      if (!hit) for (const b of W.bots) {
+        if (b.state === 'down' || s.y > b.h + 0.4) continue;
+        const ex = s.x - px, ez = s.z - pz, t = Math.max(0, Math.min(1, ((b.x - px) * ex + (b.z - pz) * ez) / (ex * ex + ez * ez || 1)));
+        if (Math.hypot(px + ex * t - b.x, pz + ez * t - b.z) < W.cfg.bots.shotR * b.h / W.cfg.bots.height) { s.done = true; boom(W, s, px + ex * t, Math.max(0.6, s.y), pz + ez * t); break; }
+      }
+      if (s.done) continue;
       if (s.y <= 0.2) hit = hit || { x: Math.floor(s.x), y: 0, z: Math.floor(s.z) };
       if (hit) { s.done = true; boom(W, s, hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); } else if (s.dist > 60) { s.done = true; boom(W, s, s.x, s.y, s.z); }
     } else if (s.kind === 'ball') {
       const sp = 15 * dt; s.x += s.dx * sp; s.z += s.dz * sp; s.dist += sp; s.roll = (s.roll || 0) + sp / s.r;
       const res = smashSphere(W.g, s.x, s.y, s.z, s.r, W.mats, true);
       if (res.removed.length) { afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length, first: !s.rolled }); s.rolled = true; }
-      const out = s.x < -4 || s.z < -4 || s.x > W.g.W + 4 || s.z > W.g.D + 4;
+      if (W.bots.length) knockBots(W, s.x, s.y * 0.5, s.z, s.r + 0.4, W.cfg.bots.knock * 1.3, 'ball');
+      // (the hero can stand 12 past the grid: a ball thrown from there was "out" at once and never rolled)
+      const out = s.x < -16 || s.z < -16 || s.x > W.g.W + 16 || s.z > W.g.D + 16;
       if (s.dist > tool(W, 'ball').len || out) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'ball' }); }
     } else if (s.kind === 'hole') {
       s.tick -= dt;
       const r = s.r * Math.min(1, s.t / (s.dur * 0.6));
+      if (s.tick <= 0 && W.bots.length) knockBots(W, s.x, Math.min(s.y, 1), s.z, r + 0.6, W.cfg.bots.knock * 0.9, 'hole');
       if (s.tick <= 0) { s.tick = 0.1; const res = smashSphere(W.g, s.x, s.y, s.z, r, W.mats, true); if (res.removed.length) afterRemove(W, res.removed, 'hole', s.x, s.y, s.z, r, s.from === 'keg'); }
       if (s.t >= s.dur) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'hole' }); }
     } else if (s.kind === 'meteor') {
