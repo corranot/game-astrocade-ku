@@ -75,6 +75,10 @@ check(KINDS.length === 8, '8 kinds of building');
     const gift = typeof L.dailyGift === 'function' ? L.dailyGift : () => -1, meteor = cfg.tools.find((t) => t.id === 'meteor');
     check(gift(cfg, ['hammer', 'bomb'], {}) === Math.max(C.daily, Math.round(C.dailyShare * rocket.cost)) && gift(cfg, all.filter((id) => id !== 'meteor'), {}) === Math.round(C.dailyShare * meteor.cost) && Math.round(C.dailyShare * meteor.cost) > C.daily, `daily gift = max(coins.daily, coins.dailyShare ${C.dailyShare} × the next price) (${gift(cfg, all.filter((id) => id !== 'meteor'), {})} before the meteor)`);
     check(gift(cfg, all, Object.fromEntries(all.map((id) => [id, cfg.upgrade.max]))) === C.daily, '...and coins.daily when nothing is left to buy');
+    // (hunt 6: at high levels a tenth of the next price was more than the whole wallet: 17,000,000 at level 29)
+    const late = gift(cfg, all, Object.fromEntries(all.map((id) => [id, cfg.upgrade.max - 1])));
+    check(late <= C.dailyCap && late >= C.daily, `...and never more than coins.dailyCap (${late} of ${C.dailyCap})`);
+    check(Number.isFinite(L.levelBonus(cfg, 0, [true, false, false], NaN)) && Number.isFinite(L.flatBonus(cfg, NaN, 1)) && Number.isFinite(L.flatBonus(cfg, undefined, 1)), 'a broken earned figure never makes a bonus NaN');
   }
   check(L.cooldownOf(cfg, 'bomb', true) < L.cooldownOf(cfg, 'bomb', false), 'smash time cuts cooldowns');
 }

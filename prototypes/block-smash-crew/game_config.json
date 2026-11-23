@@ -348,7 +348,8 @@
   "flat": 1500,
   "levelShare": 0.12,
   "flatShare": 0.08,
-  "dailyShare": 0.1
+  "dailyShare": 0.1,
+  "dailyCap": 50000
  },
  "fever": {
   "dur": 8,
@@ -364,7 +365,8 @@
   "nextDelay": 1.6,
   "coinsFly": 5,
   "cardEvery": 3,
-  "cardAfterSec": 60
+  "cardAfterSec": 60,
+  "goalGap": 0.8
  },
  "debris": {
   "max": 700,
