@@ -53,6 +53,11 @@ export const ICONS = {
   hand: `<path d="M10.5 9.5a4.5 4.5 0 0 1 9 0V21h14a5 5 0 0 1 5 5v8.5a9.5 9.5 0 0 1-9.5 9.5H20a9.5 9.5 0 0 1-9.5-9.5z" fill="#fff" ${S}/><path d="M26.5 21.5v6M32.5 21.5v6" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M13.5 37.5h22" fill="none" stroke="#ffc531" stroke-width="4" stroke-linecap="round"/>`,
   thumb: `<rect x="4.5" y="21" width="10.5" height="22.5" rx="3" fill="#5cc8ff" ${S}/><path d="M15 22.5l7-15.5a4.5 4.5 0 0 1 8 3.5l-2 8.5h10.5a4.5 4.5 0 0 1 4.4 5.5l-3 14a6 6 0 0 1-5.9 4.7H15z" fill="#ffd23c" ${S}/>`,
   mouse: `<rect x="11.5" y="4.5" width="25" height="39" rx="12.5" fill="#fff" ${S}/><path d="M11.5 20v-3A12.5 12.5 0 0 1 24 4.5V20z" fill="#5cc8ff" ${S}/><path d="M11.5 20h25" fill="none" ${S}/>`,
+  // ---- mission furniture: a block, a robot's head, a boom barrel, a treasure chest
+  block: `<path d="M24 4.500l17 9.500v20l-17 9.500-17-9.500V14z" fill="#ffb347" ${S}/><path d="M7 14l17 9.500L41 14M24 23.500v20" fill="none" ${S}/>`,
+  robot: `<path d="M24 11V6" fill="none" ${S}/><circle cx="24" cy="5" r="2.8" fill="#ff4d5e" stroke="${INK}" stroke-width="2.5"/><rect x="3" y="20" width="6" height="10" rx="2.5" fill="#5cc8ff" ${S}/><rect x="39" y="20" width="6" height="10" rx="2.5" fill="#5cc8ff" ${S}/><rect x="8" y="11" width="32" height="28" rx="7" fill="#9fdcff" ${S}/><circle cx="17.500" cy="23" r="4" fill="#fff" stroke="${INK}" stroke-width="2.5"/><circle cx="30.500" cy="23" r="4" fill="#fff" stroke="${INK}" stroke-width="2.5"/><path d="M18 32h12" fill="none" ${S}/>`,
+  keg: `<path d="M12.500 5.500h23c4.500 11.500 4.500 25.500 0 37h-23c-4.500-11.500-4.500-25.500 0-37z" fill="#ff5a3c" ${S}/><path d="M10 14.500h28M10 33.500h28" fill="none" ${S}/><path d="${burst(6, 7.5, 3.4)}" fill="#ffd23c" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`,
+  chest: `<path d="M5.500 22v-4.500a10 10 0 0 1 10-10h17a10 10 0 0 1 10 10V22z" fill="#c9843a" ${S}/><rect x="5.500" y="22" width="37" height="19.500" rx="3" fill="#e0a25a" ${S}/><rect x="19.500" y="17.500" width="9" height="11" rx="2.5" fill="#ffd23c" ${S}/>`,
 };
 
 /** One icon as inline SVG; cls adds classes (a size, "flip" to mirror it in right-to-left). */
@@ -82,3 +87,9 @@ export const secondary = (id, ic, text, cls = '') => `<button id="${id}" class="
 export const meter = ({ ic, label, value, part, marks = null, cls = '' }) => `<div class="meter tile${cls ? ' ' + cls : ''}"><div class="mhead">${icon(ic)}<span class="mlab">${label}</span><span class="mval">${value}</span></div><div class="track${marks ? ' marks' : ''}"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b>${marks || ''}</div></div>`;
 /** One "now → next" line: a stat icon, the value now and (when there is one) the value after the upgrade. */
 export const change = (ic, now, next) => `<span class="fx">${ic[0] === '<' ? ic : icon(ic)}<b dir="ltr">${now}</b>${next != null && next !== now ? `${icon('arrow', 'flip')}<b class="nx" dir="ltr">${next}</b>` : ''}</span>`;
+/** How far a mission is, as a thin bar. */
+const mbar = (m) => `<i class="mbar"><b style="width:${Math.round(Math.max(0, Math.min(1, m.have / m.n)) * 100)}%"></b></i>`;
+/** A mission for the HUD chip ({ ic, text, have, n }): its icon, what to do, how far, and a thin bar along the bottom. */
+export const missionChip = (m) => `${icon(m.ic)}<span class="tx">${m.text}</span><b class="mn" dir="ltr">${m.have}/${m.n}</b>${mbar(m)}`;
+/** The missions on a card: one small cell each (icon, count, a thin bar); the card has no room for their words. */
+export const missions = (list) => `<div class="mlist">${list.map((m) => `<div class="mcell" aria-label="${m.text}">${icon(m.ic)}<b class="mn" dir="ltr">${m.have}/${m.n}</b>${mbar(m)}</div>`).join('')}</div>`;

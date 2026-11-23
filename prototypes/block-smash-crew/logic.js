@@ -88,3 +88,57 @@ export function qualityStep(Q, q, avg) {
   else if (avg > Q.slow) { if (++n.slow >= Q.lowSlowWindows && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.dpr, n.max); } } else if (avg <= Q.slow) { n.slow = 0; if (avg < Q.fast) { n.capped = false; if (q.dpr < q.max - 0.01) n.dpr = Math.min(q.max, q.dpr + Q.up); } }
   return n;
 }
+
+// ---- missions (cfg.missions): three small goals at a time, drawn in turn from the pool; each pays its coins when
+// its goal is reached and the next from the pool takes its place. The state m = { on: [{ id, have }], next, done }
+// is plain data and lives in the save. Nothing here ends, expires or is taken away: a mission waits for ever.
+
+/** The pool's mission with this id, or undefined. */
+export const missionOf = (cfg, id) => cfg.missions.pool.find((d) => d.id === id);
+/**
+ * A valid mission state from a saved one (or from nothing): unknown, doubled and finished entries go, progress stays
+ * below the goal, and empty places are filled from the pool, starting at the cursor `next`: first a kind of goal that
+ * is not on the list yet, else any. A mission for a tool is given only to a player who owns that tool.
+ */
+export function missionsFill(cfg, m, owned) {
+  const M = cfg.missions, pool = M.pool, s = m && typeof m === 'object' ? m : {}, num = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : 0);
+  const out = { on: [], next: num(s.next) % pool.length, done: num(s.done) };
+  for (const a of Array.isArray(s.on) ? s.on : []) {
+    const d = a && missionOf(cfg, a.id);
+    if (d && out.on.length < M.slots && !out.on.some((o) => o.id === d.id)) out.on.push({ id: d.id, have: Math.min(d.n - 1, num(a.have)) });
+  }
+  const free = (d) => !out.on.some((o) => o.id === d.id) && (d.kind !== 'tool' || (owned || []).includes(d.tool));
+  const fresh = (d) => !out.on.some((o) => missionOf(cfg, o.id).kind === d.kind);
+  while (out.on.length < M.slots) {
+    let at = -1;
+    for (const strict of [true, false]) for (let i = 0; i < pool.length && at < 0; i++) { const d = pool[(out.next + i) % pool.length]; if (free(d) && (!strict || fresh(d))) at = (out.next + i) % pool.length; }
+    if (at < 0) break;
+    out.on.push({ id: pool[at].id, have: 0 }); out.next = (at + 1) % pool.length;
+  }
+  return out;
+}
+/**
+ * Adds n to every mission on the list that counts this kind of thing (a tool mission: this tool). Missions that
+ * reach their goal leave the list and are returned (the caller pays their coins); the list is filled up again.
+ */
+export function missionsAdd(cfg, m, owned, kind, n, tool) {
+  const got = [];
+  for (const a of m.on) { const d = missionOf(cfg, a.id); if (d.kind !== kind || (kind === 'tool' && d.tool !== tool)) continue; a.have += n; if (a.have >= d.n) got.push(d); }
+  if (got.length) { m.on = m.on.filter((a) => !got.some((d) => d.id === a.id)); m.done += got.length; const f = missionsFill(cfg, m, owned); m.on = f.on; m.next = f.next; }
+  return got;
+}
+/** The missions on the list with their progress: [{ def, have, part }]. */
+export const missionsList = (cfg, m) => m.on.map((a) => { const def = missionOf(cfg, a.id); return { def, have: a.have, part: a.have / def.n }; });
+/** The mission nearest to its goal (the one the HUD chip shows), or null. */
+export function missionChip(cfg, m) { let best = null; for (const x of missionsList(cfg, m)) if (!best || x.part > best.part) best = x; return best; }
+/** What a world event adds to the missions: { kind, n, tool } or null. */
+export function missionEvent(e) {
+  if (e.type === 'smash') return { kind: 'smash', n: e.removed.length };
+  if (e.type === 'land') return { kind: 'smash', n: e.n };
+  if (e.type === 'bonk') return e.again ? null : { kind: 'bonk', n: 1 };
+  if (e.type === 'detonate') return { kind: 'keg', n: 1 };
+  if (e.type === 'treasure') return { kind: 'chest', n: 1 };
+  if (e.type === 'flat' || e.type === 'clear') return { kind: e.type, n: 1 };
+  if (e.type === 'throw') return e.shot.from ? null : { kind: 'tool', n: 1, tool: e.shot.kind };
+  return null;
+}

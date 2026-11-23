@@ -264,6 +264,28 @@ ring (top ≈29%, side strips, bottom ≈15%) is seen. Before the first touch th
 - Not proven here: real children (does the chain keep them, does the 1.6 s beat read), a phone, and whether anyone
   reaches FLATTENED (the bot never did).
 
+## A next goal always in view (23 Nov; satisfaction, never pressure: nothing expires, nothing is lost)
+- **Three missions** (`missions` in game_config.json, rules in `logic.js`: `missionsFill`, `missionsAdd`, `missionChip`,
+  `missionEvent`): three at a time from a pool of 19 taken in turn (blocks, robots, boom barrels, chests, flattened and
+  finished buildings, shots with a tool the player owns), three different kinds where the pool allows. Progress is in
+  the save (`save.missions`); a finished one pays its `coins` with MISSION DONE!, a tick, a coin count and flying coins,
+  and the next from the pool takes its place. Nothing counts in the attract show.
+- **Chip** (`#mchip`, last in the status column `#lane`): the mission nearest to its goal as icon, words, count and a
+  thin bar. It waits while the level card, a wave banner, smash time or the coach has the column, and while
+  `chip.yieldWords` words or one wider than `chip.yieldWidth` are up. Words keep clear of
+  it like of every status line. The result card shows all three as small cells (icon, count, bar; the card has no
+  room for their words: it stands 965 of the 968 allowed).
+- **Next tool** (`L.nextTool`, the result card's rule): a thin bar on that tool's button, coins in hand / price; one
+  pulse (`toolBar.pulse`) when the coins reach the price.
+- **Economy:** the steady bot's missions pay about 3.6% on top of its smashing (unit test: under `missions.maxShare` 5%).
+- **Attract colour:** warm pulse colours (a cyan wash turned the red brick white), dust in the blast's own colour,
+  no white rain pieces, less exposure and exposure pop. Ring saturation 0.52-0.54 before, 0.55-0.59 after (target 0.60
+  not reached with brightness kept at 85); runs differ by about 0.03.
+- **Test hooks stay home:** `window.__game`, the `debug` object, `?speed=` and the `?local` stand-in host sit between
+  `// dev:start` and `// dev:end`; `tools/astrocade-upload-set.sh` drops them.
+- Not proven here: real children (do they notice the chip, do icon-only cells on the card read), a phone, the pulse of
+  the tool bar (drawn, not photographed at its peak), missions for the four later tools in play.
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.

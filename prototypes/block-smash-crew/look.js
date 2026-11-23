@@ -75,7 +75,7 @@ const hudGeo = (o = {}) => {
   // a card is modal: it may stand over the control row (HIT and the stick wait behind its scrim), never over the bars
   const open = $$('.panel .card').some(vis);
   if (!open) { add('HIT', [$('#hit')]); add('stick', [$('#stickHome'), $('#stick')]); }
-  add('smash-time clock', [$('#ftime')]); add('tip', [$('#tip')]); add('wave banner', [$('#wavebn')]); add('level card', [...$('#lvcard').children]); add('coach label', [$('#coach .clabel')]);
+  add('smash-time clock', [$('#ftime')]); add('tip', [$('#tip')]); add('wave banner', [$('#wavebn')]); add('mission chip', [$('#mchip')]); add('level card', [...$('#lvcard').children]); add('coach label', [$('#coach .clabel')]);
   $$('#arrows .arrow').forEach((a, i) => add('star arrow ' + i, [a]));
   $$('#pops .pop').forEach((p, i) => add(`word ${i} "${p.textContent.trim().slice(0, 14)}"`, [p]));
   for (const c of $$('.panel .card')) add('card ' + c.parentElement.id, [c]);
@@ -223,6 +223,14 @@ const main = async () => {
     await g(() => { __game.newLevel(2); document.getElementById('lvcard').hidden = true; });
     for (const step of ['walk', 'look', 'hit', 'bomb']) { await g((s) => __game.coachHold(s), step); await settle(300); over.push(...await textOk(), ...await hud('coach ' + step, ['coach label'], step === 'look' ? 'h2-coach-look' : step === 'bomb' ? 'h2b-coach-bomb' : null)); }
     await g(() => __game.coachHold(null)); await settle(200);
+    // the mission chip: every kind of mission in turn (the widest words of this language included) stays one line
+    // inside the page margins; then the chip under the tip with a word sent to where it stands
+    const chipW = await g(() => { const G = __game, out = []; document.getElementById('lvcard').hidden = true; G.setTip('find'); G.chipShow();
+      for (const d of window.gameConfig.missions.pool) { G.missionSet([{ id: d.id, have: d.n - 1 }]); const e = document.getElementById('mchip'), a = document.getElementById('app').getBoundingClientRect(), r = e.getBoundingClientRect(), k = 720 / a.width, tx = e.querySelector('.tx');
+        if (e.hidden || (r.left - a.left) * k < 19 || (a.right - r.right) * k < 19 || r.height * k > 60 || tx.scrollWidth > tx.clientWidth + 1) out.push(`mission chip "${e.textContent}" does not fit (${Math.round((r.left - a.left) * k)}…${Math.round((r.right - a.left) * k)})`); }
+      const far = window.gameConfig.missions.pool.find((d) => d.kind === 'smash'); G.missionSet([{ id: far.id, have: far.n - 1 }]); G.pop(G.T('bonk'), 360, 250, 'p-mid', '#7dfcff'); return out; });
+    over.push(...chipW, ...await textOk(), ...await hud('mission chip', ['mission chip', 'tip', 'word'], 'h6-mission'));
+    await g(() => { __game.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); });
     // many words at once: three banners, three words and four coin counts on one spot, one on the crosshair, one on
     // the tool bar, the thumbs-up, the trophy and a tool's icon
     await g(() => { const G = __game, T = G.T; G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); G.banner(T('kaboom'), 'p-big', -80); G.banner(T('timber'), 'p-big', -80); G.banner(T('record', '1,234'), 'p-big', -40); for (let i = 0; i < 3; i++) G.pop(T('bonk'), 360, 530, 'p-mid', '#7dfcff'); for (let i = 0; i < 4; i++) G.pop('+30', 360, 600, 'p-coin'); G.pop(T('crash'), 360, 640, 'p-mid', '#ffb02e'); G.pop(T('star'), 200, 1100, 'p-mid', '#ffe14a'); G.pop(T('great'), 360, 470, 'p-mid', '#7dff9a', 'thumb'); G.starPop(); G.popIcon('rocket', 360, 830); });

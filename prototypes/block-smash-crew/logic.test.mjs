@@ -635,5 +635,48 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   }
 }
 
+// ---- missions: three small goals at a time, from the config's pool, paid when done and replaced by the next
+{
+  const MS = cfg.missions, owned = ['hammer', 'bomb'], def = (id) => L.missionOf(cfg, id);
+  const m = L.missionsFill(cfg, null, owned);
+  check(m.on.length === MS.slots && MS.slots === 3 && m.on.every((a) => a.have === 0 && def(a.id)), 'a new player gets three missions from the pool, all at zero');
+  check(new Set(m.on.map((a) => def(a.id).kind)).size === 3, 'the three missions are three different kinds of goal');
+  check(m.on.every((a) => def(a.id).kind !== 'tool' || owned.includes(def(a.id).tool)), 'no mission asks for a tool the player does not own');
+  check(MS.pool.every((d) => d.n > 0 && d.coins > 0 && ['smash', 'bonk', 'keg', 'chest', 'flat', 'clear', 'tool'].includes(d.kind) && (d.kind !== 'tool' || cfg.tools.some((t) => t.id === d.tool))) && new Set(MS.pool.map((d) => d.id)).size === MS.pool.length, 'every mission in the pool has a known kind, a goal, a prize and its own id');
+  for (const l of Object.keys(cfg.strings)) check(['missions', 'mDone', ...new Set(MS.pool.map((d) => MS.text[d.kind]))].every((k) => cfg.strings[l][k] && !/\p{Extended_Pictographic}/u.test(cfg.strings[l][k])), `mission words exist in ${l}, without emoji`);
+  // progress
+  const first = def(m.on[0].id), before = JSON.stringify(m.on.slice(1));
+  check(L.missionsAdd(cfg, m, owned, first.kind, first.n - 1, first.tool).length === 0 && m.on[0].have === first.n - 1 && JSON.stringify(m.on.slice(1)) === before, 'progress counts on the matching mission only, and one short of the goal pays nothing');
+  check(L.missionChip(cfg, m).def.id === first.id && Math.abs(L.missionChip(cfg, m).part - (first.n - 1) / first.n) < 1e-9, 'the chip shows the mission nearest to its goal');
+  const back = L.missionsFill(cfg, JSON.parse(JSON.stringify(m)), owned);
+  check(JSON.stringify(back) === JSON.stringify(m), 'a saved mission list comes back as it was (progress kept)');
+  const got = L.missionsAdd(cfg, m, owned, first.kind, 5, first.tool);
+  check(got.length === 1 && got[0].id === first.id && got[0].coins === first.coins && m.done === 1, 'reaching the goal completes the mission once, with its prize');
+  check(m.on.length === MS.slots && !m.on.some((a) => a.id === first.id) && m.on.every((a) => a.have < def(a.id).n), 'a finished mission is replaced by the next from the pool');
+  // the pool goes round: finishing missions for a long time never repeats one on the list and never runs dry
+  { const r = L.missionsFill(cfg, null, owned); let ok = true, paid = 0; const seen = new Set();
+    for (let i = 0; i < MS.pool.length * 3; i++) { const d = def(r.on[0].id); seen.add(d.id); paid += L.missionsAdd(cfg, r, owned, d.kind, d.n, d.tool).length; ok = ok && r.on.length === MS.slots && new Set(r.on.map((a) => a.id)).size === MS.slots; }
+    check(ok && paid >= MS.pool.length * 3 && seen.size >= MS.pool.filter((d) => d.kind !== 'tool' || owned.includes(d.tool)).length - MS.slots, `the pool rotates for ever: always ${MS.slots} different missions (${seen.size} of ${MS.pool.length} seen by a player with two tools)`); }
+  // a broken or old save
+  const fixed = L.missionsFill(cfg, { on: [{ id: 'nope', have: 3 }, { id: MS.pool[0].id, have: 1e9 }, { id: MS.pool[0].id, have: 1 }, null], next: 'x', done: -4 }, owned);
+  check(fixed.on.length === MS.slots && fixed.on.every((a) => def(a.id) && a.have >= 0 && a.have < def(a.id).n) && new Set(fixed.on.map((a) => a.id)).size === MS.slots && fixed.next >= 0 && fixed.done === 0, 'a broken save gives three valid missions, none already past its goal');
+  // what the world reports
+  const ev = (e) => L.missionEvent(e);
+  check(ev({ type: 'smash', removed: [1, 2, 3] }).kind === 'smash' && ev({ type: 'smash', removed: [1, 2, 3] }).n === 3 && ev({ type: 'land', n: 40 }).n === 40, 'smashed and fallen blocks count as blocks');
+  check(ev({ type: 'bonk' }).kind === 'bonk' && ev({ type: 'bonk', again: true }) === null, 'a robot bonked counts once (not again while it is down)');
+  check(ev({ type: 'detonate', n: 2 }).kind === 'keg' && ev({ type: 'treasure' }).kind === 'chest' && ev({ type: 'flat' }).kind === 'flat' && ev({ type: 'clear' }).kind === 'clear', 'boom barrels, chests, flattened and finished buildings count');
+  check(ev({ type: 'throw', shot: { kind: 'bomb' } }).tool === 'bomb' && ev({ type: 'throw', shot: { kind: 'bomb', from: 'keg' } }) === null && ev({ type: 'step' }) === null, 'a tool the player fires counts; what a barrel throws does not');
+  // the bot plays two buildings: missions get done, and their prizes stay a small share of what smashing pays
+  { const r = L.missionsFill(cfg, null, owned); let paid = 0, done = 0, earned = 0, secs = 0, tools = 0;
+    for (let lv = 0; lv < 2; lv++) { const W = WD.createWorld(cfg, lv, { owned }); let t = 0, tap = 0, end = false;
+      while (t < 240 && !end) { if (t >= tap) { tap = t + 0.5; const b = WD.botTap(W); if (b) { if (b.tool === 'hammer') WD.aimHammer(W, b.t, true); else WD.useTool(W, b.tool, b.p); } }
+        for (const e of WD.step(W, 1 / 30)) { if (e.type === 'clear') end = true; const x = L.missionEvent(e); if (x) { if (x.kind === 'tool') tools++; for (const d of L.missionsAdd(cfg, r, owned, x.kind, x.n, x.tool)) { paid += d.coins; done++; } } }
+        t += 1 / 30; }
+      earned += W.coins; secs += t; }
+    check(tools > 0, `the world reports the bot's own shots (${tools})`);
+    check(done >= 2, `the steady bot finishes missions while it plays (${done} in ${secs.toFixed(0)} s)`);
+    check(paid <= earned * MS.maxShare, `mission prizes stay under ${MS.maxShare * 100}% of the coins smashing paid (${paid} of ${earned}: ${(paid / earned * 100).toFixed(1)}%)`); }
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);
