@@ -17,7 +17,9 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
   await g(() => { const a = document.querySelector('#app').getBoundingClientRect(); document.querySelector('#app').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, clientX: a.left + a.width / 2, clientY: a.top + a.height * 0.4, bubbles: true })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true })); __bot(true); });
   // the same fresh building before and after the run: a leak shows as more GPU geometries the second time
-  const fresh = () => g(async () => { const n = __game.W.n; __game.newLevel(0); await new Promise((r) => setTimeout(r, 600)); const geo = __game.geometries; __game.newLevel(n); return geo; });
+  // (its frame time too: the same scene before and after the run is the only fair comparison, since buildings differ in size)
+  const med0 = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+  const fresh = async () => { const r = await g(async () => { const n = __game.W.n; __game.newLevel(0); await new Promise((r) => setTimeout(r, 600)); const geo = __game.geometries; window.__ft.splice(0); await new Promise((r) => setTimeout(r, 2500)); const ft = window.__ft.splice(0); __game.newLevel(n); return { geo, ft }; }); fresh.ft = med0(r.ft); return r.geo; };
   // warm up: every tool thrown once (each shot kind builds its shared geometry the first time, then reuses it)
   await g(async () => { const W = __game.W; W.fever = 5; for (const t of W.cfg.tools) if (t.id !== 'hammer') { W.cool[t.id] = 0; __game.WD.useTool(W, t.id, { x: W.chest.x, y: 1, z: W.chest.z }); } await new Promise((r) => setTimeout(r, 3000)); });
   // and the robots' bounded pools: every costume, face and the full pool of sign cards drawn once
@@ -30,7 +32,7 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
     // (all in one go, drawn by hand: the game's own loop never steps these stand-ins)
     for (const st of ['march', 'down', 'reboot']) { for (const b of extra) b.state = st; sc.update(W, 0.016); }
     W.bots.splice(W.bots.length - extra.length, extra.length); sc.update(W, 0.016); });
-  const geo0 = await fresh();
+  const geo0 = await fresh(), ft0 = fresh.ft;
   const mem = [], kinds = new Set(), ft = []; let coins0 = 0, cards = 0;
   for (let i = 0; i < levels; i++) {
     const t0 = Date.now();
@@ -53,11 +55,12 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
   check(cards <= Math.floor(levels / 3), `at most one result card per 3 buildings (${cards} in ${levels} levels)`);
   console.log('gpu [textures, geometries] after each level:', JSON.stringify(mem));
   // buildings grow every cycle of 8, so a level 8 apart is not the same size: compare the same fresh level 1
-  const geo1 = await fresh(), same = geo1 - geo0;
+  const geo1 = await fresh(), same = geo1 - geo0, ft1 = fresh.ft;
   console.log('median frame ms per level:', JSON.stringify(ft));
-  // level 1 is warm-up (shader compile, first textures); compare levels 2-4 with the last 3. rAF gaps snap to
-  // 16.7 ms steps, so one step up is already 2x slower: fail on a climb of half a 60 Hz frame (8 ms)
-  if (ft.length >= 7) { const early = med(ft.slice(1, 4)), late = med(ft.slice(-3)); check(late - early < 8, `frame time does not climb (early ${early} ms, late ${late} ms)`); }
+  // the same fresh level 1 before and after the run. rAF gaps snap to 16.7 ms steps, so one step up is already 2x
+  // slower: fail on a climb of half a 60 Hz frame (8 ms). (Levels of the run are not compared with each other: a
+  // bigger building is slower by itself, and that read as a climb whenever the early ones ran at 60.)
+  check(ft1 - ft0 < 8, `frame time of the same fresh level does not climb over the run (before ${ft0.toFixed(1)} ms, after ${ft1.toFixed(1)} ms)`);
   const tex = mem.slice(1).map((m) => m[0]);
   check(Math.max(...tex) - Math.min(...tex) <= 1, 'GPU textures stay flat');
   check(same <= 2, `geometries do not pile up (the same fresh level 1: ${geo0} before, ${geo1} after 10 levels)`);
