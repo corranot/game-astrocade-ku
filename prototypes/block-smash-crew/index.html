@@ -378,7 +378,16 @@ body{display:flex;align-items:center;justify-content:center}
   addEventListener('pointerdown', function () { if (!B.live) B.touch = true; }, true);
   // the opening's backdrop goes at a cut once the first 3D frame is drawn (game.js); a script error never leaves it up for good
   window.__load = { done: function () { if (boot.parentNode) boot.remove(); } };
-  addEventListener('error', function () { setTimeout(window.__load.done, 4000); });
+  // never a dead end: no picture yet after a script error (4 s) or after 12 s of waiting for the 3D library: a
+  // retry button takes the opening's place (game.js keeps its own 12 s rule, but it only runs once the library came)
+  function retry() {
+    if (document.querySelector('canvas')) { window.__load.done(); return; }
+    var app = document.getElementById('app') || document.body;
+    app.innerHTML = '<button style="position:absolute;inset:0;margin:auto;width:40%;aspect-ratio:1;border-radius:50%;border:6px solid #fff;background:#ff6a2a;color:#fff;font-size:12vmin;cursor:pointer" aria-label="Retry">\u21bb</button>';
+    app.querySelector('button').onclick = function () { location.reload(); };
+  }
+  addEventListener('error', function () { setTimeout(retry, 4000); });
+  setTimeout(retry, 12000);
   // the font stylesheets, loaded without blocking, are switched on as each arrives
   [].forEach.call(document.querySelectorAll('link[data-font]'), function (l) { function on() { l.media = 'all'; } if (l.sheet) on(); else l.addEventListener('load', on); });
 })();

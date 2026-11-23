@@ -748,5 +748,16 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   c0 = W.coins; const e4 = hit();
   check(!reboot && !up && W.bots.includes(b) && W.coins === c0 && !e4.some((e) => e.type === 'bossDown' || e.type === 'bossHit') && b.pts.every((p) => p.every(Number.isFinite)), 'after the last knock it never gets up again (30 s), and pays nothing more');
 }
+// ---- hunt 7: a robot three times the size needs headroom: nothing solid inside its column on any boss level
+{
+  const BS = cfg.boss, H = cfg.bots.height * BS.botScale, r = BS.room / 2, bad = [];
+  for (const n of [4, 9, 14, 19, 24, 29, 34, 39]) {
+    const W = WD.createWorld(cfg, n, { owned: ['hammer'] }), b = W.bots.find((x) => x.boss);
+    if (!b) { bad.push(`${n}: no boss`); continue; }
+    for (let y = 0.5; y < H * BS.crownRoom; y++) for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (W.g.get(Math.floor(b.x + dx), Math.floor(y), Math.floor(b.z + dz))) bad.push(`${n}: block at ${Math.floor(b.x + dx)},${Math.floor(y)},${Math.floor(b.z + dz)}`);
+  }
+  check(bad.length === 0, `the boss has headroom on every boss level (${bad.slice(0, 4).join('; ') || 'clear'})`);
+}
+
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);
