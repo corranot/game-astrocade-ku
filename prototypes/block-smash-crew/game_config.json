@@ -208,7 +208,7 @@
    "tile": 14
   },
   {
-   "id": "tnt",
+   "id": "keg",
    "color": "#e8322b",
    "value": 25,
    "snd": "brick",
@@ -899,7 +899,7 @@
    "sort_ascending": false
   }
  },
- "tnt": {
+ "keg": {
   "r": 2.7,
   "delay": 0.22,
   "step": 0.12,
@@ -927,7 +927,7 @@
    "hammer": 0.04,
    "bomb": 0.05,
    "rocket": 0.05,
-   "tnt": 0.05,
+   "keg": 0.05,
    "hole": 0.06,
    "ball": 0.08,
    "meteor": 0.09

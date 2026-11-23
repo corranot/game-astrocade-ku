@@ -49,7 +49,7 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
   const hueOf = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; return ((mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360; };
   for (const lv of [0, 2]) {
     await page.evaluate((n) => __game.newLevel(n), lv); await page.waitForTimeout(900);
-    for (const c of await page.evaluate(() => __game.W.tntCells.filter((c) => c.k))) {
+    for (const c of await page.evaluate(() => __game.W.kegCells.filter((c) => c.k))) {
       const stood = await page.evaluate(([c]) => { const G = __game, W = G.W, h = W.hero; let best = null;
         for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) { const d = Math.hypot(dx, dz); if (d < 2.2 || d > 4) continue; const x = c.x + dx, z = c.z + dz; let ok = true;
           for (let y = 0; y < 3; y++) if (W.g.get(x, y, z)) ok = false;
@@ -61,7 +61,7 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
       await page.waitForTimeout(700);
       const [cx, cy] = await page.evaluate(([c]) => { const G = __game; return G.client(...G.scene.screenOf(c.x + 0.5, c.y + 0.5, c.z + 0.5)); }, [c]);
       const png = await page.screenshot({ clip: { x: Math.max(0, cx - 22), y: Math.max(0, cy - 22), width: 44, height: 44 } });
-      const want = hueOf(cfg.tnt.kinds.find((k) => k.id === c.k).color);
+      const want = hueOf(cfg.keg.kinds.find((k) => k.id === c.k).color);
       const share = await page.evaluate(async ([b64, want]) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
         const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const x = cv.getContext('2d'); x.drawImage(img, 0, 0);
         const d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0;

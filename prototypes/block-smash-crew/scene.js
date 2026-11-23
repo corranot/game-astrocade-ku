@@ -86,7 +86,7 @@ export function createScene(cv, cfg) {
   // ---- palette (linear) for the mesher
   const palette = [null], jitter = [0];
   const tiles = [0]; for (const m of cfg.materials) tiles.push(m.tile || 0);
-  const dcol = [null]; // debris colours: every material, also the ones drawn as their own mesh (TNT)
+  const dcol = [null]; // debris colours: every material, also the ones drawn as their own mesh (boom barrel)
   for (const m of cfg.materials) { const c = new THREE.Color(m.color); palette.push(m.hidden ? null : [c.r, c.g, c.b]); dcol.push([c.r, c.g, c.b]); jitter.push(m.jitter || 0); }
 
   // ---- voxel chunks
@@ -229,14 +229,14 @@ export function createScene(cv, cfg) {
   const dust = new THREE.InstancedMesh(dustGeo, dustMat, dustMax); dust.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dust.frustumCulled = false; scene.add(dust);
   dust.setColorAt(0, new THREE.Color(1, 1, 1));
   const U = { n: 0, p: new Float32Array(dustMax * 3), v: new Float32Array(dustMax * 3), s: new Float32Array(dustMax * 2), life: new Float32Array(dustMax * 2) };
-  // sparks (steel, TNT fuses): tiny bright bits, short life
+  // sparks (steel, boom barrel fuses): tiny bright bits, short life
   const sparkMax = 80, sparkMesh = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.09, 0.09, 0.09)), keep(new THREE.MeshBasicMaterial({ color: '#ffd84a', fog: false })), sparkMax);
   sparkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); sparkMesh.frustumCulled = false; scene.add(sparkMesh);
   const SP = { n: 0, p: new Float32Array(sparkMax * 3), v: new Float32Array(sparkMax * 3), life: new Float32Array(sparkMax) };
   function sparks(x, y, z, n) { if (low) n = Math.ceil(n / 2); for (let k = 0; k < n && SP.n < sparkMax; k++) { const i = SP.n++; SP.p[i * 3] = x; SP.p[i * 3 + 1] = y; SP.p[i * 3 + 2] = z; SP.v[i * 3] = (Math.random() - 0.5) * 9; SP.v[i * 3 + 1] = 2 + Math.random() * 6; SP.v[i * 3 + 2] = (Math.random() - 0.5) * 9; SP.life[i] = 0.25 + Math.random() * 0.25; } }
-  // TNT barrels: red with a white band, standing on their blocks (the block itself is not drawn)
-  const tntMax = 24, barrel = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.44, 0.44, 0.96, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff' })), tntMax);
-  const band = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.455, 0.455, 0.22, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#553300' })), tntMax);
+  // boom barrel: red with a white band, standing on their blocks (the block itself is not drawn)
+  const kegMax = 24, barrel = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.44, 0.44, 0.96, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff' })), kegMax);
+  const band = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.455, 0.455, 0.22, 14)), keep(new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#553300' })), kegMax);
   // never culled: the bounding sphere of an instanced mesh is measured once, so barrels placed later vanished from some views
   barrel.frustumCulled = band.frustumCulled = false;
   barrel.castShadow = true; scene.add(barrel, band); barrel.count = band.count = 0;
@@ -253,8 +253,8 @@ export function createScene(cv, cfg) {
   function placeBarrels() {
     let n = 0;
     // each kind of barrel has its own colour (config); a plain one is red
-    const kinds = (W && W.cfg.tnt.kinds) || [];
-    if (W && W.tntCells) for (const c of W.tntCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.tnt || n >= tntMax) continue; tmpM.compose(tmpV.set(c.x + 0.5, c.y + 0.48, c.z + 0.5), tmpQ.identity(), tmpS.set(1, 1, 1)); barrel.setMatrixAt(n, tmpM); band.setMatrixAt(n, tmpM); const K = kinds.find((k) => k.id === c.k); barrel.setColorAt(n, tmpC.set(K ? K.color : '#e8322b')); n++; }
+    const kinds = (W && W.cfg.keg.kinds) || [];
+    if (W && W.kegCells) for (const c of W.kegCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.keg || n >= kegMax) continue; tmpM.compose(tmpV.set(c.x + 0.5, c.y + 0.48, c.z + 0.5), tmpQ.identity(), tmpS.set(1, 1, 1)); barrel.setMatrixAt(n, tmpM); band.setMatrixAt(n, tmpM); const K = kinds.find((k) => k.id === c.k); barrel.setColorAt(n, tmpC.set(K ? K.color : '#e8322b')); n++; }
     barrel.count = band.count = n; barrel.instanceMatrix.needsUpdate = band.instanceMatrix.needsUpdate = true;
     if (barrel.instanceColor) barrel.instanceColor.needsUpdate = true;
     const b = W && W.boomBox;
@@ -447,7 +447,7 @@ export function createScene(cv, cfg) {
   function event(e) {
     if (e.type === 'smash') {
       for (const c of e.removed) markCell(c.x, c.y, c.z);
-      if (e.removed.some((c) => c.m === W.ids.tnt || c.m === W.ids.boomBox)) placeBarrels();
+      if (e.removed.some((c) => c.m === W.ids.keg || c.m === W.ids.boomBox)) placeBarrels();
       const cap = Math.min(e.removed.length, e.by === 'hammer' ? 30 : cfg.debris.perBlast), step = e.removed.length / cap;
       // the pieces of one break: more for a bigger one, never above the cap for a hit or a blast
       fragBudget = e.by === 'hammer' ? cfg.debris.perHit : cfg.debris.perBlast;
@@ -487,7 +487,7 @@ export function createScene(cv, cfg) {
       if (!W.demo) spawnCoins(e.x, e.y + 1, e.z, Math.min(8, 2 + (e.n >> 5)));
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
-      if (e.kind === 'tnt') placeBarrels();
+      if (e.kind === 'keg') placeBarrels();
       addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); groundFx(e); if (isShow()) showBoom(e); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));

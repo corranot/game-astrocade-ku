@@ -57,14 +57,14 @@ async function main() {
     check(at.title.replace(/\s+/g, ' ').trim() === 'BLOCK SMASH CREW' && at.tTop >= 24 && at.tBot <= 1280 * 0.29, `demo: the game's name in the top band (${at.tTop.toFixed(0)}–${at.tBot.toFixed(0)} of 1280)`);
     check(at.cta === 'TAP TO SMASH!' && at.cTop >= 1280 * 0.82 && at.cBot <= 1280 - 40, `demo: "TAP TO SMASH!" in the bottom band (${at.cTop.toFixed(0)}–${at.cBot.toFixed(0)} of 1280)`);
     await shot(page, '01-demo');
-    // ---- 2. the first tap anywhere: the real level starts and the hammer hits the TNT straight ahead (no walking)
+    // ---- 2. the first tap anywhere: the real level starts and the hammer hits the boom barrel straight ahead (no walking)
     const box = await g(page, () => __game.W.box);
     const [sx, sy] = await screenOf(page, (box.x0 + box.x1) / 2 + 0.5, 2, box.z1 + 1);
     const t0 = Date.now(); await tapAt(page, sx, sy, 80);
     const h0 = await g(page, () => [__game.W.hero.x, __game.W.hero.z]);
     await waitFor(page, () => !__game.demo && __game.WD.wreck(__game.W) > 0, null, 4000).catch(() => {});
     const a = await g(page, () => ({ demo: __game.demo, hit: __game.W.smashed > 0 || __game.W.fuses.length > 0, h: [__game.W.hero.x, __game.W.hero.z], goal: __game.W.hero.goal }));
-    check(!a.demo && a.hit, 'first tap: the real level starts and the hammer hits the TNT ahead');
+    check(!a.demo && a.hit, 'first tap: the real level starts and the hammer hits the boom barrel ahead');
     check(!a.goal && Math.hypot(a.h[0] - h0[0], a.h[1] - h0[1]) < 0.01, 'first tap: the hero does not walk by itself');
     await waitFor(page, () => __game.save.coins > 0, null, 5000).catch(() => {});
     const dt = Date.now() - t0, coins = await g(page, () => __game.save.coins);
@@ -192,7 +192,7 @@ async function main() {
     check(before.w === 0 && after.c >= 777 + before.c && after.lvl === 3 && after.n === before.n, `late save: nothing written before it came, coins earned meanwhile added (${before.c} + 777), the level being played is not swapped ${JSON.stringify([before, after])}`);
     await late.page.close();
     const bad = await open(browser, '', { port, init: 'window.__saveFails = true;' });
-    await tapAt(bad.page, 360, 520); await bad.page.waitForTimeout(3500); // the first tap is the TNT boom
+    await tapAt(bad.page, 360, 520); await bad.page.waitForTimeout(3500); // the first tap is the boom barrel boom
     const b = await g(bad.page, () => ({ w: (window.__writes || []).length, c: __game.save.coins }));
     check(b.w === 0 && b.c > 0, 'a failing save: play goes on, nothing is ever written blind');
     check(errors.length + late.errors.length + bad.errors.length === 0, 'no page errors (section 9)');
@@ -416,7 +416,7 @@ async function main() {
     await g(page, () => window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, pointerType: 'touch', bubbles: true })));
     const home = await g(page, () => !document.getElementById('stickHome').hidden);
     check(home, 'phone: a new level started under a held stick still shows the resting stick');
-    // the first touch is a swipe: a later tap at the sky does not swing at the TNT (the first-tap boom is only for a tap)
+    // the first touch is a swipe: a later tap at the sky does not swing at the boom barrel (the first-tap boom is only for a tap)
     {
       const c2 = await browser.newContext({ viewport: { width: 360, height: 640 }, isMobile: true, hasTouch: true });
       const p2 = await c2.newPage(); await p2.addInitScript('window.__speed = 1;' + BOT); await p2.goto(`http://localhost:${port}/?local`);

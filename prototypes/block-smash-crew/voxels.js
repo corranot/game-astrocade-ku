@@ -132,7 +132,7 @@ export const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z *
 export function meshRegion(get, x0, y0, z0, x1, y1, z1, palette, jitter, ox = 0, oy = 0, oz = 0, floorY = 0, shade = null, tiles = null) {
   const pos = [], nor = [], col = [], ind = [], uv = [];
   let vi = 0;
-  // a material without a palette colour (TNT: drawn as a barrel by the look) counts as empty here
+  // a material without a palette colour (boom barrel: drawn as a barrel by the look) counts as empty here
   const solid = (x, y, z) => { if (y < floorY) return 1; const m = get(x, y, z); return m && palette[m] ? 1 : 0; };
   for (let y = y0; y < y1; y++) for (let z = z0; z < z1; z++) for (let x = x0; x < x1; x++) {
     const m = get(x, y, z); if (!m || !palette[m]) continue;

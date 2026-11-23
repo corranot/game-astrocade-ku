@@ -182,26 +182,26 @@ export function buildLevel(cfg, n) {
   const high = pick((x, y, z) => y >= Math.max(5, Math.floor(top * 0.6)) && y <= top - 1);
   const deep = pick((x, y, z) => y >= 1 && y <= 2 && z <= chest.z - 2 && z >= b.z0);
   for (const c of [high, deep]) if (c) { g.set(c[0], c[1], c[2], M.star); stars.push({ x: c[0], y: c[1], z: c[2] }); }
-  // TNT: one in front of the building (seen from the start: the first chain of booms), a few inside along the walls
-  const tnt = [];
+  // boom barrel: one in front of the building (seen from the start: the first chain of booms), a few inside along the walls
+  const keg = [];
   const mid = (b.x0 + b.x1) >> 1, nearVault = (x, z) => Math.abs(x + 0.5 - chest.x) < 3 && Math.abs(z + 0.5 - chest.z) < 3;
-  const putTnt = (x, z) => { if (!g.get(x, 0, z) && !nearVault(x, z)) { g.set(x, 0, z, M.tnt); tnt.push({ x, y: 0, z }); return true; } return false; };
+  const putKeg = (x, z) => { if (!g.get(x, 0, z) && !nearVault(x, z)) { g.set(x, 0, z, M.keg); keg.push({ x, y: 0, z }); return true; } return false; };
   // the BOOM box: ahead behind the fence, left of the hammer in the hand (in view once the front barrel opens the fence),
   // outside that barrel's blast; smashing it sets off every barrel. Two cells tall: base and handle.
   const fz = Math.min(L.D - 6, b.z1 + 4);
   let boomBox = null;
-  if (M.boomBox) for (const dx of [cfg.tnt.boxSide, cfg.tnt.boxSide - 1, 1, 2]) { const x = Math.floor(L.W / 2) + dx, z = fz - cfg.tnt.boxAhead; if (!g.get(x, 0, z) && !g.get(x, 1, z)) { g.set(x, 0, z, M.boomBox); g.set(x, 1, z, M.boomBox); boomBox = { x, y: 0, z }; break; } }
+  if (M.boomBox) for (const dx of [cfg.keg.boxSide, cfg.keg.boxSide - 1, 1, 2]) { const x = Math.floor(L.W / 2) + dx, z = fz - cfg.keg.boxAhead; if (!g.get(x, 0, z) && !g.get(x, 1, z)) { g.set(x, 0, z, M.boomBox); g.set(x, 1, z, M.boomBox); boomBox = { x, y: 0, z }; break; } }
   // no barrel stands where its own effect (cluster bombs, black hole, meteor) would reach the box
-  const nearBox = (x, z) => !!boomBox && Math.hypot(x - boomBox.x, z - boomBox.z) < cfg.tnt.boxClear;
+  const nearBox = (x, z) => !!boomBox && Math.hypot(x - boomBox.x, z - boomBox.z) < cfg.keg.boxClear;
   const inside = [];
   for (let z = b.z0 + 1; z < b.z1; z++) for (let x = b.x0 + 1; x < b.x1; x++) if (!g.get(x, 0, z) && !g.get(x, 1, z) && !nearVault(x, z) && !nearBox(x, z) && (g.get(x - 1, 0, z) || g.get(x + 1, 0, z) || g.get(x, 0, z - 1) || g.get(x, 0, z + 1))) inside.push([x, z]);
   // the barrels inside are special ones, a different kind each (the level number turns the order)
-  const kinds = (cfg.tnt && cfg.tnt.kinds) || [];
-  for (let i = 0; i < 2 + s && inside.length; i++) { const [x, z] = inside.splice(Math.floor(rnd() * inside.length), 1)[0]; if (putTnt(x, z) && kinds.length) tnt[tnt.length - 1].k = kinds[(n + i) % kinds.length].id; }
+  const kinds = (cfg.keg && cfg.keg.kinds) || [];
+  for (let i = 0; i < 2 + s && inside.length; i++) { const [x, z] = inside.splice(Math.floor(rnd() * inside.length), 1)[0]; if (putKeg(x, z) && kinds.length) keg[keg.length - 1].k = kinds[(n + i) % kinds.length].id; }
   // yard: fence across the front, trees at the sides
   fence(g, M, b.x0 - 2, b.x1 + 2, fz);
   for (const [x, z] of [[3, b.z0 + 2], [L.W - 4, b.z0 + 2], [3, b.z1 - 1], [L.W - 4, b.z1 - 1]]) if (!g.get(x, 0, z)) tree(g, M, x, z, 4 + Math.floor(rnd() * 2), rnd);
-  putTnt(Math.floor(L.W / 2) - 1, fz + 2) || putTnt(Math.floor(L.W / 2) - 2, fz + 2); // straight ahead (just left of the hammer) in front of the fence: the first tap is a boom
+  putKeg(Math.floor(L.W / 2) - 1, fz + 2) || putKeg(Math.floor(L.W / 2) - 2, fz + 2); // straight ahead (just left of the hammer) in front of the fence: the first tap is a boom
   const total = g.count();
-  return { grid: g, kind, boss, theme, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 5) }, stars, tnt, total, box: b, fenceZ: fz, top, boomBox };
+  return { grid: g, kind, boss, theme, chest, spawn: { x: L.W / 2, z: Math.min(L.D - 2, fz + 5) }, stars, keg, total, box: b, fenceZ: fz, top, boomBox };
 }

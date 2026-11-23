@@ -25,7 +25,7 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   const preview = await until(() => __game.demo && __game.W.t < 2.5 && __game.W.bots[0] && __game.W.bots[0].state === 'down', 4000);
   check(preview, 'feed preview: a robot flies in the first 2.5 s, before any touch');
   await page.waitForTimeout(300); await shot('01-demo');
-  // the first tap anywhere: the real level starts with its card and the TNT ahead blows up
+  // the first tap anywhere: the real level starts with its card and the boom barrel ahead blows up
   await touch(1, 'pointerdown', 360, 420); await touch(1, 'pointerup', 360, 420);
   await page.waitForTimeout(450);
   const card = await g(() => { const e = document.getElementById('lvcard'), a = document.getElementById('app').getBoundingClientRect(); return !e.hidden && [...e.children].every((x) => { const r = x.getBoundingClientRect(); return r.left >= a.left - 1 && r.right <= a.right + 1; }) && e.textContent; });
@@ -33,7 +33,7 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   check(!!card, `first level: the level card shows (${card})`);
   // the first boom also sends the robot strolling in the front yard flying (BONK!)
   const hook = await until(() => __game.W.bots[0] && __game.W.bots[0].state === 'down', 3000);
-  check(hook, 'the first tap: the TNT boom knocks the front-yard robot flying');
+  check(hook, 'the first tap: the boom barrel boom knocks the front-yard robot flying');
   // the first wave: robots marching in, about half with a dare sign in this language, wearing the wave's costume
   const wave = await g((l) => { const W = __game.W, list = window.gameConfig.signs[l], w1 = W.bots.filter((b) => b.wave === 1);
     const signs = w1.filter((b) => b.sign >= 0).map((b) => __game.scene.signOf(b.id)).filter(Boolean);
