@@ -1,0 +1,331 @@
+{
+ "cat": {
+  "speed": 6.2,
+  "accel": 30,
+  "airControl": 0.55,
+  "gravity": 22,
+  "jump": 8.2,
+  "coyote": 0.15,
+  "buffer": 0.15,
+  "radius": 0.42,
+  "height": 0.9,
+  "stepUp": 0.36,
+  "softFall": 2.6,
+  "softBounce": 6,
+  "pounceRange": 3.6,
+  "pickRange": 7.5,
+  "swipeRange": 1.5,
+  "swipePower": 6.5
+ },
+ "bounce": {
+  "sofa": 10.5,
+  "dog": 15,
+  "lily": 8,
+  "water": 6.5
+ },
+ "camera": {
+  "dist": 7.4,
+  "distHigh": 8.6,
+  "pitch": 0.34,
+  "pitchHigh": 0.24,
+  "fov": 62,
+  "follow": 6,
+  "dragSpeed": 0.0065,
+  "autoAlign": 0.55
+ },
+ "meow": {
+  "radius": 4.6,
+  "wiggle": 2.6
+ },
+ "props": {
+  "gravity": 22,
+  "sleepSpeed": 0.18,
+  "sleepTime": 0.45,
+  "knockDrop": 0.7,
+  "pushStar": 2.2,
+  "tidyAfter": 22,
+  "tidyFar": 6,
+  "rollFriction": 1.1,
+  "slideFriction": 5
+ },
+ "mischief": {
+  "first": 10,
+  "grow": 4,
+  "max": 30,
+  "fishReward": 2,
+  "comboWindow": 1.3
+ },
+ "fish": {
+  "respawn": 38,
+  "goldRespawn": 60,
+  "goldValue": 3
+ },
+ "laser": {
+  "firstDelay": 9,
+  "gapMin": 16,
+  "gapMax": 24,
+  "life": 22,
+  "flee": 2.3,
+  "darts": 3,
+  "catchDist": 0.8,
+  "reward": 3
+ },
+ "basket": {
+  "reward": 2,
+  "radius": 0.95
+ },
+ "butterfly": {
+  "reward": 1,
+  "back": 14,
+  "catchDist": 1.0
+ },
+ "garden": {
+  "unlock": 15
+ },
+ "skins": [
+  {
+   "id": "ginger",
+   "cost": 0,
+   "base": "#f4a24c",
+   "stripe": "#d06f22",
+   "belly": "#fff3e0",
+   "point": "#f4a24c",
+   "pattern": "tabby"
+  },
+  {
+   "id": "tuxedo",
+   "cost": 5,
+   "base": "#2e2b36",
+   "stripe": "#2e2b36",
+   "belly": "#ffffff",
+   "point": "#ffffff",
+   "pattern": "plain"
+  },
+  {
+   "id": "calico",
+   "cost": 10,
+   "base": "#fffaf2",
+   "stripe": "#f08a2c",
+   "belly": "#ffffff",
+   "point": "#3a3036",
+   "pattern": "patches"
+  },
+  {
+   "id": "siamese",
+   "cost": 15,
+   "base": "#f6e8d0",
+   "stripe": "#f6e8d0",
+   "belly": "#fffaf0",
+   "point": "#5b3b2e",
+   "pattern": "plain",
+   "muzzle": "#7a5644"
+  },
+  {
+   "id": "pink",
+   "cost": 20,
+   "base": "#ffb3d1",
+   "stripe": "#ff8fbd",
+   "belly": "#fff0f7",
+   "point": "#ffb3d1",
+   "pattern": "tabby"
+  },
+  {
+   "id": "cosmic",
+   "cost": 40,
+   "base": "#3b2a7a",
+   "stripe": "#7a5cff",
+   "belly": "#ff9ef0",
+   "point": "#6ad7ff",
+   "pattern": "galaxy"
+  }
+ ],
+ "hats": [
+  {
+   "id": "none",
+   "cost": 0
+  },
+  {
+   "id": "wizard",
+   "cost": 8
+  },
+  {
+   "id": "pirate",
+   "cost": 10
+  },
+  {
+   "id": "crown",
+   "cost": 12
+  },
+  {
+   "id": "propeller",
+   "cost": 15
+  },
+  {
+   "id": "wings",
+   "cost": 25
+  }
+ ],
+ "langNames": {
+  "en": "English",
+  "ar": "العربية",
+  "es": "Español",
+  "vi": "Tiếng Việt",
+  "hi": "हिन्दी",
+  "bn": "বাংলা",
+  "id": "Indonesia"
+ },
+ "strings": {
+  "en": {
+   "title1": "Paws & Chaos",
+   "title2": "Sunbeam Kingdom",
+   "play": "PLAY",
+   "tap": "TAP TO PLAY!",
+   "mischief": "MISCHIEF!",
+   "combo": "COMBO x{n}",
+   "laser": "CAUGHT IT!",
+   "laserHint": "CATCH THE DOT!",
+   "goal": "GOAL!",
+   "top": "TOP SHELF!",
+   "garden": "GARDEN OPEN!",
+   "gardenHi": "HELLO GARDEN!",
+   "mirror": "MAGIC MIRROR",
+   "newLook": "NEW LOOK!",
+   "more": "{n} MORE",
+   "share": "SHOW FRIENDS",
+   "boing": "BOING!",
+   "flutter": "GOT IT!",
+   "door": "{n}/{m}"
+  },
+  "ar": {
+   "title1": "مخالب وفوضى",
+   "title2": "مملكة الشمس",
+   "play": "العب",
+   "tap": "اضغط للعب!",
+   "mischief": "شقاوة!",
+   "combo": "كومبو x{n}",
+   "laser": "أمسكتها!",
+   "laserHint": "امسك النقطة!",
+   "goal": "هدف!",
+   "top": "الرف العالي!",
+   "garden": "الحديقة مفتوحة!",
+   "gardenHi": "مرحبا يا حديقة!",
+   "mirror": "المرآة السحرية",
+   "newLook": "شكل جديد!",
+   "more": "باقي {n}",
+   "share": "أرِ أصدقاءك",
+   "boing": "بوينغ!",
+   "flutter": "أمسكتها!",
+   "door": "{n}/{m}"
+  },
+  "es": {
+   "title1": "Patitas y Caos",
+   "title2": "Reino del Sol",
+   "play": "JUGAR",
+   "tap": "¡TOCA PARA JUGAR!",
+   "mischief": "¡TRAVESURA!",
+   "combo": "COMBO x{n}",
+   "laser": "¡ATRAPADO!",
+   "laserHint": "¡ATRAPA EL PUNTO!",
+   "goal": "¡GOL!",
+   "top": "¡ESTANTE ALTO!",
+   "garden": "¡JARDÍN ABIERTO!",
+   "gardenHi": "¡HOLA JARDÍN!",
+   "mirror": "ESPEJO MÁGICO",
+   "newLook": "¡NUEVO LOOK!",
+   "more": "FALTAN {n}",
+   "share": "MUESTRA A AMIGOS",
+   "boing": "¡BOING!",
+   "flutter": "¡LA TENGO!",
+   "door": "{n}/{m}"
+  },
+  "vi": {
+   "title1": "Mèo Con Quậy",
+   "title2": "Vương Quốc Nắng",
+   "play": "CHƠI",
+   "tap": "CHẠM ĐỂ CHƠI!",
+   "mischief": "NGHỊCH NGỢM!",
+   "combo": "COMBO x{n}",
+   "laser": "BẮT ĐƯỢC!",
+   "laserHint": "BẮT CHẤM ĐỎ!",
+   "goal": "VÀO RỒI!",
+   "top": "KỆ CAO NHẤT!",
+   "garden": "MỞ KHU VƯỜN!",
+   "gardenHi": "CHÀO KHU VƯỜN!",
+   "mirror": "GƯƠNG THẦN",
+   "newLook": "DIỆN MẠO MỚI!",
+   "more": "CÒN {n}",
+   "share": "KHOE BẠN BÈ",
+   "boing": "BOING!",
+   "flutter": "BẮT ĐƯỢC!",
+   "door": "{n}/{m}"
+  },
+  "hi": {
+   "title1": "पंजे और धमाल",
+   "title2": "धूप का राज्य",
+   "play": "खेलो",
+   "tap": "खेलने को टैप करो!",
+   "mischief": "शरारत!",
+   "combo": "कॉम्बो x{n}",
+   "laser": "पकड़ लिया!",
+   "laserHint": "लाल बिंदु पकड़ो!",
+   "goal": "गोल!",
+   "top": "सबसे ऊँची शेल्फ!",
+   "garden": "बगीचा खुला!",
+   "gardenHi": "हैलो बगीचा!",
+   "mirror": "जादुई आईना",
+   "newLook": "नया लुक!",
+   "more": "{n} और",
+   "share": "दोस्तों को दिखाओ",
+   "boing": "बोइंग!",
+   "flutter": "पकड़ा!",
+   "door": "{n}/{m}"
+  },
+  "bn": {
+   "title1": "থাবা আর হুল্লোড়",
+   "title2": "রোদের রাজ্য",
+   "play": "খেলো",
+   "tap": "খেলতে ট্যাপ করো!",
+   "mischief": "দুষ্টুমি!",
+   "combo": "কম্বো x{n}",
+   "laser": "ধরে ফেলেছি!",
+   "laserHint": "লাল বিন্দু ধরো!",
+   "goal": "গোল!",
+   "top": "সবচেয়ে উঁচু তাক!",
+   "garden": "বাগান খুলেছে!",
+   "gardenHi": "হ্যালো বাগান!",
+   "mirror": "জাদুর আয়না",
+   "newLook": "নতুন সাজ!",
+   "more": "আর {n}",
+   "share": "বন্ধুদের দেখাও",
+   "boing": "বোয়িং!",
+   "flutter": "ধরেছি!",
+   "door": "{n}/{m}"
+  },
+  "id": {
+   "title1": "Cakar & Kacau",
+   "title2": "Kerajaan Mentari",
+   "play": "MAIN",
+   "tap": "TAP UNTUK MAIN!",
+   "mischief": "USIL!",
+   "combo": "KOMBO x{n}",
+   "laser": "KETANGKAP!",
+   "laserHint": "TANGKAP TITIKNYA!",
+   "goal": "MASUK!",
+   "top": "RAK PALING ATAS!",
+   "garden": "TAMAN TERBUKA!",
+   "gardenHi": "HALO TAMAN!",
+   "mirror": "CERMIN AJAIB",
+   "newLook": "GAYA BARU!",
+   "more": "KURANG {n}",
+   "share": "PAMERKAN KE TEMAN",
+   "boing": "BOING!",
+   "flutter": "DAPAT!",
+   "door": "{n}/{m}"
+  }
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ }
+}
