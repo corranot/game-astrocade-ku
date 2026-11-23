@@ -21,11 +21,16 @@ const BOT = `window.__bot = (on) => { clearInterval(window.__botI); if (!on) ret
 
 async function open(browser, q = '', opts = {}) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 }, deviceScaleFactor: opts.dpr || 1, locale: opts.locale || 'en-US', hasTouch: !!opts.touch, isMobile: !!opts.touch }); // touch: a phone (coarse pointer → stick + HIT)
-  const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
+  const errors = []; page.on('pageerror', (e) => errors.push(e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).map((x) => x.trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, '')).join(' < '))); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
   if (opts.init) await page.addInitScript(opts.init);
   await page.addInitScript(`window.__speed = ${opts.speed || 1};` + BOT);
   await page.goto(`http://localhost:${opts.port}/?local${q}`);
-  await page.waitForFunction(() => window.__game && window.__game.W && document.fonts.status === 'loaded', null, { timeout: 40000 });
+  // (the edit showcase draws no text, so the game's font is never asked for there)
+  await page.waitForFunction((still) => window.__game && window.__game.W && [...document.querySelectorAll('link[data-font]')].every((l) => l.media !== 'print') && (still || document.fonts.check('800 20px "Baloo 2"')) && document.fonts.status === 'loaded', /mode=edit/.test(q), { timeout: 40000 }).catch(async (e) => {
+    // which part of the start never came (the bare timeout says nothing)
+    const st = await page.evaluate(() => ({ game: !!window.__game, world: !!(window.__game && window.__game.W), links: [...document.querySelectorAll('link[data-font]')].map((l) => l.media), baloo: document.fonts.check('800 20px "Baloo 2"'), fonts: document.fonts.status, pending: [...document.fonts].filter((f) => f.status === 'loading').map((f) => f.family + ' ' + f.unicodeRange.slice(0, 20)) })).catch(() => null);
+    console.log(`start never came for "${q}": ${JSON.stringify(st)} | errors: ${JSON.stringify(errors.slice(0, 3))}`); throw e;
+  });
   return { page, errors };
 }
 const g = (page, fn, a) => page.evaluate(fn, a);
@@ -745,6 +750,374 @@ async function main() {
     check(s0.open && !s0.loaded && s1.open && s1.n === 3 && s1.demo, `h5 a late save leaves the settings open over the show (${JSON.stringify(s1)})`);
     check(s1.lang === 'id' && s1.title === s1.want, `h5 ...and the panel then speaks the save's language ("${s1.title}")`);
     await late.page.close();
+  }
+
+  // 21 "aaa1": the coach steps go by themselves and dim less, one BONK word at a time, no dust in the camera's face
+  if (!process.env.ONLY || process.env.ONLY === 'aaa1') {
+    const CO = cfg.coach, LK = cfg.look, { page, errors } = await open(browser, '', { port, touch: true });
+    const pause = (ms) => page.waitForTimeout(ms);
+    // the coach step on screen: '' (none), 'drag' (walk), 'swipe' (look) or 'press' (smash, bomb)
+    const coachNow = () => g(page, () => { const c = document.getElementById('coach'); return c.hidden ? '' : c.className.replace('coach ', ''); });
+    // nothing is in reach in the sky: the camera turns up (whichever sign that is) and the tap goes to the middle of the view
+    const skyKind = () => g(page, () => { const G = __game, c = G.client(360, 500), t = G.scene.pick(c[0], c[1]); return t ? t.type : 'none'; });
+    const lookSky = async () => { for (const s of [3, -6]) { await g(page, (s) => __game.scene.look(0, s), s); await pause(250); const k = await skyKind(); if (k === 'none' || k === 'air') return k; } return null; };
+    await pause(600); await tapAt(page, 360, 420); await pause(450); await shot(page, '21-first-tap');
+    await waitFor(page, () => { const W = __game.W; return !__game.demo && W.phase === 'play' && W.t > 1.6 && document.getElementById('lvcard').hidden; }, null, 20000).catch(() => {});
+    await pause(500);
+    // a1: a player who only taps is not asked to walk; the first step is the look, under a light dim
+    const first = await coachNow(), dim = await g(page, () => Math.max(0, ...[...getComputedStyle(document.getElementById('coach')).backgroundImage.matchAll(/rgba\(18, 28, 70, ([\d.]+)\)/g)].map((m) => +m[1])));
+    check(first === 'swipe', `a1 after the first tap the coach shows the look step, not the walk step ("${first}")`);
+    check(dim === CO.dim, `a1 ...and dims the game by coach.dim ${CO.dim} (${dim})`);
+    // a2: the step goes by itself after coach.maxSec, without the lesson counting as learned in the save
+    await pause(CO.maxSec * 1000 + 700);
+    const a2 = { now: await coachNow(), drag: await g(page, () => __game.save.learned.drag) };
+    check(a2.now !== 'swipe' && a2.drag === false, `a2 the look step hides by itself after ${CO.maxSec} s, the save's lesson untouched (${JSON.stringify(a2)})`);
+    await pause(1200); const a2b = await coachNow();
+    check(a2b !== 'swipe' && a2b !== 'drag', `a2 ...and does not come back in this session, nor does the walk step show unasked ("${a2b}")`);
+    // a3: a tap on something out of reach asks for the walk step (the stick's nudge fires there)
+    const far = await lookSky(); if (far) await tapAt(page, 360, 500);
+    const asked = await waitFor(page, () => /drag/.test(document.getElementById('coach').className) && !document.getElementById('coach').hidden, null, 2000).then(() => true, () => false);
+    check(!!far && asked, `a3 a tap out of reach (the sky: ${far}) shows the walk step`);
+    // a4: the walk step goes by itself too, and a second far tap does not bring it back
+    await pause(CO.maxSec * 1000 + 700); const a4 = await coachNow(); if (far) await tapAt(page, 360, 500); await pause(600);
+    const a4b = { now: await coachNow(), walk: await g(page, () => __game.save.learned.walk) };
+    check(a4 !== 'drag' && a4b.now !== 'drag' && a4b.walk === false, `a4 the walk step hides by itself after ${CO.maxSec} s and stays away ("${a4}", ${JSON.stringify(a4b)})`);
+    // the camera level again: the words below need a point of the yard in view
+    await g(page, () => __game.scene.look(0, -__game.scene.pitch)); await pause(250);
+    // b: four robots knocked over at once give one BONK word (and all their coins); the next word comes after words.bonkGap
+    const bonk = await g(page, async (gap) => { const G = __game, h = G.W.hero, word = G.T('bonk'), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const clear = () => { G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); }, n = () => [...document.querySelectorAll('#pops .pop')].filter((p) => p.textContent === word).length;
+      let at = null; for (let i = 0; i < 64 && !at; i++) { const a = i / 64 * 6.283, x = h.x + Math.sin(a) * 4, z = h.z + Math.cos(a) * 4, s = G.scene.screenOf(x, 1.5, z); if (!s[2] && s[0] > 150 && s[0] < 570 && s[1] > 300 && s[1] < 900) at = [x, 1.5, z]; }
+      if (!at) return null; const ev = () => G.onEvent({ type: 'bonk', x: at[0], y: at[1], z: at[2], coins: 5, by: 'boom', again: false });
+      await wait(gap * 1000 + 200); clear(); const c0 = G.save.coins; for (let i = 0; i < 4; i++) ev(); const coins = G.save.coins - c0;
+      await wait(150); const out = { at, dir: [(at[0] - h.x) / 4, (at[2] - h.z) / 4], first: n(), coins };
+      await wait(gap * 1000 + 100); clear(); ev(); await wait(150); out.later = n(); return out; }, cfg.words.bonkGap);
+    // (a bonk mission may pay its prize on top of the robots' 4 x 5 coins)
+    check(bonk && bonk.first === 1 && bonk.coins >= 20, `b four bonks at once: one BONK word, every coin paid (${JSON.stringify(bonk)})`);
+    check(bonk && bonk.later === 1, `b ...and a bonk after words.bonkGap ${cfg.words.bonkGap} s has its word again (${bonk && bonk.later})`);
+    // c: dust in the camera's face is not drawn (look.puffNear), dust beyond look.puffFar is drawn whole
+    const dustAt = (f) => g(page, async ([f, dir]) => { const G = __game, p = G.scene.show.pos; G.scene.event({ type: 'star', x: p[0] + dir[0] * f, y: p[1] - 0.3, z: p[2] + dir[1] * f }); await new Promise((r) => setTimeout(r, 200)); return G.scene.dustNear; }, [f, bonk ? bonk.dir : [0, 1]]);
+    const near = (await dustAt(0.3)).filter((x) => x.d < LK.puffNear - 0.1), mid = (await dustAt((LK.puffNear + LK.puffFar) / 2)).filter((x) => x.d > LK.puffNear + 0.3 && x.d < LK.puffFar - 0.3), farD = (await dustAt(LK.puffFar + 3)).filter((x) => x.d > LK.puffFar + 0.1);
+    const worst = (l, f) => l.length ? +f(...l.map((x) => x.k)).toFixed(2) : null;
+    check(near.length > 0 && near.every((x) => x.k < 0.02), `c ${near.length} puffs within look.puffNear ${LK.puffNear} of the camera are not drawn (largest share ${worst(near, Math.max)})`);
+    check(mid.every((x) => x.k > 0.01 && x.k < 0.99), `c ${mid.length} puffs between near and far are drawn smaller (${worst(mid, Math.min)}..${worst(mid, Math.max)})`);
+    check(farD.length > 0 && farD.every((x) => x.k > 0.98), `c ${farD.length} puffs beyond look.puffFar ${LK.puffFar} are drawn whole (smallest share ${worst(farD, Math.min)})`);
+    check(!errors.length, `aaa1 no errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 22 "aaa2": the result card's goal row is a button that buys (or opens the shop), also for upgrades once every tool
+  // is owned; smash time's frame is two still layers cross-faded by opacity, the red one only in the last seconds
+  if (!process.env.ONLY || process.env.ONLY === 'aaa2') {
+    const FV = cfg.fever, { page, errors } = await open(browser, '', { port, touch: true });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await pause(600); await tapAt(page, 360, 420);
+    await waitFor(page, () => { const W = __game.W; return !__game.demo && W.phase === 'play' && W.t > 1.6 && document.getElementById('lvcard').hidden && __game.saveLoaded; }, null, 20000).catch(() => {});
+    // what animates on an element and its two pseudo-elements: the name, the properties its keyframes change, the cycle
+    const anims = (sel, cls) => g(page, ([sel, cls]) => { const el = document.querySelector(sel), rules = {}; if (cls) el.classList.add(cls);
+      for (const sh of document.styleSheets) { let list = []; try { list = sh.cssRules; } catch (er) { /* a sheet from elsewhere (the font) */ } for (const r of list) if (r.type === CSSRule.KEYFRAMES_RULE) rules[r.name] = [...new Set([...r.cssRules].flatMap((k) => [...k.style]))]; }
+      return [null, '::before', '::after'].map((p) => { const cs = getComputedStyle(el, p); return { name: cs.animationName, props: cs.animationName.split(', ').flatMap((n) => rules[n] || []), sec: parseFloat(cs.animationDuration), opacity: +cs.opacity, shadow: cs.boxShadow, bg: cs.backgroundImage.slice(0, 15), filter: cs.filter }; }); }, [sel, cls]);
+    const cheap = (l) => l.every((x) => x.props.every((p) => p === 'opacity' || p === 'transform'));
+    const brief = (l) => JSON.stringify(l.map((x) => [x.name, x.props.join('+'), x.sec, x.opacity]));
+    // c1: smash time: nothing but opacity animates, on a still gradient layer, one cycle per fever.pulseSec; no red yet
+    await g(page, () => { const W = __game.W; W.got = W.need; W.phase = 'fever'; W.fever = W.cfg.fever.dur; W.feverT = 0; __game.onEvent({ type: 'fever' }); });
+    await pause(1600); await shot(page, '22-smash-time');
+    const f1 = await anims('#fever'), w1 = await g(page, () => document.getElementById('fever').classList.contains('warn'));
+    check(f1[0].name === 'none' && f1[0].shadow === 'none' && f1[1].name !== 'none' && cheap(f1) && /gradient/.test(f1[1].bg) && /gradient/.test(f1[2].bg), `c1 the smash-time frame animates only opacity/transform of still gradient layers, no box-shadow (${brief(f1)}, shadow ${f1[0].shadow.slice(0, 40)})`);
+    check(f1[1].sec === FV.pulseSec, `c1 ...one cycle per fever.pulseSec ${FV.pulseSec} s (${f1[1].sec})`);
+    check(!w1 && f1[2].opacity === 0, `c1 ...and the red layer is not shown with ${FV.dur} s left (warn ${w1}, opacity ${f1[2].opacity})`);
+    // c2: the last fever.warnSec seconds: the red layer comes in; time won back takes it away again
+    await g(page, (s) => { __game.W.fever = s - 0.4; }, FV.warnSec); await pause(700); await shot(page, '22-smash-time-last');
+    const f2 = await anims('#fever'), w2 = await g(page, () => document.getElementById('fever').classList.contains('warn'));
+    check(w2 && f2[2].opacity > 0.3 && cheap(f2), `c2 in the last fever.warnSec ${FV.warnSec} s the red layer shows (warn ${w2}, opacity ${f2[2].opacity})`);
+    await g(page, () => { __game.W.fever = __game.W.cfg.fever.dur; }); await pause(700);
+    const w3 = await g(page, () => document.getElementById('fever').classList.contains('warn'));
+    check(w2 && w3 === false, `c2 ...and leaves when time is won back (warn ${w2} then ${w3})`);
+    // c3: HIT when ready: the button itself does not animate (no filter, no box-shadow); a pseudo-element does, cheaply
+    const h1 = await anims('#hit', 'ready');
+    check(h1[0].name === 'none' && (h1[1].name !== 'none' || h1[2].name !== 'none') && cheap(h1), `c3 a ready HIT animates only transform/opacity of a pseudo-element (${brief(h1)})`);
+    // c4: reduced motion: nothing pulses, the tint stays
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await pause(200);
+    const f4 = await anims('#fever'), h4 = await anims('#hit', 'ready');
+    check(f4.every((x) => x.name === 'none') && /gradient/.test(f4[1].bg) && f4[1].opacity > 0.3 && [h4[1], h4[2]].every((x) => x.name === 'none'), `c4 reduced motion: no pulsing, a still tint (${brief(f4)}; HIT ${brief(h4)})`);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    // b: the result card's goal row
+    const all = cfg.tools.map((t) => t.id), rocket = cfg.tools.find((t) => t.id === 'rocket');
+    const card = async (coins, owned, lv) => { await g(page, ([coins, owned, lv]) => { const G = __game, s = G.save, W = G.W; s.coins = coins; s.owned = owned.slice(); W.owned.length = 0; W.owned.push(...owned); s.lv = lv; W.fever = 0; W.phase = 'free'; G.cardDue(); G.onEvent({ type: 'clear' }); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); }, [coins, owned, lv]); await pause(500); };
+    const row = () => g(page, () => { const b = document.getElementById('goalBtn'), k = document.getElementById('app').getBoundingClientRect().width / 720; if (!b) return null; const r = b.getBoundingClientRect(), lab = b.querySelector('.mlab').getBoundingClientRect(), val = b.querySelector('.mval').getBoundingClientRect();
+      return { tag: b.tagName, h: Math.round(r.height / k), text: b.textContent, can: b.classList.contains('can'), fits: lab.right <= val.left + 1 && val.right <= r.right && lab.left >= r.left, coins: __game.save.coins, card: !document.getElementById('panel').hidden && __game.resultsOpen, shop: !document.getElementById('shop').hidden }; });
+    const press = async () => { await g(page, () => document.getElementById('goalBtn').click()); await pause(450); };
+    // b1: not enough coins: a real button, tall enough for a finger, that opens the shop over the card
+    await card(0, ['hammer', 'bomb'], {});
+    const b1 = await row(), nm = await g(page, () => __game.T('nRocket'));
+    check(b1 && b1.tag === 'BUTTON' && b1.h >= 96 && !b1.can && b1.text.includes(nm) && b1.fits, `b1 the next-tool row is a button at least 96 units tall (${JSON.stringify(b1)})`);
+    if (b1) await press(); const b1s = await g(page, () => ({ shop: !document.getElementById('shop').hidden, cards: document.querySelectorAll('#shop .srow').length, card: __game.resultsOpen }));
+    await shot(page, '22-card-shop');
+    check(b1s.shop && b1s.cards === all.length && b1s.card, `b1 ...too expensive: it opens the shop, the card still open under it (${JSON.stringify(b1s)})`);
+    await g(page, () => { const x = document.getElementById('shopX'); if (x) x.click(); }); await pause(300);
+    // b2: enough coins: it buys the tool right there (the shop's purchase) and shows the next goal
+    await card(rocket.cost + 500, ['hammer', 'bomb'], {});
+    const b2 = await row(); await shot(page, '22-card-can'); if (b2) await press();
+    const b2a = await row(), own2 = await g(page, () => ({ save: __game.save.owned.includes('rocket'), world: __game.W.owned.includes('rocket') })), nb = await g(page, () => __game.T('nBall'));
+    check(b2 && b2.can && b2a && own2.save && own2.world && b2a.coins === b2.coins - rocket.cost && b2a.card && !b2a.shop, `b2 with the coins in hand a tap buys the rocket on the card (${JSON.stringify({ before: b2 && b2.coins, after: b2a && b2a.coins, own2, card: b2a && b2a.card, shop: b2a && b2a.shop })})`);
+    check(b2a && b2a.text.includes(nb) && !b2a.can, `b2 ...and the row moves on to the next tool ("${b2a && b2a.text}")`);
+    // b2d (hunt 6): a double tap buys one thing: the row changes to the next goal under the finger, and the second
+    // tap must not buy that one too
+    const ballT = cfg.tools.find((t) => t.id === 'ball');
+    await card(rocket.cost + ballT.cost + 2000, ['hammer', 'bomb'], {});
+    const d0 = await row(); if (d0) { await g(page, async () => { document.getElementById('goalBtn').click(); await new Promise((r) => setTimeout(r, 90)); const b = document.getElementById('goalBtn'); if (b) b.click(); }); await pause(500); }
+    const d1 = await row(), ownD = await g(page, () => __game.save.owned.slice());
+    check(d0 && d1 && ownD.includes('rocket') && !ownD.includes('ball') && d1.coins === d0.coins - rocket.cost, `b2d a double tap on the goal row buys one tool, not two (${JSON.stringify({ before: d0 && d0.coins, after: d1 && d1.coins, owned: ownD })})`);
+    // b3: every tool owned: the cheapest upgrade is the goal, and a tap buys it
+    const lv3 = Object.fromEntries(all.map((id) => [id, id === 'hammer' ? 7 : 12]));
+    await card(1e6, all, lv3);
+    const b3 = await row(), want = await g(page, () => [__game.T('nHammer'), __game.T('lv', 7)]); await shot(page, '22-card-upgrade'); if (b3) await press();
+    const b3a = await row(), lvNow = await g(page, () => __game.save.lv.hammer);
+    check(b3 && b3.tag === 'BUTTON' && b3.h >= 96 && b3.can && b3.text.includes(want[0]) && b3.text.includes(want[1]) && b3.text.includes('8') && b3.fits, `b3 every tool owned: the row shows the cheapest upgrade, "${want[0]} ${want[1]} → 8" (${JSON.stringify(b3)})`);
+    check(b3a && lvNow === 8 && b3a.coins < b3.coins && b3a.card, `b3 ...and a tap upgrades it (hammer level ${lvNow}, coins ${b3 && b3.coins} → ${b3a && b3a.coins})`);
+    check(!errors.length, `aaa2 no errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 23 "boss1": a boss building (every 5th) has a boss: one giant crowned BONK-BOT in the front yard, in view from the
+  // spawn; three hammer knocks bring it down (a crown point off per knock, BOSS DOWN! and the prize); none next level
+  if (!process.env.ONLY || process.env.ONLY === 'boss1') {
+    const BS = cfg.boss, { page, errors } = await open(browser, '', { port, touch: true });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await pause(600); await tapAt(page, 360, 420);
+    await waitFor(page, () => !__game.demo && __game.saveLoaded, null, 20000).catch(() => {});
+    await g(page, () => __game.newLevel(4));
+    await pause(700); await shot(page, '23-boss-card');
+    await waitFor(page, () => { const W = __game.W; return W.n === 4 && W.t > 1.6 && document.getElementById('lvcard').hidden; }, null, 20000).catch(() => {});
+    // the boss as the world has it and as it is drawn: its crown tip and feet in frame units, the HUD's edges, the hero
+    const view = () => g(page, () => { const G = __game, W = G.W, b = W.bots.find((x) => x.boss), k = 720 / document.getElementById('app').getBoundingClientRect().width, top0 = document.getElementById('app').getBoundingClientRect().top;
+      const tools = Math.min(...[...document.querySelectorAll('.tool')].filter((e) => e.offsetParent !== null).map((e) => (e.getBoundingClientRect().top - top0) * k)), bar = (document.getElementById('bar').getBoundingClientRect().bottom - top0) * k;
+      const base = { n: W.n, boss: W.boss, bots: W.bots.length, look: G.scene.bossLook, bar: Math.round(bar), tools: Math.round(tools), coins: W.coins, saved: G.save.coins, down: !!W.bossDown };
+      if (!b) return base;
+      const r = (a) => a.slice(0, 2).map(Math.round).concat(a[2]);
+      return { ...base, tip: r(G.scene.screenOf(b.x, b.h * 1.33, b.z)), head: r(G.scene.screenOf(b.x, b.h * 0.9, b.z)), feet: r(G.scene.screenOf(b.x, 0, b.z)), hp: b.hp, state: b.state, h: b.h, dist: Math.hypot(b.x - W.hero.x, b.z - W.hero.z), moved: W.hero.moving }; });
+    const v0 = await view(); await shot(page, '23-boss-start');
+    const inX = (p) => p && !p[2] && p[0] > 40 && p[0] < 680;
+    check(v0.boss && v0.hp === BS.hits && v0.look && v0.look.points === BS.hits && Math.abs(v0.look.scale - BS.botScale) < 0.01, `boss1 a boss building has its boss: ${BS.botScale}× a robot, ${BS.hits} crown points (${JSON.stringify(v0)})`);
+    check(v0.tip && inX(v0.tip) && inX(v0.feet) && v0.tip[1] > 0 && v0.head[1] > v0.bar && v0.feet[1] < v0.tools && v0.feet[1] - v0.tip[1] > 250, `boss1 ...on screen from the spawn in portrait: crown tip ${v0.tip}, head ${v0.head} under the bar (${v0.bar}), feet ${v0.feet} over the tools (${v0.tools})`);
+    // a knock with the hammer through the world API (the swing lands a moment later); then what is on screen
+    const knockTo = async (hp) => { await waitFor(page, () => { const G = __game, W = G.W, b = W.bots.find((x) => x.boss); return b && b.state === 'guard' && G.WD.swingBot(W, W.bots.indexOf(b)); }, null, 15000).catch(() => {});
+      await waitFor(page, (hp) => { const b = __game.W.bots.find((x) => x.boss); return b && b.hp === hp; }, hp, 8000).catch(() => {}); };
+    const words = () => g(page, () => [...document.querySelectorAll('#pops .pop')].map((p) => p.textContent.trim()));
+    const T = (k) => g(page, (k) => __game.T(k), k);
+    await knockTo(BS.hits - 1); await pause(250); const w1 = await words(), v1 = await view(); await shot(page, '23-boss-knock1');
+    const stage = Math.round(BS.hitCoins * cfg.boss.mult);
+    check(v1.hp === BS.hits - 1 && v1.look.points === BS.hits - 1 && w1.includes(await T('bonk')) && v1.coins - v0.coins >= stage && v1.saved - v0.saved >= stage, `boss1 knock 1: a crown point is off, BONK! over it, boss.hitCoins paid (hp ${v1.hp}, points ${v1.look.points}, words ${JSON.stringify(w1)}, +${v1.coins - v0.coins} of ${stage})`);
+    await waitFor(page, () => __game.W.bots.find((x) => x.boss).state === 'guard', null, 8000).catch(() => {}); await pause(200); await shot(page, '23-boss-up');
+    const vu = await view();
+    check(vu.state === 'guard' && vu.look.points === BS.hits - 1, `boss1 ...it stands up again with ${BS.hits - 1} points (${vu.state})`);
+    for (let hp = BS.hits - 2; hp > 0; hp--) await knockTo(hp);
+    const v2 = await view(); await knockTo(0); await pause(350); const w3 = await words(), v3 = await view(), cel = await g(page, () => ({ last: __game.lastCelebration, confetti: !document.getElementById('confetti').hidden })); await shot(page, '23-boss-down');
+    const prize = Math.max(Math.round(BS.downCoins * cfg.boss.mult), Math.round(BS.downShare * v2.coins));
+    check(v3.hp === 0 && v3.down && v3.look.points === 0 && w3.includes(await T('bossDown')) && cel.last === 'boss' && cel.confetti, `boss1 knock ${BS.hits}: BOSS DOWN! with confetti, no crown point left (hp ${v3.hp}, words ${JSON.stringify(w3)}, ${JSON.stringify(cel)})`);
+    check(v3.coins - v2.coins >= prize && v3.saved - v2.saved >= prize && v3.coins - v2.coins < prize + 600, `boss1 ...and the prize is paid: +${v3.coins - v2.coins} in the world, +${v3.saved - v2.saved} saved, of ${prize}`);
+    await pause(4500); const v4 = await view();
+    check(v4.state === 'down' && v4.hp === 0, `boss1 ...and it stays down (${v4.state} after 4.5 s)`);
+    await shot(page, '23-boss-after');
+    await g(page, () => __game.nextLevel());
+    await waitFor(page, () => __game.W.n === 5 && __game.W.t > 0.5, null, 15000).catch(() => {}); await pause(300);
+    const v5 = await view();
+    check(v5.n === 5 && !v5.boss && v5.hp === undefined && v5.look === null, `boss1 the next building has no boss (level ${v5.n}, boss ${v5.boss}, drawn ${JSON.stringify(v5.look)})`);
+    check(!errors.length, `boss1 no errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // boot1: the first paint is the show's own opening (HTML/CSS in index.html), and the 3D show takes over under the same title without a seam
+  if (!process.env.ONLY || process.env.ONLY === 'boot1') {
+    const TI = cfg.demo.title, rgb = (h) => `rgb(${[1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(', ')})`;
+    const INIT = () => {
+      const M = window.__m = { samples: [] }; addEventListener('three-ready', () => { M.three = performance.now(); });
+      const r = (e) => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; };
+      const snap = () => {
+        const el = document.getElementById('title'), boot = document.getElementById('boot');
+        if (el && !M.node) { M.node = el; el.__bootMark = 1; }
+        const s = { t: performance.now(), boot: !!boot, same: !!el && el === M.node && el.__bootMark === 1, shown: !!el && getComputedStyle(el).display !== 'none', box: el ? r(el) : null,
+          words: el ? [...el.querySelectorAll('.tw')].map((w) => { const a = w.getAnimations()[0]; return { o: +getComputedStyle(w).opacity, r: r(w), ct: a ? a.currentTime : null, done: !a || a.playState === 'finished' }; }) : [],
+          blocks: boot ? [...boot.querySelectorAll('i')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => r(b)[1]) : [] };
+        if (M.samples.length < 30 && el) s.extra = { bg: boot ? getComputedStyle(boot).backgroundImage : '', ts: el.style.getPropertyValue('--ts'), tt: el.style.getPropertyValue('--tt'), text: el.textContent.replace(/\s+/g, ' ').trim(),
+          delays: [...el.querySelectorAll('.tw')].map((w) => parseFloat(w.style.animationDelay)), load: !!document.getElementById('load'), jig: [...document.querySelectorAll('body *')].filter((e) => /jig|spin/.test(getComputedStyle(e).animationName)).length, loading: /loading/i.test(document.body.innerText) };
+        return s;
+      };
+      const loop = () => { if (document.body) M.samples.push(snap()); if (!M.draw || performance.now() < M.draw + 1200) requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+      // the first 3D frame: the animation frame with the first draw call to the game's canvas itself (not to a render target, not the warm-up while the scene is built); its time is when that frame's work ended
+      const raf0 = window.requestAnimationFrame.bind(window); let inRaf = false;
+      window.requestAnimationFrame = (cb) => raf0((t) => { inRaf = true; try { cb(t); } finally { inRaf = false; if (M.drew && !M.draw) M.draw = performance.now(); } });
+      for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) if (C) for (const fn of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
+        const o = C.prototype[fn]; if (!o) continue;
+        C.prototype[fn] = function (...a) { if (!M.drew && inRaf && this.canvas && this.canvas.id === 'cv' && this.getParameter(this.FRAMEBUFFER_BINDING) === null) M.drew = performance.now(); return o.apply(this, a); };
+      }
+    };
+    const near = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
+    const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    // one load first, unchecked: a browser's very first page pays for its own start (first frame at ~120 ms instead of ~85)
+    { const w = await browser.newPage({ viewport: { width: 360, height: 640 } }); await w.goto(`http://localhost:${port}/?local`); await w.waitForFunction(() => window.__game && window.__game.W, null, { timeout: 40000 }); await w.close(); }
+    for (const run of [{ name: 'normal', delay: 0 }, { name: 'slow', delay: 2000 }, { name: 'tap', delay: 2000, tap: true }, { name: 'reduced', delay: 0, reduced: true }]) {
+      const page = await browser.newPage({ viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, reducedMotion: run.reduced ? 'reduce' : 'no-preference' });
+      const errors = [], three = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
+      page.on('request', (q) => { if (/cdnjs\.cloudflare\.com/.test(q.url())) three.push(q.url()); });
+      await page.addInitScript(INIT);
+      // Three.js held back: the opening has to carry the wait
+      if (run.delay) await page.route(/cdnjs\.cloudflare\.com/, async (route) => { await pause(run.delay); await route.continue(); });
+      const at = async (ms, n) => { await page.waitForFunction((ms) => performance.now() >= ms, ms, { polling: 10 }); await shot(page, `boot1-${run.name}-${n}`); };
+      await page.goto(`http://localhost:${port}/?local`, { waitUntil: 'commit' });
+      if (run.name === 'slow' || run.name === 'reduced') await at(100, '100ms');
+      if (run.name === 'slow') { await at(1000, '1s'); await at(2500, '2500ms'); }
+      if (run.tap) { await page.waitForFunction(() => performance.now() >= 300, null, { polling: 10 }); await page.touchscreen.tap(180, 330); }
+      await page.waitForFunction(() => window.__m.draw && performance.now() > window.__m.draw + 50, null, { timeout: 60000, polling: 10 });
+      await shot(page, `boot1-${run.name}-handover`);
+      await pause(1300);
+      const R = await page.evaluate(() => ({ draw: window.__m.draw, drew: window.__m.drew, three: window.__m.three, S: window.__m.samples, fcp: (performance.getEntriesByType('paint').find((p) => p.name === 'first-contentful-paint') || {}).startTime, attract: document.getElementById('hud').classList.contains('attract'), cta: getComputedStyle(document.getElementById('cta')).display }));
+      const S = R.S, tag = `boot1 ${run.name}:`, s100 = S.find((s) => s.t >= 100) || S[S.length - 1], s160 = S.find((s) => s.t >= s100.t + 60), X = (S.find((s) => s.extra) || {}).extra || {};
+      const pre = [...S].reverse().find((s) => s.t < R.draw), post = S.filter((s) => s.t >= R.draw), gone = S.find((s) => !s.boot);
+      console.log(`     ${tag} first frame ${Math.round(S[0].t)} ms, Three.js ready ${Math.round(R.three)} ms, first 3D frame ${Math.round(R.draw)} ms (its work began at ${Math.round(R.drew)} ms), backdrop gone ${gone ? Math.round(gone.t) : 'never'} ms`);
+      const w0 = s100.words[0];
+      if (run.reduced) {
+        check(s100.words.length === 3 && s100.words.every((w, i) => w.o === 1 && near(w.r, s160.words[i].r) < 0.5) && s100.blocks.length === 0, `${tag} reduced motion: the whole title stands still at ${Math.round(s100.t)} ms, no falling blocks (${s100.blocks.length})`);
+      } else {
+        check(!!w0 && w0.o > 0 && w0.r[1] + w0.r[3] > 0 && w0.r[1] < 640 && w0.r[0] < 360 && w0.r[0] + w0.r[2] > 0, `${tag} at ${Math.round(s100.t)} ms the title's first word is on screen (opacity ${w0 && w0.o.toFixed(2)}, box ${w0 && w0.r.map(Math.round)})`);
+        // two frames that both still have the blocks (a quick hand-over removes them: the later sample then has none,
+        // which read as "0 moving")
+        const withB = S.filter((x) => x.blocks.length), bA = withB[0], bB = withB[withB.length - 1];
+        const moving = bA.blocks.filter((y, i) => Math.abs(y - bB.blocks[i]) > 1).length;
+        check(withB.length >= 2 && moving >= 6, `${tag} ${moving} of ${bA.blocks.length} blocks are moving between ${Math.round(bA.t)} and ${Math.round(bB.t)} ms`);
+      }
+      check(!X.load && X.jig === 0 && !X.loading && X.bg.includes(rgb(cfg.demo.look.top)) && X.bg.includes(rgb(cfg.demo.look.low)), `${tag} no loader (#load ${X.load}, jiggling or spinning ${X.jig}, the word loading ${X.loading}); the backdrop is the show's sky (${X.bg})`);
+      check(X.text === TI.lines.flat().join(' ') && +X.ts === TI.size && +X.tt === TI.top && X.delays.every((d, i) => Math.abs(d - X.delays[0] - (TI.at[i] - TI.at[0])) < 0.001), `${tag} the opening's title copies demo.title ("${X.text}", size ${X.ts}, top ${X.tt}, word times ${X.delays})`);
+      check(!!pre && pre.boot && pre.same && post.every((s) => s.same), `${tag} the title at the first 3D frame is the node the opening painted (${post.length} frames after it)`);
+      if (!run.tap) {
+        const dBox = Math.max(...post.map((s) => near(s.box, pre.box))), landed = pre.words.map((w, i) => (w.done ? i : -1)).filter((i) => i >= 0), dW = Math.max(0, ...post.slice(0, 20).flatMap((s) => landed.map((i) => near(s.words[i].r, pre.words[i].r))));
+        check(post.every((s) => s.shown) && dBox < 2 && dW < 2, `${tag} the title stays put over the hand-over (box moved ${dBox.toFixed(2)} px, the ${landed.length} landed words ${dW.toFixed(2)} px)`);
+        let back = 0; for (let i = 1; i < S.length; i++) S[i].words.forEach((w, k) => { const p = S[i - 1].words[k]; if (p && p.ct != null && (w.ct == null || w.ct < p.ct - 1)) back++; });
+        check(run.reduced || back === 0, `${tag} no word starts its slam again (${back} restarts)`);
+        check(R.attract && R.cta !== 'none', `${tag} the show goes on under it (attract ${R.attract}, call to action ${R.cta})`);
+      } else check(!R.attract, `${tag} a touch at 300 ms, long before the game could listen, started the game (attract ${R.attract})`);
+      // the backdrop is taken away in the animation frame that draws the first 3D picture, so the two reach the screen together: the very next
+      // frame has no backdrop. On this software GPU that next frame can come late (the GPU is still drawing the first picture: nothing at all
+      // is shown in between), so the rule is "the next frame", and "within 200 ms" only once the page makes frames again
+      const next = post[0], after = post.find((s) => s.t >= (next ? next.t : 0) + 1) || next;
+      console.log(`     ${tag} frames around the hand-over (ms): ${S.filter((s) => s.t < R.draw).slice(-3).map((s) => Math.round(s.t) + (s.boot ? ' backdrop' : ' 3D')).join(', ')} | drawn ${Math.round(R.draw)} | ${post.slice(0, 3).map((s) => Math.round(s.t) + (s.boot ? ' backdrop' : ' 3D')).join(', ')}`);
+      check(!!gone && !!next && gone === next && after.t - next.t <= 200, `${tag} the backdrop is gone in the first frame after the one that drew the 3D picture (${gone && next ? Math.round(gone.t - next.t) : '?'} ms from that frame, ≤ 200; ${gone ? Math.round(gone.t - R.draw) : '?'} ms after the drawing ended)`);
+      check(three.length > 0 && new Set(three).size === three.length, `${tag} each Three.js file is fetched once (${three.map((u) => u.split('/').pop()).join(', ')})`);
+      check(!errors.length, `${tag} no errors (${errors.slice(0, 2).join(' | ')})`);
+      await page.close();
+    }
+  }
+
+  // 25 "mt1": two thumbs. A browser recognises a tap (and sends its click) for one finger only: while the left thumb is
+  // on the stick, the right thumb's tap on a button arrives as pointerdown + pointerup with no click. Those must still
+  // pick a tool, press HIT and turn the view, and the left thumb keeps walking.
+  if (!process.env.ONLY || process.env.ONLY === 'mt1') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await page.touchscreen.tap(180, 300); await pause(2500);
+    // a finger as the browser reports it: id 1 is the primary one, any other is not, and no click follows
+    const finger = (type, id, x, y) => g(page, ([type, id, x, y]) => { const el = document.elementFromPoint(x, y) || document.body; el.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', isPrimary: id === 1, clientX: x, clientY: y, bubbles: true, cancelable: true, composed: true })); }, [type, id, x, y]);
+    const st = () => g(page, () => { const G = __game, W = G.W; return { sel: [...document.querySelectorAll('#tools .tool')].findIndex((e) => e.classList.contains('sel')), move: W.hero.move ? Math.hypot(W.hero.move.x, W.hero.move.z) : 0, yaw: G.scene.yaw, held: document.getElementById('hit').classList.contains('down'), shop: !document.getElementById('shop').hidden }; });
+    const tools = await g(page, () => [...document.querySelectorAll('#tools .tool')].map((e) => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }));
+    const home = await g(page, () => { const r = document.getElementById('stickHome').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await finger('pointerdown', 1, home[0], home[1]); await finger('pointermove', 1, home[0] + 22, home[1] - 26); await pause(300);
+    const w0 = await st();
+    check(w0.move > 0.5, `mt1 the left thumb walks with the stick (push ${w0.move.toFixed(2)})`);
+    const picked = [];
+    for (let i = 1; i < tools.length; i++) { await finger('pointerdown', 2, tools[i][0], tools[i][1]); await pause(40); await finger('pointerup', 2, tools[i][0], tools[i][1]); await pause(120); const s = await st(); picked.push(s.sel === i && s.move > 0.5); }
+    check(picked.every(Boolean), `mt1 while walking, the right thumb picks each tool (${picked.map((x) => (x ? 'y' : 'n')).join('')}), the walk goes on`);
+    // a thumb that slides off the button is not a tap
+    await finger('pointerdown', 2, tools[1][0], tools[1][1]); await finger('pointerup', 2, tools[1][0] + 90, tools[1][1] - 60); await pause(120);
+    const sl = await st();
+    check(sl.sel === tools.length - 1, `mt1 a thumb that slid away picks nothing (still tool ${sl.sel})`);
+    const hb = await g(page, () => { const r = document.getElementById('hit').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await finger('pointerdown', 2, hb[0], hb[1]); await pause(120); const h1 = await st(); await finger('pointerup', 2, hb[0], hb[1]); await pause(120); const h2 = await st();
+    check(h1.held && !h2.held && h1.move > 0.5, `mt1 while walking, the right thumb presses HIT (down ${h1.held}, up ${!h2.held})`);
+    const y0 = (await st()).yaw; await finger('pointerdown', 2, 250, 300); for (let k = 1; k <= 6; k++) await finger('pointermove', 2, 250 - k * 15, 300); await finger('pointerup', 2, 160, 300); await pause(120);
+    const y1 = await st();
+    check(Math.abs(y1.yaw - y0) > 0.05 && y1.move > 0.5, `mt1 while walking, the right thumb turns the view (yaw ${y0.toFixed(2)} → ${y1.yaw.toFixed(2)})`);
+    // the coins pill (the shop) under the second thumb too
+    const cp = await g(page, () => { const r = document.getElementById('coins').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await finger('pointerdown', 2, cp[0], cp[1]); await finger('pointerup', 2, cp[0], cp[1]); await pause(300);
+    check((await st()).shop, 'mt1 while walking, a tap on the coins pill opens the shop');
+    await finger('pointerup', 1, home[0] + 22, home[1] - 26);
+    check(errors.length === 0, `mt1 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 26 "fx2": nothing in the player's face. Coins used to fly to the hero: one passing the eye covered the whole view,
+  // worst with the wrecking ball (20 coins at once), which also started on the player's face.
+  if (!process.env.ONLY || process.env.ONLY === 'fx2') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await page.touchscreen.tap(180, 300); await pause(3000);
+    // b: the ball starts in front of the player, not on the face
+    const start = await g(page, () => { const G = __game, W = G.W, h = W.hero; W.cool.ball = 0; W.shots.length = 0; G.WD.useTool(W, 'ball', { x: h.x + Math.sin(h.yaw) * 12, y: 1, z: h.z + Math.cos(h.yaw) * 12 }); const s = W.shots.find((x) => x.kind === 'ball'); return s ? { d: Math.hypot(s.x - h.x, s.z - h.z), r: s.r } : null; });
+    check(start && start.d >= start.r + 0.5, `fx2 b the ball starts clear of the player (centre ${start && start.d.toFixed(1)} m ahead, radius ${start && start.r})`);
+    // c: coins pop up and go; they never come at the player
+    await pause(2500);
+    const coin = await g(page, async () => { const G = __game, W = G.W, h = W.hero, p = G.scene.show.pos, x = h.x + Math.sin(h.yaw) * 10, z = h.z + Math.cos(h.yaw) * 10; G.scene.event({ type: 'treasure', x, z }); let min = Infinity, n = 0; const d0 = Math.hypot(x - p[0], 1.4 - p[1], z - p[2]); for (let i = 0; i < 50; i++) { await new Promise((r) => requestAnimationFrame(r)); const c = G.scene.coinNear; if (c.n) { n = Math.max(n, c.n); min = Math.min(min, c.d); } } return { min, n, d0, left: G.scene.coinNear.n }; });
+    check(coin.n > 0 && coin.min > coin.d0 - 4, `fx2 c ${coin.n} coins popped ${coin.d0.toFixed(1)} m away stay there (nearest ever ${coin.min.toFixed(1)} m from the eye)`);
+    check(errors.length === 0, `fx2 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 27 "fx3": the explosion kit (fire, smoke, waves: three pooled instanced meshes). A blast fills the pools and
+  // they empty again; ten blasts leave the GPU's geometries and textures as they were.
+  if (!process.env.ONLY || process.env.ONLY === 'fx3') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    await page.touchscreen.tap(180, 300); await page.waitForTimeout(3000);
+    const r = await g(page, async () => {
+      const G = __game, h = G.W.hero, sc = G.scene, wait = (ms) => new Promise((res) => setTimeout(res, ms)), frame = () => new Promise((res) => requestAnimationFrame(res));
+      const kit = () => { const c = sc.counts; return [c.fire, c.smoke, c.blasts]; };
+      const boom = () => sc.event({ type: 'boom', kind: 'bomb', r: 3, x: h.x + Math.sin(h.yaw) * 10, y: 1.5, z: h.z + Math.cos(h.yaw) * 10 });
+      const mem0 = [G.geometries, G.textures], idle = kit();
+      boom(); await frame(); await frame(); const during = kit(); await wait(3000); const after = kit();
+      for (let i = 0; i < 9; i++) { boom(); await wait(200); }
+      await wait(3000);
+      return { idle, during, after, end: kit(), mem0, mem1: [G.geometries, G.textures] };
+    });
+    const zero = (a) => a.every((v) => v === 0);
+    check(zero(r.idle) && r.during.every((v) => v > 0), `fx3 a a bomb blast fills the kit: fire, smoke, waves ${r.during} (idle ${r.idle})`);
+    check(zero(r.after) && zero(r.end), `fx3 b the kit is empty again within 3 s (after one blast ${r.after}, after ten ${r.end})`);
+    check(r.mem0[0] === r.mem1[0] && r.mem0[1] === r.mem1[1], `fx3 c GPU [geometries, textures] before the first blast ${r.mem0}, after the tenth ${r.mem1}`);
+    check(errors.length === 0, `fx3 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 28 "look2": the glow pass (bloom + grade, high tier only). SwiftShader steps the game down to the low tier, so the
+  // dev switch ?tier=high pins the high one. With the pass on and strength 0 and a neutral grade the frame is the
+  // direct render's (tone mapping and sRGB happen once, in the last shader); a quiet frame gets no haze; a bomb blast
+  // has more peak pixels with the glow than without; the low tier holds no render targets at all.
+  if (!process.env.ONLY || process.env.ONLY === 'look2') {
+    const { page, errors } = await open(browser, '&tier=high', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    await page.touchscreen.tap(180, 300); await page.waitForTimeout(5000);
+    const r = await g(page, async () => {
+      const G = __game, sc = G.scene, c = G.cfg.look, h = G.W.hero, gl = sc.renderer.getContext(), w = gl.drawingBufferWidth, hh = gl.drawingBufferHeight;
+      const frame = () => new Promise((res) => requestAnimationFrame(res));
+      const sync = () => { const b = document.getElementById('cv').getBoundingClientRect(); sc.resize(b.width, b.height); };
+      // the same instant drawn again (dt 0) and read back before the browser shows it
+      const grab = () => { sc.update(G.W, 0); const p = new Uint8Array(w * hh * 4); gl.readPixels(0, 0, w, hh, gl.RGBA, gl.UNSIGNED_BYTE, p); return p; };
+      const diff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i += 4) s += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]); return s / (a.length / 4) / 3; };
+      const stat = (p) => { let hot = 0, sum = 0; for (let i = 0; i < p.length; i += 4) { sum += p[i] + p[i + 1] + p[i + 2]; if (Math.max(p[i], p[i + 1], p[i + 2]) >= 250) hot++; } return { hot, mean: sum / (p.length / 4) / 3 }; };
+      const S = c.bloom.strength, grade = { ...c.grade }, pinned = { low: sc.low, q: G.quality, counts: sc.counts, tex: G.textures };
+      const full = grab(); c.bloom.strength = 0; const noGlow = grab();
+      Object.assign(c.grade, { vignette: 0, contrast: 1, saturation: 1 }); const zero = grab();
+      c.bloom.on = false; sync(); const off = sc.counts, direct = grab();
+      c.bloom.on = true; Object.assign(c.grade, grade); c.bloom.strength = S; sync();
+      sc.event({ type: 'boom', kind: 'bomb', r: 3, x: h.x + Math.sin(h.yaw) * 9, y: 1.5, z: h.z + Math.cos(h.yaw) * 9 }); await frame(); await frame();
+      const blastOn = stat(grab()); c.bloom.strength = 0; const blastOff = stat(grab()); c.bloom.strength = S;
+      sc.setLow(true); await frame(); const low = { counts: sc.counts, tex: G.textures }; sc.setLow(false); await frame();
+      return { pinned, identity: diff(direct, zero), haze: diff(noGlow, full), graded: diff(direct, full), off, blastOn, blastOff, low, back: { counts: sc.counts, tex: G.textures }, size: [w, hh] };
+    });
+    check(r.pinned.low === false && r.pinned.q.low === false && r.pinned.counts.bloom === 'on' && r.pinned.counts.targets === 5, `look2 a ?tier=high pins the high tier 5 s in and the glow pass is on (low ${r.pinned.low}, bloom ${r.pinned.counts.bloom}, targets ${r.pinned.counts.targets}, canvas ${r.size})`);
+    check(r.identity < 2, `look2 b strength 0 + neutral grade is the direct render: mean difference ${r.identity.toFixed(3)}/255 (under 2)`);
+    check(r.haze < 2, `look2 c a quiet frame gets no haze: glow on vs strength 0, mean difference ${r.haze.toFixed(3)}/255 (under 2; with the grade vs direct ${r.graded.toFixed(2)})`);
+    check(r.blastOn.hot > r.blastOff.hot && r.blastOn.mean > r.blastOff.mean, `look2 d a bomb blast has more peak pixels with the glow (${r.blastOn.hot} at 250+, mean ${r.blastOn.mean.toFixed(1)}) than with strength 0 (${r.blastOff.hot}, mean ${r.blastOff.mean.toFixed(1)})`);
+    check(r.low.counts.bloom === 'off' && r.low.counts.targets === 0 && r.low.tex < r.pinned.tex && r.off.targets === 0, `look2 e the low tier holds no render targets (bloom ${r.low.counts.bloom}, targets ${r.low.counts.targets}, GPU textures ${r.pinned.tex} → ${r.low.tex}); switched off in config too (${r.off.targets})`);
+    check(r.back.counts.bloom === 'on' && r.back.counts.targets === 5 && r.back.tex === r.pinned.tex, `look2 f back on the high tier the pass is rebuilt (targets ${r.back.counts.targets}, GPU textures ${r.back.tex})`);
+    check(errors.length === 0, `look2 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
   }
 
   await browser.close(); server.close();

@@ -31,6 +31,12 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   const card = await g(() => { const e = document.getElementById('lvcard'), a = document.getElementById('app').getBoundingClientRect(); return !e.hidden && [...e.children].every((x) => { const r = x.getBoundingClientRect(); return r.left >= a.left - 1 && r.right <= a.right + 1; }) && e.textContent; });
   await shot('02-first-tap');
   check(!!card, `first level: the level card shows (${card})`);
+  // a tap on something out of reach: the stick pulses and the coach will ask for the walk (no walk step without it)
+  const pitch0 = await g(() => __game.scene.pitch); let farPt = null;
+  for (const d of [3, -6]) { if (farPt) break; await g((d) => __game.scene.look(0, d), d); await page.waitForTimeout(250); farPt = await g(() => { const G = __game, c = G.client(360, 500), t = G.scene.pick(c[0], c[1]); return !t || t.type === 'air' ? 'sky' : null; }); }
+  if (farPt) { await touch(5, 'pointerdown', 360, 500); await touch(5, 'pointerup', 360, 500); }
+  await g((p) => __game.scene.look(0, p - __game.scene.pitch), pitch0);
+  check(!!farPt && await g(() => !__game.save.learned.hit), `a tap out of reach (${farPt}) smashes nothing`);
   // the first boom also sends the robot strolling in the front yard flying (BONK!)
   const hook = await until(() => __game.W.bots[0] && __game.W.bots[0].state === 'down', 3000);
   check(hook, 'the first tap: the boom barrel boom knocks the front-yard robot flying');
@@ -40,11 +46,11 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
     return { n: w1.length, marching: w1.filter((b) => b.state === 'march').length, signs: signs.length, inLang: signs.every((x) => x.text === list[x.k]), costumes: w1.filter((b) => b.costume === 0).length, drawn: __game.scene.botsDrawn, sample: signs[0] && signs[0].text }; }, lang);
   check(wave.n >= 13 && wave.marching >= 9 && wave.signs >= 4 && wave.inLang && wave.costumes >= 3 && wave.drawn >= wave.n, `wave 1: ${wave.n} robots (${wave.marching} marching, ${wave.drawn} drawn), ${wave.signs} signs in ${lang} ("${wave.sample}"), ${wave.costumes} party hats`);
   // the HIT button names the hammer's verb and pulses while ready
-  const hit = await g(() => { const b = document.getElementById('hit'), l = b.querySelector('.hl'); return { t: l.textContent, ready: b.classList.contains('ready'), fits: l.scrollWidth <= l.clientWidth + 1 && l.getBoundingClientRect().width <= b.getBoundingClientRect().width, anim: getComputedStyle(b).animationName }; });
-  check(hit.t === await g(() => __game.T('vHammer')) && hit.ready && hit.fits && /hbright/.test(hit.anim), `HIT says "${hit.t}", fits its button and pulses (${hit.anim})`);
+  const hit = await g(() => { const b = document.getElementById('hit'), l = b.querySelector('.hl'); return { t: l.textContent, ready: b.classList.contains('ready'), fits: l.scrollWidth <= l.clientWidth + 1 && l.getBoundingClientRect().width <= b.getBoundingClientRect().width, anim: getComputedStyle(b, '::before').animationName }; });
+  check(hit.t === await g(() => __game.T('vHammer')) && hit.ready && hit.fits && /hglow/.test(hit.anim), `HIT says "${hit.t}", fits its button and pulses (${hit.anim})`);
   // the coach: walk
   await until(() => !document.getElementById('coach').hidden); const c1 = await coach(); await shot('03-coach-walk');
-  check(c1 && /drag/.test(c1.cls) && c1.inside, `coach 1: walk, spotlight on the stick (${c1 && c1.text})`);
+  check(c1 && /drag/.test(c1.cls) && c1.inside, `coach 1: walk after a tap out of reach, spotlight on the stick (${c1 && c1.text})`);
   await touch(2, 'pointerdown', 111, 1029); for (let i = 1; i <= 6; i++) await touch(2, 'pointermove', 111, 1029 - i * 12);
   // keep walking until the lesson is learned (slow machines walk fewer blocks per second)
   const walked = await until(() => __game.save.learned.walk); await touch(2, 'pointerup', 111, 960);

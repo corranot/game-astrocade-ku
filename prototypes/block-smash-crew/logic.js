@@ -38,8 +38,18 @@ export function nextTool(cfg, owned, coins) {
   return t ? { tool: t, have: Math.min(coins, t.cost), need: t.cost } : null;
 }
 
-/** A level's finish bonus: base + per level step, × 2 on the 3-star finish. */
-export function levelBonus(cfg, n, stars) { const b = cfg.coins.level + cfg.coins.levelStep * n; return stars.every(Boolean) ? b * 2 : b; }
+/**
+ * A level's finish bonus: base + per level step, × 2 on the 3-star finish; or, when that is more, coins.levelShare of
+ * the coins the building earned (so the big moment keeps up with upgraded tools, the combo and smash time).
+ */
+export function levelBonus(cfg, n, stars, earned = 0) {
+  const b = cfg.coins.level + cfg.coins.levelStep * n, base = stars.every(Boolean) ? b * 2 : b;
+  return Math.max(base, Math.round((cfg.coins.levelShare || 0) * (+earned || 0)));
+}
+/** FLATTENED: coins.flat × the level's coin multiplier; or, when that is more, coins.flatShare of the building's coins so far. */
+/** The prize for the boss robot's last knock: boss.downCoins × mult, or boss.downShare of the building's coins so far if that is more. */
+export function bossBonus(cfg, earned, mult = 1) { const B = cfg.boss || {}; return Math.max(Math.round((B.downCoins || 0) * mult), Math.round((B.downShare || 0) * (+earned || 0))); }
+export function flatBonus(cfg, earned, mult = 1) { return Math.max(Math.round((cfg.coins.flat || 0) * mult), Math.round((cfg.coins.flatShare || 0) * (+earned || 0))); }
 
 /** Calendar day as a number YYYYMMDD in local time. */
 export const dayNum = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -70,22 +80,35 @@ export function upgradeCost(cfg, id, lv) { const u = cfg.upgrade, l = clampLv(cf
 export function canBuy(cfg, owned, lv, coins) {
   return cfg.tools.some((t) => (owned.includes(t.id) ? (upgradeCost(cfg, t.id, (lv || {})[t.id] || 1) ?? Infinity) : t.cost) <= coins);
 }
+/**
+ * The next thing to save for: the cheapest locked tool ({ kind: 'tool' }), then, once every tool is owned, the cheapest
+ * upgrade ({ kind: 'up', lv: the level the tool has now }); null when everything is at the top. have/need as in nextTool.
+ */
+export function nextGoal(cfg, owned, lv, coins) {
+  const nt = nextTool(cfg, owned, coins); if (nt) return { kind: 'tool', ...nt };
+  const ups = cfg.tools.map((t) => { const l = clampLv(cfg, (lv || {})[t.id] || 1); return { tool: t, lv: l, need: upgradeCost(cfg, t.id, l) }; }).filter((u) => u.need !== null).sort((a, b) => a.need - b.need);
+  return ups.length ? { kind: 'up', tool: ups[0].tool, lv: ups[0].lv, have: Math.min(coins, ups[0].need), need: ups[0].need } : null;
+}
+/** The daily gift: coins.daily, or coins.dailyShare of the next goal's price when that is more. */
+export function dailyGift(cfg, owned, lv) { const g = nextGoal(cfg, owned, lv, 0); return Math.max(cfg.coins.daily, Math.min(cfg.coins.dailyCap || Infinity, Math.round((cfg.coins.dailyShare || 0) * (g ? g.need : 0)))); }
 /** Today's challenge: the biggest step of one of the 8 buildings, the kind changing every day. */
 export const dailyLevel = (cfg, day) => 8 * cfg.level.maxStep + (day % 8);
 
 /**
  * Dynamic resolution, one window at a time: q = {dpr, max, low, capped, dropped, slow} and avg = the window's mean frame
- * time. Slow → dpr down a step (at the floor for a few windows → the low tier); fast → up a step. A step down that did
+ * time, hitches = how many of its frames were over Q.hitch.ms (Q.hitch.count of them make a smooth window slow too).
+ * A slow window over Q.lowAt → the low tier at once, at its lowest resolution. Slow → dpr down a step (at the floor for a few windows → the low tier); fast → up a step. A step down that did
  * not make frames quicker (a 30 fps cap, battery saver, vsync) is undone and no more steps down follow until a fast
  * window. Returns the new q (the caller applies dpr and low).
  */
-export function qualityStep(Q, q, avg) {
-  const n = { ...q };
+export function qualityStep(Q, q, avg, hitches = 0) {
+  const n = { ...q }, slow = avg > Q.slow || (!!Q.hitch && hitches >= Q.hitch.count);
+  if (slow && avg > Q.lowAt && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.max, Q.minDpr); n.capped = false; n.dropped = null; n.slow = 0; return n; }
   if (q.dropped && avg > q.dropped.avg * Q.noGain) { n.dpr = q.dropped.dpr; n.capped = true; n.dropped = null; n.slow = 0; return n; }
   n.dropped = null;
   // still slow with nothing left to gain from the resolution: the low tier (no shadows, half the particles)
-  if (avg > Q.slow && !q.capped && q.dpr > Q.minDpr + 0.01) { n.dropped = { dpr: q.dpr, avg }; n.dpr = Math.max(Q.minDpr, q.dpr - Q.down); }
-  else if (avg > Q.slow) { if (++n.slow >= Q.lowSlowWindows && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.dpr, n.max); } } else if (avg <= Q.slow) { n.slow = 0; if (avg < Q.fast) { n.capped = false; if (q.dpr < q.max - 0.01) n.dpr = Math.min(q.max, q.dpr + Q.up); } }
+  if (slow && !q.capped && q.dpr > Q.minDpr + 0.01) { n.dropped = { dpr: q.dpr, avg }; n.dpr = Math.max(Q.minDpr, q.dpr - Q.down); }
+  else if (slow) { if (++n.slow >= Q.lowSlowWindows && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.dpr, n.max); } } else { n.slow = 0; if (avg < Q.fast) { n.capped = false; if (q.dpr < q.max - 0.01) n.dpr = Math.min(q.max, q.dpr + Q.up); } }
   return n;
 }
 
@@ -136,6 +159,8 @@ export function missionEvent(e) {
   if (e.type === 'smash') return { kind: 'smash', n: e.removed.length };
   if (e.type === 'land') return { kind: 'smash', n: e.n };
   if (e.type === 'bonk') return e.again ? null : { kind: 'bonk', n: 1 };
+  // the boss robot's last knock is one bonk (its staggers are not)
+  if (e.type === 'bossDown') return { kind: 'bonk', n: 1 };
   if (e.type === 'detonate') return { kind: 'keg', n: 1 };
   if (e.type === 'treasure') return { kind: 'chest', n: 1 };
   if (e.type === 'flat' || e.type === 'clear') return { kind: e.type, n: 1 };

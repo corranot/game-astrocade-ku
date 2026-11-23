@@ -1,10 +1,10 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // The 3D look of Block Smash Crew (Three.js r187, global THREE from index.html): voxel chunks with baked corner
-// shading, the demolition kid with his giant hammer, flying blocks, dust, coins that fly to the hero, explosions,
+// shading, the demolition kid with his giant hammer, flying blocks, dust, coins that pop up and fade, explosions,
 // falling pieces, star beacons, the chest, a bright sky and a camera on a spring behind the hero that cuts away the
 // roof when he is inside. World coordinates are grid coordinates (1 unit = 1 block).
 /* global THREE */
-import { meshRegion, raycast } from './voxels.js';
+import { meshRegion, raycast, remeshNearest } from './voxels.js';
 import { placeOf } from './world.js';
 import { cooldownOf } from './logic.js';
 import { standingPoints, limbJoint } from './bots.js';
@@ -15,6 +15,8 @@ const SWING_HIT = 0.4;
 /** Builds the scene on canvas cv; cfg = game_config.json. */
 export function createScene(cv, cfg) {
   const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+  // no shader log read-back after each link: it stalls the frame a program is first used in
+  renderer.debug.checkShaderErrors = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.05;
   // resolution and the quality tier: dpr follows the frame time (game.js), low = no shadows and half the particles
@@ -24,6 +26,13 @@ export function createScene(cv, cfg) {
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 720 / 1280, 0.1, 400);
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };
+  // what glows (cfg.look.glow): while the glow pass draws, these materials are brighter than white by their factor,
+  // so they cross the bloom threshold; the direct render (low tier) never sees the factors
+  const glowList = [], glows = (m, k, p = 'color') => { glowList.push({ m, k, p, r: 0, g: 0, b: 0 }); return m; };
+  // a dark decal blended into the pass's linear target comes out lighter than on the canvas (where it blends after
+  // sRGB): while the pass draws (uLin 1) its alpha is bent so the scorch mark is as dark as in the direct render
+  const scorchLin = { value: 0 };
+  const scorchFix = (sh) => { sh.uniforms.uLin = scorchLin; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLin;').replace('#include <opaque_fragment>', 'diffuseColor.a = mix(diffuseColor.a, 1.0 - pow(1.0 - diffuseColor.a, 2.2), uLin);\n#include <opaque_fragment>'); };
 
   // ---- sky, fog, light
   const SKY_TOP = new THREE.Color('#3aa8ff'), SKY_LOW = new THREE.Color('#d9f3ff');
@@ -107,6 +116,11 @@ export function createScene(cv, cfg) {
     geo.setIndex(new THREE.BufferAttribute(r.indices, 1)); geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, chunkMat); mesh.matrixAutoUpdate = false; mesh.castShadow = mesh.receiveShadow = true; chunkRoot.add(mesh); chunks.set(k, mesh);
   }
+  const nowMs = () => performance.now();
+  const remeshOne = (cx, cy, cz) => { if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); };
+  // an instanced buffer is uploaded whole: only worth it while the mesh has live instances or its count just changed
+  const liveN = (m, n) => { const on = n > 0 || m.count !== n; m.count = n; return on; };
+  let warmMs = 0, warmDrawMs = 0;
   function markCell(x, y, z) {
     for (const [dx, dy, dz] of [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
       const X = x + dx, Y = y + dy, Z = z + dz; if (X < 0 || Y < 0 || Z < 0) continue;
@@ -162,7 +176,7 @@ export function createScene(cv, cfg) {
   }
   // a lost WebGL context takes the sky maps with it (they are render targets): on restore they are dropped and made
   // again on the next frame; the canvas textures and geometries are uploaded again by the renderer itself
-  const onRestored = () => { for (const rt of envs.values()) rt.dispose(); envs.clear(); envOn = ''; };
+  const onRestored = () => { for (const rt of envs.values()) rt.dispose(); envs.clear(); envOn = ''; postFree(); postSync(); };
   cv.addEventListener('webglcontextrestored', onRestored);
   /** The hammer's material for the tier: mirrored steel, or the plain one (low tier). */
   function hammerLook() {
@@ -225,7 +239,10 @@ export function createScene(cv, cfg) {
   // fragments, hanging dust, scorch marks and dust rings follow the tier's caps (cfg.quality.fx)
   const FR = cfg.feel.frags, FB = cfg.feel.blast, fxTier = () => (low ? cfg.quality.fx.low : cfg.quality.fx.high);
   let fragBudget = Infinity;
-  const dustMax = 160, dustGeo = keep(new THREE.IcosahedronGeometry(0.5, 1)), dustMat = keep(new THREE.MeshLambertMaterial({ emissive: '#5a5040' }));
+  const dustMax = 160, dustGeo = keep(new THREE.IcosahedronGeometry(0.5, 1)), dustAlpha = new THREE.InstancedBufferAttribute(new Float32Array(dustMax), 1);
+  dustAlpha.setUsage(THREE.DynamicDrawUsage); dustGeo.setAttribute('aFade', dustAlpha);
+  // dust is soft and see-through: each puff has its own alpha (as the kit's smoke) and thins out towards its rim (cfg.feel.frags.puff)
+  const dustMat = fades(keep(new THREE.MeshLambertMaterial({ emissive: '#5a5040', transparent: true, depthWrite: false })), cfg.feel.frags.puff.soft);
   const dust = new THREE.InstancedMesh(dustGeo, dustMat, dustMax); dust.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dust.frustumCulled = false; scene.add(dust);
   dust.setColorAt(0, new THREE.Color(1, 1, 1));
   const U = { n: 0, p: new Float32Array(dustMax * 3), v: new Float32Array(dustMax * 3), s: new Float32Array(dustMax * 2), life: new Float32Array(dustMax * 2) };
@@ -264,23 +281,32 @@ export function createScene(cv, cfg) {
   const coinMax = 90, coinGeo = keep(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14)), coinMat = keep(new THREE.MeshLambertMaterial({ color: '#ffcf1f', emissive: '#7a5000' }));
   const coins = new THREE.InstancedMesh(coinGeo, coinMat, coinMax); coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage); coins.frustumCulled = false; scene.add(coins);
   const C = { n: 0, p: new Float32Array(coinMax * 3), v: new Float32Array(coinMax * 3), t: new Float32Array(coinMax) };
-  let coinArrive = 0; // coins that reached the hero this frame (for the sound)
+  // a coin pops out of the rubble, then rises and shrinks away where it is (feel.coin3d: seconds of the pop, of its whole life, rise speed)
+  const CN = cfg.feel.coin3d;
+  let coinArrive = 0; // coins that went this frame (for the sound)
 
   // ---- shots and blasts
   const shotMeshes = new Map();
-  const ballTex = tex(128, 64, (x, w, h) => { x.fillStyle = '#ff5a8a'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; for (let i = 0; i < 4; i++) x.fillRect(i * 32, 0, 12, h); x.fillStyle = '#ffd12e'; x.fillRect(0, h * 0.42, w, h * 0.16); });
   // ---- the five other tools: one builder each, used for the tool in the hand and for the shot that flies
   const FL = cfg.feel, basic = (c, o = {}) => keep(new THREE.MeshBasicMaterial({ color: c, ...o }));
   const glowTex = tex(32, 32, (x) => { const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); });
-  const glowMats = {}, glow = (c, size, parent, own) => { const m = own ? keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })) : (glowMats[c] || (glowMats[c] = keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })))); const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); parent.add(sp); return sp; };
-  const rockOpts = { color: FL.meteor.look.rock, emissive: FL.meteor.look.glow, emissiveIntensity: FL.meteor.look.heat, roughness: 0.9, metalness: 0, flatShading: true };
+  const glowMats = {}, glow = (c, size, parent, own) => { const m = own ? keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })) : (glowMats[c] || (glowMats[c] = keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })))); if (!glowList.some((x) => x.m === m)) glows(m, 'sprite'); const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); parent.add(sp); return sp; };
+  // the meteor's cracks: a small drawn map, bright where the rock is split; the rest keeps a little heat (look.ember)
+  const crackTex = tex(64, 64, (x) => { x.fillStyle = FL.meteor.look.ember; x.fillRect(0, 0, 64, 64); x.lineCap = x.lineJoin = 'round'; x.strokeStyle = '#ffffff'; for (let i = 0; i < 10; i++) { let px = (i * 37) % 64, py = (i * 23 + 11) % 64; x.lineWidth = 1.5 + (i % 3); x.beginPath(); x.moveTo(px, py); for (let j = 0; j < 5; j++) { px += ((i * 7 + j * 13) % 17) - 8; py += ((i * 5 + j * 11) % 19) - 9; x.lineTo(px, py); } x.stroke(); } });
+  crackTex.wrapS = crackTex.wrapT = THREE.RepeatWrapping; crackTex.repeat.set(2, 1);
+  const rockOpts = { color: FL.meteor.look.rock, emissive: FL.meteor.look.glow, emissiveIntensity: FL.meteor.look.heat, emissiveMap: crackTex, roughness: 0.9, metalness: 0, flatShading: true };
   const TM = {
     iron: toy({ color: FL.bomb.look.iron, roughness: 0.36, metalness: 0.9 }), brass: toy({ color: FL.bomb.look.cap, roughness: 0.3, metalness: 1 }), fuse: toy({ color: FL.bomb.look.fuse, roughness: 0.9, metalness: 0 }),
     shell: toy({ color: FL.rocket.look.body, roughness: 0.3, metalness: 0.1 }), red: toy({ color: FL.rocket.look.nose, roughness: 0.35, metalness: 0.05 }), tube: toy({ color: FL.rocket.look.tube, roughness: 0.5, metalness: 0.25, side: THREE.DoubleSide }),
-    dark: toy({ color: FL.rocket.look.metal, roughness: 0.35, metalness: 1 }), ball: toy({ map: ballTex, roughness: 0.3, metalness: 0.05 }),
+    dark: toy({ color: FL.rocket.look.metal, roughness: 0.35, metalness: 1 }), ball: toy({ color: FL.ball.look.body, roughness: 0.42, metalness: 0.9 }), band: toy({ color: FL.ball.look.band, roughness: 0.28, metalness: 1 }),
     rock: toy(rockOpts), rockHeld: toy(rockOpts),
   };
-  const emberMat = basic(FL.bomb.look.ember), coreMat = basic(FL.hole.look.core), rimMat = basic(FL.hole.look.rim), rimHeld = basic(FL.hole.look.rim), lampMat = basic(FL.rocket.look.wait), beaconMat = basic(FL.meteor.look.lamp);
+  for (const m of [TM.rock, TM.rockHeld]) m.low.emissiveMap = crackTex;
+  // the rocket's exhaust: a see-through orange flame around a white-hot core, both shine in the glow pass
+  const flameMat = glows(basic(FL.rocket.flight.flame.outer, { transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }), 'fire'), flameCore = glows(basic(FL.rocket.flight.flame.core, { fog: false }), 'fire');
+  // what the flying tools leave in the air (colours made once): the bomb's fuse embers, the meteor's flame lumps
+  const fuse0 = new THREE.Color(FL.bomb.look.ember), fuse1 = new THREE.Color(FL.bomb.look.glow), tail0 = new THREE.Color(FL.meteor.blast.core), tail1 = new THREE.Color(FL.meteor.blast.shell), tail2 = new THREE.Color(FL.meteor.look.ember);
+  const emberMat = basic(FL.bomb.look.ember), coreMat = basic(FL.hole.look.core), rimMat = basic(FL.hole.look.rim), rimHeld = basic(FL.hole.look.rim), lampMat = basic(FL.rocket.look.wait);
   /** A bomb of radius 1: iron ball, brass cap, a braided fuse leaning over, an ember with its glow at the tip. */
   function mBomb(g) {
     tpart(tg('sph', () => new THREE.SphereGeometry(1, 18, 12)), TM.iron, 0, 0, 0, g);
@@ -300,16 +326,22 @@ export function createScene(cv, cfg) {
     for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, f = tpart(tg('rfin', () => new THREE.BoxGeometry(0.16, 1.6, 1.3)), TM.red, Math.cos(a) * 1.45, -1.9, Math.sin(a) * 1.45, g); f.rotation.y = Math.PI / 2 - a; }
     return g;
   }
-  /** A wrecking ball of radius 1 with a shackle on top. */
+  /**
+   * A wrecking ball of radius 1: a gunmetal body, a brighter worn band around it with eight brass rivets, and on top a
+   * collar with a chunky shackle. The band runs across the rolling axis, so the band, rivets and shackle show the spin.
+   */
   function mBall(g) {
-    g.userData.ball = tpart(tg('ball', () => new THREE.SphereGeometry(1, 24, 16)), TM.ball, 0, 0, 0, g);
-    tpart(tg('shack', () => new THREE.TorusGeometry(0.3, 0.09, 6, 14)), TM.dark, 0, 1.12, 0, g.userData.ball);
+    const b = g.userData.ball = tpart(tg('ball', () => new THREE.SphereGeometry(1, 28, 18)), TM.ball, 0, 0, 0, g);
+    tpart(tg('ballBand', () => new THREE.CylinderGeometry(1.025, 1.025, 0.34, 36, 1, true)), TM.band, 0, 0, 0, b).rotation.z = Math.PI / 2;
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; tpart(tg('ballRivet', () => new THREE.SphereGeometry(0.075, 8, 6)), TM.brass, 0, Math.cos(a) * 1.03, Math.sin(a) * 1.03, b); }
+    tpart(tg('ballCollar', () => new THREE.CylinderGeometry(0.3, 0.38, 0.2, 14)), TM.band, 0, 1.02, 0, b);
+    tpart(tg('shack', () => new THREE.TorusGeometry(0.3, 0.12, 8, 16)), TM.dark, 0, 1.3, 0, b);
     return g;
   }
-  /** A meteor of radius 1: a glowing rock with a halo. */
-  function mRock(g, pr, own) {
-    g.userData.rock = tpart(tg('rock', () => new THREE.IcosahedronGeometry(1, 1)), pr, 0, 0, 0, g);
-    g.userData.halo = glow(FL.meteor.look.halo, 3.4, g, own);
+  /** A meteor of radius 1: a craggy rock (its faces pushed in and out), glowing in its cracks, with a halo. */
+  function mRock(g, pr, own, halo = 3.4) {
+    g.userData.rock = tpart(tg('rock', () => { const q = new THREE.IcosahedronGeometry(1, 2), p = q.attributes.position, c = FL.meteor.look.crag; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + c * (Math.sin(x * 5.1 + y * 3.3) * Math.sin(z * 4.7 - x * 2.9) + 0.5 * Math.sin(y * 9.2 + z * 6.1)); p.setXYZ(i, x * k, y * k * 0.86, z * k); } q.computeVertexNormals(); return q; }), pr, 0, 0, 0, g);
+    g.userData.halo = glow(FL.meteor.look.halo, halo, g, own);
     return g;
   }
   // in the hand (the rig's units): each has charge(k), k = 0 just used ... 1 ready again; hold.rot turns it for its outline
@@ -345,34 +377,32 @@ export function createScene(cv, cfg) {
     g.userData.charge = (k, ready) => { core.scale.setScalar(0.12 * (0.25 + 0.75 * k)); rimHeld.color.copy(cA).lerp(cB, k * k); halo.scale.setScalar(0.7 * k * (ready ? 1 + Math.sin(time * 6) * 0.08 : 0.7)); g.userData.spin = 1 + k * 5; };
   }
   {
-    // a beacon dish on the hand with a lamp; over it the rock, cold and small after a call, glowing when ready
-    const g = held.meteor; tpart(tg('mdish', () => new THREE.CylinderGeometry(0.12, 0.06, 0.06, 12)), TM.dark, 0, 0.12, -0.05, g); tpart(tg('hstem', () => new THREE.CylinderGeometry(0.03, 0.03, 0.1, 8)), TM.brass, 0, 0.05, -0.05, g);
-    const lamp = part(tg('llamp', () => new THREE.SphereGeometry(0.028, 8, 6)), beaconMat, 0.1, 0.17, -0.05, g);
-    const r = mRock(new THREE.Group(), TM.rockHeld, true); r.position.set(0, 0.36, -0.05); g.add(r);
-    g.userData.charge = (k, ready) => { r.scale.setScalar(0.15 * (0.55 + 0.45 * k)); r.rotation.y = time * 0.9; r.rotation.x = time * 0.5; const heat = FL.meteor.look.heat * k * k; TM.rockHeld.std.emissiveIntensity = TM.rockHeld.low.emissiveIntensity = heat; r.userData.halo.scale.setScalar(3.4 * k * (ready ? 1 + Math.sin(time * 7) * 0.06 : 0.6)); lamp.visible = ready ? Math.sin(time * 9) > -0.3 : false; };
+    // the rock rests on the hand: cold and small after a call, glowing in its cracks when ready (it turns slowly where it lies)
+    const g = held.meteor, HS = FL.meteor.hold.size;
+    const r = mRock(new THREE.Group(), TM.rockHeld, true); r.rotation.z = 0.35; g.add(r);
+    g.userData.charge = (k, ready) => { const sc = HS * (0.55 + 0.45 * k); r.scale.setScalar(sc); r.position.set(0, 0.08 + sc * 0.8, -0.05); r.rotation.y = time * 0.5 * motionK; const heat = FL.meteor.look.heat * k * k; TM.rockHeld.std.emissiveIntensity = TM.rockHeld.low.emissiveIntensity = heat; r.userData.halo.scale.setScalar(3.4 * k * (ready ? 1 + Math.sin(time * 7) * 0.06 * motionK : 0.6)); };
   }
   const holeMat = keep(new THREE.MeshBasicMaterial({ color: '#16052a' })), ringMat = keep(new THREE.MeshBasicMaterial({ color: '#b65cff', transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
   // shot parts are made once and shared by every throw (a new geometry per bomb grew GPU memory all level)
   const SH = {}, sh = (k, make) => SH[k] || (SH[k] = keep(make()));
+  // a shot's model goes back on its kind's shelf (hidden, still in the scene: a tier change reaches it) and flies again
+  const shelf = {};
   function shotMesh(s) {
-    const g = new THREE.Group();
+    const old = shelf[s.kind] && shelf[s.kind].pop();
+    if (old) { old.visible = true; old.userData.px = undefined; return old; }
+    const g = new THREE.Group(); g.userData.kind = s.kind;
     if (s.kind === 'bomb') { const b = mBomb(new THREE.Group()); b.scale.setScalar(0.42); g.add(b); g.userData.spark = b.userData.ember; g.userData.halo = b.userData.halo; }
-    else if (s.kind === 'rocket') { const r = mRocket(new THREE.Group()); r.scale.setScalar(0.22); r.rotation.x = Math.PI / 2; g.add(r); }
+    else if (s.kind === 'rocket') {
+      const RF = FL.rocket.flight, r = g.userData.body = mRocket(new THREE.Group()); r.scale.setScalar(RF.scale); r.rotation.x = Math.PI / 2; g.add(r);
+      // the exhaust behind the nozzle (a cone of length 1, its mouth at the nozzle) and a glow over it
+      const fl = g.userData.flame = new THREE.Group(), cone = tg('rflame', () => new THREE.ConeGeometry(0.85, 1, 10).rotateX(Math.PI).translate(0, -0.5, 0)); fl.position.y = -3.05; r.add(fl);
+      part(cone, flameMat, 0, 0, 0, fl).scale.y = RF.flame.len; part(cone, flameCore, 0, 0, 0, fl).scale.set(0.55, RF.flame.len * 0.55, 0.55);
+      g.userData.halo = glow(RF.flame.outer, 1, g); g.userData.halo.position.z = -(3.05 + RF.flame.len * 0.3) * RF.scale;
+    }
     else if (s.kind === 'ball') { const b = mBall(new THREE.Group()); b.scale.setScalar(s.r); g.add(b); g.userData.ball = b.userData.ball; }
     else if (s.kind === 'hole') { part(sh('hole', () => new THREE.SphereGeometry(0.6, 16, 12)), holeMat, 0, 0, 0, g); glow(FL.hole.look.rim, 3.6, g); for (let i = 0; i < 3; i++) { const t = part(sh('ring' + i, () => new THREE.TorusGeometry(1.1 + i * 0.5, 0.08, 6, 32)), ringMat, 0, 0, 0, g); t.rotation.x = Math.PI / 2 + i * 0.3; t.userData.spin = 2 + i; } }
-    else if (s.kind === 'meteor') { const r = mRock(new THREE.Group(), TM.rock, false); r.scale.setScalar(1.3); g.add(r); }
+    else if (s.kind === 'meteor') { const r = mRock(new THREE.Group(), TM.rock, false, FL.meteor.flight.halo); r.scale.setScalar(1.3); g.add(r); g.userData.halo = r.userData.halo; }
     scene.add(g); return g;
-  }
-  const fireMat = keep(new THREE.MeshBasicMaterial({ color: '#ffd23c', transparent: true, depthWrite: false, fog: false }));
-  const fireMat2 = keep(new THREE.MeshBasicMaterial({ color: '#ff7a1f', transparent: true, depthWrite: false, fog: false }));
-  const ringGeo = keep(new THREE.RingGeometry(0.85, 1, 40)), waveMat = keep(new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
-  const blasts = [];
-  const fireGeo = keep(new THREE.IcosahedronGeometry(1, 2));
-  function addBlast(x, y, z, r) {
-    const a = new THREE.Mesh(fireGeo, fireMat.clone()), b = new THREE.Mesh(fireGeo, fireMat2.clone()), w = new THREE.Mesh(ringGeo, waveMat.clone());
-    a.position.set(x, y, z); b.position.set(x, y, z); w.position.set(x, 0.05, z); w.rotation.x = -Math.PI / 2;
-    scene.add(a, b, w); blasts.push({ a, b, w, r, t: 0 });
-    flash.position.set(x, y + 1, z); flash.intensity = 60 * Math.min(1.5, r / 3);
   }
   const falls = new Map();
 
@@ -380,6 +410,76 @@ export function createScene(cv, cfg) {
   const cam = { yaw: 0, pitch: cfg.camera.pitch0, trauma: 0, follow: true, bob: 0, eyeY: cfg.camera.eye };
   const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4(), tmpS = new THREE.Vector3(), tmpC = new THREE.Color();
   const WHITE = new THREE.Color(1, 1, 1);
+
+  // ---- the explosion kit: every blast (bomb, rocket, meteor, barrels) is drawn from three pooled instanced meshes
+  // (cfg.feel.blast.kit): fire (the core, the shell's lumps, the embers), smoke (lit lumps, each with its own fade)
+  // and waves (the ring on the ground, the ring in the air). A pool is one Float32Array: nothing is made per blast.
+  // fire: t, life, x, y, z, vx, vy, vz, size, kind (0 core, 1 shell lump, 2 ember), colour at birth (3), at death (3)
+  // smoke: t, life, x, y, z, vx, vy, vz, size, its colour at first (r, g, b), its colour at the end (r, g, b)
+  // wave: t, life, x, y, z, radius, flat (1 = lies on the ground, 0 = faces the eye), colour (3)
+  const KT = FB.kit, kitPool = (max, st) => ({ n: 0, max, st, a: new Float32Array(max * st) });
+  const KF = kitPool(KT.max.fire, 16), KS = kitPool(KT.max.smoke, 15), KW = kitPool(KT.max.wave, 10), KITS = [KF, KS, KW];
+  const kitMesh = (geo, mat, max) => { const m = new THREE.InstancedMesh(geo, mat, max); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.setColorAt(0, WHITE); m.count = 0; scene.add(m); return m; };
+  const fireMesh = kitMesh(keep(new THREE.IcosahedronGeometry(1, 1)), keep(new THREE.MeshBasicMaterial({ fog: false, vertexColors: true })), KF.max);
+  // facets: a face is darker the more it turns from the sun, so a lump of one flat colour still reads as a solid
+  {
+    const p = fireMesh.geometry.attributes.position, col = new Float32Array(p.count * 3), L = new THREE.Vector3(0.4, 0.8, 0.45).normalize(), n = new THREE.Vector3();
+    for (let i = 0; i < p.count; i += 3) { n.set(p.getX(i) + p.getX(i + 1) + p.getX(i + 2), p.getY(i) + p.getY(i + 1) + p.getY(i + 2), p.getZ(i) + p.getZ(i + 1) + p.getZ(i + 2)).normalize(); col.fill(1 - KT.fire.facet * (0.5 - 0.5 * n.dot(L)), i * 3, i * 3 + 9); }
+    fireMesh.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
+  const smokeGeo = keep(new THREE.IcosahedronGeometry(1, 1)), smokeFade = new THREE.InstancedBufferAttribute(new Float32Array(KS.max), 1);
+  smokeFade.setUsage(THREE.DynamicDrawUsage); smokeGeo.setAttribute('aFade', smokeFade);
+  const smokeMat = fades(keep(new THREE.MeshLambertMaterial({ transparent: true, depthWrite: false })), 0);
+  /** Real transparency per instance: the geometry's aFade multiplies the alpha; soft > 0 also thins each puff out towards its rim (the power of the facing). */
+  function fades(mat, soft) {
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;');
+      if (soft) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>\ndiffuseColor.a *= pow(abs(dot(normal, normalize(vViewPosition))), ${soft.toFixed(2)});`);
+    };
+    // (two patches with the same source text would share one program)
+    mat.customProgramCacheKey = () => 'fade' + soft; return mat;
+  }
+  const smokeMesh = kitMesh(smokeGeo, smokeMat, KS.max);
+  const waveMesh = kitMesh(keep(new THREE.RingGeometry(KT.wave.thin, 1, 40)), keep(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false })), KW.max);
+  const waveFlat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const kc0 = new THREE.Color(), kc1 = new THREE.Color(), kc2 = new THREE.Color(), smoke0 = new THREE.Color(KT.smoke.from), smoke1 = new THREE.Color(KT.smoke.to);
+  /** One more particle in a kit pool: its offset in the pool's array, or -1 when the pool is full. */
+  function kitAdd(P, life, x, y, z) { if (P.n >= P.max) return -1; const o = P.n++ * P.st, a = P.a; a[o] = 0; a[o + 1] = life; a[o + 2] = x; a[o + 3] = y; a[o + 4] = z; return o; }
+  function kitFire(life, x, y, z, vx, vy, vz, size, kind, c0, c1) { const o = kitAdd(KF, life, x, y, z), a = KF.a; if (o < 0) return; a[o + 5] = vx; a[o + 6] = vy; a[o + 7] = vz; a[o + 8] = size; a[o + 9] = kind; a[o + 10] = c0.r; a[o + 11] = c0.g; a[o + 12] = c0.b; a[o + 13] = c1.r; a[o + 14] = c1.g; a[o + 15] = c1.b; }
+  function kitWave(x, y, z, r, flat, c, k) { const o = kitAdd(KW, KT.wave.life, x, y, z), a = KW.a; if (o < 0) return; a[o + 5] = r; a[o + 6] = flat; a[o + 7] = c.r * k; a[o + 8] = c.g * k; a[o + 9] = c.b * k; }
+  /** A smoke puff's own colours: c0 when it appears, c1 when it has thinned out. */
+  function smokeTint(o, c0, c1) { const a = KS.a; a[o + 9] = c0.r; a[o + 10] = c0.g; a[o + 11] = c0.b; a[o + 12] = c1.r; a[o + 13] = c1.g; a[o + 14] = c1.b; }
+  /** One puff of the kit's smoke left in the air by a flying tool (M: cfg.feel.<tool>.flight.smoke): no wait for a fire, it starts part of the way into its life, in its own colour, a little off the path. */
+  function trailSmoke(x, y, z, M) { const o = kitAdd(KS, M.life[0] + Math.random() * M.life[1], x + (Math.random() - 0.5) * M.spread, y + (Math.random() - 0.5) * M.spread, z + (Math.random() - 0.5) * M.spread), a = KS.a; if (o < 0) return; tmpC.set(M.color); smokeTint(o, tmpC, tmpC); a[o] = a[o + 1] * M.age; a[o + 5] = (Math.random() - 0.5) * M.drift; a[o + 6] = M.rise * (0.5 + Math.random()); a[o + 7] = (Math.random() - 0.5) * M.drift; a[o + 8] = M.size * (0.7 + Math.random() * 0.6); }
+  /**
+   * A blast of radius e.r at e, from the kit: a white-hot core that swells, a shell of lumps that fly apart and shrink,
+   * embers under gravity, smoke that rises once the fire dies, a ring along the ground and (high tier, blast above
+   * the ground) one in the air. Colours: cfg.feel.<tool>.blast (the bomb's for barrels); tint = the show's colour.
+   * The low tier gets half the particles (cfg.quality.fx.low.blast).
+   */
+  function addBlast(e, tint) {
+    const B = (FL[e.kind] && FL[e.kind].blast) || FL.bomb.blast, T = fxTier(), F = KT.fire, S = KT.smoke, E = KT.embers, WV = KT.wave, r = e.r * (tint ? DM.fire : 1);
+    if (tint) { kc1.set(tint); kc0.copy(kc1).lerp(WHITE, F.white); } else { kc0.set(B.core); kc1.set(B.shell); }
+    kc2.setRGB(kc1.r * F.cool[0], kc1.g * F.cool[1], kc1.b * F.cool[2]);
+    kitFire(F.life, e.x, e.y, e.z, 0, 0, 0, r * F.core, 0, tmpC.copy(kc0).lerp(WHITE, F.white), kc0);
+    for (let i = Math.round(F.lumps * T.blast); i > 0; i--) {
+      const u = Math.random() * 2 - 1, ph = Math.random() * 6.283, q = Math.sqrt(1 - u * u), dx = q * Math.cos(ph), dy = u * 0.8 + 0.2, dz = q * Math.sin(ph), sp = r * F.out * F.drag * (0.7 + Math.random() * 0.6);
+      kitFire(F.life * (0.8 + Math.random() * 0.5), e.x + dx * r * F.from, e.y + dy * r * F.from, e.z + dz * r * F.from, dx * sp, dy * sp, dz * sp, r * F.lump * (0.7 + Math.random() * 0.6), 1, tmpC.copy(kc1).lerp(kc0, Math.random() * F.mix), kc2);
+    }
+    for (let i = Math.round(E.n * B.embers * T.blast); i > 0; i--) {
+      const u = Math.random(), ph = Math.random() * 6.283, q = Math.sqrt(1 - u * u), sp = E.speed * Math.sqrt(r) * (0.5 + Math.random());
+      kitFire(E.life[0] + Math.random() * E.life[1], e.x, e.y, e.z, q * Math.cos(ph) * sp, u * sp + E.up, q * Math.sin(ph) * sp, E.size * (0.6 + Math.random() * 0.8), 2, kc0, kc1);
+    }
+    for (let i = Math.round(S.n * T.blast); i > 0; i--) {
+      const o = kitAdd(KS, S.life[0] + Math.random() * S.life[1], e.x + (Math.random() - 0.5) * r * S.spread, e.y + (Math.random() - 0.3) * r * S.spread * 0.6, e.z + (Math.random() - 0.5) * r * S.spread), a = KS.a; if (o < 0) break;
+      // it waits for the fire to die (a negative age), then rises and drifts
+      a[o] = -S.delay * (0.5 + Math.random()); a[o + 5] = (Math.random() - 0.5) * S.drift * 2; a[o + 6] = S.rise * (0.6 + Math.random() * 0.8); a[o + 7] = (Math.random() - 0.5) * S.drift * 2; a[o + 8] = r * S.size * (0.7 + Math.random() * 0.6); smokeTint(o, smoke0, smoke1);
+    }
+    kitWave(e.x, 0.05, e.z, r * WV.size, 1, WHITE, WV.opacity);
+    if (T.sphere && e.y > FB.scorch.ground) kitWave(e.x, e.y, e.z, r * WV.air, 0, kc0, WV.airOpacity);
+    flash.position.set(e.x, e.y + 1, e.z); flash.intensity = 60 * Math.min(1.5, r / 3);
+  }
 
   /**
    * A broken block at (x, y, z) of material m becomes fragments of its kind (cfg.feel.frags.kinds): long tumbling
@@ -409,10 +509,15 @@ export function createScene(cv, cfg) {
     }
   }
   function killDebris(i) { const j = --D.n; if (i !== j) { D.b[i] = D.b[j]; D.g[i] = D.g[j]; D.g0[i] = D.g0[j]; for (let k = 0; k < 3; k++) D.c[i * 3 + k] = D.c[j * 3 + k]; for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; for (let k = 0; k < 3; k++) D.sh[i * 3 + k] = D.sh[j * 3 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
-  /** n puffs of dust; hang = a slow cloud that stays in the air and drifts before it fades (cfg.feel.frags.dust). */
+  /** The dust colour of a broken block (r: one of an event's removed cells): its material's colour lifted towards white (frags.dust.lift), cream when unknown. */
+  function dustTint(r) { const m = cfg.materials[(r || {}).m - 1]; return m ? '#' + tmpC.set(m.color).lerp(WHITE, FR.dust.lift).getHexString() : '#fbf6ec'; }
+  /**
+   * Puffs of dust in the given colour; hang = a slow cloud that stays in the air and drifts before it fades (cfg.feel.frags.dust).
+   * cfg.feel.frags.puff: every puff is drawn at `size` of the size asked for, and `share` of the n asked for appear (a share of one puff is its chance).
+   */
   function puff(x, y, z, size, color = '#f4ead8', n = 3, hang = false) {
-    const HD = FR.dust, sp = hang ? HD.speed : 1;
-    for (let k = 0; k < n; k++) {
+    const HD = FR.dust, sp = hang ? HD.speed : 1; size *= FR.puff.size;
+    for (let k = n * FR.puff.share; k > Math.random(); k--) {
       if (U.n >= dustMax * (low ? 0.5 : 1)) return;
       const i = U.n++;
       U.p[i * 3] = x + (Math.random() - 0.5) * size; U.p[i * 3 + 1] = y + Math.random() * size * 0.5; U.p[i * 3 + 2] = z + (Math.random() - 0.5) * size;
@@ -431,12 +536,16 @@ export function createScene(cv, cfg) {
     if (T.scorch > 0) {
       // a new mark while the tier's cap allows, else the oldest one moves here
       let it = scorches.length < T.scorch ? null : scorches.reduce((a, b) => (a.t > b.t ? a : b));
-      if (!it) { const mesh = new THREE.Mesh(scorchGeo, keep(new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }))); mesh.rotation.x = -Math.PI / 2; scene.add(mesh); it = { mesh, t: 0 }; scorches.push(it); }
+      if (!it) { const mesh = new THREE.Mesh(scorchGeo, Object.assign(keep(new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })), { onBeforeCompile: scorchFix })); mesh.rotation.x = -Math.PI / 2; scene.add(mesh); it = { mesh, t: 0 }; scorches.push(it); }
       it.t = 0; it.mesh.visible = true; it.mesh.position.set(e.x, 0.02 + (scorchN++ % 8) * 0.002, e.z); it.mesh.rotation.z = Math.random() * 6; it.mesh.scale.setScalar(e.r * SC.size);
     }
     const n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring), a0 = Math.random() * 6;
     for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; puff(e.x + Math.cos(a) * e.r * 0.8, 0.25, e.z + Math.sin(a) * e.r * 0.8, RG.size, RG.color, 1, T.hangDust); }
   }
+  /** A puff's own size at this point of its life: it only grows (quickly, then slowly: frags.puff.grow); its alpha is what goes away. */
+  function dustSize(i) { const k = U.life[i * 2] / U.life[i * 2 + 1]; return U.s[i * 2] * (0.5 + FR.puff.grow * (1 - (1 - k) * (1 - k))); }
+  /** The share of its size a puff is drawn at, d units from the camera (0 within look.puffNear, 1 beyond look.puffFar, smooth between). */
+  function dustFade(d) { const LK = cfg.look, t = Math.max(0, Math.min(1, (d - LK.puffNear) / Math.max(1e-3, LK.puffFar - LK.puffNear))); return t * t * (3 - 2 * t); }
   function killDust(i) { const j = --U.n; if (i !== j) { for (let k = 0; k < 3; k++) { U.p[i * 3 + k] = U.p[j * 3 + k]; U.v[i * 3 + k] = U.v[j * 3 + k]; } U.s[i * 2] = U.s[j * 2]; U.life[i * 2] = U.life[j * 2]; U.life[i * 2 + 1] = U.life[j * 2 + 1]; dust.getColorAt(j, tmpC); dust.setColorAt(i, tmpC); } }
   function spawnCoins(x, y, z, n) {
     for (let k = 0; k < n && C.n < coinMax; k++) { const i = C.n++; C.p[i * 3] = x; C.p[i * 3 + 1] = y; C.p[i * 3 + 2] = z; C.v[i * 3] = (Math.random() - 0.5) * 6; C.v[i * 3 + 1] = 5 + Math.random() * 4; C.v[i * 3 + 2] = (Math.random() - 0.5) * 6; C.t[i] = 0; }
@@ -455,7 +564,7 @@ export function createScene(cv, cfg) {
       const hx = W.hero.x, hz = W.hero.z;
       const cx = e.by === 'hammer' ? hx : e.x, cz = e.by === 'hammer' ? hz : e.z, cy = e.by === 'hammer' ? e.y - 0.5 : e.y - 1;
       for (let k = 0; k < cap; k++) { const c = e.removed[Math.floor(k * step)]; spawnDebris(c.x + 0.5, c.y + 0.5, c.z + 0.5, c.m, cx, cy, cz, power, e.by === 'hole' ? [e.x, e.y, e.z] : null); }
-      if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), '#fbf6ec', Math.min(6, 1 + (e.removed.length >> 4)));
+      if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), dustTint(e.removed[0]), Math.min(6, 1 + (e.removed.length >> 4)));
       // brick, stone and plaster leave a cloud in their own colour that hangs and drifts (not on the low tier)
       { const m0 = cfg.materials[(e.removed[0] || {}).m - 1]; if (e.by !== 'hole' && m0 && m0.frag === 'crumb' && fxTier().hangDust) { tmpC.set(m0.color).lerp(WHITE, FR.dust.lift); puff(e.x, e.y, e.z, FR.dust.size, '#' + tmpC.getHexString(), Math.min(FR.dust.max, 1 + Math.round(e.removed.length * FR.dust.per)), true); } }
       if (!W.demo) spawnCoins(e.x, e.y, e.z, Math.min(6, 1 + Math.floor(e.removed.length / 8)) + e.gold * 3);
@@ -488,16 +597,25 @@ export function createScene(cv, cfg) {
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
       if (e.kind === 'keg') placeBarrels();
-      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); groundFx(e); if (isShow()) showBoom(e); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
+      blastFx(e, e.r); groundFx(e); addBlast(e, isShow() ? showBoom(e) : null); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
     } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
     } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); if (!e.shot.from && FL[e.shot.kind] && FL[e.shot.kind].fire) toolFired(e.shot.kind); }
-    else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); blastFx(e, e.kind === 'hole' ? 2.5 : 1.5); }
+    // (the ball has rolled to a stop: a last breath of dust, no flash)
+    else if (e.type === 'pop') { if (e.kind === 'hole') { puff(e.x, e.y, e.z, 2, '#c58bff', 6); blastFx(e, 2.5); } else puff(e.x, 0.3, e.z, 2, FL.ball.look.dust, 6); }
+    // the ball comes down ('ballLand', then 'ballBounce' after its one bounce; a falling piece's own event is 'land'): a ring of dust and a shake by how hard it fell
+    else if (e.type === 'ballLand' || e.type === 'ballBounce') {
+      const RG = FB.ring, TH = FL.ball.thud, T = fxTier(), n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring * Math.min(1, e.fall / TH.full) * TH.ring), a0 = Math.random() * 6;
+      for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; puff(e.x + Math.cos(a) * e.r * 0.6, 0.25, e.z + Math.sin(a) * e.r * 0.6, RG.size, FL.ball.look.dust, 1, T.hangDust); }
+      addTrauma(Math.min(TH.shakeMax, e.fall * TH.shake), e);
+    }
     else if (e.type === 'roll') { if (e.first) blastFx({ kind: 'ball', x: e.x, y: e.y, z: e.z }, 1.9); }
     else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); hammerImpact(e, 0, null, true); hammerLanded(MO.recoil.clang, true); }
     else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); if (e.by === 'hammer' && !e.again) hammerLanded(MO.recoil.bot, false); }
+    // the boss robot knocked: sparks, a gold puff where the crown point popped off, a shake (boss.shake: stagger, down)
+    else if (e.type === 'bossHit' || e.type === 'bossDown') { const dn = e.type === 'bossDown'; sparks(e.x, e.y, e.z, dn ? 30 : 20); puff(e.hx, e.hy + 0.5, e.hz, 0.9, '#ffd21f', dn ? 6 : 3); addTrauma(cfg.boss.shake[dn ? 1 : 0], e); if (e.by === 'hammer') hammerLanded(MO.recoil.bot, false); }
     else if (e.type === 'swing') { ham.swingEv = true; ham.landed = false; ham.clang = false; ham.aimed = !!(W && (W.hero.swingCell || W.hero.swingBot)); }
     else if (e.type === 'hit') hammerLanded(e.n > 0 ? MO.recoil.base + MO.recoil.perBlock * e.n : MO.recoil.air, false, e.n);
     else if (e.type === 'super') hammerLanded(MO.recoil.super, false);
@@ -529,7 +647,7 @@ export function createScene(cv, cfg) {
   /** A blast of radius r at e: a flash sized by it, and the view widens by the tool's size, less the farther away. */
   function blastFx(e, r) {
     const T = FL[e.kind] && FL[e.kind].flash ? FL[e.kind] : FL.bomb, d = W ? Math.hypot(e.x - W.hero.x, e.z - W.hero.z) : 0, fall = Math.max(0, 1 - d / FL.shakeRange);
-    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = true; flash.color.set(T.flash.color);
+    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = !reduced; flash.color.set(T.flash.color);
     if (!(W && W.demo)) punch(T.camera.boomFov * fall);
   }
   /** A brief widening of the view (degrees), the biggest one wins; smaller with reduced motion. */
@@ -595,8 +713,8 @@ export function createScene(cv, cfg) {
   }
   // ---- BONK-BOTs: toy robots drawn from their points (marching, flying as a ragdoll, putting themselves together)
   const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
-  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' }));
-  const unitBox = box(1, 1, 1), botMeshes = new Map();
+  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' })), botGem = glows(keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' })), 'gem');
+  const unitBox = box(1, 1, 1), botMeshes = new Map(), BOT_H = cfg.bots.height;
   const UPV = new THREE.Vector3(0, 1, 0), bva = new THREE.Vector3(), bvb = new THREE.Vector3(), bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), bm = new THREE.Matrix4(), bq = new THREE.Quaternion();
   // faces: one atlas of 4 eye kinds (normal, X, dizzy swirl, happy) × 5 mouths; each cell a shared material
   const faceTex = tex(640, 256, (x) => drawFaces(x)), faceGeo = keep(new THREE.PlaneGeometry(0.36, 0.18)), faceMats = {};
@@ -635,17 +753,32 @@ export function createScene(cv, cfg) {
     const face = new THREE.Mesh(faceGeo, faceMat(0, b.mouth)); face.position.set(0, 0, 0.181); head.add(face);
     const cos = b.costume >= 0 ? COSTUMES[b.costume] : null;
     // a hat hides the antenna (the astronaut keeps it)
-    if (!cos || b.costume === 1) { add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0); }
+    if (!b.boss && (!cos || b.costume === 1)) { add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0); }
     const trunk = add(body, col, 0.46, 0.5, 0.34, 0, 0, 0, true); add(body, botWhite, 0.22, 0.16, 0.02, 0, 0.02, 0.175);
     if (cos) for (const [where, make, c, x, y, z, rx = 0, sc] of cos) { const m = new THREE.Mesh(geo(make.toString(), make), cmat(c)); m.position.set(x, y, z); m.rotation.x = rx; if (sc) m.scale.set(sc[0], sc[1], sc[2]); (where === 'head' ? head : body).add(m); }
     // arms and legs: an upper and a lower part each, a hand or a foot at the end
     const arm = () => ({ up: add(g, col, 0.11, 1, 0.11), low: add(g, col, 0.11, 1, 0.11), end: add(g, botWhite, 0.15, 0.15, 0.15) });
     const leg = () => ({ up: add(g, botDark, 0.14, 1, 0.14), low: add(g, botDark, 0.14, 1, 0.14), end: add(g, botDark, 0.17, 0.1, 0.27) });
     const limbs = [arm(), arm(), leg(), leg()];
+    // the neck: a dark post from inside the chest into the head, so the head never looks like it hovers
+    const neck = add(g, botDark, 0.16, 1, 0.16);
     let sign = null;
     if (b.sign >= 0) { const sp = signFor(b.sign), sg = new THREE.Group(), board = new THREE.Mesh(signGeo, sp.mat), stick = new THREE.Mesh(stickGeo, stickMat); board.castShadow = true; stick.position.y = -0.5; sg.add(board, stick); g.add(sg); sign = { g: sg, sp }; }
+    // the boss: the same robot, bigger (its height over a normal one's), with a gold crown: a band and one point with
+    // a red gem per knock it still takes (a point pops off with every knock: the count-down a non-reader sees)
+    let crown = null;
+    if (b.boss) {
+      const s = b.h / BOT_H, gold = cmat('#ffd21f'), n = cfg.boss.hits;
+      head.scale.setScalar(s); body.scale.setScalar(s); for (const L of limbs) L.end.scale.multiplyScalar(s);
+      const band = new THREE.Mesh(geo('crownBand', () => new THREE.CylinderGeometry(0.21, 0.18, 0.1, 14)), gold); band.position.set(0, 0.22, 0); band.castShadow = true; head.add(band);
+      crown = [];
+      for (let k = 0; k < n; k++) {
+        const a = (k - (n - 1) / 2) * 0.95, pt = new THREE.Mesh(geo('crownPoint', () => new THREE.ConeGeometry(0.09, 0.3, 4)), gold), gem = new THREE.Mesh(geo('crownGem', () => new THREE.SphereGeometry(0.06, 8, 6)), botGem);
+        pt.position.set(Math.sin(a) * 0.17, 0.41, Math.cos(a) * 0.17); gem.position.y = 0.18; pt.add(gem); head.add(pt); crown.push(pt);
+      }
+    }
     scene.add(g);
-    return { g, head, body, trunk, limbs, face, sign, fk: -1 };
+    return { g, head, body, trunk, limbs, neck, face, sign, crown, fk: -1 };
   }
   function dropBot(v) { scene.remove(v.g); if (v.sign) v.sign.sp.users--; }
   /** Points of a standing bot: the standing pose with swinging legs and arms and a bob; close to the hero it stomps and lifts its sign (or pumps a fist). */
@@ -673,12 +806,13 @@ export function createScene(cv, cfg) {
    * by `drop`) to the hand or foot e, bent at an elbow (backwards and outwards) or a knee (forwards).
    */
   const limbR = [0, 0, 0];
-  function limb(L, c, e, out, drop, len, t, knee) {
+  function limb(L, c, e, out, drop, len, t, knee, hs) {
     limbR[0] = c[0] + bx.x * out + by.x * drop; limbR[1] = c[1] + bx.y * out + by.y * drop; limbR[2] = c[2] + bx.z * out + by.z * drop;
     const s = Math.sign(out), j = knee ? limbJoint(limbR, e, len, [bz.x, bz.y, bz.z]) : limbJoint(limbR, e, len, [bx.x * s * 0.6 - bz.x, bx.y * s * 0.6 - bz.y, bx.z * s * 0.6 - bz.z]);
     along(L.up, limbR, j, t); along(L.low, j, e, t);
     // the hand sits on the end; the foot stands on it, toes forward
-    if (knee) L.end.position.set(e[0] + by.x * 0.05 + bz.x * 0.05, e[1] + by.y * 0.05 + bz.y * 0.05, e[2] + by.z * 0.05 + bz.z * 0.05); else L.end.position.set(e[0], e[1], e[2]);
+    const fo = 0.05 * hs;
+    if (knee) L.end.position.set(e[0] + by.x * fo + bz.x * fo, e[1] + by.y * fo + bz.y * fo, e[2] + by.z * fo + bz.z * fo); else L.end.position.set(e[0], e[1], e[2]);
     L.end.quaternion.copy(bq);
   }
   function along(m, a, b, t) {
@@ -700,10 +834,13 @@ export function createScene(cv, cfg) {
       bz.crossVectors(bx, by); bm.makeBasis(bx, by, bz); bq.setFromRotationMatrix(bm);
       v.head.position.set(P[0][0], P[0][1], P[0][2]); v.head.quaternion.copy(bq);
       v.body.position.set((P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2, (P[1][2] + P[2][2]) / 2); v.body.quaternion.copy(bq);
+      along(v.neck, [v.body.position.x, v.body.position.y, v.body.position.z], P[0], 0.16 * b.h / BOT_H);
       // shoulders at the sides of the chest, hips under the pelvis; lengths follow the bot's height
-      const hs = b.h / 1.5;
-      limb(v.limbs[0], P[1], P[3], -0.29, 0.03, 0.5 * hs, 0.11, false); limb(v.limbs[1], P[1], P[4], 0.29, 0.03, 0.5 * hs, 0.11, false);
-      limb(v.limbs[2], P[2], P[5], -0.12, -0.04, 0.62 * hs, 0.14, true); limb(v.limbs[3], P[2], P[6], 0.12, -0.04, 0.62 * hs, 0.14, true);
+      const hs = b.h / 1.5, hk = b.h / BOT_H;
+      limb(v.limbs[0], P[1], P[3], -0.29 * hk, 0.03 * hk, 0.5 * hs, 0.11 * hk, false, hk); limb(v.limbs[1], P[1], P[4], 0.29 * hk, 0.03 * hk, 0.5 * hs, 0.11 * hk, false, hk);
+      limb(v.limbs[2], P[2], P[5], -0.12 * hk, -0.04 * hk, 0.62 * hs, 0.14 * hk, true, hk); limb(v.limbs[3], P[2], P[6], 0.12 * hk, -0.04 * hk, 0.62 * hs, 0.14 * hk, true, hk);
+      // the boss's crown: one point per knock it still takes
+      if (v.crown) for (let k = 0; k < v.crown.length; k++) v.crown[k].visible = k < b.hp;
       // the face: X or dizzy eyes when knocked, a happy smile while getting up and walking off, else its own mouth
       const eye = b.state === 'down' ? 1 + (b.id % 2) : b.state === 'reboot' || b.happy > 0 ? 3 : 0, fk = eye * 5 + (eye === 3 ? 0 : b.mouth);
       if (fk !== v.fk) { v.fk = fk; v.face.material = faceMat(eye, eye === 3 ? 0 : b.mouth); }
@@ -723,7 +860,7 @@ export function createScene(cv, cfg) {
       // a standing bot is picked by the points it was drawn with last frame
       const b = W.bots[i], P = b.pts || b.drawn || standingPoints(b);
       // ray-point distance with plain numbers (no new vectors per bot per frame)
-      for (const k of [0, 1]) { const px = P[k][0] - o.x, py = P[k][1] - o.y, pz = P[k][2] - o.z, t = px * d.x + py * d.y + pz * d.z; if (t <= 0 || t > maxT) continue; const off = Math.hypot(px - d.x * t, py - d.y * t, pz - d.z * t); if (off < 0.5 && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
+      for (const k of [0, 1]) { const px = P[k][0] - o.x, py = P[k][1] - o.y, pz = P[k][2] - o.z, t = px * d.x + py * d.y + pz * d.z; if (t <= 0 || t > maxT) continue; const off = Math.hypot(px - d.x * t, py - d.y * t, pz - d.z * t); if (off < 0.5 * b.h / BOT_H && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
     }
     return best;
   }
@@ -734,7 +871,7 @@ export function createScene(cv, cfg) {
     for (const m of chunks.values()) { chunkRoot.remove(m); m.geometry.dispose(); } chunks.clear(); dirty.clear();
     for (const it of falls.values()) { scene.remove(it.holder); it.mesh.geometry.dispose(); } falls.clear();
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
-    for (const b of blasts) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); } blasts.length = 0;
+    for (const P of KITS) P.n = 0; fireMesh.count = smokeMesh.count = waveMesh.count = 0;
     D.n = 0; U.n = 0; C.n = 0; SP.n = 0; cam.kick = 0; cam.punch = 0;
     ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.landed = false; ham.yaw = 0; ham.pitch = cfg.camera.pitch0; hitFlash.visible = false; HF.t = 1; boomFlash.visible = false; BF.t = 1; fr.kind = null; ham.eq = 1;
     for (let cy = 0; cy * CS < W.g.H; cy++) for (let cz = 0; cz * CS < W.g.D; cz++) for (let cx = 0; cx * CS < W.g.W; cx++) buildChunk(cx, cy, cz);
@@ -833,29 +970,96 @@ export function createScene(cv, cfg) {
       tmpC.set(RN.colors[(Math.random() * RN.colors.length) | 0]); D.c[o] = tmpC.r; D.c[o + 1] = tmpC.g; D.c[o + 2] = tmpC.b; debris.setColorAt(i, tmpC);
     }
   }
-  /** A blast during the show: its fire in the next of the show's colours, big dust rolling out, a brightness pulse (never two within flash.gap). */
+  /** A blast during the show: the next of the show's colours (returned: the kit's fire takes it), big dust rolling out, a brightness pulse (never two within flash.gap). */
   function showBoom(e) {
-    const c = DM.colors[show.ci++ % DM.colors.length], bl = blasts[blasts.length - 1];
-    if (bl) { bl.a.material.color.set(c); bl.b.material.color.set(c).offsetHSL(0.02, 0, -0.1); bl.r *= DM.fire; }
+    const c = DM.colors[show.ci++ % DM.colors.length];
     boomFlash.material.color.set(c); flash.color.set(c);
     tmpC.set(c).lerp(WHITE, DM.dust.lift); const hex = '#' + tmpC.getHexString(), n = low ? Math.ceil(DM.dust.n / 2) : DM.dust.n;
     for (let i = 0; i < n; i++) { const a = Math.random() * 6.283; puff(e.x + Math.cos(a) * e.r, Math.max(0.4, e.y - 0.5), e.z + Math.sin(a) * e.r, DM.dust.size, hex, 1, !low); }
     if (show.since >= DM.flash.gap) { show.since = 0; pulseC.set(c); }
+    return c;
+  }
+  // ---- glow (bloom) and the final grade: the high tier only (cfg.look.bloom, .glow, .grade). The scene is drawn to a
+  // half-float target without tone mapping; what is brighter than the threshold is blurred at a quarter and an eighth of
+  // the resolution and added back; the last shader draws to the canvas, where the renderer's own tone mapping and sRGB
+  // output run once (the same code as the direct render), and then grades. The low tier has no targets at all.
+  glows(fireMesh.material, 'fire'); glows(hitFlash.material, 'flash'); glows(boomFlash.material, 'flash'); glows(sparkMesh.material, 'sparks');
+  glows(coinMat, 'coin', 'emissiveIntensity'); glows(markMat, 'star'); glows(beamMat, 'beam'); glows(ringMat, 'ring');
+  for (const m of [TM.rock, TM.rockHeld]) { glows(m.std, 'meteor', 'emissiveIntensity'); glows(m.low, 'meteor', 'emissiveIntensity'); }
+  const BL = LK.bloom, GW = LK.glow, GR = LK.grade;
+  // reduced motion: the glow stays, the flashes get no extra
+  const glowK = (x) => (reduced && x.k === 'flash' ? 1 : GW[x.k]);
+  function glowSet(on) {
+    for (const x of glowList) {
+      if (x.p === 'color') { const c = x.m.color; if (on) { x.r = c.r; x.g = c.g; x.b = c.b; c.multiplyScalar(glowK(x)); } else c.setRGB(x.r, x.g, x.b); }
+      else if (on) { x.r = x.m.emissiveIntensity; x.m.emissiveIntensity *= glowK(x); } else x.m.emissiveIntensity = x.r;
+    }
+  }
+  const fsCam = new THREE.Camera(), fsGeo = keep(new THREE.BufferGeometry()); fsGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+  const fsMesh = new THREE.Mesh(fsGeo, null); fsMesh.frustumCulled = false;
+  const fsVert = 'varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const fsMat = (uniforms, fragmentShader) => keep(new THREE.ShaderMaterial({ uniforms, vertexShader: fsVert, fragmentShader, depthTest: false, depthWrite: false, fog: false }));
+  // bright parts only, averaged over 4 x 4 pixels on the way down to a quarter
+  const brightMat = fsMat({ t: { value: null }, px: { value: new THREE.Vector2() }, thr: { value: 1 }, knee: { value: 1 }, lim: { value: 1 } },
+    'uniform sampler2D t; uniform vec2 px; uniform float thr; uniform float knee; uniform float lim; varying vec2 vUv; void main(){ vec3 c = (texture2D(t, vUv + px * vec2(-1.0, -1.0)).rgb + texture2D(t, vUv + px * vec2(1.0, -1.0)).rgb + texture2D(t, vUv + px * vec2(-1.0, 1.0)).rgb + texture2D(t, vUv + px).rgb) * 0.25; float b = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(min(c * smoothstep(thr, thr + knee, b), vec3(lim)), 1.0); }');
+  // one direction of a 9-pixel Gaussian in 5 samples
+  const blurMat = fsMat({ t: { value: null }, d: { value: new THREE.Vector2() } },
+    'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227027; c += (texture2D(t, vUv + d * 1.384615).rgb + texture2D(t, vUv - d * 1.384615).rgb) * 0.316216; c += (texture2D(t, vUv + d * 3.230769).rgb + texture2D(t, vUv - d * 3.230769).rgb) * 0.070270; gl_FragColor = vec4(c, 1.0); }');
+  // the picture: scene + glow, the renderer's tone mapping and sRGB (this material draws to the canvas), then the grade
+  const finalMat = fsMat({ t: { value: null }, b1: { value: null }, b2: { value: null }, strength: { value: 0 }, vig: { value: 0 }, con: { value: 1 }, sat: { value: 1 } },
+    'uniform sampler2D t; uniform sampler2D b1; uniform sampler2D b2; uniform float strength; uniform float vig; uniform float con; uniform float sat; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb + (texture2D(b1, vUv).rgb + texture2D(b2, vUv).rgb) * strength, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\nvec3 g = gl_FragColor.rgb; g = mix(vec3(dot(g, vec3(0.2126, 0.7152, 0.0722))), g, sat); g = (g - 0.5) * con + 0.5; g *= 1.0 - vig * smoothstep(0.35, 1.0, length(vUv - 0.5) * 1.4142); gl_FragColor.rgb = clamp(g, 0.0, 1.0); }');
+  let post = null;
+  const postSize = new THREE.Vector2();
+  /** Can this GPU draw to half-float targets? (WebGL2 with one of the two extensions.) */
+  function hdrOk() { try { const gl = renderer.getContext(); return typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext && !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float')); } catch (e) { return false; } }
+  function postFree() { if (post) for (const t of post.rt) t.dispose(); post = null; }
+  /** Makes, resizes or releases the glow pass's targets for the tier and the drawing size (after a resize, a tier change, a restored context). */
+  // the game switches the glow on once the frame rate has proved it can carry it (never during the first seconds)
+  let glowOn = false;
+  function postSync() {
+    // (the glow is the first thing to go when the frame rate dips: any step down in resolution drops it)
+    if (low || !BL.on || !glowOn || !hdrOk() || dpr < dprBase - 0.01) { postFree(); return; }
+    renderer.getDrawingBufferSize(postSize); const w = Math.max(1, postSize.x), h = Math.max(1, postSize.y), q = (d) => [Math.max(1, Math.round(w / d)), Math.max(1, Math.round(h / d))];
+    if (!post) {
+      const small = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small() };
+      post.rt = [post.scene, post.q1, post.q2, post.e1, post.e2];
+    }
+    post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8));
+  }
+  const fsPass = (mat, target) => { fsMesh.material = mat; renderer.setRenderTarget(target); renderer.render(fsMesh, fsCam); };
+  /** Draws the frame: the world, the hands on top (not in the attract show: it is not first person), then the glow pass if it is on. */
+  function draw(hands) {
+    // (the attract show is drawn direct: its colours were tuned without the pass)
+    const on = post && !isShow();
+    scorchLin.value = on ? 1 : 0;
+    if (on) { glowSet(true); renderer.setRenderTarget(post.scene); }
+    renderer.autoClear = true; renderer.render(scene, camera);
+    if (hands) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; }
+    if (!on) return;
+    glowSet(false);
+    const P = post, u = brightMat.uniforms, d = blurMat.uniforms.d.value, f = finalMat.uniforms;
+    u.t.value = P.scene.texture; u.px.value.set(1 / P.scene.width, 1 / P.scene.height); u.thr.value = BL.threshold; u.knee.value = BL.knee; u.lim.value = BL.max; fsPass(brightMat, P.q1);
+    blurMat.uniforms.t.value = P.q1.texture; d.set(1 / P.q1.width, 0); fsPass(blurMat, P.q2);
+    blurMat.uniforms.t.value = P.q2.texture; d.set(0, 1 / P.q1.height); fsPass(blurMat, P.q1);
+    // the wide level: the quarter one again, an eighth the size, blurred twice as far
+    blurMat.uniforms.t.value = P.q1.texture; d.set(1 / P.e1.width, 0); fsPass(blurMat, P.e2);
+    blurMat.uniforms.t.value = P.e2.texture; d.set(0, 1 / P.e1.height); fsPass(blurMat, P.e1);
+    f.t.value = P.scene.texture; f.b1.value = P.q1.texture; f.b2.value = P.e1.texture; f.strength.value = BL.strength; f.vig.value = GR.vignette; f.con.value = GR.contrast; f.sat.value = GR.saturation;
+    fsPass(finalMat, null);
   }
   // ---- per frame
   let time = 0;
   function update(world, dt) {
     W = world; time += dt; frameN++;
-    if (!W) { renderer.render(scene, camera); return; }
+    if (!W) { draw(false); return; }
     // remesh what changed
-    for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
-    dirty.clear();
+    // nearest to the eye first, within the frame's budget (quality.remeshMs); the rest stay dirty for the next frames
+    remeshNearest(dirty, camera.position.x, camera.position.y, camera.position.z, CS, cfg.quality.remeshMs, nowMs, remeshOne);
     if (isShow()) { showCamera(dt); showRain(dt); } else updateCamera(dt);
     updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
     if (boomBox.visible) { boomArrow.position.y = 2.25 + Math.sin(time * 4) * 0.16; boomArrow.rotation.y = time * 2; }
-    renderer.autoClear = true; renderer.render(scene, camera);
-    // the hands on top (not in the attract show: it is not first person)
-    if (!isShow()) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; }
+    draw(!isShow());
   }
   function updateHero(dt) {
     const h = W.hero;
@@ -961,13 +1165,34 @@ export function createScene(cv, cfg) {
   function updateShots(dt) {
     for (const [id, g] of shotMeshes) {
       const s = W.shots.find((x) => x.id === id);
-      if (!s) { scene.remove(g); shotMeshes.delete(id); continue; }
+      if (!s) { g.visible = false; (shelf[g.userData.kind] || (shelf[g.userData.kind] = [])).push(g); shotMeshes.delete(id); continue; }
       g.position.set(s.x, s.y, s.z);
-      if (s.kind === 'bomb') { g.rotation.x += dt * 8; const f = 0.8 + Math.random() * 0.6; g.userData.spark.scale.setScalar(f); g.userData.halo.scale.set(f, f, 1); if (Math.random() < FL.bomb.trail) sparks(s.x, s.y + 0.3, s.z, 1); }
-      else if (s.kind === 'rocket') { g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); if (Math.random() < FL.rocket.trail) { puff(s.x - s.dx, s.y - s.dy, s.z - s.dz, 0.5, '#ffffff', 1); sparks(s.x - s.dx * 0.8, s.y - s.dy * 0.8, s.z - s.dz * 0.8, 1); } }
-      else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (Math.random() < FL.ball.trail) puff(s.x, 0.2, s.z, 0.7, '#efe4cf', 1); }
+      // near: nothing bright in the camera's face (as the dust); flick: this frame's flicker (none with reduced motion);
+      // (mx, my, mz): how far it came this frame, the trail is laid along that stretch so it has no gaps at any frame rate
+      const U = g.userData, cp = camera.position, near = Math.max(1e-3, dustFade(Math.hypot(s.x - cp.x, s.y - cp.y, s.z - cp.z))), flick = reduced ? 1 : 0.75 + Math.random() * 0.5, half = fxTier().blast, E = KT.embers;
+      if (U.px === undefined) { U.px = s.x; U.py = s.y; U.pz = s.z; U.em = U.em2 = 0; }
+      const mx = s.x - U.px, my = s.y - U.py, mz = s.z - U.pz; U.px = s.x; U.py = s.y; U.pz = s.z;
+      if (s.kind === 'bomb') {
+        // a slow tumble; the fuse tip spits sparks and drops a few embers that fall behind it
+        const BF = FL.bomb.flight; g.rotation.x += dt * BF.spin; g.rotation.z += dt * BF.spin * 0.4; U.spark.scale.setScalar(BF.tip * flick); U.halo.scale.setScalar(BF.glow * flick * near); U.spark.getWorldPosition(tmpV);
+        if (Math.random() < FL.bomb.trail) sparks(tmpV.x, tmpV.y, tmpV.z, 1);
+        for (U.em += dt * BF.embers.rate * half; U.em >= 1; U.em--) kitFire(E.life[0] + Math.random() * E.life[1], tmpV.x, tmpV.y, tmpV.z, (Math.random() - 0.5) * BF.embers.speed, Math.random() * BF.embers.speed, (Math.random() - 0.5) * BF.embers.speed, E.size * BF.embers.size * (0.6 + Math.random() * 0.8), 2, fuse0, fuse1);
+      }
+      else if (s.kind === 'rocket') {
+        // it rolls slowly on its axis; the flame's length flickers; smoke puffs are left behind the flame, a little to the right of and below its path
+        // (smoke.off, on the launcher's side: the rocket flies straight away from the eye, and a trail on that line is seen end-on, as one dot)
+        const RF = FL.rocket.flight, f = reduced ? 1 : 1 + (Math.random() - 0.5) * RF.flame.flicker, back = RF.smoke.back; g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); U.body.rotation.y += dt * RF.spin * motionK;
+        U.flame.scale.set(near * RF.flame.wide, near * f, near * RF.flame.wide); U.halo.scale.setScalar(RF.flame.glow * near * f);
+        for (U.em += dt * RF.smoke.rate * half; U.em >= 1; U.em--) { const q = Math.random(); trailSmoke(s.x - s.dx * back - mx * q - s.dz * RF.smoke.off[0], s.y - s.dy * back - my * q + RF.smoke.off[1], s.z - s.dz * back - mz * q + s.dx * RF.smoke.off[0], RF.smoke); }
+      }
+      else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (s.y <= s.r + 0.02 && Math.random() < FL.ball.trail) puff(s.x - s.dx * s.r * 0.6, 0.2, s.z - s.dz * s.r * 0.6, 0.8, FL.ball.look.dust, 1); }
       else if (s.kind === 'hole') { const k = Math.min(1, s.t / (s.dur * 0.6)); g.scale.setScalar(0.4 + k * 1.2 * (1 - Math.max(0, (s.t - s.dur + 0.3) / 0.3))); for (const c of g.children) if (c.userData.spin) c.rotation.z += dt * c.userData.spin; }
-      else if (s.kind === 'meteor') { g.rotation.x += dt * 5; g.rotation.y += dt * 3; if (Math.random() < FL.meteor.trail) { puff(s.x, s.y + 0.5, s.z, 1.2, '#ffb347', 1); sparks(s.x, s.y, s.z, 1); } }
+      else if (s.kind === 'meteor') {
+        // it tumbles; flame lumps are left along its path (they follow it a little, cool and shrink) and embers stream off and fall
+        const MF = FL.meteor.flight, L = MF.lumps, EM = MF.embers, fv = dt > 0 ? 1 / dt : 0; g.rotation.x += dt * MF.spin[0]; g.rotation.y += dt * MF.spin[1]; U.halo.scale.setScalar(MF.halo * near * (reduced ? 1 : 0.85 + flick * 0.15));
+        for (U.em += dt * L.rate * half; U.em >= 1; U.em--) { const q = Math.random(); kitFire(L.life * (0.7 + Math.random() * 0.6), s.x - mx * q + (Math.random() - 0.5) * L.spread, s.y - my * q + (Math.random() - 0.5) * L.spread, s.z - mz * q + (Math.random() - 0.5) * L.spread, mx * fv * L.follow, my * fv * L.follow, mz * fv * L.follow, L.size * (0.6 + Math.random() * 0.8), 1, tail0, tail1); }
+        for (U.em2 += dt * EM.rate * half; U.em2 >= 1; U.em2--) kitFire(E.life[0] + Math.random() * E.life[1], s.x, s.y, s.z, mx * fv * EM.follow + (Math.random() - 0.5) * EM.speed, my * fv * EM.follow + (Math.random() - 0.5) * EM.speed, mz * fv * EM.follow + (Math.random() - 0.5) * EM.speed, E.size * EM.size * (0.6 + Math.random() * 0.8), 2, tail0, tail2);
+      }
     }
     for (const it of falls.values()) {
       const T = it.f.topple;
@@ -1005,31 +1230,71 @@ export function createScene(cv, cfg) {
       const o = i * 3; SP.v[o + 1] -= 22 * dt; for (let k = 0; k < 3; k++) SP.p[o + k] += SP.v[o + k] * dt;
       tmpM.compose(tmpV.set(SP.p[o], SP.p[o + 1], SP.p[o + 2]), tmpQ.identity(), tmpS.setScalar(Math.min(1, SP.life[i] * 4))); sparkMesh.setMatrixAt(i, tmpM);
     }
-    sparkMesh.count = SP.n; sparkMesh.instanceMatrix.needsUpdate = true;
-    debris.count = D.n; debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
+    if (liveN(sparkMesh, SP.n)) sparkMesh.instanceMatrix.needsUpdate = true;
+    if (liveN(debris, D.n)) { debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true; }
     for (let i = U.n - 1; i >= 0; i--) {
-      U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); continue; }
+      U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); if (i < U.n) { dust.instanceMatrix.array.copyWithin(i * 16, U.n * 16, U.n * 16 + 16); dustAlpha.array[i] = dustAlpha.array[U.n]; } continue; }
       const o = i * 3; for (let j = 0; j < 3; j++) { U.p[o + j] += U.v[o + j] * dt; U.v[o + j] *= 1 - 1.5 * dt; }
-      const sc = U.s[i * 2] * (0.5 + k * 1.1) * (k > 0.6 ? (1 - k) / 0.4 : 1);
+      // dust in the camera's face would hide the view: none within look.puffNear, whole beyond look.puffFar
+      const sc = dustSize(i) * dustFade(Math.hypot(U.p[o] - camera.position.x, U.p[o + 1] - camera.position.y, U.p[o + 2] - camera.position.z));
       tmpM.compose(tmpV.set(U.p[o], U.p[o + 1], U.p[o + 2]), tmpQ.identity(), tmpS.set(sc, sc, sc)); dust.setMatrixAt(i, tmpM);
+      // it appears at once and thins out all its life
+      dustAlpha.array[i] = FR.puff.opacity * Math.min(1, k * 8) * (1 - k);
     }
-    dust.count = U.n; dust.instanceMatrix.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true;
+    if (liveN(dust, U.n)) { dust.instanceMatrix.needsUpdate = dustAlpha.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true; }
     coinArrive = 0;
     const hx = W.hero.x, hy = W.hero.y + 1.3, hz = W.hero.z;
     for (let i = C.n - 1; i >= 0; i--) {
       C.t[i] += dt; const o = i * 3;
-      if (C.t[i] < 0.35) { C.v[o + 1] -= 20 * dt; }
-      else { const dx = hx - C.p[o], dy = hy - C.p[o + 1], dz = hz - C.p[o + 2], d = Math.hypot(dx, dy, dz); if (d < 0.6 || C.t[i] > 2.5) { killCoin(i); coinArrive++; continue; } const sp = 8 + C.t[i] * 22; C.v[o] = dx / d * sp; C.v[o + 1] = dy / d * sp; C.v[o + 2] = dz / d * sp; }
+      if (C.t[i] < CN.pop) { C.v[o + 1] -= 20 * dt; }
+      // (they used to fly to the hero: a coin passing the eye covered the whole view)
+      else { if (C.t[i] > CN.life) { killCoin(i); coinArrive++; continue; } C.v[o] *= 1 - 4 * dt; C.v[o + 2] *= 1 - 4 * dt; C.v[o + 1] = CN.rise; }
       for (let k = 0; k < 3; k++) C.p[o + k] += C.v[o + k] * dt;
-      tmpM.compose(tmpV.set(C.p[o], C.p[o + 1], C.p[o + 2]), tmpQ.setFromEuler(tmpE.set(Math.PI / 2, C.t[i] * 9, 0)), tmpS.set(1, 1, 1)); coins.setMatrixAt(i, tmpM);
+      const cs = C.t[i] < CN.pop ? 1 : Math.max(0, 1 - (C.t[i] - CN.pop) / (CN.life - CN.pop));
+      tmpM.compose(tmpV.set(C.p[o], C.p[o + 1], C.p[o + 2]), tmpQ.setFromEuler(tmpE.set(Math.PI / 2, C.t[i] * 9, 0)), tmpS.set(cs, cs, cs)); coins.setMatrixAt(i, tmpM);
     }
-    coins.count = C.n; coins.instanceMatrix.needsUpdate = true;
-    for (let i = blasts.length - 1; i >= 0; i--) {
-      const b = blasts[i]; b.t += dt; const k = b.t / 0.55;
-      if (k >= 1) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); blasts.splice(i, 1); continue; }
-      const e = 1 - Math.pow(1 - Math.min(1, k * 2.2), 3);
-      b.a.scale.setScalar(b.r * 0.45 * e); b.b.scale.setScalar(b.r * 0.65 * e); b.a.material.opacity = Math.max(0, 1 - k * 1.6); b.b.material.opacity = Math.max(0, 0.75 * (1 - k * 1.4));
-      b.w.scale.setScalar(b.r * 2.4 * k); b.w.material.opacity = 0.7 * (1 - k);
+    if (liveN(coins, C.n)) coins.instanceMatrix.needsUpdate = true;
+    // the explosion kit: age and retire (the last one fills the gap), then place what is left
+    for (const P of KITS) for (let i = P.n - 1; i >= 0; i--) { const o = i * P.st; P.a[o] += dt; if (P.a[o] >= P.a[o + 1]) { const j = --P.n; if (i !== j) P.a.copyWithin(o, j * P.st, j * P.st + P.st); } }
+    {
+      const cp = camera.position, F = KT.fire, E = KT.embers, S = KT.smoke; let a = KF.a;
+      for (let i = 0; i < KF.n; i++) {
+        const o = i * 16, k = a[o] / a[o + 1], kind = a[o + 9]; let sc;
+        // the core swells fast and shrinks away; a lump flies out, slows and shrinks (the shell breaks up); an ember falls
+        if (kind === 0) sc = (0.35 + 0.65 * (1 - Math.pow(1 - Math.min(1, k * 2.5), 3))) * (k > 0.55 ? (1 - k) / 0.45 : 1);
+        else {
+          const dr = Math.max(0, 1 - (kind === 1 ? F.drag : E.drag) * dt);
+          for (let j = 2; j < 5; j++) { a[o + j] += a[o + j + 3] * dt; a[o + j + 3] *= dr; }
+          if (kind === 2) { a[o + 6] -= E.gravity * dt; if (a[o + 3] < 0.05) a[o] = a[o + 1]; }
+          sc = kind === 1 ? (1 - Math.pow(1 - Math.min(1, k * 3), 3)) * (1 - k * k) : Math.min(1, (1 - k) * 3);
+        }
+        // nothing in the camera's face (as the dust)
+        sc *= a[o + 8] * dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z));
+        tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); fireMesh.setMatrixAt(i, tmpM);
+        fireMesh.setColorAt(i, tmpC.setRGB(a[o + 10] + (a[o + 13] - a[o + 10]) * k, a[o + 11] + (a[o + 14] - a[o + 11]) * k, a[o + 12] + (a[o + 15] - a[o + 12]) * k));
+      }
+      if (liveN(fireMesh, KF.n)) fireMesh.instanceMatrix.needsUpdate = fireMesh.instanceColor.needsUpdate = true;
+      a = KS.a;
+      for (let i = 0; i < KS.n; i++) {
+        const o = i * KS.st, k = Math.max(0, a[o] / a[o + 1]); let sc = 0;
+        if (a[o] > 0) {
+          const dr = Math.max(0, 1 - S.drag * dt); a[o + 2] += a[o + 5] * dt; a[o + 3] += a[o + 6] * dt; a[o + 4] += a[o + 7] * dt; a[o + 5] *= dr; a[o + 7] *= dr;
+          sc = a[o + 8] * (0.5 + S.grow * (1 - (1 - k) * (1 - k))) * dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z));
+        }
+        // from its first colour to its last (a blast's: dark, then grey); it comes in quickly and fades out softly
+        smokeFade.array[i] = S.opacity * Math.min(1, k * 6) * (1 - k);
+        tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); smokeMesh.setMatrixAt(i, tmpM);
+        smokeMesh.setColorAt(i, tmpC.setRGB(a[o + 9] + (a[o + 12] - a[o + 9]) * k, a[o + 10] + (a[o + 13] - a[o + 10]) * k, a[o + 11] + (a[o + 14] - a[o + 11]) * k));
+      }
+      if (liveN(smokeMesh, KS.n)) smokeMesh.instanceMatrix.needsUpdate = smokeMesh.instanceColor.needsUpdate = smokeFade.needsUpdate = true;
+      a = KW.a;
+      for (let i = 0; i < KW.n; i++) {
+        const o = i * 10, k = a[o] / a[o + 1], flat = a[o + 6] > 0, f = 1 - k;
+        const sc = a[o + 5] * (1 - Math.pow(1 - k, 3)) * (flat ? 1 : dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z)));
+        tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), flat ? waveFlat : camera.quaternion, tmpS.set(sc, sc, sc)); waveMesh.setMatrixAt(i, tmpM);
+        waveMesh.setColorAt(i, tmpC.setRGB(a[o + 7] * f, a[o + 8] * f, a[o + 9] * f));
+      }
+      if (liveN(waveMesh, KW.n)) waveMesh.instanceMatrix.needsUpdate = waveMesh.instanceColor.needsUpdate = true;
     }
     flash.intensity *= Math.exp(-dt * 9);
     for (const it of scorches) { if (!it.mesh.visible) continue; it.t += dt; const SC = FB.scorch; if (it.t >= SC.life) it.mesh.visible = false; else it.mesh.material.opacity = SC.opacity * Math.min(1, (SC.life - it.t) / SC.fade); }
@@ -1077,7 +1342,7 @@ export function createScene(cv, cfg) {
     return { type: 'air', dist: gy, p: { x: o.x + d.x * gy, y: Math.max(0.5, o.y + d.y * gy), z: o.z + d.z * gy } };
   }
 
-  function resize(w, h) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); }
+  function resize(w, h) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); postSync(); }
 
   return {
     renderer, camera, event, setLevel, update, pick, screenOf, resize,
@@ -1102,7 +1367,11 @@ export function createScene(cv, cfg) {
     /** The show as drawn: running, seconds on its swing, the pulse (0..1), exposure, the camera's place. */
     get show() { return { on: isShow(), t: show.t, pulse: show.pulse, exposure: renderer.toneMappingExposure, pos: camera.position.toArray(), fov: camera.fov }; },
     get coinArrive() { return coinArrive; },
-    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
+    /** The dust as drawn, for tests: each puff's distance to the camera and its drawn size as a share of its own size (1 = full). */
+    get dustNear() { const out = [], m = dust.instanceMatrix.array, c = camera.position; for (let i = 0; i < U.n; i++) { const sc = dustSize(i), o = i * 3; if (sc > 1e-4 && U.life[i * 2] > 0) out.push({ d: Math.hypot(U.p[o] - c.x, U.p[o + 1] - c.y, U.p[o + 2] - c.z), k: m[i * 16] / sc }); } return out; },
+    /** Test view: live coins {n, d: the nearest one's distance to the eye}. */
+    get coinNear() { const c = camera.position; let d = Infinity; for (let i = 0; i < C.n; i++) d = Math.min(d, Math.hypot(C.p[i * 3] - c.x, C.p[i * 3 + 1] - c.y, C.p[i * 3 + 2] - c.z)); return { n: C.n, d }; },
+    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, dirty: dirty.size, warm: Math.round(warmMs), warmDraw: Math.round(warmDrawMs), blasts: KW.n, fire: KF.n, smoke: KS.n, shots: shotMeshes.size, bloom: post ? 'on' : 'off', targets: post ? post.rt.length : 0 }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
     /** Sets the pixel ratio (the dynamic resolution); a change of less than 0.01 is ignored. */
@@ -1113,27 +1382,57 @@ export function createScene(cv, cfg) {
     redrawSigns() { for (const x of signPool) if (x.k >= 0) paintSign(x); },
     /** Sign textures made so far (a fixed pool) and robots drawn. */
     get signCount() { return signPool.length; }, get botsDrawn() { return botMeshes.size; },
+    /** The boss robot as drawn: {id, points: crown points still on, scale: its size over a normal robot's}, or null. */
+    get bossLook() { for (const [id, v] of botMeshes) if (v.crown) return { id, points: v.crown.filter((c) => c.visible).length, scale: v.head.scale.x }; return null; },
     /** A robot's sign as drawn: {text, raised, x, y, z} of its board, or null. */
     signOf(id) { const v = botMeshes.get(id); if (!v || !v.sign) return null; const p = v.sign.g.position; return { text: signList[v.sign.sp.k] || '', k: v.sign.sp.k, x: p.x, y: p.y, z: p.z }; },
     /** A robot's face cell (eye kind × 5 + mouth). */
     faceOf(id) { const v = botMeshes.get(id); return v ? v.fk : -1; },
     /** The low tier: no sun shadows, half the debris, dust and sparks, the hammer without its reflection. */
-    setLow(v) { low = !!v; sun.castShadow = !low; hammerLook(); },
+    setLow(v) { low = !!v; sun.castShadow = !low; hammerLook(); postSync(); },
+    setGlow(v) { if (glowOn === !!v) return; glowOn = !!v; postSync(); },
     /** The tool in the hand as drawn: which, its charge (1 = ready), seconds since it fired, the hand's place. */
     get hand() { return { landed: ham.landed, aimed: ham.aimed, envs: envs.size, tool: heldTool, charge: heldTool === 'hammer' ? 1 : ham.charge, fired: fr.kind ? fr.t : -1, kind: fr.kind, eq: ham.eq, pos: rig.position.toArray(), rx: rig.rotation.x, recoil: ham.rec, punch: cam.punch || 0, flash: boomFlash.visible, mirrored: !low && !!hamStd.envMap }; },
     /** The hammer as drawn: its tier's material, triangles, the swing's layers (for tests and tuning). */
     get hammer() { return { mirrored: hamMesh.material === hamStd && !!hamStd.envMap, tris: hamMesh.geometry.attributes.position.count / 3, rx: rig.rotation.x, pos: rig.position.toArray(), recoil: ham.rec, sway: [ham.sx, ham.sy], punch: cam.punch || 0, landed: ham.landed, flash: hitFlash.visible }; },
     /** Is world point (x, y, z) inside the view? */
     seen(x, y, z) { const [sx, sy, behind] = screenOf(x, y, z); return !behind && sx >= 0 && sx <= 720 && sy >= 0 && sy <= 1280; },
-    compile() { try { renderer.compile(scene, camera); } catch (e) { /* first frame compiles instead */ } },
+    /**
+     * Readies every program, buffer and texture before play. Each tool's flying model, the tools in the hand, the
+     * flashes and one instance of every particle mesh are drawn once, clipped to a single pixel that the first frame
+     * paints over: nothing is compiled or uploaded on the first throw. Call once after the first level is set.
+     */
+    compile() {
+      const t0 = performance.now(), made = [], shown = [], lone = [];
+      try {
+        for (const kind of ['bomb', 'rocket', 'ball', 'hole', 'meteor']) {
+          try { const g = shotMesh({ kind, r: 1 }); g.traverse((o) => { o.frustumCulled = false; }); made.push(g); } catch (e) { /* a tool this game does not have */ }
+        }
+        for (const o of [hitFlash, boomFlash, ...Object.values(held), ...scorches.map((it) => it.mesh)]) if (!o.visible) { o.visible = true; shown.push(o); }
+        // fragments and dust get their per-instance colour on the first smash: that is another program, made here instead
+        for (const m of [debris, dust]) if (!m.instanceColor) m.setColorAt(0, WHITE);
+        for (const m of [fireMesh, smokeMesh, waveMesh, debris, dust, sparkMesh, coins]) if (!m.count) { m.count = 1; lone.push(m); }
+        renderer.compile(scene, camera);
+        const t1 = performance.now();
+        // quality.warmDraw off: programs are only queued (the old behaviour), the first frame and first uses pay the rest
+        if (cfg.quality.warmDraw) { renderer.setScissor(0, 0, 1, 1); renderer.setScissorTest(true); draw(true); }
+        warmDrawMs = performance.now() - t1;
+      } catch (e) { /* first use compiles instead */ }
+      renderer.setScissorTest(false);
+      for (const o of shown) o.visible = false;
+      for (const m of lone) m.count = 0;
+      // the models made for this are dropped, not shelved (a ball's size is set when it is made)
+      for (const g of made) scene.remove(g);
+      warmMs = performance.now() - t0;
+    },
     dispose() {
       for (const m of chunks.values()) m.geometry.dispose(); for (const it of falls.values()) it.mesh.geometry.dispose();
-      for (const b of blasts) { b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); }
       for (const x of disposables) x.dispose();
       for (const rt of envs.values()) rt.dispose();
+      postFree();
       cv.removeEventListener('webglcontextrestored', onRestored);
       if (deco) deco.geometry.dispose();
-      debris.dispose(); dust.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
+      debris.dispose(); dust.dispose(); fireMesh.dispose(); smokeMesh.dispose(); waveMesh.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
       renderer.dispose(); try { renderer.forceContextLoss(); } catch (e) { /* already gone */ }
     },
   };

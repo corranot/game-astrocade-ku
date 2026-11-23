@@ -247,6 +247,14 @@ ring (top ≈29%, side strips, bottom ≈15%) is seen. Before the first touch th
 - **HUD** put away (`.hud.attract`); the gear stays. **Cuts** (`demo.cut`): the next building kind after 10 s or 60%
   wrecked, and the first touch, both under a 0.28 s white flash.
 - Measure with `node tools/feed-card-test.js prototypes/block-smash-crew <strip.png>`.
+- **Opening, no loading screen** (index.html `#boot`, `#title.pre`): the first paint is already the show: its sky
+  (`demo.look.top`/`low`), ten bright blocks tumbling down (CSS, transform only) and the title slamming in, the first
+  word already in its fall on the first frame. These copy `demo.look` and `demo.title` by hand, because the config is not
+  loaded yet; `ONLY=boot1 node playtest.js <out>` compares them. `#title` is the element the show goes on using
+  (`showTitle` keeps its words, and the ones that have landed do not flash again); the backdrop goes at a cut in the
+  frame that draws the first 3D picture (`window.__load.done()`), or 4 s after a script error. A touch before the game
+  listens is kept (`window.__boot.touch`) and starts the game at hand-over. Reduced motion: the title stands, no blocks.
+  Three.js (both its files) is fetched with the page (`modulepreload`); the font stylesheets no longer block the paint.
 
 ## Chain of buildings (23 Nov; platform rule: no end screen before 60 s, a reward about every 10 s)
 - **Measured before:** a steady player (a tap every 0.5 s) got the result card at second 13, then every ~20 s, with
@@ -293,3 +301,11 @@ ring (top ≈29%, side strips, bottom ≈15%) is seen. Before the first touch th
 ## Code
 `voxels.js` grid + mesher + ray + collapse (pure), `levels.js` generators (pure, seeded), `logic.js` economy,
 `scene.js` Three.js look, `game.js` flow/input/HUD/sound/save, `game_config.json` tuning + 7 languages.
+
+## Boss robot (23 Nov, AAA audit: "BOSS BUILDING! promises a boss and there is none")
+
+- Rule (bots.js `makeBots` / `bossSpot` / `knock`, logic.js `bossBonus`): on a boss building (`W.boss`: every 5th, never the daily, never the attract show) one extra robot is made with `boss: true`, `boss.botScale` × the normal height, standing guard (state `guard`) in the front yard behind the fence: `boss.ahead` m in front of the spawn, the first of `boss.sides` with `boss.room` m of free ground, `boss.clear` m off the line to the nearest barrel and its head and crown in sight of the eye at the spawn.
+- It takes `boss.hits` knocks from anything that knocks robots. Each but the last: event `bossHit` (`left` = knocks to go), a small hop (`boss.stagger` of the power), `boss.hitCoins` × the level's coin multiplier, up again after `boss.rebootAfter` + `boss.rebootTime` s. The last: event `bossDown`, `boss.downPower` × the power, `max(boss.downCoins × multiplier, boss.downShare × the building's coins so far)`, one bonk for the missions, and it never gets up. Waves never send it away.
+- Look (scene.js `makeBot`): the same model scaled, a gold crown band with one gem-tipped point per knock to go (a point goes with every knock). Feel (game.js `onEvent`): a low boing (`boss.hitPitch`), BONK! in gold over the crown for a stagger; `bossDown` (string in 7 languages) as a banner with the fanfare, confetti, coins flying and slow motion.
+- Known limit: every yard has a fence 2 blocks high with posts of 3, and the hammer in the hand covers the middle right of the view, so from the spawn the boss shows from the chest up only until the fence is smashed.
+- Checks: logic.test.mjs "the boss" block; playtest.js section 23 (`ONLY=boss1`).

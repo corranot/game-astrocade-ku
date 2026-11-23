@@ -3,11 +3,11 @@
 // and smashes everything in the way, the six tools and their flights, pieces that lose their support and fall, the
 // treasure chest in its steel vault and the smash-time finale. step() returns events for the look and the sound.
 // Pure (no Three.js), so whole levels can be played by a bot in Node.
-import { raycast, smashSphere, collapse } from './voxels.js';
+import { raycast, smashSphere, collapse, weakLayer } from './voxels.js';
 import { buildLevel, matIds, KINDS } from './levels.js';
 export { KINDS };
 import { makeBots, stepBots, knockBots, knock } from './bots.js';
-import { coinsFor, createCombo, comboHit, comboTick, smashWord, cooldownOf, wreckOf, toolAt } from './logic.js';
+import { coinsFor, createCombo, comboHit, comboTick, smashWord, cooldownOf, wreckOf, toolAt, flatBonus } from './logic.js';
 
 const SWING_HIT = 0.4; // share of the swing at which the hammer lands
 
@@ -18,6 +18,8 @@ export function createWorld(cfg0, n, opts = {}) {
   // upgraded tools: a copy of the config with each tool's size and cooldown at the player's level for it
   const cfg = opts.lv ? { ...cfg0, tools: cfg0.tools.map((t) => ({ ...t, ...toolAt(cfg0, t, opts.lv[t.id] || 1) })) } : cfg0;
   const L = buildLevel(cfg, n), g = L.grid, mats = [null, ...cfg.materials];
+  // the building as built: what a storey is measured against when it is asked to carry the rest
+  g.orig = g.data.slice();
   const ids = matIds(cfg);
   const H = cfg.hero;
   const W = {
@@ -78,6 +80,9 @@ function afterRemove(W, removed, by, x, y, z, r, flat) {
     W.falls.push(f);
     W.ev.push({ type: f.topple ? 'topple' : 'fall', fall: f });
   }
+  // a storey left with too few blocks gives way under the weight above it: what it carried then falls
+  const K = W.cfg.crush, weak = K ? weakLayer(W.g, removed, K.ratio, K.minAbove) : [];
+  if (weak.length) afterRemove(W, weak, 'crush', x, weak[0].y + 0.5, z, r, true);
 }
 /** How far a falling piece drops before its lowest block rests on something (or the ground). */
 function landingDrop(g, cells) {
@@ -155,9 +160,10 @@ export function useTool(W, id, p) {
   const shot = { id: W.nextId++, kind: id, t: 0, x: hx, y: hy + 0.6, z: hz, sx: hx, sy: hy + 0.6, sz: hz, tx: p.x, ty: p.y, tz: p.z, r: tl.r, free: !owned };
   if (id === 'bomb') { shot.dur = Math.max(0.35, Math.min(0.8, Math.hypot(p.x - hx, p.z - hz) / 22)); }
   else if (id === 'rocket') { const d = Math.hypot(p.x - hx, p.y - shot.y, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dy = (p.y - shot.y) / d; shot.dz = (p.z - hz) / d; shot.dist = 0; }
-  else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = tl.r; shot.dist = 0; shot.x = h.x + shot.dx * 1.2; shot.z = h.z + shot.dz * 1.2; }
+  // the ball leaves the hand (never lower than resting on the ground) at ball.speed along the ground and ball.lift upwards
+  else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = Math.max(tl.r, shot.sy); shot.v = tl.speed; shot.vy = tl.lift; shot.dist = 0; shot.x = h.x + shot.dx * (tl.r + tl.ahead); shot.z = h.z + shot.dz * (tl.r + tl.ahead); }
   else if (id === 'hole') { shot.x = p.x; shot.y = Math.max(1.5, p.y); shot.z = p.z; shot.dur = tl.dur; shot.tick = 0; }
-  else if (id === 'meteor') { shot.sx = p.x + 8; shot.sy = 42; shot.sz = p.z + 10; shot.x = shot.sx; shot.y = shot.sy; shot.z = shot.sz; shot.dur = 0.9; }
+  else if (id === 'meteor') { [shot.sx, shot.sy, shot.sz] = meteorStart(W, p.x, p.y, p.z); shot.x = shot.sx; shot.y = shot.sy; shot.z = shot.sz; shot.dur = 0.9; }
   W.shots.push(shot);
   (W.queued = W.queued || []).push({ type: 'throw', shot }); // used between frames: delivered by the next step()
   return true;
@@ -169,22 +175,49 @@ function stepShots(W, dt) {
     if (s.kind === 'bomb' && s.refuse != null) { s.refuse -= dt; if (s.refuse <= 0) { s.done = true; boom(W, s, s.x, s.y, s.z); } }
     else if (s.kind === 'bomb') {
       const k = Math.min(1, s.t / s.dur);
-      s.x = s.sx + (s.tx - s.sx) * k; s.z = s.sz + (s.tz - s.sz) * k; s.y = s.sy + (s.ty - s.sy) * k + Math.sin(k * Math.PI) * (2 + s.dur * 6);
+      // the arc's height over the straight line: tools.bomb.arc = [metres, metres per second of flight] (low enough to stay in a portrait view)
+      const A = tool(W, 'bomb').arc;
+      s.x = s.sx + (s.tx - s.sx) * k; s.z = s.sz + (s.tz - s.sz) * k; s.y = s.sy + (s.ty - s.sy) * k + Math.sin(k * Math.PI) * (A[0] + s.dur * A[1]);
       if (k >= 1) { s.done = true; boom(W, s, s.tx, s.ty, s.tz); }
     } else if (s.kind === 'rocket') {
       const sp = 34 * dt; let hit = raycast(W.g, s.x, s.y, s.z, s.dx, s.dy, s.dz, sp);
+      // a robot in its way sets it off too (it used to fly through them and blow up on the wall behind)
+      const px = s.x, pz = s.z;
       s.x += s.dx * sp; s.y += s.dy * sp; s.z += s.dz * sp; s.dist += sp;
+      if (!hit) for (const b of W.bots) {
+        if (b.state === 'down' || s.y > b.h + 0.4) continue;
+        const ex = s.x - px, ez = s.z - pz, t = Math.max(0, Math.min(1, ((b.x - px) * ex + (b.z - pz) * ez) / (ex * ex + ez * ez || 1)));
+        if (Math.hypot(px + ex * t - b.x, pz + ez * t - b.z) < W.cfg.bots.shotR * b.h / W.cfg.bots.height) { s.done = true; boom(W, s, px + ex * t, Math.max(0.6, s.y), pz + ez * t); break; }
+      }
+      if (s.done) continue;
       if (s.y <= 0.2) hit = hit || { x: Math.floor(s.x), y: 0, z: Math.floor(s.z) };
       if (hit) { s.done = true; boom(W, s, hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); } else if (s.dist > 60) { s.done = true; boom(W, s, s.x, s.y, s.z); }
     } else if (s.kind === 'ball') {
-      const sp = 15 * dt; s.x += s.dx * sp; s.z += s.dz * sp; s.dist += sp; s.roll = (s.roll || 0) + sp / s.r;
+      // a heavy ball: it falls under ball.gravity, comes down ('ballLand'), bounces once (ball.bounce of its fall speed),
+      // comes down again ('ballBounce') and from then on rolls with its centre at ground height + r. Rolling friction
+      // (ball.friction, m/s²) and every block it breaks (ball.loss, m/s each) slow it; under ball.stop it is over.
+      const tl = tool(W, 'ball');
+      if (s.ground) s.v = Math.max(0, s.v - tl.friction * dt);
+      else {
+        s.vy -= tl.gravity * dt; s.y += s.vy * dt;
+        if (s.y <= s.r) {
+          const fall = -s.vy; s.y = s.r;
+          if (s.bounced) { s.ground = true; s.vy = 0; } else { s.bounced = true; s.vy = fall * tl.bounce; }
+          W.ev.push({ type: s.ground ? 'ballBounce' : 'ballLand', x: s.x, y: 0, z: s.z, r: s.r, fall });
+        }
+      }
+      const sp = s.v * dt; s.x += s.dx * sp; s.z += s.dz * sp; s.dist += sp; s.roll = (s.roll || 0) + sp / s.r;
       const res = smashSphere(W.g, s.x, s.y, s.z, s.r, W.mats, true);
-      if (res.removed.length) { afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length, first: !s.rolled }); s.rolled = true; }
-      const out = s.x < -4 || s.z < -4 || s.x > W.g.W + 4 || s.z > W.g.D + 4;
-      if (s.dist > tool(W, 'ball').len || out) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'ball' }); }
+      if (res.removed.length) { s.v = Math.max(0, s.v - tl.loss * res.removed.length); afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length, first: !s.rolled }); s.rolled = true; }
+      // robots in its way are thrown onwards, along its travel (a slow ball knocks less)
+      if (W.bots.length) knockBots(W, s.x, s.y - s.r * 0.5, s.z, s.r + 0.4, W.cfg.bots.knock * 1.3 * Math.min(1, 0.4 + s.v / tl.speed), 'ball', s.dx, s.dz);
+      // (the hero can stand 12 past the grid: a ball thrown from there was "out" at once and never rolled)
+      const out = s.x < -16 || s.z < -16 || s.x > W.g.W + 16 || s.z > W.g.D + 16;
+      if (s.v < tl.stop || s.dist > tl.len || out) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'ball' }); }
     } else if (s.kind === 'hole') {
       s.tick -= dt;
       const r = s.r * Math.min(1, s.t / (s.dur * 0.6));
+      if (s.tick <= 0 && W.bots.length) knockBots(W, s.x, Math.min(s.y, 1), s.z, r + 0.6, W.cfg.bots.knock * 0.9, 'hole');
       if (s.tick <= 0) { s.tick = 0.1; const res = smashSphere(W.g, s.x, s.y, s.z, r, W.mats, true); if (res.removed.length) afterRemove(W, res.removed, 'hole', s.x, s.y, s.z, r, s.from === 'keg'); }
       if (s.t >= s.dur) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'hole' }); }
     } else if (s.kind === 'meteor') {
@@ -239,13 +272,31 @@ function detonateAll(W) {
   });
   W.ev.push({ type: 'detonate', x: b.x + 0.5, y: b.y + 0.5, z: b.z + 0.5, n: live.length });
 }
+/** True when no block lies between two points (looked up every half cell, the two ends left out). */
+function clearLine(g, ax, ay, az, bx, by, bz) {
+  const n = Math.ceil(Math.hypot(bx - ax, by - ay, bz - az) * 2);
+  for (let i = 1; i < n; i++) { const k = i / n; if (g.get(Math.floor(ax + (bx - ax) * k), Math.floor(ay + (by - ay) * k), Math.floor(az + (bz - az) * k))) return false; }
+  return true;
+}
+/**
+ * Where a meteor aimed at (x, y, z) starts (the meteor tool's `from`), so that it falls inside the view instead of dropping from above its top edge:
+ * `ahead` of the target as the hero sees it, `up` above it and `side` to the hero's right: a slant from far in front. When blocks hide the first
+ * half of that fall from the hero (a wall that fills the view), it comes in on the hero's side of the target instead: `from.near`, in shares of
+ * the hero's distance to the target (never less than `near.min`), so its path on the screen is the same from any distance.
+ */
+function meteorStart(W, x, y, z) {
+  const F = W.cfg.tools.find((t) => t.id === 'meteor').from, N = F.near, h = W.hero, [ex, ey, ez] = heroChest(W), d = Math.hypot(x - h.x, z - h.z) || 1, ux = (x - h.x) / d, uz = (z - h.z) / d;
+  const far = [x + ux * F.ahead - uz * F.side, y + F.up, z + uz * F.ahead + ux * F.side], n = Math.max(d, N.min);
+  let seen = 0; for (let i = 1; i <= 4; i++) { const k = i / 10; if (clearLine(W.g, ex, ey + 0.6, ez, far[0] + (x - far[0]) * k, far[1] + (y - far[1]) * k, far[2] + (z - far[2]) * k)) seen++; }
+  return seen >= 3 ? far : [x - ux * n * N.back - uz * n * N.side, y + n * N.up, z - uz * n * N.back + ux * n * N.side];
+}
 /** What a special barrel does on top of its own boom: scatter bombs, open a black hole, call a meteor. */
 function special(W, f) {
   const K = (W.cfg.keg.kinds || []).find((k) => k.id === f.k); if (!K) return;
   const shot = (o) => { const s = { id: W.nextId++, t: 0, x: f.x, y: f.y, z: f.z, sx: f.x, sy: f.y, sz: f.z, r: K.r, free: true, from: 'keg', ...o }; W.shots.push(s); W.ev.push({ type: 'throw', shot: s }); };
   if (K.id === 'cluster') for (let i = 0; i < K.n; i++) { const a = (i / K.n) * Math.PI * 2 + f.x * 1.7 + f.z; shot({ kind: 'bomb', tx: f.x + Math.sin(a) * K.spread, ty: 0.5, tz: f.z + Math.cos(a) * K.spread, dur: 0.45 + 0.05 * (i % 3) }); }
   else if (K.id === 'hole') shot({ kind: 'hole', y: Math.max(1.5, f.y), dur: K.dur, tick: 0 });
-  else if (K.id === 'meteor') shot({ kind: 'meteor', sx: f.x + 8, sy: 42, sz: f.z + 10, x: f.x + 8, y: 42, z: f.z + 10, tx: f.x, ty: f.y, tz: f.z, dur: 0.9 });
+  else if (K.id === 'meteor') { const [x, y, z] = meteorStart(W, f.x, f.y, f.z); shot({ kind: 'meteor', sx: x, sy: y, sz: z, x, y, z, tx: f.x, ty: f.y, tz: f.z, dur: 0.9 }); }
 }
 function stepFuses(W, dt) {
   for (const f of W.fuses) {
@@ -412,14 +463,14 @@ function feverAdd(W, n) {
 }
 /**
  * Smash time runs out (an idle player: after fever.dur; nobody: after fever.maxTotal), or ends at once when the
- * building is flat (fever.flatAt of it gone): FLATTENED pays coins.flat. Then the free phase: the level is over.
+ * building is flat (fever.flatAt of it gone): FLATTENED pays coins.flat or coins.flatShare of the building's coins (logic.js flatBonus). Then the free phase: the level is over.
  */
 function stepFever(W, dt) {
   const F = W.cfg.fever;
   W.fever -= dt; W.feverT += dt;
   const flat = F.flatAt > 0 && wreck(W) >= F.flatAt;
   if (!flat && W.fever > 0) return;
-  if (flat) { const coins = Math.round((W.cfg.coins.flat || 0) * W.coinMult); W.coins += coins; W.flat = true; W.ev.push({ type: 'flat', coins }); }
+  if (flat) { const coins = flatBonus(W.cfg, W.coins, W.coinMult); W.coins += coins; W.flat = true; W.ev.push({ type: 'flat', coins }); }
   W.fever = 0; W.phase = 'free'; W.ev.push({ type: 'clear', flat });
 }
 

@@ -55,7 +55,8 @@ const Sound = (() => {
   }
   const fx = {
     // a toy robot knocked flying: a springy boing over a tin clank; back on its feet: a happy rising beep
-    boing() { tone('sine', 180, 720, 0.28, 0.45); tone('triangle', 900, 300, 0.12, 0.18); hiss(2500, 900, 0.08, 0.16); },
+    // (k: the pitch, 1 = as it is; the boss's boing is lower)
+    boing(a, k = 1) { tone('sine', 180 * k, 720 * k, 0.28, 0.45); tone('triangle', 900 * k, 300 * k, 0.12, 0.18); hiss(2500 * k, 900 * k, 0.08, 0.16); },
     reboot() { [660, 880, 1320].forEach((f, i) => tone('square', f, f, 0.07, 0.07, i * 0.07)); },
     swing(k = 1) { hiss(500, 2200, 0.14, 0.12 * k); },
     wood(k) { hiss(900, 300, 0.16, 0.45 * k); tone('sine', 190, 80, 0.12, 0.5 * k); },
@@ -165,14 +166,17 @@ const Sound = (() => {
     song = ctx.createBufferSource(); song.buffer = buf.music.b; song.loop = true; song.playbackRate.value = tempo / 118;
     const g = ctx.createGain(); g.gain.value = buf.music.gain * 0.5; song.connect(g).connect(music); song.start();
   }
+  // one sound of a kind per frame: the same sound asked for again before the frame is over is not made twice
+  const seen = new Set();
+  const once = (k) => { if (seen.has(k)) return false; if (!seen.size) setTimeout(() => seen.clear(), 0); seen.add(k); return true; };
   return {
     unlock(cfg) { ensure(cfg); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
-    play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a); else fx[id](a); },
+    play(id, a = 1, rate) { if (!ctx || muted || ctx.state !== 'running' || !once(id)) return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a, rate); else fx[id](a, rate); },
     /** The hammer's hit sound (see hammer above); silent like play() while muted or before the first touch. */
-    hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running') return; hammer(H, body, n, clang); },
+    hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running' || !once('hammer:' + body)) return; hammer(H, body, n, clang); },
     get lastRate() { return lastRate; },
     /** A layered sound from config (see layers above); silent like play() while muted or before the first touch. */
-    layers(S, k = 1) { if (!ctx || muted || ctx.state !== 'running' || !S) return; layers(S, k); },
+    layers(S, k = 1) { if (!ctx || muted || ctx.state !== 'running' || !S || !once(S)) return; layers(S, k); },
     /** The limiter on the master bus: its settings and how many dB it is taking off right now (null without one). */
     get limiter() { return comp ? { threshold: comp.threshold.value, knee: comp.knee.value, ratio: comp.ratio.value, attack: comp.attack.value, release: comp.release.value, reduction: comp.reduction } : null; },
     setTempo(t) { tempo = t; if (song) song.playbackRate.value = t / 118; },
@@ -213,13 +217,25 @@ function run(mode) {
 function startGame(mode) {
   const cfg = window.gameConfig || {};
   const root = document.getElementById('app') || document.body;
-  root.innerHTML = HTML;
+  // the opening that index.html painted (its backdrop and the title, marked data-keep) stays where it is: the game is built under it
+  for (const c of [...root.children]) if (!c.hasAttribute('data-keep')) c.remove();
+  root.insertAdjacentHTML('afterbegin', HTML);
+  if (!root.querySelector('#title')) root.insertAdjacentHTML('beforeend', '<div id="title" class="title" data-keep></div>');
+  // titlePre: the opening's title is up (showTitle keeps its words). Its class pre goes only once the HUD's attract state is set
+  // (newLevel): a style pass in between would hide it for a moment and its words would land again
+  let titlePre = root.querySelector('#title').classList.contains('pre');
+  if (window.__boot) window.__boot.live = true;
   const $ = (id) => root.querySelector('#' + id);
   const qs = new URLSearchParams(location.search);
-  // the world's clock can be run faster by the test scripts (?speed=)
+  // the world's clock multiplier (1 in play)
   let speed = 1;
   // dev:start
   speed = Number(qs.get('speed')) || 1;
+  // dev:end
+  // ?tier=high (dev only) pins the high quality tier: no weak-phone start, no automatic stepping (for captures on a slow test GPU)
+  let tierPin = '';
+  // dev:start
+  tierPin = qs.get('tier') || '';
   // dev:end
   let alive = true, raf = 0, last = performance.now();
 
@@ -242,7 +258,7 @@ function startGame(mode) {
   const cv = $('cv'), scene = createScene(cv, cfg);
   const signLang = () => scene.setSignLang(lang, (cfg.signs || {})[lang] || (cfg.signs || {}).en || []);
   signLang();
-  let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
+  let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, levelPaid = 0, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
   // the chain (cfg.flow): buildings follow one another without a card; the card comes every flow.cardEvery buildings,
   // and never before flow.cardAfterSec of play. playT = seconds played since the first touch; chain = the buildings
   // finished since the last card; chainT = seconds until the next building starts by itself (-1: not waiting)
@@ -256,10 +272,10 @@ function startGame(mode) {
     demo = !!opts.demo;
     // the attract show starts its script over on every building; the HUD is put away while it runs
     if (demo) { showT = 0; showI = 0; showAll = 0; if (!opts.cut) { showHome = n; showN = 0; } }
-    $('hud').classList.toggle('attract', demo && mode === 'play');
+    $('hud').classList.toggle('attract', demo && mode === 'play'); $('title').classList.remove('pre');
     if (demo && mode === 'play') showTitle(); else titleOn = false;
     scene.setLevel(W);
-    sel = 'hammer'; resultsOpen = false; paidStars = null; paidBonus = 0; hardHint = null; idleT = 0; firstTap = false;
+    sel = 'hammer'; resultsOpen = false; paidStars = null; levelPaid = 0; paidBonus = 0; hardHint = null; idleT = 0; firstTap = false;
     // a finger from the last level does not steer this one; in a chain the thumb stays where it is: the stick and a
     // held HIT go on in the next building (the player never let go)
     if (!opts.chain) { ptr = null; stick = null; hitHeld = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } }
@@ -280,6 +296,7 @@ function startGame(mode) {
   for (const b of $('tools').querySelectorAll('.tool')) toolEls[b.dataset.t] = b;
   // the HIT button's verb follows the tool (BONK, BOOM, FIRE, SWING, PULL, CRASH); its ready pulse is tuned in the config
   const VERB = { hammer: 'vHammer', bomb: 'vBomb', rocket: 'vRocket', ball: 'vBall', hole: 'vHole', meteor: 'vMeteor' };
+  root.style.setProperty('--fev-pulse', cfg.fever.pulseSec + 's');
   { const hp = cfg.hitPulse; root.style.setProperty('--wave-dur', cfg.waves.banner + 's'); root.style.setProperty('--tp-dur', cfg.toolBar.pulse + 's'); root.style.setProperty('--hp-cycle', hp.cycle + 's'); root.style.setProperty('--hp-glow', String(hp.glow)); root.style.setProperty('--hp-bright', String(hp.bright)); root.style.setProperty('--hp-dim', String(hp.dim)); }
   let hitLabel = '';
   function labelHit() { const el = $('hit').querySelector('.hl'), t = T(VERB[sel] || 'vHammer'); if (hitLabel === t + lang) return; hitLabel = t + lang; el.textContent = t; fitText(el, 132, 30); }
@@ -288,6 +305,8 @@ function startGame(mode) {
   $('bar').innerHTML = `<b></b><i style="left:${cfg.stars.wreck1 * 100}%"></i><i style="left:${cfg.stars.wreck2 * 100}%"></i><span class="pct"></span>`;
   $('bar').querySelectorAll('i').forEach((i) => { const im = document.createElement('img'); im.src = TROPHY_SVG; im.style.width = '100%'; i.appendChild(im); });
   const shown = { coins: -1, got: -1, wreck: -1, tools: '' };
+  // the top bar is looked at when an event or the coins ask for it (and a few times a second in any case)
+  let topDirty = true, topT = 0, bumpAt = 0;
   /** A panel that pauses the world is open (the shop and album, the settings). */
   const modalOpen = () => !$('shop').hidden || !$('settings').hidden;
   const usable = (id) => save.owned.includes(id) || (W && (W.fever > 0 || !W.tried.has(id)));
@@ -315,7 +334,7 @@ function startGame(mode) {
     const coins = save.coins;
     // something to buy: a red "!" on the coins (always), and the pulse until the shop has been opened once
     if (coins !== shown.coins || shown.dot === undefined) { const can = saveLoaded && L.canBuy(cfg, save.owned, save.lv, coins); $('coins').classList.toggle('can', can && !save.learned.shop); $('dot').hidden = !can; shown.dot = can; }
-    if (coins !== shown.coins) { const el = $('coins'); el.querySelector('b').textContent = fmt(coins); if (shown.coins >= 0 && coins > shown.coins) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } shown.coins = coins; renderTools(); }
+    if (coins !== shown.coins) { const el = $('coins'), s = fmt(coins); if (s !== shown.coinsS) { shown.coinsS = s; el.querySelector('b').textContent = s; } if (shown.coins >= 0 && coins > shown.coins && performance.now() >= bumpAt) { bumpAt = performance.now() + cfg.words.bumpGap * 1000; if (el.classList.contains('bump')) { el.classList.remove('bump'); requestAnimationFrame(() => el.classList.add('bump')); } else el.classList.add('bump'); } shown.coins = coins; renderTools(); }
     const got = W ? Math.min(3, W.got) : 0;
     if (got !== shown.got) { $('stars').querySelectorAll('img').forEach((im, i) => im.classList.toggle('on', i < got)); shown.got = got; }
     const wr = W ? Math.round(WD.wreck(W) * 100) : 0;
@@ -331,13 +350,25 @@ function startGame(mode) {
   // still has no place takes it, and the words under it go.
   const WORDS = { top: 156, bottom: 920, side: 12, gap: 8, rise: 0.4, life: 950, wait: 220, tries: 4, cross: { l: 270, t: 566, r: 450, b: 714 }, up: [] };
   /** Screen pixels per frame unit. */
-  const unit = () => root.getBoundingClientRect().width / 720 || 1;
+  // the root's box is measured in fit() (the start, a resize, a turn of the phone) and read from here
+  let rootBox = null;
+  const rootRect = () => rootBox || (rootBox = root.getBoundingClientRect());
+  const unit = () => rootRect().width / 720 || 1;
+  // a word's fitted size, measured once per language, class and text (forgotten when the screen or a font changes)
+  const wordSize = new Map();
+  // a text's width in screen pixels in a CSS font, from a canvas (no layout)
+  let textCtx = null, textFont = '';
+  const textW = (font, t) => { if (!textCtx) textCtx = document.createElement('canvas').getContext('2d'); if (textFont !== font) { textFont = font; textCtx.font = font; } return textCtx.measureText(t).width; };
+  // while the world steps, words and coin counts wait for the end of the step (hudFlush)
+  let inStep = false, wordQ = [], coinAcc = null;
   /** A status line's box in frame units, from its layout (its entrance scale does not count). */
   let chipAway = 0;
   const laneBox = (el) => { const k = unit(), ln = $('lane'), l = (ln.offsetLeft + el.offsetLeft) / k, t = (ln.offsetTop + el.offsetTop) / k; return { l, t, r: l + el.offsetWidth / k, b: t + el.offsetHeight / k }; };
   // where the status column ends, in frame units (0 when it is empty); kept up to date as its lines come and go
   let laneBottom = 0;
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { const ln = $('lane'); laneBottom = ln.offsetHeight ? (ln.offsetTop + ln.offsetHeight) / unit() : 0; }).observe($('lane'));
+  // the status lines' boxes, read once a frame (before the frame's words come into the page) and again when the lines change
+  let laneNow = null, arrowsNow = null;
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { const ln = $('lane'); laneNow = null; laneBottom = ln.offsetHeight ? (ln.offsetTop + ln.offsetHeight) / unit() : 0; }).observe($('lane'));
   /**
    * The free place for a w × h word wanted at (x, y): its centre [x, y] and its box, or null when the view is full.
    * `loose` 1 = it may pass over the arrows to stars (a big word is as wide as the frame), 2 = over other words too
@@ -352,9 +383,10 @@ function startGame(mode) {
     const taken = loose === 2 || loose >= 4 ? [G.cross] : [G.cross, ...G.up];
     // many words at once, or one as wide as the frame, need the mission chip's place: it steps aside at once and
     // stays away for a word's life (chipShow brings it back)
-    if (WORDS.up.length >= cfg.missions.chip.yieldWords || w >= cfg.missions.chip.yieldWidth) { $('mchip').hidden = true; chipAway = performance.now() + WORDS.life; }
-    if (loose < 3) for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
-    if (!loose) for (const el of $('arrows').children) { const r = frameRect(el); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
+    if (WORDS.up.length >= cfg.missions.chip.yieldWords || w >= cfg.missions.chip.yieldWidth) { if (!$('mchip').hidden) laneNow = null; $('mchip').hidden = true; chipAway = performance.now() + WORDS.life; }
+    if (loose < 3) { if (!laneNow) laneNow = [...$('lane').children].filter((el) => !el.hidden).map(laneBox); taken.push(...laneNow); }
+    // (the arrows to stars too: they move once a frame, after the words)
+    if (!loose) { if (!arrowsNow) arrowsNow = [...$('arrows').children].map((el) => { const r = frameRect(el); return { l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }; }); taken.push(...arrowsNow); }
     if (loose < 3 && !$('coach').hidden) { const r = frameRect($('coach').querySelector('.clabel')); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
     const cx = Math.max(w / 2 + G.side, Math.min(720 - G.side - w / 2, x)), cy = Math.max(G.top + up + h / 2, Math.min(G.bottom - h / 2, y));
     const sx = w + G.gap, sy = h + up + G.gap, spots = [];
@@ -373,8 +405,10 @@ function startGame(mode) {
   }
   /** Puts a finished word element in its free place; false (and the element removed) when there is none. */
   function wordShow(p, x, y, loose = 0) {
-    const k = unit(), at = wordPlace(x, y, p.offsetWidth / k, p.offsetHeight / k, loose);
+    const k = unit(), s = p._sz, at = wordPlace(x, y, s ? s.w : p.offsetWidth / k, s ? s.h : p.offsetHeight / k, loose);
     if (!at) { p.remove(); return false; }
+    // (a word whose size was known comes into the page here, already in its place)
+    if (!p.isConnected) $('pops').appendChild(p);
     p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`;
     p._box = at[2]; p._box.el = p; p._x = x; p._y = y;
     setTimeout(() => p.remove(), WORDS.life);
@@ -382,6 +416,7 @@ function startGame(mode) {
   }
   /** A status line appeared or grew: a word standing where it now is moves to the next free place (or goes). */
   function wordsYield() {
+    laneNow = null;
     const lane = [...$('lane').children].filter((el) => !el.hidden).map(laneBox), pad = WORDS.gap - 0.5;
     for (const p of [...$('pops').children]) {
       const b = p._box; if (!b || !lane.some((o) => b.l < o.r + pad && b.r > o.l - pad && b.t < o.b + pad && b.b > o.t - pad)) continue;
@@ -396,17 +431,33 @@ function startGame(mode) {
   function starPop() { const p = document.createElement('img'); p.src = TROPHY_SVG; p.className = 'pop trophy'; $('pops').appendChild(p); wordShow(p, 360, 830); Sound.play('star'); buzz('success'); }
   /** A word at frame point (x, y), with one of the game's icons before it when `ic` names one. */
   function pop(text, x, y, cls = '', color, ic = '', turn = 0, stage = 0) {
+    if (inStep && !turn && !stage) { wordQ.push([text, x, y, cls, color, ic]); return; }
     const p = document.createElement('div'); p.className = `pop out ${cls}`;
     if (ic) { p.classList.add('p-row'); p.innerHTML = UI.icon(ic); p.appendChild(Object.assign(document.createElement('span'), { textContent: text })); } else p.textContent = text;
     if (color) p.style.color = color;
     p._args = [text, x, y, cls, color, ic];
-    $('pops').appendChild(p);
     // a big word is never dropped. Its tries, at once and in this order: two lines in a free place; one line (half
     // the height: it fits under the crosshair); two lines over the status lines (it comes with its fanfare, not a
     // second later). Other words are waited for; only its very last try may take their place.
     const big = cls.includes('p-big'), last = turn >= WORDS.tries, oneLine = big && stage === 1 && !last;
     // (on one line a big word takes the middle size, so a long one still fits the frame's width)
-    const base = oneLine ? 60 : big ? 88 : cls.includes('p-mid') ? 60 : 44; fitText(p, 690, base, big && !oneLine ? 2 : 1);
+    const base = oneLine ? 60 : big ? 88 : cls.includes('p-mid') ? 60 : 44, rows = big && !oneLine ? 2 : 1, key = [lang, cls, ic, base, rows, text].join('|');
+    // a word seen before takes its fitted size from wordSize: nothing is measured, and it is laid out once, in its place
+    let sz = wordSize.get(key);
+    // a coin count (its digits change every time) takes its height from the first one measured in the page, and its
+    // width from the canvas plus what that first one had around its text
+    const gk = !sz && !ic && cls === 'p-coin' && /^[+\d.,kM]+$/.test(text) ? 'n|' + lang : '', g = gk && wordSize.get(gk);
+    if (g) { const w = g.extra + textW(g.font, text) / unit(); if (w <= 690) sz = { ...g.sz, w }; }
+    if (sz) { p.style.fontSize = sz.fs; p.style.whiteSpace = sz.ws; p.style.maxWidth = sz.mw; p.style.width = sz.wd; if (sz.wrap) p.classList.add('wrap'); }
+    else {
+      $('pops').appendChild(p); fitText(p, 690, base, rows);
+      const k = unit(); sz = { w: p.offsetWidth / k, h: p.offsetHeight / k, fs: p.style.fontSize, ws: p.style.whiteSpace, mw: p.style.maxWidth, wd: p.style.width, wrap: p.classList.contains('wrap') };
+      if (sz.w > 0 && sz.h > 0) {
+        if (wordSize.size > 300) wordSize.clear(); wordSize.set(key, sz);
+        if (gk && !sz.fs) { const cs = getComputedStyle(p), font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; if (cs.letterSpacing === 'normal' || parseFloat(cs.letterSpacing) === 0) wordSize.set(gk, { sz, font, extra: sz.w - textW(font, text) / k }); }
+      }
+    }
+    p._sz = sz;
     // a small word never stands on another: one that still has no place on its last try goes
     const loose = big ? (last ? 4 : stage === 2 ? 3 : 1) : 0;
     // its very last try: first over other words only (the status lines stay clear), and only then over everything
@@ -426,7 +477,7 @@ function startGame(mode) {
    * balanced lines inside maxW; only then a smaller font, never below `floor` of base (70%; long translations).
    */
   function fitText(el, maxW, base, lines = 1, floor = 0.7) {
-    const k = root.getBoundingClientRect().width / 720 || 1;
+    const k = unit();
     el.style.fontSize = ''; el.style.whiteSpace = 'nowrap'; el.style.maxWidth = ''; el.classList.remove('wrap');
     if (el.style.width === 'max-content') el.style.width = '';
     if (el.offsetWidth / k <= maxW + 0.5 && el.scrollWidth <= el.clientWidth + 1) return;
@@ -444,12 +495,27 @@ function startGame(mode) {
   }
   let coinPopT = 0;
   const coinPop = (n, x, y, z) => {
+    // in the world's step the frame's coins add up: one count, where the first of them was, shows their sum
+    if (inStep) { if (n) { if (!coinAcc) coinAcc = { n: 0, x, y, z }; coinAcc.n += n; } return; }
     if (!n || coinPopT > 0) return; coinPopT = 0.12; const [sx, sy, behind] = scene.screenOf(x, y, z); if (behind) return;
     pop('+' + fmt(n), sx, sy - 40, 'p-coin');
     // a coin flies into the coins pill (one every quarter second at most)
     if (coinFlyT <= 0) { coinFlyT = 0.25; fly('<i class="coin"></i>', sx, sy - 40, $('coins')); }
   };
   let coinFlyT = 0;
+  /**
+   * The end of the world's step: the frame's coins as one count, then one word, the biggest asked for. A big word
+   * that was not shown waits for the next frame (it is never dropped); the smaller ones go.
+   */
+  function hudFlush() {
+    inStep = false;
+    if (coinAcc) { const c = coinAcc; coinAcc = null; coinPop(c.n, c.x, c.y, c.z); }
+    if (!wordQ.length) return;
+    const rank = (a) => (a[3].includes('p-big') ? 2 : a[3].includes('p-mid') ? 1 : 0);
+    let b = 0; for (let i = 1; i < wordQ.length; i++) if (rank(wordQ[i]) > rank(wordQ[b])) b = i;
+    const a = wordQ.splice(b, 1)[0]; wordQ = wordQ.filter((q) => rank(q) === 2);
+    pop(...a);
+  }
   function setTip(k) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
     // 600 of the 680 wide column: room for its pulse
@@ -553,7 +619,7 @@ function startGame(mode) {
     if (!W.hero.aim && firstTap) { const c = frontKeg(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
     firstTap = false;
     // too far for the hammer: the stick at home pulses (walk there with it)
-    if (!W.hero.aim) { const el = $(touchUI ? 'stickHome' : 'keys'); el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); }
+    if (!W.hero.aim) { const el = $(touchUI ? 'stickHome' : 'keys'); el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); walkAsked = true; }
   }
   /** The boom barrel cell nearest the hero, when it is still there and in reach of the hammer. */
   function frontKeg() {
@@ -614,6 +680,12 @@ function startGame(mode) {
   hitBtn.addEventListener('pointerup', hitUp); hitBtn.addEventListener('pointercancel', hitUp); hitBtn.addEventListener('pointerleave', hitUp);
   const onCancel = (e) => { if (stick && e.pointerId === stick.id) { stick = null; showStick(); } if (!ptr || e.pointerId !== ptr.id) return; ptr = null; if (W) WD.release(W); }; // a cancelled touch never fires a tool
   const onLock = () => { locked = document.pointerLockElement === cv; if (!locked) hitHeld = false; else if (ptr) { ptr = null; if (W) { WD.release(W); WD.aimHammer(W, null); } } };
+  // two thumbs: a browser recognises a tap (and sends its click) for one finger only. While one thumb is on the stick
+  // or turning the view, the other thumb's tap on a button is made into that click here (a slide off the button is not one)
+  const taps = new Map();
+  const tapDown = (e) => { if (e.pointerType !== 'touch' || e.isPrimary !== false) return; const b = e.target.closest && e.target.closest('button, .pill'); if (b && b !== hitBtn) taps.set(e.pointerId, { b, x: e.clientX, y: e.clientY }); };
+  const tapUp = (e) => { const t = taps.get(e.pointerId); if (!t) return; taps.delete(e.pointerId); if (e.type === 'pointerup' && t.b.isConnected && !t.b.disabled && Math.hypot(e.clientX - t.x, e.clientY - t.y) < cfg.touch.tapSlop * unit()) t.b.click(); };
+  root.addEventListener('pointerdown', tapDown, true); window.addEventListener('pointerup', tapUp, true); window.addEventListener('pointercancel', tapUp, true);
   root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onCancel);
   document.addEventListener('pointerlockchange', onLock);
   // a host that refuses the lock: clicks are taps and a drag looks, from now on
@@ -642,7 +714,7 @@ function startGame(mode) {
   window.addEventListener('blur', onBlur);
 
   // ---- world events → sounds, words, coins
-  let hitSnd = 0, beepT = 0;
+  let hitSnd = 0, beepT = 0, bonkT = 0;
   /** Hit-stop: the world runs at feel.stopScale for a moment sized by the tool (hammer short, ball and meteor long). */
   const hitStop = (kind) => { if (!demo) stopT = Math.max(stopT, cfg.feel.stop[kind] || cfg.feel.stop.bomb); };
   /** A batch of n blocks: the biggest ever (from a minimum size on) is a new record. */
@@ -683,7 +755,13 @@ function startGame(mode) {
     clearTimeout(waveBanner.t); waveBanner.t = setTimeout(() => { el.hidden = true; }, cfg.waves.banner * 1000);
     wordsYield();
   }
+  /** One event of the world. Its words and coin counts show at the end of the step (at once when called outside it). */
   function onEvent(e) {
+    const was = inStep; inStep = true; topDirty = true;
+    try { onEvent1(e); } finally { inStep = was; }
+    if (!was) hudFlush();
+  }
+  function onEvent1(e) {
     scene.event(e);
     if (!demo) { const x = L.missionEvent(e); if (x) missionGain(x); }
     if (e.type === 'smash') {
@@ -716,6 +794,7 @@ function startGame(mode) {
     } else if (e.type === 'boom') { const ts = cfg.feel[e.kind] && cfg.feel[e.kind].sound; if (ts) Sound.layers(ts.impact, Math.min(1, e.r / 5)); else Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); hitStop(e.kind); }
     else if (e.type === 'throw') { const ts = !e.shot.from && cfg.feel[e.shot.kind] && cfg.feel[e.shot.kind].sound; if (ts) Sound.layers(ts.launch); else Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
     else if (e.type === 'roll') { if (e.first) Sound.layers(cfg.feel.ball.sound.impact); else Sound.play('roll'); if (e.first) hitStop('ball'); }
+    else if (e.type === 'ballLand' || e.type === 'ballBounce') { Sound.layers(cfg.feel.ball.sound.thud, Math.min(1, e.fall / cfg.feel.ball.thud.full)); buzz('thud'); }
     else if (e.type === 'fall') { /* the crash comes when it lands */ }
     else if (e.type === 'land') {
       Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud'); if (!demo && e.n >= 120) slowT = Math.max(slowT, cfg.feel.landSlow);
@@ -723,11 +802,26 @@ function startGame(mode) {
       if (!demo) { save.coins += e.coins; save.total += e.coins; save.blocks += e.n; persistSoon(); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (e.n >= 12) pop(T('crash'), sx, sy - 120, e.n > 120 ? 'p-big' : 'p-mid', '#ffb02e'); coinPop(e.coins, e.x, e.y + 1, e.z); }
     } else if (e.type === 'step') Sound.play('step');
     else if (e.type === 'treasure') { Sound.play('treasure'); buzz('success'); if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); banner(T('treasure'), 'p-big', -40); } }
+    else if (e.type === 'bossHit' || e.type === 'bossDown') {
+      // the boss robot: a low boing; a stagger says BONK! over its crown and pays; the last knock is a big moment
+      // (BOSS DOWN!, the fanfare, confetti, coins flying to the pill, slow motion, the strongest buzz)
+      const down = e.type === 'bossDown';
+      Sound.play('boing', 1, cfg.boss.hitPitch); buzz(down ? 'success' : 'thud'); if (e.by === 'hammer') hitStop('hammer');
+      if (!demo) {
+        save.coins += e.coins; save.total += e.coins; persistSoon(); idleT = 0;
+        if (down) { Sound.play('fanfare'); slowT = Math.max(slowT, cfg.feel.toppleSlow); banner(T('bossDown'), 'p-big', -40); confetti(); lastCelebration = 'boss'; flyBonus(e.coins, 640); }
+        else { const [sx, sy, behind] = scene.screenOf(e.hx, e.hy, e.hz); if (!behind) pop(T('bonk'), sx, sy - 60, 'p-mid', '#ffd23c'); coinPop(e.coins, e.x, e.y, e.z); }
+      }
+    }
     else if (e.type === 'bonk') {
       Sound.play('boing', e.again ? 0.6 : 1); buzz(e.again ? 'tap' : 'thud'); if (e.by === 'hammer' && !e.again) hitStop('hammer');
       if (!demo && !e.again) {
         save.coins += e.coins; save.total += e.coins; persistSoon(); idleT = 0;
-        const [sx, sy, behind] = scene.screenOf(e.x, e.y, e.z); if (!behind) { pop(T('bonk'), sx, sy - 110, 'p-mid', '#7dfcff'); coinPop(e.coins, e.x, e.y, e.z); }
+        const [sx, sy, behind] = scene.screenOf(e.x, e.y, e.z); if (!behind) {
+          // one BONK word at a time when many robots fall together (their coins all show)
+          if (bonkT <= 0) { bonkT = cfg.words.bonkGap; pop(T('bonk'), sx, sy - 110, 'p-mid', '#7dfcff'); }
+          coinPop(e.coins, e.x, e.y, e.z);
+        }
       }
     }
     else if (e.type === 'reboot') {
@@ -755,13 +849,13 @@ function startGame(mode) {
     }
     persistSoon(); renderMission(got.length > 0);
   }
-  let chipKey = '', lastMission = null;
+  let chipKey = '', chipN = '', lastMission = null;
   /** The chip in the status column: the mission nearest to its goal (icon, words, count, a thin bar). */
   function renderMission(bump) {
     const el = $('mchip'), x = L.missionChip(cfg, save.missions); if (!x) { chipKey = ''; return; }
     const v = missionView(x), key = x.def.id + lang;
-    if (key !== chipKey) { chipKey = key; el.innerHTML = UI.missionChip(v); fitText(el.querySelector('.tx'), cfg.missions.chip.width, 20); }
-    else { el.querySelector('.mn').textContent = v.have + '/' + v.n; el.querySelector('.mbar b').style.width = Math.round(v.have / v.n * 100) + '%'; }
+    if (key !== chipKey) { chipKey = key; chipN = ''; el.innerHTML = UI.missionChip(v); fitText(el.querySelector('.tx'), cfg.missions.chip.width, 20); }
+    else { const s = v.have + '/' + v.n; if (s !== chipN) { chipN = s; el.querySelector('.mn').textContent = s; el.querySelector('.mbar b').style.width = Math.round(v.have / v.n * 100) + '%'; } }
     if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
   }
   /** The chip keeps quiet: it shows in play, and waits while the level card, a wave banner, smash time or the coach has the column, and while many words are up (they need its place). */
@@ -776,7 +870,7 @@ function startGame(mode) {
     dailyChecked = true;
     const today = L.dayNum(new Date());
     if (!save.day) { save.day = today; persistSoon(); return; } // never on the first day
-    if (L.dailyDue(save.day, today)) { save.day = today; save.coins += cfg.coins.daily; save.total += cfg.coins.daily; persist(); setTimeout(() => { if (alive) { banner(T('daily'), 'p-mid', -120); pop('+' + fmt(cfg.coins.daily), 360, 560, 'p-big', '#ffe14a'); Sound.play('unlock'); } }, 600); }
+    if (L.dailyDue(save.day, today)) { const gift = L.dailyGift(cfg, save.owned, save.lv); save.day = today; save.coins += gift; save.total += gift; persist(); setTimeout(() => { if (alive) { banner(T('daily'), 'p-mid', -120); pop('+' + fmt(gift), 360, 560, 'p-big', '#ffe14a'); Sound.play('unlock'); } }, 600); }
   }
 
   // ---- panels: the result card, the shop and album, the settings share one shell (ui.js) and one way in and out
@@ -788,7 +882,7 @@ function startGame(mode) {
     setTimeout(() => gh.remove(), 180);
   }
   /** The room inside an element, in frame units (its width without its padding). */
-  const roomIn = (el) => { const cs = getComputedStyle(el); return (el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / (root.getBoundingClientRect().width / 720 || 1); };
+  const roomIn = (el) => { const cs = getComputedStyle(el); return (el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / unit(); };
   /** Fits every element matching sel inside box to the room of its parent (or its own box when it fills a row). */
   const fitAll = (box, sel, base, lines = 1, own = false) => { for (const n of box.querySelectorAll(sel)) if (n.textContent) fitText(n, own ? roomIn(n) : roomIn(n.parentElement), base, lines); };
   const NAME = { hammer: 'nHammer', bomb: 'nBomb', rocket: 'nRocket', ball: 'nBall', hole: 'nHole', meteor: 'nMeteor' };
@@ -827,8 +921,9 @@ function startGame(mode) {
     // trophies for wrecking 50% and 80%
     const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1;
     // the level bonus is paid once; later visits (after smashing more) only add the stars' difference
-    const bonus = paidStars === null ? L.levelBonus(cfg, W.n, stars) : (stars.every(Boolean) && !paidStars.every(Boolean) ? L.levelBonus(cfg, W.n, stars) / 2 : 0);
-    paidStars = stars;
+    // (it follows the trophies and what the building has earned: smashing on after the card can only add to it)
+    const bonus = Math.max(0, L.levelBonus(cfg, W.n, stars, W.coins) - levelPaid);
+    paidStars = stars; levelPaid += bonus;
     save.coins += bonus; save.total += bonus; paidBonus += bonus;
     // today's challenge: done for today
     if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); }
@@ -836,6 +931,31 @@ function startGame(mode) {
     persist(); renderTop();
     try { if (saveLoaded) lib.addPlayerScoreToLeaderboard(save.blocks).catch(() => {}); } catch (er) { /* no board here */ }
     return { wr, stars, bonus };
+  }
+  /**
+   * The result card's goal: the next tool to unlock or, once all are owned, the cheapest upgrade ("HAMMER Lv 7 → 8"),
+   * with its price (or what is missing) and the coins in hand as a bar. It is a button: see goalTap.
+   */
+  function goalRow() {
+    const gl = L.nextGoal(cfg, save.owned, save.lv, save.coins); if (!gl) return '';
+    const miss = gl.need - gl.have, name = T(NAME[gl.tool.id]);
+    const label = gl.kind === 'up' ? `${name} <bdi>${T('lv', gl.lv)}</bdi>${UI.icon('arrow', 'flip')}<b dir="ltr">${gl.lv + 1}</b>` : name;
+    const value = miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(gl.need)}</b>`;
+    return UI.goal({ id: 'goalBtn', ic: gl.tool.id, label, value, part: gl.have / gl.need, can: miss <= 0, buy: gl.tool.id });
+  }
+  /** A tap on the goal: with the coins in hand it is bought on the card (the shop's purchase), else the shop opens over the card. */
+  function goalTap() {
+    const b = $('goalBtn'); if (!b || !resultsOpen) return;
+    // the row changes to the next goal under the finger: a second tap right after a purchase buys nothing
+    if (performance.now() - boughtAt < cfg.flow.goalGap * 1000) return;
+    Sound.unlock(cfg);
+    if (b.classList.contains('can')) buyOrUpgrade(b.dataset.buy); else openShop('tools', true);
+  }
+  /** The goal row drawn again after a purchase (on the card or in the shop over it). */
+  function goalRefresh() {
+    const b = $('goalBtn'); if (!b || !resultsOpen) return;
+    const html = goalRow(); if (!html) { b.remove(); return; }
+    b.outerHTML = html; fitAll($('panel'), '.goal .mlab', 24, 1, true);
   }
   function results() {
     if (!W || demo) return;
@@ -849,7 +969,6 @@ function startGame(mode) {
     const { wr, stars } = payLevel();
     // the card sums the buildings of the chain since the last card (a daily challenge shows only itself)
     const sum = W.daily ? { coins: 0, smashed: 0 } : chain, cardCoins = sum.coins + W.coins + paidBonus, cardBlocks = sum.smashed + W.smashed;
-    const nt = L.nextTool(cfg, save.owned, save.coins), miss = nt ? nt.need - nt.have : 0;
     const share = typeof lib !== 'undefined' && typeof lib.share === 'function';
     // the wreck figure: its name, the share wrecked, and a bar with the two trophies standing at their thresholds
     const marks = `<span class="cups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="inset-inline-start:${cfg.stars['wreck' + i] * 100}%;animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</span>`;
@@ -862,7 +981,7 @@ function startGame(mode) {
       <div class="stat out">${UI.COIN}+<b class="cnt">${fmt(cardCoins)}</b></div>
       <div class="brag">${T('brag', commas(cardBlocks))}</div>
       ${UI.meter({ ic: 'burst', label: T('wrecked'), value: `<b>${Math.round(wr * 100)}%</b>`, part: wr, marks })}
-      ${nt ? UI.meter({ ic: nt.tool.id, label: T(NAME[nt.tool.id]), value: miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(nt.need)}</b>`, part: nt.have / nt.need, cls: 'ntool' }) : ''}
+      ${goalRow()}
       ${UI.missions(L.missionsList(cfg, save.missions).map(missionView))}
       <div class="btns">${UI.primary('nextBtn', T('next'), UI.icon('play', 'flip'))}<div class="brow">${quiet.join('')}</div></div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
@@ -906,9 +1025,10 @@ function startGame(mode) {
     const level = owned ? `<b>${T('lv', lv)}</b><i><u style="width:${Math.round(lv / cfg.upgrade.max * 100)}%"></u></i>` : '';
     return `<div class="srow tile${owned ? '' : ' locked'}"><span class="sic">${UI.icon(t.id)}${owned ? '' : `<i class="slock">${UI.icon('lock')}</i>`}</span><span class="slv">${level}${tryIt}</span><span class="sinfo"><span class="snm">${T(NAME[t.id])}</span><span class="sfx">${fx}</span></span>${btn}</div>`;
   }
-  function openShop(tab) {
-    // nothing is bought before the save is read: a late save would undo it
-    if (mode !== 'play' || !W || resultsOpen || !saveLoaded) return;
+  function openShop(tab, over = false) {
+    // nothing is bought before the save is read: a late save would undo it; over the result card only when the card's
+    // goal asks for it (over), and then it stays open through its own tabs and purchases
+    if (mode !== 'play' || !W || !saveLoaded || (resultsOpen && !over && $('shop').hidden)) return;
     shopTab = tab || shopTab; save.learned.shop = true; $('coins').classList.remove('can');
     let body = '';
     if (shopTab === 'tools') body = `<div class="sgrid">${cfg.tools.map(shopCard).join('')}</div>`;
@@ -932,7 +1052,7 @@ function startGame(mode) {
     if (cost === null || save.coins < cost) { Sound.play('no'); const b = $('shop').querySelector(`[data-buy="${id}"]`); if (b) { b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); } return false; }
     save.coins -= cost; boughtAt = performance.now(); boughtId = id;
     if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
-    persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
+    persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools'); goalRefresh();
     return true;
   }
   $('shop').addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -947,6 +1067,7 @@ function startGame(mode) {
   $('coins').addEventListener('click', (e) => { e.stopPropagation(); Sound.unlock(cfg); if (demo) firstTouch(); openShop('tools'); });
   $('nextpill').addEventListener('click', (e) => { e.stopPropagation(); results(); });
   $('panel').addEventListener('pointerdown', (e) => e.stopPropagation());
+  $('panel').addEventListener('click', (e) => { if (e.target.closest('#goalBtn')) { e.stopPropagation(); goalTap(); } });
 
   // ---- settings (the gear): sound and the language, in the same panel shell
   let muteTouched = false;
@@ -976,25 +1097,37 @@ function startGame(mode) {
 
   // ---- frame loop
   let stopT = 0, slowT = 0;
-  let qT = 0, qN = 0, coinTickT = 0, arrowKey = '', hitState = '';
+  let qT = 0, qN = 0, qH = 0, qW = null, glowLost = false, glowN = 0, coinTickT = 0, arrowKey = '', hitState = '';
   // quality: a weak phone starts on the low tier (no shadows, half the particles, a lower resolution); everywhere the
   // resolution follows the average frame over a window: slow → down a step, fast → up a step
   const Q = cfg.quality; let qs8 = { dpr: scene.dpr, max: scene.dprBase, low: false, capped: false, dropped: null, slow: 0 };
-  { let weak = false; try { weak = touchUI && ((navigator.hardwareConcurrency || 8) <= Q.weakCores || (navigator.deviceMemory || 8) <= Q.weakMemory); } catch (e) { weak = false; } if (weak || qs.has('low')) { qs8.low = true; qs8.max = Math.min(scene.dprBase, Q.lowMax); qs8.dpr = Math.min(qs8.max, Q.minDpr); scene.setLow(true); scene.setDpr(qs8.dpr); } }
+  { let weak = false; try { weak = touchUI && ((navigator.hardwareConcurrency || 8) <= Q.weakCores || (navigator.deviceMemory || 8) <= Q.weakMemory); } catch (e) { weak = false; } if ((weak || qs.has('low')) && tierPin !== 'high') { qs8.low = true; qs8.max = Math.min(scene.dprBase, Q.lowMax); qs8.dpr = Math.min(qs8.max, Q.minDpr); scene.setLow(true); scene.setDpr(qs8.dpr); } }
+  // (a pinned high tier, for captures, has the glow from the start)
+  if (tierPin === 'high') scene.setGlow(true);
   function frame(now) {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
     const real = Math.min(0.1, (now - last) / 1000); last = now;
     if (document.hidden) return;
-    qT += real; qN++;
+    qT += real; qN++; if (real * 1000 > Q.hitch.ms) qH++;
+    // a new level starts a new window (the frame that built it does not count) and may earn the glow again
+    if (W !== qW) { qW = W; glowLost = false; qT = 0; qN = 0; qH = 0; }
     if (qT >= Q.window) {
-      const avg = qT / qN; qT = 0; qN = 0;
-      qs8 = L.qualityStep(Q, qs8, avg); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low);
+      // slow: the average, or quality.hitch.count frames over quality.hitch.ms in an otherwise smooth window
+      const avg = qT / qN, hit = qH, slow = avg > Q.slow || hit >= Q.hitch.count; qT = 0; qN = 0; qH = 0;
+      // the glow pass is earned: quality.glow.windows smooth windows in a row at full resolution switch it on; one
+      // slow window switches it off for the rest of the level, and only a window that is slow without it steps the
+      // resolution down
+      if (tierPin !== 'high') {
+        const full = !qs8.low && qs8.dpr >= scene.dprBase - 0.01, had = glowN >= Q.glow.windows;
+        glowN = full && !glowLost && !slow && avg <= Q.glow.ms ? glowN + 1 : 0; if (had && glowN < Q.glow.windows) glowLost = true; scene.setGlow(glowN >= Q.glow.windows);
+        if (!(had && slow)) { qs8 = L.qualityStep(Q, qs8, avg, hit); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low); }
+      }
     }
     // hit-stop on a solid hit (time slowed to feel.stopScale), slow motion while a tower tips and as a big piece lands
     if (stopT > 0) stopT -= real; if (slowT > 0) slowT -= real;
     const dt = real * speed * (stopT > 0 ? cfg.feel.stopScale : slowT > 0 ? 0.4 : 1);
-    beepT -= real;
+    beepT -= real; bonkT -= real;
     coinPopT -= dt; coinFlyT -= dt;
     // the play clock runs from the first touch; the next building of a chain waits for an open shop or settings
     if (mode === 'play' && W && !demo) {
@@ -1028,8 +1161,10 @@ function startGame(mode) {
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
       W.frozen = stopT > 0;
-      if (!modalOpen()) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
+      if (!modalOpen()) { inStep = true; try { for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e); } finally { hudFlush(); } }
       if (W.fever > 0) { const s = String(Math.ceil(W.fever)), el = $('ftime').lastElementChild; if (el.textContent !== s) el.textContent = s; }
+      // the last fever.warnSec seconds of smash time: the red layer of the frame comes in (index.html .fever.warn)
+      { const fv = $('fever'), warn = W.fever > 0 && W.fever <= cfg.fever.warnSec; if (fv._w !== warn) { fv._w = warn; fv.classList.toggle('warn', warn); } }
       // cooldown rings
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
       // HIT pulses when the tool is ready, dims while it cools down
@@ -1043,7 +1178,8 @@ function startGame(mode) {
     scene.tool = sel;
     scene.update(W, mode === 'play' ? dt : real * 0.3);
     coinTickT -= dt; if (scene.coinArrive && coinTickT <= 0) { coinTickT = 0.05; Sound.play('coinS'); }
-    renderTop();
+    if ((topT -= real) <= 0 || topDirty || save.coins !== shown.coins) { topT = 0.25; topDirty = false; renderTop(); }
+    laneNow = null; arrowsNow = null;
   }
   // ---- the attract show: beats from cfg.demo.show fired in turn with the world's own tools (nothing pays in a demo)
   let showT = 0, showI = 0, showAll = 0, showN = 0, showHome = 0;
@@ -1063,10 +1199,21 @@ function startGame(mode) {
     return { x: x + 0.5, y: 0.6, z: z0 + 0.5 };
   }
   // the game's name in the top band: built once per attract session, each word slams in at its time (cfg.demo.title)
-  let titleOn = false, titleI = 0;
+  // titleLead: seconds the title's own clock is ahead of the show's (the opening had it up before the show began)
+  let titleOn = false, titleI = 0, titleLead = 0;
   function showTitle() {
-    if (titleOn) return; titleOn = true; titleI = 0;
+    if (titleOn) return; titleOn = true; titleI = 0; titleLead = 0;
     const TI = cfg.demo.title, el = $('title'); let k = 0;
+    // the opening's title goes on as it is: no word lands twice, and the words that have landed do not flash again
+    if (titlePre) {
+      titlePre = false;
+      const w = el.querySelector('.tw'), an = w && w.getAnimations ? w.getAnimations()[0] : null, B = window.__boot;
+      const ms = an && an.currentTime != null ? Number(an.currentTime) : B ? performance.now() - B.t0 : 0;
+      // the show's clock has the first word at TI.at[0]; the opening started it at its own delay
+      titleLead = ms / 1000 - (w ? parseFloat(w.style.animationDelay) || 0 : 0) + TI.at[0];
+      while (titleI < TI.at.length && (!an || TI.at[titleI] + 0.25 <= titleLead)) titleI++;
+      return;
+    }
     el.style.setProperty('--ts', TI.size); el.style.setProperty('--tt', TI.top);
     el.innerHTML = TI.lines.map((ws) => `<span class="tl">${ws.map((w) => `<span class="tw" style="animation-delay:${TI.at[Math.min(k++, TI.at.length - 1)]}s">${w}</span>`).join(' ')}</span>`).join(' ');
   }
@@ -1074,7 +1221,7 @@ function startGame(mode) {
   function showStep(dt) {
     const S = cfg.demo; showT += dt; showAll += dt;
     // each word of the title lands with a flash of its own (the show's pulse rule still holds: never two close together)
-    while (showN === 0 && titleI < S.title.at.length && S.title.at[titleI] + 0.25 <= showAll) { titleI++; scene.pulse(S.title.color); }
+    while (showN === 0 && titleI < S.title.at.length && S.title.at[titleI] + 0.25 <= showAll + titleLead) { titleI++; scene.pulse(S.title.color); }
     while (showI < S.show.length && S.show[showI].t <= showT) { const bt = S.show[showI++]; W.cool[bt.tool] = 0; WD.useTool(W, bt.tool, showAim(bt.at)); }
     if (showI >= S.show.length && showT >= S.loop) { showT -= S.loop; showI = 0; }
     if (showAll >= S.cut.after || WD.wreck(W) >= S.cut.wreck) { showN++; flashCut(S.cut.flash); newLevel(showHome + showN, { demo: true, cut: true }); }
@@ -1093,14 +1240,17 @@ function startGame(mode) {
     if (hand._k && hand._k[0] === 's') { hand._k = ''; hand.hidden = !(tipKey === 'tap' || tipKey === 'tooHard'); }
     if (hand.hidden) return;
     let x, y;
-    if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = root.getBoundingClientRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
+    if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = rootRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
     else { x = 400; y = 560; } // first person: point at the middle of the view
     const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.translate = `calc(var(--u)*${x}px) calc(var(--u)*${y}px)`; }
   }
   // ---- coach: the first times, a spotlight shows each control (walk, look, smash, bomb) until it has been used once
-  let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0;
+  // or for cfg.coach.maxSec at most: a step that timed out is done for this session (the save's lesson stays open).
+  // The walk step waits until the player taps something out of reach (a child who only taps never needs it).
+  let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0, coachSince = 0, walkAsked = false;
+  const coachDone = {}, coachShown = {};
   /** An element's centre and size in frame units. */
-  const frameRect = (el) => { const r = el.getBoundingClientRect(), a = root.getBoundingClientRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
+  const frameRect = (el) => { const r = el.getBoundingClientRect(), a = rootRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
   /** Shows the coach step k (null hides it): a dimmed screen with a lit hole on the control, a label and a moving hand. */
   function showCoach(k) {
     if (coachK === k) return;
@@ -1114,6 +1264,7 @@ function startGame(mode) {
     // the look label stands under the status column (a two-line wave banner ends at 292), above its ring
     const ly = k === 'look' ? 364 : Math.max(330, Math.min(860, cy - cr - 70));
     for (const [n, v] of [['cx', cx], ['cy', cy], ['cr', cr], ['hx', hx], ['hy', hy], ['ly', ly]]) c.style.setProperty('--' + n, String(Math.round(v)));
+    c.style.setProperty('--dim', String(cfg.coach.dim));
     c.className = 'coach ' + how; const lb = c.querySelector('.clabel'); lb.textContent = text;
     c.hidden = false; fitText(lb, 600, 44, 2); $('tip').hidden = true;
   }
@@ -1127,13 +1278,18 @@ function startGame(mode) {
     const t = scene.target, near = t && ((t.type === 'block' && t.dist <= cfg.hero.reach) || (t.type === 'bot' && t.dist <= cfg.hero.reach + 0.6));
     aimT = near ? aimT + dt : 0; lostT = near ? 0 : lostT + dt;
     let k = null;
-    if (tipKey === 'tooHard' && !save.learned.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';
+    if (tipKey === 'tooHard' && !save.learned.bomb && !coachDone.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';
     // not while the level card is up: the look step's label would stand on it
     else if (W.phase !== 'play' || W.t < 1.2 || !$('lvcard').hidden) k = null;
-    else if (!save.learned.walk) k = 'walk';
-    else if (!save.learned.drag) k = 'look';
+    else if (walkAsked && !save.learned.walk && !coachDone.walk) k = 'walk';
+    else if (!save.learned.drag && !coachDone.look) k = 'look';
     // the smash step stays up while the target only flickers away (a block breaking under the crosshair)
-    else if (!save.learned.hit && (aimT > 0.6 || (coachK === 'hit' && lostT < 0.6))) k = 'hit';
+    else if (!save.learned.hit && !coachDone.hit && (aimT > 0.6 || (coachK === 'hit' && lostT < 0.6))) k = 'hit';
+    // a step that has been up for coach.maxSec goes by itself (real seconds: slow motion does not stretch it)
+    const now = performance.now();
+    // (its time on screen is added up: a step that leaves and comes back does not get a fresh coach.maxSec)
+    const shownFor = now - coachSince; coachSince = now;
+    if (k && k === coachK) { coachShown[k] = (coachShown[k] || 0) + Math.min(shownFor, 250); if (coachShown[k] >= cfg.coach.maxSec * 1000) { coachDone[k] = true; k = null; } }
     // the step on screen was just done: a thumbs-up
     if (coachK && coachK !== k && ['walk', 'look', 'hit', 'bomb'].includes(coachK) && save.learned[coachK === 'look' ? 'drag' : coachK]) cheer();
     showCoach(k);
@@ -1212,9 +1368,9 @@ function startGame(mode) {
     [...box.children].forEach((el, i) => { const l = list[i]; el.hidden = !l; if (l) { el.style.translate = `calc(var(--u)*${l[0]}px) calc(var(--u)*${l[1]}px)`; el.style.setProperty('--a', l[2] + 'deg'); } });
   }
 
-  function fit() { const r = root.getBoundingClientRect(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
+  function fit() { const r = rootBox = root.getBoundingClientRect(); wordSize.clear(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
   const onResize = () => fit();
-  window.addEventListener('resize', onResize);
+  window.addEventListener('resize', onResize); window.addEventListener('orientationchange', onResize);
   const onVis = () => { Sound.suspend(document.hidden); if (document.hidden && dirtySave) persist(); };
   document.addEventListener('visibilitychange', onVis);
 
@@ -1279,18 +1435,24 @@ function startGame(mode) {
     read(0);
   }
   scene.compile();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!alive) return; if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); }); // measure again with the real font
+  // measure again with the real font (its stylesheets come without blocking the first paint: also whenever a face arrives later)
+  const onFonts = () => { if (!alive) return; wordSize.clear(); if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); };
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(onFonts); if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts); }
   renderTop(); renderTools();
-  if (window.__load) window.__load.done();
-  raf = requestAnimationFrame((t) => { last = t; frame(t); });
+  // a touch during the opening (before the game could listen) starts the game now
+  if (window.__boot && window.__boot.touch) { window.__boot.touch = false; if (demo && mode === 'play') { Sound.unlock(cfg); firstTouch(); } }
+  // the opening's backdrop (index.html) goes at a cut with the first drawn frame
+  raf = requestAnimationFrame((t) => { last = t; frame(t); if (window.__load) window.__load.done(); });
 
   return {
     destroy() {
       alive = false; cancelAnimationFrame(raf); Sound.stop();
       if (dirtySave) persist();
+      root.removeEventListener('pointerdown', tapDown, true); window.removeEventListener('pointerup', tapUp, true); window.removeEventListener('pointercancel', tapUp, true);
       root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onCancel);
       root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('wheel', onWheel); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('pointerlockerror', onLockError); try { if (document.pointerLockElement === cv) document.exitPointerLock(); } catch (er) { /* fine */ }
-      window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onResize); document.removeEventListener('visibilitychange', onVis);
+      if (document.fonts && document.fonts.removeEventListener) document.fonts.removeEventListener('loadingdone', onFonts);
       scene.dispose(); root.innerHTML = '';
     },
     // dev:start
@@ -1300,7 +1462,7 @@ function startGame(mode) {
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       get hitState() { return hitState; }, get stopT() { return stopT; }, get quality() { return { ...qs8, base: scene.dprBase }; },
-      get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
+      get cfg() { return cfg; }, get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
     },
     // dev:end
   };
@@ -1328,7 +1490,6 @@ const HTML = `
   <div id="confetti" class="confetti" hidden></div>
   <div id="flies" class="flies"></div>
   <div id="hand" class="hand" hidden>${UI.icon('hand')}</div>
-  <div id="title" class="title"></div>
   <div id="cta" class="cta"></div>
   <div id="panel" class="panel" hidden></div>
   <div id="shop" class="panel" hidden></div>
