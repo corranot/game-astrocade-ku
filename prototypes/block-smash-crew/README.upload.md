@@ -1,7 +1,8 @@
 <!-- PROTOTYPE - NOT FOR PRODUCTION -->
-# Block Smash Crew: Voxel Demolition
+# Block Smash Crew: Smash & Destroy Buildings
 
-Genre: first-person voxel destruction / demolition action. Ages 5–12. 3D, portrait, phone and computer.
+Theme: action (smashing, exploding, destruction). Genre: first-person demolition action with toy buildings, bombs
+and ragdoll toy robots. Ages 5–12. 3D, portrait, phone and computer.
 
 You are a demolition kid with a giant hammer, seen through your own eyes. Every level is a cheerful block building — a
 cottage, a candy shop, a castle, a lighthouse, a toy factory, an ice palace, a jungle temple and a space base —
@@ -21,9 +22,10 @@ control (walk, look, smash, bomb) until you have used it.
 - Trophies for wrecking 50% and 80% of the building. Keep smashing as long as you like, then press NEXT.
 
 - Tap a shining star to throw a free star bomb at it. If the hammer bounces off steel a few times, SUPER HAMMER breaks it.
-- Red TNT barrels blow up and set off the ones next to them; tall towers tip over — TIMBER!
+- Red boom barrels blow up and set off the ones next to them; tall towers tip over — TIMBER! Special barrels throw
+  six bombs, open a black hole or call a meteor, and the BOOM box in the yard sets off every barrel in a chain.
 - Waves of little toy BONK-BOTs march at you, holding funny cardboard signs ("CAN'T TOPPLE OUR TOWER!") and wearing
-  party hats, chef hats, pirate hats and more. Hit them (hammer, bombs, TNT, falling pieces, even another flying robot)
+  party hats, chef hats, pirate hats and more. Hit them (hammer, bombs, boom barrels, falling pieces, even another flying robot)
   and they fly — BONK! — then reboot with a smile, beep and walk away. A new wave comes every half minute; knock over a
   whole wave for bonus coins. They are toys: they never break for good.
 
@@ -43,6 +45,7 @@ under ⚙️.
 - `game.js` — game flow, device detection, stick / mouse / keys input, HUD, sound (made in code), save, tools shop, result card.
 - `world.js` — the level's rules: hero movement and smashing, tools, falling pieces, chest, stars, smash time.
 - `voxels.js` — block grid, ray cast, smashing, collapse check, mesh builder with corner shading.
+- `ui.js` — the game's own icons and the shared panel and button pieces of the HUD.
 - `levels.js` — the eight building generators.
 - `logic.js` — coins, combo, trophies, unlocks, daily gift.
 - `bots.js` — the BONK-BOT toy robots: waves, marching, signs and costumes, the floppy ragdoll, rebooting, leaving.
