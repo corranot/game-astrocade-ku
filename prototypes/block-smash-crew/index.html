@@ -18,6 +18,18 @@ body{display:flex;align-items:center;justify-content:center}
 .hud{position:absolute;inset:0;pointer-events:none;color:var(--ink);font-size:var(--f3)}
 .hud button{pointer-events:auto;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--ink);padding:0}
 .hud.edit .top,.hud.edit .tools,.hud.edit .hand,.hud.edit .tip,.hud.edit .hitbtn,.hud.edit .keys,.hud.edit .cross{display:none}
+/* the attract show before the first touch: the HUD is put away (it only flattens the picture); the gear stays */
+.hud.attract .tools,.hud.attract .hand,.hud.attract .tip,.hud.attract .hitbtn,.hud.attract .keys,.hud.attract .cross,.hud.attract .stick{display:none}
+.hud.attract #coins,.hud.attract .mid{visibility:hidden}
+.title,.cta{display:none}
+/* the game's name in the top band, each word slamming in; the call to action in the bottom band (sizes and places from cfg.demo) */
+.hud.attract .title{display:block;position:absolute;left:0;right:0;top:calc(var(--u)*var(--tt,120)*1px);text-align:center;font-weight:800;line-height:.98;font-size:calc(var(--u)*var(--ts,86)*1px);color:#ffe14a;-webkit-text-stroke:calc(var(--u)*16px) var(--ink);paint-order:stroke fill;pointer-events:none;z-index:var(--z-word)}
+.title .tl{display:block;white-space:nowrap}
+.title .tl+.tl{color:#7dfcff}
+.title .tw{display:inline-block;opacity:0;animation:slam .5s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes slam{0%{opacity:0;transform:translateY(calc(var(--u)*-140px)) scale(2.4)}55%{opacity:1;transform:translateY(0) scale(.92)}70%{opacity:1;transform:translate(calc(var(--u)*5px),calc(var(--u)*-6px)) scale(1.04)}85%{opacity:1;transform:translate(calc(var(--u)*-3px),0) scale(.99)}100%{opacity:1;transform:none}}
+.hud.attract .cta{display:block;position:absolute;left:var(--m);right:var(--m);bottom:calc(var(--u)*var(--cb,84)*1px);text-align:center;white-space:nowrap;font-weight:800;line-height:1;color:#fff;-webkit-text-stroke:calc(var(--u)*12px) var(--ink);paint-order:stroke fill;animation:pulse 1.2s ease-in-out infinite;pointer-events:none;z-index:var(--z-word)}
+@media (prefers-reduced-motion:reduce){.title .tw{animation-duration:.01s!important}.hud.attract .cta{animation:none!important}}
 /* first person: crosshair, the walking stick (phones), HIT (phones), key hint (desktop) */
 .cross{position:absolute;left:50%;top:50%;width:calc(var(--u)*26px);height:calc(var(--u)*26px);margin:calc(var(--u)*-13px) 0 0 calc(var(--u)*-13px);border-radius:50%;border:calc(var(--u)*4px) solid #fff;box-shadow:0 0 0 calc(var(--u)*2px) rgba(43,29,79,.6),inset 0 0 0 calc(var(--u)*2px) rgba(43,29,79,.6);box-sizing:border-box}
 .cross::after{content:"";position:absolute;left:50%;top:50%;width:calc(var(--u)*6px);height:calc(var(--u)*6px);margin:calc(var(--u)*-3px) 0 0 calc(var(--u)*-3px);border-radius:50%;background:#fff}

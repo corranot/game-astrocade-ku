@@ -231,6 +231,22 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Not proven here: real phones (fonts, touch feel), how a child reads a word that moved aside, the desktop key hint
   (drawn, not photographed), an arrow's pointer tip beside a two-line wave banner (its circle is measured, the tip is not).
 
+## Attract show for the feed card (`demo` in game_config.json)
+The feed card shows the live game dimmed 50% and blurred, with the thumbnail and Play button over the middle: only a
+ring (top ≈29%, side strips, bottom ≈15%) is seen. Before the first touch the game is therefore a show, not first person:
+- **Camera** (`demo.camera`): low and wide in front of the building, swinging slowly, the roof near the top edge; no
+  hands or tool.
+- **Script** (`demo.show`, `demo.loop`): beats with time, tool and place (`bot`, `box`, or across/up/into the
+  building), fired with the world's own tools; nothing pays in a demo.
+- **Pulses** (`demo.flash`): each big blast gives a colour wash and exposure pop, full for 0.12 s then dying away
+  (0.22 s), never two within 0.9 s, ×0.35 with reduced motion. Blast colours cycle through `demo.colors`.
+- **Look** (`demo.look`): brighter, more saturated sky and light during the show only.
+- **Title, rain, call to action** (`demo.title`, `demo.rain`, `demo.cta`): BLOCK SMASH CREW slams in word by word in
+  the top band, bright pieces tumble through the whole view from the debris pool, TAP TO SMASH! pulses in the bottom band.
+- **HUD** put away (`.hud.attract`); the gear stays. **Cuts** (`demo.cut`): the next building kind after 10 s or 60%
+  wrecked, and the first touch, both under a 0.28 s white flash.
+- Measure with `node tools/feed-card-test.js prototypes/block-smash-crew <strip.png>`.
+
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with
 `?local` through any server that sends `text/javascript`.

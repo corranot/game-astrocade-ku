@@ -51,7 +51,11 @@ async function main() {
     const y1d = await g(page, () => __game.scene.yaw);
     check(st.demo && st.wreck > 0 && Math.abs(y1d - y0d) > 0.01, 'demo: rockets hit the roof and the view sweeps before any touch');
     check(st.coins === 0 && st.writes === 0, 'demo: no coins, no save writes');
-    check(st.hand && st.tip === 'TAP TO SMASH!', 'demo: hand + "TAP TO SMASH!"');
+    // the attract show: the HUD is put away (the gear stays), the game's name stands in the top band and the call to action in the bottom band
+    const at = await g(page, () => { const cs = (q) => getComputedStyle(document.querySelector(q)), r = (q) => document.querySelector(q).getBoundingClientRect(), f = document.querySelector('#app').getBoundingClientRect(), u = f.height / 1280; return { attract: document.querySelector('#hud').classList.contains('attract'), tools: cs('#tools').display, tip: cs('#tip').display, coins: cs('#coins').visibility, title: document.querySelector('#title').textContent, tTop: (r('#title').top - f.top) / u, tBot: (r('#title').bottom - f.top) / u, cta: document.querySelector('#cta').textContent, cTop: (r('#cta').top - f.top) / u, cBot: (r('#cta').bottom - f.top) / u, show: __game.scene.show.on }; });
+    check(at.attract && at.show && at.tools === 'none' && at.tip === 'none' && at.coins === 'hidden', 'demo: the show runs and the HUD is put away for it');
+    check(at.title.replace(/\s+/g, ' ').trim() === 'BLOCK SMASH CREW' && at.tTop >= 24 && at.tBot <= 1280 * 0.29, `demo: the game's name in the top band (${at.tTop.toFixed(0)}–${at.tBot.toFixed(0)} of 1280)`);
+    check(at.cta === 'TAP TO SMASH!' && at.cTop >= 1280 * 0.82 && at.cBot <= 1280 - 40, `demo: "TAP TO SMASH!" in the bottom band (${at.cTop.toFixed(0)}–${at.cBot.toFixed(0)} of 1280)`);
     await shot(page, '01-demo');
     // ---- 2. the first tap anywhere: the real level starts and the hammer hits the TNT straight ahead (no walking)
     const box = await g(page, () => __game.W.box);
@@ -315,7 +319,8 @@ async function main() {
     const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(e.message));
     await page.addInitScript('window.__speed = 1;' + BOT); await page.goto(`http://localhost:${port}/?local`);
     await waitFor(page, () => window.__game && __game.W && document.fonts.status === 'loaded', null, 40000);
-    const ui = await g(page, () => ({ touch: document.getElementById('app').classList.contains('touch'), hit: getComputedStyle(document.getElementById('hit')).display !== 'none', keys: getComputedStyle(document.getElementById('keys')).display === 'none' }));
+    // the attract show puts the HUD away: the in-play layout is read with its class lifted for the moment of the reading
+    const ui = await g(page, () => { const hud = document.getElementById('hud'), at = hud.classList.contains('attract'); hud.classList.remove('attract'); const r = { touch: document.getElementById('app').classList.contains('touch'), hit: getComputedStyle(document.getElementById('hit')).display !== 'none', keys: getComputedStyle(document.getElementById('keys')).display === 'none' }; hud.classList.toggle('attract', at); return r; });
     check(ui.touch && ui.hit && ui.keys, 'phone: found by itself; HIT button shown, key hint hidden');
     const [sx, sy] = await g(page, () => __game.client(170, 860));
     const z0 = await g(page, () => __game.W.hero.z);
@@ -590,9 +595,12 @@ async function main() {
   {
     const { page, errors } = await open(browser, '', { port });
     // p1: the gear on the attract screen pauses the world; the demo must not pile up rockets meanwhile
-    await page.click('#gear'); await page.waitForTimeout(6000);
+    // the show keeps several shots in the air by design: what counts is that none are added while the panel is open
+    await page.click('#gear'); await page.waitForTimeout(300);
+    const s0 = await g(page, () => __game.W.shots.length + (__game.W.queued || []).length);
+    await page.waitForTimeout(6000);
     const p1 = await g(page, () => ({ open: !document.querySelector('#settings').hidden, shots: __game.W.shots.length + (__game.W.queued || []).length, demo: __game.demo }));
-    check(p1.open && p1.shots <= 1, `p1 settings open on the attract screen: no rockets pile up behind the pause (${JSON.stringify(p1)})`);
+    check(p1.open && p1.shots <= s0, `p1 settings open on the attract screen: no shots pile up behind the pause (${s0} → ${p1.shots})`);
     // p3: Escape closes the open panel
     await page.keyboard.press('Escape'); await page.waitForTimeout(400);
     check(await g(page, () => document.querySelector('#settings').hidden), 'p3 Escape closes the settings panel');
