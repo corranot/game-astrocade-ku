@@ -62,6 +62,20 @@ check(KINDS.length === 8, '8 kinds of building');
   check(L.levelBonus(cfg, 2, [true, true, true]) === 2 * (cfg.coins.level + 2 * cfg.coins.levelStep), 'level bonus doubles with both trophies');
   check(L.dailyDue(20261120, 20261121) && !L.dailyDue(20261121, 20261121) && !L.dailyDue(20261122, 20261121), 'daily gift: once a day, never for a clock turned back');
   check(L.nextTool(cfg, ['hammer', 'bomb'], 100).tool.id === 'rocket' && L.nextTool(cfg, cfg.tools.map((t) => t.id), 0) === null, 'next tool is the cheapest locked one');
+  // aaa2: the big moments grow with what the building earned, the daily gift with the next thing to buy
+  {
+    const C = cfg.coins, st = [true, true, true], base = L.levelBonus(cfg, 2, st), big = 200000, all = cfg.tools.map((t) => t.id);
+    check(L.levelBonus(cfg, 2, st, 0) === base && L.levelBonus(cfg, 2, st, base) === base && L.levelBonus(cfg, 2, st, big) === Math.round(C.levelShare * big) && Math.round(C.levelShare * big) > base, `level bonus = max(base, coins.levelShare ${C.levelShare} × the building's coins) (${L.levelBonus(cfg, 2, st, big)} for ${big})`);
+    check(typeof L.flatBonus === 'function' && L.flatBonus(cfg, 0, 1) === C.flat && L.flatBonus(cfg, 0, 2) === 2 * C.flat && L.flatBonus(cfg, big, 1) === Math.round(C.flatShare * big) && Math.round(C.flatShare * big) > C.flat, `flattened bonus = max(coins.flat × the level's multiplier, coins.flatShare ${C.flatShare} × the building's coins)`);
+    const goal = typeof L.nextGoal === 'function' ? L.nextGoal : () => null, rocket = cfg.tools.find((t) => t.id === 'rocket');
+    const g1 = goal(cfg, ['hammer', 'bomb'], {}, 100), g2 = goal(cfg, all, { hammer: 7 }, 1e9), g3 = goal(cfg, all, Object.fromEntries(all.map((id) => [id, cfg.upgrade.max])), 5);
+    check(g1 && g1.kind === 'tool' && g1.tool.id === 'rocket' && g1.need === rocket.cost && g1.have === 100, 'the next goal is the cheapest locked tool while one is locked');
+    check(g2 && g2.kind === 'up' && g2.tool.id === 'bomb' && g2.lv === 1 && g2.need === L.upgradeCost(cfg, 'bomb', 1) && g2.have === g2.need, `...then the cheapest upgrade (${g2 && g2.tool.id} Lv ${g2 && g2.lv} for ${g2 && g2.need})`);
+    check(g3 === null, '...and nothing when every tool is at the top level');
+    const gift = typeof L.dailyGift === 'function' ? L.dailyGift : () => -1, meteor = cfg.tools.find((t) => t.id === 'meteor');
+    check(gift(cfg, ['hammer', 'bomb'], {}) === Math.max(C.daily, Math.round(C.dailyShare * rocket.cost)) && gift(cfg, all.filter((id) => id !== 'meteor'), {}) === Math.round(C.dailyShare * meteor.cost) && Math.round(C.dailyShare * meteor.cost) > C.daily, `daily gift = max(coins.daily, coins.dailyShare ${C.dailyShare} × the next price) (${gift(cfg, all.filter((id) => id !== 'meteor'), {})} before the meteor)`);
+    check(gift(cfg, all, Object.fromEntries(all.map((id) => [id, cfg.upgrade.max]))) === C.daily, '...and coins.daily when nothing is left to buy');
+  }
   check(L.cooldownOf(cfg, 'bomb', true) < L.cooldownOf(cfg, 'bomb', false), 'smash time cuts cooldowns');
 }
 
@@ -429,8 +443,8 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
     let ft = 0;
     while (W.phase === 'fever' && t < 400) { if ((ft -= 1 / 30) <= 0) { ft = 0.5; const b = WD.botTap(W); if (b && b.tool === 'bomb') WD.useTool(W, 'bomb', b.p); else if (b) WD.aimHammer(W, b.t, true); } WD.step(W, 1 / 30); t += 1 / 30; }
     const stars = L.starsFor(cfg, WD.wreck(W));
-    if (process.env.ECON) console.log('   lv', lv, 't', t.toFixed(0), 'coins', W.coins, 'bonus', L.levelBonus(cfg, lv, stars));
-    return { t: t + cfg.flow.nextDelay + 6 / cfg.flow.cardEvery, coins: W.coins + L.levelBonus(cfg, lv, stars) };
+    if (process.env.ECON) console.log('   lv', lv, 't', t.toFixed(0), 'coins', W.coins, 'bonus', L.levelBonus(cfg, lv, stars, W.coins));
+    return { t: t + cfg.flow.nextDelay + 6 / cfg.flow.cardEvery, coins: W.coins + L.levelBonus(cfg, lv, stars, W.coins) };
   }
   for (const seed of [1, 2, 3]) {
     const lvs = {}, owned = ['hammer', 'bomb']; let coins = 0, clock = 0, buys = [];
@@ -625,11 +639,15 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
     const W = toFever(1); W.shots.length = 0; W.falls.length = 0; W.fuses.length = 0;
     const c0 = W.coins; W.left = Math.floor(W.total * (1 - F.flatAt)) - 1;
     const ev = WD.step(W, dt), flat = ev.filter((e) => e.type === 'flat'), i = ev.findIndex((e) => e.type === 'flat'), j = ev.findIndex((e) => e.type === 'clear');
-    check(flat.length === 1 && flat[0].coins === cfg.coins.flat && W.coins - c0 === cfg.coins.flat && i >= 0 && j > i && W.phase === 'free' && W.flat === true, `a flat building ends smash time with FLATTENED and +${cfg.coins.flat} coins, then the level's end`);
+    const fb = Math.max(cfg.coins.flat, Math.round((cfg.coins.flatShare || 0) * c0));
+    check(flat.length === 1 && flat[0].coins === fb && W.coins - c0 === fb && i >= 0 && j > i && W.phase === 'free' && W.flat === true, `a flat building ends smash time with FLATTENED and +${cfg.coins.flat} coins, then the level's end`);
     const more = []; for (let k = 0; k < 60; k++) more.push(...WD.step(W, dt));
     check(!more.some((e) => e.type === 'flat' || e.type === 'clear'), '...once: no second bonus, no second end');
     const D = toFever(1, { daily: true, coinMult: cfg.daily.mult }); D.left = 0; const fd = WD.step(D, dt).find((e) => e.type === 'flat');
     check(fd && fd.coins === cfg.coins.flat * cfg.daily.mult, 'the daily challenge multiplies the flat bonus like every other coin');
+    // aaa2: a rich building's FLATTENED pays its share
+    const R = toFever(1); R.shots.length = 0; R.falls.length = 0; R.fuses.length = 0; R.coins = 100000; R.left = 0; const fr = WD.step(R, dt).find((e) => e.type === 'flat');
+    check(fr && fr.coins === Math.round(cfg.coins.flatShare * 100000) && R.coins === 100000 + fr.coins, `FLATTENED after 100,000 coins pays coins.flatShare of them (${fr && fr.coins})`);
     const P = WD.createWorld(cfg, 1, {}); P.left = 0; const pe = []; for (let k = 0; k < 30; k++) pe.push(...WD.step(P, dt));
     check(!pe.some((e) => e.type === 'flat'), 'no FLATTENED outside smash time');
   }

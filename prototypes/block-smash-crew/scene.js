@@ -437,6 +437,10 @@ export function createScene(cv, cfg) {
     const n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring), a0 = Math.random() * 6;
     for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; puff(e.x + Math.cos(a) * e.r * 0.8, 0.25, e.z + Math.sin(a) * e.r * 0.8, RG.size, RG.color, 1, T.hangDust); }
   }
+  /** A puff's own size at this point of its life: it grows, then shrinks away over the last 40 %. */
+  function dustSize(i) { const k = U.life[i * 2] / U.life[i * 2 + 1]; return U.s[i * 2] * (0.5 + k * 1.1) * (k > 0.6 ? (1 - k) / 0.4 : 1); }
+  /** The share of its size a puff is drawn at, d units from the camera (0 within look.puffNear, 1 beyond look.puffFar, smooth between). */
+  function dustFade(d) { const LK = cfg.look, t = Math.max(0, Math.min(1, (d - LK.puffNear) / Math.max(1e-3, LK.puffFar - LK.puffNear))); return t * t * (3 - 2 * t); }
   function killDust(i) { const j = --U.n; if (i !== j) { for (let k = 0; k < 3; k++) { U.p[i * 3 + k] = U.p[j * 3 + k]; U.v[i * 3 + k] = U.v[j * 3 + k]; } U.s[i * 2] = U.s[j * 2]; U.life[i * 2] = U.life[j * 2]; U.life[i * 2 + 1] = U.life[j * 2 + 1]; dust.getColorAt(j, tmpC); dust.setColorAt(i, tmpC); } }
   function spawnCoins(x, y, z, n) {
     for (let k = 0; k < n && C.n < coinMax; k++) { const i = C.n++; C.p[i * 3] = x; C.p[i * 3 + 1] = y; C.p[i * 3 + 2] = z; C.v[i * 3] = (Math.random() - 0.5) * 6; C.v[i * 3 + 1] = 5 + Math.random() * 4; C.v[i * 3 + 2] = (Math.random() - 0.5) * 6; C.t[i] = 0; }
@@ -1008,9 +1012,10 @@ export function createScene(cv, cfg) {
     sparkMesh.count = SP.n; sparkMesh.instanceMatrix.needsUpdate = true;
     debris.count = D.n; debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
     for (let i = U.n - 1; i >= 0; i--) {
-      U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); continue; }
+      U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); if (i < U.n) dust.instanceMatrix.array.copyWithin(i * 16, U.n * 16, U.n * 16 + 16); continue; }
       const o = i * 3; for (let j = 0; j < 3; j++) { U.p[o + j] += U.v[o + j] * dt; U.v[o + j] *= 1 - 1.5 * dt; }
-      const sc = U.s[i * 2] * (0.5 + k * 1.1) * (k > 0.6 ? (1 - k) / 0.4 : 1);
+      // dust in the camera's face would hide the view: none within look.puffNear, whole beyond look.puffFar
+      const sc = dustSize(i) * dustFade(Math.hypot(U.p[o] - camera.position.x, U.p[o + 1] - camera.position.y, U.p[o + 2] - camera.position.z));
       tmpM.compose(tmpV.set(U.p[o], U.p[o + 1], U.p[o + 2]), tmpQ.identity(), tmpS.set(sc, sc, sc)); dust.setMatrixAt(i, tmpM);
     }
     dust.count = U.n; dust.instanceMatrix.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true;
@@ -1102,6 +1107,8 @@ export function createScene(cv, cfg) {
     /** The show as drawn: running, seconds on its swing, the pulse (0..1), exposure, the camera's place. */
     get show() { return { on: isShow(), t: show.t, pulse: show.pulse, exposure: renderer.toneMappingExposure, pos: camera.position.toArray(), fov: camera.fov }; },
     get coinArrive() { return coinArrive; },
+    /** The dust as drawn, for tests: each puff's distance to the camera and its drawn size as a share of its own size (1 = full). */
+    get dustNear() { const out = [], m = dust.instanceMatrix.array, c = camera.position; for (let i = 0; i < U.n; i++) { const sc = dustSize(i), o = i * 3; if (sc > 1e-4 && U.life[i * 2] > 0) out.push({ d: Math.hypot(U.p[o] - c.x, U.p[o + 1] - c.y, U.p[o + 2] - c.z), k: m[i * 16] / sc }); } return out; },
     get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },

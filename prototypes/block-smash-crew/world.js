@@ -7,7 +7,7 @@ import { raycast, smashSphere, collapse } from './voxels.js';
 import { buildLevel, matIds, KINDS } from './levels.js';
 export { KINDS };
 import { makeBots, stepBots, knockBots, knock } from './bots.js';
-import { coinsFor, createCombo, comboHit, comboTick, smashWord, cooldownOf, wreckOf, toolAt } from './logic.js';
+import { coinsFor, createCombo, comboHit, comboTick, smashWord, cooldownOf, wreckOf, toolAt, flatBonus } from './logic.js';
 
 const SWING_HIT = 0.4; // share of the swing at which the hammer lands
 
@@ -412,14 +412,14 @@ function feverAdd(W, n) {
 }
 /**
  * Smash time runs out (an idle player: after fever.dur; nobody: after fever.maxTotal), or ends at once when the
- * building is flat (fever.flatAt of it gone): FLATTENED pays coins.flat. Then the free phase: the level is over.
+ * building is flat (fever.flatAt of it gone): FLATTENED pays coins.flat or coins.flatShare of the building's coins (logic.js flatBonus). Then the free phase: the level is over.
  */
 function stepFever(W, dt) {
   const F = W.cfg.fever;
   W.fever -= dt; W.feverT += dt;
   const flat = F.flatAt > 0 && wreck(W) >= F.flatAt;
   if (!flat && W.fever > 0) return;
-  if (flat) { const coins = Math.round((W.cfg.coins.flat || 0) * W.coinMult); W.coins += coins; W.flat = true; W.ev.push({ type: 'flat', coins }); }
+  if (flat) { const coins = flatBonus(W.cfg, W.coins, W.coinMult); W.coins += coins; W.flat = true; W.ev.push({ type: 'flat', coins }); }
   W.fever = 0; W.phase = 'free'; W.ev.push({ type: 'clear', flat });
 }
 

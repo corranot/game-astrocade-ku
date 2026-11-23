@@ -242,7 +242,7 @@ function startGame(mode) {
   const cv = $('cv'), scene = createScene(cv, cfg);
   const signLang = () => scene.setSignLang(lang, (cfg.signs || {})[lang] || (cfg.signs || {}).en || []);
   signLang();
-  let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
+  let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, levelPaid = 0, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
   // the chain (cfg.flow): buildings follow one another without a card; the card comes every flow.cardEvery buildings,
   // and never before flow.cardAfterSec of play. playT = seconds played since the first touch; chain = the buildings
   // finished since the last card; chainT = seconds until the next building starts by itself (-1: not waiting)
@@ -259,7 +259,7 @@ function startGame(mode) {
     $('hud').classList.toggle('attract', demo && mode === 'play');
     if (demo && mode === 'play') showTitle(); else titleOn = false;
     scene.setLevel(W);
-    sel = 'hammer'; resultsOpen = false; paidStars = null; paidBonus = 0; hardHint = null; idleT = 0; firstTap = false;
+    sel = 'hammer'; resultsOpen = false; paidStars = null; levelPaid = 0; paidBonus = 0; hardHint = null; idleT = 0; firstTap = false;
     // a finger from the last level does not steer this one; in a chain the thumb stays where it is: the stick and a
     // held HIT go on in the next building (the player never let go)
     if (!opts.chain) { ptr = null; stick = null; hitHeld = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } }
@@ -280,6 +280,7 @@ function startGame(mode) {
   for (const b of $('tools').querySelectorAll('.tool')) toolEls[b.dataset.t] = b;
   // the HIT button's verb follows the tool (BONK, BOOM, FIRE, SWING, PULL, CRASH); its ready pulse is tuned in the config
   const VERB = { hammer: 'vHammer', bomb: 'vBomb', rocket: 'vRocket', ball: 'vBall', hole: 'vHole', meteor: 'vMeteor' };
+  root.style.setProperty('--fev-pulse', cfg.fever.pulseSec + 's');
   { const hp = cfg.hitPulse; root.style.setProperty('--wave-dur', cfg.waves.banner + 's'); root.style.setProperty('--tp-dur', cfg.toolBar.pulse + 's'); root.style.setProperty('--hp-cycle', hp.cycle + 's'); root.style.setProperty('--hp-glow', String(hp.glow)); root.style.setProperty('--hp-bright', String(hp.bright)); root.style.setProperty('--hp-dim', String(hp.dim)); }
   let hitLabel = '';
   function labelHit() { const el = $('hit').querySelector('.hl'), t = T(VERB[sel] || 'vHammer'); if (hitLabel === t + lang) return; hitLabel = t + lang; el.textContent = t; fitText(el, 132, 30); }
@@ -553,7 +554,7 @@ function startGame(mode) {
     if (!W.hero.aim && firstTap) { const c = frontKeg(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
     firstTap = false;
     // too far for the hammer: the stick at home pulses (walk there with it)
-    if (!W.hero.aim) { const el = $(touchUI ? 'stickHome' : 'keys'); el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); }
+    if (!W.hero.aim) { const el = $(touchUI ? 'stickHome' : 'keys'); el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); walkAsked = true; }
   }
   /** The boom barrel cell nearest the hero, when it is still there and in reach of the hammer. */
   function frontKeg() {
@@ -642,7 +643,7 @@ function startGame(mode) {
   window.addEventListener('blur', onBlur);
 
   // ---- world events → sounds, words, coins
-  let hitSnd = 0, beepT = 0;
+  let hitSnd = 0, beepT = 0, bonkT = 0;
   /** Hit-stop: the world runs at feel.stopScale for a moment sized by the tool (hammer short, ball and meteor long). */
   const hitStop = (kind) => { if (!demo) stopT = Math.max(stopT, cfg.feel.stop[kind] || cfg.feel.stop.bomb); };
   /** A batch of n blocks: the biggest ever (from a minimum size on) is a new record. */
@@ -727,7 +728,11 @@ function startGame(mode) {
       Sound.play('boing', e.again ? 0.6 : 1); buzz(e.again ? 'tap' : 'thud'); if (e.by === 'hammer' && !e.again) hitStop('hammer');
       if (!demo && !e.again) {
         save.coins += e.coins; save.total += e.coins; persistSoon(); idleT = 0;
-        const [sx, sy, behind] = scene.screenOf(e.x, e.y, e.z); if (!behind) { pop(T('bonk'), sx, sy - 110, 'p-mid', '#7dfcff'); coinPop(e.coins, e.x, e.y, e.z); }
+        const [sx, sy, behind] = scene.screenOf(e.x, e.y, e.z); if (!behind) {
+          // one BONK word at a time when many robots fall together (their coins all show)
+          if (bonkT <= 0) { bonkT = cfg.words.bonkGap; pop(T('bonk'), sx, sy - 110, 'p-mid', '#7dfcff'); }
+          coinPop(e.coins, e.x, e.y, e.z);
+        }
       }
     }
     else if (e.type === 'reboot') {
@@ -776,7 +781,7 @@ function startGame(mode) {
     dailyChecked = true;
     const today = L.dayNum(new Date());
     if (!save.day) { save.day = today; persistSoon(); return; } // never on the first day
-    if (L.dailyDue(save.day, today)) { save.day = today; save.coins += cfg.coins.daily; save.total += cfg.coins.daily; persist(); setTimeout(() => { if (alive) { banner(T('daily'), 'p-mid', -120); pop('+' + fmt(cfg.coins.daily), 360, 560, 'p-big', '#ffe14a'); Sound.play('unlock'); } }, 600); }
+    if (L.dailyDue(save.day, today)) { const gift = L.dailyGift(cfg, save.owned, save.lv); save.day = today; save.coins += gift; save.total += gift; persist(); setTimeout(() => { if (alive) { banner(T('daily'), 'p-mid', -120); pop('+' + fmt(gift), 360, 560, 'p-big', '#ffe14a'); Sound.play('unlock'); } }, 600); }
   }
 
   // ---- panels: the result card, the shop and album, the settings share one shell (ui.js) and one way in and out
@@ -827,8 +832,9 @@ function startGame(mode) {
     // trophies for wrecking 50% and 80%
     const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1;
     // the level bonus is paid once; later visits (after smashing more) only add the stars' difference
-    const bonus = paidStars === null ? L.levelBonus(cfg, W.n, stars) : (stars.every(Boolean) && !paidStars.every(Boolean) ? L.levelBonus(cfg, W.n, stars) / 2 : 0);
-    paidStars = stars;
+    // (it follows the trophies and what the building has earned: smashing on after the card can only add to it)
+    const bonus = Math.max(0, L.levelBonus(cfg, W.n, stars, W.coins) - levelPaid);
+    paidStars = stars; levelPaid += bonus;
     save.coins += bonus; save.total += bonus; paidBonus += bonus;
     // today's challenge: done for today
     if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); }
@@ -836,6 +842,29 @@ function startGame(mode) {
     persist(); renderTop();
     try { if (saveLoaded) lib.addPlayerScoreToLeaderboard(save.blocks).catch(() => {}); } catch (er) { /* no board here */ }
     return { wr, stars, bonus };
+  }
+  /**
+   * The result card's goal: the next tool to unlock or, once all are owned, the cheapest upgrade ("HAMMER Lv 7 → 8"),
+   * with its price (or what is missing) and the coins in hand as a bar. It is a button: see goalTap.
+   */
+  function goalRow() {
+    const gl = L.nextGoal(cfg, save.owned, save.lv, save.coins); if (!gl) return '';
+    const miss = gl.need - gl.have, name = T(NAME[gl.tool.id]);
+    const label = gl.kind === 'up' ? `${name} <bdi>${T('lv', gl.lv)}</bdi>${UI.icon('arrow', 'flip')}<b dir="ltr">${gl.lv + 1}</b>` : name;
+    const value = miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(gl.need)}</b>`;
+    return UI.goal({ id: 'goalBtn', ic: gl.tool.id, label, value, part: gl.have / gl.need, can: miss <= 0, buy: gl.tool.id });
+  }
+  /** A tap on the goal: with the coins in hand it is bought on the card (the shop's purchase), else the shop opens over the card. */
+  function goalTap() {
+    const b = $('goalBtn'); if (!b || !resultsOpen) return;
+    Sound.unlock(cfg);
+    if (b.classList.contains('can')) buyOrUpgrade(b.dataset.buy); else openShop('tools', true);
+  }
+  /** The goal row drawn again after a purchase (on the card or in the shop over it). */
+  function goalRefresh() {
+    const b = $('goalBtn'); if (!b || !resultsOpen) return;
+    const html = goalRow(); if (!html) { b.remove(); return; }
+    b.outerHTML = html; fitAll($('panel'), '.goal .mlab', 24, 1, true);
   }
   function results() {
     if (!W || demo) return;
@@ -849,7 +878,6 @@ function startGame(mode) {
     const { wr, stars } = payLevel();
     // the card sums the buildings of the chain since the last card (a daily challenge shows only itself)
     const sum = W.daily ? { coins: 0, smashed: 0 } : chain, cardCoins = sum.coins + W.coins + paidBonus, cardBlocks = sum.smashed + W.smashed;
-    const nt = L.nextTool(cfg, save.owned, save.coins), miss = nt ? nt.need - nt.have : 0;
     const share = typeof lib !== 'undefined' && typeof lib.share === 'function';
     // the wreck figure: its name, the share wrecked, and a bar with the two trophies standing at their thresholds
     const marks = `<span class="cups">${[1, 2].map((i) => `<img src="${TROPHY_SVG}" class="${stars[i] ? 'on' : ''}" style="inset-inline-start:${cfg.stars['wreck' + i] * 100}%;animation-delay:${0.6 + i * 0.2}s" alt="">`).join('')}</span>`;
@@ -862,7 +890,7 @@ function startGame(mode) {
       <div class="stat out">${UI.COIN}+<b class="cnt">${fmt(cardCoins)}</b></div>
       <div class="brag">${T('brag', commas(cardBlocks))}</div>
       ${UI.meter({ ic: 'burst', label: T('wrecked'), value: `<b>${Math.round(wr * 100)}%</b>`, part: wr, marks })}
-      ${nt ? UI.meter({ ic: nt.tool.id, label: T(NAME[nt.tool.id]), value: miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(nt.need)}</b>`, part: nt.have / nt.need, cls: 'ntool' }) : ''}
+      ${goalRow()}
       ${UI.missions(L.missionsList(cfg, save.missions).map(missionView))}
       <div class="btns">${UI.primary('nextBtn', T('next'), UI.icon('play', 'flip'))}<div class="brow">${quiet.join('')}</div></div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
@@ -906,9 +934,10 @@ function startGame(mode) {
     const level = owned ? `<b>${T('lv', lv)}</b><i><u style="width:${Math.round(lv / cfg.upgrade.max * 100)}%"></u></i>` : '';
     return `<div class="srow tile${owned ? '' : ' locked'}"><span class="sic">${UI.icon(t.id)}${owned ? '' : `<i class="slock">${UI.icon('lock')}</i>`}</span><span class="slv">${level}${tryIt}</span><span class="sinfo"><span class="snm">${T(NAME[t.id])}</span><span class="sfx">${fx}</span></span>${btn}</div>`;
   }
-  function openShop(tab) {
-    // nothing is bought before the save is read: a late save would undo it
-    if (mode !== 'play' || !W || resultsOpen || !saveLoaded) return;
+  function openShop(tab, over = false) {
+    // nothing is bought before the save is read: a late save would undo it; over the result card only when the card's
+    // goal asks for it (over), and then it stays open through its own tabs and purchases
+    if (mode !== 'play' || !W || !saveLoaded || (resultsOpen && !over && $('shop').hidden)) return;
     shopTab = tab || shopTab; save.learned.shop = true; $('coins').classList.remove('can');
     let body = '';
     if (shopTab === 'tools') body = `<div class="sgrid">${cfg.tools.map(shopCard).join('')}</div>`;
@@ -932,7 +961,7 @@ function startGame(mode) {
     if (cost === null || save.coins < cost) { Sound.play('no'); const b = $('shop').querySelector(`[data-buy="${id}"]`); if (b) { b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); } return false; }
     save.coins -= cost; boughtAt = performance.now(); boughtId = id;
     if (!owned) { save.owned.push(id); W.owned.push(id); } else { save.lv[id] = lv + 1; Object.assign(W.cfg.tools.find((x) => x.id === id), L.toolAt(cfg, t, lv + 1)); }
-    persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools');
+    persist(); Sound.play('unlock'); buzz('success'); renderTools(); renderTop(); openShop('tools'); goalRefresh();
     return true;
   }
   $('shop').addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -947,6 +976,7 @@ function startGame(mode) {
   $('coins').addEventListener('click', (e) => { e.stopPropagation(); Sound.unlock(cfg); if (demo) firstTouch(); openShop('tools'); });
   $('nextpill').addEventListener('click', (e) => { e.stopPropagation(); results(); });
   $('panel').addEventListener('pointerdown', (e) => e.stopPropagation());
+  $('panel').addEventListener('click', (e) => { if (e.target.closest('#goalBtn')) { e.stopPropagation(); goalTap(); } });
 
   // ---- settings (the gear): sound and the language, in the same panel shell
   let muteTouched = false;
@@ -994,7 +1024,7 @@ function startGame(mode) {
     // hit-stop on a solid hit (time slowed to feel.stopScale), slow motion while a tower tips and as a big piece lands
     if (stopT > 0) stopT -= real; if (slowT > 0) slowT -= real;
     const dt = real * speed * (stopT > 0 ? cfg.feel.stopScale : slowT > 0 ? 0.4 : 1);
-    beepT -= real;
+    beepT -= real; bonkT -= real;
     coinPopT -= dt; coinFlyT -= dt;
     // the play clock runs from the first touch; the next building of a chain waits for an open shop or settings
     if (mode === 'play' && W && !demo) {
@@ -1030,6 +1060,8 @@ function startGame(mode) {
       W.frozen = stopT > 0;
       if (!modalOpen()) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
       if (W.fever > 0) { const s = String(Math.ceil(W.fever)), el = $('ftime').lastElementChild; if (el.textContent !== s) el.textContent = s; }
+      // the last fever.warnSec seconds of smash time: the red layer of the frame comes in (index.html .fever.warn)
+      { const fv = $('fever'), warn = W.fever > 0 && W.fever <= cfg.fever.warnSec; if (fv._w !== warn) { fv._w = warn; fv.classList.toggle('warn', warn); } }
       // cooldown rings
       for (const t of cfg.tools) { const c = W.cool[t.id] ? W.cool[t.id] / L.cooldownOf(W.cfg, t.id, W.fever > 0) : 0; const el = toolEls[t.id], v = Math.round(Math.min(1, c) * 30) / 30; if (el._c !== v) { el._c = v; el.style.setProperty('--c', String(v)); } }
       // HIT pulses when the tool is ready, dims while it cools down
@@ -1098,7 +1130,10 @@ function startGame(mode) {
     const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.translate = `calc(var(--u)*${x}px) calc(var(--u)*${y}px)`; }
   }
   // ---- coach: the first times, a spotlight shows each control (walk, look, smash, bomb) until it has been used once
-  let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0;
+  // or for cfg.coach.maxSec at most: a step that timed out is done for this session (the save's lesson stays open).
+  // The walk step waits until the player taps something out of reach (a child who only taps never needs it).
+  let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0, coachSince = 0, walkAsked = false;
+  const coachDone = {};
   /** An element's centre and size in frame units. */
   const frameRect = (el) => { const r = el.getBoundingClientRect(), a = root.getBoundingClientRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
   /** Shows the coach step k (null hides it): a dimmed screen with a lit hole on the control, a label and a moving hand. */
@@ -1114,6 +1149,7 @@ function startGame(mode) {
     // the look label stands under the status column (a two-line wave banner ends at 292), above its ring
     const ly = k === 'look' ? 364 : Math.max(330, Math.min(860, cy - cr - 70));
     for (const [n, v] of [['cx', cx], ['cy', cy], ['cr', cr], ['hx', hx], ['hy', hy], ['ly', ly]]) c.style.setProperty('--' + n, String(Math.round(v)));
+    c.style.setProperty('--dim', String(cfg.coach.dim));
     c.className = 'coach ' + how; const lb = c.querySelector('.clabel'); lb.textContent = text;
     c.hidden = false; fitText(lb, 600, 44, 2); $('tip').hidden = true;
   }
@@ -1127,13 +1163,17 @@ function startGame(mode) {
     const t = scene.target, near = t && ((t.type === 'block' && t.dist <= cfg.hero.reach) || (t.type === 'bot' && t.dist <= cfg.hero.reach + 0.6));
     aimT = near ? aimT + dt : 0; lostT = near ? 0 : lostT + dt;
     let k = null;
-    if (tipKey === 'tooHard' && !save.learned.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';
+    if (tipKey === 'tooHard' && !save.learned.bomb && !coachDone.bomb && sel === 'hammer' && usable('bomb')) k = 'bomb';
     // not while the level card is up: the look step's label would stand on it
     else if (W.phase !== 'play' || W.t < 1.2 || !$('lvcard').hidden) k = null;
-    else if (!save.learned.walk) k = 'walk';
-    else if (!save.learned.drag) k = 'look';
+    else if (walkAsked && !save.learned.walk && !coachDone.walk) k = 'walk';
+    else if (!save.learned.drag && !coachDone.look) k = 'look';
     // the smash step stays up while the target only flickers away (a block breaking under the crosshair)
-    else if (!save.learned.hit && (aimT > 0.6 || (coachK === 'hit' && lostT < 0.6))) k = 'hit';
+    else if (!save.learned.hit && !coachDone.hit && (aimT > 0.6 || (coachK === 'hit' && lostT < 0.6))) k = 'hit';
+    // a step that has been up for coach.maxSec goes by itself (real seconds: slow motion does not stretch it)
+    const now = performance.now();
+    if (k !== coachK) coachSince = now;
+    else if (k && now - coachSince >= cfg.coach.maxSec * 1000) { coachDone[k] = true; k = null; }
     // the step on screen was just done: a thumbs-up
     if (coachK && coachK !== k && ['walk', 'look', 'hit', 'bomb'].includes(coachK) && save.learned[coachK === 'look' ? 'drag' : coachK]) cheer();
     showCoach(k);

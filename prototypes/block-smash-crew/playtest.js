@@ -747,6 +747,126 @@ async function main() {
     await late.page.close();
   }
 
+  // 21 "aaa1": the coach steps go by themselves and dim less, one BONK word at a time, no dust in the camera's face
+  if (!process.env.ONLY || process.env.ONLY === 'aaa1') {
+    const CO = cfg.coach, LK = cfg.look, { page, errors } = await open(browser, '', { port, touch: true });
+    const pause = (ms) => page.waitForTimeout(ms);
+    // the coach step on screen: '' (none), 'drag' (walk), 'swipe' (look) or 'press' (smash, bomb)
+    const coachNow = () => g(page, () => { const c = document.getElementById('coach'); return c.hidden ? '' : c.className.replace('coach ', ''); });
+    // nothing is in reach in the sky: the camera turns up (whichever sign that is) and the tap goes to the middle of the view
+    const skyKind = () => g(page, () => { const G = __game, c = G.client(360, 500), t = G.scene.pick(c[0], c[1]); return t ? t.type : 'none'; });
+    const lookSky = async () => { for (const s of [3, -6]) { await g(page, (s) => __game.scene.look(0, s), s); await pause(250); const k = await skyKind(); if (k === 'none' || k === 'air') return k; } return null; };
+    await pause(600); await tapAt(page, 360, 420); await pause(450); await shot(page, '21-first-tap');
+    await waitFor(page, () => { const W = __game.W; return !__game.demo && W.phase === 'play' && W.t > 1.6 && document.getElementById('lvcard').hidden; }, null, 20000).catch(() => {});
+    await pause(500);
+    // a1: a player who only taps is not asked to walk; the first step is the look, under a light dim
+    const first = await coachNow(), dim = await g(page, () => Math.max(0, ...[...getComputedStyle(document.getElementById('coach')).backgroundImage.matchAll(/rgba\(18, 28, 70, ([\d.]+)\)/g)].map((m) => +m[1])));
+    check(first === 'swipe', `a1 after the first tap the coach shows the look step, not the walk step ("${first}")`);
+    check(dim === CO.dim, `a1 ...and dims the game by coach.dim ${CO.dim} (${dim})`);
+    // a2: the step goes by itself after coach.maxSec, without the lesson counting as learned in the save
+    await pause(CO.maxSec * 1000 + 700);
+    const a2 = { now: await coachNow(), drag: await g(page, () => __game.save.learned.drag) };
+    check(a2.now !== 'swipe' && a2.drag === false, `a2 the look step hides by itself after ${CO.maxSec} s, the save's lesson untouched (${JSON.stringify(a2)})`);
+    await pause(1200); const a2b = await coachNow();
+    check(a2b !== 'swipe' && a2b !== 'drag', `a2 ...and does not come back in this session, nor does the walk step show unasked ("${a2b}")`);
+    // a3: a tap on something out of reach asks for the walk step (the stick's nudge fires there)
+    const far = await lookSky(); if (far) await tapAt(page, 360, 500);
+    const asked = await waitFor(page, () => /drag/.test(document.getElementById('coach').className) && !document.getElementById('coach').hidden, null, 2000).then(() => true, () => false);
+    check(!!far && asked, `a3 a tap out of reach (the sky: ${far}) shows the walk step`);
+    // a4: the walk step goes by itself too, and a second far tap does not bring it back
+    await pause(CO.maxSec * 1000 + 700); const a4 = await coachNow(); if (far) await tapAt(page, 360, 500); await pause(600);
+    const a4b = { now: await coachNow(), walk: await g(page, () => __game.save.learned.walk) };
+    check(a4 !== 'drag' && a4b.now !== 'drag' && a4b.walk === false, `a4 the walk step hides by itself after ${CO.maxSec} s and stays away ("${a4}", ${JSON.stringify(a4b)})`);
+    // the camera level again: the words below need a point of the yard in view
+    await g(page, () => __game.scene.look(0, -__game.scene.pitch)); await pause(250);
+    // b: four robots knocked over at once give one BONK word (and all their coins); the next word comes after words.bonkGap
+    const bonk = await g(page, async (gap) => { const G = __game, h = G.W.hero, word = G.T('bonk'), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const clear = () => { G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); }, n = () => [...document.querySelectorAll('#pops .pop')].filter((p) => p.textContent === word).length;
+      let at = null; for (let i = 0; i < 64 && !at; i++) { const a = i / 64 * 6.283, x = h.x + Math.sin(a) * 4, z = h.z + Math.cos(a) * 4, s = G.scene.screenOf(x, 1.5, z); if (!s[2] && s[0] > 150 && s[0] < 570 && s[1] > 300 && s[1] < 900) at = [x, 1.5, z]; }
+      if (!at) return null; const ev = () => G.onEvent({ type: 'bonk', x: at[0], y: at[1], z: at[2], coins: 5, by: 'boom', again: false });
+      await wait(gap * 1000 + 200); clear(); const c0 = G.save.coins; for (let i = 0; i < 4; i++) ev(); const coins = G.save.coins - c0;
+      await wait(150); const out = { at, dir: [(at[0] - h.x) / 4, (at[2] - h.z) / 4], first: n(), coins };
+      await wait(gap * 1000 + 100); clear(); ev(); await wait(150); out.later = n(); return out; }, cfg.words.bonkGap);
+    // (a bonk mission may pay its prize on top of the robots' 4 x 5 coins)
+    check(bonk && bonk.first === 1 && bonk.coins >= 20, `b four bonks at once: one BONK word, every coin paid (${JSON.stringify(bonk)})`);
+    check(bonk && bonk.later === 1, `b ...and a bonk after words.bonkGap ${cfg.words.bonkGap} s has its word again (${bonk && bonk.later})`);
+    // c: dust in the camera's face is not drawn (look.puffNear), dust beyond look.puffFar is drawn whole
+    const dustAt = (f) => g(page, async ([f, dir]) => { const G = __game, p = G.scene.show.pos; G.scene.event({ type: 'star', x: p[0] + dir[0] * f, y: p[1] - 0.3, z: p[2] + dir[1] * f }); await new Promise((r) => setTimeout(r, 200)); return G.scene.dustNear; }, [f, bonk ? bonk.dir : [0, 1]]);
+    const near = (await dustAt(0.3)).filter((x) => x.d < LK.puffNear - 0.1), mid = (await dustAt((LK.puffNear + LK.puffFar) / 2)).filter((x) => x.d > LK.puffNear + 0.3 && x.d < LK.puffFar - 0.3), farD = (await dustAt(LK.puffFar + 3)).filter((x) => x.d > LK.puffFar + 0.1);
+    const worst = (l, f) => l.length ? +f(...l.map((x) => x.k)).toFixed(2) : null;
+    check(near.length > 0 && near.every((x) => x.k < 0.02), `c ${near.length} puffs within look.puffNear ${LK.puffNear} of the camera are not drawn (largest share ${worst(near, Math.max)})`);
+    check(mid.every((x) => x.k > 0.01 && x.k < 0.99), `c ${mid.length} puffs between near and far are drawn smaller (${worst(mid, Math.min)}..${worst(mid, Math.max)})`);
+    check(farD.length > 0 && farD.every((x) => x.k > 0.98), `c ${farD.length} puffs beyond look.puffFar ${LK.puffFar} are drawn whole (smallest share ${worst(farD, Math.min)})`);
+    check(!errors.length, `aaa1 no errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 22 "aaa2": the result card's goal row is a button that buys (or opens the shop), also for upgrades once every tool
+  // is owned; smash time's frame is two still layers cross-faded by opacity, the red one only in the last seconds
+  if (!process.env.ONLY || process.env.ONLY === 'aaa2') {
+    const FV = cfg.fever, { page, errors } = await open(browser, '', { port, touch: true });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await pause(600); await tapAt(page, 360, 420);
+    await waitFor(page, () => { const W = __game.W; return !__game.demo && W.phase === 'play' && W.t > 1.6 && document.getElementById('lvcard').hidden && __game.saveLoaded; }, null, 20000).catch(() => {});
+    // what animates on an element and its two pseudo-elements: the name, the properties its keyframes change, the cycle
+    const anims = (sel, cls) => g(page, ([sel, cls]) => { const el = document.querySelector(sel), rules = {}; if (cls) el.classList.add(cls);
+      for (const sh of document.styleSheets) { let list = []; try { list = sh.cssRules; } catch (er) { /* a sheet from elsewhere (the font) */ } for (const r of list) if (r.type === CSSRule.KEYFRAMES_RULE) rules[r.name] = [...new Set([...r.cssRules].flatMap((k) => [...k.style]))]; }
+      return [null, '::before', '::after'].map((p) => { const cs = getComputedStyle(el, p); return { name: cs.animationName, props: cs.animationName.split(', ').flatMap((n) => rules[n] || []), sec: parseFloat(cs.animationDuration), opacity: +cs.opacity, shadow: cs.boxShadow, bg: cs.backgroundImage.slice(0, 15), filter: cs.filter }; }); }, [sel, cls]);
+    const cheap = (l) => l.every((x) => x.props.every((p) => p === 'opacity' || p === 'transform'));
+    const brief = (l) => JSON.stringify(l.map((x) => [x.name, x.props.join('+'), x.sec, x.opacity]));
+    // c1: smash time: nothing but opacity animates, on a still gradient layer, one cycle per fever.pulseSec; no red yet
+    await g(page, () => { const W = __game.W; W.got = W.need; W.phase = 'fever'; W.fever = W.cfg.fever.dur; W.feverT = 0; __game.onEvent({ type: 'fever' }); });
+    await pause(1600); await shot(page, '22-smash-time');
+    const f1 = await anims('#fever'), w1 = await g(page, () => document.getElementById('fever').classList.contains('warn'));
+    check(f1[0].name === 'none' && f1[0].shadow === 'none' && f1[1].name !== 'none' && cheap(f1) && /gradient/.test(f1[1].bg) && /gradient/.test(f1[2].bg), `c1 the smash-time frame animates only opacity/transform of still gradient layers, no box-shadow (${brief(f1)}, shadow ${f1[0].shadow.slice(0, 40)})`);
+    check(f1[1].sec === FV.pulseSec, `c1 ...one cycle per fever.pulseSec ${FV.pulseSec} s (${f1[1].sec})`);
+    check(!w1 && f1[2].opacity === 0, `c1 ...and the red layer is not shown with ${FV.dur} s left (warn ${w1}, opacity ${f1[2].opacity})`);
+    // c2: the last fever.warnSec seconds: the red layer comes in; time won back takes it away again
+    await g(page, (s) => { __game.W.fever = s - 0.4; }, FV.warnSec); await pause(700); await shot(page, '22-smash-time-last');
+    const f2 = await anims('#fever'), w2 = await g(page, () => document.getElementById('fever').classList.contains('warn'));
+    check(w2 && f2[2].opacity > 0.3 && cheap(f2), `c2 in the last fever.warnSec ${FV.warnSec} s the red layer shows (warn ${w2}, opacity ${f2[2].opacity})`);
+    await g(page, () => { __game.W.fever = __game.W.cfg.fever.dur; }); await pause(700);
+    const w3 = await g(page, () => document.getElementById('fever').classList.contains('warn'));
+    check(w2 && w3 === false, `c2 ...and leaves when time is won back (warn ${w2} then ${w3})`);
+    // c3: HIT when ready: the button itself does not animate (no filter, no box-shadow); a pseudo-element does, cheaply
+    const h1 = await anims('#hit', 'ready');
+    check(h1[0].name === 'none' && (h1[1].name !== 'none' || h1[2].name !== 'none') && cheap(h1), `c3 a ready HIT animates only transform/opacity of a pseudo-element (${brief(h1)})`);
+    // c4: reduced motion: nothing pulses, the tint stays
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await pause(200);
+    const f4 = await anims('#fever'), h4 = await anims('#hit', 'ready');
+    check(f4.every((x) => x.name === 'none') && /gradient/.test(f4[1].bg) && f4[1].opacity > 0.3 && [h4[1], h4[2]].every((x) => x.name === 'none'), `c4 reduced motion: no pulsing, a still tint (${brief(f4)}; HIT ${brief(h4)})`);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    // b: the result card's goal row
+    const all = cfg.tools.map((t) => t.id), rocket = cfg.tools.find((t) => t.id === 'rocket');
+    const card = async (coins, owned, lv) => { await g(page, ([coins, owned, lv]) => { const G = __game, s = G.save, W = G.W; s.coins = coins; s.owned = owned.slice(); W.owned.length = 0; W.owned.push(...owned); s.lv = lv; W.fever = 0; W.phase = 'free'; G.cardDue(); G.onEvent({ type: 'clear' }); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); }, [coins, owned, lv]); await pause(500); };
+    const row = () => g(page, () => { const b = document.getElementById('goalBtn'), k = document.getElementById('app').getBoundingClientRect().width / 720; if (!b) return null; const r = b.getBoundingClientRect(), lab = b.querySelector('.mlab').getBoundingClientRect(), val = b.querySelector('.mval').getBoundingClientRect();
+      return { tag: b.tagName, h: Math.round(r.height / k), text: b.textContent, can: b.classList.contains('can'), fits: lab.right <= val.left + 1 && val.right <= r.right && lab.left >= r.left, coins: __game.save.coins, card: !document.getElementById('panel').hidden && __game.resultsOpen, shop: !document.getElementById('shop').hidden }; });
+    const press = async () => { await g(page, () => document.getElementById('goalBtn').click()); await pause(450); };
+    // b1: not enough coins: a real button, tall enough for a finger, that opens the shop over the card
+    await card(0, ['hammer', 'bomb'], {});
+    const b1 = await row(), nm = await g(page, () => __game.T('nRocket'));
+    check(b1 && b1.tag === 'BUTTON' && b1.h >= 96 && !b1.can && b1.text.includes(nm) && b1.fits, `b1 the next-tool row is a button at least 96 units tall (${JSON.stringify(b1)})`);
+    if (b1) await press(); const b1s = await g(page, () => ({ shop: !document.getElementById('shop').hidden, cards: document.querySelectorAll('#shop .srow').length, card: __game.resultsOpen }));
+    await shot(page, '22-card-shop');
+    check(b1s.shop && b1s.cards === all.length && b1s.card, `b1 ...too expensive: it opens the shop, the card still open under it (${JSON.stringify(b1s)})`);
+    await g(page, () => { const x = document.getElementById('shopX'); if (x) x.click(); }); await pause(300);
+    // b2: enough coins: it buys the tool right there (the shop's purchase) and shows the next goal
+    await card(rocket.cost + 500, ['hammer', 'bomb'], {});
+    const b2 = await row(); await shot(page, '22-card-can'); if (b2) await press();
+    const b2a = await row(), own2 = await g(page, () => ({ save: __game.save.owned.includes('rocket'), world: __game.W.owned.includes('rocket') })), nb = await g(page, () => __game.T('nBall'));
+    check(b2 && b2.can && b2a && own2.save && own2.world && b2a.coins === b2.coins - rocket.cost && b2a.card && !b2a.shop, `b2 with the coins in hand a tap buys the rocket on the card (${JSON.stringify({ before: b2 && b2.coins, after: b2a && b2a.coins, own2, card: b2a && b2a.card, shop: b2a && b2a.shop })})`);
+    check(b2a && b2a.text.includes(nb) && !b2a.can, `b2 ...and the row moves on to the next tool ("${b2a && b2a.text}")`);
+    // b3: every tool owned: the cheapest upgrade is the goal, and a tap buys it
+    const lv3 = Object.fromEntries(all.map((id) => [id, id === 'hammer' ? 7 : 12]));
+    await card(1e6, all, lv3);
+    const b3 = await row(), want = await g(page, () => [__game.T('nHammer'), __game.T('lv', 7)]); await shot(page, '22-card-upgrade'); if (b3) await press();
+    const b3a = await row(), lvNow = await g(page, () => __game.save.lv.hammer);
+    check(b3 && b3.tag === 'BUTTON' && b3.h >= 96 && b3.can && b3.text.includes(want[0]) && b3.text.includes(want[1]) && b3.text.includes('8') && b3.fits, `b3 every tool owned: the row shows the cheapest upgrade, "${want[0]} ${want[1]} → 8" (${JSON.stringify(b3)})`);
+    check(b3a && lvNow === 8 && b3a.coins < b3.coins && b3a.card, `b3 ...and a tap upgrades it (hammer level ${lvNow}, coins ${b3 && b3.coins} → ${b3a && b3a.coins})`);
+    check(!errors.length, `aaa2 no errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);

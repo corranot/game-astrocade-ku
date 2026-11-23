@@ -38,8 +38,16 @@ export function nextTool(cfg, owned, coins) {
   return t ? { tool: t, have: Math.min(coins, t.cost), need: t.cost } : null;
 }
 
-/** A level's finish bonus: base + per level step, × 2 on the 3-star finish. */
-export function levelBonus(cfg, n, stars) { const b = cfg.coins.level + cfg.coins.levelStep * n; return stars.every(Boolean) ? b * 2 : b; }
+/**
+ * A level's finish bonus: base + per level step, × 2 on the 3-star finish; or, when that is more, coins.levelShare of
+ * the coins the building earned (so the big moment keeps up with upgraded tools, the combo and smash time).
+ */
+export function levelBonus(cfg, n, stars, earned = 0) {
+  const b = cfg.coins.level + cfg.coins.levelStep * n, base = stars.every(Boolean) ? b * 2 : b;
+  return Math.max(base, Math.round((cfg.coins.levelShare || 0) * earned));
+}
+/** FLATTENED: coins.flat × the level's coin multiplier; or, when that is more, coins.flatShare of the building's coins so far. */
+export function flatBonus(cfg, earned, mult = 1) { return Math.max(Math.round((cfg.coins.flat || 0) * mult), Math.round((cfg.coins.flatShare || 0) * earned)); }
 
 /** Calendar day as a number YYYYMMDD in local time. */
 export const dayNum = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -70,6 +78,17 @@ export function upgradeCost(cfg, id, lv) { const u = cfg.upgrade, l = clampLv(cf
 export function canBuy(cfg, owned, lv, coins) {
   return cfg.tools.some((t) => (owned.includes(t.id) ? (upgradeCost(cfg, t.id, (lv || {})[t.id] || 1) ?? Infinity) : t.cost) <= coins);
 }
+/**
+ * The next thing to save for: the cheapest locked tool ({ kind: 'tool' }), then, once every tool is owned, the cheapest
+ * upgrade ({ kind: 'up', lv: the level the tool has now }); null when everything is at the top. have/need as in nextTool.
+ */
+export function nextGoal(cfg, owned, lv, coins) {
+  const nt = nextTool(cfg, owned, coins); if (nt) return { kind: 'tool', ...nt };
+  const ups = cfg.tools.map((t) => { const l = clampLv(cfg, (lv || {})[t.id] || 1); return { tool: t, lv: l, need: upgradeCost(cfg, t.id, l) }; }).filter((u) => u.need !== null).sort((a, b) => a.need - b.need);
+  return ups.length ? { kind: 'up', tool: ups[0].tool, lv: ups[0].lv, have: Math.min(coins, ups[0].need), need: ups[0].need } : null;
+}
+/** The daily gift: coins.daily, or coins.dailyShare of the next goal's price when that is more. */
+export function dailyGift(cfg, owned, lv) { const g = nextGoal(cfg, owned, lv, 0); return Math.max(cfg.coins.daily, Math.round((cfg.coins.dailyShare || 0) * (g ? g.need : 0))); }
 /** Today's challenge: the biggest step of one of the 8 buildings, the kind changing every day. */
 export const dailyLevel = (cfg, day) => 8 * cfg.level.maxStep + (day % 8);
 

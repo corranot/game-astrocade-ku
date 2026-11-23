@@ -85,6 +85,11 @@ export const secondary = (id, ic, text, cls = '') => `<button id="${id}" class="
  * ([{ at: 0..1, html }]), e.g. the two trophies of the wreck figure.
  */
 export const meter = ({ ic, label, value, part, marks = null, cls = '' }) => `<div class="meter tile${cls ? ' ' + cls : ''}"><div class="mhead">${icon(ic)}<span class="mlab">${label}</span><span class="mval">${value}</span></div><div class="track${marks ? ' marks' : ''}"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b>${marks || ''}</div></div>`;
+/**
+ * A meter that is a button (the result card's goal): the same icon + label, value and bar. `can` = it can be paid now
+ * (green lip), `buy` = the tool id it stands for. A finger's target tall (index.html .btn.goal).
+ */
+export const goal = ({ id, ic, label, value, part, can = false, buy = '' }) => `<button id="${id}" class="btn meter tile goal ntool${can ? ' can' : ''}" data-buy="${buy}"><span class="mhead">${icon(ic)}<span class="mlab">${label}</span><span class="mval">${value}</span></span><span class="track"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></span></button>`;
 /** One "now → next" line: a stat icon, the value now and (when there is one) the value after the upgrade. */
 export const change = (ic, now, next) => `<span class="fx">${ic[0] === '<' ? ic : icon(ic)}<b dir="ltr">${now}</b>${next != null && next !== now ? `${icon('arrow', 'flip')}<b class="nx" dir="ltr">${next}</b>` : ''}</span>`;
 /** How far a mission is, as a thin bar. */
