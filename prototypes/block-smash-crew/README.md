@@ -213,7 +213,7 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - **Words (`game.js wordPlace`):** every word, coin count, trophy and icon takes the free place nearest to where it
   belongs: clear of the crosshair zone (270–450 × 566–714), the status column, the coach's label, the star arrows,
   the control row (y ≤ 920) and every word still up, its way up included. A word with no place waits 0.22 s and tries
-  again (4 times, the last over other words), a coin count is dropped; big words may pass over a star arrow; a status line that appears pushes a word standing there to the next place.
+  again (4 times; then a small word goes, a big one takes its place and the words under it go: words never stand on each other), a coin count is dropped; big words may pass over a star arrow; a status line that appears pushes a word standing there to the next place.
 - **Tool row:** from the left page margin to the right one like the top bar (gaps 11.2), lock badges on the bottom
   margin; the picked tool moves with the motion tokens. HIT and the stick mirror each other about the centre line;
   HIT stays right in Arabic too (the stick owns the left thumb).
@@ -243,7 +243,7 @@ ring (top ≈29%, side strips, bottom ≈15%) is seen. Before the first touch th
   (0.22 s), never two within 0.9 s, ×0.35 with reduced motion. Blast colours cycle through `demo.colors`.
 - **Look** (`demo.look`): brighter, more saturated sky and light during the show only.
 - **Title, rain, call to action** (`demo.title`, `demo.rain`, `demo.cta`): BLOCK SMASH CREW slams in word by word in
-  the top band, bright pieces tumble through the whole view from the debris pool, TAP TO SMASH! pulses in the bottom band.
+  the top band, bright pieces tumble through the whole view from the debris pool, TAP TO SMASH! pulses in the bottom band, on one line: a long translation shrinks to fit `cta.width`, at most to `cta.min` of `cta.size`.
 - **HUD** put away (`.hud.attract`); the gear stays. **Cuts** (`demo.cut`): the next building kind after 10 s or 60%
   wrecked, and the first touch, both under a 0.28 s white flash.
 - Measure with `node tools/feed-card-test.js prototypes/block-smash-crew <strip.png>`.
