@@ -239,8 +239,10 @@ function startGame(mode) {
     celGen++; celAt = 0;
     W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned, lv: save.lv, daily: !!opts.daily, coinMult: opts.daily ? cfg.daily.mult : 1 });
     demo = !!opts.demo;
-    // the attract mode: a beat to see the robot strolling, then the first rocket goes to it
-    if (demo) { demoT = 0.7; demoN = 0; }
+    // the attract show starts its script over on every building; the HUD is put away while it runs
+    if (demo) { showT = 0; showI = 0; showAll = 0; if (!opts.cut) { showHome = n; showN = 0; } }
+    $('hud').classList.toggle('attract', demo && mode === 'play');
+    if (demo && mode === 'play') showTitle(); else titleOn = false;
     scene.setLevel(W);
     sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; firstTap = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } // a finger from the last level does not steer this one
     toolEls.bomb.classList.remove('hint');
@@ -414,6 +416,8 @@ function startGame(mode) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
     // 600 of the 680 wide column: room for its pulse
     tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 600, 52, 2); }
+    // the attract show's call to action in the bottom band: the same words, in the player's language
+    { const cta = $('cta'), CT = cfg.demo.cta; cta.style.setProperty('--cb', CT.bottom); cta.textContent = T('tap'); if ($('hud').classList.contains('attract')) fitText(cta, CT.width, CT.size, 1); }
     if (coachK && coachK !== '-') tip.hidden = true;
     hand.hidden = !(k === 'tap' || k === 'tooHard');
     wordsYield();
@@ -438,7 +442,9 @@ function startGame(mode) {
     if (!demo) return;
     // the demo becomes the real game on the level the player is at
     touched = true;
-    newLevel(saveLoaded ? save.level : W.n);
+    // a quick white flash covers the cut from the show to first person
+    flashCut(cfg.demo.cut.flash);
+    newLevel(saveLoaded ? save.level : showHome);
     firstTap = true;
     scene.follow = false;
   }
@@ -881,13 +887,9 @@ function startGame(mode) {
     beepT -= real;
     coinPopT -= dt; coinFlyT -= dt;
     if (mode === 'play' && W) {
-      if (demo) { // attract: the hero smashes the fence by himself
-        // a panel pauses the world: the demo waits too (it piled up rockets and fired them all when the panel closed)
-        if (!modalOpen()) demoT -= dt;
-        if (demoT <= 0) { demoT = 1.6; const t = demoTarget(); if (t) { W.cool.rocket = 0; WD.useTool(W, 'rocket', t); } }
-        // the view follows the front-yard robot for the first seconds (it is the one the first rocket sends flying)
-        const b0 = W.bots[0], fb = b0 && W.t < 4 && (b0.state === 'walk' || (b0.state === 'down' && b0.t < 1.1)) ? (b0.pts ? { x: b0.pts[1][0], y: b0.pts[1][1], z: b0.pts[1][2] } : { x: b0.x, y: 0.9, z: b0.z }) : null;
-        scene.demoLook(W.box, fb);
+      if (demo) {
+        // attract: the show (cfg.demo). A panel pauses the world: the show waits too (it would pile up shots)
+        if (!modalOpen()) showStep(dt);
       } else if (resultsOpen) WD.setMove(W, 0, 0);
       else {
         // walking: the stick or the keys, turned by where the view looks
@@ -928,16 +930,44 @@ function startGame(mode) {
     coinTickT -= dt; if (scene.coinArrive && coinTickT <= 0) { coinTickT = 0.05; Sound.play('coinS'); }
     renderTop();
   }
-  /** The attract mode's next rocket target: a block high on the building's front, picked in turn left to right. */
-  let demoN = 0;
-  function demoTarget() {
-    // the attract mode's opening: the first rocket (and every third) goes to the robot strolling in the front yard
-    const bot = W.bots.find((o) => o.state === 'walk' && Math.hypot(o.x - W.hero.x, o.z - W.hero.z) < 9);
-    // just in front of it (towards the hero): the blast throws it away from the view, towards the building
-    if (bot && demoN % 3 === 0) { demoN++; const dx = bot.x - W.hero.x, dz = bot.z - W.hero.z, d = Math.hypot(dx, dz) || 1; return { x: bot.x - dx / d * 0.7, y: 0.7, z: bot.z - dz / d * 0.7 }; }
-    const b = W.box, xs = [b.x0 + 2, (b.x0 + b.x1) >> 1, b.x1 - 2], x = xs[demoN++ % 3];
-    for (let y = W.g.H - 1; y >= 3; y--) for (let z = b.z1 + 2; z >= b.z0; z--) if (W.g.get(x, y, z)) return { x: x + 0.5, y: y + 0.5, z: z + 0.5 };
-    return null;
+  // ---- the attract show: beats from cfg.demo.show fired in turn with the world's own tools (nothing pays in a demo)
+  let showT = 0, showI = 0, showAll = 0, showN = 0, showHome = 0;
+  /** Where a beat goes: 'bot' = the robot strolling in the yard, 'box' = the BOOM box, [u, v, w] = across, up and into the building. */
+  function showAim(at) {
+    const b = W.box;
+    if (at === 'bot') {
+      // just in front of it (towards the hero): the blast throws it away, towards the building and the sky
+      const bot = W.bots.find((o) => o.state === 'walk' && Math.hypot(o.x - W.hero.x, o.z - W.hero.z) < 12);
+      if (bot) { const dx = bot.x - W.hero.x, dz = bot.z - W.hero.z, d = Math.hypot(dx, dz) || 1; return { x: bot.x - dx / d * 0.7, y: 0.7, z: bot.z - dz / d * 0.7 }; }
+      at = [0.5, 0.3, 0];
+    }
+    if (at === 'box') { const c = W.boomBox; if (c && W.g.get(c.x, c.y, c.z) === W.ids.boomBox) return { x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 }; at = [0.5, 0.6, 0]; }
+    const x = Math.floor(b.x0 + at[0] * (b.x1 - b.x0)), z0 = Math.floor(b.z1 - at[2] * (b.z1 - b.z0)), y0 = Math.min(W.g.H - 1, Math.floor(at[1] * (W.top || W.g.H)));
+    // the first block from that point inwards and down; bare ground when that part is already gone
+    for (let z = z0; z >= b.z0; z--) for (let y = y0; y >= 0; y--) if (W.g.get(x, y, z)) return { x: x + 0.5, y: y + 0.5, z: z + 0.5 };
+    return { x: x + 0.5, y: 0.6, z: z0 + 0.5 };
+  }
+  // the game's name in the top band: built once per attract session, each word slams in at its time (cfg.demo.title)
+  let titleOn = false, titleI = 0;
+  function showTitle() {
+    if (titleOn) return; titleOn = true; titleI = 0;
+    const TI = cfg.demo.title, el = $('title'); let k = 0;
+    el.style.setProperty('--ts', TI.size); el.style.setProperty('--tt', TI.top);
+    el.innerHTML = TI.lines.map((ws) => `<span class="tl">${ws.map((w) => `<span class="tw" style="animation-delay:${TI.at[Math.min(k++, TI.at.length - 1)]}s">${w}</span>`).join(' ')}</span>`).join(' ');
+  }
+  /** One frame of the show: the beats that are due, the script over again at its end, and a cut to the next building when this one is mostly gone or has had its time. */
+  function showStep(dt) {
+    const S = cfg.demo; showT += dt; showAll += dt;
+    // each word of the title lands with a flash of its own (the show's pulse rule still holds: never two close together)
+    while (showN === 0 && titleI < S.title.at.length && S.title.at[titleI] + 0.25 <= showAll) { titleI++; scene.pulse(S.title.color); }
+    while (showI < S.show.length && S.show[showI].t <= showT) { const bt = S.show[showI++]; W.cool[bt.tool] = 0; WD.useTool(W, bt.tool, showAim(bt.at)); }
+    if (showI >= S.show.length && showT >= S.loop) { showT -= S.loop; showI = 0; }
+    if (showAll >= S.cut.after || WD.wreck(W) >= S.cut.wreck) { showN++; flashCut(S.cut.flash); newLevel(showHome + showN, { demo: true, cut: true }); }
+  }
+  /** A quick white flash over the whole view (the cut between buildings of the show, and from the show to play). */
+  function flashCut(sec) {
+    const w = $('wipe'); w.hidden = false; w.classList.remove('go'); w.style.animationDuration = sec + 's'; void w.offsetWidth; w.classList.add('go');
+    clearTimeout(wipeTo.t); wipeTo.t = setTimeout(() => { w.hidden = true; w.style.animationDuration = ''; }, sec * 1000 + 40);
   }
   function placeHand() {
     const hand = $('hand');
@@ -1007,7 +1037,7 @@ function startGame(mode) {
     wordsYield();
   }
   /** Builds the next level at once under a white flash that fades away. */
-  function wipeTo(fn) { $('panel').hidden = true; fn(); const w = $('wipe'); w.hidden = false; w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(wipeTo.t); wipeTo.t = setTimeout(() => { w.hidden = true; }, 650); }
+  function wipeTo(fn) { $('panel').hidden = true; fn(); const w = $('wipe'); w.style.animationDuration = ''; w.hidden = false; w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(wipeTo.t); wipeTo.t = setTimeout(() => { w.hidden = true; }, 650); }
   /** Something flies from frame point (sx, sy) into a HUD element, which bumps when it lands. */
   function fly(html, sx, sy, target, land = 'bump') {
     const r = frameRect(target), el = document.createElement('div'); el.className = 'fly'; el.innerHTML = html;
@@ -1091,6 +1121,7 @@ function startGame(mode) {
     // a still showcase: the first building and the hero, nothing moves or counts
     newLevel(0, { demo: true }); $('hud').classList.add('edit'); setTip(null);
   } else {
+    scene.attract = true;
     newLevel(0, { demo: true });
     let localGain = false;
     const read = (tries) => Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
@@ -1175,6 +1206,8 @@ const HTML = `
   <div id="confetti" class="confetti" hidden></div>
   <div id="flies" class="flies"></div>
   <div id="hand" class="hand" hidden>${UI.icon('hand')}</div>
+  <div id="title" class="title"></div>
+  <div id="cta" class="cta"></div>
   <div id="panel" class="panel" hidden></div>
   <div id="shop" class="panel" hidden></div>
   <div id="settings" class="panel" hidden></div>

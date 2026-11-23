@@ -451,7 +451,7 @@ export function createScene(cv, cfg) {
       const cap = Math.min(e.removed.length, e.by === 'hammer' ? 30 : cfg.debris.perBlast), step = e.removed.length / cap;
       // the pieces of one break: more for a bigger one, never above the cap for a hit or a blast
       fragBudget = e.by === 'hammer' ? cfg.debris.perHit : cfg.debris.perBlast;
-      const power = e.by === 'hammer' ? 5 : e.by === 'ball' ? 7 : 6 + e.r * 2.2;
+      const power = (e.by === 'hammer' ? 5 : e.by === 'ball' ? 7 : 6 + e.r * 2.2) * (isShow() ? DM.fling : 1);
       const hx = W.hero.x, hz = W.hero.z;
       const cx = e.by === 'hammer' ? hx : e.x, cz = e.by === 'hammer' ? hz : e.z, cy = e.by === 'hammer' ? e.y - 0.5 : e.y - 1;
       for (let k = 0; k < cap; k++) { const c = e.removed[Math.floor(k * step)]; spawnDebris(c.x + 0.5, c.y + 0.5, c.z + 0.5, c.m, cx, cy, cz, power, e.by === 'hole' ? [e.x, e.y, e.z] : null); }
@@ -488,7 +488,7 @@ export function createScene(cv, cfg) {
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
       if (e.kind === 'tnt') placeBarrels();
-      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); groundFx(e); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
+      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); groundFx(e); if (isShow()) showBoom(e); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
     } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
@@ -747,6 +747,8 @@ export function createScene(cv, cfg) {
     cam.yaw = 0; cam.pitch = cfg.camera.pitch0; cam.eyeY = cfg.camera.eye; cam.target = null;
     buildDeco(); for (const it of scorches) it.mesh.visible = false;
     setTheme(W.theme);
+    // the next building of the show is seen from another side of the swing
+    show.since = 9; show.t += DM.camera.jump; showLook();
   }
 
   // ---- input helpers
@@ -769,6 +771,77 @@ export function createScene(cv, cfg) {
   /** Frame position (720 × 1280 units) of world point (x, y, z); z flag says it is behind the camera. */
   function screenOf(x, y, z) { tmpV.set(x, y, z).project(camera); return [(tmpV.x + 1) / 2 * 720, (1 - tmpV.y) / 2 * 1280, tmpV.z > 1]; }
 
+  // ---- the attract show (before the first touch): a low, wide, slowly swinging camera on the building instead of the
+  // first-person view, a brighter and more saturated look, blasts in changing colours and a short brightness pulse
+  // with each big blast (cfg.demo). Meant to read even when the view is shown dimmed and blurred.
+  const DM = cfg.demo, EXPO = 1.05, show = { t: 0, since: 9, ci: 0, pulse: 0 };
+  let attract = false;
+  // the pulse's colour over the whole view: one plane right in front of the camera, drawn only while a pulse runs
+  const pulseQuad = new THREE.Mesh(keep(new THREE.PlaneGeometry(2, 2)), keep(new THREE.MeshBasicMaterial({ color: '#ffd23c', transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })));
+  pulseQuad.position.z = -0.3; pulseQuad.scale.setScalar(3); pulseQuad.renderOrder = 20; pulseQuad.visible = false; pulseQuad.frustumCulled = false; camera.add(pulseQuad); scene.add(camera);
+  const skyLow0 = new THREE.Color(), pulseC = new THREE.Color('#ffd23c');
+  const isShow = () => attract && !!W && !!W.demo;
+  /** The show's look or the level's own: exposure, light, sky (called after the theme is set). */
+  function showLook() {
+    const on = isShow(), L = DM.look;
+    renderer.toneMappingExposure = on ? L.exposure : EXPO; hemi.intensity = on ? L.hemi : LK.hemi; sun.intensity = on ? L.sun : LK.sun;
+    if (on) { SKY_TOP.set(L.top); SKY_LOW.set(L.low); scene.fog.color.set(L.low); }
+    skyLow0.copy(SKY_LOW); pulseQuad.visible = false;
+  }
+  /** The show's camera: on a slow swing in front of the building, low, the roof near the top edge of the frame. */
+  function showCamera(dt) {
+    const C = DM.camera, F = DM.flash, b = W.box, cx = (b.x0 + b.x1 + 1) / 2, cz = (b.z0 + b.z1 + 1) / 2, size = Math.max(b.x1 - b.x0 + 1, b.z1 - b.z0 + 1);
+    show.t += dt; show.since += dt;
+    const a = Math.sin(show.t * C.orbit) * C.swing, rad = size * C.dist * (1 - C.push * (0.5 - 0.5 * Math.cos(show.t * C.pushRate)));
+    const px = cx + Math.sin(a) * rad, pz = cz + Math.cos(a) * rad;
+    cam.trauma *= Math.exp(-cfg.feel.shakeDecay * dt); cam.kick = Math.min(0.12, (cam.kick || 0)) * Math.exp(-dt * 14); cam.punch = (cam.punch || 0) * Math.exp(-dt * HM.camera.fovDecay);
+    const fov = C.fov + (cam.punch > 0.02 ? cam.punch : 0); if (Math.abs(fov - camera.fov) > 0.005) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    const sh = cam.trauma * cam.trauma * 0.25, st = performance.now() / 1000, sa = sh * 0.5;
+    camera.position.set(px + Math.sin(st * 39) * sa, C.y + Math.sin(st * 53 + 1) * sa, pz + Math.sin(st * 47 + 2) * sa);
+    // the roof (W.top × topY) sits topAt of the way from the middle of the frame to its top edge; never a roll
+    cam.yaw = Math.atan2(px - cx, pz - cz); cam.pitch = Math.atan2((W.top || W.g.H) * C.topY - C.y, rad) - (C.fov * Math.PI / 360) * C.topAt;
+    camera.rotation.set(cam.pitch + (cam.kick || 0), cam.yaw, 0, 'YXZ');
+    sky.position.copy(camera.position);
+    sun.position.set(W.g.W / 2 + LK.sunDir[0] * 50, LK.sunDir[1] * 50, W.g.D / 2 + LK.sunDir[2] * 50); sun.target.position.set(W.g.W / 2, 0, W.g.D / 2);
+    outline.visible = false; cam.target = null;
+    // the pulse: full for a moment, then it dies away; softer with reduced motion
+    show.pulse = show.since < F.hold ? 1 : Math.exp(-(show.since - F.hold) / F.decay);
+    const pk = show.pulse * (reduced ? F.reduced : 1);
+    renderer.toneMappingExposure = DM.look.exposure * (1 + F.boost * pk);
+    // the blast's colour washes over the view and into the low sky, then is gone
+    pulseQuad.visible = pk > 0.02; pulseQuad.material.opacity = F.overlay * pk; pulseQuad.material.color.copy(pulseC);
+    SKY_LOW.copy(skyLow0).lerp(pulseC, F.sky * pk);
+  }
+  /** A brightness pulse in colour c, unless one ran less than flash.gap ago (the title's words use it). */
+  function showPulse(c) { if (!isShow() || show.since < DM.flash.gap) return; show.since = 0; pulseC.set(c); }
+  /**
+   * The show's rain: bright blocks, coins and planks tumbling down through the whole view, near the camera, all the
+   * time (cfg.demo.rain; half the rate on the low tier). They are pieces of the debris pool like any other.
+   */
+  function showRain(dt) {
+    const RN = DM.rain; show.rain = (show.rain || 0) + dt * RN.rate * (low ? 0.5 : 1);
+    const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), th = Math.tan(camera.fov * Math.PI / 360), tw = th * camera.aspect;
+    for (; show.rain >= 1; show.rain--) {
+      if (D.n >= debrisMax * (low ? 0.5 : 1)) return;
+      const f = RN.near + Math.random() * (RN.far - RN.near), lat = (Math.random() * 2 - 1) * f * tw * 1.15, i = D.n++, o = i * 3;
+      D.p[o] = camera.position.x + fx * f - fz * lat; D.p[o + 1] = camera.position.y + f * th * (0.7 + Math.random() * 0.5) + Math.tan(cam.pitch) * f; D.p[o + 2] = camera.position.z + fz * f + fx * lat;
+      D.v[o] = (Math.random() - 0.5) * 3; D.v[o + 1] = -Math.random() * 3; D.v[o + 2] = (Math.random() - 0.5) * 3;
+      for (let k = 0; k < 3; k++) { D.r[o + k] = Math.random() * 6; D.w[o + k] = (Math.random() - 0.5) * RN.spin; }
+      const shp = RN.shapes[(Math.random() * RN.shapes.length) | 0];
+      D.s[i] = RN.size[0] + Math.random() * RN.size[1]; D.life[i] = cfg.debris.life; D.sh[o] = shp[0]; D.sh[o + 1] = shp[1]; D.sh[o + 2] = shp[2];
+      D.b[i] = RN.bounce; D.g[i] = D.g0[i] = RN.glint; D.pull[i * 4 + 3] = 0;
+      tmpC.set(RN.colors[(Math.random() * RN.colors.length) | 0]); D.c[o] = tmpC.r; D.c[o + 1] = tmpC.g; D.c[o + 2] = tmpC.b; debris.setColorAt(i, tmpC);
+    }
+  }
+  /** A blast during the show: its fire in the next of the show's colours, big dust rolling out, a brightness pulse (never two within flash.gap). */
+  function showBoom(e) {
+    const c = DM.colors[show.ci++ % DM.colors.length], bl = blasts[blasts.length - 1];
+    if (bl) { bl.a.material.color.set(c); bl.b.material.color.set(c).offsetHSL(0.02, 0, -0.1); bl.r *= DM.fire; }
+    boomFlash.material.color.set(c); flash.color.set(c);
+    tmpC.set(c).lerp(WHITE, DM.dust.lift); const hex = '#' + tmpC.getHexString(), n = low ? Math.ceil(DM.dust.n / 2) : DM.dust.n;
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283; puff(e.x + Math.cos(a) * e.r, Math.max(0.4, e.y - 0.5), e.z + Math.sin(a) * e.r, DM.dust.size, hex, 1, !low); }
+    if (show.since >= DM.flash.gap) { show.since = 0; pulseC.set(c); }
+  }
   // ---- per frame
   let time = 0;
   function update(world, dt) {
@@ -777,10 +850,12 @@ export function createScene(cv, cfg) {
     // remesh what changed
     for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
     dirty.clear();
-    updateCamera(dt); updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
+    if (isShow()) { showCamera(dt); showRain(dt); } else updateCamera(dt);
+    updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
     if (boomBox.visible) { boomArrow.position.y = 2.25 + Math.sin(time * 4) * 0.16; boomArrow.rotation.y = time * 2; }
     renderer.autoClear = true; renderer.render(scene, camera);
-    renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; // the hands on top
+    // the hands on top (not in the attract show: it is not first person)
+    if (!isShow()) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; }
   }
   function updateHero(dt) {
     const h = W.hero;
@@ -1020,13 +1095,12 @@ export function createScene(cv, cfg) {
     get flakesAt() { return flakes.visible ? [flakes.position.x, flakes.position.z] : null; },
     /** Star beacons in view: [{cell, x, y}] in frame units (a tap near one throws a star bomb). */
     starMarks() { const out = []; for (const b of beacons) { if (b.chest || !b.mark.visible) continue; const [x, y, behind] = screenOf(b.mark.position.x, b.mark.position.y, b.mark.position.z); if (!behind) out.push({ cell: b.cell, x, y }); } return out; },
-    /** Attract mode: the view sweeps slowly across the building's front. */
-    /** The attract mode's view: sweeping along the building, or turned smoothly towards focus {x, z} (a robot in flight). */
-    demoLook(b, focus) {
-      if (!W) return; const h = W.hero; cam.follow = false;
-      if (focus) { let d = Math.atan2(-(focus.x - h.x), -(focus.z - h.z)) - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * 0.12; const want = Math.atan2((focus.y || 0.9) - (h.y + cfg.camera.eye), Math.hypot(focus.x - h.x, focus.z - h.z)); cam.pitch += (Math.max(-0.5, Math.min(0.4, want)) - cam.pitch) * 0.12; return; }
-      const cx = (b.x0 + b.x1 + 1) / 2 + Math.sin(time * 0.5) * (b.x1 - b.x0) * 0.25, cz = b.z1; cam.yaw = Math.atan2(-(cx - h.x), -(cz - h.z)); cam.pitch = cfg.camera.pitch0 + 0.12;
-    },
+    /** The attract show on or off (the game switches it on in play mode; it runs while the world is a demo). */
+    set attract(v) { attract = !!v; if (W) showLook(); }, get attract() { return attract; },
+    /** A brightness pulse of the show in colour c (dropped when one ran a moment ago, or outside the show). */
+    pulse(c) { showPulse(c); },
+    /** The show as drawn: running, seconds on its swing, the pulse (0..1), exposure, the camera's place. */
+    get show() { return { on: isShow(), t: show.t, pulse: show.pulse, exposure: renderer.toneMappingExposure, pos: camera.position.toArray(), fov: camera.fov }; },
     get coinArrive() { return coinArrive; },
     get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */

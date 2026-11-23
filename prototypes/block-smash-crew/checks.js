@@ -27,6 +27,8 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
   const note = (ok, m) => { console.log((ok ? 'ok   ' : 'OFF  ') + m); if (!ok) fails.push(m); };
   const { page } = await open(browser, '', { port: server.address().port });
   const box = (sels) => page.evaluate((sels) => { const a = document.querySelector('#app').getBoundingClientRect(), k = 720 / a.width, o = {}; for (const s of sels) { const e = document.querySelector(s); if (!e) continue; const r = e.getBoundingClientRect(); o[s] = { l: (r.left - a.left) * k, r: (a.right - r.right) * k, t: (r.top - a.top) * k, b: (a.bottom - r.bottom) * k, w: r.width * k, h: r.height * k }; } return o; }, sels);
+  // the HUD is measured in play: the attract show before the first touch puts it away
+  await page.evaluate(() => __game.newLevel(0)); await page.waitForTimeout(400);
   console.log('-- spacing (design units)');
   const b = await box(['#coins', '#gear', '#stars', '#tools', '.tool:first-child', '.tool:last-child']);
   note(Math.abs(b['#coins'].l - b['#gear'].r) <= 2, `top bar margins: coins ${b['#coins'].l.toFixed(0)} left, gear ${b['#gear'].r.toFixed(0)} right`);
