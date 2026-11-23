@@ -107,8 +107,8 @@ jobs:
   automerge:
     name: Merge the owner's PR once checks pass
     needs: [fast, bundle]
-    # skill updates copied from outside repos (auto-sync/*) are instructions for the agents: a person merges those
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'corranot' && !startsWith(github.head_ref, 'auto-sync/')
+    # auto-sync/* skill updates merge here too once checks pass (owner's choice, 2026-11-23); CI does not review skill text
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'corranot'
     runs-on: ubuntu-latest
     permissions:
       contents: write
