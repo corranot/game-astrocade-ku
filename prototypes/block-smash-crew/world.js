@@ -3,7 +3,7 @@
 // and smashes everything in the way, the six tools and their flights, pieces that lose their support and fall, the
 // treasure chest in its steel vault and the smash-time finale. step() returns events for the look and the sound.
 // Pure (no Three.js), so whole levels can be played by a bot in Node.
-import { raycast, smashSphere, collapse } from './voxels.js';
+import { raycast, smashSphere, collapse, weakLayer } from './voxels.js';
 import { buildLevel, matIds, KINDS } from './levels.js';
 export { KINDS };
 import { makeBots, stepBots, knockBots, knock } from './bots.js';
@@ -18,6 +18,8 @@ export function createWorld(cfg0, n, opts = {}) {
   // upgraded tools: a copy of the config with each tool's size and cooldown at the player's level for it
   const cfg = opts.lv ? { ...cfg0, tools: cfg0.tools.map((t) => ({ ...t, ...toolAt(cfg0, t, opts.lv[t.id] || 1) })) } : cfg0;
   const L = buildLevel(cfg, n), g = L.grid, mats = [null, ...cfg.materials];
+  // the building as built: what a storey is measured against when it is asked to carry the rest
+  g.orig = g.data.slice();
   const ids = matIds(cfg);
   const H = cfg.hero;
   const W = {
@@ -78,6 +80,9 @@ function afterRemove(W, removed, by, x, y, z, r, flat) {
     W.falls.push(f);
     W.ev.push({ type: f.topple ? 'topple' : 'fall', fall: f });
   }
+  // a storey left with too few blocks gives way under the weight above it: what it carried then falls
+  const K = W.cfg.crush, weak = K ? weakLayer(W.g, removed, K.ratio, K.minAbove) : [];
+  if (weak.length) afterRemove(W, weak, 'crush', x, weak[0].y + 0.5, z, r, true);
 }
 /** How far a falling piece drops before its lowest block rests on something (or the ground). */
 function landingDrop(g, cells) {
@@ -158,7 +163,7 @@ export function useTool(W, id, p) {
   // the ball leaves the hand (never lower than resting on the ground) at ball.speed along the ground and ball.lift upwards
   else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = Math.max(tl.r, shot.sy); shot.v = tl.speed; shot.vy = tl.lift; shot.dist = 0; shot.x = h.x + shot.dx * (tl.r + tl.ahead); shot.z = h.z + shot.dz * (tl.r + tl.ahead); }
   else if (id === 'hole') { shot.x = p.x; shot.y = Math.max(1.5, p.y); shot.z = p.z; shot.dur = tl.dur; shot.tick = 0; }
-  else if (id === 'meteor') { shot.sx = p.x + 8; shot.sy = 42; shot.sz = p.z + 10; shot.x = shot.sx; shot.y = shot.sy; shot.z = shot.sz; shot.dur = 0.9; }
+  else if (id === 'meteor') { [shot.sx, shot.sy, shot.sz] = meteorStart(W, p.x, p.y, p.z); shot.x = shot.sx; shot.y = shot.sy; shot.z = shot.sz; shot.dur = 0.9; }
   W.shots.push(shot);
   (W.queued = W.queued || []).push({ type: 'throw', shot }); // used between frames: delivered by the next step()
   return true;
@@ -267,13 +272,31 @@ function detonateAll(W) {
   });
   W.ev.push({ type: 'detonate', x: b.x + 0.5, y: b.y + 0.5, z: b.z + 0.5, n: live.length });
 }
+/** True when no block lies between two points (looked up every half cell, the two ends left out). */
+function clearLine(g, ax, ay, az, bx, by, bz) {
+  const n = Math.ceil(Math.hypot(bx - ax, by - ay, bz - az) * 2);
+  for (let i = 1; i < n; i++) { const k = i / n; if (g.get(Math.floor(ax + (bx - ax) * k), Math.floor(ay + (by - ay) * k), Math.floor(az + (bz - az) * k))) return false; }
+  return true;
+}
+/**
+ * Where a meteor aimed at (x, y, z) starts (the meteor tool's `from`), so that it falls inside the view instead of dropping from above its top edge:
+ * `ahead` of the target as the hero sees it, `up` above it and `side` to the hero's right: a slant from far in front. When blocks hide the first
+ * half of that fall from the hero (a wall that fills the view), it comes in on the hero's side of the target instead: `from.near`, in shares of
+ * the hero's distance to the target (never less than `near.min`), so its path on the screen is the same from any distance.
+ */
+function meteorStart(W, x, y, z) {
+  const F = W.cfg.tools.find((t) => t.id === 'meteor').from, N = F.near, h = W.hero, [ex, ey, ez] = heroChest(W), d = Math.hypot(x - h.x, z - h.z) || 1, ux = (x - h.x) / d, uz = (z - h.z) / d;
+  const far = [x + ux * F.ahead - uz * F.side, y + F.up, z + uz * F.ahead + ux * F.side], n = Math.max(d, N.min);
+  let seen = 0; for (let i = 1; i <= 4; i++) { const k = i / 10; if (clearLine(W.g, ex, ey + 0.6, ez, far[0] + (x - far[0]) * k, far[1] + (y - far[1]) * k, far[2] + (z - far[2]) * k)) seen++; }
+  return seen >= 3 ? far : [x - ux * n * N.back - uz * n * N.side, y + n * N.up, z - uz * n * N.back + ux * n * N.side];
+}
 /** What a special barrel does on top of its own boom: scatter bombs, open a black hole, call a meteor. */
 function special(W, f) {
   const K = (W.cfg.keg.kinds || []).find((k) => k.id === f.k); if (!K) return;
   const shot = (o) => { const s = { id: W.nextId++, t: 0, x: f.x, y: f.y, z: f.z, sx: f.x, sy: f.y, sz: f.z, r: K.r, free: true, from: 'keg', ...o }; W.shots.push(s); W.ev.push({ type: 'throw', shot: s }); };
   if (K.id === 'cluster') for (let i = 0; i < K.n; i++) { const a = (i / K.n) * Math.PI * 2 + f.x * 1.7 + f.z; shot({ kind: 'bomb', tx: f.x + Math.sin(a) * K.spread, ty: 0.5, tz: f.z + Math.cos(a) * K.spread, dur: 0.45 + 0.05 * (i % 3) }); }
   else if (K.id === 'hole') shot({ kind: 'hole', y: Math.max(1.5, f.y), dur: K.dur, tick: 0 });
-  else if (K.id === 'meteor') shot({ kind: 'meteor', sx: f.x + 8, sy: 42, sz: f.z + 10, x: f.x + 8, y: 42, z: f.z + 10, tx: f.x, ty: f.y, tz: f.z, dur: 0.9 });
+  else if (K.id === 'meteor') { const [x, y, z] = meteorStart(W, f.x, f.y, f.z); shot({ kind: 'meteor', sx: x, sy: y, sz: z, x, y, z, tx: f.x, ty: f.y, tz: f.z, dur: 0.9 }); }
 }
 function stepFuses(W, dt) {
   for (const f of W.fuses) {

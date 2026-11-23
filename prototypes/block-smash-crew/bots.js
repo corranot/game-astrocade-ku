@@ -20,6 +20,8 @@ const POSE = [
 ];
 /** Sticks between points: the body, the arms and legs, and a few braces so it flops but does not fold flat. */
 const STICKS = [[0, 1], [1, 2], [1, 3], [1, 4], [2, 5], [2, 6], [0, 2], [5, 6], [3, 2], [4, 2], [0, 3], [0, 4]];
+/** Parent then child, from the chest outwards: the order in which a part torn off is brought back. */
+const TREE = [[1, 0], [1, 2], [1, 3], [1, 4], [2, 5], [2, 6]];
 export const BOT_POINTS = POSE.length;
 
 const solid = (g, x, y, z) => y >= 0 && !!g.get(Math.floor(x), Math.floor(y), Math.floor(z));
@@ -382,6 +384,16 @@ function ragdoll(W, b, dt, B, i) {
       // never off the lot, never through the sky
       p[0] = Math.max(lot.x0 - 3, Math.min(lot.x1 + 3, p[0])); p[2] = Math.max(lot.z0 - 3, Math.min(lot.z1 + 3, p[2])); p[1] = Math.min(60, p[1]);
     }
+  }
+  // the body never comes apart: a part that a wall kept away from its parent (head one side, chest the other) is
+  // brought back to it, on the chest's side of the wall, and stops
+  for (const [a, c] of TREE) {
+    const pa = P[a], pc = P[c], ra = POSE[a], rc = POSE[c], rest = Math.hypot(ra[0] - rc[0], ra[1] - rc[1], ra[2] - rc[2]) * b.h;
+    const dx = pc[0] - pa[0], dy = pc[1] - pa[1], dz = pc[2] - pa[2], d = Math.hypot(dx, dy, dz);
+    if (d <= rest * B.maxStretch) continue;
+    const k = rest / d; let x = pa[0] + dx * k, y = Math.max(R, pa[1] + dy * k), z = pa[2] + dz * k;
+    if (solid(g, x, y, z)) { x = pa[0]; y = pa[1]; z = pa[2]; }
+    pc[0] = Q[c][0] = x; pc[1] = Q[c][1] = y; pc[2] = Q[c][2] = z;
   }
   b.still = speed < 0.6 ? b.still + dt : 0;
   // the boss: staggered, it is up again sooner than the others (boss.rebootAfter); after its last knock, never

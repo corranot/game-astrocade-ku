@@ -232,7 +232,10 @@ export function createScene(cv, cfg) {
   // fragments, hanging dust, scorch marks and dust rings follow the tier's caps (cfg.quality.fx)
   const FR = cfg.feel.frags, FB = cfg.feel.blast, fxTier = () => (low ? cfg.quality.fx.low : cfg.quality.fx.high);
   let fragBudget = Infinity;
-  const dustMax = 160, dustGeo = keep(new THREE.IcosahedronGeometry(0.5, 1)), dustMat = keep(new THREE.MeshLambertMaterial({ emissive: '#5a5040' }));
+  const dustMax = 160, dustGeo = keep(new THREE.IcosahedronGeometry(0.5, 1)), dustAlpha = new THREE.InstancedBufferAttribute(new Float32Array(dustMax), 1);
+  dustAlpha.setUsage(THREE.DynamicDrawUsage); dustGeo.setAttribute('aFade', dustAlpha);
+  // dust is soft and see-through: each puff has its own alpha (as the kit's smoke) and thins out towards its rim (cfg.feel.frags.puff)
+  const dustMat = fades(keep(new THREE.MeshLambertMaterial({ emissive: '#5a5040', transparent: true, depthWrite: false })), cfg.feel.frags.puff.soft);
   const dust = new THREE.InstancedMesh(dustGeo, dustMat, dustMax); dust.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dust.frustumCulled = false; scene.add(dust);
   dust.setColorAt(0, new THREE.Color(1, 1, 1));
   const U = { n: 0, p: new Float32Array(dustMax * 3), v: new Float32Array(dustMax * 3), s: new Float32Array(dustMax * 2), life: new Float32Array(dustMax * 2) };
@@ -405,10 +408,10 @@ export function createScene(cv, cfg) {
   // (cfg.feel.blast.kit): fire (the core, the shell's lumps, the embers), smoke (lit lumps, each with its own fade)
   // and waves (the ring on the ground, the ring in the air). A pool is one Float32Array: nothing is made per blast.
   // fire: t, life, x, y, z, vx, vy, vz, size, kind (0 core, 1 shell lump, 2 ember), colour at birth (3), at death (3)
-  // smoke: t, life, x, y, z, vx, vy, vz, size
+  // smoke: t, life, x, y, z, vx, vy, vz, size, its colour at first (r, g, b), its colour at the end (r, g, b)
   // wave: t, life, x, y, z, radius, flat (1 = lies on the ground, 0 = faces the eye), colour (3)
   const KT = FB.kit, kitPool = (max, st) => ({ n: 0, max, st, a: new Float32Array(max * st) });
-  const KF = kitPool(KT.max.fire, 16), KS = kitPool(KT.max.smoke, 9), KW = kitPool(KT.max.wave, 10), KITS = [KF, KS, KW];
+  const KF = kitPool(KT.max.fire, 16), KS = kitPool(KT.max.smoke, 15), KW = kitPool(KT.max.wave, 10), KITS = [KF, KS, KW];
   const kitMesh = (geo, mat, max) => { const m = new THREE.InstancedMesh(geo, mat, max); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.setColorAt(0, WHITE); m.count = 0; scene.add(m); return m; };
   const fireMesh = kitMesh(keep(new THREE.IcosahedronGeometry(1, 1)), keep(new THREE.MeshBasicMaterial({ fog: false, vertexColors: true })), KF.max);
   // facets: a face is darker the more it turns from the sun, so a lump of one flat colour still reads as a solid
@@ -419,12 +422,17 @@ export function createScene(cv, cfg) {
   }
   const smokeGeo = keep(new THREE.IcosahedronGeometry(1, 1)), smokeFade = new THREE.InstancedBufferAttribute(new Float32Array(KS.max), 1);
   smokeFade.setUsage(THREE.DynamicDrawUsage); smokeGeo.setAttribute('aFade', smokeFade);
-  const smokeMat = keep(new THREE.MeshLambertMaterial({ transparent: true, depthWrite: false }));
-  // real transparency per puff: the instance's fade multiplies the alpha
-  smokeMat.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;');
-  };
+  const smokeMat = fades(keep(new THREE.MeshLambertMaterial({ transparent: true, depthWrite: false })), 0);
+  /** Real transparency per instance: the geometry's aFade multiplies the alpha; soft > 0 also thins each puff out towards its rim (the power of the facing). */
+  function fades(mat, soft) {
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;');
+      if (soft) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>\ndiffuseColor.a *= pow(abs(dot(normal, normalize(vViewPosition))), ${soft.toFixed(2)});`);
+    };
+    // (two patches with the same source text would share one program)
+    mat.customProgramCacheKey = () => 'fade' + soft; return mat;
+  }
   const smokeMesh = kitMesh(smokeGeo, smokeMat, KS.max);
   const waveMesh = kitMesh(keep(new THREE.RingGeometry(KT.wave.thin, 1, 40)), keep(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false })), KW.max);
   const waveFlat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
@@ -433,8 +441,10 @@ export function createScene(cv, cfg) {
   function kitAdd(P, life, x, y, z) { if (P.n >= P.max) return -1; const o = P.n++ * P.st, a = P.a; a[o] = 0; a[o + 1] = life; a[o + 2] = x; a[o + 3] = y; a[o + 4] = z; return o; }
   function kitFire(life, x, y, z, vx, vy, vz, size, kind, c0, c1) { const o = kitAdd(KF, life, x, y, z), a = KF.a; if (o < 0) return; a[o + 5] = vx; a[o + 6] = vy; a[o + 7] = vz; a[o + 8] = size; a[o + 9] = kind; a[o + 10] = c0.r; a[o + 11] = c0.g; a[o + 12] = c0.b; a[o + 13] = c1.r; a[o + 14] = c1.g; a[o + 15] = c1.b; }
   function kitWave(x, y, z, r, flat, c, k) { const o = kitAdd(KW, KT.wave.life, x, y, z), a = KW.a; if (o < 0) return; a[o + 5] = r; a[o + 6] = flat; a[o + 7] = c.r * k; a[o + 8] = c.g * k; a[o + 9] = c.b * k; }
-  /** One puff of the kit's smoke left in the air by a flying tool (M: cfg.feel.<tool>.flight.smoke): no wait for a fire, it starts part of the way into its life, already grey. */
-  function trailSmoke(x, y, z, M) { const o = kitAdd(KS, M.life[0] + Math.random() * M.life[1], x, y, z), a = KS.a; if (o < 0) return; a[o] = a[o + 1] * M.age; a[o + 5] = (Math.random() - 0.5) * M.drift; a[o + 6] = M.rise * (0.5 + Math.random()); a[o + 7] = (Math.random() - 0.5) * M.drift; a[o + 8] = M.size * (0.7 + Math.random() * 0.6); }
+  /** A smoke puff's own colours: c0 when it appears, c1 when it has thinned out. */
+  function smokeTint(o, c0, c1) { const a = KS.a; a[o + 9] = c0.r; a[o + 10] = c0.g; a[o + 11] = c0.b; a[o + 12] = c1.r; a[o + 13] = c1.g; a[o + 14] = c1.b; }
+  /** One puff of the kit's smoke left in the air by a flying tool (M: cfg.feel.<tool>.flight.smoke): no wait for a fire, it starts part of the way into its life, in its own colour, a little off the path. */
+  function trailSmoke(x, y, z, M) { const o = kitAdd(KS, M.life[0] + Math.random() * M.life[1], x + (Math.random() - 0.5) * M.spread, y + (Math.random() - 0.5) * M.spread, z + (Math.random() - 0.5) * M.spread), a = KS.a; if (o < 0) return; tmpC.set(M.color); smokeTint(o, tmpC, tmpC); a[o] = a[o + 1] * M.age; a[o + 5] = (Math.random() - 0.5) * M.drift; a[o + 6] = M.rise * (0.5 + Math.random()); a[o + 7] = (Math.random() - 0.5) * M.drift; a[o + 8] = M.size * (0.7 + Math.random() * 0.6); }
   /**
    * A blast of radius e.r at e, from the kit: a white-hot core that swells, a shell of lumps that fly apart and shrink,
    * embers under gravity, smoke that rises once the fire dies, a ring along the ground and (high tier, blast above
@@ -457,7 +467,7 @@ export function createScene(cv, cfg) {
     for (let i = Math.round(S.n * T.blast); i > 0; i--) {
       const o = kitAdd(KS, S.life[0] + Math.random() * S.life[1], e.x + (Math.random() - 0.5) * r * S.spread, e.y + (Math.random() - 0.3) * r * S.spread * 0.6, e.z + (Math.random() - 0.5) * r * S.spread), a = KS.a; if (o < 0) break;
       // it waits for the fire to die (a negative age), then rises and drifts
-      a[o] = -S.delay * (0.5 + Math.random()); a[o + 5] = (Math.random() - 0.5) * S.drift * 2; a[o + 6] = S.rise * (0.6 + Math.random() * 0.8); a[o + 7] = (Math.random() - 0.5) * S.drift * 2; a[o + 8] = r * S.size * (0.7 + Math.random() * 0.6);
+      a[o] = -S.delay * (0.5 + Math.random()); a[o + 5] = (Math.random() - 0.5) * S.drift * 2; a[o + 6] = S.rise * (0.6 + Math.random() * 0.8); a[o + 7] = (Math.random() - 0.5) * S.drift * 2; a[o + 8] = r * S.size * (0.7 + Math.random() * 0.6); smokeTint(o, smoke0, smoke1);
     }
     kitWave(e.x, 0.05, e.z, r * WV.size, 1, WHITE, WV.opacity);
     if (T.sphere && e.y > FB.scorch.ground) kitWave(e.x, e.y, e.z, r * WV.air, 0, kc0, WV.airOpacity);
@@ -492,10 +502,15 @@ export function createScene(cv, cfg) {
     }
   }
   function killDebris(i) { const j = --D.n; if (i !== j) { D.b[i] = D.b[j]; D.g[i] = D.g[j]; D.g0[i] = D.g0[j]; for (let k = 0; k < 3; k++) D.c[i * 3 + k] = D.c[j * 3 + k]; for (let k = 0; k < 3; k++) { D.p[i * 3 + k] = D.p[j * 3 + k]; D.v[i * 3 + k] = D.v[j * 3 + k]; D.r[i * 3 + k] = D.r[j * 3 + k]; D.w[i * 3 + k] = D.w[j * 3 + k]; } for (let k = 0; k < 4; k++) D.pull[i * 4 + k] = D.pull[j * 4 + k]; for (let k = 0; k < 3; k++) D.sh[i * 3 + k] = D.sh[j * 3 + k]; D.s[i] = D.s[j]; D.life[i] = D.life[j]; debris.getColorAt(j, tmpC); debris.setColorAt(i, tmpC); } }
-  /** n puffs of dust; hang = a slow cloud that stays in the air and drifts before it fades (cfg.feel.frags.dust). */
+  /** The dust colour of a broken block (r: one of an event's removed cells): its material's colour lifted towards white (frags.dust.lift), cream when unknown. */
+  function dustTint(r) { const m = cfg.materials[(r || {}).m - 1]; return m ? '#' + tmpC.set(m.color).lerp(WHITE, FR.dust.lift).getHexString() : '#fbf6ec'; }
+  /**
+   * Puffs of dust in the given colour; hang = a slow cloud that stays in the air and drifts before it fades (cfg.feel.frags.dust).
+   * cfg.feel.frags.puff: every puff is drawn at `size` of the size asked for, and `share` of the n asked for appear (a share of one puff is its chance).
+   */
   function puff(x, y, z, size, color = '#f4ead8', n = 3, hang = false) {
-    const HD = FR.dust, sp = hang ? HD.speed : 1;
-    for (let k = 0; k < n; k++) {
+    const HD = FR.dust, sp = hang ? HD.speed : 1; size *= FR.puff.size;
+    for (let k = n * FR.puff.share; k > Math.random(); k--) {
       if (U.n >= dustMax * (low ? 0.5 : 1)) return;
       const i = U.n++;
       U.p[i * 3] = x + (Math.random() - 0.5) * size; U.p[i * 3 + 1] = y + Math.random() * size * 0.5; U.p[i * 3 + 2] = z + (Math.random() - 0.5) * size;
@@ -520,8 +535,8 @@ export function createScene(cv, cfg) {
     const n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring), a0 = Math.random() * 6;
     for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; puff(e.x + Math.cos(a) * e.r * 0.8, 0.25, e.z + Math.sin(a) * e.r * 0.8, RG.size, RG.color, 1, T.hangDust); }
   }
-  /** A puff's own size at this point of its life: it grows, then shrinks away over the last 40 %. */
-  function dustSize(i) { const k = U.life[i * 2] / U.life[i * 2 + 1]; return U.s[i * 2] * (0.5 + k * 1.1) * (k > 0.6 ? (1 - k) / 0.4 : 1); }
+  /** A puff's own size at this point of its life: it only grows (quickly, then slowly: frags.puff.grow); its alpha is what goes away. */
+  function dustSize(i) { const k = U.life[i * 2] / U.life[i * 2 + 1]; return U.s[i * 2] * (0.5 + FR.puff.grow * (1 - (1 - k) * (1 - k))); }
   /** The share of its size a puff is drawn at, d units from the camera (0 within look.puffNear, 1 beyond look.puffFar, smooth between). */
   function dustFade(d) { const LK = cfg.look, t = Math.max(0, Math.min(1, (d - LK.puffNear) / Math.max(1e-3, LK.puffFar - LK.puffNear))); return t * t * (3 - 2 * t); }
   function killDust(i) { const j = --U.n; if (i !== j) { for (let k = 0; k < 3; k++) { U.p[i * 3 + k] = U.p[j * 3 + k]; U.v[i * 3 + k] = U.v[j * 3 + k]; } U.s[i * 2] = U.s[j * 2]; U.life[i * 2] = U.life[j * 2]; U.life[i * 2 + 1] = U.life[j * 2 + 1]; dust.getColorAt(j, tmpC); dust.setColorAt(i, tmpC); } }
@@ -542,7 +557,7 @@ export function createScene(cv, cfg) {
       const hx = W.hero.x, hz = W.hero.z;
       const cx = e.by === 'hammer' ? hx : e.x, cz = e.by === 'hammer' ? hz : e.z, cy = e.by === 'hammer' ? e.y - 0.5 : e.y - 1;
       for (let k = 0; k < cap; k++) { const c = e.removed[Math.floor(k * step)]; spawnDebris(c.x + 0.5, c.y + 0.5, c.z + 0.5, c.m, cx, cy, cz, power, e.by === 'hole' ? [e.x, e.y, e.z] : null); }
-      if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), '#fbf6ec', Math.min(6, 1 + (e.removed.length >> 4)));
+      if (e.by !== 'hole') puff(e.x, e.y - 0.3, e.z, Math.min(2.6, 0.5 + e.removed.length * 0.02), dustTint(e.removed[0]), Math.min(6, 1 + (e.removed.length >> 4)));
       // brick, stone and plaster leave a cloud in their own colour that hangs and drifts (not on the low tier)
       { const m0 = cfg.materials[(e.removed[0] || {}).m - 1]; if (e.by !== 'hole' && m0 && m0.frag === 'crumb' && fxTier().hangDust) { tmpC.set(m0.color).lerp(WHITE, FR.dust.lift); puff(e.x, e.y, e.z, FR.dust.size, '#' + tmpC.getHexString(), Math.min(FR.dust.max, 1 + Math.round(e.removed.length * FR.dust.per)), true); } }
       if (!W.demo) spawnCoins(e.x, e.y, e.z, Math.min(6, 1 + Math.floor(e.removed.length / 8)) + e.gold * 3);
@@ -738,6 +753,8 @@ export function createScene(cv, cfg) {
     const arm = () => ({ up: add(g, col, 0.11, 1, 0.11), low: add(g, col, 0.11, 1, 0.11), end: add(g, botWhite, 0.15, 0.15, 0.15) });
     const leg = () => ({ up: add(g, botDark, 0.14, 1, 0.14), low: add(g, botDark, 0.14, 1, 0.14), end: add(g, botDark, 0.17, 0.1, 0.27) });
     const limbs = [arm(), arm(), leg(), leg()];
+    // the neck: a dark post from inside the chest into the head, so the head never looks like it hovers
+    const neck = add(g, botDark, 0.16, 1, 0.16);
     let sign = null;
     if (b.sign >= 0) { const sp = signFor(b.sign), sg = new THREE.Group(), board = new THREE.Mesh(signGeo, sp.mat), stick = new THREE.Mesh(stickGeo, stickMat); board.castShadow = true; stick.position.y = -0.5; sg.add(board, stick); g.add(sg); sign = { g: sg, sp }; }
     // the boss: the same robot, bigger (its height over a normal one's), with a gold crown: a band and one point with
@@ -754,7 +771,7 @@ export function createScene(cv, cfg) {
       }
     }
     scene.add(g);
-    return { g, head, body, trunk, limbs, face, sign, crown, fk: -1 };
+    return { g, head, body, trunk, limbs, neck, face, sign, crown, fk: -1 };
   }
   function dropBot(v) { scene.remove(v.g); if (v.sign) v.sign.sp.users--; }
   /** Points of a standing bot: the standing pose with swinging legs and arms and a bob; close to the hero it stomps and lifts its sign (or pumps a fist). */
@@ -810,6 +827,7 @@ export function createScene(cv, cfg) {
       bz.crossVectors(bx, by); bm.makeBasis(bx, by, bz); bq.setFromRotationMatrix(bm);
       v.head.position.set(P[0][0], P[0][1], P[0][2]); v.head.quaternion.copy(bq);
       v.body.position.set((P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2, (P[1][2] + P[2][2]) / 2); v.body.quaternion.copy(bq);
+      along(v.neck, [v.body.position.x, v.body.position.y, v.body.position.z], P[0], 0.16 * b.h / BOT_H);
       // shoulders at the sides of the chest, hips under the pelvis; lengths follow the bot's height
       const hs = b.h / 1.5, hk = b.h / BOT_H;
       limb(v.limbs[0], P[1], P[3], -0.29 * hk, 0.03 * hk, 0.5 * hs, 0.11 * hk, false, hk); limb(v.limbs[1], P[1], P[4], 0.29 * hk, 0.03 * hk, 0.5 * hs, 0.11 * hk, false, hk);
@@ -1154,10 +1172,11 @@ export function createScene(cv, cfg) {
         for (U.em += dt * BF.embers.rate * half; U.em >= 1; U.em--) kitFire(E.life[0] + Math.random() * E.life[1], tmpV.x, tmpV.y, tmpV.z, (Math.random() - 0.5) * BF.embers.speed, Math.random() * BF.embers.speed, (Math.random() - 0.5) * BF.embers.speed, E.size * BF.embers.size * (0.6 + Math.random() * 0.8), 2, fuse0, fuse1);
       }
       else if (s.kind === 'rocket') {
-        // it rolls slowly on its axis; the flame's length flickers; smoke puffs are left behind the flame
+        // it rolls slowly on its axis; the flame's length flickers; smoke puffs are left behind the flame, a little to the right of and below its path
+        // (smoke.off, on the launcher's side: the rocket flies straight away from the eye, and a trail on that line is seen end-on, as one dot)
         const RF = FL.rocket.flight, f = reduced ? 1 : 1 + (Math.random() - 0.5) * RF.flame.flicker, back = RF.smoke.back; g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); U.body.rotation.y += dt * RF.spin * motionK;
         U.flame.scale.set(near * RF.flame.wide, near * f, near * RF.flame.wide); U.halo.scale.setScalar(RF.flame.glow * near * f);
-        for (U.em += dt * RF.smoke.rate * half; U.em >= 1; U.em--) { const q = Math.random(); trailSmoke(s.x - s.dx * back - mx * q, s.y - s.dy * back - my * q, s.z - s.dz * back - mz * q, RF.smoke); }
+        for (U.em += dt * RF.smoke.rate * half; U.em >= 1; U.em--) { const q = Math.random(); trailSmoke(s.x - s.dx * back - mx * q - s.dz * RF.smoke.off[0], s.y - s.dy * back - my * q + RF.smoke.off[1], s.z - s.dz * back - mz * q + s.dx * RF.smoke.off[0], RF.smoke); }
       }
       else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (s.y <= s.r + 0.02 && Math.random() < FL.ball.trail) puff(s.x - s.dx * s.r * 0.6, 0.2, s.z - s.dz * s.r * 0.6, 0.8, FL.ball.look.dust, 1); }
       else if (s.kind === 'hole') { const k = Math.min(1, s.t / (s.dur * 0.6)); g.scale.setScalar(0.4 + k * 1.2 * (1 - Math.max(0, (s.t - s.dur + 0.3) / 0.3))); for (const c of g.children) if (c.userData.spin) c.rotation.z += dt * c.userData.spin; }
@@ -1207,13 +1226,15 @@ export function createScene(cv, cfg) {
     sparkMesh.count = SP.n; sparkMesh.instanceMatrix.needsUpdate = true;
     debris.count = D.n; debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
     for (let i = U.n - 1; i >= 0; i--) {
-      U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); if (i < U.n) dust.instanceMatrix.array.copyWithin(i * 16, U.n * 16, U.n * 16 + 16); continue; }
+      U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); if (i < U.n) { dust.instanceMatrix.array.copyWithin(i * 16, U.n * 16, U.n * 16 + 16); dustAlpha.array[i] = dustAlpha.array[U.n]; } continue; }
       const o = i * 3; for (let j = 0; j < 3; j++) { U.p[o + j] += U.v[o + j] * dt; U.v[o + j] *= 1 - 1.5 * dt; }
       // dust in the camera's face would hide the view: none within look.puffNear, whole beyond look.puffFar
       const sc = dustSize(i) * dustFade(Math.hypot(U.p[o] - camera.position.x, U.p[o + 1] - camera.position.y, U.p[o + 2] - camera.position.z));
       tmpM.compose(tmpV.set(U.p[o], U.p[o + 1], U.p[o + 2]), tmpQ.identity(), tmpS.set(sc, sc, sc)); dust.setMatrixAt(i, tmpM);
+      // it appears at once and thins out all its life
+      dustAlpha.array[i] = FR.puff.opacity * Math.min(1, k * 8) * (1 - k);
     }
-    dust.count = U.n; dust.instanceMatrix.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true;
+    dust.count = U.n; dust.instanceMatrix.needsUpdate = dustAlpha.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true;
     coinArrive = 0;
     const hx = W.hero.x, hy = W.hero.y + 1.3, hz = W.hero.z;
     for (let i = C.n - 1; i >= 0; i--) {
@@ -1248,15 +1269,15 @@ export function createScene(cv, cfg) {
       fireMesh.count = KF.n; fireMesh.instanceMatrix.needsUpdate = fireMesh.instanceColor.needsUpdate = true;
       a = KS.a;
       for (let i = 0; i < KS.n; i++) {
-        const o = i * 9, k = Math.max(0, a[o] / a[o + 1]); let sc = 0;
+        const o = i * KS.st, k = Math.max(0, a[o] / a[o + 1]); let sc = 0;
         if (a[o] > 0) {
           const dr = Math.max(0, 1 - S.drag * dt); a[o + 2] += a[o + 5] * dt; a[o + 3] += a[o + 6] * dt; a[o + 4] += a[o + 7] * dt; a[o + 5] *= dr; a[o + 7] *= dr;
           sc = a[o + 8] * (0.5 + S.grow * (1 - (1 - k) * (1 - k))) * dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z));
         }
-        // dark at first, grey later; it comes in quickly and fades out softly
+        // from its first colour to its last (a blast's: dark, then grey); it comes in quickly and fades out softly
         smokeFade.array[i] = S.opacity * Math.min(1, k * 6) * (1 - k);
         tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); smokeMesh.setMatrixAt(i, tmpM);
-        smokeMesh.setColorAt(i, tmpC.copy(smoke0).lerp(smoke1, k));
+        smokeMesh.setColorAt(i, tmpC.setRGB(a[o + 9] + (a[o + 12] - a[o + 9]) * k, a[o + 10] + (a[o + 13] - a[o + 10]) * k, a[o + 11] + (a[o + 14] - a[o + 11]) * k));
       }
       smokeMesh.count = KS.n; smokeMesh.instanceMatrix.needsUpdate = smokeMesh.instanceColor.needsUpdate = smokeFade.needsUpdate = true;
       a = KW.a;

@@ -107,6 +107,43 @@ export function collapse(g, removed, maxCells = 6000) {
   return clusters;
 }
 
+/**
+ * A storey too weak to carry what stands on it: looks at the piece of building next to the removed cells and returns
+ * the cells of its lowest layer that kept at most `ratio` of the blocks it was built with (g.orig, within the piece's
+ * footprint) while at least `minAbove` blocks still rest above it. Empty when every layer holds.
+ */
+export function weakLayer(g, removed, ratio, minAbove) {
+  const { W, D, H, data, stamp, orig } = g, WD = W * D;
+  if (!orig) return [];
+  for (const c of removed) for (const [ax, ay, az] of N6) {
+    const X = c.x + ax, Y = c.y + ay, Z = c.z + az; if (!g.inside(X, Y, Z)) continue;
+    const s = g.idx(X, Y, Z); if (!data[s]) continue;
+    const mine = ++g.mark, q = [s], cnt = new Int32Array(H); stamp[s] = mine;
+    let x0 = X, x1 = X, z0 = Z, z1 = Z;
+    for (let h = 0; h < q.length; h++) {
+      const i = q[h], x = i % W, z = ((i / W) | 0) % D, y = (i / WD) | 0;
+      cnt[y]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
+      for (const [bx, by, bz] of N6) {
+        const X2 = x + bx, Y2 = y + by, Z2 = z + bz;
+        if (X2 < 0 || Y2 < 0 || Z2 < 0 || X2 >= W || Y2 >= H || Z2 >= D) continue;
+        const j = g.idx(X2, Y2, Z2); if (data[j] && stamp[j] !== mine) { stamp[j] = mine; q.push(j); }
+      }
+    }
+    let above = q.length;
+    for (let y = 0; y < H; y++) {
+      above -= cnt[y]; if (above < minAbove) break;
+      if (!cnt[y]) continue;
+      let was = 0; for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (orig[g.idx(x, y, z)]) was++;
+      if (cnt[y] > ratio * was) continue;
+      const out = [];
+      for (const i of q) if (((i / WD) | 0) === y) { out.push({ x: i % W, y, z: ((i / W) | 0) % D, m: data[i] }); data[i] = 0; }
+      return out;
+    }
+    return [];
+  }
+  return [];
+}
+
 // Face table: normal, the quad's u and v edges (u × v = normal) and the corner the quad starts from.
 // up: which quad edge runs up the wall (so a texture's rows stay level); none on the top and bottom faces
 const FACES = [
