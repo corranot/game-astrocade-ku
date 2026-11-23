@@ -155,7 +155,8 @@ export function useTool(W, id, p) {
   const shot = { id: W.nextId++, kind: id, t: 0, x: hx, y: hy + 0.6, z: hz, sx: hx, sy: hy + 0.6, sz: hz, tx: p.x, ty: p.y, tz: p.z, r: tl.r, free: !owned };
   if (id === 'bomb') { shot.dur = Math.max(0.35, Math.min(0.8, Math.hypot(p.x - hx, p.z - hz) / 22)); }
   else if (id === 'rocket') { const d = Math.hypot(p.x - hx, p.y - shot.y, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dy = (p.y - shot.y) / d; shot.dz = (p.z - hz) / d; shot.dist = 0; }
-  else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = tl.r; shot.dist = 0; shot.x = h.x + shot.dx * (tl.r + tl.ahead); shot.z = h.z + shot.dz * (tl.r + tl.ahead); }
+  // the ball leaves the hand (never lower than resting on the ground) at ball.speed along the ground and ball.lift upwards
+  else if (id === 'ball') { const d = Math.hypot(p.x - hx, p.z - hz) || 1; shot.dx = (p.x - hx) / d; shot.dz = (p.z - hz) / d; shot.y = Math.max(tl.r, shot.sy); shot.v = tl.speed; shot.vy = tl.lift; shot.dist = 0; shot.x = h.x + shot.dx * (tl.r + tl.ahead); shot.z = h.z + shot.dz * (tl.r + tl.ahead); }
   else if (id === 'hole') { shot.x = p.x; shot.y = Math.max(1.5, p.y); shot.z = p.z; shot.dur = tl.dur; shot.tick = 0; }
   else if (id === 'meteor') { shot.sx = p.x + 8; shot.sy = 42; shot.sz = p.z + 10; shot.x = shot.sx; shot.y = shot.sy; shot.z = shot.sz; shot.dur = 0.9; }
   W.shots.push(shot);
@@ -185,13 +186,27 @@ function stepShots(W, dt) {
       if (s.y <= 0.2) hit = hit || { x: Math.floor(s.x), y: 0, z: Math.floor(s.z) };
       if (hit) { s.done = true; boom(W, s, hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); } else if (s.dist > 60) { s.done = true; boom(W, s, s.x, s.y, s.z); }
     } else if (s.kind === 'ball') {
-      const sp = 15 * dt; s.x += s.dx * sp; s.z += s.dz * sp; s.dist += sp; s.roll = (s.roll || 0) + sp / s.r;
+      // a heavy ball: it falls under ball.gravity, comes down ('ballLand'), bounces once (ball.bounce of its fall speed),
+      // comes down again ('ballBounce') and from then on rolls with its centre at ground height + r. Rolling friction
+      // (ball.friction, m/s²) and every block it breaks (ball.loss, m/s each) slow it; under ball.stop it is over.
+      const tl = tool(W, 'ball');
+      if (s.ground) s.v = Math.max(0, s.v - tl.friction * dt);
+      else {
+        s.vy -= tl.gravity * dt; s.y += s.vy * dt;
+        if (s.y <= s.r) {
+          const fall = -s.vy; s.y = s.r;
+          if (s.bounced) { s.ground = true; s.vy = 0; } else { s.bounced = true; s.vy = fall * tl.bounce; }
+          W.ev.push({ type: s.ground ? 'ballBounce' : 'ballLand', x: s.x, y: 0, z: s.z, r: s.r, fall });
+        }
+      }
+      const sp = s.v * dt; s.x += s.dx * sp; s.z += s.dz * sp; s.dist += sp; s.roll = (s.roll || 0) + sp / s.r;
       const res = smashSphere(W.g, s.x, s.y, s.z, s.r, W.mats, true);
-      if (res.removed.length) { afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length, first: !s.rolled }); s.rolled = true; }
-      if (W.bots.length) knockBots(W, s.x, s.y * 0.5, s.z, s.r + 0.4, W.cfg.bots.knock * 1.3, 'ball');
+      if (res.removed.length) { s.v = Math.max(0, s.v - tl.loss * res.removed.length); afterRemove(W, res.removed, 'ball', s.x, s.y, s.z, s.r); W.ev.push({ type: 'roll', x: s.x, y: s.y, z: s.z, n: res.removed.length, first: !s.rolled }); s.rolled = true; }
+      // robots in its way are thrown onwards, along its travel (a slow ball knocks less)
+      if (W.bots.length) knockBots(W, s.x, s.y - s.r * 0.5, s.z, s.r + 0.4, W.cfg.bots.knock * 1.3 * Math.min(1, 0.4 + s.v / tl.speed), 'ball', s.dx, s.dz);
       // (the hero can stand 12 past the grid: a ball thrown from there was "out" at once and never rolled)
       const out = s.x < -16 || s.z < -16 || s.x > W.g.W + 16 || s.z > W.g.D + 16;
-      if (s.dist > tool(W, 'ball').len || out) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'ball' }); }
+      if (s.v < tl.stop || s.dist > tl.len || out) { s.done = true; W.ev.push({ type: 'pop', x: s.x, y: s.y, z: s.z, kind: 'ball' }); }
     } else if (s.kind === 'hole') {
       s.tick -= dt;
       const r = s.r * Math.min(1, s.t / (s.dur * 0.6));

@@ -773,6 +773,44 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(hit.length === 0, `every thrown tool knocks a robot: hit straight on, beside the aim point, or in its way (missed: ${hit.join(', ') || 'none'})`);
 }
 
+// ---- the wrecking ball has weight (23 Nov, owner: "all the physics right"): thrown in a low arc, one bounce, then it
+// rolls on the ground, slowed by friction and by every block it breaks, until it stops
+{
+  const ids = cfg.tools.map((t) => t.id), T = cfg.tools.find((t) => t.id === 'ball'), DT = 1 / 60;
+  // a throw followed to its end: every step's height, speed and events (lane = beside the grid: open ground, no blocks)
+  const run = (lane) => {
+    const W = WD.createWorld(cfg, 1, { owned: ids }), h = W.hero; W.cool.ball = 0;
+    if (lane) { h.x = -10; h.z = -12; W.bots.length = 0; } else h.z = W.g.D + 12;
+    const dz = lane ? 1 : Math.cos(h.yaw), dx = lane ? 0 : Math.sin(h.yaw);
+    WD.useTool(W, 'ball', { x: h.x + dx * 20, y: 1, z: h.z + dz * 20 });
+    const out = { W, ys: [], vs: [], ev: [], blocks: 0, dist: 0, t: 0, bad: 0 };
+    for (let i = 0; i < 60 * 12; i++) {
+      const s = W.shots.find((x) => x.kind === 'ball'), v0 = s ? s.v : 0, ev = WD.step(W, DT); let n = 0;
+      for (const e of ev) { if (e.type === 'ballLand' || e.type === 'ballBounce' || e.type === 'pop') out.ev.push({ type: e.type, t: i * DT, d: s ? s.dist : 0, v: s ? s.v : 0 }); if (e.type === 'roll') n += e.n; }
+      if (!s) continue;
+      out.blocks += n; out.ys.push(s.y); out.vs.push(s.v); out.dist = s.dist; out.t = (i + 1) * DT;
+      // a step that broke n blocks lost at least n · loss (and no step ever gains speed)
+      if (s.v > v0 + 1e-9 || (n && !s.done && s.v > Math.max(0, v0 - n * T.loss) + 1e-9)) out.bad++;
+    }
+    return out;
+  };
+  const O = run(true), names = O.ev.map((e) => e.type).join(' '), iL = Math.round(O.ev[0].t / DT), iB = O.ev[1] ? Math.round(O.ev[1].t / DT) : 0;
+  const apex = Math.max(...O.ys.slice(0, iL)) - T.r, hop = Math.max(...O.ys.slice(iL, iB + 1)) - T.r;
+  check(names === 'ballLand ballBounce pop' && apex > 0.5 && O.ys.slice(0, iL - 1).every((y) => y > T.r), `the ball flies a low arc before it lands (events: ${names}; ${apex.toFixed(2)} m over the ground at the top, lands after ${O.ev[0].t.toFixed(2)} s and ${O.ev[0].d.toFixed(1)} m)`);
+  check(hop > 0.2 && hop < apex && O.ys.slice(iB + 1).every((y) => y === T.r), `one visible bounce, then its centre stays at ground height + r (bounce ${hop.toFixed(2)} m, down again at ${O.ev[1].t.toFixed(2)} s)`);
+  check(O.bad === 0 && O.vs.slice(iB + 2).every((v, i, a) => !i || v < a[i - 1]) && O.ev[2].v < T.stop && O.dist < T.len && O.W.shots.length === 0, `on open ground friction slows it until it stops under ball.stop (${O.dist.toFixed(1)} m in ${O.t.toFixed(1)} s, cap ${T.len} m)`);
+  const B = run(false);
+  check(B.blocks > 0 && B.bad === 0 && B.dist < O.dist && B.ev.some((e) => e.type === 'pop') && B.vs[B.vs.length - 1] < T.stop, `every block it breaks costs it speed: through the building it stops sooner (${B.blocks} blocks, ${B.dist.toFixed(1)} m against ${O.dist.toFixed(1)} m on open ground)`);
+  // a robot standing 1.2 m to the side of its path (open ground at the edge of the robots' lot, the ball thrown along
+  // +x) is thrown onwards along the path, not out to the side
+  const W = WD.createWorld(cfg, 1, { owned: ids }), h = W.hero, b = W.bots[0]; W.bots.length = 1; W.cool.ball = 0;
+  h.x = (W.botLot.x0 + W.botLot.x1) / 2 - 16; h.z = W.botLot.z1 - 2; b.pts = null; b.goal = null; const bx = h.x + 14, bz = h.z - 1.2; let c = null;
+  WD.useTool(W, 'ball', { x: h.x + 20, y: 1, z: h.z });
+  for (let i = 0; i < 60 * 3; i++) { if (b.state !== 'down') { if (c) break; b.x = bx; b.z = bz; } WD.step(W, DT); if (b.state === 'down') c = b.pts[1].slice(); }
+  const along = c ? c[0] - bx : 0, side = c ? Math.abs(c[2] - bz) : 0;
+  check(!!c && along > 1 && along > side * 2, `a robot the ball touches is knocked along its direction of travel (${along.toFixed(1)} m along, ${side.toFixed(1)} m to the side)`);
+}
+
 // ---- hunt 7: a robot three times the size needs headroom: nothing solid inside its column on any boss level
 {
   const BS = cfg.boss, H = cfg.bots.height * BS.botScale, r = BS.room / 2, bad = [];

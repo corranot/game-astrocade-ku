@@ -736,6 +736,7 @@ function startGame(mode) {
     } else if (e.type === 'boom') { const ts = cfg.feel[e.kind] && cfg.feel[e.kind].sound; if (ts) Sound.layers(ts.impact, Math.min(1, e.r / 5)); else Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); hitStop(e.kind); }
     else if (e.type === 'throw') { const ts = !e.shot.from && cfg.feel[e.shot.kind] && cfg.feel[e.shot.kind].sound; if (ts) Sound.layers(ts.launch); else Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
     else if (e.type === 'roll') { if (e.first) Sound.layers(cfg.feel.ball.sound.impact); else Sound.play('roll'); if (e.first) hitStop('ball'); }
+    else if (e.type === 'ballLand' || e.type === 'ballBounce') { Sound.layers(cfg.feel.ball.sound.thud, Math.min(1, e.fall / cfg.feel.ball.thud.full)); buzz('thud'); }
     else if (e.type === 'fall') { /* the crash comes when it lands */ }
     else if (e.type === 'land') {
       Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud'); if (!demo && e.n >= 120) slowT = Math.max(slowT, cfg.feel.landSlow);

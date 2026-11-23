@@ -277,7 +277,6 @@ export function createScene(cv, cfg) {
 
   // ---- shots and blasts
   const shotMeshes = new Map();
-  const ballTex = tex(128, 64, (x, w, h) => { x.fillStyle = '#ff5a8a'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; for (let i = 0; i < 4; i++) x.fillRect(i * 32, 0, 12, h); x.fillStyle = '#ffd12e'; x.fillRect(0, h * 0.42, w, h * 0.16); });
   // ---- the five other tools: one builder each, used for the tool in the hand and for the shot that flies
   const FL = cfg.feel, basic = (c, o = {}) => keep(new THREE.MeshBasicMaterial({ color: c, ...o }));
   const glowTex = tex(32, 32, (x) => { const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); });
@@ -286,7 +285,7 @@ export function createScene(cv, cfg) {
   const TM = {
     iron: toy({ color: FL.bomb.look.iron, roughness: 0.36, metalness: 0.9 }), brass: toy({ color: FL.bomb.look.cap, roughness: 0.3, metalness: 1 }), fuse: toy({ color: FL.bomb.look.fuse, roughness: 0.9, metalness: 0 }),
     shell: toy({ color: FL.rocket.look.body, roughness: 0.3, metalness: 0.1 }), red: toy({ color: FL.rocket.look.nose, roughness: 0.35, metalness: 0.05 }), tube: toy({ color: FL.rocket.look.tube, roughness: 0.5, metalness: 0.25, side: THREE.DoubleSide }),
-    dark: toy({ color: FL.rocket.look.metal, roughness: 0.35, metalness: 1 }), ball: toy({ map: ballTex, roughness: 0.3, metalness: 0.05 }),
+    dark: toy({ color: FL.rocket.look.metal, roughness: 0.35, metalness: 1 }), ball: toy({ color: FL.ball.look.body, roughness: 0.42, metalness: 0.9 }), band: toy({ color: FL.ball.look.band, roughness: 0.28, metalness: 1 }),
     rock: toy(rockOpts), rockHeld: toy(rockOpts),
   };
   const emberMat = basic(FL.bomb.look.ember), coreMat = basic(FL.hole.look.core), rimMat = basic(FL.hole.look.rim), rimHeld = basic(FL.hole.look.rim), lampMat = basic(FL.rocket.look.wait), beaconMat = basic(FL.meteor.look.lamp);
@@ -309,10 +308,16 @@ export function createScene(cv, cfg) {
     for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, f = tpart(tg('rfin', () => new THREE.BoxGeometry(0.16, 1.6, 1.3)), TM.red, Math.cos(a) * 1.45, -1.9, Math.sin(a) * 1.45, g); f.rotation.y = Math.PI / 2 - a; }
     return g;
   }
-  /** A wrecking ball of radius 1 with a shackle on top. */
+  /**
+   * A wrecking ball of radius 1: a gunmetal body, a brighter worn band around it with eight brass rivets, and on top a
+   * collar with a chunky shackle. The band runs across the rolling axis, so the band, rivets and shackle show the spin.
+   */
   function mBall(g) {
-    g.userData.ball = tpart(tg('ball', () => new THREE.SphereGeometry(1, 24, 16)), TM.ball, 0, 0, 0, g);
-    tpart(tg('shack', () => new THREE.TorusGeometry(0.3, 0.09, 6, 14)), TM.dark, 0, 1.12, 0, g.userData.ball);
+    const b = g.userData.ball = tpart(tg('ball', () => new THREE.SphereGeometry(1, 28, 18)), TM.ball, 0, 0, 0, g);
+    tpart(tg('ballBand', () => new THREE.CylinderGeometry(1.025, 1.025, 0.34, 36, 1, true)), TM.band, 0, 0, 0, b).rotation.z = Math.PI / 2;
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; tpart(tg('ballRivet', () => new THREE.SphereGeometry(0.075, 8, 6)), TM.brass, 0, Math.cos(a) * 1.03, Math.sin(a) * 1.03, b); }
+    tpart(tg('ballCollar', () => new THREE.CylinderGeometry(0.3, 0.38, 0.2, 14)), TM.band, 0, 1.02, 0, b);
+    tpart(tg('shack', () => new THREE.TorusGeometry(0.3, 0.12, 8, 16)), TM.dark, 0, 1.3, 0, b);
     return g;
   }
   /** A meteor of radius 1: a glowing rock with a halo. */
@@ -557,7 +562,14 @@ export function createScene(cv, cfg) {
     } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
     } else if (e.type === 'fuse') { sparks(e.x, e.y + 0.4, e.z, 8);
     } else if (e.type === 'throw') { shotMeshes.set(e.shot.id, shotMesh(e.shot)); if (!e.shot.from && FL[e.shot.kind] && FL[e.shot.kind].fire) toolFired(e.shot.kind); }
-    else if (e.type === 'pop') { puff(e.x, e.y, e.z, 2, e.kind === 'hole' ? '#c58bff' : '#ffd0e0', 6); blastFx(e, e.kind === 'hole' ? 2.5 : 1.5); }
+    // (the ball has rolled to a stop: a last breath of dust, no flash)
+    else if (e.type === 'pop') { if (e.kind === 'hole') { puff(e.x, e.y, e.z, 2, '#c58bff', 6); blastFx(e, 2.5); } else puff(e.x, 0.3, e.z, 2, FL.ball.look.dust, 6); }
+    // the ball comes down ('ballLand', then 'ballBounce' after its one bounce; a falling piece's own event is 'land'): a ring of dust and a shake by how hard it fell
+    else if (e.type === 'ballLand' || e.type === 'ballBounce') {
+      const RG = FB.ring, TH = FL.ball.thud, T = fxTier(), n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring * Math.min(1, e.fall / TH.full) * TH.ring), a0 = Math.random() * 6;
+      for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; puff(e.x + Math.cos(a) * e.r * 0.6, 0.25, e.z + Math.sin(a) * e.r * 0.6, RG.size, FL.ball.look.dust, 1, T.hangDust); }
+      addTrauma(Math.min(TH.shakeMax, e.fall * TH.shake), e);
+    }
     else if (e.type === 'roll') { if (e.first) blastFx({ kind: 'ball', x: e.x, y: e.y, z: e.z }, 1.9); }
     else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); hammerImpact(e, 0, null, true); hammerLanded(MO.recoil.clang, true); }
     else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); if (e.by === 'hammer' && !e.again) hammerLanded(MO.recoil.bot, false); }
@@ -1113,7 +1125,7 @@ export function createScene(cv, cfg) {
       g.position.set(s.x, s.y, s.z);
       if (s.kind === 'bomb') { g.rotation.x += dt * 8; const f = 0.8 + Math.random() * 0.6; g.userData.spark.scale.setScalar(f); g.userData.halo.scale.set(f, f, 1); if (Math.random() < FL.bomb.trail) sparks(s.x, s.y + 0.3, s.z, 1); }
       else if (s.kind === 'rocket') { g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); if (Math.random() < FL.rocket.trail) { puff(s.x - s.dx, s.y - s.dy, s.z - s.dz, 0.5, '#ffffff', 1); sparks(s.x - s.dx * 0.8, s.y - s.dy * 0.8, s.z - s.dz * 0.8, 1); } }
-      else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (Math.random() < FL.ball.trail) puff(s.x, 0.2, s.z, 0.7, '#efe4cf', 1); }
+      else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (s.y <= s.r + 0.02 && Math.random() < FL.ball.trail) puff(s.x - s.dx * s.r * 0.6, 0.2, s.z - s.dz * s.r * 0.6, 0.8, FL.ball.look.dust, 1); }
       else if (s.kind === 'hole') { const k = Math.min(1, s.t / (s.dur * 0.6)); g.scale.setScalar(0.4 + k * 1.2 * (1 - Math.max(0, (s.t - s.dur + 0.3) / 0.3))); for (const c of g.children) if (c.userData.spin) c.rotation.z += dt * c.userData.spin; }
       else if (s.kind === 'meteor') { g.rotation.x += dt * 5; g.rotation.y += dt * 3; if (Math.random() < FL.meteor.trail) { puff(s.x, s.y + 0.5, s.z, 1.2, '#ffb347', 1); sparks(s.x, s.y, s.z, 1); } }
     }

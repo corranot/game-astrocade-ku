@@ -21,7 +21,7 @@ const BOT = `window.__bot = (on) => { clearInterval(window.__botI); if (!on) ret
 
 async function open(browser, q = '', opts = {}) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 }, deviceScaleFactor: opts.dpr || 1, locale: opts.locale || 'en-US', hasTouch: !!opts.touch, isMobile: !!opts.touch }); // touch: a phone (coarse pointer → stick + HIT)
-  const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
+  const errors = []; page.on('pageerror', (e) => errors.push(e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).map((x) => x.trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, '')).join(' < '))); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
   if (opts.init) await page.addInitScript(opts.init);
   await page.addInitScript(`window.__speed = ${opts.speed || 1};` + BOT);
   await page.goto(`http://localhost:${opts.port}/?local${q}`);
