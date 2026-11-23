@@ -281,14 +281,22 @@ export function createScene(cv, cfg) {
   const FL = cfg.feel, basic = (c, o = {}) => keep(new THREE.MeshBasicMaterial({ color: c, ...o }));
   const glowTex = tex(32, 32, (x) => { const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); });
   const glowMats = {}, glow = (c, size, parent, own) => { const m = own ? keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })) : (glowMats[c] || (glowMats[c] = keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })))); if (!glowList.some((x) => x.m === m)) glows(m, 'sprite'); const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); parent.add(sp); return sp; };
-  const rockOpts = { color: FL.meteor.look.rock, emissive: FL.meteor.look.glow, emissiveIntensity: FL.meteor.look.heat, roughness: 0.9, metalness: 0, flatShading: true };
+  // the meteor's cracks: a small drawn map, bright where the rock is split; the rest keeps a little heat (look.ember)
+  const crackTex = tex(64, 64, (x) => { x.fillStyle = FL.meteor.look.ember; x.fillRect(0, 0, 64, 64); x.lineCap = x.lineJoin = 'round'; x.strokeStyle = '#ffffff'; for (let i = 0; i < 10; i++) { let px = (i * 37) % 64, py = (i * 23 + 11) % 64; x.lineWidth = 1.5 + (i % 3); x.beginPath(); x.moveTo(px, py); for (let j = 0; j < 5; j++) { px += ((i * 7 + j * 13) % 17) - 8; py += ((i * 5 + j * 11) % 19) - 9; x.lineTo(px, py); } x.stroke(); } });
+  crackTex.wrapS = crackTex.wrapT = THREE.RepeatWrapping; crackTex.repeat.set(2, 1);
+  const rockOpts = { color: FL.meteor.look.rock, emissive: FL.meteor.look.glow, emissiveIntensity: FL.meteor.look.heat, emissiveMap: crackTex, roughness: 0.9, metalness: 0, flatShading: true };
   const TM = {
     iron: toy({ color: FL.bomb.look.iron, roughness: 0.36, metalness: 0.9 }), brass: toy({ color: FL.bomb.look.cap, roughness: 0.3, metalness: 1 }), fuse: toy({ color: FL.bomb.look.fuse, roughness: 0.9, metalness: 0 }),
     shell: toy({ color: FL.rocket.look.body, roughness: 0.3, metalness: 0.1 }), red: toy({ color: FL.rocket.look.nose, roughness: 0.35, metalness: 0.05 }), tube: toy({ color: FL.rocket.look.tube, roughness: 0.5, metalness: 0.25, side: THREE.DoubleSide }),
     dark: toy({ color: FL.rocket.look.metal, roughness: 0.35, metalness: 1 }), ball: toy({ color: FL.ball.look.body, roughness: 0.42, metalness: 0.9 }), band: toy({ color: FL.ball.look.band, roughness: 0.28, metalness: 1 }),
     rock: toy(rockOpts), rockHeld: toy(rockOpts),
   };
-  const emberMat = basic(FL.bomb.look.ember), coreMat = basic(FL.hole.look.core), rimMat = basic(FL.hole.look.rim), rimHeld = basic(FL.hole.look.rim), lampMat = basic(FL.rocket.look.wait), beaconMat = basic(FL.meteor.look.lamp);
+  for (const m of [TM.rock, TM.rockHeld]) m.low.emissiveMap = crackTex;
+  // the rocket's exhaust: a see-through orange flame around a white-hot core, both shine in the glow pass
+  const flameMat = glows(basic(FL.rocket.flight.flame.outer, { transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }), 'fire'), flameCore = glows(basic(FL.rocket.flight.flame.core, { fog: false }), 'fire');
+  // what the flying tools leave in the air (colours made once): the bomb's fuse embers, the meteor's flame lumps
+  const fuse0 = new THREE.Color(FL.bomb.look.ember), fuse1 = new THREE.Color(FL.bomb.look.glow), tail0 = new THREE.Color(FL.meteor.blast.core), tail1 = new THREE.Color(FL.meteor.blast.shell), tail2 = new THREE.Color(FL.meteor.look.ember);
+  const emberMat = basic(FL.bomb.look.ember), coreMat = basic(FL.hole.look.core), rimMat = basic(FL.hole.look.rim), rimHeld = basic(FL.hole.look.rim), lampMat = basic(FL.rocket.look.wait);
   /** A bomb of radius 1: iron ball, brass cap, a braided fuse leaning over, an ember with its glow at the tip. */
   function mBomb(g) {
     tpart(tg('sph', () => new THREE.SphereGeometry(1, 18, 12)), TM.iron, 0, 0, 0, g);
@@ -320,10 +328,10 @@ export function createScene(cv, cfg) {
     tpart(tg('shack', () => new THREE.TorusGeometry(0.3, 0.12, 8, 16)), TM.dark, 0, 1.3, 0, b);
     return g;
   }
-  /** A meteor of radius 1: a glowing rock with a halo. */
-  function mRock(g, pr, own) {
-    g.userData.rock = tpart(tg('rock', () => new THREE.IcosahedronGeometry(1, 1)), pr, 0, 0, 0, g);
-    g.userData.halo = glow(FL.meteor.look.halo, 3.4, g, own);
+  /** A meteor of radius 1: a craggy rock (its faces pushed in and out), glowing in its cracks, with a halo. */
+  function mRock(g, pr, own, halo = 3.4) {
+    g.userData.rock = tpart(tg('rock', () => { const q = new THREE.IcosahedronGeometry(1, 2), p = q.attributes.position, c = FL.meteor.look.crag; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + c * (Math.sin(x * 5.1 + y * 3.3) * Math.sin(z * 4.7 - x * 2.9) + 0.5 * Math.sin(y * 9.2 + z * 6.1)); p.setXYZ(i, x * k, y * k * 0.86, z * k); } q.computeVertexNormals(); return q; }), pr, 0, 0, 0, g);
+    g.userData.halo = glow(FL.meteor.look.halo, halo, g, own);
     return g;
   }
   // in the hand (the rig's units): each has charge(k), k = 0 just used ... 1 ready again; hold.rot turns it for its outline
@@ -359,22 +367,31 @@ export function createScene(cv, cfg) {
     g.userData.charge = (k, ready) => { core.scale.setScalar(0.12 * (0.25 + 0.75 * k)); rimHeld.color.copy(cA).lerp(cB, k * k); halo.scale.setScalar(0.7 * k * (ready ? 1 + Math.sin(time * 6) * 0.08 : 0.7)); g.userData.spin = 1 + k * 5; };
   }
   {
-    // a beacon dish on the hand with a lamp; over it the rock, cold and small after a call, glowing when ready
-    const g = held.meteor; tpart(tg('mdish', () => new THREE.CylinderGeometry(0.12, 0.06, 0.06, 12)), TM.dark, 0, 0.12, -0.05, g); tpart(tg('hstem', () => new THREE.CylinderGeometry(0.03, 0.03, 0.1, 8)), TM.brass, 0, 0.05, -0.05, g);
-    const lamp = part(tg('llamp', () => new THREE.SphereGeometry(0.028, 8, 6)), beaconMat, 0.1, 0.17, -0.05, g);
-    const r = mRock(new THREE.Group(), TM.rockHeld, true); r.position.set(0, 0.36, -0.05); g.add(r);
-    g.userData.charge = (k, ready) => { r.scale.setScalar(0.15 * (0.55 + 0.45 * k)); r.rotation.y = time * 0.9; r.rotation.x = time * 0.5; const heat = FL.meteor.look.heat * k * k; TM.rockHeld.std.emissiveIntensity = TM.rockHeld.low.emissiveIntensity = heat; r.userData.halo.scale.setScalar(3.4 * k * (ready ? 1 + Math.sin(time * 7) * 0.06 : 0.6)); lamp.visible = ready ? Math.sin(time * 9) > -0.3 : false; };
+    // the rock rests on the hand: cold and small after a call, glowing in its cracks when ready (it turns slowly where it lies)
+    const g = held.meteor, HS = FL.meteor.hold.size;
+    const r = mRock(new THREE.Group(), TM.rockHeld, true); r.rotation.z = 0.35; g.add(r);
+    g.userData.charge = (k, ready) => { const sc = HS * (0.55 + 0.45 * k); r.scale.setScalar(sc); r.position.set(0, 0.08 + sc * 0.8, -0.05); r.rotation.y = time * 0.5 * motionK; const heat = FL.meteor.look.heat * k * k; TM.rockHeld.std.emissiveIntensity = TM.rockHeld.low.emissiveIntensity = heat; r.userData.halo.scale.setScalar(3.4 * k * (ready ? 1 + Math.sin(time * 7) * 0.06 * motionK : 0.6)); };
   }
   const holeMat = keep(new THREE.MeshBasicMaterial({ color: '#16052a' })), ringMat = keep(new THREE.MeshBasicMaterial({ color: '#b65cff', transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
   // shot parts are made once and shared by every throw (a new geometry per bomb grew GPU memory all level)
   const SH = {}, sh = (k, make) => SH[k] || (SH[k] = keep(make()));
+  // a shot's model goes back on its kind's shelf (hidden, still in the scene: a tier change reaches it) and flies again
+  const shelf = {};
   function shotMesh(s) {
-    const g = new THREE.Group();
+    const old = shelf[s.kind] && shelf[s.kind].pop();
+    if (old) { old.visible = true; old.userData.px = undefined; return old; }
+    const g = new THREE.Group(); g.userData.kind = s.kind;
     if (s.kind === 'bomb') { const b = mBomb(new THREE.Group()); b.scale.setScalar(0.42); g.add(b); g.userData.spark = b.userData.ember; g.userData.halo = b.userData.halo; }
-    else if (s.kind === 'rocket') { const r = mRocket(new THREE.Group()); r.scale.setScalar(0.22); r.rotation.x = Math.PI / 2; g.add(r); }
+    else if (s.kind === 'rocket') {
+      const RF = FL.rocket.flight, r = g.userData.body = mRocket(new THREE.Group()); r.scale.setScalar(RF.scale); r.rotation.x = Math.PI / 2; g.add(r);
+      // the exhaust behind the nozzle (a cone of length 1, its mouth at the nozzle) and a glow over it
+      const fl = g.userData.flame = new THREE.Group(), cone = tg('rflame', () => new THREE.ConeGeometry(0.85, 1, 10).rotateX(Math.PI).translate(0, -0.5, 0)); fl.position.y = -3.05; r.add(fl);
+      part(cone, flameMat, 0, 0, 0, fl).scale.y = RF.flame.len; part(cone, flameCore, 0, 0, 0, fl).scale.set(0.55, RF.flame.len * 0.55, 0.55);
+      g.userData.halo = glow(RF.flame.outer, 1, g); g.userData.halo.position.z = -(3.05 + RF.flame.len * 0.3) * RF.scale;
+    }
     else if (s.kind === 'ball') { const b = mBall(new THREE.Group()); b.scale.setScalar(s.r); g.add(b); g.userData.ball = b.userData.ball; }
     else if (s.kind === 'hole') { part(sh('hole', () => new THREE.SphereGeometry(0.6, 16, 12)), holeMat, 0, 0, 0, g); glow(FL.hole.look.rim, 3.6, g); for (let i = 0; i < 3; i++) { const t = part(sh('ring' + i, () => new THREE.TorusGeometry(1.1 + i * 0.5, 0.08, 6, 32)), ringMat, 0, 0, 0, g); t.rotation.x = Math.PI / 2 + i * 0.3; t.userData.spin = 2 + i; } }
-    else if (s.kind === 'meteor') { const r = mRock(new THREE.Group(), TM.rock, false); r.scale.setScalar(1.3); g.add(r); }
+    else if (s.kind === 'meteor') { const r = mRock(new THREE.Group(), TM.rock, false, FL.meteor.flight.halo); r.scale.setScalar(1.3); g.add(r); g.userData.halo = r.userData.halo; }
     scene.add(g); return g;
   }
   const falls = new Map();
@@ -416,6 +433,8 @@ export function createScene(cv, cfg) {
   function kitAdd(P, life, x, y, z) { if (P.n >= P.max) return -1; const o = P.n++ * P.st, a = P.a; a[o] = 0; a[o + 1] = life; a[o + 2] = x; a[o + 3] = y; a[o + 4] = z; return o; }
   function kitFire(life, x, y, z, vx, vy, vz, size, kind, c0, c1) { const o = kitAdd(KF, life, x, y, z), a = KF.a; if (o < 0) return; a[o + 5] = vx; a[o + 6] = vy; a[o + 7] = vz; a[o + 8] = size; a[o + 9] = kind; a[o + 10] = c0.r; a[o + 11] = c0.g; a[o + 12] = c0.b; a[o + 13] = c1.r; a[o + 14] = c1.g; a[o + 15] = c1.b; }
   function kitWave(x, y, z, r, flat, c, k) { const o = kitAdd(KW, KT.wave.life, x, y, z), a = KW.a; if (o < 0) return; a[o + 5] = r; a[o + 6] = flat; a[o + 7] = c.r * k; a[o + 8] = c.g * k; a[o + 9] = c.b * k; }
+  /** One puff of the kit's smoke left in the air by a flying tool (M: cfg.feel.<tool>.flight.smoke): no wait for a fire, it starts part of the way into its life, already grey. */
+  function trailSmoke(x, y, z, M) { const o = kitAdd(KS, M.life[0] + Math.random() * M.life[1], x, y, z), a = KS.a; if (o < 0) return; a[o] = a[o + 1] * M.age; a[o + 5] = (Math.random() - 0.5) * M.drift; a[o + 6] = M.rise * (0.5 + Math.random()); a[o + 7] = (Math.random() - 0.5) * M.drift; a[o + 8] = M.size * (0.7 + Math.random() * 0.6); }
   /**
    * A blast of radius e.r at e, from the kit: a white-hot core that swells, a shell of lumps that fly apart and shrink,
    * embers under gravity, smoke that rises once the fire dies, a ring along the ground and (high tier, blast above
@@ -1121,13 +1140,33 @@ export function createScene(cv, cfg) {
   function updateShots(dt) {
     for (const [id, g] of shotMeshes) {
       const s = W.shots.find((x) => x.id === id);
-      if (!s) { scene.remove(g); shotMeshes.delete(id); continue; }
+      if (!s) { g.visible = false; (shelf[g.userData.kind] || (shelf[g.userData.kind] = [])).push(g); shotMeshes.delete(id); continue; }
       g.position.set(s.x, s.y, s.z);
-      if (s.kind === 'bomb') { g.rotation.x += dt * 8; const f = 0.8 + Math.random() * 0.6; g.userData.spark.scale.setScalar(f); g.userData.halo.scale.set(f, f, 1); if (Math.random() < FL.bomb.trail) sparks(s.x, s.y + 0.3, s.z, 1); }
-      else if (s.kind === 'rocket') { g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); if (Math.random() < FL.rocket.trail) { puff(s.x - s.dx, s.y - s.dy, s.z - s.dz, 0.5, '#ffffff', 1); sparks(s.x - s.dx * 0.8, s.y - s.dy * 0.8, s.z - s.dz * 0.8, 1); } }
+      // near: nothing bright in the camera's face (as the dust); flick: this frame's flicker (none with reduced motion);
+      // (mx, my, mz): how far it came this frame, the trail is laid along that stretch so it has no gaps at any frame rate
+      const U = g.userData, cp = camera.position, near = Math.max(1e-3, dustFade(Math.hypot(s.x - cp.x, s.y - cp.y, s.z - cp.z))), flick = reduced ? 1 : 0.75 + Math.random() * 0.5, half = fxTier().blast, E = KT.embers;
+      if (U.px === undefined) { U.px = s.x; U.py = s.y; U.pz = s.z; U.em = U.em2 = 0; }
+      const mx = s.x - U.px, my = s.y - U.py, mz = s.z - U.pz; U.px = s.x; U.py = s.y; U.pz = s.z;
+      if (s.kind === 'bomb') {
+        // a slow tumble; the fuse tip spits sparks and drops a few embers that fall behind it
+        const BF = FL.bomb.flight; g.rotation.x += dt * BF.spin; g.rotation.z += dt * BF.spin * 0.4; U.spark.scale.setScalar(BF.tip * flick); U.halo.scale.setScalar(BF.glow * flick * near); U.spark.getWorldPosition(tmpV);
+        if (Math.random() < FL.bomb.trail) sparks(tmpV.x, tmpV.y, tmpV.z, 1);
+        for (U.em += dt * BF.embers.rate * half; U.em >= 1; U.em--) kitFire(E.life[0] + Math.random() * E.life[1], tmpV.x, tmpV.y, tmpV.z, (Math.random() - 0.5) * BF.embers.speed, Math.random() * BF.embers.speed, (Math.random() - 0.5) * BF.embers.speed, E.size * BF.embers.size * (0.6 + Math.random() * 0.8), 2, fuse0, fuse1);
+      }
+      else if (s.kind === 'rocket') {
+        // it rolls slowly on its axis; the flame's length flickers; smoke puffs are left behind the flame
+        const RF = FL.rocket.flight, f = reduced ? 1 : 1 + (Math.random() - 0.5) * RF.flame.flicker, back = RF.smoke.back; g.lookAt(s.x + s.dx, s.y + s.dy, s.z + s.dz); U.body.rotation.y += dt * RF.spin * motionK;
+        U.flame.scale.set(near * RF.flame.wide, near * f, near * RF.flame.wide); U.halo.scale.setScalar(RF.flame.glow * near * f);
+        for (U.em += dt * RF.smoke.rate * half; U.em >= 1; U.em--) { const q = Math.random(); trailSmoke(s.x - s.dx * back - mx * q, s.y - s.dy * back - my * q, s.z - s.dz * back - mz * q, RF.smoke); }
+      }
       else if (s.kind === 'ball') { g.rotation.y = Math.atan2(s.dx, s.dz); g.userData.ball.rotation.x = s.roll || 0; if (s.y <= s.r + 0.02 && Math.random() < FL.ball.trail) puff(s.x - s.dx * s.r * 0.6, 0.2, s.z - s.dz * s.r * 0.6, 0.8, FL.ball.look.dust, 1); }
       else if (s.kind === 'hole') { const k = Math.min(1, s.t / (s.dur * 0.6)); g.scale.setScalar(0.4 + k * 1.2 * (1 - Math.max(0, (s.t - s.dur + 0.3) / 0.3))); for (const c of g.children) if (c.userData.spin) c.rotation.z += dt * c.userData.spin; }
-      else if (s.kind === 'meteor') { g.rotation.x += dt * 5; g.rotation.y += dt * 3; if (Math.random() < FL.meteor.trail) { puff(s.x, s.y + 0.5, s.z, 1.2, '#ffb347', 1); sparks(s.x, s.y, s.z, 1); } }
+      else if (s.kind === 'meteor') {
+        // it tumbles; flame lumps are left along its path (they follow it a little, cool and shrink) and embers stream off and fall
+        const MF = FL.meteor.flight, L = MF.lumps, EM = MF.embers, fv = dt > 0 ? 1 / dt : 0; g.rotation.x += dt * MF.spin[0]; g.rotation.y += dt * MF.spin[1]; U.halo.scale.setScalar(MF.halo * near * (reduced ? 1 : 0.85 + flick * 0.15));
+        for (U.em += dt * L.rate * half; U.em >= 1; U.em--) { const q = Math.random(); kitFire(L.life * (0.7 + Math.random() * 0.6), s.x - mx * q + (Math.random() - 0.5) * L.spread, s.y - my * q + (Math.random() - 0.5) * L.spread, s.z - mz * q + (Math.random() - 0.5) * L.spread, mx * fv * L.follow, my * fv * L.follow, mz * fv * L.follow, L.size * (0.6 + Math.random() * 0.8), 1, tail0, tail1); }
+        for (U.em2 += dt * EM.rate * half; U.em2 >= 1; U.em2--) kitFire(E.life[0] + Math.random() * E.life[1], s.x, s.y, s.z, mx * fv * EM.follow + (Math.random() - 0.5) * EM.speed, my * fv * EM.follow + (Math.random() - 0.5) * EM.speed, mz * fv * EM.follow + (Math.random() - 0.5) * EM.speed, E.size * EM.size * (0.6 + Math.random() * 0.8), 2, tail0, tail2);
+      }
     }
     for (const it of falls.values()) {
       const T = it.f.topple;

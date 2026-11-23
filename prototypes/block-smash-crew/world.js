@@ -170,7 +170,9 @@ function stepShots(W, dt) {
     if (s.kind === 'bomb' && s.refuse != null) { s.refuse -= dt; if (s.refuse <= 0) { s.done = true; boom(W, s, s.x, s.y, s.z); } }
     else if (s.kind === 'bomb') {
       const k = Math.min(1, s.t / s.dur);
-      s.x = s.sx + (s.tx - s.sx) * k; s.z = s.sz + (s.tz - s.sz) * k; s.y = s.sy + (s.ty - s.sy) * k + Math.sin(k * Math.PI) * (2 + s.dur * 6);
+      // the arc's height over the straight line: tools.bomb.arc = [metres, metres per second of flight] (low enough to stay in a portrait view)
+      const A = tool(W, 'bomb').arc;
+      s.x = s.sx + (s.tx - s.sx) * k; s.z = s.sz + (s.tz - s.sz) * k; s.y = s.sy + (s.ty - s.sy) * k + Math.sin(k * Math.PI) * (A[0] + s.dur * A[1]);
       if (k >= 1) { s.done = true; boom(W, s, s.tx, s.ty, s.tz); }
     } else if (s.kind === 'rocket') {
       const sp = 34 * dt; let hit = raycast(W.g, s.x, s.y, s.z, s.dx, s.dy, s.dz, sp);
