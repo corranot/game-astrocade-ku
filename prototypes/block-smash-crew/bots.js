@@ -163,16 +163,17 @@ export function limbJoint(r, e, len, n) {
 export function standingPoints(b) { return POSE.map((_, k) => posePoint(b, k, b.x, b.z, b.yaw)); }
 
 /**
- * Knocks the bots near (x, y, z) within radius R: each flies away from the point, the power fading with distance.
+ * Knocks the bots near (x, y, z) within radius R: each flies away from the point (or along (tx, tz) when given: the
+ * travel direction of a rolling ball), the power fading with distance.
  * Returns the number of bots knocked over from standing (the ones that pay).
  */
-export function knockBots(W, x, y, z, R, power, by) {
+export function knockBots(W, x, y, z, R, power, by, tx, tz) {
   let fresh = 0;
   for (let i = 0; i < W.bots.length; i++) {
     const b = W.bots[i], c = b.pts ? b.pts[1] : posePoint(b, 1, b.x, b.z, b.yaw);
     const d = Math.hypot(c[0] - x, c[1] - y, c[2] - z);
     if (d > R) continue;
-    if (knock(W, i, (c[0] - x) / (d || 1), (c[2] - z) / (d || 1), power * (1 - 0.6 * d / R), by)) fresh++;
+    if (knock(W, i, tx === undefined ? (c[0] - x) / (d || 1) : tx, tx === undefined ? (c[2] - z) / (d || 1) : tz, power * (1 - 0.6 * d / R), by)) fresh++;
   }
   return fresh;
 }

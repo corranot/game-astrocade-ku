@@ -229,6 +229,11 @@ function startGame(mode) {
   // dev:start
   speed = Number(qs.get('speed')) || 1;
   // dev:end
+  // ?tier=high (dev only) pins the high quality tier: no weak-phone start, no automatic stepping (for captures on a slow test GPU)
+  let tierPin = '';
+  // dev:start
+  tierPin = qs.get('tier') || '';
+  // dev:end
   let alive = true, raf = 0, last = performance.now();
 
   // ---- language
@@ -731,6 +736,7 @@ function startGame(mode) {
     } else if (e.type === 'boom') { const ts = cfg.feel[e.kind] && cfg.feel[e.kind].sound; if (ts) Sound.layers(ts.impact, Math.min(1, e.r / 5)); else Sound.play('boom', Math.min(1, e.r / 5)); buzz('thud'); hitStop(e.kind); }
     else if (e.type === 'throw') { const ts = !e.shot.from && cfg.feel[e.shot.kind] && cfg.feel[e.shot.kind].sound; if (ts) Sound.layers(ts.launch); else Sound.play(e.shot.kind === 'rocket' ? 'rocket' : e.shot.kind === 'hole' ? 'hole' : e.shot.kind === 'meteor' ? 'meteor' : 'throwS'); toolEls.bomb.classList.remove('hint'); }
     else if (e.type === 'roll') { if (e.first) Sound.layers(cfg.feel.ball.sound.impact); else Sound.play('roll'); if (e.first) hitStop('ball'); }
+    else if (e.type === 'ballLand' || e.type === 'ballBounce') { Sound.layers(cfg.feel.ball.sound.thud, Math.min(1, e.fall / cfg.feel.ball.thud.full)); buzz('thud'); }
     else if (e.type === 'fall') { /* the crash comes when it lands */ }
     else if (e.type === 'land') {
       Sound.play('crash', Math.min(1, e.n / 300)); buzz('thud'); if (!demo && e.n >= 120) slowT = Math.max(slowT, cfg.feel.landSlow);
@@ -1033,11 +1039,13 @@ function startGame(mode) {
 
   // ---- frame loop
   let stopT = 0, slowT = 0;
-  let qT = 0, qN = 0, coinTickT = 0, arrowKey = '', hitState = '';
+  let qT = 0, qN = 0, glowN = 0, coinTickT = 0, arrowKey = '', hitState = '';
   // quality: a weak phone starts on the low tier (no shadows, half the particles, a lower resolution); everywhere the
   // resolution follows the average frame over a window: slow → down a step, fast → up a step
   const Q = cfg.quality; let qs8 = { dpr: scene.dpr, max: scene.dprBase, low: false, capped: false, dropped: null, slow: 0 };
-  { let weak = false; try { weak = touchUI && ((navigator.hardwareConcurrency || 8) <= Q.weakCores || (navigator.deviceMemory || 8) <= Q.weakMemory); } catch (e) { weak = false; } if (weak || qs.has('low')) { qs8.low = true; qs8.max = Math.min(scene.dprBase, Q.lowMax); qs8.dpr = Math.min(qs8.max, Q.minDpr); scene.setLow(true); scene.setDpr(qs8.dpr); } }
+  { let weak = false; try { weak = touchUI && ((navigator.hardwareConcurrency || 8) <= Q.weakCores || (navigator.deviceMemory || 8) <= Q.weakMemory); } catch (e) { weak = false; } if ((weak || qs.has('low')) && tierPin !== 'high') { qs8.low = true; qs8.max = Math.min(scene.dprBase, Q.lowMax); qs8.dpr = Math.min(qs8.max, Q.minDpr); scene.setLow(true); scene.setDpr(qs8.dpr); } }
+  // (a pinned high tier, for captures, has the glow from the start)
+  if (tierPin === 'high') scene.setGlow(true);
   function frame(now) {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
@@ -1046,7 +1054,13 @@ function startGame(mode) {
     qT += real; qN++;
     if (qT >= Q.window) {
       const avg = qT / qN; qT = 0; qN = 0;
-      qs8 = L.qualityStep(Q, qs8, avg); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low);
+      // the glow pass is earned: quality.glow.windows smooth windows in a row at full resolution switch it on; one
+      // slow window switches it off again, and only a window that is slow without it steps the resolution down
+      if (tierPin !== 'high') {
+        const full = !qs8.low && qs8.dpr >= scene.dprBase - 0.01, had = glowN >= Q.glow.windows;
+        glowN = full && avg <= Q.glow.ms ? glowN + 1 : 0; scene.setGlow(glowN >= Q.glow.windows);
+        if (!(had && avg > Q.slow)) { qs8 = L.qualityStep(Q, qs8, avg); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low); }
+      }
     }
     // hit-stop on a solid hit (time slowed to feel.stopScale), slow motion while a tower tips and as a big piece lands
     if (stopT > 0) stopT -= real; if (slowT > 0) slowT -= real;
@@ -1385,7 +1399,7 @@ function startGame(mode) {
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       get hitState() { return hitState; }, get stopT() { return stopT; }, get quality() { return { ...qs8, base: scene.dprBase }; },
-      get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
+      get cfg() { return cfg; }, get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
     },
     // dev:end
   };

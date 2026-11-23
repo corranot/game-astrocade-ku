@@ -21,7 +21,7 @@ const BOT = `window.__bot = (on) => { clearInterval(window.__botI); if (!on) ret
 
 async function open(browser, q = '', opts = {}) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 }, deviceScaleFactor: opts.dpr || 1, locale: opts.locale || 'en-US', hasTouch: !!opts.touch, isMobile: !!opts.touch }); // touch: a phone (coarse pointer → stick + HIT)
-  const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
+  const errors = []; page.on('pageerror', (e) => errors.push(e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).map((x) => x.trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, '')).join(' < '))); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
   if (opts.init) await page.addInitScript(opts.init);
   await page.addInitScript(`window.__speed = ${opts.speed || 1};` + BOT);
   await page.goto(`http://localhost:${opts.port}/?local${q}`);
@@ -1059,6 +1059,64 @@ async function main() {
     const coin = await g(page, async () => { const G = __game, W = G.W, h = W.hero, p = G.scene.show.pos, x = h.x + Math.sin(h.yaw) * 10, z = h.z + Math.cos(h.yaw) * 10; G.scene.event({ type: 'treasure', x, z }); let min = Infinity, n = 0; const d0 = Math.hypot(x - p[0], 1.4 - p[1], z - p[2]); for (let i = 0; i < 50; i++) { await new Promise((r) => requestAnimationFrame(r)); const c = G.scene.coinNear; if (c.n) { n = Math.max(n, c.n); min = Math.min(min, c.d); } } return { min, n, d0, left: G.scene.coinNear.n }; });
     check(coin.n > 0 && coin.min > coin.d0 - 4, `fx2 c ${coin.n} coins popped ${coin.d0.toFixed(1)} m away stay there (nearest ever ${coin.min.toFixed(1)} m from the eye)`);
     check(errors.length === 0, `fx2 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 27 "fx3": the explosion kit (fire, smoke, waves: three pooled instanced meshes). A blast fills the pools and
+  // they empty again; ten blasts leave the GPU's geometries and textures as they were.
+  if (!process.env.ONLY || process.env.ONLY === 'fx3') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    await page.touchscreen.tap(180, 300); await page.waitForTimeout(3000);
+    const r = await g(page, async () => {
+      const G = __game, h = G.W.hero, sc = G.scene, wait = (ms) => new Promise((res) => setTimeout(res, ms)), frame = () => new Promise((res) => requestAnimationFrame(res));
+      const kit = () => { const c = sc.counts; return [c.fire, c.smoke, c.blasts]; };
+      const boom = () => sc.event({ type: 'boom', kind: 'bomb', r: 3, x: h.x + Math.sin(h.yaw) * 10, y: 1.5, z: h.z + Math.cos(h.yaw) * 10 });
+      const mem0 = [G.geometries, G.textures], idle = kit();
+      boom(); await frame(); await frame(); const during = kit(); await wait(3000); const after = kit();
+      for (let i = 0; i < 9; i++) { boom(); await wait(200); }
+      await wait(3000);
+      return { idle, during, after, end: kit(), mem0, mem1: [G.geometries, G.textures] };
+    });
+    const zero = (a) => a.every((v) => v === 0);
+    check(zero(r.idle) && r.during.every((v) => v > 0), `fx3 a a bomb blast fills the kit: fire, smoke, waves ${r.during} (idle ${r.idle})`);
+    check(zero(r.after) && zero(r.end), `fx3 b the kit is empty again within 3 s (after one blast ${r.after}, after ten ${r.end})`);
+    check(r.mem0[0] === r.mem1[0] && r.mem0[1] === r.mem1[1], `fx3 c GPU [geometries, textures] before the first blast ${r.mem0}, after the tenth ${r.mem1}`);
+    check(errors.length === 0, `fx3 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // 28 "look2": the glow pass (bloom + grade, high tier only). SwiftShader steps the game down to the low tier, so the
+  // dev switch ?tier=high pins the high one. With the pass on and strength 0 and a neutral grade the frame is the
+  // direct render's (tone mapping and sRGB happen once, in the last shader); a quiet frame gets no haze; a bomb blast
+  // has more peak pixels with the glow than without; the low tier holds no render targets at all.
+  if (!process.env.ONLY || process.env.ONLY === 'look2') {
+    const { page, errors } = await open(browser, '&tier=high', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    await page.touchscreen.tap(180, 300); await page.waitForTimeout(5000);
+    const r = await g(page, async () => {
+      const G = __game, sc = G.scene, c = G.cfg.look, h = G.W.hero, gl = sc.renderer.getContext(), w = gl.drawingBufferWidth, hh = gl.drawingBufferHeight;
+      const frame = () => new Promise((res) => requestAnimationFrame(res));
+      const sync = () => { const b = document.getElementById('cv').getBoundingClientRect(); sc.resize(b.width, b.height); };
+      // the same instant drawn again (dt 0) and read back before the browser shows it
+      const grab = () => { sc.update(G.W, 0); const p = new Uint8Array(w * hh * 4); gl.readPixels(0, 0, w, hh, gl.RGBA, gl.UNSIGNED_BYTE, p); return p; };
+      const diff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i += 4) s += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]); return s / (a.length / 4) / 3; };
+      const stat = (p) => { let hot = 0, sum = 0; for (let i = 0; i < p.length; i += 4) { sum += p[i] + p[i + 1] + p[i + 2]; if (Math.max(p[i], p[i + 1], p[i + 2]) >= 250) hot++; } return { hot, mean: sum / (p.length / 4) / 3 }; };
+      const S = c.bloom.strength, grade = { ...c.grade }, pinned = { low: sc.low, q: G.quality, counts: sc.counts, tex: G.textures };
+      const full = grab(); c.bloom.strength = 0; const noGlow = grab();
+      Object.assign(c.grade, { vignette: 0, contrast: 1, saturation: 1 }); const zero = grab();
+      c.bloom.on = false; sync(); const off = sc.counts, direct = grab();
+      c.bloom.on = true; Object.assign(c.grade, grade); c.bloom.strength = S; sync();
+      sc.event({ type: 'boom', kind: 'bomb', r: 3, x: h.x + Math.sin(h.yaw) * 9, y: 1.5, z: h.z + Math.cos(h.yaw) * 9 }); await frame(); await frame();
+      const blastOn = stat(grab()); c.bloom.strength = 0; const blastOff = stat(grab()); c.bloom.strength = S;
+      sc.setLow(true); await frame(); const low = { counts: sc.counts, tex: G.textures }; sc.setLow(false); await frame();
+      return { pinned, identity: diff(direct, zero), haze: diff(noGlow, full), graded: diff(direct, full), off, blastOn, blastOff, low, back: { counts: sc.counts, tex: G.textures }, size: [w, hh] };
+    });
+    check(r.pinned.low === false && r.pinned.q.low === false && r.pinned.counts.bloom === 'on' && r.pinned.counts.targets === 5, `look2 a ?tier=high pins the high tier 5 s in and the glow pass is on (low ${r.pinned.low}, bloom ${r.pinned.counts.bloom}, targets ${r.pinned.counts.targets}, canvas ${r.size})`);
+    check(r.identity < 2, `look2 b strength 0 + neutral grade is the direct render: mean difference ${r.identity.toFixed(3)}/255 (under 2)`);
+    check(r.haze < 2, `look2 c a quiet frame gets no haze: glow on vs strength 0, mean difference ${r.haze.toFixed(3)}/255 (under 2; with the grade vs direct ${r.graded.toFixed(2)})`);
+    check(r.blastOn.hot > r.blastOff.hot && r.blastOn.mean > r.blastOff.mean, `look2 d a bomb blast has more peak pixels with the glow (${r.blastOn.hot} at 250+, mean ${r.blastOn.mean.toFixed(1)}) than with strength 0 (${r.blastOff.hot}, mean ${r.blastOff.mean.toFixed(1)})`);
+    check(r.low.counts.bloom === 'off' && r.low.counts.targets === 0 && r.low.tex < r.pinned.tex && r.off.targets === 0, `look2 e the low tier holds no render targets (bloom ${r.low.counts.bloom}, targets ${r.low.counts.targets}, GPU textures ${r.pinned.tex} → ${r.low.tex}); switched off in config too (${r.off.targets})`);
+    check(r.back.counts.bloom === 'on' && r.back.counts.targets === 5 && r.back.tex === r.pinned.tex, `look2 f back on the high tier the pass is rebuilt (targets ${r.back.counts.targets}, GPU textures ${r.back.tex})`);
+    check(errors.length === 0, `look2 no page errors (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
   }
 
