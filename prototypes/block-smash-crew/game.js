@@ -623,6 +623,12 @@ function startGame(mode) {
   hitBtn.addEventListener('pointerup', hitUp); hitBtn.addEventListener('pointercancel', hitUp); hitBtn.addEventListener('pointerleave', hitUp);
   const onCancel = (e) => { if (stick && e.pointerId === stick.id) { stick = null; showStick(); } if (!ptr || e.pointerId !== ptr.id) return; ptr = null; if (W) WD.release(W); }; // a cancelled touch never fires a tool
   const onLock = () => { locked = document.pointerLockElement === cv; if (!locked) hitHeld = false; else if (ptr) { ptr = null; if (W) { WD.release(W); WD.aimHammer(W, null); } } };
+  // two thumbs: a browser recognises a tap (and sends its click) for one finger only. While one thumb is on the stick
+  // or turning the view, the other thumb's tap on a button is made into that click here (a slide off the button is not one)
+  const taps = new Map();
+  const tapDown = (e) => { if (e.pointerType !== 'touch' || e.isPrimary !== false) return; const b = e.target.closest && e.target.closest('button, .pill'); if (b && b !== hitBtn) taps.set(e.pointerId, { b, x: e.clientX, y: e.clientY }); };
+  const tapUp = (e) => { const t = taps.get(e.pointerId); if (!t) return; taps.delete(e.pointerId); if (e.type === 'pointerup' && t.b.isConnected && !t.b.disabled && Math.hypot(e.clientX - t.x, e.clientY - t.y) < cfg.touch.tapSlop * unit()) t.b.click(); };
+  root.addEventListener('pointerdown', tapDown, true); window.addEventListener('pointerup', tapUp, true); window.addEventListener('pointercancel', tapUp, true);
   root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onCancel);
   document.addEventListener('pointerlockchange', onLock);
   // a host that refuses the lock: clicks are taps and a drag looks, from now on
@@ -1365,6 +1371,7 @@ function startGame(mode) {
     destroy() {
       alive = false; cancelAnimationFrame(raf); Sound.stop();
       if (dirtySave) persist();
+      root.removeEventListener('pointerdown', tapDown, true); window.removeEventListener('pointerup', tapUp, true); window.removeEventListener('pointercancel', tapUp, true);
       root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onCancel);
       root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('wheel', onWheel); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('pointerlockerror', onLockError); try { if (document.pointerLockElement === cv) document.exitPointerLock(); } catch (er) { /* fine */ }
       window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);

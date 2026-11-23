@@ -361,6 +361,9 @@
   "pulseSec": 1.2,
   "warnSec": 3
  },
+ "touch": {
+  "tapSlop": 40
+ },
  "flow": {
   "nextDelay": 1.6,
   "coinsFly": 5,

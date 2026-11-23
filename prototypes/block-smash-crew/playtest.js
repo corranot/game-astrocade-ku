@@ -1008,6 +1008,43 @@ async function main() {
     }
   }
 
+  // 25 "mt1": two thumbs. A browser recognises a tap (and sends its click) for one finger only: while the left thumb is
+  // on the stick, the right thumb's tap on a button arrives as pointerdown + pointerup with no click. Those must still
+  // pick a tool, press HIT and turn the view, and the left thumb keeps walking.
+  if (!process.env.ONLY || process.env.ONLY === 'mt1') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await page.touchscreen.tap(180, 300); await pause(2500);
+    // a finger as the browser reports it: id 1 is the primary one, any other is not, and no click follows
+    const finger = (type, id, x, y) => g(page, ([type, id, x, y]) => { const el = document.elementFromPoint(x, y) || document.body; el.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', isPrimary: id === 1, clientX: x, clientY: y, bubbles: true, cancelable: true, composed: true })); }, [type, id, x, y]);
+    const st = () => g(page, () => { const G = __game, W = G.W; return { sel: [...document.querySelectorAll('#tools .tool')].findIndex((e) => e.classList.contains('sel')), move: W.hero.move ? Math.hypot(W.hero.move.x, W.hero.move.z) : 0, yaw: G.scene.yaw, held: document.getElementById('hit').classList.contains('down'), shop: !document.getElementById('shop').hidden }; });
+    const tools = await g(page, () => [...document.querySelectorAll('#tools .tool')].map((e) => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }));
+    const home = await g(page, () => { const r = document.getElementById('stickHome').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await finger('pointerdown', 1, home[0], home[1]); await finger('pointermove', 1, home[0] + 22, home[1] - 26); await pause(300);
+    const w0 = await st();
+    check(w0.move > 0.5, `mt1 the left thumb walks with the stick (push ${w0.move.toFixed(2)})`);
+    const picked = [];
+    for (let i = 1; i < tools.length; i++) { await finger('pointerdown', 2, tools[i][0], tools[i][1]); await pause(40); await finger('pointerup', 2, tools[i][0], tools[i][1]); await pause(120); const s = await st(); picked.push(s.sel === i && s.move > 0.5); }
+    check(picked.every(Boolean), `mt1 while walking, the right thumb picks each tool (${picked.map((x) => (x ? 'y' : 'n')).join('')}), the walk goes on`);
+    // a thumb that slides off the button is not a tap
+    await finger('pointerdown', 2, tools[1][0], tools[1][1]); await finger('pointerup', 2, tools[1][0] + 90, tools[1][1] - 60); await pause(120);
+    const sl = await st();
+    check(sl.sel === tools.length - 1, `mt1 a thumb that slid away picks nothing (still tool ${sl.sel})`);
+    const hb = await g(page, () => { const r = document.getElementById('hit').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await finger('pointerdown', 2, hb[0], hb[1]); await pause(120); const h1 = await st(); await finger('pointerup', 2, hb[0], hb[1]); await pause(120); const h2 = await st();
+    check(h1.held && !h2.held && h1.move > 0.5, `mt1 while walking, the right thumb presses HIT (down ${h1.held}, up ${!h2.held})`);
+    const y0 = (await st()).yaw; await finger('pointerdown', 2, 250, 300); for (let k = 1; k <= 6; k++) await finger('pointermove', 2, 250 - k * 15, 300); await finger('pointerup', 2, 160, 300); await pause(120);
+    const y1 = await st();
+    check(Math.abs(y1.yaw - y0) > 0.05 && y1.move > 0.5, `mt1 while walking, the right thumb turns the view (yaw ${y0.toFixed(2)} → ${y1.yaw.toFixed(2)})`);
+    // the coins pill (the shop) under the second thumb too
+    const cp = await g(page, () => { const r = document.getElementById('coins').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await finger('pointerdown', 2, cp[0], cp[1]); await finger('pointerup', 2, cp[0], cp[1]); await pause(300);
+    check((await st()).shop, 'mt1 while walking, a tap on the coins pill opens the shop');
+    await finger('pointerup', 1, home[0] + 22, home[1] - 26);
+    check(errors.length === 0, `mt1 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);
