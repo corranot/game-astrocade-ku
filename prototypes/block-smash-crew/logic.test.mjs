@@ -125,15 +125,15 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(V.left === V.g.count() + V.falls.reduce((a, f) => a + f.total, 0) || V.left === V.g.count(), 'blocks left matches the grid');
 }
 
-// ---- TNT chains and tipping towers
+// ---- boom barrel chains and tipping towers
 {
   const W = WD.createWorld(cfg, 0, {});
-  check(W.tntCells.length >= 3 && W.tntCells.every((c) => W.g.get(c.x, c.y, c.z) === M.tnt), `TNT blocks placed (${W.tntCells.length}), one in front of the building`);
-  // put two TNT side by side in the open and hit one: both go off
-  const g = W.g; g.set(2, 0, 30, M.tnt); g.set(4, 0, 30, M.tnt);
+  check(W.kegCells.length >= 3 && W.kegCells.every((c) => W.g.get(c.x, c.y, c.z) === M.keg), `boom barrel blocks placed (${W.kegCells.length}), one in front of the building`);
+  // put two boom barrel side by side in the open and hit one: both go off
+  const g = W.g; g.set(2, 0, 30, M.keg); g.set(4, 0, 30, M.keg);
   WD.useTool(W, 'bomb', { x: 2.5, y: 0.5, z: 30.5 });
   const booms = []; for (let i = 0; i < 90; i++) for (const e of WD.step(W, 1 / 30)) if (e.type === 'boom') booms.push(e.kind);
-  check(booms.filter((k) => k === 'tnt').length >= 2, `one blast sets off the TNT next to it (${booms.join(',')})`);
+  check(booms.filter((k) => k === 'keg').length >= 2, `one blast sets off the boom barrel next to it (${booms.join(',')})`);
   W.cool.bomb = 0; WD.useTool(W, 'bomb', { x: W.box.x0 + 3.5, y: 1.5, z: W.box.z1 + 0.5 }); for (let i = 0; i < 40; i++) WD.step(W, 1 / 30);
   check(g.scorch && g.scorch.some((v) => v > 0), 'blasts leave scorch marks on the blocks around them');
   // the lighthouse: knock out a ring at its base and the tower tips over
@@ -300,7 +300,7 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
       if (b.sign >= 0) signs++; if (b.costume === 0) cost++;
     }
   }
-  check(front, 'the front-yard robot stands where it always did (the demo rocket and the first TNT throw it)');
+  check(front, 'the front-yard robot stands where it always did (the demo rocket and the first boom barrel throw it)');
   check(inRing >= tot * 0.85 && inArc >= tot * 0.85, `wave 1 starts 4.5–12 m away (${inRing}/${tot}) in the 270° arc ahead (${inArc}/${tot})`);
   check(signs > tot * 0.3 && signs < tot * 0.7 && cost > tot * 0.35 && cost < tot * 0.85, `about half carry a dare sign (${signs}/${tot}); the wave's costume is mixed with plain robots (${cost}/${tot})`);
   // marching: closer every second, never faster than catch-up, and close by they face the hero
@@ -373,17 +373,17 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   WD.swingBot(S, 3); S.bots.splice(0, 1);
   const sev = []; for (let i = 0; i < 12; i++) sev.push(...WD.step(S, 1 / 30));
   check(target.state === 'down' && sev.some((e) => e.type === 'bonk' && e.by === 'hammer'), 'a swing lands on the robot it was aimed at, after the list shifted');
-  // a bomb flying inside a blast goes off 0.12–0.24 s later; lit TNT too
+  // a bomb flying inside a blast goes off 0.12–0.24 s later; lit boom barrel too
   const R = WD.createWorld(cfg, 0, { owned: cfg.tools.map((x) => x.id) }), hx = R.hero.x, hz = R.hero.z;
   WD.useTool(R, 'bomb', { x: hx, y: 1, z: hz - 9 }); WD.step(R, 1 / 30);
   const bomb = R.shots[0]; R.cool.rocket = 0;
   R.fuses.push({ x: Math.floor(bomb.x), y: bomb.y, z: Math.floor(bomb.z), t: 5 });
   WD.useTool(R, 'meteor', { x: bomb.x, y: bomb.y, z: bomb.z }); R.shots[1].t = R.shots[1].dur - 1 / 60;
-  let t = 0, boomAt = null, tntAt = null; const tb = [];
+  let t = 0, boomAt = null, kegAt = null; const tb = [];
   for (let i = 0; i < 40; i++) { for (const e of WD.step(R, 1 / 60)) { if (e.type === 'boom') tb.push([e.kind, t]); } t += 1 / 60; }
-  const mt = (tb.find((x) => x[0] === 'meteor') || [])[1], bt = (tb.find((x) => x[0] === 'bomb') || [])[1], nt = (tb.find((x) => x[0] === 'tnt') || [])[1];
-  boomAt = bt != null && mt != null ? bt - mt : null; tntAt = nt != null && mt != null ? nt - mt : null;
-  check(boomAt !== null && boomAt >= 0.1 && boomAt <= 0.26 && tntAt !== null && tntAt <= 0.26, `a blast sets off a bomb in flight (${boomAt && boomAt.toFixed(2)} s later) and lit TNT (${tntAt && tntAt.toFixed(2)} s)`);
+  const mt = (tb.find((x) => x[0] === 'meteor') || [])[1], bt = (tb.find((x) => x[0] === 'bomb') || [])[1], nt = (tb.find((x) => x[0] === 'keg') || [])[1];
+  boomAt = bt != null && mt != null ? bt - mt : null; kegAt = nt != null && mt != null ? nt - mt : null;
+  check(boomAt !== null && boomAt >= 0.1 && boomAt <= 0.26 && kegAt !== null && kegAt <= 0.26, `a blast sets off a bomb in flight (${boomAt && boomAt.toFixed(2)} s later) and lit boom barrel (${kegAt && kegAt.toFixed(2)} s)`);
   // a falling piece still knocks robots over where it lands
   const F = WD.createWorld(cfg, 0, {}), fb = F.bots[2];
   const fake = { id: 77, cells: [{ x: Math.floor(fb.x), y: 3, z: Math.floor(fb.z), m: M.brick }], total: 1, y: 0, vy: 0, drop: 3, spin: 0, th: 0, thv: 0, t: 0, topple: null };
@@ -451,17 +451,17 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   }
 }
 
-// ---- BOOM update: special TNT barrels and the BOOM box that sets every barrel off
+// ---- BOOM update: special boom barrel and the BOOM box that sets every barrel off
 {
-  const kinds = cfg.tnt.kinds.map((k) => k.id);
+  const kinds = cfg.keg.kinds.map((k) => k.id);
   let boxOk = true, kindsSeen = new Set(), frontPlain = true, far = true;
   for (let lv = 0; lv < 40; lv++) {
-    const Lv = buildLevel(cfg, lv), b = Lv.boomBox, front = Lv.tnt[Lv.tnt.length - 1];
+    const Lv = buildLevel(cfg, lv), b = Lv.boomBox, front = Lv.keg[Lv.keg.length - 1];
     if (!b || Lv.grid.get(b.x, b.y, b.z) !== M.boomBox) boxOk = false;
-    for (const c of Lv.tnt) if (c.k) kindsSeen.add(c.k);
+    for (const c of Lv.keg) if (c.k) kindsSeen.add(c.k);
     if (front.k) frontPlain = false;
     // the first tap blows the front barrel: the BOOM box must survive that blast, or every level starts with all of it
-    if (b && Math.hypot(b.x - front.x, b.z - front.z) <= cfg.tnt.r + 1) far = false;
+    if (b && Math.hypot(b.x - front.x, b.z - front.z) <= cfg.keg.r + 1) far = false;
   }
   check(boxOk, 'every level has a BOOM box standing in the yard');
   check(kinds.length >= 3 && kinds.every((k) => kindsSeen.has(k)), 'every special barrel kind appears within the first 40 levels');
@@ -469,32 +469,32 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(far, 'the BOOM box stands outside the front barrel\'s blast');
 
   // a bomb on the BOOM box lights every barrel; they go off one after the other and the specials do their own thing
-  const W = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), b = W.boomBox, total = W.tntCells.length;
-  const special = W.tntCells.filter((c) => c.k).map((c) => c.k);
+  const W = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), b = W.boomBox, total = W.kegCells.length;
+  const special = W.kegCells.filter((c) => c.k).map((c) => c.k);
   check(WD.useTool(W, 'bomb', { x: b.x + 0.5, y: b.y + 0.5, z: b.z + 0.5 }), 'a bomb can be thrown at the BOOM box');
   const seen = { detonate: null, booms: [], shots: new Set() }; let t = 0;
   while (t < 9) {
     for (const e of WD.step(W, 1 / 60)) {
       if (e.type === 'detonate') seen.detonate = e;
-      if (e.type === 'boom' && e.kind === 'tnt') seen.booms.push(t);
-      if (e.type === 'throw' && e.shot.from === 'tnt') seen.shots.add(e.shot.kind);
+      if (e.type === 'boom' && e.kind === 'keg') seen.booms.push(t);
+      if (e.type === 'throw' && e.shot.from === 'keg') seen.shots.add(e.shot.kind);
     }
     t += 1 / 60;
   }
   check(seen.detonate && seen.detonate.n === total, `the BOOM box lights all ${total} barrels (${seen.detonate && seen.detonate.n})`);
   check(seen.booms.length === total, `every barrel goes off (${seen.booms.length} of ${total})`);
   check(seen.booms.length > 1 && seen.booms[seen.booms.length - 1] - seen.booms[0] >= 0.2, 'the barrels go off one after the other, not in one frame');
-  check(W.tntCells.every((c) => W.g.get(c.x, c.y, c.z) !== M.tnt), 'no barrel is left standing afterwards');
+  check(W.kegCells.every((c) => W.g.get(c.x, c.y, c.z) !== M.keg), 'no barrel is left standing afterwards');
   const want = { cluster: 'bomb', hole: 'hole', meteor: 'meteor' };
   check(special.length > 0 && special.every((k) => seen.shots.has(want[k])), `each special barrel did its own thing (${special.join(', ')} → ${[...seen.shots].join(', ')})`);
   check(W.left >= 0 && W.left === W.g.count(), `the block count still matches the grid after the chain (${W.left} / ${W.g.count()})`);
 
   // a cluster barrel hit on its own throws its bombs outward
-  const C = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), cl = C.tntCells.find((c) => c.k === 'cluster');
+  const C = WD.createWorld(cfg, 2, { owned: ['hammer', 'bomb'] }), cl = C.kegCells.find((c) => c.k === 'cluster');
   if (cl) {
     WD.useTool(C, 'bomb', { x: cl.x + 0.5, y: cl.y + 0.5, z: cl.z + 0.5 }); let bombs = 0;
-    for (let i = 0; i < 240; i++) for (const e of WD.step(C, 1 / 60)) if (e.type === 'throw' && e.shot.from === 'tnt' && e.shot.kind === 'bomb') bombs++;
-    check(bombs === cfg.tnt.kinds.find((k) => k.id === 'cluster').n, `a cluster barrel throws ${bombs} bombs`);
+    for (let i = 0; i < 240; i++) for (const e of WD.step(C, 1 / 60)) if (e.type === 'throw' && e.shot.from === 'keg' && e.shot.kind === 'bomb') bombs++;
+    check(bombs === cfg.keg.kinds.find((k) => k.id === 'cluster').n, `a cluster barrel throws ${bombs} bombs`);
   } else check(false, 'level 2 has a cluster barrel to test');
 }
 
@@ -503,8 +503,8 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   const run = (W, secs, each) => { for (let i = 0; i < secs * 60; i++) { const ev = WD.step(W, 1 / 60); if (each) each(ev, i / 60); } };
   // 1. one barrel hit on its own never takes the BOOM box with it (it did on 12 of the first 40 levels)
   const accident = [];
-  for (let lv = 0; lv < 40; lv++) for (let i = 0; i < buildLevel(cfg, lv).tnt.length; i++) {
-    const W = WD.createWorld(cfg, lv, { owned: ['hammer', 'bomb'] }), c = W.tntCells[i];
+  for (let lv = 0; lv < 40; lv++) for (let i = 0; i < buildLevel(cfg, lv).keg.length; i++) {
+    const W = WD.createWorld(cfg, lv, { owned: ['hammer', 'bomb'] }), c = W.kegCells[i];
     WD.useTool(W, 'bomb', { x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 });
     // only the barrels inside the bomb's own blast count as hit together with it
     run(W, 10, (ev) => { if (ev.some((e) => e.type === 'detonate')) accident.push(`L${lv} ${c.k || 'plain'}`); });
@@ -512,12 +512,12 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(accident.length === 0, `a barrel's own effect never sets the BOOM box off (${accident.length ? [...new Set(accident)].slice(0, 6).join(', ') : 'none'})`);
 
   // 2. after the box is hit the barrels stay standing until their own boom
-  const W = WD.createWorld(cfg, 9, { owned: ['hammer', 'bomb'] }), b = W.boomBox, n0 = W.tntCells.length;
+  const W = WD.createWorld(cfg, 9, { owned: ['hammer', 'bomb'] }), b = W.boomBox, n0 = W.kegCells.length;
   WD.useTool(W, 'bomb', { x: b.x + 0.5, y: 0.5, z: b.z + 0.5 });
-  const standing = () => W.tntCells.filter((c) => W.g.get(c.x, c.y, c.z) === M.tnt).length;
+  const standing = () => W.kegCells.filter((c) => W.g.get(c.x, c.y, c.z) === M.keg).length;
   let atDetonate = null, early = 0, booms = 0, leftOk = true;
   run(W, 9, (ev) => {
-    for (const e of ev) { if (e.type === 'detonate') atDetonate = standing(); if (e.type === 'boom' && e.kind === 'tnt') booms++; }
+    for (const e of ev) { if (e.type === 'detonate') atDetonate = standing(); if (e.type === 'boom' && e.kind === 'keg') booms++; }
     // a barrel is gone only once it (or a blast that reached it) has gone off
     if (atDetonate !== null && n0 - standing() > booms + 1) early++;
     if (W.left !== W.g.count()) leftOk = false;
@@ -527,13 +527,13 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(leftOk, 'the block count matches the grid on every frame of the chain');
 
   // 3. what the barrels throw does not run up the combo (one box paid 2,245 coins on level 1 against 595 with plain barrels)
-  const pay = (kinds) => { const c2 = { ...cfg, tnt: { ...cfg.tnt, kinds } }, V = WD.createWorld(c2, 0, { owned: ['hammer', 'bomb'] }); WD.useTool(V, 'bomb', { x: V.boomBox.x + 0.5, y: 0.5, z: V.boomBox.z + 0.5 }); let top = 0; run(V, 12, () => { top = Math.max(top, V.combo.mult); }); return { coins: V.coins, top }; };
-  const withKinds = pay(cfg.tnt.kinds), plain = pay([]);
+  const pay = (kinds) => { const c2 = { ...cfg, keg: { ...cfg.keg, kinds } }, V = WD.createWorld(c2, 0, { owned: ['hammer', 'bomb'] }); WD.useTool(V, 'bomb', { x: V.boomBox.x + 0.5, y: 0.5, z: V.boomBox.z + 0.5 }); let top = 0; run(V, 12, () => { top = Math.max(top, V.combo.mult); }); return { coins: V.coins, top }; };
+  const withKinds = pay(cfg.keg.kinds), plain = pay([]);
   check(withKinds.top <= plain.top, `special barrels do not push the combo higher than plain ones (×${withKinds.top} against ×${plain.top})`);
   check(withKinds.coins <= plain.coins * 2.5, `a BOOM box on level 1 pays at most 2.5× the plain chain (${withKinds.coins} against ${plain.coins})`);
 
   // 4. a barrel's black hole is still a hole to the look and the sound
-  const H = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] }), hb = H.tntCells.find((c) => c.k === 'hole'); const bys = new Set();
+  const H = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] }), hb = H.kegCells.find((c) => c.k === 'hole'); const bys = new Set();
   WD.useTool(H, 'bomb', { x: hb.x + 0.5, y: 0.5, z: hb.z + 0.5 });
   run(H, 6, (ev) => { for (const e of ev) if (e.type === 'smash' && H.shots.some((s) => s.kind === 'hole')) bys.add(e.by); });
   check(bys.has('hole'), `blocks a barrel's black hole swallows are reported as swallowed by a hole (${[...bys].join(', ')})`);
@@ -575,7 +575,7 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(started && ev.some((e) => e.type === 'swing'), `a swing at the air from outside step() reaches the next frame's events (${ev.map((e) => e.type).join(', ') || 'none'})`);
   // and one started inside step() (the hero reaching a tapped block) is reported once, in that same frame
   const V = WD.createWorld(cfg, 0, { owned: ['hammer', 'bomb'] }); let swings = 0, frames = 0;
-  const c = V.tntCells[V.tntCells.length - 1]; WD.aimHammer(V, { x: c.x, y: c.y, z: c.z }, false);
+  const c = V.kegCells[V.kegCells.length - 1]; WD.aimHammer(V, { x: c.x, y: c.y, z: c.z }, false);
   for (let i = 0; i < 120 && !swings; i++) { swings += WD.step(V, 1 / 60).filter((e) => e.type === 'swing').length; frames++; }
   for (let i = 0; i < 10; i++) swings += WD.step(V, 1 / 60).filter((e) => e.type === 'swing').length;
   check(swings === 1, `a swing started by the world itself is reported exactly once (${swings}, after ${frames} frames)`);

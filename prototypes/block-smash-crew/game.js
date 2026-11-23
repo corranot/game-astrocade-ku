@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Genre: first-person voxel destruction / demolition action for kids (ages 5-12), 3D, portrait, phone and computer.
-// Block Smash Crew: Voxel Demolition. A demolition kid in a hard hat smashes cheerful block buildings (cottage, candy
+// Genre: first-person smashing, exploding, destruction action for kids (ages 5-12), 3D, portrait, phone and computer.
+// Block Smash Crew: Smash & Destroy Buildings. A demolition kid in a hard hat smashes cheerful block buildings (cottage, candy
 // shop, castle, lighthouse, toy factory, ice palace, jungle temple, space base) to find 3 stars in each: one in the
 // treasure chest inside a steel vault, one high up, one deep inside. First person with the hammer in hand; the device
 // is found by itself: phone = stick + drag to look + HIT button, computer = WASD + mouse + click/Space. Only the stick
@@ -518,16 +518,16 @@ function startGame(mode) {
     if (t && t.type === 'bot' && !firstTap) { if (t.dist <= cfg.hero.reach + 0.6) { WD.swingBot(W, t.i); firstTap = false; if (!save.learned.hit) { save.learned.hit = true; persistSoon(); } return; } }
     else if (t && t.type !== 'bot') WD.aimHammer(W, t, false, false);
     if (W.hero.aim && !firstTap && !save.learned.hit) { save.learned.hit = true; persistSoon(); }
-    // the very first tap of the game is a boom: the hammer swings at the TNT barrel straight ahead (in reach of the start)
-    if (!W.hero.aim && firstTap) { const c = frontTnt(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
+    // the very first tap of the game is a boom: the hammer swings at the boom barrel straight ahead (in reach of the start)
+    if (!W.hero.aim && firstTap) { const c = frontKeg(); if (c) WD.aimHammer(W, { type: 'block', ...c, nx: 0, ny: 0, nz: 1 }, false, false); }
     firstTap = false;
     // too far for the hammer: the stick at home pulses (walk there with it)
     if (!W.hero.aim) { const el = $(touchUI ? 'stickHome' : 'keys'); el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); }
   }
-  /** The TNT cell nearest the hero, when it is still there and in reach of the hammer. */
-  function frontTnt() {
+  /** The boom barrel cell nearest the hero, when it is still there and in reach of the hammer. */
+  function frontKeg() {
     const h = W.hero; let best = null, bd = cfg.hero.reach;
-    for (const c of W.tntCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.tnt) continue; const d = Math.hypot(c.x + 0.5 - h.x, c.y + 0.5 - (h.y + 1.3), c.z + 0.5 - h.z); if (d <= bd) { bd = d; best = c; } }
+    for (const c of W.kegCells) { if (W.g.get(c.x, c.y, c.z) !== W.ids.keg) continue; const d = Math.hypot(c.x + 0.5 - h.x, c.y + 0.5 - (h.y + 1.3), c.z + 0.5 - h.z); if (d <= bd) { bd = d; best = c; } }
     return best;
   }
   function showStick() {

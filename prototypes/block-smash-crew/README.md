@@ -34,7 +34,7 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   every third building, see "Chain of buildings".)
 - **Levels:** 8 building generators (cottage, candy shop, castle, lighthouse, toy factory, ice palace, jungle temple,
   space base), endless with growing size.
-- **Hook:** demo hero smashing the fence before any touch; the first tap anywhere hits the TNT barrel in reach of the start = first boom in < 1 s.
+- **Hook:** demo hero smashing the fence before any touch; the first tap anywhere hits the boom barrel in reach of the start = first boom in < 1 s.
 
 ## Layout numbers (720×1280 units; measured target, frame full 3D)
 - Building ≥ 70% of frame width at spawn, centre at y ≈ 45%; hero at y ≈ 70–75%.
@@ -53,13 +53,13 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - P1 day-one safety: child pilot (taps near the goal, hesitates, bombs half the time) went 9/48 → 48/48 runs (median 23 s) with
   star bombs (tap a shining star), SUPER HAMMER (steel breaks after 3 bounces), stick-zone taps, idle hand hint.
   `perf.js`: game code 2.6 ms/frame at CPU 4× (GL submit is SwiftShader's, not a phone's).
-- P2: tall pieces tip over their base (TIMBER!, slow motion), TNT chains (one straight ahead of the start), material
+- P2: tall pieces tip over their base (TIMBER!, slow motion), boom barrel chains (one straight ahead of the start), material
   fragments, sparks, scorch, hit-stop, camera kick (exponential: a spring was unstable at slow frames).
 - P3: 13 recorded sounds + music from the asset map (code sounds as fallback), 16-tile pixel atlas, glove.
 - P4: shop (tap coins) with 5 upgrade levels per tool, album, daily challenge ×2 (never moves the level path).
 - P5: boss every 5th level (biggest size, ×2), day / sunset / snow looks.
 - Controls pass (user): no auto-walk (only stick / WASD walk; swipe elsewhere looks), resting stick shown on phones,
-  tools at the bottom edge (no empty band), spawn 1.5 closer so the front TNT is in hammer reach. Child pilot now
+  tools at the bottom edge (no empty band), spawn 1.5 closer so the front boom barrel is in hammer reach. Child pilot now
   walks with the stick + holds HIT: 48/48, median 12 s.
 - First-time guidance pass (user): coach spotlight (dim + lit hole + moving hand + label) for walk → look → smash →
   bomb, each until used once (saved in `learned`); level card (icon, LEVEL n, name, BOSS / DAILY) under a white flash;
@@ -72,7 +72,7 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - Astrocade guide pass: touch targets ≥ 96 (invisible tap areas on small pills), trophies saved per building kind
   (bounded), arrows and the hint hand moved with `translate`; `look.js` checks touch targets on 9 screens.
 - BONK-BOTs (user asked for ragdoll NPCs; made toy robots for a kids' game): `bots.js` — strolling robots that the
-  hammer, blasts, TNT and landing pieces knock flying as a time-corrected Verlet ragdoll (7 points, 12 sticks, ground
+  hammer, blasts, boom barrel and landing pieces knock flying as a time-corrected Verlet ragdoll (7 points, 12 sticks, ground
   and voxel push-out), BONK! + coins once per knock-over, then a reboot back on their feet. One strolls in the front
   yard, so the first boom sends it flying. 14 tests in `logic.test.mjs`, journey checks the boom and a tap.
 
@@ -84,7 +84,7 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   faces: X / dizzy eyes when knocked, 5 mouths, a smile + BEEP! on getting up. Knocked robots reboot and walk off
   through one of 4 gates. Next wave at 28 s or when ≤ 22% still march (≥ 12 s), "WAVE n ARRIVING!" 3.5 s, 6 costume
   sets (party, astronaut, chef, pirate, construction, disco) mixed with plain, a cleared wave pays coins. Caps: 30 robots,
-  20 lying down. The front-yard robot keeps its old spot and stroll (demo rocket + first TNT).
+  20 lying down. The front-yard robot keeps its old spot and stroll (demo rocket + first boom barrel).
 - **Feel:** hit-stop `dt × 0.15` for 0.04 s (hammer) … 0.09 s (meteor); shake = max(now, a·(1 − d/30)), decays exp(−9dt);
   chain bonks (a robot flying > 3.5 m/s knocks a standing one within 0.77 m, 55% speed); bombs inside a blast go off
   0.12–0.24 s later; falling blocks still knock robots.
@@ -99,8 +99,8 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   brightness 1→1.28), dimmed 0.78 while cooling. **Quality:** weak phone (≤ 4 cores or ≤ 3 GB) starts low (no shadows,
   half particles, DPR 0.6); everywhere the frame average over 1.2 s moves DPR −0.15 (> 1/45 s) / +0.1 (< 1/58 s).
 
-## BOOM update (22 Nov; lesson from a competitor's "16 kinds of TNT + one BOOM button", own content)
-- **Special barrels:** the barrels inside a building are special, two kinds per level in turn (`tnt.kinds`): orange
+## BOOM update (22 Nov; lesson from a competitor's "16 kinds of boom barrel + one BOOM button", own content)
+- **Special barrels:** the barrels inside a building are special, two kinds per level in turn (`keg.kinds`): orange
   **cluster** (throws 6 bombs outward), purple **black hole** (swallows what is around it), blue **meteor** (calls one
   down on itself). Each still booms like a plain barrel first. They show the locked tools at work before they are
   bought. What they throw pays at the barrel's rate, not at the player's upgraded tool's (otherwise the pilot bought
@@ -113,10 +113,10 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
   is measured once; fixed with `frustumCulled = false`, checked in `checks.js` by the barrel's colour on screen); a
   robot facing a block dropped its goal every frame and could stand still for good (`bots.js walk`).
 - **Bug hunt on the first build (4 real defects, each with a test that failed first):** (1) a special barrel near the
-  box took the box with it and set off the whole level (12 of the first 40 levels) → no barrel within `tnt.boxClear`
+  box took the box with it and set off the whole level (12 of the first 40 levels) → no barrel within `keg.boxClear`
   of the box; (2) every barrel vanished the moment the box went and then boomed from bare ground → a lit barrel stands
   until its own fuse ends; (3) cluster bombs and hole ticks ran the combo to ×5, one box paid 4× a plain chain → what
-  a barrel throws pays flat (no combo, no tool power; now ≤ 2.5×); (4) a barrel's black hole was reported as "tnt", so
+  a barrel throws pays flat (no combo, no tool power; now ≤ 2.5×); (4) a barrel's black hole was reported as "keg", so
   debris was not pulled in → the kind stays, the payout rule is a separate flag. Also: the box is two cells tall, so a
   tap on its handle hits it.
 - Tests: 21 new in `logic.test.mjs` (123), 4 barrel-colour checks in `checks.js`. Pilot child: 48/48, median 12 s;
