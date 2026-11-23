@@ -346,7 +346,8 @@
   "smash": 25,
   "kaboom": 70,
   "mega": 160,
-  "bonkGap": 0.4
+  "bonkGap": 0.4,
+  "bumpGap": 0.12
  },
  "coach": {"maxSec": 4, "dim": 0.25},
  "stars": {
@@ -1247,7 +1248,9 @@
   "lowSlowWindows": 3,
   "weakCores": 4,
   "weakMemory": 3,
-  "noGain": 0.92, "glow": {"ms": 0.0185, "windows": 2},
+  "remeshMs": 5,
+  "warmDraw": true,
+  "noGain": 0.92, "lowAt": 0.04, "hitch": {"ms": 50, "count": 2}, "glow": {"ms": 0.0185, "windows": 2},
   "fx": {"high": {"frag": 1, "hangDust": true, "scorch": 6, "ring": 1, "blast": 1, "sphere": true}, "low": {"frag": 0.5, "hangDust": false, "scorch": 3, "ring": 0.5, "blast": 0.5, "sphere": false}}
  },
  "celebrate": {

@@ -23,13 +23,17 @@ const STICKS = [[0, 1], [1, 2], [1, 3], [1, 4], [2, 5], [2, 6], [0, 2], [5, 6], 
 /** Parent then child, from the chest outwards: the order in which a part torn off is brought back. */
 const TREE = [[1, 0], [1, 2], [1, 3], [1, 4], [2, 5], [2, 6]];
 export const BOT_POINTS = POSE.length;
+// each pair's length in the pose (times a bot's height = its rest length), and two points reused by every ragdoll step
+const restOf = (pairs) => pairs.map(([a, c]) => Math.hypot(POSE[a][0] - POSE[c][0], POSE[a][1] - POSE[c][1], POSE[a][2] - POSE[c][2]));
+const STICK_REST = restOf(STICKS), TREE_REST = restOf(TREE), SA = [0, 0, 0], SB = [0, 0, 0];
 
 const solid = (g, x, y, z) => y >= 0 && !!g.get(Math.floor(x), Math.floor(y), Math.floor(z));
 
-/** World position of pose point k for a bot standing at (x, z) facing yaw. */
-function posePoint(b, k, x, z, yaw) {
-  const [px, py, pz] = POSE[k], s = b.h, c = Math.cos(yaw), n = Math.sin(yaw);
-  return [x + (px * c + pz * n) * s, py * s, z + (-px * n + pz * c) * s];
+/** World position of pose point k for a bot standing at (x, z) facing yaw (written into `out` when given). */
+function posePoint(b, k, x, z, yaw, out = [0, 0, 0]) {
+  const o = POSE[k], px = o[0], pz = o[2], s = b.h, c = Math.cos(yaw), n = Math.sin(yaw);
+  out[0] = x + (px * c + pz * n) * s; out[1] = o[1] * s; out[2] = z + (-px * n + pz * c) * s;
+  return out;
 }
 
 /** Can a bot stand at (x, z)? No block at its feet or body, inside the lot. */
@@ -329,16 +333,14 @@ function walk(W, b, dt, B) {
 /** Moves point p (inside a block) out through the closest face whose neighbour cell is free, plus margin R. */
 function pushOut(g, p, q, R) {
   const cx = Math.floor(p[0]), cy = Math.floor(p[1]), cz = Math.floor(p[2]);
-  const opts = [[1, 0, cy + 1 - p[1]], [0, 1, p[0] - cx], [0, -1, cx + 1 - p[0]], [2, 1, p[2] - cz], [2, -1, cz + 1 - p[2]]];
-  let best = null;
-  for (const [ax, dir, depth] of opts) {
-    const n = [cx, cy, cz];
-    if (ax === 1) n[1] += 1; else n[ax] -= dir;
-    if (g.get(n[0], n[1], n[2]) && !(n[1] < 0)) continue;
-    if (!best || depth < best[2]) best = [ax, dir, depth];
-  }
-  if (!best) { p[1] = cy + 1 + R; q[1] = p[1]; return; }
-  const [ax, dir, depth] = best;
+  // up first, then the four sides: the shallowest way out whose neighbour cell is free (the first one on a tie)
+  let ax = -1, dir = 0, depth = Infinity, d;
+  if (!g.get(cx, cy + 1, cz) || cy + 1 < 0) { ax = 1; depth = cy + 1 - p[1]; }
+  if ((!g.get(cx - 1, cy, cz) || cy < 0) && (d = p[0] - cx) < depth) { ax = 0; dir = 1; depth = d; }
+  if ((!g.get(cx + 1, cy, cz) || cy < 0) && (d = cx + 1 - p[0]) < depth) { ax = 0; dir = -1; depth = d; }
+  if ((!g.get(cx, cy, cz - 1) || cy < 0) && (d = p[2] - cz) < depth) { ax = 2; dir = 1; depth = d; }
+  if ((!g.get(cx, cy, cz + 1) || cy < 0) && (d = cz + 1 - p[2]) < depth) { ax = 2; dir = -1; depth = d; }
+  if (ax < 0) { p[1] = cy + 1 + R; q[1] = p[1]; return; }
   if (ax === 1) { p[1] += depth + R; q[1] = p[1]; } else { p[ax] -= dir * (depth + R); q[ax] = p[ax]; }
 }
 
@@ -361,17 +363,18 @@ function ragdoll(W, b, dt, B, i) {
     speed = Math.max(speed, Math.hypot(vx, vy, vz) / dt);
   }
   // a robot flying fast knocks over a standing one it touches, passing on part of its speed (a chain of bonks)
-  const cv = [(P[1][0] - Q[1][0]) / dt, (P[1][1] - Q[1][1]) / dt, (P[1][2] - Q[1][2]) / dt], cs = Math.hypot(cv[0], cv[1], cv[2]);
+  const cvx = (P[1][0] - Q[1][0]) / dt, cvy = (P[1][1] - Q[1][1]) / dt, cvz = (P[1][2] - Q[1][2]) / dt, cs = Math.hypot(cvx, cvy, cvz);
   if (cs > B.chainSpeed) for (let j = 0; j < W.bots.length; j++) {
     const o = W.bots[j]; if (j === i || !standing(o)) continue;
     // any part of the flier touching its chest or hips
-    const oc = posePoint(o, 1, o.x, o.z, o.yaw), op = posePoint(o, 2, o.x, o.z, o.yaw);
-    if (P.some((p) => Math.min(Math.hypot(oc[0] - p[0], oc[1] - p[1], oc[2] - p[2]), Math.hypot(op[0] - p[0], op[1] - p[1], op[2] - p[2])) < B.chainR * o.h / B.height)) knock(W, j, cv[0], cv[2], cs * B.chainKeep, 'chain');
+    const oc = posePoint(o, 1, o.x, o.z, o.yaw, SA), op = posePoint(o, 2, o.x, o.z, o.yaw, SB), reach = B.chainR * o.h / B.height;
+    let touch = false;
+    for (let k = 0; k < P.length && !touch; k++) { const p = P[k]; touch = Math.min(Math.hypot(oc[0] - p[0], oc[1] - p[1], oc[2] - p[2]), Math.hypot(op[0] - p[0], op[1] - p[1], op[2] - p[2])) < reach; }
+    if (touch) knock(W, j, cvx, cvz, cs * B.chainKeep, 'chain');
   }
   for (let it = 0; it < 4; it++) {
-    for (const [a, c] of STICKS) {
-      const pa = P[a], pc = P[c], ra = POSE[a], rc = POSE[c];
-      const rest = Math.hypot(ra[0] - rc[0], ra[1] - rc[1], ra[2] - rc[2]) * b.h;
+    for (let s = 0; s < STICKS.length; s++) {
+      const pa = P[STICKS[s][0]], pc = P[STICKS[s][1]], rest = STICK_REST[s] * b.h;
       const dx = pc[0] - pa[0], dy = pc[1] - pa[1], dz = pc[2] - pa[2], d = Math.hypot(dx, dy, dz) || 1e-6, f = (d - rest) / d * 0.5;
       pa[0] += dx * f; pa[1] += dy * f; pa[2] += dz * f; pc[0] -= dx * f; pc[1] -= dy * f; pc[2] -= dz * f;
     }
@@ -387,8 +390,8 @@ function ragdoll(W, b, dt, B, i) {
   }
   // the body never comes apart: a part that a wall kept away from its parent (head one side, chest the other) is
   // brought back to it, on the chest's side of the wall, and stops
-  for (const [a, c] of TREE) {
-    const pa = P[a], pc = P[c], ra = POSE[a], rc = POSE[c], rest = Math.hypot(ra[0] - rc[0], ra[1] - rc[1], ra[2] - rc[2]) * b.h;
+  for (let s = 0; s < TREE.length; s++) {
+    const a = TREE[s][0], c = TREE[s][1], pa = P[a], pc = P[c], rest = TREE_REST[s] * b.h;
     const dx = pc[0] - pa[0], dy = pc[1] - pa[1], dz = pc[2] - pa[2], d = Math.hypot(dx, dy, dz);
     if (d <= rest * B.maxStretch) continue;
     const k = rest / d; let x = pa[0] + dx * k, y = Math.max(R, pa[1] + dy * k), z = pa[2] + dz * k;

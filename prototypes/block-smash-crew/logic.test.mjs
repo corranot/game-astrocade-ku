@@ -3,7 +3,7 @@
 // levels played by the bot (the pilot: every level is finished, the vault needs a tool, nothing pays in the demo).
 // Usage: node logic.test.mjs
 import fs from 'fs';
-import { createGrid, fill, raycast, smashSphere, collapse, weakLayer, meshRegion } from './voxels.js';
+import { createGrid, fill, raycast, smashSphere, collapse, weakLayer, meshRegion, remeshNearest } from './voxels.js';
 import { buildLevel, KINDS, matIds } from './levels.js';
 import * as L from './logic.js';
 import * as WD from './world.js';
@@ -434,11 +434,29 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   check(q.dpr >= Q.lowMax && q.capped, `a 30 fps cap: one step down that does not help is undone; the resolution is never crushed to ${Q.minDpr} (${seq.join(' ')})`);
   // a really slow phone: frames get quicker as the resolution drops, down to the floor, then the low tier
   // (a model phone: part of each frame scales with the pixels, part does not)
-  q = q0; const s2 = [], ftOf = (d) => 0.025 + 0.03 * (d / 1.5) ** 2;
-  for (let i = 0; i < 14; i++) { q = L.qualityStep(Q, q, ftOf(q.dpr)); s2.push(q.dpr.toFixed(2) + (q.low ? 'L' : '')); }
+  // (lowAt out of reach here: this one walks the steps)
+  q = q0; const s2 = [], ftOf = (d) => 0.025 + 0.03 * (d / 1.5) ** 2, QW = { ...Q, lowAt: 1 };
+  for (let i = 0; i < 14; i++) { q = L.qualityStep(QW, q, ftOf(q.dpr)); s2.push(q.dpr.toFixed(2) + (q.low ? 'L' : '')); }
   check(q.low && q.dpr <= Q.minDpr + 0.01 && q.max <= Q.lowMax, `a slow phone steps down to DPR ${Q.minDpr} and then the low tier (${s2.join(' ')})`);
   q = { ...q0, dpr: 0.9 }; for (let i = 0; i < 8; i++) q = L.qualityStep(Q, q, 1 / 120);
   check(q.dpr === 1.5, `fast frames climb back up by ${Q.up} a window to the device's own ratio (${q.dpr})`);
+  // hitches: a smooth average with quality.hitch.count long frames in the window is a slow window
+  const H = Q.hitch;
+  q = L.qualityStep(Q, q0, 1 / 60, H.count - 1);
+  check(q.dpr === q0.dpr && !q.low && q.slow === 0, `${H.count - 1} long frame(s) in a 60 fps window change nothing (${q.dpr})`);
+  q = L.qualityStep(Q, q0, 1 / 60, H.count);
+  check(q.dpr < q0.dpr && !q.low, `${H.count} frames over ${H.ms} ms in a 60 fps window: a step down (${q.dpr})`);
+  let wn = 0; q = q0; while (!q.low && wn < 20) { q = L.qualityStep(Q, q, 1 / 60, H.count); wn++; }
+  check(q.low && wn <= 2 + Q.lowSlowWindows, `a game at 60 fps that keeps hitching reaches the low tier (${wn} windows)`);
+  q = L.qualityStep(Q, q, 1 / 60, 0);
+  check(q.low && q.slow === 0, 'the low tier is kept when the hitches stop');
+  // far too slow: no walk down the steps
+  q = L.qualityStep(Q, q0, Q.lowAt + 0.001);
+  check(q.low && q.dpr <= Q.minDpr + 0.01 && q.max <= Q.lowMax && !q.dropped, `a window over ${Q.lowAt * 1000} ms goes straight to the low tier (${q.dpr})`);
+  q = L.qualityStep(Q, q0, Q.lowAt - 0.001);
+  check(!q.low && q.dpr < q0.dpr, `a slow window under ${Q.lowAt * 1000} ms still takes one step (${q.dpr})`);
+  const pure = { ...q0 }; L.qualityStep(Q, pure, 0.05, 3);
+  check(JSON.stringify(pure) === JSON.stringify(q0), 'qualityStep leaves its input as it was');
 }
 
 // ---- the economy, cheap and often (Prison style): a child who buys the cheapest thing whenever it can
@@ -864,6 +882,27 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
     }
   }
   check(worst <= cfg.bots.maxStretch + 0.01, `a robot's head stays on its body however it is thrown (neck at most ×${worst.toFixed(2)} of its length)`);
+}
+
+// ---- the frame's budgets: chunks are rebuilt nearest first and never left stale; the mesher's scratch is not shared
+{
+  const CS = 12, keys = ['0,0,0', '2,0,0', '1,0,0', '0,1,2', '3,2,1', '1,1,1'], dirty = new Set(keys), built = [];
+  // a clock on which every rebuild costs more than the whole budget: exactly one chunk per frame
+  let clock = 0; const now = () => clock, build = (cx, cy, cz) => { built.push(`${cx},${cy},${cz}`); clock += 9; };
+  let frames = 0; while (dirty.size && frames < 50) { const k = remeshNearest(dirty, 30, 2, 6, CS, 5, now, build); frames++; if (k !== 1) break; }
+  check(frames === keys.length && !dirty.size && built.length === keys.length, `six dirty chunks over budget are rebuilt one a frame and all gone after ${frames} frames (none left stale)`);
+  check(built[0] === '2,0,0' && built[1] === '1,0,0' && built[built.length - 1] === '0,1,2', `the chunk nearest the eye is rebuilt first (${built.join(' ')})`);
+  const all = new Set(keys); let cheap = 0;
+  check(remeshNearest(all, 0, 0, 0, CS, 5, () => 0, () => { cheap++; }) === keys.length && !all.size && cheap === keys.length, 'chunks that fit the budget are all rebuilt in the same frame');
+  check(remeshNearest(new Set(), 0, 0, 0, CS, 5, now, build) === 0, 'nothing dirty: nothing rebuilt');
+  // two regions meshed one after the other: the first result keeps its own numbers
+  const g = createGrid(8, 8, 8); fill(g, 1, 0, 1, 2, 1, 2, 1); fill(g, 5, 0, 5, 6, 3, 6, 1);
+  const pal = [null, [1, 1, 1]], jit = [0, 0];
+  const a = meshRegion(g.get, 0, 0, 0, 4, 8, 4, pal, jit), copy = Array.from(a.positions), b = meshRegion(g.get, 4, 0, 4, 8, 8, 8, pal, jit);
+  check(a.faces === 20 && b.faces === 36 && a.positions.length === a.faces * 12 && a.indices.length === a.faces * 6 && copy.every((v, i) => v === a.positions[i]) && Math.max(...b.positions) === 7, `a mesh keeps its own arrays when the next one is built (${a.faces} and ${b.faces} faces)`);
+  // the last blocks of a piece, with nothing next to them: no flood at all (the marks do not move)
+  const e = createGrid(6, 6, 6); fill(e, 0, 0, 0, 1, 1, 1, 1); e.set(4, 3, 4, 1); const m0 = e.mark; e.set(4, 3, 4, 0);
+  check(collapse(e, [{ x: 4, y: 3, z: 4, m: 1 }]).length === 0 && e.mark === m0 && e.count() === 8, 'removing a block that touched nothing skips the ground flood');
 }
 
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);

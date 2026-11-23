@@ -96,17 +96,19 @@ export const dailyLevel = (cfg, day) => 8 * cfg.level.maxStep + (day % 8);
 
 /**
  * Dynamic resolution, one window at a time: q = {dpr, max, low, capped, dropped, slow} and avg = the window's mean frame
- * time. Slow → dpr down a step (at the floor for a few windows → the low tier); fast → up a step. A step down that did
+ * time, hitches = how many of its frames were over Q.hitch.ms (Q.hitch.count of them make a smooth window slow too).
+ * A slow window over Q.lowAt → the low tier at once, at its lowest resolution. Slow → dpr down a step (at the floor for a few windows → the low tier); fast → up a step. A step down that did
  * not make frames quicker (a 30 fps cap, battery saver, vsync) is undone and no more steps down follow until a fast
  * window. Returns the new q (the caller applies dpr and low).
  */
-export function qualityStep(Q, q, avg) {
-  const n = { ...q };
+export function qualityStep(Q, q, avg, hitches = 0) {
+  const n = { ...q }, slow = avg > Q.slow || (!!Q.hitch && hitches >= Q.hitch.count);
+  if (slow && avg > Q.lowAt && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.max, Q.minDpr); n.capped = false; n.dropped = null; n.slow = 0; return n; }
   if (q.dropped && avg > q.dropped.avg * Q.noGain) { n.dpr = q.dropped.dpr; n.capped = true; n.dropped = null; n.slow = 0; return n; }
   n.dropped = null;
   // still slow with nothing left to gain from the resolution: the low tier (no shadows, half the particles)
-  if (avg > Q.slow && !q.capped && q.dpr > Q.minDpr + 0.01) { n.dropped = { dpr: q.dpr, avg }; n.dpr = Math.max(Q.minDpr, q.dpr - Q.down); }
-  else if (avg > Q.slow) { if (++n.slow >= Q.lowSlowWindows && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.dpr, n.max); } } else if (avg <= Q.slow) { n.slow = 0; if (avg < Q.fast) { n.capped = false; if (q.dpr < q.max - 0.01) n.dpr = Math.min(q.max, q.dpr + Q.up); } }
+  if (slow && !q.capped && q.dpr > Q.minDpr + 0.01) { n.dropped = { dpr: q.dpr, avg }; n.dpr = Math.max(Q.minDpr, q.dpr - Q.down); }
+  else if (slow) { if (++n.slow >= Q.lowSlowWindows && !q.low) { n.low = true; n.max = Math.min(q.max, Q.lowMax); n.dpr = Math.min(n.dpr, n.max); } } else { n.slow = 0; if (avg < Q.fast) { n.capped = false; if (q.dpr < q.max - 0.01) n.dpr = Math.min(q.max, q.dpr + Q.up); } }
   return n;
 }
 

@@ -64,45 +64,62 @@ export function smashSphere(g, cx, cy, cz, r, mats, canHard) {
 
 const N6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 
+/** The flood queue of a grid: one Int32Array as large as the grid, made on first use and reused by every flood. */
+const queueOf = (g) => g.queue || (g.queue = new Int32Array(g.data.length));
+/**
+ * Floods face to face through solid cells from the ones already in q[0..n) (stamped `mine` by the caller), stamping
+ * each cell reached with `mine`; cells stamped `skip` are left alone. Neighbours are visited in the order of N6.
+ * Returns the new length of q.
+ */
+function flood(g, q, n, mine, skip) {
+  const { W, D, H, data, stamp } = g, WD = W * D;
+  for (let h = 0; h < n; h++) {
+    const i = q[h], x = i % W, z = ((i / W) | 0) % D, y = (i / WD) | 0;
+    let j;
+    if (x + 1 < W && data[j = i + 1] && stamp[j] !== mine && stamp[j] !== skip) { stamp[j] = mine; q[n++] = j; }
+    if (x > 0 && data[j = i - 1] && stamp[j] !== mine && stamp[j] !== skip) { stamp[j] = mine; q[n++] = j; }
+    if (y + 1 < H && data[j = i + WD] && stamp[j] !== mine && stamp[j] !== skip) { stamp[j] = mine; q[n++] = j; }
+    if (y > 0 && data[j = i - WD] && stamp[j] !== mine && stamp[j] !== skip) { stamp[j] = mine; q[n++] = j; }
+    if (z + 1 < D && data[j = i + W] && stamp[j] !== mine && stamp[j] !== skip) { stamp[j] = mine; q[n++] = j; }
+    if (z > 0 && data[j = i - W] && stamp[j] !== mine && stamp[j] !== skip) { stamp[j] = mine; q[n++] = j; }
+  }
+  return n;
+}
+/** Does any of these cells have a solid block next to it (face to face)? */
+function touchesSolid(g, cells) {
+  for (const c of cells) for (let k = 0; k < 6; k++) { const a = N6[k]; if (g.get(c.x + a[0], c.y + a[1], c.z + a[2])) return true; }
+  return false;
+}
+
 /**
  * After blocks were removed: finds every solid piece no longer connected (face to face) to a block on the ground
  * (y = 0), empties it from the grid and returns it as clusters [{cells: [{x, y, z, m}], minY}]. Only pieces next
- * to the removed cells can have lost their support, so only those are flooded; the ground flood runs once.
+ * to the removed cells can have lost their support, so only those are flooded; the ground flood runs once, and not
+ * at all when nothing solid touches the removed cells (the last blocks of a wall, a hole dug into open air).
  */
 export function collapse(g, removed, maxCells = 6000) {
-  if (!removed.length) return [];
-  const { W, D, data, stamp } = g;
+  if (!removed.length || !touchesSolid(g, removed)) return [];
+  const { W, D, data, stamp } = g, WD = W * D, q = queueOf(g);
   // 1. mark everything held up by the ground
   const ground = ++g.mark;
-  const q = [];
-  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) { const i = g.idx(x, 0, z); if (data[i]) { stamp[i] = ground; q.push(i); } }
-  const WD = W * D;
-  for (let h = 0; h < q.length; h++) {
-    const i = q[h], x = i % W, z = ((i / W) | 0) % D, y = (i / WD) | 0;
-    for (const [ax, ay, az] of N6) {
-      const X = x + ax, Y = y + ay, Z = z + az;
-      if (X < 0 || Y < 0 || Z < 0 || X >= W || Y >= g.H || Z >= D) continue;
-      const j = g.idx(X, Y, Z); if (data[j] && stamp[j] !== ground) { stamp[j] = ground; q.push(j); }
-    }
-  }
+  let n = 0;
+  for (let i = 0; i < WD; i++) if (data[i]) { stamp[i] = ground; q[n++] = i; }
+  flood(g, q, n, ground, ground);
   // 2. any solid neighbour of a removed cell that the ground did not reach starts a falling cluster
   const clusters = [];
-  for (const c of removed) for (const [ax, ay, az] of N6) {
-    const X = c.x + ax, Y = c.y + ay, Z = c.z + az; if (!g.inside(X, Y, Z)) continue;
+  for (const c of removed) for (let k = 0; k < 6; k++) {
+    const X = c.x + N6[k][0], Y = c.y + N6[k][1], Z = c.z + N6[k][2]; if (!g.inside(X, Y, Z)) continue;
     const s = g.idx(X, Y, Z); if (!data[s] || stamp[s] === ground) continue;
-    const mine = ++g.mark, cells = [], cq = [s]; stamp[s] = mine; let minY = Y;
-    for (let h = 0; h < cq.length; h++) {
-      const i = cq[h], x = i % W, z = ((i / W) | 0) % D, y = (i / WD) | 0;
-      if (cells.length < maxCells) cells.push({ x, y, z, m: data[i] });
+    const mine = ++g.mark, cells = []; stamp[s] = mine; q[0] = s; let minY = Y;
+    const m = flood(g, q, 1, mine, ground);
+    for (let h = 0; h < m; h++) {
+      const i = q[h], y = (i / WD) | 0;
+      if (cells.length < maxCells) cells.push({ x: i % W, y, z: ((i / W) | 0) % D, m: data[i] });
       if (y < minY) minY = y;
-      for (const [bx, by, bz] of N6) {
-        const X2 = x + bx, Y2 = y + by, Z2 = z + bz;
-        if (X2 < 0 || Y2 < 0 || Z2 < 0 || X2 >= W || Y2 >= g.H || Z2 >= D) continue;
-        const j = g.idx(X2, Y2, Z2); if (data[j] && stamp[j] !== mine && stamp[j] !== ground) { stamp[j] = mine; cq.push(j); }
-      }
+      // gone from the grid; never picked up twice
+      data[i] = 0; stamp[i] = ground;
     }
-    for (const i of cq) { data[i] = 0; stamp[i] = ground; } // gone from the grid; never picked up twice
-    clusters.push({ cells, minY, total: cq.length });
+    clusters.push({ cells, minY, total: m });
   }
   return clusters;
 }
@@ -115,33 +132,52 @@ export function collapse(g, removed, maxCells = 6000) {
 export function weakLayer(g, removed, ratio, minAbove) {
   const { W, D, H, data, stamp, orig } = g, WD = W * D;
   if (!orig) return [];
-  for (const c of removed) for (const [ax, ay, az] of N6) {
-    const X = c.x + ax, Y = c.y + ay, Z = c.z + az; if (!g.inside(X, Y, Z)) continue;
+  for (const c of removed) for (let k = 0; k < 6; k++) {
+    const X = c.x + N6[k][0], Y = c.y + N6[k][1], Z = c.z + N6[k][2]; if (!g.inside(X, Y, Z)) continue;
     const s = g.idx(X, Y, Z); if (!data[s]) continue;
-    const mine = ++g.mark, q = [s], cnt = new Int32Array(H); stamp[s] = mine;
+    // the queue and the per-layer counts belong to the grid: reused by every call
+    const mine = ++g.mark, q = queueOf(g), cnt = g.layers || (g.layers = new Int32Array(H)); stamp[s] = mine; q[0] = s; cnt.fill(0);
+    const n = flood(g, q, 1, mine, mine);
     let x0 = X, x1 = X, z0 = Z, z1 = Z;
-    for (let h = 0; h < q.length; h++) {
-      const i = q[h], x = i % W, z = ((i / W) | 0) % D, y = (i / WD) | 0;
-      cnt[y]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
-      for (const [bx, by, bz] of N6) {
-        const X2 = x + bx, Y2 = y + by, Z2 = z + bz;
-        if (X2 < 0 || Y2 < 0 || Z2 < 0 || X2 >= W || Y2 >= H || Z2 >= D) continue;
-        const j = g.idx(X2, Y2, Z2); if (data[j] && stamp[j] !== mine) { stamp[j] = mine; q.push(j); }
-      }
+    for (let h = 0; h < n; h++) {
+      const i = q[h], x = i % W, z = ((i / W) | 0) % D;
+      cnt[(i / WD) | 0]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
     }
-    let above = q.length;
+    let above = n;
     for (let y = 0; y < H; y++) {
       above -= cnt[y]; if (above < minAbove) break;
       if (!cnt[y]) continue;
       let was = 0; for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (orig[g.idx(x, y, z)]) was++;
       if (cnt[y] > ratio * was) continue;
       const out = [];
-      for (const i of q) if (((i / WD) | 0) === y) { out.push({ x: i % W, y, z: ((i / W) | 0) % D, m: data[i] }); data[i] = 0; }
+      for (let h = 0; h < n; h++) { const i = q[h]; if (((i / WD) | 0) === y) { out.push({ x: i % W, y, z: ((i / W) | 0) % D, m: data[i] }); data[i] = 0; } }
       return out;
     }
     return [];
   }
   return [];
+}
+
+/**
+ * Rebuilds the dirty chunks nearest to the eye (ex, ey, ez) first until budgetMs is spent, always at least one; the
+ * rest stay dirty for the next frames (the rules read the grid, so only the picture is a frame or two behind).
+ * dirty: a Set of 'cx,cy,cz' keys of chunks CS cells wide; build(cx, cy, cz) rebuilds one; now() gives milliseconds.
+ * Returns how many were rebuilt.
+ */
+export function remeshNearest(dirty, ex, ey, ez, CS, budgetMs, now, build) {
+  if (!dirty.size) return 0;
+  const list = [];
+  for (const k of dirty) {
+    const p = k.split(','), cx = +p[0], cy = +p[1], cz = +p[2], dx = (cx + 0.5) * CS - ex, dy = (cy + 0.5) * CS - ey, dz = (cz + 0.5) * CS - ez;
+    list.push({ k, cx, cy, cz, d: dx * dx + dy * dy + dz * dz });
+  }
+  list.sort((a, b) => a.d - b.d);
+  const t0 = now(); let n = 0;
+  for (const c of list) {
+    if (n && now() - t0 >= budgetMs) break;
+    build(c.cx, c.cy, c.cz); dirty.delete(c.k); n++;
+  }
+  return n;
 }
 
 // Face table: normal, the quad's u and v edges (u × v = normal) and the corner the quad starts from.
@@ -159,6 +195,17 @@ const AO = [0.42, 0.62, 0.8, 1];
 /** A small stable hash in 0..1 for a cell, for the per-block colour jitter. */
 export const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
+// The mesher's scratch: reused by every call and grown when a region needs more room (the result is copied out at
+// its exact size, so nothing is pushed value by value)
+let mCap = 0, mPos = null, mNor = null, mCol = null, mUv = null, mInd = null;
+const mAo = [0, 0, 0, 0];
+function meshRoom(faces) {
+  const n = Math.max(faces, mCap * 2, 2048), grow = (old, a) => { if (old) a.set(old); return a; };
+  mPos = grow(mPos, new Float32Array(n * 12)); mNor = grow(mNor, new Float32Array(n * 12)); mCol = grow(mCol, new Float32Array(n * 12));
+  mUv = grow(mUv, new Float32Array(n * 8)); mInd = grow(mInd, new Uint32Array(n * 6));
+  mCap = n;
+}
+
 /**
  * Builds the visible faces of the cells in [x0, x1)×[y0, y1)×[z0, z1). get(x, y, z) gives a material id for any cell
  * (also outside the range, for culling and occlusion); palette[m] = [r, g, b] linear; jitter[m] = 0..1 strength.
@@ -167,38 +214,41 @@ export const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z *
  * Returns typed arrays for a geometry, positions relative to (ox, oy, oz).
  */
 export function meshRegion(get, x0, y0, z0, x1, y1, z1, palette, jitter, ox = 0, oy = 0, oz = 0, floorY = 0, shade = null, tiles = null) {
-  const pos = [], nor = [], col = [], ind = [], uv = [];
-  let vi = 0;
+  let vi = 0, fc = 0;
+  const ao = mAo;
   // a material without a palette colour (boom barrel: drawn as a barrel by the look) counts as empty here
   const solid = (x, y, z) => { if (y < floorY) return 1; const m = get(x, y, z); return m && palette[m] ? 1 : 0; };
   for (let y = y0; y < y1; y++) for (let z = z0; z < z1; z++) for (let x = x0; x < x1; x++) {
     const m = get(x, y, z); if (!m || !palette[m]) continue;
     const base = palette[m], j = (1 + ((hash3(x, y, z) - 0.5) * 2) * (jitter[m] || 0)) * (shade ? shade(x, y, z) : 1);
-    for (const f of FACES) {
-      const X = x + f.n[0], Y = y + f.n[1], Z = z + f.n[2];
+    for (let fi = 0; fi < 6; fi++) {
+      const f = FACES[fi], fn = f.n, fu = f.u, fv = f.v, fo = f.o;
+      const X = x + fn[0], Y = y + fn[1], Z = z + fn[2];
       if (solid(X, Y, Z)) continue;
-      const ao = [0, 0, 0, 0];
+      if (fc >= mCap) meshRoom(fc + 1);
       for (let c = 0; c < 4; c++) {
         const cu = c === 1 || c === 2 ? 1 : -1, cv = c >= 2 ? 1 : -1;
-        const s1 = solid(X + f.u[0] * cu, Y + f.u[1] * cu, Z + f.u[2] * cu);
-        const s2 = solid(X + f.v[0] * cv, Y + f.v[1] * cv, Z + f.v[2] * cv);
-        const cr = solid(X + f.u[0] * cu + f.v[0] * cv, Y + f.u[1] * cu + f.v[1] * cv, Z + f.u[2] * cu + f.v[2] * cv);
+        const s1 = solid(X + fu[0] * cu, Y + fu[1] * cu, Z + fu[2] * cu);
+        const s2 = solid(X + fv[0] * cv, Y + fv[1] * cv, Z + fv[2] * cv);
+        const cr = solid(X + fu[0] * cu + fv[0] * cv, Y + fu[1] * cu + fv[1] * cv, Z + fu[2] * cu + fv[2] * cv);
         ao[c] = s1 && s2 ? 0 : 3 - (s1 + s2 + cr);
       }
       for (let c = 0; c < 4; c++) {
-        const du = c === 1 || c === 2 ? 1 : 0, dv = c >= 2 ? 1 : 0;
-        pos.push(x + f.o[0] + f.u[0] * du + f.v[0] * dv - ox, y + f.o[1] + f.u[1] * du + f.v[1] * dv - oy, z + f.o[2] + f.u[2] * du + f.v[2] * dv - oz);
-        nor.push(f.n[0], f.n[1], f.n[2]);
-        const k = AO[ao[c]] * j; col.push(base[0] * k, base[1] * k, base[2] * k);
-        if (tiles) { const t = tiles[m] || 0, a = f.up === 'u' ? dv : du, b = f.up === 'u' ? du : dv; uv.push(((t % ATLAS) + INSET + a * (1 - 2 * INSET)) / ATLAS, 1 - (Math.floor(t / ATLAS) + 1 - INSET - b * (1 - 2 * INSET)) / ATLAS); }
+        const du = c === 1 || c === 2 ? 1 : 0, dv = c >= 2 ? 1 : 0, p = (vi + c) * 3;
+        mPos[p] = x + fo[0] + fu[0] * du + fv[0] * dv - ox; mPos[p + 1] = y + fo[1] + fu[1] * du + fv[1] * dv - oy; mPos[p + 2] = z + fo[2] + fu[2] * du + fv[2] * dv - oz;
+        mNor[p] = fn[0]; mNor[p + 1] = fn[1]; mNor[p + 2] = fn[2];
+        const k = AO[ao[c]] * j; mCol[p] = base[0] * k; mCol[p + 1] = base[1] * k; mCol[p + 2] = base[2] * k;
+        if (tiles) { const t = tiles[m] || 0, a = f.up === 'u' ? dv : du, b = f.up === 'u' ? du : dv, u = (vi + c) * 2; mUv[u] = ((t % ATLAS) + INSET + a * (1 - 2 * INSET)) / ATLAS; mUv[u + 1] = 1 - (Math.floor(t / ATLAS) + 1 - INSET - b * (1 - 2 * INSET)) / ATLAS; }
       }
-      if (ao[1] + ao[3] > ao[0] + ao[2]) ind.push(vi, vi + 1, vi + 3, vi + 1, vi + 2, vi + 3);
-      else ind.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
-      vi += 4;
+      const o = fc * 6;
+      if (ao[1] + ao[3] > ao[0] + ao[2]) { mInd[o] = vi; mInd[o + 1] = vi + 1; mInd[o + 2] = vi + 3; mInd[o + 3] = vi + 1; mInd[o + 4] = vi + 2; mInd[o + 5] = vi + 3; }
+      else { mInd[o] = vi; mInd[o + 1] = vi + 1; mInd[o + 2] = vi + 2; mInd[o + 3] = vi; mInd[o + 4] = vi + 2; mInd[o + 5] = vi + 3; }
+      vi += 4; fc++;
     }
   }
+  if (!fc) return { positions: new Float32Array(0), normals: new Float32Array(0), colors: new Float32Array(0), uvs: tiles ? new Float32Array(0) : null, indices: new Uint16Array(0), faces: 0 };
   return {
-    positions: new Float32Array(pos), normals: new Float32Array(nor), colors: new Float32Array(col), uvs: tiles ? new Float32Array(uv) : null,
-    indices: vi > 65000 ? new Uint32Array(ind) : new Uint16Array(ind), faces: vi / 4,
+    positions: mPos.slice(0, vi * 3), normals: mNor.slice(0, vi * 3), colors: mCol.slice(0, vi * 3), uvs: tiles ? mUv.slice(0, vi * 2) : null,
+    indices: vi > 65000 ? mInd.slice(0, fc * 6) : new Uint16Array(mInd.subarray(0, fc * 6)), faces: fc,
   };
 }
