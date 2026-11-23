@@ -1045,6 +1045,23 @@ async function main() {
     await page.close();
   }
 
+  // 26 "fx2": nothing in the player's face. Coins used to fly to the hero: one passing the eye covered the whole view,
+  // worst with the wrecking ball (20 coins at once), which also started on the player's face.
+  if (!process.env.ONLY || process.env.ONLY === 'fx2') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await page.touchscreen.tap(180, 300); await pause(3000);
+    // b: the ball starts in front of the player, not on the face
+    const start = await g(page, () => { const G = __game, W = G.W, h = W.hero; W.cool.ball = 0; W.shots.length = 0; G.WD.useTool(W, 'ball', { x: h.x + Math.sin(h.yaw) * 12, y: 1, z: h.z + Math.cos(h.yaw) * 12 }); const s = W.shots.find((x) => x.kind === 'ball'); return s ? { d: Math.hypot(s.x - h.x, s.z - h.z), r: s.r } : null; });
+    check(start && start.d >= start.r + 0.5, `fx2 b the ball starts clear of the player (centre ${start && start.d.toFixed(1)} m ahead, radius ${start && start.r})`);
+    // c: coins pop up and go; they never come at the player
+    await pause(2500);
+    const coin = await g(page, async () => { const G = __game, W = G.W, h = W.hero, p = G.scene.show.pos, x = h.x + Math.sin(h.yaw) * 10, z = h.z + Math.cos(h.yaw) * 10; G.scene.event({ type: 'treasure', x, z }); let min = Infinity, n = 0; const d0 = Math.hypot(x - p[0], 1.4 - p[1], z - p[2]); for (let i = 0; i < 50; i++) { await new Promise((r) => requestAnimationFrame(r)); const c = G.scene.coinNear; if (c.n) { n = Math.max(n, c.n); min = Math.min(min, c.d); } } return { min, n, d0, left: G.scene.coinNear.n }; });
+    check(coin.n > 0 && coin.min > coin.d0 - 4, `fx2 c ${coin.n} coins popped ${coin.d0.toFixed(1)} m away stay there (nearest ever ${coin.min.toFixed(1)} m from the eye)`);
+    check(errors.length === 0, `fx2 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);

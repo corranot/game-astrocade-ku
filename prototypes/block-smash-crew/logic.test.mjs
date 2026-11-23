@@ -748,6 +748,31 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   c0 = W.coins; const e4 = hit();
   check(!reboot && !up && W.bots.includes(b) && W.coins === c0 && !e4.some((e) => e.type === 'bossDown' || e.type === 'bossHit') && b.pts.every((p) => p.every(Number.isFinite)), 'after the last knock it never gets up again (30 s), and pays nothing more');
 }
+// ---- owner report (23 Nov): from the farthest spot behind the lot the wrecking ball never rolled; every tool must knock a robot
+{
+  const ids = cfg.tools.map((t) => t.id);
+  {
+    const W = WD.createWorld(cfg, 1, { owned: ids }), h = W.hero; h.z = W.g.D + 12;
+    const fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), s0 = W.smashed; W.cool.ball = 0;
+    WD.useTool(W, 'ball', { x: h.x + fx * 20, y: 1, z: h.z + fz * 20 });
+    let rolled = 0; for (let i = 0; i < 30 * 6; i++) { WD.step(W, 1 / 30); if (W.shots.some((x) => x.kind === 'ball')) rolled++; }
+    check(rolled > 30 && W.smashed > s0, `the ball thrown from the far edge of the lot rolls and reaches the building (${(rolled / 30).toFixed(1)} s rolling, ${W.smashed - s0} blocks)`);
+  }
+  // a robot held on open ground behind the lot (no block near to fall on it): hit straight on, standing beside the
+  // aim point, and standing in the way of a shot aimed past it
+  const hit = [];
+  for (const id of ids.filter((x) => x !== 'hammer')) for (const [name, ahead, side, aim] of [['direct', 5, 0, 5], ['beside', 5, 1.5, 5], ['in the way', 3, 0, 6]]) {
+    const W = WD.createWorld(cfg, 1, { owned: ids }), h = W.hero; h.z = W.g.D + 8;
+    const fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), rx = Math.cos(h.yaw), rz = -Math.sin(h.yaw), b = W.bots[0], bx = h.x + fx * ahead + rx * side, bz = h.z + fz * ahead + rz * side;
+    b.pts = null; b.goal = null; b.x = bx; b.z = bz; W.cool[id] = 0;
+    // (aimed at the robot's chest when it is the target, as a tap on it does; at the ground when the tap is beside it)
+    WD.useTool(W, id, { x: h.x + fx * aim, y: name === 'beside' ? 0 : 1, z: h.z + fz * aim });
+    let down = false; for (let k = 0; k < 30 * 5 && !down; k++) { if (b.state !== 'down') { b.x = bx; b.z = bz; } WD.step(W, 1 / 30); down = b.state === 'down'; }
+    if (!down) hit.push(`${id} ${name}`);
+  }
+  check(hit.length === 0, `every thrown tool knocks a robot: hit straight on, beside the aim point, or in its way (missed: ${hit.join(', ') || 'none'})`);
+}
+
 // ---- hunt 7: a robot three times the size needs headroom: nothing solid inside its column on any boss level
 {
   const BS = cfg.boss, H = cfg.bots.height * BS.botScale, r = BS.room / 2, bad = [];

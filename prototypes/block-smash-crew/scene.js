@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // The 3D look of Block Smash Crew (Three.js r187, global THREE from index.html): voxel chunks with baked corner
-// shading, the demolition kid with his giant hammer, flying blocks, dust, coins that fly to the hero, explosions,
+// shading, the demolition kid with his giant hammer, flying blocks, dust, coins that pop up and fade, explosions,
 // falling pieces, star beacons, the chest, a bright sky and a camera on a spring behind the hero that cuts away the
 // roof when he is inside. World coordinates are grid coordinates (1 unit = 1 block).
 /* global THREE */
@@ -264,7 +264,9 @@ export function createScene(cv, cfg) {
   const coinMax = 90, coinGeo = keep(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14)), coinMat = keep(new THREE.MeshLambertMaterial({ color: '#ffcf1f', emissive: '#7a5000' }));
   const coins = new THREE.InstancedMesh(coinGeo, coinMat, coinMax); coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage); coins.frustumCulled = false; scene.add(coins);
   const C = { n: 0, p: new Float32Array(coinMax * 3), v: new Float32Array(coinMax * 3), t: new Float32Array(coinMax) };
-  let coinArrive = 0; // coins that reached the hero this frame (for the sound)
+  // a coin pops out of the rubble, then rises and shrinks away where it is (feel.coin3d: seconds of the pop, of its whole life, rise speed)
+  const CN = cfg.feel.coin3d;
+  let coinArrive = 0; // coins that went this frame (for the sound)
 
   // ---- shots and blasts
   const shotMeshes = new Map();
@@ -1041,10 +1043,12 @@ export function createScene(cv, cfg) {
     const hx = W.hero.x, hy = W.hero.y + 1.3, hz = W.hero.z;
     for (let i = C.n - 1; i >= 0; i--) {
       C.t[i] += dt; const o = i * 3;
-      if (C.t[i] < 0.35) { C.v[o + 1] -= 20 * dt; }
-      else { const dx = hx - C.p[o], dy = hy - C.p[o + 1], dz = hz - C.p[o + 2], d = Math.hypot(dx, dy, dz); if (d < 0.6 || C.t[i] > 2.5) { killCoin(i); coinArrive++; continue; } const sp = 8 + C.t[i] * 22; C.v[o] = dx / d * sp; C.v[o + 1] = dy / d * sp; C.v[o + 2] = dz / d * sp; }
+      if (C.t[i] < CN.pop) { C.v[o + 1] -= 20 * dt; }
+      // (they used to fly to the hero: a coin passing the eye covered the whole view)
+      else { if (C.t[i] > CN.life) { killCoin(i); coinArrive++; continue; } C.v[o] *= 1 - 4 * dt; C.v[o + 2] *= 1 - 4 * dt; C.v[o + 1] = CN.rise; }
       for (let k = 0; k < 3; k++) C.p[o + k] += C.v[o + k] * dt;
-      tmpM.compose(tmpV.set(C.p[o], C.p[o + 1], C.p[o + 2]), tmpQ.setFromEuler(tmpE.set(Math.PI / 2, C.t[i] * 9, 0)), tmpS.set(1, 1, 1)); coins.setMatrixAt(i, tmpM);
+      const cs = C.t[i] < CN.pop ? 1 : Math.max(0, 1 - (C.t[i] - CN.pop) / (CN.life - CN.pop));
+      tmpM.compose(tmpV.set(C.p[o], C.p[o + 1], C.p[o + 2]), tmpQ.setFromEuler(tmpE.set(Math.PI / 2, C.t[i] * 9, 0)), tmpS.set(cs, cs, cs)); coins.setMatrixAt(i, tmpM);
     }
     coins.count = C.n; coins.instanceMatrix.needsUpdate = true;
     for (let i = blasts.length - 1; i >= 0; i--) {
@@ -1127,6 +1131,8 @@ export function createScene(cv, cfg) {
     get coinArrive() { return coinArrive; },
     /** The dust as drawn, for tests: each puff's distance to the camera and its drawn size as a share of its own size (1 = full). */
     get dustNear() { const out = [], m = dust.instanceMatrix.array, c = camera.position; for (let i = 0; i < U.n; i++) { const sc = dustSize(i), o = i * 3; if (sc > 1e-4 && U.life[i * 2] > 0) out.push({ d: Math.hypot(U.p[o] - c.x, U.p[o + 1] - c.y, U.p[o + 2] - c.z), k: m[i * 16] / sc }); } return out; },
+    /** Test view: live coins {n, d: the nearest one's distance to the eye}. */
+    get coinNear() { const c = camera.position; let d = Infinity; for (let i = 0; i < C.n; i++) d = Math.min(d, Math.hypot(C.p[i * 3] - c.x, C.p[i * 3 + 1] - c.y, C.p[i * 3 + 2] - c.z)); return { n: C.n, d }; },
     get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
