@@ -166,14 +166,17 @@ const Sound = (() => {
     song = ctx.createBufferSource(); song.buffer = buf.music.b; song.loop = true; song.playbackRate.value = tempo / 118;
     const g = ctx.createGain(); g.gain.value = buf.music.gain * 0.5; song.connect(g).connect(music); song.start();
   }
+  // one sound of a kind per frame: the same sound asked for again before the frame is over is not made twice
+  const seen = new Set();
+  const once = (k) => { if (seen.has(k)) return false; if (!seen.size) setTimeout(() => seen.clear(), 0); seen.add(k); return true; };
   return {
     unlock(cfg) { ensure(cfg); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
-    play(id, a = 1, rate) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a, rate); else fx[id](a, rate); },
+    play(id, a = 1, rate) { if (!ctx || muted || ctx.state !== 'running' || !once(id)) return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a, rate); else fx[id](a, rate); },
     /** The hammer's hit sound (see hammer above); silent like play() while muted or before the first touch. */
-    hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running') return; hammer(H, body, n, clang); },
+    hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running' || !once('hammer:' + body)) return; hammer(H, body, n, clang); },
     get lastRate() { return lastRate; },
     /** A layered sound from config (see layers above); silent like play() while muted or before the first touch. */
-    layers(S, k = 1) { if (!ctx || muted || ctx.state !== 'running' || !S) return; layers(S, k); },
+    layers(S, k = 1) { if (!ctx || muted || ctx.state !== 'running' || !S || !once(S)) return; layers(S, k); },
     /** The limiter on the master bus: its settings and how many dB it is taking off right now (null without one). */
     get limiter() { return comp ? { threshold: comp.threshold.value, knee: comp.knee.value, ratio: comp.ratio.value, attack: comp.attack.value, release: comp.release.value, reduction: comp.reduction } : null; },
     setTempo(t) { tempo = t; if (song) song.playbackRate.value = t / 118; },
@@ -302,6 +305,8 @@ function startGame(mode) {
   $('bar').innerHTML = `<b></b><i style="left:${cfg.stars.wreck1 * 100}%"></i><i style="left:${cfg.stars.wreck2 * 100}%"></i><span class="pct"></span>`;
   $('bar').querySelectorAll('i').forEach((i) => { const im = document.createElement('img'); im.src = TROPHY_SVG; im.style.width = '100%'; i.appendChild(im); });
   const shown = { coins: -1, got: -1, wreck: -1, tools: '' };
+  // the top bar is looked at when an event or the coins ask for it (and a few times a second in any case)
+  let topDirty = true, topT = 0, bumpAt = 0;
   /** A panel that pauses the world is open (the shop and album, the settings). */
   const modalOpen = () => !$('shop').hidden || !$('settings').hidden;
   const usable = (id) => save.owned.includes(id) || (W && (W.fever > 0 || !W.tried.has(id)));
@@ -329,7 +334,7 @@ function startGame(mode) {
     const coins = save.coins;
     // something to buy: a red "!" on the coins (always), and the pulse until the shop has been opened once
     if (coins !== shown.coins || shown.dot === undefined) { const can = saveLoaded && L.canBuy(cfg, save.owned, save.lv, coins); $('coins').classList.toggle('can', can && !save.learned.shop); $('dot').hidden = !can; shown.dot = can; }
-    if (coins !== shown.coins) { const el = $('coins'); el.querySelector('b').textContent = fmt(coins); if (shown.coins >= 0 && coins > shown.coins) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } shown.coins = coins; renderTools(); }
+    if (coins !== shown.coins) { const el = $('coins'), s = fmt(coins); if (s !== shown.coinsS) { shown.coinsS = s; el.querySelector('b').textContent = s; } if (shown.coins >= 0 && coins > shown.coins && performance.now() >= bumpAt) { bumpAt = performance.now() + cfg.words.bumpGap * 1000; if (el.classList.contains('bump')) { el.classList.remove('bump'); requestAnimationFrame(() => el.classList.add('bump')); } else el.classList.add('bump'); } shown.coins = coins; renderTools(); }
     const got = W ? Math.min(3, W.got) : 0;
     if (got !== shown.got) { $('stars').querySelectorAll('img').forEach((im, i) => im.classList.toggle('on', i < got)); shown.got = got; }
     const wr = W ? Math.round(WD.wreck(W) * 100) : 0;
@@ -345,13 +350,25 @@ function startGame(mode) {
   // still has no place takes it, and the words under it go.
   const WORDS = { top: 156, bottom: 920, side: 12, gap: 8, rise: 0.4, life: 950, wait: 220, tries: 4, cross: { l: 270, t: 566, r: 450, b: 714 }, up: [] };
   /** Screen pixels per frame unit. */
-  const unit = () => root.getBoundingClientRect().width / 720 || 1;
+  // the root's box is measured in fit() (the start, a resize, a turn of the phone) and read from here
+  let rootBox = null;
+  const rootRect = () => rootBox || (rootBox = root.getBoundingClientRect());
+  const unit = () => rootRect().width / 720 || 1;
+  // a word's fitted size, measured once per language, class and text (forgotten when the screen or a font changes)
+  const wordSize = new Map();
+  // a text's width in screen pixels in a CSS font, from a canvas (no layout)
+  let textCtx = null, textFont = '';
+  const textW = (font, t) => { if (!textCtx) textCtx = document.createElement('canvas').getContext('2d'); if (textFont !== font) { textFont = font; textCtx.font = font; } return textCtx.measureText(t).width; };
+  // while the world steps, words and coin counts wait for the end of the step (hudFlush)
+  let inStep = false, wordQ = [], coinAcc = null;
   /** A status line's box in frame units, from its layout (its entrance scale does not count). */
   let chipAway = 0;
   const laneBox = (el) => { const k = unit(), ln = $('lane'), l = (ln.offsetLeft + el.offsetLeft) / k, t = (ln.offsetTop + el.offsetTop) / k; return { l, t, r: l + el.offsetWidth / k, b: t + el.offsetHeight / k }; };
   // where the status column ends, in frame units (0 when it is empty); kept up to date as its lines come and go
   let laneBottom = 0;
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { const ln = $('lane'); laneBottom = ln.offsetHeight ? (ln.offsetTop + ln.offsetHeight) / unit() : 0; }).observe($('lane'));
+  // the status lines' boxes, read once a frame (before the frame's words come into the page) and again when the lines change
+  let laneNow = null, arrowsNow = null;
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { const ln = $('lane'); laneNow = null; laneBottom = ln.offsetHeight ? (ln.offsetTop + ln.offsetHeight) / unit() : 0; }).observe($('lane'));
   /**
    * The free place for a w × h word wanted at (x, y): its centre [x, y] and its box, or null when the view is full.
    * `loose` 1 = it may pass over the arrows to stars (a big word is as wide as the frame), 2 = over other words too
@@ -366,9 +383,10 @@ function startGame(mode) {
     const taken = loose === 2 || loose >= 4 ? [G.cross] : [G.cross, ...G.up];
     // many words at once, or one as wide as the frame, need the mission chip's place: it steps aside at once and
     // stays away for a word's life (chipShow brings it back)
-    if (WORDS.up.length >= cfg.missions.chip.yieldWords || w >= cfg.missions.chip.yieldWidth) { $('mchip').hidden = true; chipAway = performance.now() + WORDS.life; }
-    if (loose < 3) for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
-    if (!loose) for (const el of $('arrows').children) { const r = frameRect(el); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
+    if (WORDS.up.length >= cfg.missions.chip.yieldWords || w >= cfg.missions.chip.yieldWidth) { if (!$('mchip').hidden) laneNow = null; $('mchip').hidden = true; chipAway = performance.now() + WORDS.life; }
+    if (loose < 3) { if (!laneNow) laneNow = [...$('lane').children].filter((el) => !el.hidden).map(laneBox); taken.push(...laneNow); }
+    // (the arrows to stars too: they move once a frame, after the words)
+    if (!loose) { if (!arrowsNow) arrowsNow = [...$('arrows').children].map((el) => { const r = frameRect(el); return { l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }; }); taken.push(...arrowsNow); }
     if (loose < 3 && !$('coach').hidden) { const r = frameRect($('coach').querySelector('.clabel')); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
     const cx = Math.max(w / 2 + G.side, Math.min(720 - G.side - w / 2, x)), cy = Math.max(G.top + up + h / 2, Math.min(G.bottom - h / 2, y));
     const sx = w + G.gap, sy = h + up + G.gap, spots = [];
@@ -387,8 +405,10 @@ function startGame(mode) {
   }
   /** Puts a finished word element in its free place; false (and the element removed) when there is none. */
   function wordShow(p, x, y, loose = 0) {
-    const k = unit(), at = wordPlace(x, y, p.offsetWidth / k, p.offsetHeight / k, loose);
+    const k = unit(), s = p._sz, at = wordPlace(x, y, s ? s.w : p.offsetWidth / k, s ? s.h : p.offsetHeight / k, loose);
     if (!at) { p.remove(); return false; }
+    // (a word whose size was known comes into the page here, already in its place)
+    if (!p.isConnected) $('pops').appendChild(p);
     p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`;
     p._box = at[2]; p._box.el = p; p._x = x; p._y = y;
     setTimeout(() => p.remove(), WORDS.life);
@@ -396,6 +416,7 @@ function startGame(mode) {
   }
   /** A status line appeared or grew: a word standing where it now is moves to the next free place (or goes). */
   function wordsYield() {
+    laneNow = null;
     const lane = [...$('lane').children].filter((el) => !el.hidden).map(laneBox), pad = WORDS.gap - 0.5;
     for (const p of [...$('pops').children]) {
       const b = p._box; if (!b || !lane.some((o) => b.l < o.r + pad && b.r > o.l - pad && b.t < o.b + pad && b.b > o.t - pad)) continue;
@@ -410,17 +431,33 @@ function startGame(mode) {
   function starPop() { const p = document.createElement('img'); p.src = TROPHY_SVG; p.className = 'pop trophy'; $('pops').appendChild(p); wordShow(p, 360, 830); Sound.play('star'); buzz('success'); }
   /** A word at frame point (x, y), with one of the game's icons before it when `ic` names one. */
   function pop(text, x, y, cls = '', color, ic = '', turn = 0, stage = 0) {
+    if (inStep && !turn && !stage) { wordQ.push([text, x, y, cls, color, ic]); return; }
     const p = document.createElement('div'); p.className = `pop out ${cls}`;
     if (ic) { p.classList.add('p-row'); p.innerHTML = UI.icon(ic); p.appendChild(Object.assign(document.createElement('span'), { textContent: text })); } else p.textContent = text;
     if (color) p.style.color = color;
     p._args = [text, x, y, cls, color, ic];
-    $('pops').appendChild(p);
     // a big word is never dropped. Its tries, at once and in this order: two lines in a free place; one line (half
     // the height: it fits under the crosshair); two lines over the status lines (it comes with its fanfare, not a
     // second later). Other words are waited for; only its very last try may take their place.
     const big = cls.includes('p-big'), last = turn >= WORDS.tries, oneLine = big && stage === 1 && !last;
     // (on one line a big word takes the middle size, so a long one still fits the frame's width)
-    const base = oneLine ? 60 : big ? 88 : cls.includes('p-mid') ? 60 : 44; fitText(p, 690, base, big && !oneLine ? 2 : 1);
+    const base = oneLine ? 60 : big ? 88 : cls.includes('p-mid') ? 60 : 44, rows = big && !oneLine ? 2 : 1, key = [lang, cls, ic, base, rows, text].join('|');
+    // a word seen before takes its fitted size from wordSize: nothing is measured, and it is laid out once, in its place
+    let sz = wordSize.get(key);
+    // a coin count (its digits change every time) takes its height from the first one measured in the page, and its
+    // width from the canvas plus what that first one had around its text
+    const gk = !sz && !ic && cls === 'p-coin' && /^[+\d.,kM]+$/.test(text) ? 'n|' + lang : '', g = gk && wordSize.get(gk);
+    if (g) { const w = g.extra + textW(g.font, text) / unit(); if (w <= 690) sz = { ...g.sz, w }; }
+    if (sz) { p.style.fontSize = sz.fs; p.style.whiteSpace = sz.ws; p.style.maxWidth = sz.mw; p.style.width = sz.wd; if (sz.wrap) p.classList.add('wrap'); }
+    else {
+      $('pops').appendChild(p); fitText(p, 690, base, rows);
+      const k = unit(); sz = { w: p.offsetWidth / k, h: p.offsetHeight / k, fs: p.style.fontSize, ws: p.style.whiteSpace, mw: p.style.maxWidth, wd: p.style.width, wrap: p.classList.contains('wrap') };
+      if (sz.w > 0 && sz.h > 0) {
+        if (wordSize.size > 300) wordSize.clear(); wordSize.set(key, sz);
+        if (gk && !sz.fs) { const cs = getComputedStyle(p), font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; if (cs.letterSpacing === 'normal' || parseFloat(cs.letterSpacing) === 0) wordSize.set(gk, { sz, font, extra: sz.w - textW(font, text) / k }); }
+      }
+    }
+    p._sz = sz;
     // a small word never stands on another: one that still has no place on its last try goes
     const loose = big ? (last ? 4 : stage === 2 ? 3 : 1) : 0;
     // its very last try: first over other words only (the status lines stay clear), and only then over everything
@@ -440,7 +477,7 @@ function startGame(mode) {
    * balanced lines inside maxW; only then a smaller font, never below `floor` of base (70%; long translations).
    */
   function fitText(el, maxW, base, lines = 1, floor = 0.7) {
-    const k = root.getBoundingClientRect().width / 720 || 1;
+    const k = unit();
     el.style.fontSize = ''; el.style.whiteSpace = 'nowrap'; el.style.maxWidth = ''; el.classList.remove('wrap');
     if (el.style.width === 'max-content') el.style.width = '';
     if (el.offsetWidth / k <= maxW + 0.5 && el.scrollWidth <= el.clientWidth + 1) return;
@@ -458,12 +495,27 @@ function startGame(mode) {
   }
   let coinPopT = 0;
   const coinPop = (n, x, y, z) => {
+    // in the world's step the frame's coins add up: one count, where the first of them was, shows their sum
+    if (inStep) { if (n) { if (!coinAcc) coinAcc = { n: 0, x, y, z }; coinAcc.n += n; } return; }
     if (!n || coinPopT > 0) return; coinPopT = 0.12; const [sx, sy, behind] = scene.screenOf(x, y, z); if (behind) return;
     pop('+' + fmt(n), sx, sy - 40, 'p-coin');
     // a coin flies into the coins pill (one every quarter second at most)
     if (coinFlyT <= 0) { coinFlyT = 0.25; fly('<i class="coin"></i>', sx, sy - 40, $('coins')); }
   };
   let coinFlyT = 0;
+  /**
+   * The end of the world's step: the frame's coins as one count, then one word, the biggest asked for. A big word
+   * that was not shown waits for the next frame (it is never dropped); the smaller ones go.
+   */
+  function hudFlush() {
+    inStep = false;
+    if (coinAcc) { const c = coinAcc; coinAcc = null; coinPop(c.n, c.x, c.y, c.z); }
+    if (!wordQ.length) return;
+    const rank = (a) => (a[3].includes('p-big') ? 2 : a[3].includes('p-mid') ? 1 : 0);
+    let b = 0; for (let i = 1; i < wordQ.length; i++) if (rank(wordQ[i]) > rank(wordQ[b])) b = i;
+    const a = wordQ.splice(b, 1)[0]; wordQ = wordQ.filter((q) => rank(q) === 2);
+    pop(...a);
+  }
   function setTip(k) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
     // 600 of the 680 wide column: room for its pulse
@@ -703,7 +755,13 @@ function startGame(mode) {
     clearTimeout(waveBanner.t); waveBanner.t = setTimeout(() => { el.hidden = true; }, cfg.waves.banner * 1000);
     wordsYield();
   }
+  /** One event of the world. Its words and coin counts show at the end of the step (at once when called outside it). */
   function onEvent(e) {
+    const was = inStep; inStep = true; topDirty = true;
+    try { onEvent1(e); } finally { inStep = was; }
+    if (!was) hudFlush();
+  }
+  function onEvent1(e) {
     scene.event(e);
     if (!demo) { const x = L.missionEvent(e); if (x) missionGain(x); }
     if (e.type === 'smash') {
@@ -791,13 +849,13 @@ function startGame(mode) {
     }
     persistSoon(); renderMission(got.length > 0);
   }
-  let chipKey = '', lastMission = null;
+  let chipKey = '', chipN = '', lastMission = null;
   /** The chip in the status column: the mission nearest to its goal (icon, words, count, a thin bar). */
   function renderMission(bump) {
     const el = $('mchip'), x = L.missionChip(cfg, save.missions); if (!x) { chipKey = ''; return; }
     const v = missionView(x), key = x.def.id + lang;
-    if (key !== chipKey) { chipKey = key; el.innerHTML = UI.missionChip(v); fitText(el.querySelector('.tx'), cfg.missions.chip.width, 20); }
-    else { el.querySelector('.mn').textContent = v.have + '/' + v.n; el.querySelector('.mbar b').style.width = Math.round(v.have / v.n * 100) + '%'; }
+    if (key !== chipKey) { chipKey = key; chipN = ''; el.innerHTML = UI.missionChip(v); fitText(el.querySelector('.tx'), cfg.missions.chip.width, 20); }
+    else { const s = v.have + '/' + v.n; if (s !== chipN) { chipN = s; el.querySelector('.mn').textContent = s; el.querySelector('.mbar b').style.width = Math.round(v.have / v.n * 100) + '%'; } }
     if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
   }
   /** The chip keeps quiet: it shows in play, and waits while the level card, a wave banner, smash time or the coach has the column, and while many words are up (they need its place). */
@@ -824,7 +882,7 @@ function startGame(mode) {
     setTimeout(() => gh.remove(), 180);
   }
   /** The room inside an element, in frame units (its width without its padding). */
-  const roomIn = (el) => { const cs = getComputedStyle(el); return (el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / (root.getBoundingClientRect().width / 720 || 1); };
+  const roomIn = (el) => { const cs = getComputedStyle(el); return (el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / unit(); };
   /** Fits every element matching sel inside box to the room of its parent (or its own box when it fills a row). */
   const fitAll = (box, sel, base, lines = 1, own = false) => { for (const n of box.querySelectorAll(sel)) if (n.textContent) fitText(n, own ? roomIn(n) : roomIn(n.parentElement), base, lines); };
   const NAME = { hammer: 'nHammer', bomb: 'nBomb', rocket: 'nRocket', ball: 'nBall', hole: 'nHole', meteor: 'nMeteor' };
@@ -1039,7 +1097,7 @@ function startGame(mode) {
 
   // ---- frame loop
   let stopT = 0, slowT = 0;
-  let qT = 0, qN = 0, glowN = 0, coinTickT = 0, arrowKey = '', hitState = '';
+  let qT = 0, qN = 0, qH = 0, qW = null, glowLost = false, glowN = 0, coinTickT = 0, arrowKey = '', hitState = '';
   // quality: a weak phone starts on the low tier (no shadows, half the particles, a lower resolution); everywhere the
   // resolution follows the average frame over a window: slow → down a step, fast → up a step
   const Q = cfg.quality; let qs8 = { dpr: scene.dpr, max: scene.dprBase, low: false, capped: false, dropped: null, slow: 0 };
@@ -1051,15 +1109,19 @@ function startGame(mode) {
     raf = requestAnimationFrame(frame);
     const real = Math.min(0.1, (now - last) / 1000); last = now;
     if (document.hidden) return;
-    qT += real; qN++;
+    qT += real; qN++; if (real * 1000 > Q.hitch.ms) qH++;
+    // a new level starts a new window (the frame that built it does not count) and may earn the glow again
+    if (W !== qW) { qW = W; glowLost = false; qT = 0; qN = 0; qH = 0; }
     if (qT >= Q.window) {
-      const avg = qT / qN; qT = 0; qN = 0;
+      // slow: the average, or quality.hitch.count frames over quality.hitch.ms in an otherwise smooth window
+      const avg = qT / qN, hit = qH, slow = avg > Q.slow || hit >= Q.hitch.count; qT = 0; qN = 0; qH = 0;
       // the glow pass is earned: quality.glow.windows smooth windows in a row at full resolution switch it on; one
-      // slow window switches it off again, and only a window that is slow without it steps the resolution down
+      // slow window switches it off for the rest of the level, and only a window that is slow without it steps the
+      // resolution down
       if (tierPin !== 'high') {
         const full = !qs8.low && qs8.dpr >= scene.dprBase - 0.01, had = glowN >= Q.glow.windows;
-        glowN = full && avg <= Q.glow.ms ? glowN + 1 : 0; scene.setGlow(glowN >= Q.glow.windows);
-        if (!(had && avg > Q.slow)) { qs8 = L.qualityStep(Q, qs8, avg); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low); }
+        glowN = full && !glowLost && !slow && avg <= Q.glow.ms ? glowN + 1 : 0; if (had && glowN < Q.glow.windows) glowLost = true; scene.setGlow(glowN >= Q.glow.windows);
+        if (!(had && slow)) { qs8 = L.qualityStep(Q, qs8, avg, hit); scene.setDpr(qs8.dpr); if (qs8.low !== scene.low) scene.setLow(qs8.low); }
       }
     }
     // hit-stop on a solid hit (time slowed to feel.stopScale), slow motion while a tower tips and as a big piece lands
@@ -1099,7 +1161,7 @@ function startGame(mode) {
       const sub = dt > 1 / 45 ? 2 : 1;
       // the shop pauses the world (smash time does not run out behind it)
       W.frozen = stopT > 0;
-      if (!modalOpen()) for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e);
+      if (!modalOpen()) { inStep = true; try { for (let i = 0; i < sub; i++) for (const e of WD.step(W, dt / sub)) onEvent(e); } finally { hudFlush(); } }
       if (W.fever > 0) { const s = String(Math.ceil(W.fever)), el = $('ftime').lastElementChild; if (el.textContent !== s) el.textContent = s; }
       // the last fever.warnSec seconds of smash time: the red layer of the frame comes in (index.html .fever.warn)
       { const fv = $('fever'), warn = W.fever > 0 && W.fever <= cfg.fever.warnSec; if (fv._w !== warn) { fv._w = warn; fv.classList.toggle('warn', warn); } }
@@ -1116,7 +1178,8 @@ function startGame(mode) {
     scene.tool = sel;
     scene.update(W, mode === 'play' ? dt : real * 0.3);
     coinTickT -= dt; if (scene.coinArrive && coinTickT <= 0) { coinTickT = 0.05; Sound.play('coinS'); }
-    renderTop();
+    if ((topT -= real) <= 0 || topDirty || save.coins !== shown.coins) { topT = 0.25; topDirty = false; renderTop(); }
+    laneNow = null; arrowsNow = null;
   }
   // ---- the attract show: beats from cfg.demo.show fired in turn with the world's own tools (nothing pays in a demo)
   let showT = 0, showI = 0, showAll = 0, showN = 0, showHome = 0;
@@ -1177,7 +1240,7 @@ function startGame(mode) {
     if (hand._k && hand._k[0] === 's') { hand._k = ''; hand.hidden = !(tipKey === 'tap' || tipKey === 'tooHard'); }
     if (hand.hidden) return;
     let x, y;
-    if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = root.getBoundingClientRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
+    if (tipKey === 'tooHard') { const r = toolEls.bomb.getBoundingClientRect(), a = rootRect(); x = (r.left + r.width / 2 - a.left) / a.width * 720; y = (r.top - a.top) / a.height * 1280 - 10; }
     else { x = 400; y = 560; } // first person: point at the middle of the view
     const k = `${Math.round(x / 4)},${Math.round(y / 4)}`; if (hand._k !== k) { hand._k = k; hand.style.translate = `calc(var(--u)*${x}px) calc(var(--u)*${y}px)`; }
   }
@@ -1187,7 +1250,7 @@ function startGame(mode) {
   let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0, coachSince = 0, walkAsked = false;
   const coachDone = {}, coachShown = {};
   /** An element's centre and size in frame units. */
-  const frameRect = (el) => { const r = el.getBoundingClientRect(), a = root.getBoundingClientRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
+  const frameRect = (el) => { const r = el.getBoundingClientRect(), a = rootRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
   /** Shows the coach step k (null hides it): a dimmed screen with a lit hole on the control, a label and a moving hand. */
   function showCoach(k) {
     if (coachK === k) return;
@@ -1305,9 +1368,9 @@ function startGame(mode) {
     [...box.children].forEach((el, i) => { const l = list[i]; el.hidden = !l; if (l) { el.style.translate = `calc(var(--u)*${l[0]}px) calc(var(--u)*${l[1]}px)`; el.style.setProperty('--a', l[2] + 'deg'); } });
   }
 
-  function fit() { const r = root.getBoundingClientRect(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
+  function fit() { const r = rootBox = root.getBoundingClientRect(); wordSize.clear(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
   const onResize = () => fit();
-  window.addEventListener('resize', onResize);
+  window.addEventListener('resize', onResize); window.addEventListener('orientationchange', onResize);
   const onVis = () => { Sound.suspend(document.hidden); if (document.hidden && dirtySave) persist(); };
   document.addEventListener('visibilitychange', onVis);
 
@@ -1373,7 +1436,7 @@ function startGame(mode) {
   }
   scene.compile();
   // measure again with the real font (its stylesheets come without blocking the first paint: also whenever a face arrives later)
-  const onFonts = () => { if (!alive) return; if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); };
+  const onFonts = () => { if (!alive) return; wordSize.clear(); if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); };
   if (document.fonts && document.fonts.ready) { document.fonts.ready.then(onFonts); if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts); }
   renderTop(); renderTools();
   // a touch during the opening (before the game could listen) starts the game now
@@ -1388,7 +1451,7 @@ function startGame(mode) {
       root.removeEventListener('pointerdown', tapDown, true); window.removeEventListener('pointerup', tapUp, true); window.removeEventListener('pointercancel', tapUp, true);
       root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onCancel);
       root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('wheel', onWheel); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('pointerlockerror', onLockError); try { if (document.pointerLockElement === cv) document.exitPointerLock(); } catch (er) { /* fine */ }
-      window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onResize); document.removeEventListener('visibilitychange', onVis);
       if (document.fonts && document.fonts.removeEventListener) document.fonts.removeEventListener('loadingdone', onFonts);
       scene.dispose(); root.innerHTML = '';
     },

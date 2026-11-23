@@ -4,7 +4,7 @@
 // falling pieces, star beacons, the chest, a bright sky and a camera on a spring behind the hero that cuts away the
 // roof when he is inside. World coordinates are grid coordinates (1 unit = 1 block).
 /* global THREE */
-import { meshRegion, raycast } from './voxels.js';
+import { meshRegion, raycast, remeshNearest } from './voxels.js';
 import { placeOf } from './world.js';
 import { cooldownOf } from './logic.js';
 import { standingPoints, limbJoint } from './bots.js';
@@ -15,6 +15,8 @@ const SWING_HIT = 0.4;
 /** Builds the scene on canvas cv; cfg = game_config.json. */
 export function createScene(cv, cfg) {
   const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+  // no shader log read-back after each link: it stalls the frame a program is first used in
+  renderer.debug.checkShaderErrors = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.05;
   // resolution and the quality tier: dpr follows the frame time (game.js), low = no shadows and half the particles
@@ -114,6 +116,11 @@ export function createScene(cv, cfg) {
     geo.setIndex(new THREE.BufferAttribute(r.indices, 1)); geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, chunkMat); mesh.matrixAutoUpdate = false; mesh.castShadow = mesh.receiveShadow = true; chunkRoot.add(mesh); chunks.set(k, mesh);
   }
+  const nowMs = () => performance.now();
+  const remeshOne = (cx, cy, cz) => { if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); };
+  // an instanced buffer is uploaded whole: only worth it while the mesh has live instances or its count just changed
+  const liveN = (m, n) => { const on = n > 0 || m.count !== n; m.count = n; return on; };
+  let warmMs = 0, warmDrawMs = 0;
   function markCell(x, y, z) {
     for (const [dx, dy, dz] of [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
       const X = x + dx, Y = y + dy, Z = z + dz; if (X < 0 || Y < 0 || Z < 0) continue;
@@ -1047,8 +1054,8 @@ export function createScene(cv, cfg) {
     W = world; time += dt; frameN++;
     if (!W) { draw(false); return; }
     // remesh what changed
-    for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
-    dirty.clear();
+    // nearest to the eye first, within the frame's budget (quality.remeshMs); the rest stay dirty for the next frames
+    remeshNearest(dirty, camera.position.x, camera.position.y, camera.position.z, CS, cfg.quality.remeshMs, nowMs, remeshOne);
     if (isShow()) { showCamera(dt); showRain(dt); } else updateCamera(dt);
     updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
     if (boomBox.visible) { boomArrow.position.y = 2.25 + Math.sin(time * 4) * 0.16; boomArrow.rotation.y = time * 2; }
@@ -1223,8 +1230,8 @@ export function createScene(cv, cfg) {
       const o = i * 3; SP.v[o + 1] -= 22 * dt; for (let k = 0; k < 3; k++) SP.p[o + k] += SP.v[o + k] * dt;
       tmpM.compose(tmpV.set(SP.p[o], SP.p[o + 1], SP.p[o + 2]), tmpQ.identity(), tmpS.setScalar(Math.min(1, SP.life[i] * 4))); sparkMesh.setMatrixAt(i, tmpM);
     }
-    sparkMesh.count = SP.n; sparkMesh.instanceMatrix.needsUpdate = true;
-    debris.count = D.n; debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
+    if (liveN(sparkMesh, SP.n)) sparkMesh.instanceMatrix.needsUpdate = true;
+    if (liveN(debris, D.n)) { debris.instanceMatrix.needsUpdate = true; if (debris.instanceColor) debris.instanceColor.needsUpdate = true; }
     for (let i = U.n - 1; i >= 0; i--) {
       U.life[i * 2] += dt; const k = U.life[i * 2] / U.life[i * 2 + 1]; if (k >= 1) { killDust(i); if (i < U.n) { dust.instanceMatrix.array.copyWithin(i * 16, U.n * 16, U.n * 16 + 16); dustAlpha.array[i] = dustAlpha.array[U.n]; } continue; }
       const o = i * 3; for (let j = 0; j < 3; j++) { U.p[o + j] += U.v[o + j] * dt; U.v[o + j] *= 1 - 1.5 * dt; }
@@ -1234,7 +1241,7 @@ export function createScene(cv, cfg) {
       // it appears at once and thins out all its life
       dustAlpha.array[i] = FR.puff.opacity * Math.min(1, k * 8) * (1 - k);
     }
-    dust.count = U.n; dust.instanceMatrix.needsUpdate = dustAlpha.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true;
+    if (liveN(dust, U.n)) { dust.instanceMatrix.needsUpdate = dustAlpha.needsUpdate = true; if (dust.instanceColor) dust.instanceColor.needsUpdate = true; }
     coinArrive = 0;
     const hx = W.hero.x, hy = W.hero.y + 1.3, hz = W.hero.z;
     for (let i = C.n - 1; i >= 0; i--) {
@@ -1246,7 +1253,7 @@ export function createScene(cv, cfg) {
       const cs = C.t[i] < CN.pop ? 1 : Math.max(0, 1 - (C.t[i] - CN.pop) / (CN.life - CN.pop));
       tmpM.compose(tmpV.set(C.p[o], C.p[o + 1], C.p[o + 2]), tmpQ.setFromEuler(tmpE.set(Math.PI / 2, C.t[i] * 9, 0)), tmpS.set(cs, cs, cs)); coins.setMatrixAt(i, tmpM);
     }
-    coins.count = C.n; coins.instanceMatrix.needsUpdate = true;
+    if (liveN(coins, C.n)) coins.instanceMatrix.needsUpdate = true;
     // the explosion kit: age and retire (the last one fills the gap), then place what is left
     for (const P of KITS) for (let i = P.n - 1; i >= 0; i--) { const o = i * P.st; P.a[o] += dt; if (P.a[o] >= P.a[o + 1]) { const j = --P.n; if (i !== j) P.a.copyWithin(o, j * P.st, j * P.st + P.st); } }
     {
@@ -1266,7 +1273,7 @@ export function createScene(cv, cfg) {
         tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); fireMesh.setMatrixAt(i, tmpM);
         fireMesh.setColorAt(i, tmpC.setRGB(a[o + 10] + (a[o + 13] - a[o + 10]) * k, a[o + 11] + (a[o + 14] - a[o + 11]) * k, a[o + 12] + (a[o + 15] - a[o + 12]) * k));
       }
-      fireMesh.count = KF.n; fireMesh.instanceMatrix.needsUpdate = fireMesh.instanceColor.needsUpdate = true;
+      if (liveN(fireMesh, KF.n)) fireMesh.instanceMatrix.needsUpdate = fireMesh.instanceColor.needsUpdate = true;
       a = KS.a;
       for (let i = 0; i < KS.n; i++) {
         const o = i * KS.st, k = Math.max(0, a[o] / a[o + 1]); let sc = 0;
@@ -1279,7 +1286,7 @@ export function createScene(cv, cfg) {
         tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); smokeMesh.setMatrixAt(i, tmpM);
         smokeMesh.setColorAt(i, tmpC.setRGB(a[o + 9] + (a[o + 12] - a[o + 9]) * k, a[o + 10] + (a[o + 13] - a[o + 10]) * k, a[o + 11] + (a[o + 14] - a[o + 11]) * k));
       }
-      smokeMesh.count = KS.n; smokeMesh.instanceMatrix.needsUpdate = smokeMesh.instanceColor.needsUpdate = smokeFade.needsUpdate = true;
+      if (liveN(smokeMesh, KS.n)) smokeMesh.instanceMatrix.needsUpdate = smokeMesh.instanceColor.needsUpdate = smokeFade.needsUpdate = true;
       a = KW.a;
       for (let i = 0; i < KW.n; i++) {
         const o = i * 10, k = a[o] / a[o + 1], flat = a[o + 6] > 0, f = 1 - k;
@@ -1287,7 +1294,7 @@ export function createScene(cv, cfg) {
         tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), flat ? waveFlat : camera.quaternion, tmpS.set(sc, sc, sc)); waveMesh.setMatrixAt(i, tmpM);
         waveMesh.setColorAt(i, tmpC.setRGB(a[o + 7] * f, a[o + 8] * f, a[o + 9] * f));
       }
-      waveMesh.count = KW.n; waveMesh.instanceMatrix.needsUpdate = waveMesh.instanceColor.needsUpdate = true;
+      if (liveN(waveMesh, KW.n)) waveMesh.instanceMatrix.needsUpdate = waveMesh.instanceColor.needsUpdate = true;
     }
     flash.intensity *= Math.exp(-dt * 9);
     for (const it of scorches) { if (!it.mesh.visible) continue; it.t += dt; const SC = FB.scorch; if (it.t >= SC.life) it.mesh.visible = false; else it.mesh.material.opacity = SC.opacity * Math.min(1, (SC.life - it.t) / SC.fade); }
@@ -1364,7 +1371,7 @@ export function createScene(cv, cfg) {
     get dustNear() { const out = [], m = dust.instanceMatrix.array, c = camera.position; for (let i = 0; i < U.n; i++) { const sc = dustSize(i), o = i * 3; if (sc > 1e-4 && U.life[i * 2] > 0) out.push({ d: Math.hypot(U.p[o] - c.x, U.p[o + 1] - c.y, U.p[o + 2] - c.z), k: m[i * 16] / sc }); } return out; },
     /** Test view: live coins {n, d: the nearest one's distance to the eye}. */
     get coinNear() { const c = camera.position; let d = Infinity; for (let i = 0; i < C.n; i++) d = Math.min(d, Math.hypot(C.p[i * 3] - c.x, C.p[i * 3 + 1] - c.y, C.p[i * 3 + 2] - c.z)); return { n: C.n, d }; },
-    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: KW.n, fire: KF.n, smoke: KS.n, shots: shotMeshes.size, bloom: post ? 'on' : 'off', targets: post ? post.rt.length : 0 }; },
+    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, dirty: dirty.size, warm: Math.round(warmMs), warmDraw: Math.round(warmDrawMs), blasts: KW.n, fire: KF.n, smoke: KS.n, shots: shotMeshes.size, bloom: post ? 'on' : 'off', targets: post ? post.rt.length : 0 }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
     /** Sets the pixel ratio (the dynamic resolution); a change of less than 0.01 is ignored. */
@@ -1390,7 +1397,34 @@ export function createScene(cv, cfg) {
     get hammer() { return { mirrored: hamMesh.material === hamStd && !!hamStd.envMap, tris: hamMesh.geometry.attributes.position.count / 3, rx: rig.rotation.x, pos: rig.position.toArray(), recoil: ham.rec, sway: [ham.sx, ham.sy], punch: cam.punch || 0, landed: ham.landed, flash: hitFlash.visible }; },
     /** Is world point (x, y, z) inside the view? */
     seen(x, y, z) { const [sx, sy, behind] = screenOf(x, y, z); return !behind && sx >= 0 && sx <= 720 && sy >= 0 && sy <= 1280; },
-    compile() { try { renderer.compile(scene, camera); } catch (e) { /* first frame compiles instead */ } },
+    /**
+     * Readies every program, buffer and texture before play. Each tool's flying model, the tools in the hand, the
+     * flashes and one instance of every particle mesh are drawn once, clipped to a single pixel that the first frame
+     * paints over: nothing is compiled or uploaded on the first throw. Call once after the first level is set.
+     */
+    compile() {
+      const t0 = performance.now(), made = [], shown = [], lone = [];
+      try {
+        for (const kind of ['bomb', 'rocket', 'ball', 'hole', 'meteor']) {
+          try { const g = shotMesh({ kind, r: 1 }); g.traverse((o) => { o.frustumCulled = false; }); made.push(g); } catch (e) { /* a tool this game does not have */ }
+        }
+        for (const o of [hitFlash, boomFlash, ...Object.values(held), ...scorches.map((it) => it.mesh)]) if (!o.visible) { o.visible = true; shown.push(o); }
+        // fragments and dust get their per-instance colour on the first smash: that is another program, made here instead
+        for (const m of [debris, dust]) if (!m.instanceColor) m.setColorAt(0, WHITE);
+        for (const m of [fireMesh, smokeMesh, waveMesh, debris, dust, sparkMesh, coins]) if (!m.count) { m.count = 1; lone.push(m); }
+        renderer.compile(scene, camera);
+        const t1 = performance.now();
+        // quality.warmDraw off: programs are only queued (the old behaviour), the first frame and first uses pay the rest
+        if (cfg.quality.warmDraw) { renderer.setScissor(0, 0, 1, 1); renderer.setScissorTest(true); draw(true); }
+        warmDrawMs = performance.now() - t1;
+      } catch (e) { /* first use compiles instead */ }
+      renderer.setScissorTest(false);
+      for (const o of shown) o.visible = false;
+      for (const m of lone) m.count = 0;
+      // the models made for this are dropped, not shelved (a ball's size is set when it is made)
+      for (const g of made) scene.remove(g);
+      warmMs = performance.now() - t0;
+    },
     dispose() {
       for (const m of chunks.values()) m.geometry.dispose(); for (const it of falls.values()) it.mesh.geometry.dispose();
       for (const x of disposables) x.dispose();
