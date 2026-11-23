@@ -114,17 +114,40 @@ async function main() {
     await page.close();
   }
 
-  // ---- 8. a whole level with the bot: stars → smash time → card → NEXT is instant; keep smashing pays no bonus twice
+  // ---- 8. whole levels with the bot: stars → smash time → the next building follows by itself (no card); the card
+  // comes every flow.cardEvery buildings once flow.cardAfterSec are played; NEXT is instant; no bonus paid twice
   {
     const { page, errors } = await open(browser, '&speed=2', { port, speed: 2 });
+    const F = await g(page, () => window.gameConfig.flow);
     await tapAt(page, 360, 500); await g(page, () => __bot(true));
+    // any result card from here on is noticed, however briefly it shows
+    await g(page, () => { window.__cards = 0; setInterval(() => { if (__game.resultsOpen || !document.querySelector('#panel').hidden) window.__cards++; }, 30); });
     await waitFor(page, () => __game.W.phase === 'fever', null, 40000).catch(() => {});
     const fev = await g(page, () => ({ ph: __game.W.phase, fever: !document.querySelector('#fever').hidden, locks: [...document.querySelectorAll('.tool .lock')].filter((l) => !l.hidden).length, got: __game.W.got }));
     check(fev.ph === 'fever' && fev.fever && fev.locks === 0 && fev.got === 3, 'all 3 stars → SMASH TIME: golden frame, every tool unlocked');
     await shot(page, '04-smash-time');
-    await waitFor(page, () => __game.resultsOpen, null, 30000).catch(() => {});
-    const card = await g(page, () => ({ open: __game.resultsOpen, stars: document.querySelectorAll('.bigstars img.on').length, cups: document.querySelectorAll('.cups img').length, lvl: __game.save.level, coins: __game.save.coins, w: (window.__writes || []).slice(-1)[0] }));
-    check(card.open && card.stars === 3 && card.cups === 2 && card.lvl === 1 && card.w && card.w.level === 1, 'result card: 3 stars, 2 trophies, level 1 done and saved');
+    // smash time ends: paid and saved at once, a big word, then level 2 by itself
+    await waitFor(page, () => __game.flow.chainT > 0, null, 60000).catch(() => {});
+    const end = await g(page, () => ({ wait: __game.flow.chainT, open: __game.resultsOpen, panel: document.querySelector('#panel').hidden, n: __game.W.n, lvl: __game.save.level, w: (window.__writes || []).slice(-1)[0], words: [...document.querySelectorAll('#pops .pop')].map((p) => p.textContent), clear: __game.T('clear'), flat: __game.T('flat'), pill: document.querySelector('#nextpill').hidden, clock: document.querySelector('#ftime').hidden }));
+    check(end.wait > 0 && end.wait <= F.nextDelay && !end.open && end.panel && end.pill && end.clock && end.n === 0 && end.lvl === 1 && end.w && end.w.level === 1, `smash time over: level 1 done and saved, no card, no NEXT pill, the next building ${end.wait.toFixed(1)} s away`);
+    check(end.words.some((w) => w === end.clear || w === end.flat), `...with a big word at eye level (${end.words.join(' / ')})`);
+    await shot(page, '05a-chain-word');
+    await waitFor(page, () => __game.W.n === 1, null, 10000).catch(() => {});
+    const two = await g(page, () => ({ n: __game.W.n, demo: __game.demo, cards: window.__cards, card: document.getElementById('lvcard').textContent, lv: !document.getElementById('lvcard').hidden, fl: __game.flow, coins: __game.save.coins }));
+    check(two.n === 1 && !two.demo && two.cards === 0 && two.lv && /2/.test(two.card) && two.fl.n === 1 && two.fl.coins > 0 && two.fl.smashed > 0, `level 2 starts by itself with its level card; no result card was ever up (${two.cards}); the chain remembers ${two.fl.coins} coins, ${two.fl.smashed} blocks`);
+    await shot(page, '05b-chain-level-2');
+    // the card is due only with both: enough buildings AND enough seconds played
+    await g(page, () => { __bot(false); __game.cardDue(); __game.setPlayT(window.gameConfig.flow.cardAfterSec - 20); const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    const early = await g(page, () => ({ open: __game.resultsOpen, wait: __game.flow.chainT }));
+    check(!early.open && early.wait > 0, `building ${F.cardEvery} of a chain before ${F.cardAfterSec} s of play: still no card`);
+    await waitFor(page, () => __game.W.n === 2, null, 10000).catch(() => {});
+    await g(page, () => { __game.cardDue(); __bot(true); });
+    await waitFor(page, () => __game.resultsOpen, null, 90000).catch(() => {});
+    const card = await g(page, () => ({ open: __game.resultsOpen, stars: document.querySelectorAll('.bigstars img.on').length, cups: document.querySelectorAll('.cups img').length, lvl: __game.save.level, coins: __game.save.coins, w: (window.__writes || []).slice(-1)[0], fl: __game.flow, here: __game.W.smashed, brag: document.querySelector('#panel .brag').textContent }));
+    check(card.open && card.stars === 3 && card.cups === 2 && card.lvl === 3 && card.w && card.w.level === 3, `result card after ${F.cardEvery} buildings and ${F.cardAfterSec} s: 3 stars, 2 trophies, level 3 done and saved`);
+    // (pieces still falling land behind the card: this building's count read now may be above what the card froze)
+    const bragN = Number(card.brag.replace(/\D/g, ''));
+    check(card.fl.smashed > 0 && bragN > card.fl.smashed && bragN <= card.fl.smashed + card.here, `the card sums the chain's buildings (${card.fl.smashed} before + up to ${card.here} here: "${card.brag}")`);
     await shot(page, '05-result');
     await g(page, () => __bot(false));
     await g(page, () => document.querySelector('#keepBtn').click());
@@ -134,9 +157,21 @@ async function main() {
     await g(page, () => document.querySelector('#nextpill').click());
     const c1 = await g(page, () => __game.save.coins);
     check(c1 - c0 < 1000, `opening the card again does not pay the level bonus twice (+${c1 - c0})`);
-    const t = await g(page, () => { const t0 = performance.now(); document.querySelector('#nextBtn').click(); return { ms: performance.now() - t0, n: __game.W.n, panel: document.querySelector('#panel').hidden, demo: __game.demo }; });
-    check(t.n === 1 && t.panel && !t.demo && t.ms < 150, `NEXT builds level 2 at once (${t.ms.toFixed(0)} ms)`);
-    await page.waitForTimeout(500); await shot(page, '06-level-2');
+    const t = await g(page, () => { const t0 = performance.now(); document.querySelector('#nextBtn').click(); return { ms: performance.now() - t0, n: __game.W.n, panel: document.querySelector('#panel').hidden, demo: __game.demo, fl: __game.flow }; });
+    check(t.n === 3 && t.panel && !t.demo && t.ms < 150 && t.fl.n === 0 && t.fl.coins === 0, `NEXT builds level 4 at once (${t.ms.toFixed(0)} ms); the next card counts from zero`);
+    // enough seconds but a fresh chain: no card either
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    const fresh = await g(page, () => ({ open: __game.resultsOpen, wait: __game.flow.chainT, t: __game.flow.playT }));
+    check(!fresh.open && fresh.wait > 0 && fresh.t >= F.cardAfterSec, `the first building after a card: no card again (played ${fresh.t.toFixed(0)} s)`);
+    // an open shop holds the next building back; it starts once the shop closes
+    await g(page, () => document.querySelector('#coins').click());
+    await page.waitForTimeout(F.nextDelay * 1000 + 600);
+    const held = await g(page, () => ({ n: __game.W.n, shop: !document.querySelector('#shop').hidden }));
+    await g(page, () => document.querySelector('#shopX').click());
+    await waitFor(page, () => __game.W.n === 4, null, 10000).catch(() => {});
+    const went = await g(page, () => __game.W.n);
+    check(held.shop && held.n === 3 && went === 4, `the next building waits for an open shop (level ${held.n + 1} → ${went + 1} after closing)`);
+    await page.waitForTimeout(500); await shot(page, '06-next-level');
     check(errors.length === 0, 'no page errors (section 8): ' + (errors.join(' | ') || 'none'));
     await page.close();
   }
@@ -285,7 +320,7 @@ async function main() {
     await g(page, () => { __game.pickTool('hammer'); __game.newLevel(2); });
     const [hx, hy] = await g(page, () => { const W = __game.W; const p = __game.scene.screenOf(W.hero.x, 1.2, W.box.z1); return __game.client(p[0], p[1]); });
     await page.mouse.move(hx, hy); await page.mouse.down(); await page.waitForTimeout(1200);
-    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
     await page.waitForTimeout(300);
     await page.waitForTimeout(600);
     const hb = await g(page, () => ({ aim: __game.W.hero.aim, goal: __game.W.hero.goal, hold: __game.W.hero.hold, swing: __game.W.hero.swingT }));
@@ -301,7 +336,7 @@ async function main() {
     const late = await open(browser, '', { port, init: `window.__preset = ${JSON.stringify(preset)}; window.__saveDelay = 7000;` });
     await tapAt(late.page, 360, 520);
     await waitFor(late.page, () => __game.saveLoaded, null, 12000);
-    await g(late.page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); document.querySelector('#nextBtn').click(); });
+    await g(late.page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); document.querySelector('#nextBtn').click(); });
     const b3 = await g(late.page, () => __game.W.n);
     check(b3 === 3, `b3 late save: NEXT goes on at the saved level 4 (built level ${b3 + 1})`);
     await late.page.close();
@@ -464,11 +499,11 @@ async function main() {
     check(al.tiles === 8 && al.off === 6 && al.lit === 3, `album: 8 buildings, 2 seen, their trophies lit (${JSON.stringify(al)})`);
     await g(page, () => document.querySelector('#shopX').click());
     // the daily challenge: from the card, double coins, the path's level unchanged, NEXT goes back to it
-    await g(page, () => { __game.save.level = 3; __game.save.dailyDone = 0; __game.newLevel(3); const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    await g(page, () => { __game.save.level = 3; __game.save.dailyDone = 0; __game.newLevel(3); const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
     const hasDaily = await g(page, () => !!document.querySelector('#dailyBtn'));
     await g(page, () => document.querySelector('#dailyBtn').click());
     const d = await g(page, () => ({ daily: __game.W.daily, n: __game.W.n, mult: __game.W.coinMult, lvl: __game.save.level }));
-    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
     const after = await g(page, () => ({ lvl: __game.save.level, done: __game.save.dailyDone, btn: !!document.querySelector('#dailyBtn') }));
     await g(page, () => document.querySelector('#nextBtn').click());
     const back = await g(page, () => ({ n: __game.W.n, daily: __game.W.daily }));
@@ -540,7 +575,7 @@ async function main() {
     // f2: a key still held when the card opens does not walk the hero behind it
     await g(page, () => { const W = __game.W; W.hero.x = W.g.W / 2; W.hero.z = W.g.D - 4; __game.scene.look(Math.PI - __game.scene.yaw, 0); }); // face away from the building: open lawn ahead
     await key('keydown', 'KeyW', 'w'); await page.waitForTimeout(200);
-    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
     const zc = await g(page, () => __game.W.hero.z); await key('keyup', 'KeyW', 'w'); await page.waitForTimeout(600);
     const zd = await g(page, () => __game.W.hero.z);
     check(Math.abs(zd - zc) < 0.05 && zc < 51.9, `f2 the card is open: the hero stands still (z ${zc.toFixed(2)} → ${zd.toFixed(2)})`);
@@ -584,7 +619,7 @@ async function main() {
     check(!f3.hold && !f3.goal, `f3 the mouse-lock click leaves no finger: the hero does not walk or smash by himself (${JSON.stringify(f3)})`);
     // f1: the card gives the cursor back so NEXT can be clicked
     let exited = false; await g(page, () => { document.exitPointerLock = () => { Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true }); document.dispatchEvent(new Event('pointerlockchange')); window.__exited = true; }; });
-    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    await g(page, () => { const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
     exited = await g(page, () => !!window.__exited && document.pointerLockElement === null);
     check(exited, 'f1 the result card releases the mouse lock (the cursor comes back for NEXT)');
     check(errors.length === 0, 'first-person bug checks: no page errors: ' + (errors.join(' | ') || 'none'));

@@ -36,7 +36,7 @@ console.log(heroLow.length ? `note hero vest AND hat close to: ${heroLow.join(',
   note(Math.abs(b['.tool:first-child'].l - b['.tool:last-child'].r) <= 2, `tool row centred (${b['.tool:first-child'].l.toFixed(0)} / ${b['.tool:last-child'].r.toFixed(0)})`);
   note(Math.abs(b['#tools'].b - 34) < 3, `tools at the bottom edge, no empty band (bottom ${b['#tools'].b.toFixed(0)} = 34: margin 20 + the price tag 14)`);
   note(b['.tool:first-child'].w >= 96, `tool buttons ≥ 96 (${b['.tool:first-child'].w.toFixed(0)})`);
-  await page.evaluate(() => { __game.newLevel(0); const W = __game.W; W.got = 3; W.phase = 'free'; __game.onEvent({ type: 'clear' }); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
+  await page.evaluate(() => { __game.newLevel(0); const W = __game.W; W.got = 3; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
   await page.waitForTimeout(400);
   const c = await box(['.card', '.title', '#keepBtn', '#nextBtn']);
   const inL = c['.title'].t - c['.card'].t, inB = c['#keepBtn'].b - c['.card'].b;

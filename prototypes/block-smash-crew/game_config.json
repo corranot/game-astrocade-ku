@@ -342,12 +342,22 @@
  "coins": {
   "level": 1000,
   "levelStep": 250,
-  "daily": 2000
+  "daily": 2000,
+  "flat": 1500
  },
  "fever": {
   "dur": 8,
   "cdScale": 0.15,
-  "mult": 2
+  "mult": 2,
+  "addPerBlock": 0.25,
+  "maxTotal": 26,
+  "flatAt": 0.95
+ },
+ "flow": {
+  "nextDelay": 1.6,
+  "coinsFly": 5,
+  "cardEvery": 3,
+  "cardAfterSec": 60
  },
  "debris": {
   "max": 700,
@@ -381,6 +391,7 @@
    "newTool": "NEW TOOL!",
    "tryFree": "FREE",
    "clear": "LEVEL CLEAR!",
+   "flat": "FLATTENED!",
    "daily": "DAILY GIFT!",
    "drag": "DRAG TO TURN",
    "vault": "VAULT OPEN!",
@@ -454,6 +465,7 @@
    "newTool": "أداة جديدة!",
    "tryFree": "مجانًا",
    "clear": "أُنجز المستوى!",
+   "flat": "سُوِّي بالأرض!",
    "daily": "هدية اليوم!",
    "drag": "اسحب للدوران",
    "vault": "فُتحت الخزنة!",
@@ -527,6 +539,7 @@
    "newTool": "¡NUEVA HERRAMIENTA!",
    "tryFree": "GRATIS",
    "clear": "¡NIVEL LISTO!",
+   "flat": "¡TODO AL SUELO!",
    "daily": "¡REGALO DIARIO!",
    "drag": "ARRASTRA PARA GIRAR",
    "vault": "¡CAJA FUERTE ABIERTA!",
@@ -600,6 +613,7 @@
    "newTool": "DỤNG CỤ MỚI!",
    "tryFree": "MIỄN PHÍ",
    "clear": "QUA MÀN!",
+   "flat": "SAN PHẲNG!",
    "daily": "QUÀ HÔM NAY!",
    "drag": "KÉO ĐỂ XOAY",
    "vault": "KÉT ĐÃ MỞ!",
@@ -673,6 +687,7 @@
    "newTool": "नया औज़ार!",
    "tryFree": "मुफ़्त",
    "clear": "लेवल पूरा!",
+   "flat": "सब चकनाचूर!",
    "daily": "आज का तोहफ़ा!",
    "drag": "घुमाने को खींचो",
    "vault": "तिजोरी खुली!",
@@ -746,6 +761,7 @@
    "newTool": "নতুন যন্ত্র!",
    "tryFree": "ফ্রি",
    "clear": "লেভেল শেষ!",
+   "flat": "সব চুরমার!",
    "daily": "আজকের উপহার!",
    "drag": "ঘোরাতে টানো",
    "vault": "সিন্দুক খুলল!",
@@ -819,6 +835,7 @@
    "newTool": "ALAT BARU!",
    "tryFree": "GRATIS",
    "clear": "LEVEL SELESAI!",
+   "flat": "RATA DENGAN TANAH!",
    "daily": "HADIAH HARIAN!",
    "drag": "GESER UNTUK PUTAR",
    "vault": "BRANKAS TERBUKA!",

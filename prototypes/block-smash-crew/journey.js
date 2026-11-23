@@ -152,7 +152,7 @@ const fails = []; const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL
   check(flying >= 2 && landed[0] && landed[1], `two found stars fly to two slots (${flying} in flight, landed ${landed})`);
   // the result card counts its coins up, then NEXT shows the next level's card under a white flash
   await page.waitForTimeout(800);
-  await g(() => { const W = __game.W; W.got = 3; W.phase = 'free'; W.coins = 1200; __game.onEvent({ type: 'clear' }); });
+  await g(() => { const W = __game.W; W.got = 3; W.phase = 'free'; W.coins = 1200; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
   await page.waitForTimeout(700); const mid = await g(() => document.querySelector('#panel .cnt').textContent); await shot('09-result-counting');
   await page.waitForTimeout(900); const end = await g(() => document.querySelector('#panel .cnt').textContent); await shot('10-result');
   check(mid !== end, `result coins count up (${mid} → ${end})`);
