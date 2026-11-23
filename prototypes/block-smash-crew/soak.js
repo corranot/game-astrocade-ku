@@ -31,20 +31,26 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
     for (const st of ['march', 'down', 'reboot']) { for (const b of extra) b.state = st; sc.update(W, 0.016); }
     W.bots.splice(W.bots.length - extra.length, extra.length); sc.update(W, 0.016); });
   const geo0 = await fresh();
-  const mem = [], kinds = new Set(), ft = []; let coins0 = 0;
+  const mem = [], kinds = new Set(), ft = []; let coins0 = 0, cards = 0;
   for (let i = 0; i < levels; i++) {
     const t0 = Date.now();
-    while (Date.now() - t0 < 120000) { if (await g(() => __game.resultsOpen)) break; await page.waitForTimeout(200); }
-    // count GPU objects once nothing is falling (a falling piece holds its own geometry until it lands)
-    await page.waitForFunction(() => !__game.W.falls.length && !__game.W.fuses.length, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(400);
-    const st = await g(() => ({ open: __game.resultsOpen, n: __game.W.n, kind: __game.W.kind, lvl: __game.save.level, coins: __game.save.coins, t: __game.textures, geo: __game.geometries, last: (window.__writes || []).slice(-1)[0], c: __game.scene.counts }));
-    kinds.add(st.kind);
-    check(st.open && st.lvl === i + 1 && st.coins > coins0 && st.last && st.last.level === st.lvl, `level ${i + 1} (${st.kind}): finished, paid (${st.coins} coins), saved`);
+    kinds.add(await g(() => __game.W.kind));
+    // a level is finished when it is paid and saved: mostly the next building then follows by itself (the chain),
+    // every flow.cardEvery buildings (once flow.cardAfterSec are played) the result card opens instead
+    while (Date.now() - t0 < 120000) { if (await g((k) => __game.resultsOpen || __game.save.level > k, i)) break; await page.waitForTimeout(100); }
+    const st = await g(() => ({ open: __game.resultsOpen, lvl: __game.save.level, coins: __game.save.coins, t: __game.textures, geo: __game.geometries, last: (window.__writes || []).slice(-1)[0], every: window.gameConfig.flow.cardEvery, played: __game.flow.playT, after: window.gameConfig.flow.cardAfterSec }));
+    check(st.lvl === i + 1 && st.coins > coins0 && st.last && st.last.level === st.lvl, `level ${i + 1}: finished, paid (${st.coins} coins), saved${st.open ? ', result card' : ', next building follows'}`);
+    if (st.open) { cards++; check(st.played >= st.after, `the card at level ${i + 1} came after ${st.after} s of play (${st.played.toFixed(0)} s)`); }
     coins0 = st.coins; mem.push([st.t, st.geo]);
     ft.push(+med(await g(() => window.__ft.splice(0))).toFixed(1));
-    await g(() => document.querySelector('#nextBtn').click());
+    if (st.open) {
+      // count GPU objects once nothing is falling (a falling piece holds its own geometry until it lands)
+      await page.waitForFunction(() => !__game.W.falls.length && !__game.W.fuses.length, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(400);
+      await g(() => document.querySelector('#nextBtn').click());
+    } else await page.waitForFunction((k) => __game.W.n > k, i, { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(300);
   }
+  check(cards <= Math.floor(levels / 3), `at most one result card per 3 buildings (${cards} in ${levels} levels)`);
   console.log('gpu [textures, geometries] after each level:', JSON.stringify(mem));
   // buildings grow every cycle of 8, so a level 8 apart is not the same size: compare the same fresh level 1
   const geo1 = await fresh(), same = geo1 - geo0;

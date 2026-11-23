@@ -30,7 +30,8 @@ A demolition kid in a hard hat smashes cheerful voxel buildings to find the trea
 - **Tools (verbs):** hammer, bomb, rocket, wrecking ball, black hole, meteor. Cooldown, no ammo, no ads.
   Locked tools can be tried free once per level; coins unlock them.
 - **Level:** treasure in a steel vault (needs a bomb) → chest bursts coins → 8 s SMASH TIME (cooldowns gone, ×2)
-  → card: 3 stars (treasure / ≥50% wrecked / 3 gems), coins, big NEXT. No timer fail, no death.
+  → card: 3 stars (treasure / ≥50% wrecked / 3 gems), coins, big NEXT. No timer fail, no death. (Since 23 Nov the card comes
+  every third building, see "Chain of buildings".)
 - **Levels:** 8 building generators (cottage, candy shop, castle, lighthouse, toy factory, ice palace, jungle temple,
   space base), endless with growing size.
 - **Hook:** demo hero smashing the fence before any touch; the first tap anywhere hits the TNT barrel in reach of the start = first boom in < 1 s.
@@ -246,6 +247,22 @@ ring (top ≈29%, side strips, bottom ≈15%) is seen. Before the first touch th
 - **HUD** put away (`.hud.attract`); the gear stays. **Cuts** (`demo.cut`): the next building kind after 10 s or 60%
   wrecked, and the first touch, both under a 0.28 s white flash.
 - Measure with `node tools/feed-card-test.js prototypes/block-smash-crew <strip.png>`.
+
+## Chain of buildings (23 Nov; platform rule: no end screen before 60 s, a reward about every 10 s)
+- **Measured before:** a steady player (a tap every 0.5 s) got the result card at second 13, then every ~20 s, with
+  18–30% of the building wrecked.
+- **Smash time follows the smashing** (`fever`): each block broken in it adds `addPerBlock` seconds, never more than
+  `dur` on the clock and never past `maxTotal` in all (the clock shows only time really left); an idle player still
+  ends after `dur`. A building `flatAt` gone ends it at once: FLATTENED, `coins.flat`.
+- **No card early** (`flow`): the level is paid and saved, a big word and coins, and `nextDelay` later the next
+  building starts by itself under the white flash (stick and held HIT carry over; an open shop holds it back). The
+  result card comes every `cardEvery` buildings once `cardAfterSec` are played, and after a daily challenge; it sums
+  the coins and blocks of the buildings since the last card (wreck share and trophies: the last building's).
+- **Measured after:** cards at 88 s and 176 s, 28–83% wrecked (the bot does not walk during smash time: a player's
+  share is not measured), longest wait between two reward beats in the first 90 s 8.5 s. Coins per second unchanged
+  (~1,500/s for the steady bot); the child pilot buys 15–16 times in 5 min (16–21 before).
+- Not proven here: real children (does the chain keep them, does the 1.6 s beat read), a phone, and whether anyone
+  reaches FLATTENED (the bot never did).
 
 ## Run
 `python3 -m http.server` is not enough (module MIME); use the tests' server: `node playtest.js <out>` or open with

@@ -25,7 +25,7 @@ export function createWorld(cfg0, n, opts = {}) {
     chest: { x: L.chest.x, z: L.chest.z, open: false, t: 0 },
     hero: { x: L.spawn.x, y: 0, z: L.spawn.z, vy: 0, yaw: Math.PI, moving: false, swingT: -1, swingCell: null, cool: 0, goal: null, aim: null, hold: false, happy: 0, stepT: 0, bump: 0 },
     shots: [], falls: [], fuses: [], cool: {}, owned: (opts.owned || ['hammer', 'bomb']).slice(), tried: new Set(),
-    combo: createCombo(cfg), coins: 0, smashed: 0, demo: !!opts.demo, phase: 'play', fever: 0, t: 0, ev: [], nextId: 1,
+    combo: createCombo(cfg), coins: 0, smashed: 0, demo: !!opts.demo, phase: 'play', fever: 0, feverT: 0, flat: false, t: 0, ev: [], nextId: 1,
     // the daily's ×2 never stacks with a boss
     hardT: 0, used: new Set(), ids, lastHard: null, coinMult: (opts.coinMult || 1) * (L.boss && !opts.daily ? cfg.boss.mult : 1), daily: !!opts.daily, boss: !!L.boss && !opts.daily, theme: L.theme,
   };
@@ -62,6 +62,7 @@ function afterRemove(W, removed, by, x, y, z, r, flat) {
   const mult = (flat ? 1 : comboHit(W.combo)) * (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult * pw;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult);
   W.coins += coins; W.left -= removed.length; W.smashed += removed.length;
+  feverAdd(W, removed.length);
   let gold = 0;
   for (const c of removed) if (c.m === W.ids.gold) gold++;
   W.ev.push({ type: 'smash', by, removed, x, y, z, r, coins, mult, word: smashWord(W.cfg, removed.length), gold });
@@ -300,6 +301,7 @@ function land(W, f) {
   const mult = (W.fever > 0 ? W.cfg.fever.mult : 1) * W.coinMult;
   const coins = W.demo ? 0 : coinsFor(W.cfg, removed, mult) + (removed.length < f.total ? coinsFor(W.cfg, [{ m: removed[0].m }], mult) * (f.total - removed.length) : 0);
   W.coins += coins; W.smashed += f.total;
+  feverAdd(W, f.total);
   W.ev.push({ type: 'land', fall: f, x: x / k + 0.5, y: Math.max(0.5, y / k + 0.5), z: z / k + 0.5, coins, n: f.total, topple: !!f.topple });
   // a landing piece knocks over the bots under and around it
   if (W.bots.length) knockBots(W, x / k + 0.5, 0.8, z / k + 0.5, Math.min(4, 1.2 + Math.sqrt(f.total) * 0.35), W.cfg.bots.knock * 0.8, 'land');
@@ -395,7 +397,30 @@ function openChest(W) {
 function gotStar(W, x, y, z, chest = false) {
   W.got++; W.hero.happy = 2;
   W.ev.push({ type: 'star', x, y, z, got: W.got, need: W.need, chest });
-  if (W.got >= W.need && W.phase === 'play' && !W.demo) { W.phase = 'fever'; W.fever = W.cfg.fever.dur; for (const k of Object.keys(W.cool)) W.cool[k] = Math.min(W.cool[k], cooldownOf(W.cfg, k, true)); W.ev.push({ type: 'fever' }); }
+  if (W.got >= W.need && W.phase === 'play' && !W.demo) { W.phase = 'fever'; W.fever = W.cfg.fever.dur; W.feverT = 0; for (const k of Object.keys(W.cool)) W.cool[k] = Math.min(W.cool[k], cooldownOf(W.cfg, k, true)); W.ev.push({ type: 'fever' }); }
+}
+
+/**
+ * Smash time grows with the smashing: every block broken in it adds fever.addPerBlock seconds. The clock (W.fever)
+ * never holds more than fever.dur at once, and never more than what is left of fever.maxTotal, so what it shows is
+ * always the time really left to a player who stops.
+ */
+function feverAdd(W, n) {
+  if (W.phase !== 'fever' || !(n > 0)) return;
+  const F = W.cfg.fever;
+  W.fever = Math.max(0, Math.min(F.dur, W.fever + (F.addPerBlock || 0) * n, (F.maxTotal || F.dur) - W.feverT));
+}
+/**
+ * Smash time runs out (an idle player: after fever.dur; nobody: after fever.maxTotal), or ends at once when the
+ * building is flat (fever.flatAt of it gone): FLATTENED pays coins.flat. Then the free phase: the level is over.
+ */
+function stepFever(W, dt) {
+  const F = W.cfg.fever;
+  W.fever -= dt; W.feverT += dt;
+  const flat = F.flatAt > 0 && wreck(W) >= F.flatAt;
+  if (!flat && W.fever > 0) return;
+  if (flat) { const coins = Math.round((W.cfg.coins.flat || 0) * W.coinMult); W.coins += coins; W.flat = true; W.ev.push({ type: 'flat', coins }); }
+  W.fever = 0; W.phase = 'free'; W.ev.push({ type: 'clear', flat });
 }
 
 /** Advances the world by dt seconds and returns what happened. */
@@ -409,7 +434,7 @@ export function step(W, dt) {
   stepFalls(W, dt);
   stepFuses(W, dt);
   stepBots(W, dt);
-  if (W.phase === 'fever') { W.fever -= dt; if (W.fever <= 0) { W.fever = 0; W.phase = 'free'; W.ev.push({ type: 'clear' }); } } // free: keep smashing, NEXT is up
+  if (W.phase === 'fever') stepFever(W, dt);
   W.stepping = false;
   return W.ev;
 }

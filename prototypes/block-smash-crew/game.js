@@ -235,8 +235,13 @@ function startGame(mode) {
   const signLang = () => scene.setSignLang(lang, (cfg.signs || {})[lang] || (cfg.signs || {}).en || []);
   signLang();
   let W = null, demo = true, touched = false, sel = 'hammer', resultsOpen = false, paidStars = null, lastLevelShown = -1, demoT = 0, tipKey = null, hardHint = null, dailyChecked = false;
+  // the chain (cfg.flow): buildings follow one another without a card; the card comes every flow.cardEvery buildings,
+  // and never before flow.cardAfterSec of play. playT = seconds played since the first touch; chain = the buildings
+  // finished since the last card; chainT = seconds until the next building starts by itself (-1: not waiting)
+  let playT = 0, chainT = -1, chainBonus = 0;
+  const chain = { n: 0, coins: 0, smashed: 0 };
   function newLevel(n, opts = {}) {
-    celGen++; celAt = 0;
+    celGen++; celAt = 0; chainT = -1;
     W = WD.createWorld(cfg, n, { demo: !!opts.demo, owned: save.owned, lv: save.lv, daily: !!opts.daily, coinMult: opts.daily ? cfg.daily.mult : 1 });
     demo = !!opts.demo;
     // the attract show starts its script over on every building; the HUD is put away while it runs
@@ -244,7 +249,10 @@ function startGame(mode) {
     $('hud').classList.toggle('attract', demo && mode === 'play');
     if (demo && mode === 'play') showTitle(); else titleOn = false;
     scene.setLevel(W);
-    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; ptr = null; stick = null; idleT = 0; hitHeld = false; firstTap = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } // a finger from the last level does not steer this one
+    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; idleT = 0; firstTap = false;
+    // a finger from the last level does not steer this one; in a chain the thumb stays where it is: the stick and a
+    // held HIT go on in the next building (the player never let go)
+    if (!opts.chain) { ptr = null; stick = null; hitHeld = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } }
     toolEls.bomb.classList.remove('hint');
     $('panel').hidden = true; $('shop').hidden = true; $('settings').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
@@ -699,7 +707,8 @@ function startGame(mode) {
     else if (e.type === 'waveClear') { if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); celebrate(T('waveClear'), 'wave'); setTimeout(() => { if (alive) pop('+' + fmt(e.coins), 360, 780, 'p-mid', '#ffe14a'); }, 300); } }
     else if (e.type === 'star') { if (!demo) { Sound.play('star'); buzz('success'); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (!e.chest) pop(T('star'), sx, sy - 80, 'p-mid', '#ffe14a'); flyStar(sx, sy); persist(); } } // the chest's star: TREASURE! says it
     else if (e.type === 'fever') { Sound.play('fever'); Sound.setTempo(150); celebrate(T('smashTime'), 'fever'); $('fever').hidden = false; $('ftime').hidden = false; sel = 'bomb'; renderTools(); setTip(null); wordsYield(); }
-    else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); results(); }
+    else if (e.type === 'flat') { if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); Sound.play('fanfare'); buzz('success'); banner(T('flat'), 'p-big', -40); confetti(); lastCelebration = 'flat'; flyBonus(e.coins, 640); } }
+    else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); levelEnd(); }
     else if (e.type === 'pop') { if (e.kind === 'hole') Sound.layers(cfg.feel.hole.sound.impact); }
   }
   function daily() {
@@ -724,13 +733,36 @@ function startGame(mode) {
   const NAME = { hammer: 'nHammer', bomb: 'nBomb', rocket: 'nRocket', ball: 'nBall', hole: 'nHole', meteor: 'nMeteor' };
 
   // ---- results: stars, coins, the wreck figure, the next tool, NEXT and the quiet row under it
-  function results() {
+  /** A bonus shown where the eye is: the amount as a word and a few coins flying into the coins pill. */
+  function flyBonus(coins, y) {
+    if (!(coins > 0)) return;
+    pop('+' + fmt(coins), 360, y, 'p-mid', '#ffe14a');
+    for (let i = 0; i < cfg.flow.coinsFly; i++) setTimeout(() => { if (alive) fly('<i class="coin"></i>', 300 + i * 30, y - 30, $('coins')); }, i * 90);
+  }
+  /**
+   * Smash time is over. Mostly the next building simply follows (the bonus is paid, a big word, coins, then
+   * flow.nextDelay later the next level under the white flash, no panel). The result card comes every
+   * flow.cardEvery buildings once flow.cardAfterSec have been played, and after every daily challenge.
+   */
+  function levelEnd() {
     if (!W || demo) return;
-    $('shop').hidden = true; $('settings').hidden = true;
-    // a finger, key or stick still down stops behind the card
-    WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false;
-    // the cursor comes back for NEXT
-    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ }
+    if (W.daily || (chain.n + 1 >= cfg.flow.cardEvery && playT >= cfg.flow.cardAfterSec)) { results(); return; }
+    const { bonus } = payLevel(); chainBonus = bonus;
+    // a flat building already has its own big word
+    if (!W.flat) { Sound.play('clear'); buzz('success'); banner(T('clear'), 'p-big', -40); confetti(); }
+    flyBonus(bonus, W.flat ? 720 : 640);
+    chainT = cfg.flow.nextDelay;
+  }
+  /** The next building of a chain starts by itself; what this one earned is kept for the next card. */
+  function chainNext() {
+    chainT = -1;
+    if (!W || demo || resultsOpen) return;
+    chain.n++; chain.coins += W.coins + chainBonus; chain.smashed += W.smashed; chainBonus = 0;
+    const n = Math.max(W.n + 1, save.level);
+    Sound.play('blip', 880); wipeTo(() => newLevel(n, { chain: true }));
+  }
+  /** The level's end, paid and saved (once: later calls only add what more trophies bring). */
+  function payLevel() {
     // trophies for wrecking 50% and 80%
     const wr = WD.wreck(W), stars = L.starsFor(cfg, wr), cups = stars.filter(Boolean).length - 1;
     // the level bonus is paid once; later visits (after smashing more) only add the stars' difference
@@ -742,6 +774,19 @@ function startGame(mode) {
     else { const key = String(W.n % WD.KINDS.length); save.best[key] = Math.max(save.best[key] || 0, cups); if (save.level <= W.n) { save.level = W.n + 1; save.levels++; } }
     persist(); renderTop();
     try { if (saveLoaded) lib.addPlayerScoreToLeaderboard(save.blocks).catch(() => {}); } catch (er) { /* no board here */ }
+    return { wr, stars, bonus };
+  }
+  function results() {
+    if (!W || demo) return;
+    chainT = -1;
+    $('shop').hidden = true; $('settings').hidden = true;
+    // a finger, key or stick still down stops behind the card
+    WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false;
+    // the cursor comes back for NEXT
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ }
+    const { wr, stars, bonus } = payLevel();
+    // the card sums the buildings of the chain since the last card (a daily challenge shows only itself)
+    const sum = W.daily ? { coins: 0, smashed: 0 } : chain, cardCoins = sum.coins + W.coins + (bonus || 0), cardBlocks = sum.smashed + W.smashed;
     const nt = L.nextTool(cfg, save.owned, save.coins), miss = nt ? nt.need - nt.have : 0;
     const share = typeof lib !== 'undefined' && typeof lib.share === 'function';
     // the wreck figure: its name, the share wrecked, and a bar with the two trophies standing at their thresholds
@@ -752,23 +797,25 @@ function startGame(mode) {
     $('panel').innerHTML = `<div class="card rcard"><div class="rays"></div>
       <div class="title out">${T('clear')}</div>
       <div class="bigstars">${[0, 1, 2].map((i) => `<img src="${STAR_SVG}" class="on" style="animation-delay:${0.15 + i * 0.15}s" alt="">`).join('')}</div>
-      <div class="stat out">${UI.COIN}+<b class="cnt">${fmt(W.coins + (bonus || 0))}</b></div>
-      <div class="brag">${T('brag', commas(W.smashed))}</div>
+      <div class="stat out">${UI.COIN}+<b class="cnt">${fmt(cardCoins)}</b></div>
+      <div class="brag">${T('brag', commas(cardBlocks))}</div>
       ${UI.meter({ ic: 'burst', label: T('wrecked'), value: `<b>${Math.round(wr * 100)}%</b>`, part: wr, marks })}
       ${nt ? UI.meter({ ic: nt.tool.id, label: T(NAME[nt.tool.id]), value: miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(nt.need)}</b>`, part: nt.have / nt.need, cls: 'ntool' }) : ''}
       <div class="btns">${UI.primary('nextBtn', T('next'), UI.icon('play', 'flip'))}<div class="brow">${quiet.join('')}</div></div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
-    countUp($('panel').querySelector('.cnt'), W.coins + (bonus || 0));
+    countUp($('panel').querySelector('.cnt'), cardCoins);
     layoutCard($('panel'));
     $('nextBtn').addEventListener('click', (ev) => { ev.stopPropagation(); nextLevel(); });
     if ($('dailyBtn')) $('dailyBtn').addEventListener('click', (ev) => { ev.stopPropagation(); startDaily(); });
     $('keepBtn').addEventListener('click', (ev) => { ev.stopPropagation(); hidePanel($('panel')); resultsOpen = false; $('nextpill').hidden = false; wordsYield(); Sound.play('blip'); });
-    if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('brag', commas(W.smashed)) + ' ' + T('share') })).catch(() => {}); });
+    if (share) $('shareBtn').addEventListener('click', (ev) => { ev.stopPropagation(); Promise.resolve().then(() => lib.share({ text: T('brag', commas(cardBlocks)) + ' ' + T('share') })).catch(() => {}); });
   }
   // a save that came late still counts; after the daily, back to the path
-  function nextLevel() { if (!W) return; Sound.unlock(cfg); Sound.play('blip', 880); const n = W.daily ? save.level : Math.max(W.n + 1, save.level); wipeTo(() => newLevel(n)); }
-  function startDaily() { Sound.unlock(cfg); Sound.play('unlock'); const n = L.dailyLevel(cfg, L.dayNum(new Date())); wipeTo(() => newLevel(n, { daily: true })); }
+  function nextLevel() { if (!W) return; if (!W.daily) chainReset(); Sound.unlock(cfg); Sound.play('blip', 880); const n = W.daily ? save.level : Math.max(W.n + 1, save.level); wipeTo(() => newLevel(n)); }
+  /** The card has been read: the next card counts from here. */
+  function chainReset() { chain.n = 0; chain.coins = 0; chain.smashed = 0; chainBonus = 0; }
+  function startDaily() { chainReset(); Sound.unlock(cfg); Sound.play('unlock'); const n = L.dailyLevel(cfg, L.dayNum(new Date())); wipeTo(() => newLevel(n, { daily: true })); }
 
   // ---- the shop (tap the coins): a card per tool to unlock and upgrade, and the album of buildings
   let shopTab = 'tools';
@@ -886,6 +933,11 @@ function startGame(mode) {
     const dt = real * speed * (stopT > 0 ? cfg.feel.stopScale : slowT > 0 ? 0.4 : 1);
     beepT -= real;
     coinPopT -= dt; coinFlyT -= dt;
+    // the play clock runs from the first touch; the next building of a chain waits for an open shop or settings
+    if (mode === 'play' && W && !demo) {
+      playT += real;
+      if (chainT > 0 && !resultsOpen && !modalOpen() && (chainT -= real) <= 0) chainNext();
+    }
     if (mode === 'play' && W) {
       if (demo) {
         // attract: the show (cfg.demo). A panel pauses the world: the show waits too (it would pile up shots)
@@ -1174,7 +1226,7 @@ function startGame(mode) {
       scene.dispose(); root.innerHTML = '';
     },
     debug: {
-      get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; },
+      get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; }, get flow() { return { playT, chainT, n: chain.n, coins: chain.coins, smashed: chain.smashed }; }, cardDue() { chain.n = Math.max(chain.n, cfg.flow.cardEvery - 1); playT = Math.max(playT, cfg.flow.cardAfterSec); }, setPlayT(v) { playT = v; },
       fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, pop, banner, popIcon, starPop, waveBanner, setTip, words: WORDS, coachHold(k) { coachHeld = k; }, setLang(l) { lang = l; setDir(); signLang(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); }, celebrate, get lastCelebration() { return lastCelebration; }, canBuy: () => L.canBuy(cfg, save.owned, save.lv, save.coins),
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },

@@ -99,7 +99,8 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   const times = [];
   for (let lv = 0; lv < 16; lv++) { const r = play(lv); times.push(r.feverAt); if (r.feverAt === null) check(false, `bot finishes level ${lv} (${r.W.kind})`); }
   check(times.every((x) => x !== null), `the bot finds all 3 stars on 16 levels (${times.map((x) => x && x.toFixed(1)).join(', ')} s)`);
-  const r = play(0, {}, 30);
+  // smash time now lasts while the player keeps smashing (up to fever.maxTotal): the run needs more room than 30 s
+  const r = play(0, {}, 70);
   check(r.seen.has('fall') && r.seen.has('land'), 'pieces lose their support, fall and shatter');
   check(r.W.phase === 'free' && r.seen.has('clear'), 'smash time ends in the free phase (NEXT shows)');
   // hammer only: the vault never opens
@@ -423,11 +424,13 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
       for (const e of WD.step(W, 1 / 30)) if (e.type === 'fever') fever = t;
       t += 1 / 30;
     }
-    // a few seconds of smash time, then the result card (read it, press NEXT)
-    for (let i = 0; i < 30 * 4; i++) { const b = WD.botTap(W); if (b && b.tool === 'bomb') WD.useTool(W, 'bomb', b.p); else if (b) WD.aimHammer(W, b.t, true); WD.step(W, 1 / 30); t += 1 / 30; }
+    // smash time as the child plays it (a tap every 0.5 s) until it runs out or the building is flat; then the next
+    // building follows after flow.nextDelay, and every flow.cardEvery buildings a result card is read (6 s)
+    let ft = 0;
+    while (W.phase === 'fever' && t < 400) { if ((ft -= 1 / 30) <= 0) { ft = 0.5; const b = WD.botTap(W); if (b && b.tool === 'bomb') WD.useTool(W, 'bomb', b.p); else if (b) WD.aimHammer(W, b.t, true); } WD.step(W, 1 / 30); t += 1 / 30; }
     const stars = L.starsFor(cfg, WD.wreck(W));
     if (process.env.ECON) console.log('   lv', lv, 't', t.toFixed(0), 'coins', W.coins, 'bonus', L.levelBonus(cfg, lv, stars));
-    return { t: t + 6, coins: W.coins + L.levelBonus(cfg, lv, stars) };
+    return { t: t + cfg.flow.nextDelay + 6 / cfg.flow.cardEvery, coins: W.coins + L.levelBonus(cfg, lv, stars) };
   }
   for (const seed of [1, 2, 3]) {
     const lvs = {}, owned = ['hammer', 'bomb']; let coins = 0, clock = 0, buys = [];
@@ -576,6 +579,60 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   for (let i = 0; i < 120 && !swings; i++) { swings += WD.step(V, 1 / 60).filter((e) => e.type === 'swing').length; frames++; }
   for (let i = 0; i < 10; i++) swings += WD.step(V, 1 / 60).filter((e) => e.type === 'swing').length;
   check(swings === 1, `a swing started by the world itself is reported exactly once (${swings}, after ${frames} frames)`);
+}
+
+// ---- smash time grows with the smashing (fever.addPerBlock), within fever.dur at once and fever.maxTotal in all,
+// ---- and ends early with a FLATTENED bonus once the building is flat (fever.flatAt)
+{
+  const F = cfg.fever, dt = 1 / 30;
+  /** A level played by the bot up to the start of smash time. */
+  const toFever = (lv, opts = {}) => { const W = WD.createWorld(cfg, lv, opts); let tt = 0; for (let i = 0; i < 30 * 120 && W.phase !== 'fever'; i++) { if ((tt -= dt) <= 0) { tt = 0.25; const b = WD.botTap(W); if (b) { if (b.tool === 'hammer') WD.aimHammer(W, b.t, true); else WD.useTool(W, b.tool, b.p); } } WD.step(W, dt); } WD.aimHammer(W, null); WD.release(W); return W; };
+  /** Runs smash time to its end; active = the bot keeps tapping every `every` seconds. */
+  const run = (W, every) => { let t = 0, tt = 0, top = 0; const ev = []; while (t < 120 && W.phase === 'fever') { if (every && (tt -= dt) <= 0) { tt = every; const b = WD.botTap(W); if (b) { if (b.tool === 'hammer') WD.aimHammer(W, b.t, true); else WD.useTool(W, b.tool, b.p); } } for (const e of WD.step(W, dt)) ev.push(e.type); top = Math.max(top, W.fever); t += dt; } return { t, ev, top }; };
+  check(F.addPerBlock > 0 && F.maxTotal > F.dur && F.flatAt > 0.5 && F.flatAt <= 1 && cfg.coins.flat > 0, `smash time's numbers are in the config (add ${F.addPerBlock} s a block, ${F.maxTotal} s in all, flat at ${F.flatAt}, +${cfg.coins.flat})`);
+  // nobody smashing: it ends after fever.dur, as it always did
+  {
+    const W = toFever(0); W.shots.length = 0; W.falls.length = 0; W.fuses.length = 0;
+    const r = run(W, 0);
+    check(Math.abs(r.t - F.dur) < 0.2 && r.ev.includes('clear') && !r.ev.includes('flat') && W.phase === 'free', `an idle player's smash time ends after ${F.dur} s (${r.t.toFixed(2)} s)`);
+  }
+  // each smashed block adds time, never more than fever.dur on the clock
+  {
+    const W = toFever(0); W.shots.length = 0; W.falls.length = 0; W.fuses.length = 0;
+    for (let i = 0; i < 30 * 5; i++) WD.step(W, dt);
+    const low = W.fever, left0 = W.left;
+    const b = WD.botTap(W); WD.useTool(W, 'bomb', b.p);
+    let top = 0; for (let i = 0; i < 30 * 2 && W.left === left0; i++) { WD.step(W, dt); top = Math.max(top, W.fever); }
+    check(Math.abs(low - (F.dur - 5)) < 0.1 && W.left < left0 && W.fever > low, `smashing blocks adds smash time (${low.toFixed(1)} s left, ${left0 - W.left} blocks later ${W.fever.toFixed(1)} s)`);
+    check(W.fever <= F.dur + 1e-9, `...never more than ${F.dur} s on the clock at once (${W.fever.toFixed(2)})`);
+  }
+  // a player who never stops: longer than fever.dur, never longer than fever.maxTotal, or flat before that
+  {
+    const lens = [], tops = [];
+    for (const lv of [0, 2, 4]) { const W = toFever(lv, { owned: cfg.tools.map((x) => x.id) }); const r = run(W, 0.5); lens.push(+r.t.toFixed(1)); tops.push(r.top); check(r.ev.filter((x) => x === 'clear').length === 1 && (r.ev.includes('flat') || r.t > F.dur + 1), `level ${lv + 1}: a steady player's smash time outlasts ${F.dur} s or ends flat (${r.t.toFixed(1)} s, wrecked ${(WD.wreck(W) * 100).toFixed(0)}%${r.ev.includes('flat') ? ', FLATTENED' : ''})`); }
+    check(lens.every((x) => x <= F.maxTotal + 0.1), `smash time never runs past ${F.maxTotal} s in all (${lens.join(', ')} s)`);
+    check(tops.every((x) => x <= F.dur + 1e-9), 'the clock never shows more than fever.dur');
+  }
+  // the clock is honest near the cap: what it shows is never more than what is really left
+  {
+    const W = toFever(0); W.feverT = F.maxTotal - 2; W.fever = 1;
+    const b = WD.botTap(W); WD.useTool(W, 'bomb', b.p); let ok = true, t = 0;
+    while (W.phase === 'fever' && t < 10) { WD.step(W, dt); t += dt; if (W.fever > F.maxTotal - W.feverT + 1e-6) ok = false; }
+    check(ok && t <= 2 + 0.1, `near the cap the clock shows only the time really left (ended after ${t.toFixed(2)} s of the last 2)`);
+  }
+  // flat: the building is (nearly) gone, smash time ends at once with a bonus, paid once
+  {
+    const W = toFever(1); W.shots.length = 0; W.falls.length = 0; W.fuses.length = 0;
+    const c0 = W.coins; W.left = Math.floor(W.total * (1 - F.flatAt)) - 1;
+    const ev = WD.step(W, dt), flat = ev.filter((e) => e.type === 'flat'), i = ev.findIndex((e) => e.type === 'flat'), j = ev.findIndex((e) => e.type === 'clear');
+    check(flat.length === 1 && flat[0].coins === cfg.coins.flat && W.coins - c0 === cfg.coins.flat && i >= 0 && j > i && W.phase === 'free' && W.flat === true, `a flat building ends smash time with FLATTENED and +${cfg.coins.flat} coins, then the level's end`);
+    const more = []; for (let k = 0; k < 60; k++) more.push(...WD.step(W, dt));
+    check(!more.some((e) => e.type === 'flat' || e.type === 'clear'), '...once: no second bonus, no second end');
+    const D = toFever(1, { daily: true, coinMult: cfg.daily.mult }); D.left = 0; const fd = WD.step(D, dt).find((e) => e.type === 'flat');
+    check(fd && fd.coins === cfg.coins.flat * cfg.daily.mult, 'the daily challenge multiplies the flat bonus like every other coin');
+    const P = WD.createWorld(cfg, 1, {}); P.left = 0; const pe = []; for (let k = 0; k < 30; k++) pe.push(...WD.step(P, dt));
+    check(!pe.some((e) => e.type === 'flat'), 'no FLATTENED outside smash time');
+  }
 }
 
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);

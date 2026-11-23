@@ -197,7 +197,7 @@ const main = async () => {
     await page.waitForTimeout(80); await g(() => __game.WD.step(__game.W, 0.05).forEach((e) => __game.onEvent(e)));
     await page.waitForTimeout(900); await shot('5b-wave'); over.push(...await overflow(), ...await textOk(), ...await hud('wave', ['smash-time clock', 'wave banner']));
     // the fullest result card: NEXT, KEEP SMASHING, the daily challenge and the share button
-    await g(() => { const W = __game.W; __game.save.level = Math.max(2, __game.save.level); __game.save.dailyDone = 0; W.fever = 0; W.phase = 'free'; __game.onEvent({ type: 'clear' }); });
+    await g(() => { const W = __game.W; __game.save.level = Math.max(2, __game.save.level); __game.save.dailyDone = 0; W.fever = 0; W.phase = 'free'; __game.cardDue(); __game.onEvent({ type: 'clear' }); });
     await page.waitForTimeout(1200); await shot('6-result'); over.push(...await overflow(), ...await textOk(), ...await g(panelGeo, true), ...await hud('result', ['card panel']));
     await g(() => { document.querySelector('#keepBtn').click(); const s = __game.save; s.coins = 30000; s.owned = ['hammer', 'bomb', 'rocket']; s.lv = { hammer: window.gameConfig.upgrade.max, bomb: 1, rocket: 6 }; __game.W.tried.add('hole'); s.best = { 0: 2, 1: 1, 3: 2 }; document.querySelector('#coins').click(); document.querySelectorAll('.card, .card *').forEach((e) => { e.style.animation = 'none'; }); });
     await page.waitForTimeout(400); await shot('7-shop'); over.push(...await overflow(), ...await textOk(), ...await g(panelGeo, true), ...await hud('shop', ['card shop']), ...await g(shopGeo));
@@ -208,7 +208,7 @@ const main = async () => {
     await page.waitForTimeout(300); await shot('9-settings'); over.push(...await overflow(), ...await textOk(), ...await g(panelGeo, true));
     // ---- the in-play HUD with every conditional element forced on screen, measured and looked at
     // the fewest things a result card can hold: every tool owned (one meter), today's challenge done (two quiet buttons)
-    await g(() => { const G = __game, s = G.save; G.newLevel(1); s.owned = window.gameConfig.tools.map((t) => t.id); s.dailyDone = 1e9; G.W.fever = 0; G.W.phase = 'free'; G.onEvent({ type: 'clear' }); });
+    await g(() => { const G = __game, s = G.save; G.newLevel(1); s.owned = window.gameConfig.tools.map((t) => t.id); s.dailyDone = 1e9; G.W.fever = 0; G.W.phase = 'free'; G.cardDue(); G.onEvent({ type: 'clear' }); });
     await settle(1300); over.push(...await overflow(), ...await textOk(), ...await g(panelGeo, true), ...await hud('result (smallest)', ['card panel'], '6b-result-min'));
     // level cards: plain, boss, daily; words stay up long enough to be measured and photographed
     await g(() => { const G = __game, s = G.save; s.owned = ['hammer', 'bomb']; s.dailyDone = 0; s.coins = 12000; Object.assign(s.learned, { walk: true, drag: true, hit: true, bomb: true }); G.words.life = 8000; G.newLevel(2); });
@@ -232,7 +232,7 @@ const main = async () => {
     await g(() => { const G = __game, W = G.W; W.got = 3; W.phase = 'fever'; W.fever = 8; G.onEvent({ type: 'fever' }); G.setTip('find'); G.waveBanner(2); });
     await settle(500); over.push(...await textOk(), ...await hud('smash time + tip + wave', ['smash-time clock', 'tip', 'wave banner', 'word'], 'h4-fever-wave'));
     // KEEP SMASHING: the NEXT pill under the wreck bar pushes the status lines down
-    await g(() => { const G = __game, W = G.W; G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); W.fever = 0; W.phase = 'free'; G.onEvent({ type: 'clear' }); document.querySelector('#keepBtn').click(); G.setTip('find'); G.waveBanner(3); G.banner(G.T('kaboom'), 'p-big', -80); });
+    await g(() => { const G = __game, W = G.W; G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); W.fever = 0; W.phase = 'free'; G.cardDue(); G.onEvent({ type: 'clear' }); document.querySelector('#keepBtn').click(); G.setTip('find'); G.waveBanner(3); G.banner(G.T('kaboom'), 'p-big', -80); });
     await settle(500); over.push(...await textOk(), ...await hud('keep smashing', ['next pill', 'tip', 'wave banner', 'word'], 'h5-keep'));
     // reduced motion: words and banners still stand on screen for their time
     await page.emulateMedia({ reducedMotion: 'reduce' });
