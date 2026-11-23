@@ -980,8 +980,11 @@ async function main() {
         check(s100.words.length === 3 && s100.words.every((w, i) => w.o === 1 && near(w.r, s160.words[i].r) < 0.5) && s100.blocks.length === 0, `${tag} reduced motion: the whole title stands still at ${Math.round(s100.t)} ms, no falling blocks (${s100.blocks.length})`);
       } else {
         check(!!w0 && w0.o > 0 && w0.r[1] + w0.r[3] > 0 && w0.r[1] < 640 && w0.r[0] < 360 && w0.r[0] + w0.r[2] > 0, `${tag} at ${Math.round(s100.t)} ms the title's first word is on screen (opacity ${w0 && w0.o.toFixed(2)}, box ${w0 && w0.r.map(Math.round)})`);
-        const moving = s100.blocks.filter((y, i) => Math.abs(y - s160.blocks[i]) > 1).length;
-        check(moving >= 6, `${tag} ${moving} of ${s100.blocks.length} blocks are moving between ${Math.round(s100.t)} and ${Math.round(s160.t)} ms`);
+        // two frames that both still have the blocks (a quick hand-over removes them: the later sample then has none,
+        // which read as "0 moving")
+        const withB = S.filter((x) => x.blocks.length), bA = withB[0], bB = withB[withB.length - 1];
+        const moving = bA.blocks.filter((y, i) => Math.abs(y - bB.blocks[i]) > 1).length;
+        check(withB.length >= 2 && moving >= 6, `${tag} ${moving} of ${bA.blocks.length} blocks are moving between ${Math.round(bA.t)} and ${Math.round(bB.t)} ms`);
       }
       check(!X.load && X.jig === 0 && !X.loading && X.bg.includes(rgb(cfg.demo.look.top)) && X.bg.includes(rgb(cfg.demo.look.low)), `${tag} no loader (#load ${X.load}, jiggling or spinning ${X.jig}, the word loading ${X.loading}); the backdrop is the show's sky (${X.bg})`);
       check(X.text === TI.lines.flat().join(' ') && +X.ts === TI.size && +X.tt === TI.top && X.delays.every((d, i) => Math.abs(d - X.delays[0] - (TI.at[i] - TI.at[0])) < 0.001), `${tag} the opening's title copies demo.title ("${X.text}", size ${X.ts}, top ${X.tt}, word times ${X.delays})`);

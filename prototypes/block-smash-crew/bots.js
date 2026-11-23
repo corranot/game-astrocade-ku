@@ -83,8 +83,11 @@ function bossSpot(W) {
     const kx = keg.x + 0.5 - h.x, kz = keg.z + 0.5 - h.z, t = Math.max(0, Math.min(1, ((x - h.x) * kx + (z - h.z) * kz) / (kx * kx + kz * kz || 1)));
     return Math.hypot(x - h.x - kx * t, z - h.z - kz * t) >= BS.clear;
   };
-  const wide = (x, z) => free(W, x, z) && free(W, x + BS.room, z) && free(W, x - BS.room, z) && free(W, x, z + BS.room) && free(W, x, z - BS.room);
   const eye = W.cfg.camera.eye, H = W.cfg.bots.height * BS.botScale;
+  // room on the ground, and headroom up to the crown's tip (a robot this tall reaches a balcony or an eave)
+  const tall = (x, z) => { for (let y = 0.5; y < H * BS.crownRoom; y++) if (solid(W.g, x, y, z)) return false; return true; };
+  // (headroom over half the ground room: the head and crown are narrower than the feet's stance)
+  const wide = (x, z) => [[0, 0], [BS.room, 0], [-BS.room, 0], [0, BS.room], [0, -BS.room]].every(([dx, dz]) => free(W, x + dx, z + dz) && tall(x + dx / 2, z + dz / 2));
   const sees = (x, z, y) => { const dx = x - h.x, dy = y - eye, dz = z - h.z, n = Math.ceil(Math.hypot(dx, dy, dz) / 0.1); for (let k = 1; k < n; k++) if (solid(W.g, h.x + dx * k / n, eye + dy * k / n, h.z + dz * k / n)) return false; return true; };
   let spare = null;
   for (const a of [0, -1, 1, -2, 2]) for (const s of BS.sides) {
