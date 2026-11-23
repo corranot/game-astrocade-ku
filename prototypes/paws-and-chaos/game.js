@@ -226,6 +226,12 @@ class Batch {
   }
 }
 
+/** Rounded rectangle path; older browsers have no ctx.roundRect. */
+function rrect(g, x, y, w, h, r) {
+  if (g.roundRect) { g.roundRect(x, y, w, h, r); return; }
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
 function canvasTex(w, h, draw, repeat) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   draw(cv.getContext('2d'), w, h);
@@ -422,7 +428,7 @@ class WorldBuilder {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(90, 24, 12), skyMat); sky.position.set(0, 0, -20); this.scene.add(sky); this.disposables.push(sky.geometry);
     const sunM = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({ color: 0xfff2b0 })); sunM.scale.setScalar(5); sunM.position.set(-40, 40, -70); this.scene.add(sunM); this.disposables.push(sunM.material);
     // fence + hedges
-    this.box(-14.4, -14, 0, 3, -34.4, -12.4, null); this.box(14, 14.4, 0, 3, -34.4, -12.4, null); this.box(-14.4, 14.4, 0, 3, -34.4, -34, null);
+    this.box(-14.4, -14, 0, 12, -34.4, -12.4, null); this.box(14, 14.4, 0, 12, -34.4, -12.4, null); this.box(-14.4, 14.4, 0, 12, -34.4, -34, null);
     for (let x = -14; x <= 14; x += 1.4) S.add(G.box, '#fff6e8', x, 1.0, -34.2, 0, 0, 0, 0.3, 2, 0.15);
     for (let z = -33; z <= -13; z += 1.4) { S.add(G.box, '#fff6e8', -14.2, 1.0, z, 0, 0, 0, 0.15, 2, 0.3); S.add(G.box, '#fff6e8', 14.2, 1.0, z, 0, 0, 0, 0.15, 2, 0.3); }
     for (const z of [-34.2]) S.add(G.box, '#fff6e8', 0, 1.5, z, 0, 0, 0, 28.6, 0.2, 0.12);
@@ -484,9 +490,10 @@ class WorldBuilder {
   }
 
   drawSign(n, m, open) {
+    this.signArgs = [n, m, open];
     const g = this.signCv.getContext('2d'); g.clearRect(0, 0, 256, 128);
     g.fillStyle = open ? '#7fe08a' : '#fff6e8'; g.strokeStyle = open ? '#2a8a3c' : '#c98a4b'; g.lineWidth = 8;
-    g.beginPath(); g.roundRect(8, 8, 240, 112, 40); g.fill(); g.stroke();
+    g.beginPath(); rrect(g, 8, 8, 240, 112, 40); g.fill(); g.stroke();
     if (open) { g.fillStyle = '#fff'; g.beginPath(); g.moveTo(70, 64); g.lineTo(110, 100); g.lineTo(190, 30); g.lineWidth = 18; g.strokeStyle = '#fff'; g.stroke(); }
     else {
       g.fillStyle = '#ffb11f'; g.strokeStyle = '#a65a00'; g.lineWidth = 5;
@@ -584,7 +591,7 @@ class PhysicsProps {
     A.beachMat = new THREE.MeshStandardMaterial({ map: beachTex, roughness: 0.35 }); D.push(A.beachMat);
     A.box = new THREE.BoxGeometry(1, 1, 1); D.push(A.box);
     const bc = ['#ff6f91', '#6ac8ff', '#ffd23f', '#7fe08a', '#b28dff', '#ff9f43'], letters = 'ABCDEF';
-    A.blockMats = bc.map((c, i) => { const t = canvasTex(128, 128, (g, w) => { g.fillStyle = c; g.fillRect(0, 0, w, w); g.fillStyle = '#fff'; g.beginPath(); g.roundRect(14, 14, 100, 100, 18); g.fill(); g.fillStyle = c; g.font = 'bold 80px "Baloo 2", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(letters[i], 64, 70); }); D.push(t); const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 }); D.push(m); return m; });
+    A.blockMats = bc.map((c, i) => { const t = canvasTex(128, 128, (g, w) => { g.fillStyle = c; g.fillRect(0, 0, w, w); g.fillStyle = '#fff'; g.beginPath(); rrect(g, 14, 14, 100, 100, 18); g.fill(); g.fillStyle = c; g.font = 'bold 80px "Baloo 2", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(letters[i], 64, 70); }); D.push(t); const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 }); D.push(m); return m; });
     A.cupGeo = new THREE.CylinderGeometry(0.28, 0.2, 0.68, 18, 1, true); D.push(A.cupGeo);
     A.cupBot = new THREE.CircleGeometry(0.2, 18); D.push(A.cupBot);
     const cupTex = canvasTex(128, 64, (g, w, h) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ff9ec4'; for (let i = 0; i < 8; i++) g.fillRect(i * 16, 0, 7, h); g.fillStyle = '#ffe27a'; g.fillRect(0, h - 10, w, 6); });
@@ -656,7 +663,7 @@ class PhysicsProps {
         p.support = g.prop || null;
         const fr = Math.exp(-(p.k.roll ? C.rollFriction : C.slideFriction) * dt);
         p.vx *= fr; p.vz *= fr;
-        if (g.bounce && landVy < -3) { p.vy = Math.max(p.vy, 6); p.grounded = false; }
+        if (g.bounce && landVy < -4) { p.vy = Math.max(p.vy, -landVy * 0.6); p.grounded = false; }
       } else p.grounded = false;
       if (s.hit && s.hit.tag === 'plant') this.events.push({ type: 'plant', c: s.hit });
       // spin: balls roll with travel, blocks tumble in the air and settle flat
@@ -928,7 +935,9 @@ class CatController {
     }
     if (!this.grounded) this.peak = Math.max(this.peak, this.y); else this.peak = this.y;
     if (this.grounded && !this.pounce) { const f = want > 0.1 ? 1 : Math.exp(-14 * dt); this.vx *= f; this.vz *= f; }
-    if (!(this.y > -4) || !isFinite(this.x) || !isFinite(this.z)) { this.x = 0; this.y = 0.5; this.z = 4; this.vx = this.vy = this.vz = 0; }
+    // a kitten that somehow left the house or the garden comes back in
+    const out = this.z < -12.2 ? (this.z < -34 || Math.abs(this.x) > 14) : (this.z > 12 || Math.abs(this.x) > 12);
+    if (!(this.y > -4) || !isFinite(this.x) || !isFinite(this.z) || out) { const g = this.z < -12.2 && isFinite(this.z); this.x = g ? -7 : 0; this.y = 0.5; this.z = g ? -14 : 4; this.vx = this.vy = this.vz = 0; this.pounce = null; }
     this.hit = s.hit;
     return ev;
   }
@@ -1048,7 +1057,7 @@ class QuestManager {
       [0.2, 0.6, 2.2, 'room', 1], [-2.6, 0.6, 5.4, 'room', 1], [-8.3, 1.9, -2, 'room', 1], [-10.1, 3.3, -2, 'room', 1], [-4, 2.2, -7.6, 'room', 1],
       [-1, 3.2, -10.9, 'room', 1], [1, 4.2, -10.9, 'room', 1], [3, 5.2, -10.9, 'room', 1], [5, 6.3, -10.9, 'room', 3], [7.5, 4.8, -5, 'room', 1],
       [-8, 1.9, -17, 'garden', 1], [-10.5, 2.9, -21.5, 'garden', 1], [-8.5, 3.9, -26, 'garden', 1], [-4.8, 4.9, -29.4, 'garden', 1],
-      [0, 3.0, -22.5, 'garden', 1], [1.6, 1.5, -21.1, 'garden', 1], [0.8, 6.0, -31.2, 'garden', 3], [9.5, 0.7, -18, 'garden', 1],
+      [0, 2.7, -22.5, 'garden', 1], [1.6, 1.5, -21.1, 'garden', 1], [0.8, 6.0, -31.2, 'garden', 3], [9.5, 0.7, -18, 'garden', 1],
     ];
     for (const [x, y, z, zone, v] of spots) {
       const g = new THREE.Group(); g.position.set(x, y, z);
@@ -1274,24 +1283,30 @@ class UIManager {
 }
 
 // ---------------------------------------------------------------- Game
-let app = null;
+let app = null, pendingStart = null, lastWrite = Promise.resolve();
 
 function run(mode) {
   if (app) { app.destroy(); app = null; }
+  if (pendingStart) window.removeEventListener('three-ready', pendingStart);
   const start = () => {
+    pendingStart = null;
+    if (app) { app.destroy(); app = null; }
     try { app = new Game(mode === 'edit' ? 'edit' : 'play'); window.__started = true; }
     catch (e) { console.error(e); app = null; }
     // dev:start
     window.__game = app && app.debug;
     // dev:end
   };
-  if (window.THREE) start(); else window.addEventListener('three-ready', start, { once: true });
+  if (window.THREE) start(); else { pendingStart = start; window.addEventListener('three-ready', start, { once: true }); }
 }
 
 /** The whole session: loop, input, rules glue, save, quality. */
 class Game {
   constructor(mode) {
     this.mode = mode; this.cfg = window.gameConfig; this.alive = true;
+    // dev:start
+    window.__liveGames = (window.__liveGames || 0) + 1;
+    // dev:end
     const cfg = this.cfg;
     this.root = document.getElementById('app') || document.body;
     this.qs = new URLSearchParams(location.search);
@@ -1300,7 +1315,7 @@ class Game {
     // save: one slot; nothing is written until the player's own save was read
     this.S = { v: 1, fish: 0, total: 0, skins: ['ginger'], hats: ['none'], skin: 'ginger', hat: 'none', garden: false, gardenSeen: false, muted: false, lang: null, laser: 0, goals: 0, tops: 0, stars: 0 };
     this.pend = { fish: 0, total: 0, laser: 0, goals: 0, tops: 0, stars: 0 };
-    this.loaded = false; this.saveDue = 0;
+    this.loaded = false; this.saveDue = 0; this.localPrefs = {};
     this.started = mode === 'play' ? false : true; this.demo = mode === 'play';
     this.now = 0; this.lastFishAt = 0; this.meter = 0; this.meterMax = cfg.mischief.first; this.combo = 0; this.comboT = 0;
     this.input = { x: 0, z: 0, keys: {}, stick: null, cam: null };
@@ -1389,7 +1404,9 @@ class Game {
 
   // ---------------- save
   loadSave(tries) {
-    Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
+    // a read that never answers counts as failed after 8 s and is tried again; the last write of a previous run() goes first
+    const read = () => Promise.race([Promise.resolve().then(() => lib.getUserGameState()), new Promise((res, rej) => setTimeout(() => rej(new Error('save read timed out')), 8000))]);
+    lastWrite.then(read).then((r) => {
       if (!this.alive) return;
       const st = r && r.state;
       if (st && typeof st === 'object') {
@@ -1401,12 +1418,18 @@ class Game {
         if (!S.hats.includes(S.hat)) S.hat = 'none';
       }
       for (const k in this.pend) this.S[k] += this.pend[k];
+      // choices made before the save arrived win over the saved ones
+      Object.assign(this.S, this.localPrefs);
+      if (this.world.gardenOpen) this.S.garden = true;
       this.pend = { fish: 0, total: 0, laser: 0, goals: 0, tops: 0, stars: 0 };
       this.loaded = true;
       if (this.S.lang && LANGS.includes(this.S.lang)) this.lang = this.S.lang;
       this.audio.setMuted(this.S.muted);
       if (this.S.garden) this.openGarden(true);
       this.applyLook(); this.ui.texts(); this.refreshHud(); this.checkGarden();
+      this.world.drawSign(this.total, this.cfg.garden.unlock, this.world.gardenOpen);
+      this.sentBoard = Math.floor(this.total / 5); this.board();
+      this.saveDue = this.now + 0.5;
     }).catch(() => { if (this.alive) setTimeout(() => this.loadSave(tries + 1), Math.min(8000, 600 * (tries + 1))); });
   }
   /** Adds to the live save, or to a pending pot if the save has not arrived yet. */
@@ -1417,7 +1440,7 @@ class Game {
     if (!this.loaded || this.mode !== 'play' || this.demo) return;
     this.saveDue = 0;
     const snap = JSON.parse(JSON.stringify(this.S));
-    Promise.resolve().then(() => lib.saveUserGameState(snap)).catch(() => {});
+    lastWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => {});
   }
   showParams() {
     try {
@@ -1442,7 +1465,7 @@ class Game {
     tapBtn('jumpBtn', () => { this.cat.jumpAt = this.now; });
     tapBtn('meowBtn', () => this.action(null));
     tapBtn('playBtn', () => this.action(null));
-    tapBtn('muteBtn', () => { this.S.muted = !this.S.muted; this.audio.setMuted(this.S.muted); this.refreshHud(); this.saveDue = this.now + 0.5; });
+    tapBtn('muteBtn', () => { this.S.muted = !this.S.muted; if (!this.loaded) this.localPrefs.muted = this.S.muted; this.audio.setMuted(this.S.muted); this.refreshHud(); this.saveDue = this.now + 0.5; });
     tapBtn('langBtn', () => { const L = $('langs'); L.hidden = !L.hidden; if (!L.hidden) this.drawLangs(); });
     tapBtn('wardX', () => { this.closedOnPad = true; this.setWard(false); });
     tapBtn('shareBtn', () => this.share());
@@ -1468,7 +1491,7 @@ class Game {
       s.vx = d > 0 ? dx / d * mag : 0; s.vy = d > 0 ? dy / d * mag : 0;
     };
     const stickUp = (e) => { const s = inp.stick; if (!s || s.id !== e.pointerId) return; inp.stick = null; restBase(); };
-    on(stick, 'pointermove', stickMove); on(stick, 'pointerup', stickUp); on(stick, 'pointercancel', stickUp);
+    on(stick, 'pointermove', stickMove); on(stick, 'pointerup', stickUp); on(stick, 'pointercancel', stickUp); on(stick, 'lostpointercapture', stickUp);
     // the rest of the frame: drag = turn the camera, tap = pounce at what was tapped
     on(root, 'pointerdown', (e) => {
       if (e.target.closest('button') || e.target.closest('#stick') || e.target.closest('#ward') || e.target.closest('#langs')) { this.gesture(); return; }
@@ -1488,10 +1511,10 @@ class Game {
       inp.cam = null;
       if (!cancel && c.moved <= 10 * u() && performance.now() - c.t < 450 && c.btn === 0) this.tapAt(e.clientX, e.clientY);
     };
-    on(root, 'pointerup', (e) => camUp(e, false)); on(root, 'pointercancel', (e) => camUp(e, true));
+    on(root, 'pointerup', (e) => camUp(e, false)); on(root, 'pointercancel', (e) => camUp(e, true)); on(root, 'lostpointercapture', (e) => camUp(e, true));
     on(root, 'contextmenu', (e) => e.preventDefault());
     on(window, 'keydown', (e) => {
-      if (e.repeat && (e.code === 'Space' || e.code === 'KeyE')) return;
+      if (e.repeat && (e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter')) return;
       inp.keys[e.code] = true;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       this.gesture();
@@ -1500,13 +1523,13 @@ class Game {
       if (e.code === 'Escape' && this.wardOpen) { this.closedOnPad = true; this.setWard(false); }
     });
     on(window, 'keyup', (e) => { inp.keys[e.code] = false; });
-    on(window, 'blur', () => { inp.keys = {}; });
+    on(window, 'blur', () => { inp.keys = {}; inp.cam = null; if (inp.stick) { inp.stick = null; restBase(); } });
   }
   drawLangs() {
     const L = this.ui.$('langs'); L.innerHTML = '';
     for (const l of LANGS) {
       const b = document.createElement('button'); b.textContent = this.cfg.langNames[l]; b.className = l === this.lang ? 'on' : ''; b.dir = l === 'ar' ? 'rtl' : 'ltr';
-      b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.lang = l; this.S.lang = l; this.saveDue = this.now + 0.5; L.hidden = true; this.ui.texts(); this.buildWard(); });
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.lang = l; this.S.lang = l; if (!this.loaded) this.localPrefs.lang = l; this.saveDue = this.now + 0.5; L.hidden = true; this.ui.texts(); this.buildWard(); });
       L.appendChild(b);
     }
   }
@@ -1516,7 +1539,7 @@ class Game {
     if (this.mode !== 'play' || this.started) return;
     this.started = true; this.demo = false;
     this.ui.$('title').classList.add('gone');
-    this.cat.pounce = null; this.demoT = 0;
+    this.cat.pounce = null; this.pounceTarget = null; this.demoT = 0;
     this.lastFishAt = this.now;
   }
   tapAt(cx, cy) {
@@ -1555,7 +1578,7 @@ class Game {
       }
     }
     if (tg) {
-      const ty = tg.prop ? Math.max(tg.prop.y, c.y - 1) : tg.bf ? Math.max(0, tg.y - 0.8) : tg.y;
+      const ty = tg.prop ? Math.max(tg.prop.y, c.y - 1) : tg.bf ? Math.max(0, tg.bf.y - 0.6) : tg.y;
       const tx = tg.prop ? tg.x - (tg.x - c.x) * 0.25 / Math.max(0.3, Math.hypot(tg.x - c.x, tg.z - c.z)) : tg.x;
       const tz = tg.prop ? tg.z - (tg.z - c.z) * 0.25 / Math.max(0.3, Math.hypot(tg.x - c.x, tg.z - c.z)) : tg.z;
       if (c.pounceTo(tx, ty, tz, this.now)) { this.audio.swish(); this.pounceTarget = tg; this.fx.emit(c.x, c.y + 0.05, c.z, 8, { color: '#ffffff', speed: 2, up: 1, life: 0.5, size: 0.3 }); return; }
@@ -1589,7 +1612,6 @@ class Game {
       else p.wig = 0.5;
     }
     for (const pl of this.world.plants) if (Math.hypot(pl.x - c.x, pl.z - c.z) < R) pl.vel += 1.2;
-    for (const b of this.quests.butterflies) if (Math.hypot(b.x - c.x, b.z - c.z) < 3 && b.away <= 0) { b.cy = clamp(b.cy + 0.8, 1, 3.5); }
   }
 
   // ---------------- rules glue
@@ -1622,11 +1644,12 @@ class Game {
     this.refreshWard();
     this.checkGarden();
     this.world.drawSign(this.total, this.cfg.garden.unlock, this.world.gardenOpen);
-    if (this.loaded && (this.total % 5 === 0 || n >= 3)) { try { lib.addPlayerScoreToLeaderboard(this.total).catch(() => {}); } catch (e) { /* no board here */ } }
+    if (this.loaded && Math.floor(this.total / 5) !== this.sentBoard) { this.sentBoard = Math.floor(this.total / 5); this.board(); }
   }
+  board() { try { Promise.resolve(lib.addPlayerScoreToLeaderboard(this.total)).catch(() => {}); } catch (e) { /* no board here */ } }
   checkGarden() {
-    if (!this.loaded || this.world.gardenOpen || this.total < this.cfg.garden.unlock) return;
-    this.S.garden = true; this.saveDue = this.now + 0.3;
+    if (this.demo || this.world.gardenOpen || this.total < this.cfg.garden.unlock) return;
+    if (this.loaded) { this.S.garden = true; this.saveDue = this.now + 0.3; }
     this.openGarden(false);
   }
   openGarden(quiet) {
@@ -1756,9 +1779,10 @@ class Game {
     // pounce assist toward a moving target
     if (c.pounce && this.pounceTarget && (this.pounceTarget.laser || this.pounceTarget.bf)) {
       const L = this.pounceTarget.laser ? this.quests.laser : this.pounceTarget.bf;
-      if (!L.laser || L.on) { const dx = L.x - c.x, dz = L.z - c.z; c.vx = lerp(c.vx, dx / Math.max(0.15, c.pounce.t), damp(4, dt)); c.vz = lerp(c.vz, dz / Math.max(0.15, c.pounce.t), damp(4, dt)); }
+      if (!this.pounceTarget.laser || L.on) { const dx = L.x - c.x, dz = L.z - c.z; c.vx = lerp(c.vx, dx / Math.max(0.15, c.pounce.t), damp(4, dt)); c.vz = lerp(c.vz, dz / Math.max(0.15, c.pounce.t), damp(4, dt)); }
     }
     const land = c.step(dt, mv.x, mv.z, this.world.colliders, this.world.gardenOpen, this.now);
+    if (this.wardOpen && this.rig.dragT > 1.5) { const d = ((-Math.PI / 2 - this.rig.yaw + Math.PI) % TAU + TAU) % TAU - Math.PI; this.rig.yaw += d * damp(3, dt); }
     if (this.wardOpen && Math.hypot(mv.x, mv.z) < 0.1) c.yaw = c.turn(c.yaw, Math.atan2(this.camera.position.x - c.x, this.camera.position.z - c.z), dt * 5);
     if (land) this.onLand(land);
     if (c.hit && c.hit.gate && !this.world.gardenOpen && (this.gateBumpT || 0) < this.now) { this.gateBumpT = this.now + 2; this.ui.float(-7, 2.2, -11.8, `${SVG.fish} ${this.T('door', { n: Math.min(this.total, this.cfg.garden.unlock), m: this.cfg.garden.unlock })}`); this.audio.thud(0.4); }
@@ -1963,8 +1987,15 @@ class Game {
     }
   }
   render() {
-    const cp = this.camera.position;
-    for (const p of this.props.list) p.mesh.visible = Math.hypot(p.x - cp.x, p.y + p.k.hh - cp.y, p.z - cp.z) > p.r + 1.1;
+    // a toy at the lens or between the camera and the kitten is not drawn (it would hide the kitten or fill the screen)
+    const cp = this.camera.position, c = this.cat, ax = c.x - cp.x, ay = c.y + 0.5 - cp.y, az = c.z - cp.z, L2 = ax * ax + ay * ay + az * az || 1;
+    for (const p of this.props.list) {
+      const bx = p.x - cp.x, by = p.y + p.k.hh - cp.y, bz = p.z - cp.z, t = (bx * ax + by * ay + bz * az) / L2;
+      const near = Math.hypot(bx, by, bz) < p.r + 1.1;
+      const tt = clamp(t, 0, 1), dx = bx - ax * tt, dy = by - ay * tt, dz = bz - az * tt;
+      const between = t > 0 && t < 0.85 && Math.hypot(dx, dy, dz) < p.r + 0.45;
+      p.mesh.visible = !near && !between;
+    }
     if (this.wardOpen) {
       const c = this.cat, mp = this.world.mirrorPos;
       this.mirrorCam.position.set(mp.x - 0.1, c.y + 1.0, clamp(c.z, mp.z - 1, mp.z + 1));
@@ -2011,10 +2042,15 @@ class Game {
       info() { return { geometries: g.renderer.info.memory.geometries, textures: g.renderer.info.memory.textures, calls: g.renderer.info.render.calls, tris: g.renderer.info.render.triangles }; },
       setYaw(y) { g.rig.yaw = y; },
       get yarnMats() { return g.props.A.yarnMats; },
+      get pounceTarget() { return g.pounceTarget; },
+      get input() { return g.input; },
     };
   }
   destroy() {
     this.alive = false;
+    // dev:start
+    window.__liveGames--;
+    // dev:end
     cancelAnimationFrame(this.raf);
     this.flushSave();
     for (const [el, ev, fn, o] of this.listeners || []) el.removeEventListener(ev, fn, o);

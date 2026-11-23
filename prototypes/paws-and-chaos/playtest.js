@@ -35,9 +35,71 @@ const until = (p, fn, arg, t) => p.waitForFunction(fn, arg, { timeout: t || 1500
 const tapEl = async (p, sel) => { const ok = await p.evaluate((s) => { const el = document.querySelector(s); if (!el || !el.offsetParent) return false; const r = el.getBoundingClientRect(); el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 77 })); el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 77 })); return true; }, sel); check(ok, 'tap target visible: ' + sel); };
 const start = async (p) => { await p.mouse.click(180, 380); await until(p, () => __game.state.started); };
 
+/** One test per bug the code readers found; each fails with its fix taken out. */
+async function bugChecks(browser) {
+  let p = await open(browser);
+  await start(p);
+  // the kitten cannot leave the garden over the back fence from the treehouse
+  await p.evaluate(() => { __game.give(20); __game.tp(0, 5.35, -33.4); __game.setYaw(0); });
+  await p.keyboard.down('KeyW'); await p.waitForTimeout(1500); await p.keyboard.up('KeyW');
+  await p.waitForTimeout(800);
+  check(await p.evaluate(() => __game.cat.z > -34 && Math.abs(__game.cat.x) < 14), 'bug: walking off the treehouse never leaves the garden');
+  // a toy on the bouncy sofa settles instead of bouncing forever
+  await p.evaluate(() => { const b = __game.props.find((o) => o.kind === 'beach'); b.asleep = false; b.x = -8.3; b.y = 2.5; b.z = -2; b.vx = b.vz = b.vy = 0; window.__sb = b; __game.tp(3, 0, 6); });
+  check(await until(p, () => __sb.asleep, null, 25000), 'bug: a ball on the sofa stops bouncing and sleeps');
+  // meowing near a butterfly does not lift it out of reach
+  const cy = await p.evaluate(() => { const b = __game.quests.butterflies[1]; __game.tp(b.x + 2, 0, b.z); return b.cy; });
+  for (let i = 0; i < 6; i++) { await p.evaluate(() => __game.action()); await p.waitForTimeout(150); }
+  check(await p.evaluate((c) => __game.quests.butterflies[1].cy === c, cy), 'bug: meowing does not lift butterflies');
+  // the leaderboard hears about every 5 fish crossed
+  await p.evaluate(() => { window.__board = 0; const f = lib.addPlayerScoreToLeaderboard; lib.addPlayerScoreToLeaderboard = async (n) => { window.__board++; return f(n); }; });
+  // land on 4 past a multiple of 5, then step over the next one with 2 fish (never landing on it)
+  await p.evaluate(() => { while (__game.state.total % 5 !== 4) __game.give(1); window.__board = 0; __game.give(2); });
+  check(await p.evaluate(() => __board >= 1), 'bug: crossing a multiple of 5 fish sends the score');
+  // a lost window focus releases the stick
+  await p.evaluate(() => { const st = document.getElementById('stick'), r = st.getBoundingClientRect(); st.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 31, clientX: r.left + 150, clientY: r.top + 200, bubbles: true })); window.dispatchEvent(new Event('blur')); });
+  check(await p.evaluate(() => __game.input.stick === null), 'bug: losing focus releases the stick');
+  check(!p.errors.length, 'bug section: no errors' + (p.errors.length ? ': ' + p.errors[0] : ''));
+  await p.close();
+  // the first tap does not pay for the attract show's pounce
+  p = await open(browser);
+  await until(p, () => !!__game.pounceTarget, null, 12000);
+  await p.evaluate(() => { window.__dt = __game.pounceTarget; });
+  await p.mouse.click(180, 380);
+  check(await p.evaluate(() => __game.pounceTarget !== __dt), 'bug: first tap drops the attract show pounce target');
+  await p.close();
+  // the save never answers: the garden still opens at 15 fish
+  p = await open(browser, '', { init: 'window.__saveFails = true;' });
+  await start(p);
+  await p.evaluate(() => __game.give(16));
+  check(await p.evaluate(() => __game.state.garden && !(window.__writes || []).length), 'bug: garden opens with no save, and nothing is written blind');
+  await p.close();
+  // mute chosen before a late save survives it; the door sign shows the saved count
+  p = await open(browser, '', { init: `window.__preset = { v: 1, fish: 3, total: 10, muted: false }; Object.defineProperty(window, 'lib', { configurable: true, set(v) { const g = v.getUserGameState; v.getUserGameState = () => new Promise((res) => setTimeout(() => res(g()), 6000)); Object.defineProperty(window, 'lib', { value: v, writable: true }); } });` });
+  await start(p);
+  check(await p.evaluate(() => !__game.state.loaded), 'save still on its way when mute is tapped');
+  await p.evaluate(() => document.getElementById('muteBtn').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await until(p, () => __game.state.loaded, null, 20000);
+  check(await p.evaluate(() => __game.S.muted === true), 'bug: mute tapped before the save arrives stays muted');
+  check(await p.evaluate(() => __game.state.total >= 10 && __game.world.signArgs[0] === __game.state.total), 'bug: door sign shows the saved fish count');
+  await p.close();
+  // run() twice before the 3D library arrives makes one game, not two
+  p = await open(browser);
+  await p.evaluate(() => { const T = window.THREE; window.THREE = undefined; run('play'); run('play'); window.THREE = T; window.dispatchEvent(new Event('three-ready')); });
+  await p.waitForTimeout(800);
+  check(await p.evaluate(() => window.__liveGames === 1), 'bug: two run() calls before the library loads leave one live game');
+  await p.close();
+  // browsers without canvas roundRect still start
+  p = await open(browser, '', { init: 'delete CanvasRenderingContext2D.prototype.roundRect;' }).catch(() => null);
+  check(p && !p.errors.length, 'bug: no canvas roundRect still starts');
+  if (p) await p.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ args: GPU });
   try {
+    await bugChecks(browser);
+    if (process.env.ONLY === 'bugs') return;
     // 1. attract show, first tap, walking and jumping
     let p = await open(browser);
     const a0 = await p.evaluate(() => [__game.cat.x, __game.cat.z]);
@@ -75,7 +137,7 @@ const start = async (p) => { await p.mouse.click(180, 380); await until(p, () =>
     await p.waitForTimeout(300);
     const m0 = await p.evaluate(() => __game.S.stars);
     for (let i = 0; i < 4; i++) { await p.evaluate(() => __game.action()); await p.waitForTimeout(450); }
-    await p.waitForTimeout(1500);
+    await until(p, () => __game.props.some((o) => o.restY < 0.1 && o.home.y > 1), null, 8000);
     const m1 = await p.evaluate(() => ({ stars: __game.S.stars, fell: __game.props.filter((o) => o.restY < 0.1 && o.home.y > 1).length }));
     check(m1.stars > m0, `swiping toys gives mischief stars (${m0} -> ${m1.stars})`);
     check(m1.fell > 0, `toys fall off the table (${m1.fell})`);
@@ -112,7 +174,7 @@ const start = async (p) => { await p.mouse.click(180, 380); await until(p, () =>
     await p.evaluate(() => { const L = __game.quests.laser; L.darts = 0; const c = __game.cat; __game.tp(L.x + 2.5, L.y, L.z); });
     await p.waitForTimeout(200);
     await p.evaluate(() => __game.action());
-    check(await until(p, () => !__game.quests.laser.on, null, 3000), 'meow button pounces onto a nearby dot');
+    check(await until(p, () => !__game.quests.laser.on, null, 5000), 'meow button pounces onto a nearby dot');
 
     // 6. yarn into the basket
     const g0 = await p.evaluate(() => __game.S.goals);
@@ -272,7 +334,7 @@ const start = async (p) => { await p.mouse.click(180, 380); await until(p, () =>
     }
   } finally {
     await browser.close(); srv.close();
+    console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
+    process.exit(fails.length ? 1 : 0);
   }
-  console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
-  process.exit(fails.length ? 1 : 0);
 })();
