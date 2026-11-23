@@ -239,6 +239,8 @@ function startGame(mode) {
   // and never before flow.cardAfterSec of play. playT = seconds played since the first touch; chain = the buildings
   // finished since the last card; chainT = seconds until the next building starts by itself (-1: not waiting)
   let playT = 0, chainT = -1, chainBonus = 0;
+  // what this building's end has paid so far (the result card shows it again when it is opened again)
+  let paidBonus = 0;
   const chain = { n: 0, coins: 0, smashed: 0 };
   function newLevel(n, opts = {}) {
     celGen++; celAt = 0; chainT = -1;
@@ -249,12 +251,13 @@ function startGame(mode) {
     $('hud').classList.toggle('attract', demo && mode === 'play');
     if (demo && mode === 'play') showTitle(); else titleOn = false;
     scene.setLevel(W);
-    sel = 'hammer'; resultsOpen = false; paidStars = null; hardHint = null; idleT = 0; firstTap = false;
+    sel = 'hammer'; resultsOpen = false; paidStars = null; paidBonus = 0; hardHint = null; idleT = 0; firstTap = false;
     // a finger from the last level does not steer this one; in a chain the thumb stays where it is: the stick and a
     // held HIT go on in the next building (the player never let go)
     if (!opts.chain) { ptr = null; stick = null; hitHeld = false; if ($('stick')) { $('stick').hidden = true; $('stickHome').hidden = false; } }
     toolEls.bomb.classList.remove('hint');
-    $('panel').hidden = true; $('shop').hidden = true; $('settings').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
+    // (the settings stay open over the attract show: its next building, or a save that came late, is no reason to close them)
+    $('panel').hidden = true; $('shop').hidden = true; if (!demo) $('settings').hidden = true; $('nextpill').hidden = true; $('fever').hidden = true; $('ftime').hidden = true;
     Sound.setTempo(118);
     renderTools(); renderTop();
     if (!demo && lastLevelShown !== n && W.boss) setTimeout(() => { if (alive && W && W.n === n) Sound.play('fever'); }, 500);
@@ -301,14 +304,16 @@ function startGame(mode) {
     const got = W ? Math.min(3, W.got) : 0;
     if (got !== shown.got) { $('stars').querySelectorAll('img').forEach((im, i) => im.classList.toggle('on', i < got)); shown.got = got; }
     const wr = W ? Math.round(WD.wreck(W) * 100) : 0;
-    if (wr !== shown.wreck) { const bar = $('bar'); bar.querySelector('b').style.width = wr + '%'; bar.querySelector('.pct').textContent = wr + '%'; const is = bar.querySelectorAll('i'); is[0].classList.toggle('on', wr >= cfg.stars.wreck1 * 100); is[1].classList.toggle('on', wr >= cfg.stars.wreck2 * 100); if (shown.wreck >= 0 && W && !demo) { if (shown.wreck < cfg.stars.wreck1 * 100 && wr >= cfg.stars.wreck1 * 100) starPop(); if (shown.wreck < cfg.stars.wreck2 * 100 && wr >= cfg.stars.wreck2 * 100) { starPop(); celebrate(T('flat'), 'flat'); } } shown.wreck = wr; }
+    if (wr !== shown.wreck) { const bar = $('bar'); bar.querySelector('b').style.width = wr + '%'; bar.querySelector('.pct').textContent = wr + '%'; const is = bar.querySelectorAll('i'); is[0].classList.toggle('on', wr >= cfg.stars.wreck1 * 100); is[1].classList.toggle('on', wr >= cfg.stars.wreck2 * 100); if (shown.wreck >= 0 && W && !demo) { if (shown.wreck < cfg.stars.wreck1 * 100 && wr >= cfg.stars.wreck1 * 100) starPop(); if (shown.wreck < cfg.stars.wreck2 * 100 && wr >= cfg.stars.wreck2 * 100) starPop(); } shown.wreck = wr; }
   }
   const fmt = (n) => (n >= 1e6 ? (Math.floor(n / 1e5) / 10).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 10000 ? (Math.floor(n / 100) / 10).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n));
   /** A whole number with thousands commas (1,234), for the brag line. */
   const commas = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   // ---- words at eye level share the view. Each new one takes the free place nearest to where it belongs: clear of
   // the crosshair, of the status lines under the top bar, of the coach's label, of the controls and of every word
-  // still up (its way up included). A word with no free place waits a moment and tries again; a coin count is dropped.
+  // still up (its way up included). A word with no free place waits a moment and tries again; a coin count is dropped
+  // at once, a small word after its last try. Words never stand on each other: the big word that must be seen and
+  // still has no place takes it, and the words under it go.
   const WORDS = { top: 156, bottom: 920, side: 12, gap: 8, rise: 0.4, life: 950, wait: 220, tries: 4, cross: { l: 270, t: 566, r: 450, b: 714 }, up: [] };
   /** Screen pixels per frame unit. */
   const unit = () => root.getBoundingClientRect().width / 720 || 1;
@@ -320,13 +325,14 @@ function startGame(mode) {
   /**
    * The free place for a w × h word wanted at (x, y): its centre [x, y] and its box, or null when the view is full.
    * `loose` 1 = it may pass over the arrows to stars (a big word is as wide as the frame), 2 = over other words too
-   * (the last try of a word that waited): never over the crosshair, the status lines or the coach's label;
+   * (no word asks for it any more): never over the crosshair, the status lines or the coach's label;
    * 3 = over the status lines and the coach's label but not over other words; 4 = over everything but the crosshair
    * (a word the player must see is never dropped).
    */
   function wordPlace(x, y, w, h, loose = 0) {
     const G = WORDS, now = performance.now(), up = h * G.rise, pad = G.gap - 0.5;
-    for (let i = G.up.length - 1; i >= 0; i--) if (G.up[i].until <= now) G.up.splice(i, 1);
+    // a place is free again when its time is up and its word is gone (a late frame can keep the word a moment longer)
+    for (let i = G.up.length - 1; i >= 0; i--) if (G.up[i].until <= now && !(G.up[i].el && G.up[i].el.isConnected)) G.up.splice(i, 1);
     const taken = loose === 2 || loose >= 4 ? [G.cross] : [G.cross, ...G.up];
     if (loose < 3) for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
     if (!loose) for (const el of $('arrows').children) { const r = frameRect(el); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
@@ -351,7 +357,7 @@ function startGame(mode) {
     const k = unit(), at = wordPlace(x, y, p.offsetWidth / k, p.offsetHeight / k, loose);
     if (!at) { p.remove(); return false; }
     p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`;
-    p._box = at[2]; p._x = x; p._y = y;
+    p._box = at[2]; p._box.el = p; p._x = x; p._y = y;
     setTimeout(() => p.remove(), WORDS.life);
     return true;
   }
@@ -364,7 +370,7 @@ function startGame(mode) {
       const at = wordPlace(p._x, p._y, b.r - b.l, (b.b - b.t) / (1 + WORDS.rise));
       // nowhere to go at its size: it is made again from its one-line try on (a big word then fits under the crosshair)
       if (!at) { const a = p._args; p.remove(); if (a) pop(a[0], a[1], a[2], a[3], a[4], a[5], 0, 1); continue; }
-      p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`; p._box = at[2];
+      p.style.left = `calc(var(--u)*${at[0].toFixed(1)}px)`; p.style.top = `calc(var(--u)*${at[1].toFixed(1)}px)`; p._box = at[2]; p._box.el = p;
     }
   }
   /** A trophy won: the cup under the crosshair. */
@@ -378,12 +384,17 @@ function startGame(mode) {
     $('pops').appendChild(p);
     // a big word is never dropped. Its tries, at once and in this order: two lines in a free place; one line (half
     // the height: it fits under the crosshair); two lines over the status lines (it comes with its fanfare, not a
-    // second later). Other words are waited for; only its very last try may stand over them too.
+    // second later). Other words are waited for; only its very last try may take their place.
     const big = cls.includes('p-big'), last = turn >= WORDS.tries, oneLine = big && stage === 1 && !last;
     // (on one line a big word takes the middle size, so a long one still fits the frame's width)
     const base = oneLine ? 60 : big ? 88 : cls.includes('p-mid') ? 60 : 44; fitText(p, 690, base, big && !oneLine ? 2 : 1);
-    const loose = last ? (big ? 4 : 2) : big ? (stage === 2 ? 3 : 1) : 0;
-    if (wordShow(p, x, y, loose) || cls.includes('p-coin') || last) return;
+    // a small word never stands on another: one that still has no place on its last try goes
+    const loose = big ? (last ? 4 : stage === 2 ? 3 : 1) : 0;
+    // its very last try: first over other words only (the status lines stay clear), and only then over everything
+    const up = loose === 4 ? wordShow(p, x, y, 2) || ($('pops').appendChild(p), wordShow(p, x, y, 4)) : wordShow(p, x, y, loose);
+    // the big word that took its place over other words: the words under it go
+    if (up && loose === 4) { const b = p._box, pad = WORDS.gap - 0.5; for (const q of [...$('pops').children]) { const o = q._box; if (q !== p && o && b.l < o.r + pad && b.r > o.l - pad && b.t < o.b + pad && b.b > o.t - pad) { q.remove(); const i = WORDS.up.indexOf(o); if (i >= 0) WORDS.up.splice(i, 1); } } }
+    if (up || cls.includes('p-coin') || last) return;
     if (big && stage < 2) { pop(text, x, y, cls, color, ic, turn, stage + 1); return; }
     const gen = celGen; setTimeout(() => { if (alive && gen === celGen) pop(text, x, y, cls, color, ic, turn + 1, 0); }, WORDS.wait);
   }
@@ -393,9 +404,9 @@ function startGame(mode) {
   const banner = (text, cls = 'p-big', dy = 0) => pop(text, 360, 510 + dy / 2, cls);
   /**
    * Fits a text to its room, the box following its text: one line when it fits in maxW frame units; else (lines > 1)
-   * balanced lines inside maxW; only then a smaller font, never below 70% of base (long translations).
+   * balanced lines inside maxW; only then a smaller font, never below `floor` of base (70%; long translations).
    */
-  function fitText(el, maxW, base, lines = 1) {
+  function fitText(el, maxW, base, lines = 1, floor = 0.7) {
     const k = root.getBoundingClientRect().width / 720 || 1;
     el.style.fontSize = ''; el.style.whiteSpace = 'nowrap'; el.style.maxWidth = ''; el.classList.remove('wrap');
     if (el.style.width === 'max-content') el.style.width = '';
@@ -405,7 +416,7 @@ function startGame(mode) {
     // lines counted from the text's own height (a button's min-height would read as extra lines)
     const rows = () => { const mh = el.style.minHeight; el.style.minHeight = '0'; const cs = getComputedStyle(el), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2, n = Math.round((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh); el.style.minHeight = mh; return n; };
     const over = () => el.scrollWidth > el.clientWidth + 1 || el.offsetWidth / k > maxW + 0.5 || (lines > 1 && rows() > lines);
-    for (let f = base; over() && f > base * 0.7; ) { f = Math.max(base * 0.7, f * 0.94); el.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
+    for (let f = base; over() && f > base * floor; ) { f = Math.max(base * floor, f * 0.94); el.style.fontSize = `calc(var(--u)*${f.toFixed(1)}px)`; }
   }
   /** One row of buttons or tabs that must fit side by side: all shrink together (same size), at most to 70%. */
   function fitRow(row, items, base) {
@@ -424,8 +435,9 @@ function startGame(mode) {
     tipKey = k; const tip = $('tip'), hand = $('hand');
     // 600 of the 680 wide column: room for its pulse
     tip.hidden = !k; if (k) { tip.textContent = T(k); fitText(tip, 600, 52, 2); }
-    // the attract show's call to action in the bottom band: the same words, in the player's language
-    { const cta = $('cta'), CT = cfg.demo.cta; cta.style.setProperty('--cb', CT.bottom); cta.textContent = T('tap'); if ($('hud').classList.contains('attract')) fitText(cta, CT.width, CT.size, 1); }
+    // the attract show's call to action in the bottom band: the same words, in the player's language, on one line
+    // (its box follows its text; long translations may shrink to demo.cta.min of the size)
+    { const cta = $('cta'), CT = cfg.demo.cta; cta.style.setProperty('--cb', CT.bottom); cta.style.setProperty('--cs', CT.size); cta.textContent = T('tap'); if ($('hud').classList.contains('attract')) fitText(cta, CT.width, CT.size, 1, CT.min); }
     if (coachK && coachK !== '-') tip.hidden = true;
     hand.hidden = !(k === 'tap' || k === 'tooHard');
     wordsYield();
@@ -768,7 +780,7 @@ function startGame(mode) {
     // the level bonus is paid once; later visits (after smashing more) only add the stars' difference
     const bonus = paidStars === null ? L.levelBonus(cfg, W.n, stars) : (stars.every(Boolean) && !paidStars.every(Boolean) ? L.levelBonus(cfg, W.n, stars) / 2 : 0);
     paidStars = stars;
-    save.coins += bonus; save.total += bonus;
+    save.coins += bonus; save.total += bonus; paidBonus += bonus;
     // today's challenge: done for today
     if (W.daily) { if (save.dailyDone < L.dayNum(new Date())) save.dailyDone = L.dayNum(new Date()); }
     else { const key = String(W.n % WD.KINDS.length); save.best[key] = Math.max(save.best[key] || 0, cups); if (save.level <= W.n) { save.level = W.n + 1; save.levels++; } }
@@ -784,9 +796,10 @@ function startGame(mode) {
     WD.aimHammer(W, null); WD.release(W); WD.setMove(W, 0, 0); hitHeld = false;
     // the cursor comes back for NEXT
     try { if (document.pointerLockElement) document.exitPointerLock(); } catch (er) { /* fine */ }
-    const { wr, stars, bonus } = payLevel();
+    // (a flattened building's card says so: its big word would stand under the card)
+    const { wr, stars } = payLevel();
     // the card sums the buildings of the chain since the last card (a daily challenge shows only itself)
-    const sum = W.daily ? { coins: 0, smashed: 0 } : chain, cardCoins = sum.coins + W.coins + (bonus || 0), cardBlocks = sum.smashed + W.smashed;
+    const sum = W.daily ? { coins: 0, smashed: 0 } : chain, cardCoins = sum.coins + W.coins + paidBonus, cardBlocks = sum.smashed + W.smashed;
     const nt = L.nextTool(cfg, save.owned, save.coins), miss = nt ? nt.need - nt.have : 0;
     const share = typeof lib !== 'undefined' && typeof lib.share === 'function';
     // the wreck figure: its name, the share wrecked, and a bar with the two trophies standing at their thresholds
@@ -795,7 +808,7 @@ function startGame(mode) {
     if (!W.daily && save.level >= 2 && save.dailyDone < L.dayNum(new Date())) quiet.push(UI.secondary('dailyBtn', 'calendar', T('dailyGo')));
     if (share) quiet.push(UI.secondary('shareBtn', 'plane', T('shareCta')));
     $('panel').innerHTML = `<div class="card rcard"><div class="rays"></div>
-      <div class="title out">${T('clear')}</div>
+      <div class="title out">${T(W.flat ? 'flat' : 'clear')}</div>
       <div class="bigstars">${[0, 1, 2].map((i) => `<img src="${STAR_SVG}" class="on" style="animation-delay:${0.15 + i * 0.15}s" alt="">`).join('')}</div>
       <div class="stat out">${UI.COIN}+<b class="cnt">${fmt(cardCoins)}</b></div>
       <div class="brag">${T('brag', commas(cardBlocks))}</div>
@@ -1206,6 +1219,8 @@ function startGame(mode) {
       saveLoaded = true;
       if (demo && !touched && save.level !== W.n) newLevel(save.level, { demo: true }); // the attract mode shows the player's next building
       renderTools(); renderTop(); if (tipKey) setTip(tipKey);
+      // settings left open while the save came: the panel in the save's language
+      if (!$('settings').hidden) openSettings();
       if (localGain) persist(); // only what was earned before the save came needs writing (never during the attract mode)
     }).catch(() => { if (alive) setTimeout(() => read(tries + 1), Math.min(10000, 1500 * (tries + 1))); /* keep trying; never write blind */ });
     read(0);

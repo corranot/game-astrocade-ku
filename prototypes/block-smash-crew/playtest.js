@@ -671,6 +671,82 @@ async function main() {
     await page.close();
   }
 
+  // ---- 20. bugs found by the fourth hunt (each check failed before its fix)
+  if (!process.env.ONLY || process.env.ONLY === 'hunt4') {
+    const LANGS = Object.keys(cfg.langNames);
+    // the text's own box (not its element's) in frame units as drawn (the pulse included), its laid-out width and its font size
+    const textBox = (page, sel) => g(page, (sel) => { const f = document.querySelector('#app').getBoundingClientRect(), e = document.querySelector(sel), rg = document.createRange(); rg.selectNodeContents(e); const r = rg.getBoundingClientRect(), k = 720 / f.width; return { l: Math.round((r.left - f.left) * k), r: Math.round((r.right - f.left) * k), w: Math.round(e.offsetWidth * k), fs: Math.round(parseFloat(getComputedStyle(e).fontSize) * k) }; }, sel);
+    const fits = (b, w) => b.l >= 0 && b.r <= 720 && b.w <= w + 1;
+    // h1: the call to action and the game's name fit the frame in every language, from the save and picked in settings
+    {
+      const CT = cfg.demo.cta, off = [], sizes = {};
+      const a = await open(browser, '', { port }); await a.page.waitForTimeout(500); await a.page.click('#gear'); await a.page.waitForTimeout(300);
+      for (const l of LANGS) {
+        await g(a.page, (l) => document.querySelector(`#settings [data-l="${l}"]`).click(), l); await a.page.waitForTimeout(400);
+        const c = await textBox(a.page, '#cta'), t = await textBox(a.page, '#title');
+        if (!fits(c, CT.width) || !fits(t, 720)) off.push(`${l} picked in settings: words ${c.l}..${c.r} at ${c.fs}, name ${t.l}..${t.r}`);
+        if (l === 'id') await shot(a.page, '20-attract-id');
+      }
+      await a.page.close();
+      for (const l of LANGS) {
+        const b = await open(browser, '', { port, init: `window.__preset = ${JSON.stringify({ lang: l, level: 0 })};` }); await waitFor(b.page, () => __game.saveLoaded); await b.page.waitForTimeout(500);
+        const c = await textBox(b.page, '#cta'), t = await textBox(b.page, '#title'); sizes[l] = c.fs;
+        if (!fits(c, CT.width) || !fits(t, 720)) off.push(`${l} from the save: words ${c.l}..${c.r} at ${c.fs}, name ${t.l}..${t.r}`);
+        await b.page.close();
+      }
+      check(off.length === 0, `h1 the attract show's words and name fit the frame in ${LANGS.length} languages, both ways (sizes ${JSON.stringify(sizes)}; off: ${off.join(' | ') || 'none'})`);
+      check(Object.values(sizes).every((v) => v >= Math.floor(CT.size * CT.min)) && sizes.en > sizes.id, `h1 short words stay bigger than long ones, none under ${Math.floor(CT.size * CT.min)} (en ${sizes.en}, id ${sizes.id})`);
+    }
+    const { page, errors } = await open(browser, '', { port });
+    await waitFor(page, () => __game.saveLoaded); await tapAt(page, 360, 500); await waitFor(page, () => !__game.demo);
+    const toFever = () => g(page, () => { const W = __game.W; W.got = W.need; W.phase = 'fever'; W.fever = W.cfg.fever.dur; W.feverT = 0; __game.onEvent({ type: 'fever' }); });
+    // counts, frame by frame, how many words with this text are up at once
+    const watch = (key) => g(page, (key) => { const c = window.__cnt = { max: 0, frames: 0, on: true }, t = __game.T(key); const tick = () => { const n = [...document.querySelectorAll('#pops .pop')].filter((p) => p.textContent === t).length; if (n) c.frames++; c.max = Math.max(c.max, n); if (c.on) requestAnimationFrame(tick); }; tick(); }, key);
+    const flatten = () => g(page, () => { const W = __game.W; W.left = Math.floor(W.total * 0.03); });
+    // h2: a building flattened in smash time says FLATTENED once (the second trophy said it too, under the first)
+    await g(page, () => __game.newLevel(2)); await page.waitForTimeout(2600); await toFever(); await page.waitForTimeout(1500);
+    await watch('flat'); await flatten(); await page.waitForTimeout(400); await shot(page, '20-flattened');
+    const wasFlat = await g(page, () => __game.W.flat === true);
+    await page.waitForTimeout(2200);
+    const fl = await g(page, () => { window.__cnt.on = false; return { ...window.__cnt }; }); fl.flat = wasFlat;
+    check(fl.flat && fl.frames > 0 && fl.max === 1, `h2 FLATTENED stands on screen once (most at one time: ${fl.max}, frames seen: ${fl.frames})`);
+    // h3: when the result card is due the card itself says FLATTENED (the word under it was never seen)
+    await g(page, () => { __game.newLevel(3); __game.cardDue(); }); await page.waitForTimeout(2600); await toFever(); await page.waitForTimeout(1200);
+    await flatten(); await waitFor(page, () => __game.resultsOpen, null, 5000); await page.waitForTimeout(2200);
+    const figure = (t) => (/k$/.test(t) ? parseFloat(t) * 1000 : /M$/.test(t) ? parseFloat(t) * 1e6 : +t);
+    const c1 = await g(page, () => ({ seen: document.querySelector('#panel .title').offsetHeight > 0, title: document.querySelector('#panel .title').textContent, flat: __game.T('flat'), clear: __game.T('clear'), cnt: document.querySelector('#panel .cnt').textContent, was: __game.W.flat }));
+    check(c1.was && c1.seen && c1.title === c1.flat && c1.title !== c1.clear, `h3 a flattened building's result card is titled "${c1.flat}" (it says "${c1.title}")`);
+    await shot(page, '20-card-flattened');
+    // h4: KEEP SMASHING and the card again: the coin figure never drops (the level bonus was left out the second time)
+    await g(page, () => document.querySelector('#keepBtn').click()); await page.waitForTimeout(400);
+    await g(page, () => document.querySelector('#nextpill').click()); await page.waitForTimeout(2200);
+    const c2 = await g(page, () => ({ open: __game.resultsOpen, cnt: document.querySelector('#panel .cnt').textContent, title: document.querySelector('#panel .title').textContent }));
+    check(c2.open && figure(c2.cnt) >= figure(c1.cnt) && c2.title === c1.flat, `h4 the card's coins are the same or more when it opens again (${c1.cnt} → ${c2.cnt})`);
+    // h6: words never stand on each other, also when the view is full for a second: a small word that found no place
+    // goes, a big one takes the place of the words under it
+    await g(page, () => { __game.setLang('en'); __game.newLevel(2); document.getElementById('lvcard').hidden = true; }); await page.waitForTimeout(400);
+    const pairs = () => g(page, () => { const k = 720 / document.querySelector('#app').getBoundingClientRect().width, ps = [...document.querySelectorAll('#pops .pop')].map((p) => ({ t: p.textContent, l: (p.offsetLeft - p.offsetWidth / 2) * k, r: (p.offsetLeft + p.offsetWidth / 2) * k, t0: (p.offsetTop - p.offsetHeight / 2) * k, b: (p.offsetTop + p.offsetHeight / 2) * k })), bad = []; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) { const a = ps[i], b = ps[j]; if (Math.min(a.r, b.r) - Math.max(a.l, b.l) > 1 && Math.min(a.b, b.b) - Math.max(a.t0, b.t0) > 1) bad.push(`${a.t} on ${b.t}`); } return { n: ps.length, bad, big: ps.some((p) => p.t === 'KABOOM!') }; });
+    await g(page, () => { const G = __game; G.words.life = 4000; G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); for (let i = 0; i < 40; i++) G.pop('BONK! BONK!', 360, 530, 'p-mid'); });
+    await page.waitForTimeout(1600);
+    const w6 = await pairs();
+    check(w6.n >= 4 && w6.bad.length === 0, `h6 forty words asked for at once: ${w6.n} stand, none on another (${w6.bad.slice(0, 3).join(' | ') || 'none'})`);
+    await g(page, () => __game.banner('KABOOM!', 'p-big', -80)); await page.waitForTimeout(1600);
+    const w6b = await pairs();
+    check(w6b.big && w6b.bad.length === 0, `h6 a big word into the full view still shows, with nothing under it (${w6b.bad.slice(0, 3).join(' | ') || 'none'})`);
+    await g(page, () => { const G = __game; G.words.life = 950; G.words.up.length = 0; document.querySelectorAll('#pops .pop').forEach((p) => p.remove()); });
+    check(errors.length === 0, 'hunt 4 checks: no page errors: ' + (errors.join(' | ') || 'none'));
+    await page.close();
+    // h5: a save that comes late leaves the settings panel open over the show (the show moves to the player's building)
+    const late = await open(browser, '', { port, init: `window.__saveDelay = 6000; window.__preset = ${JSON.stringify({ level: 3, levels: 3, coins: 500, total: 500, owned: ['hammer', 'bomb'], lang: 'id' })};` });
+    await late.page.click('#gear'); await late.page.waitForTimeout(300);
+    const s0 = await g(late.page, () => ({ open: !document.querySelector('#settings').hidden, loaded: __game.saveLoaded }));
+    await waitFor(late.page, () => __game.saveLoaded, null, 20000); await late.page.waitForTimeout(400);
+    const s1 = await g(late.page, () => ({ open: !document.querySelector('#settings').hidden, n: __game.W.n, demo: __game.demo, title: document.querySelector('#settings .ptitle .tx').textContent, want: __game.T('settings'), lang: __game.lang }));
+    check(s0.open && !s0.loaded && s1.open && s1.n === 3 && s1.demo, `h5 a late save leaves the settings open over the show (${JSON.stringify(s1)})`);
+    check(s1.lang === 'id' && s1.title === s1.want, `h5 ...and the panel then speaks the save's language ("${s1.title}")`);
+    await late.page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);
