@@ -15,7 +15,14 @@
   "pounceRange": 3.6,
   "pickRange": 7.5,
   "swipeRange": 1.5,
-  "swipePower": 6.5
+  "swipePower": 6.5,
+  "headReach": 0.47,
+  "headRadius": 0.34,
+  "headHeight": 1.2,
+  "tailReach": 0.5,
+  "tailRadius": 0.24,
+  "headLow": 0.7,
+  "tailLow": 0.45
  },
  "bounce": {
   "sofa": 10.5,

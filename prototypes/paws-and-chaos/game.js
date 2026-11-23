@@ -330,10 +330,10 @@ class WorldBuilder {
     for (let i = 0; i < 2; i++) S.add(G.box, cush, -8.3, 0.98, -3.5 + i * 3, 0, 0, 0, 3.3, 0.46, 2.9);
     this.box(-10.6, -9.6, 0, 2.7, -5.6, 1.6, sofa, { tag: 'sofaBack' });
     this.box(-10, -6.6, 0, 1.8, -5.6, -5, sofa); this.box(-10, -6.6, 0, 1.8, 1, 1.6, sofa);
-    for (const z of [-5.3, 1.3]) S.add(G.cyl, sofa, -8.3, 1.8, z, Math.PI / 2, 0, 0, 0.3, 0.6, 0.3);
     for (const [x, z] of [[-9.8, -5.4], [-6.8, -5.4], [-9.8, 1.4], [-6.8, 1.4]]) S.add(G.cyl8, '#8a5528', x, 0.08, z, 0, 0, 0, 0.12, 0.16, 0.12);
     // pillow
     S.add(G.sph, '#ffe27a', -9.4, 1.8, -3.9, 0.3, 0.4, 0, 0.5, 0.6, 0.18);
+    this.box(-9.6, -9.2, 1.2, 2.35, -4.4, -3.4, null, { tag: 'pillow' });
 
     // ---- coffee table
     const wood = '#d9944f', woodD = '#b9763a';
@@ -354,10 +354,12 @@ class WorldBuilder {
       }
     }
     // ---- dog bed
-    S.add(G.cyl, '#9fd8ef', 7.6, 0.12, -5, 0, 0, 0, 2.6, 0.24, 2.0);
-    S.add(G.torus, '#7cc2e0', 7.6, 0.3, -5, Math.PI / 2, 0, 0, 2.5, 1.9, 2.2);
-    this.box(5.6, 9.4, 0, 1.2, -6.5, -3.5, null, { bounce: 'dog', tag: 'dog' });
-    this.box(9.4, 10.8, 0, 1.4, -5.8, -4.2, null, { tag: 'dogHead' });
+    S.add(G.cyl, '#9fd8ef', 7.6, 0.1, -5, 0, 0, 0, 2.3, 0.2, 2.3);
+    S.add(G.torus, '#7cc2e0', 7.6, 0.2, -5, Math.PI / 2, 0, 0, 2.25, 2.25, 1.15);
+    this.cylc(7.6, -5, 2.42, 0, 0.34, { tag: 'bed' });
+    this.box(5.6, 9.4, 0, 1.38, -6.45, -3.55, null, { bounce: 'dog', tag: 'dog' });
+    this.box(4.6, 5.6, 0, 0.58, -6.25, -5.55, null, { tag: 'dogTail' });
+    this.box(9.4, 10.8, 0, 1.5, -5.8, -4.2, null, { tag: 'dogHead' });
     // ---- plants (wobble, spill soil)
     this.plants = [];
     for (const [x, z] of [[-10.6, -10.6], [10.6, 10.4], [-10.6, 10.4], [10.6, -10.4]]) this.makePlant(x, z);
@@ -370,8 +372,17 @@ class WorldBuilder {
     // ---- yarn basket
     this.basketPos = new THREE.Vector3(6, 0, 7.5);
     S.add(G.cyl, '#c98a4b', 6, 0.04, 7.5, 0, 0, 0, 1.0, 0.08, 1.0);
-    for (let i = 0; i < 18; i++) { const a = i / 18 * TAU; S.add(G.box, i % 2 ? '#c98a4b' : '#b06e33', 6 + Math.cos(a) * 1.02, 0.36, 7.5 + Math.sin(a) * 1.02, 0, -a, 0, 0.12, 0.72, 0.38); }
-    S.add(G.torus, '#e0a35c', 6, 0.72, 7.5, Math.PI / 2, 0, 0, 1.04, 1.04, 1.4);
+    // solid wicker all round except an opening toward the middle of the room, so a ball rolls in instead of through
+    const gap = Math.atan2(-7.5, -6), half = 0.85;
+    for (let i = 0; i < 18; i++) {
+      const a = i / 18 * TAU, off = Math.abs(((a - gap + Math.PI) % TAU + TAU) % TAU - Math.PI);
+      if (off < half) continue;
+      const x = 6 + Math.cos(a) * 1.02, z = 7.5 + Math.sin(a) * 1.02;
+      S.add(G.box, i % 2 ? '#c98a4b' : '#b06e33', x, 0.36, z, 0, -a, 0, 0.12, 0.72, 0.38);
+      this.box(x - 0.17, x + 0.17, 0, 0.72, z - 0.17, z + 0.17, null, { tag: 'basket' });
+    }
+    const rimGeo = new THREE.TorusGeometry(1, 0.12, 10, 32, TAU - 2 * half); this.disposables.push(rimGeo);
+    S.add(rimGeo, '#e0a35c', 6, 0.72, 7.5, Math.PI / 2, 0, gap + half, 1.04, 1.04, 1.4);
     // ---- toy chest and side table for decoration
     S.add(G.box, '#7fc8ff', 10.4, 0.6, 9.5, 0, -0.3, 0, 1.6, 1.2, 1.1); S.add(G.box, '#ffd23f', 10.4, 1.25, 9.5, 0, -0.3, 0, 1.7, 0.14, 1.2);
     this.box(9.5, 11.3, 0, 1.3, 8.9, 10.1, null);
@@ -442,7 +453,8 @@ class WorldBuilder {
     S.add(G.cyl, '#e8e2f5', 0, 2.35, -22.5, 0, 0, 0, 1.0, 0.18, 1.0);
     const water = new THREE.Mesh(new THREE.CircleGeometry(2.55, 40), this.mat({ color: 0x6fd3ff, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85 }));
     water.rotation.x = -Math.PI / 2; water.position.set(0, 0.74, -22.5); this.scene.add(water); this.disposables.push(water.geometry); this.water = water;
-    this.cylc(0, -22.5, 2.75, 0, 0.72, { bounce: 'water', tag: 'water' });
+    this.cylc(0, -22.5, 2.5, 0, 0.72, { bounce: 'water', tag: 'water' });
+    for (let i = 0; i < 20; i++) { const a = i / 20 * TAU; this.cylc(Math.cos(a) * 2.7, -22.5 + Math.sin(a) * 2.7, 0.33, 0, 0.97, { tag: 'rim' }); }
     this.cylc(0, -22.5, 0.5, 0, 2.44, { tag: 'spout' });
     this.lilies = [];
     const lilyM = this.mat({ color: 0x5cc76a, roughness: 0.6 }), flowerM = this.mat({ color: 0xff9ec4 });
@@ -463,19 +475,46 @@ class WorldBuilder {
       for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; S.add(G.lo, '#ffffff', x + Math.cos(a) * 0.72, h - 0.02, z + Math.sin(a) * 0.72, 0, -a, 0, 0.42, 0.07, 0.2); }
       S.add(G.cyl, '#ffc93a', x, h, z, 0, 0, 0, 0.5, 0.1, 0.5);
       this.cylc(x, z, 1.05, h - 0.12, h + 0.05, { tag: 'daisy' });
+      this.cylc(x, z, 0.2, 0, h - 0.12, { tag: 'stem' });
     }
     // treehouse platform on posts with stairs from the lawn
     this.box(-1.5, 4.5, 4.9, 5.3, -33.8, -30, '#c98a4b', { tag: 'tree' });
     for (const [x, z] of [[-1.2, -33.5], [4.2, -33.5], [-1.2, -30.3], [4.2, -30.3]]) this.box(x - 0.2, x + 0.2, 0, 4.9, z - 0.2, z + 0.2, '#8a5528');
     this.box(1, 4.2, 5.3, 7.4, -33.8, -32, '#ff9f80');
     S.add(G.cone, '#ff6f61', 2.6, 8.1, -32.9, 0, Math.PI / 4, 0, 2.6, 1.4, 1.6);
+    this.box(0.8, 4.4, 7.4, 8.8, -34.2, -31.6, null, { tag: 'roof' });
     S.add(G.box, '#5a3a28', 2.6, 6.1, -31.98, 0, 0, 0, 0.9, 1.4, 0.06);
-    for (let k = 1; k <= 17; k++) { const x0 = 4.5 + (17 - k) * 0.45; this.box(x0, x0 + 0.45, 0, k * 5.3 / 17, -32.6, -31.2, k % 2 ? '#d9944f' : '#c98a4b', { tag: 'stair' }); }
+    for (let k = 1; k <= 17; k++) { const x0 = 4.5 + (17 - k) * 0.45; this.box(x0, x0 + 0.45, 0, k * 5.3 / 17, -32.6, -31.2, k % 2 ? '#d9944f' : '#c98a4b', { tag: 'stair', noCollide: true }); this.box(x0, x0 + 0.45, 0, k * 5.3 / 17, -32.78, -31.02, null, { tag: 'stair' }); }
     S.add(G.box, '#8a5528', 8.3, 3.3, -32.7, 0, 0, Math.atan2(5.3, 7.65), 9.3, 0.12, 0.12);
     S.add(G.box, '#8a5528', 8.3, 3.3, -31.1, 0, 0, Math.atan2(5.3, 7.65), 9.3, 0.12, 0.12);
     // flowers dotted on the lawn
     const fc = ['#ff7aa8', '#ffd23f', '#b28dff', '#ff9f43', '#6ac8ff'];
-    for (let i = 0; i < 40; i++) { const x = rand(-13, 13), z = rand(-33, -13.5); if (Math.hypot(x, z + 22.5) < 3.4) continue; S.add(G.cyl8, '#4caf50', x, 0.18, z, 0, 0, 0, 0.04, 0.36, 0.04); S.add(G.lo, fc[i % 5], x, 0.4, z, 0, 0, 0, 0.16, 0.1, 0.16); }
+    this.flowers = [];
+    for (let i = 0; i < 40; i++) { const x = rand(-13, 13), z = rand(-33, -13.5); if (Math.hypot(x, z + 22.5) < 3.6 || this.colliders.some((c) => c.cyl ? Math.hypot(x - c.x, z - c.z) < c.r + 0.2 : x > c.x0 - 0.2 && x < c.x1 + 0.2 && z > c.z0 - 0.2 && z < c.z1 + 0.2)) continue; this.flowers.push({ x, z, lean: 0, ax: 0, az: 0 }); }
+    const stemM = this.mat({ color: 0x4caf50 }), headM = this.mat({ roughness: 0.5 });
+    this.stems = new THREE.InstancedMesh(G.cyl8, stemM, this.flowers.length); this.heads = new THREE.InstancedMesh(G.lo, headM, this.flowers.length);
+    this.flowers.forEach((f, i) => { this.heads.setColorAt(i, new THREE.Color(fc[i % 5])); this.bendFlower(f, i, 0, 0, 0); });
+    for (const m of [this.stems, this.heads]) { m.castShadow = true; m.receiveShadow = true; this.scene.add(m); this.disposables.push(m, m.material); }
+  }
+
+  /** One flower tipped by angle `lean` away along (ax, az), pivoting at the ground. */
+  bendFlower(f, i, lean, ax, az) {
+    const m = this.fm || (this.fm = { q: new THREE.Quaternion(), axis: new THREE.Vector3(), mat: new THREE.Matrix4(), v: new THREE.Vector3(), s: new THREE.Vector3(), up: new THREE.Vector3() });
+    m.axis.set(az, 0, -ax); if (m.axis.lengthSq() < 1e-6) m.axis.set(1, 0, 0); m.axis.normalize();
+    m.q.setFromAxisAngle(m.axis, lean);
+    m.up.set(0, 0.18, 0).applyQuaternion(m.q); m.mat.compose(m.v.set(f.x + m.up.x, m.up.y, f.z + m.up.z), m.q, m.s.set(0.04, 0.36, 0.04)); this.stems.setMatrixAt(i, m.mat);
+    m.up.set(0, 0.4, 0).applyQuaternion(m.q); m.mat.compose(m.v.set(f.x + m.up.x, m.up.y, f.z + m.up.z), m.q, m.s.set(0.16, 0.1, 0.16)); this.heads.setMatrixAt(i, m.mat);
+    this.stems.instanceMatrix.needsUpdate = true; this.heads.instanceMatrix.needsUpdate = true;
+  }
+  /** Flowers near the kitten or a toy lean away from it, and spring back after. */
+  bendFlowers(dt, movers) {
+    this.flowers.forEach((f, i) => {
+      let want = 0, ax = f.ax, az = f.az;
+      for (const o of movers) { const dx = f.x - o.x, dz = f.z - o.z, d = Math.hypot(dx, dz), r = o.r + 0.35; if (d < r && o.y < 0.5) { const k = (1 - d / r) * 1.3; if (k > want) { want = k; ax = d > 1e-4 ? dx / d : 1; az = d > 1e-4 ? dz / d : 0; } } }
+      const lean = lerp(f.lean, want, damp(want > f.lean ? 20 : 5, dt));
+      if (Math.abs(lean - f.lean) < 1e-3 && ax === f.ax && az === f.az) return;
+      f.lean = lean; f.ax = ax; f.az = az; this.bendFlower(f, i, lean, ax, az);
+    });
   }
 
   /** Points where the red dot may sit: open floor and furniture tops, per zone. */
@@ -561,9 +600,9 @@ function collide(s, cols, stepUp, open, extra) {
 const PROP_KINDS = {
   yarn: { r: 0.5, hh: 0.5, mass: 1, rest: 0.25, roll: true, sound: 'soft' },
   beach: { r: 0.62, hh: 0.62, mass: 0.45, rest: 0.72, roll: true, sound: 'boing' },
-  block: { r: 0.38, hh: 0.38, mass: 0.7, rest: 0.25, roll: false, sound: 'wood' },
+  block: { r: 0.38, cr: 0.44, hh: 0.38, mass: 0.7, rest: 0.25, roll: false, sound: 'wood' },
   cup: { r: 0.26, hh: 0.34, mass: 0.3, rest: 0.2, roll: false, sound: 'paper' },
-  pencil: { r: 0.16, hh: 0.13, mass: 0.4, rest: 0.3, roll: true, sound: 'wood', pencil: true },
+  pencil: { r: 0.16, cr: 0.5, hh: 0.13, mass: 0.4, rest: 0.3, roll: true, sound: 'wood', pencil: true },
 };
 const YARN_COLORS = ['#ff6fa8', '#6ac8ff', '#ffd23f', '#9b7bff', '#7fe08a', '#ff9f43'];
 
@@ -614,7 +653,7 @@ class PhysicsProps {
     this.scene.add(mesh);
     const yaw = opt.yaw != null ? opt.yaw : rand(0, TAU);
     const p = {
-      kind, k, mesh, x, y, z, vx: 0, vy: 0, vz: 0, r: k.r, h: k.hh * 2, py: y,
+      kind, k, mesh, x, y, z, vx: 0, vy: 0, vz: 0, r: k.cr || k.r, h: k.hh * 2, py: y,
       asleep: true, sleepT: 0, restY: y, home: { x, y, z, yaw }, yaw, q: new THREE.Quaternion().setFromAxisAngle(this.up, yaw),
       av: new THREE.Vector3(), roll: 0, support: null, grounded: true, floorT: 0, cd: 0, wig: 0, color: opt.color || 0, scored: false, id: this.list.length,
     };
@@ -629,6 +668,14 @@ class PhysicsProps {
     const out = [];
     for (const o of this.list) if (o.asleep && o !== except) { const f = o.r * (o.k.roll ? 0.7 : 0.95); out.push({ x0: o.x - f, x1: o.x + f, z0: o.z - f, z1: o.z + f, y0: o.y, y1: o.y + o.h, prop: o }); }
     return out;
+  }
+  /** How far a toy reaches toward walls: a turned block reaches further with its corners. */
+  footprint(p) {
+    if (p.kind !== 'block') return p.r;
+    const e = this.eul || (this.eul = new THREE.Euler());
+    e.setFromQuaternion(p.q, 'YXZ');
+    const tilt = Math.min(1, Math.abs(e.x) + Math.abs(e.z));
+    return p.k.hh * Math.min(1.42, (Math.abs(Math.cos(e.y)) + Math.abs(Math.sin(e.y))) * (1 + tilt * 0.3)) + 0.02;
   }
   wake(p) {
     if (!p.asleep) return;
@@ -649,7 +696,7 @@ class PhysicsProps {
       }
       p.py = p.y;
       p.vy -= C.gravity * dt;
-      Object.assign(s, { x: p.x + p.vx * dt, y: p.y + p.vy * dt, z: p.z + p.vz * dt, vx: p.vx, vy: p.vy, vz: p.vz, r: p.r * (p.k.pencil ? 2.5 : 1), h: p.h, py: p.py, hit: null });
+      Object.assign(s, { x: p.x + p.vx * dt, y: p.y + p.vy * dt, z: p.z + p.vz * dt, vx: p.vx, vy: p.vy, vz: p.vz, r: this.footprint(p), h: p.h, py: p.py, hit: null });
       const landVy = p.vy;
       const g = collide(s, cols, 0.12, zoneOpen, this.sleepers(p));
       p.x = s.x; p.y = s.y; p.z = s.z; p.vx = s.vx; p.vz = s.vz;
@@ -917,6 +964,16 @@ class CatController {
     const wasGround = this.grounded, landVy = this.vy;
     const g = collide(s, cols, this.grounded ? C.stepUp : 0.18, open);
     this.x = s.x; this.y = s.y; this.z = s.z; this.vx = s.vx; this.vz = s.vz;
+    const hx = this.x + Math.sin(this.yaw) * C.headReach, hz = this.z + Math.cos(this.yaw) * C.headReach;
+    const hs = { x: hx, y: this.y, z: hz, vx: this.vx, vy: 0, vz: this.vz, r: C.headRadius, h: C.headHeight, py: this.y, hit: null };
+    // the head is up high: only things that reach its height can stop it
+    collide(hs, cols, Math.max(C.stepUp, C.headLow), open);
+    if (hs.hit) { this.x += hs.x - hx; this.z += hs.z - hz; this.vx = hs.vx; this.vz = hs.vz; s.hit = s.hit || hs.hit; }
+    const tx = this.x - Math.sin(this.yaw) * C.tailReach, tz = this.z - Math.cos(this.yaw) * C.tailReach;
+    const ts = { x: tx, y: this.y, z: tz, vx: this.vx, vy: 0, vz: this.vz, r: C.tailRadius, h: 0.8, py: this.y, hit: null };
+    // the tail never shoves the kitten: with something behind it, the tail curls up out of the way
+    collide(ts, cols, Math.max(C.stepUp, C.tailLow), open);
+    this.tailBlocked = !!ts.hit;
     let ev = null;
     if (g) {
       this.vy = 0; this.grounded = true; this.lastGround = now; this.ground = g;
@@ -982,9 +1039,12 @@ class CatController {
     this.earFlick = Math.max(0, (this.earFlick || 0) - dt);
     this.ears.forEach((e, i) => { e.rotation.x = (i === this.earSide && this.earFlick > 0 ? Math.sin(this.earFlick * 40) * 0.35 : 0) - mw * 0.3; });
     // tail: lazy figure-eight when idle, quick wave when running
+    this.curl = lerp(this.curl || 0, this.tailBlocked ? 1 : 0, damp(this.tailBlocked ? 14 : 4, dt));
+    const cu = this.curl;
     this.tail.forEach((s, i) => {
-      s.rotation.x = (i === 0 ? -0.9 : 0.12) + Math.sin(t * 3.2 + i * 0.6) * 0.1 * (1 - run) - run * (i === 0 ? -0.4 : 0.02);
-      s.rotation.y = Math.sin(t * 1.6 + i * 0.5) * 0.28 * (1 - run) + Math.sin(t * 10 + i * 0.8) * 0.22 * run;
+      const x = (i === 0 ? -0.9 : 0.12) + Math.sin(t * 3.2 + i * 0.6) * 0.1 * (1 - run) - run * (i === 0 ? -0.4 : 0.02);
+      s.rotation.x = lerp(x, i === 0 ? -1.75 : -0.12, cu);
+      s.rotation.y = (Math.sin(t * 1.6 + i * 0.5) * 0.28 * (1 - run) + Math.sin(t * 10 + i * 0.8) * 0.22 * run) * (1 - cu * 0.85);
     });
     // hats that move
     const h = this.hatCache[this.hatId];
@@ -1000,11 +1060,57 @@ class CameraRig {
   constructor(camera, cfg) {
     this.cam = camera; this.C = cfg.camera; this.yaw = 0; this.pitch = this.C.pitch; this.dist = this.C.dist;
     this.target = new THREE.Vector3(0, 1, 4); this.pos = new THREE.Vector3(0, 4, 12); this.trauma = 0; this.dragT = 9; this.t = 0;
-    this.want = new THREE.Vector3();
+    this.want = new THREE.Vector3(); this.cand = new THREE.Vector3();
   }
   drag(dx, dy) { this.yaw -= dx * this.C.dragSpeed; this.pitchOff = clamp((this.pitchOff || 0) + dy * this.C.dragSpeed * 0.6, -0.2, 0.45); this.dragT = 0; }
   shake(k) { this.trauma = Math.min(0.6, this.trauma + k); }
-  update(dt, cat, moving, snap) {
+  /** Pulls the camera in front of any solid between it and the kitten, and out of any toy. */
+  unblock(world, props) {
+    const o = this.target, p = this.pos;
+    const outOfToys = () => { for (const q of props || []) {
+      const cx = p.x - q.x, cy = p.y - (q.y + q.k.hh), cz = p.z - q.z, d = Math.hypot(cx, cy, cz), r = q.r + 0.35;
+      if (d < r && d > 1e-6) { p.x += cx / d * (r - d); p.y += cy / d * (r - d); p.z += cz / d * (r - d); }
+    } };
+    outOfToys();
+    const tHit = this.cast(world, o, p), dx = p.x - o.x, dy = p.y - o.y, dz = p.z - o.z;
+    if (tHit < 1) p.set(o.x + dx * tHit, o.y + dy * tHit, o.z + dz * tHit);
+    outOfToys();
+  }
+  /** Fraction of the way from o to p that is clear of every solid (1 = all clear), with a 0.3 m margin. */
+  cast(world, o, p) {
+    const dx = p.x - o.x, dy = p.y - o.y, dz = p.z - o.z;
+    let tHit = 1;
+    for (const c of world.colliders) {
+      if (c.gate && world.gardenOpen) continue;
+      // keep 0.3 m clear of solids; for one the kitten stands right against, test its true size
+      const near = c.cyl ? Math.hypot(o.x - c.x, o.z - c.z) < c.r + 0.3 && o.y > c.y0 - 0.3 && o.y < c.y1 + 0.3 : o.x > c.x0 - 0.3 && o.x < c.x1 + 0.3 && o.z > c.z0 - 0.3 && o.z < c.z1 + 0.3 && o.y > c.y0 - 0.3 && o.y < c.y1 + 0.3;
+      const m = near ? 0.15 : 0.3;
+      if (c.cyl) {
+        // vertical cylinder: circle in x/z, slab in y
+        const R2 = (c.r + m) * (c.r + m), ox = o.x - c.x, oz = o.z - c.z, y0 = c.y0 - m, y1 = c.y1 + m;
+        if (ox * ox + oz * oz < R2 && o.y > y0 && o.y < y1) continue;
+        const A = dx * dx + dz * dz, B = 2 * (ox * dx + oz * dz), Cc = ox * ox + oz * oz - R2;
+        let ta = 0, tb = 1;
+        if (A > 1e-9) { const disc = B * B - 4 * A * Cc; if (disc < 0) continue; const sq = Math.sqrt(disc); ta = Math.max(ta, (-B - sq) / (2 * A)); tb = Math.min(tb, (-B + sq) / (2 * A)); }
+        else if (Cc > 0) continue;
+        if (Math.abs(dy) > 1e-9) { let ya = (y0 - o.y) / dy, yb = (y1 - o.y) / dy; if (ya > yb) { const q = ya; ya = yb; yb = q; } ta = Math.max(ta, ya); tb = Math.min(tb, yb); }
+        else if (o.y < y0 || o.y > y1) continue;
+        if (ta <= tb && ta < tHit) tHit = ta;
+        continue;
+      }
+      const x0 = (c.cyl ? c.x - c.r : c.x0) - m, x1 = (c.cyl ? c.x + c.r : c.x1) + m, z0 = (c.cyl ? c.z - c.r : c.z0) - m, z1 = (c.cyl ? c.z + c.r : c.z1) + m, y0 = c.y0 - m, y1 = c.y1 + m;
+      if (o.x > x0 && o.x < x1 && o.y > y0 && o.y < y1 && o.z > z0 && o.z < z1) continue;
+      let t0 = 0, t1 = 1, ok = true;
+      for (const [a, d, lo, hi] of [[o.x, dx, x0, x1], [o.y, dy, y0, y1], [o.z, dz, z0, z1]]) {
+        if (Math.abs(d) < 1e-9) { if (a < lo || a > hi) { ok = false; break; } continue; }
+        let ta = (lo - a) / d, tb = (hi - a) / d; if (ta > tb) { const q = ta; ta = tb; tb = q; }
+        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); if (t0 > t1) { ok = false; break; }
+      }
+      if (ok && t0 < tHit) tHit = t0;
+    }
+    return tHit;
+  }
+  update(dt, cat, moving, snap, world, props) {
     const C = this.C;
     this.t += dt; this.dragT += dt;
     if (moving && this.dragT > 1.5) { const behind = cat.yaw + Math.PI; let d = ((behind - this.yaw + Math.PI) % TAU + TAU) % TAU - Math.PI; if (Math.abs(d) < 2.2) this.yaw += d * damp(C.autoAlign, dt); }
@@ -1013,13 +1119,30 @@ class CameraRig {
     this.target.x = lerp(this.target.x, cat.x, snap ? 1 : damp(10, dt));
     this.target.z = lerp(this.target.z, cat.z, snap ? 1 : damp(10, dt));
     this.target.y = lerp(this.target.y, cat.y + 1.0, snap ? 1 : damp(cat.grounded ? 5 : 2.2, dt));
-    const w = this.want.set(this.target.x + Math.sin(this.yaw) * Math.cos(pitch) * dist, this.target.y + Math.sin(pitch) * dist, this.target.z + Math.cos(this.yaw) * Math.cos(pitch) * dist);
-    // stay inside the space the kitten is in, under the ceiling
-    if (cat.z > -12.2) { w.x = clamp(w.x, -11.6, 11.6); w.z = clamp(w.z, -11.6, 11.6); w.y = Math.min(w.y, 8.6); }
-    else { w.x = clamp(w.x, -13.6, 13.6); w.z = clamp(w.z, -33.6, -12.7); }
-    const hd = Math.hypot(w.x - this.target.x, w.z - this.target.z), want = Math.cos(pitch) * dist;
-    if (hd < want) w.y = Math.min(cat.z > -12.2 ? 8.6 : 14, w.y + (want - hd) * 0.9);
+    // the wanted spot behind the kitten; if walls or furniture cut the view short, look from higher up instead
+    const w = this.want, tg = this.target;
+    let best = -1;
+    for (const pc of [pitch, pitch + 0.3, pitch + 0.6, 0.95, 1.15]) {
+      const cand = this.cand.set(tg.x + Math.sin(this.yaw) * Math.cos(pc) * dist, tg.y + Math.sin(pc) * dist, tg.z + Math.cos(this.yaw) * Math.cos(pc) * dist);
+      // stay inside the space the kitten is in, under the ceiling
+      if (cat.z > -12.2) { cand.x = clamp(cand.x, -11.6, 11.6); cand.z = clamp(cand.z, -11.6, 11.6); cand.y = Math.min(cand.y, 8.6); }
+      else { cand.x = clamp(cand.x, -13.6, 13.6); cand.z = clamp(cand.z, -33.6, -12.7); }
+      const clear = world ? this.cast(world, tg, cand) * cand.distanceTo(tg) : cand.distanceTo(tg);
+      if (clear > best + 0.4) { best = clear; w.copy(cand); }
+      if (clear >= Math.min(dist * 0.8, 4.5)) break;
+    }
+    // boxed in behind (a wall or the treehouse hut right at the kitten's back): swing round to the nearest clear side
+    if (world && best < 2.2 && this.dragT > 1) {
+      for (const off of [0.7, -0.7, 1.4, -1.4, 2.1, -2.1, Math.PI]) {
+        const yw = this.yaw + off, pc = pitch + 0.3;
+        const cand = this.cand.set(tg.x + Math.sin(yw) * Math.cos(pc) * dist, tg.y + Math.sin(pc) * dist, tg.z + Math.cos(yw) * Math.cos(pc) * dist);
+        if (cat.z > -12.2) { cand.x = clamp(cand.x, -11.6, 11.6); cand.z = clamp(cand.z, -11.6, 11.6); cand.y = Math.min(cand.y, 8.6); }
+        else { cand.x = clamp(cand.x, -13.6, 13.6); cand.z = clamp(cand.z, -33.6, -12.7); }
+        if (this.cast(world, tg, cand) * cand.distanceTo(tg) >= Math.min(dist * 0.7, 4)) { this.yaw += off * damp(snap ? 60 : 4, dt); break; }
+      }
+    }
     this.pos.lerp(w, snap ? 1 : damp(C.follow, dt));
+    if (world) this.unblock(world, props);
     this.cam.position.copy(this.pos);
     this.trauma = Math.max(0, this.trauma - dt * 1.4);
     const s = this.trauma * this.trauma * 0.25;
@@ -1157,6 +1280,7 @@ class QuestManager {
       if (b.away > 0) { b.away -= dt; b.y += dt * 2.5; if (b.away <= 0) b.y = b.cy; }
       const tx = b.cx + Math.sin(b.ph * 1.3) * b.ax, tz = b.cz + Math.sin(b.ph * 0.9 + 1) * b.az, ty = b.away > 0 ? b.y : b.cy + Math.sin(b.ph * 2.1) * 0.6;
       b.x = lerp(b.x, tx, damp(2, dt)); b.z = lerp(b.z, tz, damp(2, dt)); b.y = lerp(b.y, ty, damp(3, dt));
+      for (const c of this.world.colliders) { const inside = c.cyl ? Math.hypot(b.x - c.x, b.z - c.z) < c.r + 0.35 : b.x > c.x0 - 0.35 && b.x < c.x1 + 0.35 && b.z > c.z0 - 0.35 && b.z < c.z1 + 0.35; if (inside && b.y > c.y0 - 0.3 && b.y < c.y1 + 0.4) b.y = c.y1 + 0.4; }
       b.g.visible = cat.zone === 'garden';
       b.g.position.set(b.x, b.y, b.z);
       b.g.rotation.y = Math.atan2(tx - b.x, tz - b.z);
@@ -1384,10 +1508,10 @@ class Game {
     const P = this.props;
     // block pyramid on the rug, a tower by the sofa, a stack on the table
     let c = 0;
-    const s = 0.76;
+    const s = 0.76, sx = 0.9;
     const pyr = [];
-    for (let row = 0; row < 3; row++) for (let i = 0; i < 3 - row; i++) pyr.push(P.add('block', 2 + (i - (2 - row) / 2) * s, row * s, 1.6, { color: c++, yaw: 0 }));
-    for (const b of pyr) if (b.y > 0) b.support = pyr.find((o) => o.y === b.y - s && Math.abs(o.x - b.x) < s * 0.6) || pyr.find((o) => o.y === b.y - s);
+    for (let row = 0; row < 3; row++) for (let i = 0; i < 3 - row; i++) pyr.push(P.add('block', 2 + (i - (2 - row) / 2) * sx, row * s, 1.6, { color: c++, yaw: 0 }));
+    for (const b of pyr) if (b.y > 0) b.support = pyr.find((o) => o.y === b.y - s && Math.abs(o.x - b.x) < sx * 0.6) || pyr.find((o) => o.y === b.y - s);
     const tower = [0, 1, 2].map((i) => P.add('block', -5, i * s, 3.2, { color: c++, yaw: 0.2 }));
     tower[1].support = tower[0]; tower[2].support = tower[1];
     const tbl = [0, 1, 2].map((i) => P.add('block', -3.4, 1.6 + i * s, -7.2, { color: c++, yaw: -0.3 }));
@@ -1796,7 +1920,7 @@ class Game {
     this.updateRings(dt);
     this.fx.update(dt);
     if (this.demo) this.rig.yaw += dt * 0.12 * Math.sin(this.now * 0.2);
-    this.rig.update(dt, c, mv.fwd && Math.hypot(c.vx, c.vz) > 1, this.now < 0.05);
+    this.rig.update(dt, c, mv.fwd && Math.hypot(c.vx, c.vz) > 1, this.now < 0.05, this.world, this.props.list);
     this.sun.position.set(c.x - 9, 15, c.z + 6); this.sun.target.position.set(c.x, 0, c.z);
     this.ui.updateFloats(dt, this.camera, this.w || 1, this.h || 1);
     if (this.preview) { this.preview.t -= dt; if (this.preview.t <= 0) { this.preview = null; this.applyLook(); } }
@@ -1856,7 +1980,10 @@ class Game {
     for (const p of this.props.list) {
       const py = p.y + p.k.hh;
       if (py < c.y - 0.3 || p.y > c.y + C.cat.height) continue;
-      const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), m = C.cat.radius + p.r * (p.k.pencil ? 2.5 : 1);
+      const hx = c.x + Math.sin(c.yaw) * C.cat.headReach, hz = c.z + Math.cos(c.yaw) * C.cat.headReach;
+      let dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), m = C.cat.radius + p.r;
+      const hdx = p.x - hx, hdz = p.z - hz, hd = Math.hypot(hdx, hdz), hm = C.cat.headRadius + p.r;
+      if (d >= m && hd < hm) { dx = hdx; dz = hdz; d = hd; m = hm; }
       if (d >= m || d < 1e-4) continue;
       const nx = dx / d, nz = dz / d, rel = c.vx * nx + c.vz * nz - (p.vx * nx + p.vz * nz);
       this.props.wake(p);
@@ -1925,6 +2052,12 @@ class Game {
   }
   updateWorld(dt) {
     const W = this.world, t = this.now;
+    if (this.cat.zone === 'garden') {
+      const mv = this.movers || (this.movers = []); mv.length = 0;
+      mv.push({ x: this.cat.x, y: this.cat.y, z: this.cat.z, r: this.cfg.cat.radius });
+      for (const o of this.props.list) if (o.z < -12.2) mv.push(o);
+      W.bendFlowers(dt, mv);
+    }
     for (const pl of W.plants) {
       pl.cd = Math.max(0, pl.cd - dt);
       pl.vel += (-60 * pl.ang - 5 * pl.vel) * dt; pl.ang += pl.vel * dt;
@@ -1987,15 +2120,9 @@ class Game {
     }
   }
   render() {
-    // a toy at the lens or between the camera and the kitten is not drawn (it would hide the kitten or fill the screen)
-    const cp = this.camera.position, c = this.cat, ax = c.x - cp.x, ay = c.y + 0.5 - cp.y, az = c.z - cp.z, L2 = ax * ax + ay * ay + az * az || 1;
-    for (const p of this.props.list) {
-      const bx = p.x - cp.x, by = p.y + p.k.hh - cp.y, bz = p.z - cp.z, t = (bx * ax + by * ay + bz * az) / L2;
-      const near = Math.hypot(bx, by, bz) < p.r + 1.1;
-      const tt = clamp(t, 0, 1), dx = bx - ax * tt, dy = by - ay * tt, dz = bz - az * tt;
-      const between = t > 0 && t < 0.85 && Math.hypot(dx, dy, dz) < p.r + 0.45;
-      p.mesh.visible = !near && !between;
-    }
+    // the camera keeps out of toys (CameraRig.unblock); one still around the lens is skipped rather than cut open
+    const cp = this.camera.position;
+    for (const p of this.props.list) p.mesh.visible = Math.hypot(p.x - cp.x, p.y + p.k.hh - cp.y, p.z - cp.z) > p.r + 0.12;
     if (this.wardOpen) {
       const c = this.cat, mp = this.world.mirrorPos;
       this.mirrorCam.position.set(mp.x - 0.1, c.y + 1.0, clamp(c.z, mp.z - 1, mp.z + 1));
@@ -2043,6 +2170,10 @@ class Game {
       setYaw(y) { g.rig.yaw = y; },
       get yarnMats() { return g.props.A.yarnMats; },
       get pounceTarget() { return g.pounceTarget; },
+      camWhy() { const r = g.rig, tg = r.target, out = []; for (const pc of [0.34, 0.64, 0.94, 0.95, 1.15]) { const c = new THREE.Vector3(tg.x + Math.sin(r.yaw) * Math.cos(pc) * 7.4, tg.y + Math.sin(pc) * 7.4, tg.z + Math.cos(r.yaw) * Math.cos(pc) * 7.4); c.x = clamp(c.x, -11.6, 11.6); c.z = clamp(c.z, -11.6, 11.6); c.y = Math.min(c.y, 8.6); out.push([pc, r.cast(g.world, tg, c).toFixed(3), c.toArray().map((v) => v.toFixed(2)).join(',')]); } return out; },
+      tailTip() { const v = new THREE.Vector3(); g.cat.tail[5].getWorldPosition(v); return { x: v.x, y: v.y, z: v.z }; },
+      headTip() { const v = new THREE.Vector3(0, 0, 0.36); g.cat.head.localToWorld(v); return { x: v.x, y: v.y, z: v.z }; },
+      get cam() { const c = g.camera.position, t = g.rig.target; return { x: c.x, y: c.y, z: c.z, tx: t.x, ty: t.y, tz: t.z }; },
       get input() { return g.input; },
     };
   }

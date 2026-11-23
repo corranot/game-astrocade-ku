@@ -35,6 +35,88 @@ const until = (p, fn, arg, t) => p.waitForFunction(fn, arg, { timeout: t || 1500
 const tapEl = async (p, sel) => { const ok = await p.evaluate((s) => { const el = document.querySelector(s); if (!el || !el.offsetParent) return false; const r = el.getBoundingClientRect(); el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 77 })); el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 77 })); return true; }, sel); check(ok, 'tap target visible: ' + sel); };
 const start = async (p) => { await p.mouse.click(180, 380); await until(p, () => __game.state.started); };
 
+/** Nothing is seen passing through anything: camera, kitten head, toys, basket. */
+async function clipChecks(browser) {
+  const p = await open(browser);
+  await start(p);
+  await p.evaluate(() => __game.give(20));
+  // in-page geometry helpers: point inside a collider, segment crossing a collider
+  await p.evaluate(() => {
+    window.__inside = (x, y, z, m) => __game.world.colliders.filter((c) => !(c.gate && __game.world.gardenOpen)).find((c) => c.cyl ? Math.hypot(x - c.x, z - c.z) < c.r - m && y > c.y0 + m && y < c.y1 - m : x > c.x0 + m && x < c.x1 - m && z > c.z0 + m && z < c.z1 - m && y > c.y0 + m && y < c.y1 - m);
+    window.__blocked = (o, q) => { for (let i = 1; i < 40; i++) { const k = i / 40, c = __inside(o.x + (q.x - o.x) * k, o.y + (q.y - o.y) * k, o.z + (q.z - o.z) * k, 0.02); if (c) return c.tag || 'box'; } return null; };
+  });
+  const spots = [[-8.3, 1.2, -2], [-6, 0, -4], [-3.4, 1.6, -7.6], [0.5, 2.6, -10.4], [5, 5.6, -10.6], [7.5, 1.2, -5], [11.2, 0, 4], [-11.2, 0, 11.2], [11.3, 0, -11.2], [0, 0, 11.3], [-7, 0, -11], [0, 0, -14], [-10.5, 2.3, -21.5], [0, 0.72, -20.2], [2, 5.3, -31.5], [13.2, 0, -31.9]];
+  let bad = [];
+  for (const [x, y, z] of spots) {
+    for (let k = 0; k < 8; k++) {
+      await p.evaluate(([x, y, z, yaw]) => { __game.tp(x, y, z); __game.setYaw(yaw); }, [x, y, z, k / 8 * Math.PI * 2]);
+      // judged once the camera has caught up with the teleported kitten (teleports do not happen in play)
+      await until(p, () => { const c = __game.cam, t = __game.cat; return Math.hypot(c.tx - t.x, c.tz - t.z) < 0.05 && Math.abs(c.ty - t.y - 1) < 0.05; }, null, 8000);
+      await p.waitForTimeout(500);
+      const r = await p.evaluate(() => { const c = __game.cam, cat = __game.cat; const inBox = __inside(c.x, c.y, c.z, -0.08); const inToy = __game.props.some((o) => Math.hypot(c.x - o.x, c.y - o.y - o.k.hh, c.z - o.z) < o.r + 0.1);
+        return { inBox: inBox && (inBox.tag || 'box'), inToy, view: __blocked({ x: c.tx, y: c.ty, z: c.tz }, c), cam: [c.x, c.y, c.z, c.tx, c.ty, c.tz].map((v) => v.toFixed(2)).join(' '), yaw: __game.rig ? 0 : 0, at: [cat.x.toFixed(1), cat.y.toFixed(1), cat.z.toFixed(1)] }; });
+      if (r.inBox || r.inToy || r.view) bad.push(JSON.stringify(Object.assign(r, { toy: r.inToy && await p.evaluate(() => { const c = __game.cam; const o = __game.props.find((o) => Math.hypot(c.x - o.x, c.y - o.y - o.k.hh, c.z - o.z) < o.r + 0.1); return o && [o.kind, o.x.toFixed(2), o.y.toFixed(2), o.z.toFixed(2), o.asleep, c.x.toFixed(2), c.y.toFixed(2), c.z.toFixed(2)].join(' '); }) })));
+    }
+  }
+  check(!bad.length, `camera never inside furniture, walls or toys, and nothing solid between it and the kitten (${bad.length} of ${spots.length * 8} views` + (bad.length ? ': ' + bad.slice(0, 3).join(' ') : '') + ')');
+  await p.screenshot({ path: out + '/13-camera-wall.png' });
+  // the kitten's head, body and tail never enter walls, furniture, the fountain rim, flower stems or the dog
+  bad = [];
+  const walks = [[0, 9, Math.PI], [9, 0, Math.PI / 2], [-9, 7, -Math.PI / 2], [1, -8, 0], [-4, -4, 0], [-5.5, -2, -Math.PI / 2], [6.5, -1.5, 0], [7.6, -1.2, 0], [3.6, -5.2, -Math.PI / 2],
+    [-8.3, 1.2, -1], [0, -18.6, 0], [-8, -14.8, 0], [8.2, -29.6, 0], [8.2, -33.3, Math.PI]];
+  for (const [x, z, yaw] of walks) {
+    await p.evaluate(([x, z, yaw]) => { __game.tp(x, z === -1 ? 1.2 : 0, z === -1 ? -1 : z); __game.setYaw(yaw); }, [x, z, yaw]);
+    await p.keyboard.down('KeyW'); await p.waitForTimeout(1400);
+    const r = await p.evaluate(() => { const c = __game.cat, C = c.C, s = Math.sin(c.yaw), k = Math.cos(c.yaw);
+      const circles = [[c.x, c.z, C.radius - 0.03, C.stepUp], [c.x + s * C.headReach, c.z + k * C.headReach, C.headRadius - 0.04, C.headLow]];
+      // the real tail tip and nose tip, wherever the animation put them
+      for (const [n, q] of [['tail tip', __game.tailTip()], ['nose', __game.headTip()]]) { const box = __inside(q.x, q.y, q.z, 0.02); if (box) return n + ' in ' + (box.tag || 'box'); }
+      const hits = [];
+      for (const q of __game.world.colliders) { if (q.gate && __game.world.gardenOpen) continue; if (!(q.y0 < c.y + 0.8)) continue;
+        for (const [x, z, r, low] of circles) { if (!(q.y1 > c.y + Math.max(C.stepUp, low) + 0.01)) continue; const d = q.cyl ? Math.hypot(x - q.x, z - q.z) - q.r : Math.hypot(x - Math.max(q.x0, Math.min(x, q.x1)), z - Math.max(q.z0, Math.min(z, q.z1))); if (d < r) hits.push(q.tag || 'box'); } }
+      return hits.join('/'); });
+    await p.keyboard.up('KeyW');
+    if (r) bad.push(`${x},${z}:${r}`);
+  }
+  check(!bad.length, 'kitten head, body and tail stay out of everything solid when walking into it' + (bad.length ? ': ' + bad.join(' ') : ''));
+  // backed up against a wall, the tail curls up instead of going into it
+  await p.evaluate(() => { __game.tp(0, 0, 11.5); __game.cat.yaw = Math.PI; __game.setYaw(0); });
+  await p.waitForTimeout(900);
+  const tip = await p.evaluate(() => { const q = __game.tailTip(); return q.z < 11.98 + 0.02; });
+  check(tip, 'tail tip stays out of the wall when the kitten stands with its back to it');
+  // walking into the fountain stops at its stone rim
+  await p.evaluate(() => { __game.tp(0, 0, -18.4); __game.setYaw(0); });
+  await p.keyboard.down('KeyW'); await p.waitForTimeout(1500); await p.keyboard.up('KeyW');
+  check(await p.evaluate(() => Math.hypot(__game.cat.x, __game.cat.z + 22.5) > 3.02 + 0.42 - 0.06 || __game.cat.y > 0.8), 'kitten stops at the fountain rim (or hops onto it) instead of walking into the stone');
+  // the dog bed is stepped onto, not walked through
+  await p.evaluate(() => { __game.tp(7.6, 0, -1.2); __game.setYaw(0); });
+  await p.keyboard.down('KeyW'); await p.waitForTimeout(700); await p.keyboard.up('KeyW');
+  check(await p.evaluate(() => __game.cat.y > 0.3 || Math.hypot(__game.cat.x - 7.6, __game.cat.z + 5) > 2.8), 'kitten steps up onto the dog bed rim instead of through it');
+  // garden flowers lean away from the kitten
+  const fl = await p.evaluate(() => { const f = __game.world.flowers[0]; __game.tp(f.x + 0.2, 0, f.z); return [f.x, f.z]; });
+  await p.waitForTimeout(500);
+  check(await p.evaluate(() => __game.world.flowers[0].lean > 0.3), 'a flower the kitten stands next to bends away');
+  // butterflies never fly through anything solid
+  let bf = 0;
+  await p.evaluate(() => __game.tp(0, 0, -16));
+  for (let i = 0; i < 20; i++) { await p.waitForTimeout(150); bf += await p.evaluate(() => __game.quests.butterflies.filter((b) => __game.world.colliders.some((c) => (c.cyl ? Math.hypot(b.x - c.x, b.z - c.z) < c.r : b.x > c.x0 && b.x < c.x1 && b.z > c.z0 && b.z < c.z1) && b.y > c.y0 && b.y < c.y1)).length); }
+  check(bf === 0, `butterflies never inside anything solid (${bf} samples inside)`);
+  await p.screenshot({ path: out + '/14-head-wall.png' });
+  // a block shoved at a wall stops with its corners outside it
+  await p.evaluate(() => { __game.tp(0, 0, 0); const b = __game.props.find((o) => o.kind === 'block'); b.asleep = false; b.x = 10.5; b.y = 0.2; b.z = 2; b.vx = 9; b.vz = 0; b.vy = 0; b.yaw = Math.PI / 4; b.q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4); b.support = null; b.floorT = 0; b.grounded = false; window.__blk = b; });
+  await until(p, () => __blk.asleep && __blk.x > 10.8, null, 8000);
+  const bx = await p.evaluate(() => new THREE.Box3().setFromObject(__blk.mesh).max.x);
+  check(bx <= 12.03, `a turned block thrown at a wall stops with its corners outside it (reaches x ${bx.toFixed(2)}, wall at 12)`);
+  // yarn rolls into the basket through the opening, not through the wicker
+  await p.evaluate(() => { const y = __game.props.find((o) => o.kind === 'yarn'); y.asleep = false; y.x = 6; y.z = 9.8; y.y = 0; y.vx = 0; y.vz = -5; y.vy = 0; window.__yb = y; window.__g0 = __game.S.goals; });
+  await p.waitForTimeout(1500);
+  check(await p.evaluate(() => __game.S.goals === __g0 && Math.hypot(__yb.x - 6, __yb.z - 7.5) > 1.2), 'yarn hitting the back of the basket bounces off the wicker');
+  await p.evaluate(() => { const y = __yb, a = Math.atan2(-7.5, -6); y.asleep = false; y.x = 6 + Math.cos(a) * 2.6; y.z = 7.5 + Math.sin(a) * 2.6; y.y = 0; y.vx = -Math.cos(a) * 5; y.vz = -Math.sin(a) * 5; y.vy = 0; });
+  check(await until(p, () => __game.S.goals > __g0, null, 4000), 'yarn rolling through the basket opening scores');
+  check(!p.errors.length, 'no errors in the pass-through checks' + (p.errors.length ? ': ' + p.errors[0] : ''));
+  await p.close();
+}
+
 /** One test per bug the code readers found; each fails with its fix taken out. */
 async function bugChecks(browser) {
   let p = await open(browser);
@@ -98,6 +180,8 @@ async function bugChecks(browser) {
 (async () => {
   const browser = await chromium.launch({ args: GPU });
   try {
+    await clipChecks(browser);
+    if (process.env.ONLY === 'clip') return;
     await bugChecks(browser);
     if (process.env.ONLY === 'bugs') return;
     // 1. attract show, first tap, walking and jumping
