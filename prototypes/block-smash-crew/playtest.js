@@ -25,7 +25,12 @@ async function open(browser, q = '', opts = {}) {
   if (opts.init) await page.addInitScript(opts.init);
   await page.addInitScript(`window.__speed = ${opts.speed || 1};` + BOT);
   await page.goto(`http://localhost:${opts.port}/?local${q}`);
-  await page.waitForFunction(() => window.__game && window.__game.W && document.fonts.status === 'loaded', null, { timeout: 40000 });
+  // (the edit showcase draws no text, so the game's font is never asked for there)
+  await page.waitForFunction((still) => window.__game && window.__game.W && [...document.querySelectorAll('link[data-font]')].every((l) => l.media !== 'print') && (still || document.fonts.check('800 20px "Baloo 2"')) && document.fonts.status === 'loaded', /mode=edit/.test(q), { timeout: 40000 }).catch(async (e) => {
+    // which part of the start never came (the bare timeout says nothing)
+    const st = await page.evaluate(() => ({ game: !!window.__game, world: !!(window.__game && window.__game.W), links: [...document.querySelectorAll('link[data-font]')].map((l) => l.media), baloo: document.fonts.check('800 20px "Baloo 2"'), fonts: document.fonts.status, pending: [...document.fonts].filter((f) => f.status === 'loading').map((f) => f.family + ' ' + f.unicodeRange.slice(0, 20)) })).catch(() => null);
+    console.log(`start never came for "${q}": ${JSON.stringify(st)} | errors: ${JSON.stringify(errors.slice(0, 3))}`); throw e;
+  });
   return { page, errors };
 }
 const g = (page, fn, a) => page.evaluate(fn, a);
@@ -872,6 +877,132 @@ async function main() {
     check(b3a && lvNow === 8 && b3a.coins < b3.coins && b3a.card, `b3 ...and a tap upgrades it (hammer level ${lvNow}, coins ${b3 && b3.coins} → ${b3a && b3a.coins})`);
     check(!errors.length, `aaa2 no errors (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
+  }
+
+  // 23 "boss1": a boss building (every 5th) has a boss: one giant crowned BONK-BOT in the front yard, in view from the
+  // spawn; three hammer knocks bring it down (a crown point off per knock, BOSS DOWN! and the prize); none next level
+  if (!process.env.ONLY || process.env.ONLY === 'boss1') {
+    const BS = cfg.boss, { page, errors } = await open(browser, '', { port, touch: true });
+    const pause = (ms) => page.waitForTimeout(ms);
+    await pause(600); await tapAt(page, 360, 420);
+    await waitFor(page, () => !__game.demo && __game.saveLoaded, null, 20000).catch(() => {});
+    await g(page, () => __game.newLevel(4));
+    await pause(700); await shot(page, '23-boss-card');
+    await waitFor(page, () => { const W = __game.W; return W.n === 4 && W.t > 1.6 && document.getElementById('lvcard').hidden; }, null, 20000).catch(() => {});
+    // the boss as the world has it and as it is drawn: its crown tip and feet in frame units, the HUD's edges, the hero
+    const view = () => g(page, () => { const G = __game, W = G.W, b = W.bots.find((x) => x.boss), k = 720 / document.getElementById('app').getBoundingClientRect().width, top0 = document.getElementById('app').getBoundingClientRect().top;
+      const tools = Math.min(...[...document.querySelectorAll('.tool')].filter((e) => e.offsetParent !== null).map((e) => (e.getBoundingClientRect().top - top0) * k)), bar = (document.getElementById('bar').getBoundingClientRect().bottom - top0) * k;
+      const base = { n: W.n, boss: W.boss, bots: W.bots.length, look: G.scene.bossLook, bar: Math.round(bar), tools: Math.round(tools), coins: W.coins, saved: G.save.coins, down: !!W.bossDown };
+      if (!b) return base;
+      const r = (a) => a.slice(0, 2).map(Math.round).concat(a[2]);
+      return { ...base, tip: r(G.scene.screenOf(b.x, b.h * 1.33, b.z)), head: r(G.scene.screenOf(b.x, b.h * 0.9, b.z)), feet: r(G.scene.screenOf(b.x, 0, b.z)), hp: b.hp, state: b.state, h: b.h, dist: Math.hypot(b.x - W.hero.x, b.z - W.hero.z), moved: W.hero.moving }; });
+    const v0 = await view(); await shot(page, '23-boss-start');
+    const inX = (p) => p && !p[2] && p[0] > 40 && p[0] < 680;
+    check(v0.boss && v0.hp === BS.hits && v0.look && v0.look.points === BS.hits && Math.abs(v0.look.scale - BS.botScale) < 0.01, `boss1 a boss building has its boss: ${BS.botScale}× a robot, ${BS.hits} crown points (${JSON.stringify(v0)})`);
+    check(v0.tip && inX(v0.tip) && inX(v0.feet) && v0.tip[1] > 0 && v0.head[1] > v0.bar && v0.feet[1] < v0.tools && v0.feet[1] - v0.tip[1] > 250, `boss1 ...on screen from the spawn in portrait: crown tip ${v0.tip}, head ${v0.head} under the bar (${v0.bar}), feet ${v0.feet} over the tools (${v0.tools})`);
+    // a knock with the hammer through the world API (the swing lands a moment later); then what is on screen
+    const knockTo = async (hp) => { await waitFor(page, () => { const G = __game, W = G.W, b = W.bots.find((x) => x.boss); return b && b.state === 'guard' && G.WD.swingBot(W, W.bots.indexOf(b)); }, null, 15000).catch(() => {});
+      await waitFor(page, (hp) => { const b = __game.W.bots.find((x) => x.boss); return b && b.hp === hp; }, hp, 8000).catch(() => {}); };
+    const words = () => g(page, () => [...document.querySelectorAll('#pops .pop')].map((p) => p.textContent.trim()));
+    const T = (k) => g(page, (k) => __game.T(k), k);
+    await knockTo(BS.hits - 1); await pause(250); const w1 = await words(), v1 = await view(); await shot(page, '23-boss-knock1');
+    const stage = Math.round(BS.hitCoins * cfg.boss.mult);
+    check(v1.hp === BS.hits - 1 && v1.look.points === BS.hits - 1 && w1.includes(await T('bonk')) && v1.coins - v0.coins >= stage && v1.saved - v0.saved >= stage, `boss1 knock 1: a crown point is off, BONK! over it, boss.hitCoins paid (hp ${v1.hp}, points ${v1.look.points}, words ${JSON.stringify(w1)}, +${v1.coins - v0.coins} of ${stage})`);
+    await waitFor(page, () => __game.W.bots.find((x) => x.boss).state === 'guard', null, 8000).catch(() => {}); await pause(200); await shot(page, '23-boss-up');
+    const vu = await view();
+    check(vu.state === 'guard' && vu.look.points === BS.hits - 1, `boss1 ...it stands up again with ${BS.hits - 1} points (${vu.state})`);
+    for (let hp = BS.hits - 2; hp > 0; hp--) await knockTo(hp);
+    const v2 = await view(); await knockTo(0); await pause(350); const w3 = await words(), v3 = await view(), cel = await g(page, () => ({ last: __game.lastCelebration, confetti: !document.getElementById('confetti').hidden })); await shot(page, '23-boss-down');
+    const prize = Math.max(Math.round(BS.downCoins * cfg.boss.mult), Math.round(BS.downShare * v2.coins));
+    check(v3.hp === 0 && v3.down && v3.look.points === 0 && w3.includes(await T('bossDown')) && cel.last === 'boss' && cel.confetti, `boss1 knock ${BS.hits}: BOSS DOWN! with confetti, no crown point left (hp ${v3.hp}, words ${JSON.stringify(w3)}, ${JSON.stringify(cel)})`);
+    check(v3.coins - v2.coins >= prize && v3.saved - v2.saved >= prize && v3.coins - v2.coins < prize + 600, `boss1 ...and the prize is paid: +${v3.coins - v2.coins} in the world, +${v3.saved - v2.saved} saved, of ${prize}`);
+    await pause(4500); const v4 = await view();
+    check(v4.state === 'down' && v4.hp === 0, `boss1 ...and it stays down (${v4.state} after 4.5 s)`);
+    await shot(page, '23-boss-after');
+    await g(page, () => __game.nextLevel());
+    await waitFor(page, () => __game.W.n === 5 && __game.W.t > 0.5, null, 15000).catch(() => {}); await pause(300);
+    const v5 = await view();
+    check(v5.n === 5 && !v5.boss && v5.hp === undefined && v5.look === null, `boss1 the next building has no boss (level ${v5.n}, boss ${v5.boss}, drawn ${JSON.stringify(v5.look)})`);
+    check(!errors.length, `boss1 no errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // boot1: the first paint is the show's own opening (HTML/CSS in index.html), and the 3D show takes over under the same title without a seam
+  if (!process.env.ONLY || process.env.ONLY === 'boot1') {
+    const TI = cfg.demo.title, rgb = (h) => `rgb(${[1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(', ')})`;
+    const INIT = () => {
+      const M = window.__m = { samples: [] }; addEventListener('three-ready', () => { M.three = performance.now(); });
+      const r = (e) => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; };
+      const snap = () => {
+        const el = document.getElementById('title'), boot = document.getElementById('boot');
+        if (el && !M.node) { M.node = el; el.__bootMark = 1; }
+        const s = { t: performance.now(), boot: !!boot, same: !!el && el === M.node && el.__bootMark === 1, shown: !!el && getComputedStyle(el).display !== 'none', box: el ? r(el) : null,
+          words: el ? [...el.querySelectorAll('.tw')].map((w) => { const a = w.getAnimations()[0]; return { o: +getComputedStyle(w).opacity, r: r(w), ct: a ? a.currentTime : null, done: !a || a.playState === 'finished' }; }) : [],
+          blocks: boot ? [...boot.querySelectorAll('i')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => r(b)[1]) : [] };
+        if (M.samples.length < 30 && el) s.extra = { bg: boot ? getComputedStyle(boot).backgroundImage : '', ts: el.style.getPropertyValue('--ts'), tt: el.style.getPropertyValue('--tt'), text: el.textContent.replace(/\s+/g, ' ').trim(),
+          delays: [...el.querySelectorAll('.tw')].map((w) => parseFloat(w.style.animationDelay)), load: !!document.getElementById('load'), jig: [...document.querySelectorAll('body *')].filter((e) => /jig|spin/.test(getComputedStyle(e).animationName)).length, loading: /loading/i.test(document.body.innerText) };
+        return s;
+      };
+      const loop = () => { if (document.body) M.samples.push(snap()); if (!M.draw || performance.now() < M.draw + 1200) requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+      // the first 3D frame: the animation frame with the first draw call to the game's canvas itself (not to a render target, not the warm-up while the scene is built); its time is when that frame's work ended
+      const raf0 = window.requestAnimationFrame.bind(window); let inRaf = false;
+      window.requestAnimationFrame = (cb) => raf0((t) => { inRaf = true; try { cb(t); } finally { inRaf = false; if (M.drew && !M.draw) M.draw = performance.now(); } });
+      for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) if (C) for (const fn of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
+        const o = C.prototype[fn]; if (!o) continue;
+        C.prototype[fn] = function (...a) { if (!M.drew && inRaf && this.canvas && this.canvas.id === 'cv' && this.getParameter(this.FRAMEBUFFER_BINDING) === null) M.drew = performance.now(); return o.apply(this, a); };
+      }
+    };
+    const near = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
+    const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    // one load first, unchecked: a browser's very first page pays for its own start (first frame at ~120 ms instead of ~85)
+    { const w = await browser.newPage({ viewport: { width: 360, height: 640 } }); await w.goto(`http://localhost:${port}/?local`); await w.waitForFunction(() => window.__game && window.__game.W, null, { timeout: 40000 }); await w.close(); }
+    for (const run of [{ name: 'normal', delay: 0 }, { name: 'slow', delay: 2000 }, { name: 'tap', delay: 2000, tap: true }, { name: 'reduced', delay: 0, reduced: true }]) {
+      const page = await browser.newPage({ viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, reducedMotion: run.reduced ? 'reduce' : 'no-preference' });
+      const errors = [], three = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
+      page.on('request', (q) => { if (/cdnjs\.cloudflare\.com/.test(q.url())) three.push(q.url()); });
+      await page.addInitScript(INIT);
+      // Three.js held back: the opening has to carry the wait
+      if (run.delay) await page.route(/cdnjs\.cloudflare\.com/, async (route) => { await pause(run.delay); await route.continue(); });
+      const at = async (ms, n) => { await page.waitForFunction((ms) => performance.now() >= ms, ms, { polling: 10 }); await shot(page, `boot1-${run.name}-${n}`); };
+      await page.goto(`http://localhost:${port}/?local`, { waitUntil: 'commit' });
+      if (run.name === 'slow' || run.name === 'reduced') await at(100, '100ms');
+      if (run.name === 'slow') { await at(1000, '1s'); await at(2500, '2500ms'); }
+      if (run.tap) { await page.waitForFunction(() => performance.now() >= 300, null, { polling: 10 }); await page.touchscreen.tap(180, 330); }
+      await page.waitForFunction(() => window.__m.draw && performance.now() > window.__m.draw + 50, null, { timeout: 60000, polling: 10 });
+      await shot(page, `boot1-${run.name}-handover`);
+      await pause(1300);
+      const R = await page.evaluate(() => ({ draw: window.__m.draw, drew: window.__m.drew, three: window.__m.three, S: window.__m.samples, fcp: (performance.getEntriesByType('paint').find((p) => p.name === 'first-contentful-paint') || {}).startTime, attract: document.getElementById('hud').classList.contains('attract'), cta: getComputedStyle(document.getElementById('cta')).display }));
+      const S = R.S, tag = `boot1 ${run.name}:`, s100 = S.find((s) => s.t >= 100) || S[S.length - 1], s160 = S.find((s) => s.t >= s100.t + 60), X = (S.find((s) => s.extra) || {}).extra || {};
+      const pre = [...S].reverse().find((s) => s.t < R.draw), post = S.filter((s) => s.t >= R.draw), gone = S.find((s) => !s.boot);
+      console.log(`     ${tag} first frame ${Math.round(S[0].t)} ms, Three.js ready ${Math.round(R.three)} ms, first 3D frame ${Math.round(R.draw)} ms (its work began at ${Math.round(R.drew)} ms), backdrop gone ${gone ? Math.round(gone.t) : 'never'} ms`);
+      const w0 = s100.words[0];
+      if (run.reduced) {
+        check(s100.words.length === 3 && s100.words.every((w, i) => w.o === 1 && near(w.r, s160.words[i].r) < 0.5) && s100.blocks.length === 0, `${tag} reduced motion: the whole title stands still at ${Math.round(s100.t)} ms, no falling blocks (${s100.blocks.length})`);
+      } else {
+        check(!!w0 && w0.o > 0 && w0.r[1] + w0.r[3] > 0 && w0.r[1] < 640 && w0.r[0] < 360 && w0.r[0] + w0.r[2] > 0, `${tag} at ${Math.round(s100.t)} ms the title's first word is on screen (opacity ${w0 && w0.o.toFixed(2)}, box ${w0 && w0.r.map(Math.round)})`);
+        const moving = s100.blocks.filter((y, i) => Math.abs(y - s160.blocks[i]) > 1).length;
+        check(moving >= 6, `${tag} ${moving} of ${s100.blocks.length} blocks are moving between ${Math.round(s100.t)} and ${Math.round(s160.t)} ms`);
+      }
+      check(!X.load && X.jig === 0 && !X.loading && X.bg.includes(rgb(cfg.demo.look.top)) && X.bg.includes(rgb(cfg.demo.look.low)), `${tag} no loader (#load ${X.load}, jiggling or spinning ${X.jig}, the word loading ${X.loading}); the backdrop is the show's sky (${X.bg})`);
+      check(X.text === TI.lines.flat().join(' ') && +X.ts === TI.size && +X.tt === TI.top && X.delays.every((d, i) => Math.abs(d - X.delays[0] - (TI.at[i] - TI.at[0])) < 0.001), `${tag} the opening's title copies demo.title ("${X.text}", size ${X.ts}, top ${X.tt}, word times ${X.delays})`);
+      check(!!pre && pre.boot && pre.same && post.every((s) => s.same), `${tag} the title at the first 3D frame is the node the opening painted (${post.length} frames after it)`);
+      if (!run.tap) {
+        const dBox = Math.max(...post.map((s) => near(s.box, pre.box))), landed = pre.words.map((w, i) => (w.done ? i : -1)).filter((i) => i >= 0), dW = Math.max(0, ...post.slice(0, 20).flatMap((s) => landed.map((i) => near(s.words[i].r, pre.words[i].r))));
+        check(post.every((s) => s.shown) && dBox < 2 && dW < 2, `${tag} the title stays put over the hand-over (box moved ${dBox.toFixed(2)} px, the ${landed.length} landed words ${dW.toFixed(2)} px)`);
+        let back = 0; for (let i = 1; i < S.length; i++) S[i].words.forEach((w, k) => { const p = S[i - 1].words[k]; if (p && p.ct != null && (w.ct == null || w.ct < p.ct - 1)) back++; });
+        check(run.reduced || back === 0, `${tag} no word starts its slam again (${back} restarts)`);
+        check(R.attract && R.cta !== 'none', `${tag} the show goes on under it (attract ${R.attract}, call to action ${R.cta})`);
+      } else check(!R.attract, `${tag} a touch at 300 ms, long before the game could listen, started the game (attract ${R.attract})`);
+      // the backdrop is taken away in the animation frame that draws the first 3D picture, so the two reach the screen together: the very next
+      // frame has no backdrop. On this software GPU that next frame can come late (the GPU is still drawing the first picture: nothing at all
+      // is shown in between), so the rule is "the next frame", and "within 200 ms" only once the page makes frames again
+      const next = post[0], after = post.find((s) => s.t >= (next ? next.t : 0) + 1) || next;
+      console.log(`     ${tag} frames around the hand-over (ms): ${S.filter((s) => s.t < R.draw).slice(-3).map((s) => Math.round(s.t) + (s.boot ? ' backdrop' : ' 3D')).join(', ')} | drawn ${Math.round(R.draw)} | ${post.slice(0, 3).map((s) => Math.round(s.t) + (s.boot ? ' backdrop' : ' 3D')).join(', ')}`);
+      check(!!gone && !!next && gone === next && after.t - next.t <= 200, `${tag} the backdrop is gone in the first frame after the one that drew the 3D picture (${gone && next ? Math.round(gone.t - next.t) : '?'} ms from that frame, ≤ 200; ${gone ? Math.round(gone.t - R.draw) : '?'} ms after the drawing ended)`);
+      check(three.length > 0 && new Set(three).size === three.length, `${tag} each Three.js file is fetched once (${three.map((u) => u.split('/').pop()).join(', ')})`);
+      check(!errors.length, `${tag} no errors (${errors.slice(0, 2).join(' | ')})`);
+      await page.close();
+    }
   }
 
   await browser.close(); server.close();
