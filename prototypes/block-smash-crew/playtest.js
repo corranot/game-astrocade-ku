@@ -856,6 +856,13 @@ async function main() {
     const b2a = await row(), own2 = await g(page, () => ({ save: __game.save.owned.includes('rocket'), world: __game.W.owned.includes('rocket') })), nb = await g(page, () => __game.T('nBall'));
     check(b2 && b2.can && b2a && own2.save && own2.world && b2a.coins === b2.coins - rocket.cost && b2a.card && !b2a.shop, `b2 with the coins in hand a tap buys the rocket on the card (${JSON.stringify({ before: b2 && b2.coins, after: b2a && b2a.coins, own2, card: b2a && b2a.card, shop: b2a && b2a.shop })})`);
     check(b2a && b2a.text.includes(nb) && !b2a.can, `b2 ...and the row moves on to the next tool ("${b2a && b2a.text}")`);
+    // b2d (hunt 6): a double tap buys one thing: the row changes to the next goal under the finger, and the second
+    // tap must not buy that one too
+    const ballT = cfg.tools.find((t) => t.id === 'ball');
+    await card(rocket.cost + ballT.cost + 2000, ['hammer', 'bomb'], {});
+    const d0 = await row(); if (d0) { await g(page, async () => { document.getElementById('goalBtn').click(); await new Promise((r) => setTimeout(r, 90)); const b = document.getElementById('goalBtn'); if (b) b.click(); }); await pause(500); }
+    const d1 = await row(), ownD = await g(page, () => __game.save.owned.slice());
+    check(d0 && d1 && ownD.includes('rocket') && !ownD.includes('ball') && d1.coins === d0.coins - rocket.cost, `b2d a double tap on the goal row buys one tool, not two (${JSON.stringify({ before: d0 && d0.coins, after: d1 && d1.coins, owned: ownD })})`);
     // b3: every tool owned: the cheapest upgrade is the goal, and a tap buys it
     const lv3 = Object.fromEntries(all.map((id) => [id, id === 'hammer' ? 7 : 12]));
     await card(1e6, all, lv3);

@@ -216,7 +216,7 @@ function startGame(mode) {
   root.innerHTML = HTML;
   const $ = (id) => root.querySelector('#' + id);
   const qs = new URLSearchParams(location.search);
-  // the world's clock can be run faster by the test scripts (?speed=)
+  // the world's clock multiplier (1 in play)
   let speed = 1;
   // dev:start
   speed = Number(qs.get('speed')) || 1;
@@ -857,6 +857,8 @@ function startGame(mode) {
   /** A tap on the goal: with the coins in hand it is bought on the card (the shop's purchase), else the shop opens over the card. */
   function goalTap() {
     const b = $('goalBtn'); if (!b || !resultsOpen) return;
+    // the row changes to the next goal under the finger: a second tap right after a purchase buys nothing
+    if (performance.now() - boughtAt < cfg.flow.goalGap * 1000) return;
     Sound.unlock(cfg);
     if (b.classList.contains('can')) buyOrUpgrade(b.dataset.buy); else openShop('tools', true);
   }
@@ -1133,7 +1135,7 @@ function startGame(mode) {
   // or for cfg.coach.maxSec at most: a step that timed out is done for this session (the save's lesson stays open).
   // The walk step waits until the player taps something out of reach (a child who only taps never needs it).
   let coachK = null, coachHeld = null, walkD = 0, lastHX = 0, lastHZ = 0, aimT = 0, lostT = 0, coachSince = 0, walkAsked = false;
-  const coachDone = {};
+  const coachDone = {}, coachShown = {};
   /** An element's centre and size in frame units. */
   const frameRect = (el) => { const r = el.getBoundingClientRect(), a = root.getBoundingClientRect(), k = 720 / (a.width || 720); return { x: (r.left - a.left + r.width / 2) * k, y: (r.top - a.top + r.height / 2) * k, w: r.width * k, h: r.height * k }; };
   /** Shows the coach step k (null hides it): a dimmed screen with a lit hole on the control, a label and a moving hand. */
@@ -1172,8 +1174,9 @@ function startGame(mode) {
     else if (!save.learned.hit && !coachDone.hit && (aimT > 0.6 || (coachK === 'hit' && lostT < 0.6))) k = 'hit';
     // a step that has been up for coach.maxSec goes by itself (real seconds: slow motion does not stretch it)
     const now = performance.now();
-    if (k !== coachK) coachSince = now;
-    else if (k && now - coachSince >= cfg.coach.maxSec * 1000) { coachDone[k] = true; k = null; }
+    // (its time on screen is added up: a step that leaves and comes back does not get a fresh coach.maxSec)
+    const shownFor = now - coachSince; coachSince = now;
+    if (k && k === coachK) { coachShown[k] = (coachShown[k] || 0) + Math.min(shownFor, 250); if (coachShown[k] >= cfg.coach.maxSec * 1000) { coachDone[k] = true; k = null; } }
     // the step on screen was just done: a thumbs-up
     if (coachK && coachK !== k && ['walk', 'look', 'hit', 'bomb'].includes(coachK) && save.learned[coachK === 'look' ? 'drag' : coachK]) cheer();
     showCoach(k);

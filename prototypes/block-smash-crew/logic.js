@@ -44,10 +44,10 @@ export function nextTool(cfg, owned, coins) {
  */
 export function levelBonus(cfg, n, stars, earned = 0) {
   const b = cfg.coins.level + cfg.coins.levelStep * n, base = stars.every(Boolean) ? b * 2 : b;
-  return Math.max(base, Math.round((cfg.coins.levelShare || 0) * earned));
+  return Math.max(base, Math.round((cfg.coins.levelShare || 0) * (+earned || 0)));
 }
 /** FLATTENED: coins.flat × the level's coin multiplier; or, when that is more, coins.flatShare of the building's coins so far. */
-export function flatBonus(cfg, earned, mult = 1) { return Math.max(Math.round((cfg.coins.flat || 0) * mult), Math.round((cfg.coins.flatShare || 0) * earned)); }
+export function flatBonus(cfg, earned, mult = 1) { return Math.max(Math.round((cfg.coins.flat || 0) * mult), Math.round((cfg.coins.flatShare || 0) * (+earned || 0))); }
 
 /** Calendar day as a number YYYYMMDD in local time. */
 export const dayNum = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -88,7 +88,7 @@ export function nextGoal(cfg, owned, lv, coins) {
   return ups.length ? { kind: 'up', tool: ups[0].tool, lv: ups[0].lv, have: Math.min(coins, ups[0].need), need: ups[0].need } : null;
 }
 /** The daily gift: coins.daily, or coins.dailyShare of the next goal's price when that is more. */
-export function dailyGift(cfg, owned, lv) { const g = nextGoal(cfg, owned, lv, 0); return Math.max(cfg.coins.daily, Math.round((cfg.coins.dailyShare || 0) * (g ? g.need : 0))); }
+export function dailyGift(cfg, owned, lv) { const g = nextGoal(cfg, owned, lv, 0); return Math.max(cfg.coins.daily, Math.min(cfg.coins.dailyCap || Infinity, Math.round((cfg.coins.dailyShare || 0) * (g ? g.need : 0)))); }
 /** Today's challenge: the biggest step of one of the 8 buildings, the kind changing every day. */
 export const dailyLevel = (cfg, day) => 8 * cfg.level.maxStep + (day % 8);
 
