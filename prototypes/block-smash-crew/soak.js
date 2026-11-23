@@ -32,6 +32,8 @@ const fails = []; const check = (ok, m) => { console.log((ok ? 'ok   ' : 'FAIL '
     // (all in one go, drawn by hand: the game's own loop never steps these stand-ins)
     for (const st of ['march', 'down', 'reboot']) { for (const b of extra) b.state = st; sc.update(W, 0.016); }
     W.bots.splice(W.bots.length - extra.length, extra.length); sc.update(W, 0.016); });
+  // and the boss robot's shared shapes (its crown): one boss level visited once, as the tools were thrown once
+  await g(async () => { const n = __game.W.n; __game.newLevel(4); await new Promise((r) => setTimeout(r, 800)); __game.newLevel(n); await new Promise((r) => setTimeout(r, 300)); });
   const geo0 = await fresh(), ft0 = fresh.ft;
   const mem = [], kinds = new Set(), ft = []; let coins0 = 0, cards = 0;
   for (let i = 0; i < levels; i++) {

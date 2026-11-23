@@ -502,6 +502,8 @@ export function createScene(cv, cfg) {
     else if (e.type === 'roll') { if (e.first) blastFx({ kind: 'ball', x: e.x, y: e.y, z: e.z }, 1.9); }
     else if (e.type === 'clang') { puff(e.x, e.y, e.z, 0.6, '#ffe9a0', 2); addTrauma(0.05, e); hammerImpact(e, 0, null, true); hammerLanded(MO.recoil.clang, true); }
     else if (e.type === 'bonk') { sparks(e.x, e.y, e.z, e.again ? 6 : 16); puff(e.x, e.y, e.z, 0.5, '#ffffff', 2); if (!e.again) addTrauma(0.08, e); if (e.by === 'hammer' && !e.again) hammerLanded(MO.recoil.bot, false); }
+    // the boss robot knocked: sparks, a gold puff where the crown point popped off, a shake (boss.shake: stagger, down)
+    else if (e.type === 'bossHit' || e.type === 'bossDown') { const dn = e.type === 'bossDown'; sparks(e.x, e.y, e.z, dn ? 30 : 20); puff(e.hx, e.hy + 0.5, e.hz, 0.9, '#ffd21f', dn ? 6 : 3); addTrauma(cfg.boss.shake[dn ? 1 : 0], e); if (e.by === 'hammer') hammerLanded(MO.recoil.bot, false); }
     else if (e.type === 'swing') { ham.swingEv = true; ham.landed = false; ham.clang = false; ham.aimed = !!(W && (W.hero.swingCell || W.hero.swingBot)); }
     else if (e.type === 'hit') hammerLanded(e.n > 0 ? MO.recoil.base + MO.recoil.perBlock * e.n : MO.recoil.air, false, e.n);
     else if (e.type === 'super') hammerLanded(MO.recoil.super, false);
@@ -600,7 +602,7 @@ export function createScene(cv, cfg) {
   // ---- BONK-BOTs: toy robots drawn from their points (marching, flying as a ragdoll, putting themselves together)
   const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
   const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' }));
-  const unitBox = box(1, 1, 1), botMeshes = new Map();
+  const unitBox = box(1, 1, 1), botMeshes = new Map(), BOT_H = cfg.bots.height;
   const UPV = new THREE.Vector3(0, 1, 0), bva = new THREE.Vector3(), bvb = new THREE.Vector3(), bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), bm = new THREE.Matrix4(), bq = new THREE.Quaternion();
   // faces: one atlas of 4 eye kinds (normal, X, dizzy swirl, happy) × 5 mouths; each cell a shared material
   const faceTex = tex(640, 256, (x) => drawFaces(x)), faceGeo = keep(new THREE.PlaneGeometry(0.36, 0.18)), faceMats = {};
@@ -639,7 +641,7 @@ export function createScene(cv, cfg) {
     const face = new THREE.Mesh(faceGeo, faceMat(0, b.mouth)); face.position.set(0, 0, 0.181); head.add(face);
     const cos = b.costume >= 0 ? COSTUMES[b.costume] : null;
     // a hat hides the antenna (the astronaut keeps it)
-    if (!cos || b.costume === 1) { add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0); }
+    if (!b.boss && (!cos || b.costume === 1)) { add(head, botDark, 0.03, 0.16, 0.03, 0, 0.25, 0); add(head, botRed, 0.08, 0.08, 0.08, 0, 0.35, 0); }
     const trunk = add(body, col, 0.46, 0.5, 0.34, 0, 0, 0, true); add(body, botWhite, 0.22, 0.16, 0.02, 0, 0.02, 0.175);
     if (cos) for (const [where, make, c, x, y, z, rx = 0, sc] of cos) { const m = new THREE.Mesh(geo(make.toString(), make), cmat(c)); m.position.set(x, y, z); m.rotation.x = rx; if (sc) m.scale.set(sc[0], sc[1], sc[2]); (where === 'head' ? head : body).add(m); }
     // arms and legs: an upper and a lower part each, a hand or a foot at the end
@@ -648,8 +650,21 @@ export function createScene(cv, cfg) {
     const limbs = [arm(), arm(), leg(), leg()];
     let sign = null;
     if (b.sign >= 0) { const sp = signFor(b.sign), sg = new THREE.Group(), board = new THREE.Mesh(signGeo, sp.mat), stick = new THREE.Mesh(stickGeo, stickMat); board.castShadow = true; stick.position.y = -0.5; sg.add(board, stick); g.add(sg); sign = { g: sg, sp }; }
+    // the boss: the same robot, bigger (its height over a normal one's), with a gold crown: a band and one point with
+    // a red gem per knock it still takes (a point pops off with every knock: the count-down a non-reader sees)
+    let crown = null;
+    if (b.boss) {
+      const s = b.h / BOT_H, gold = cmat('#ffd21f'), n = cfg.boss.hits;
+      head.scale.setScalar(s); body.scale.setScalar(s); for (const L of limbs) L.end.scale.multiplyScalar(s);
+      const band = new THREE.Mesh(geo('crownBand', () => new THREE.CylinderGeometry(0.21, 0.18, 0.1, 14)), gold); band.position.set(0, 0.22, 0); band.castShadow = true; head.add(band);
+      crown = [];
+      for (let k = 0; k < n; k++) {
+        const a = (k - (n - 1) / 2) * 0.95, pt = new THREE.Mesh(geo('crownPoint', () => new THREE.ConeGeometry(0.09, 0.3, 4)), gold), gem = new THREE.Mesh(geo('crownGem', () => new THREE.SphereGeometry(0.06, 8, 6)), botRed);
+        pt.position.set(Math.sin(a) * 0.17, 0.41, Math.cos(a) * 0.17); gem.position.y = 0.18; pt.add(gem); head.add(pt); crown.push(pt);
+      }
+    }
     scene.add(g);
-    return { g, head, body, trunk, limbs, face, sign, fk: -1 };
+    return { g, head, body, trunk, limbs, face, sign, crown, fk: -1 };
   }
   function dropBot(v) { scene.remove(v.g); if (v.sign) v.sign.sp.users--; }
   /** Points of a standing bot: the standing pose with swinging legs and arms and a bob; close to the hero it stomps and lifts its sign (or pumps a fist). */
@@ -677,12 +692,13 @@ export function createScene(cv, cfg) {
    * by `drop`) to the hand or foot e, bent at an elbow (backwards and outwards) or a knee (forwards).
    */
   const limbR = [0, 0, 0];
-  function limb(L, c, e, out, drop, len, t, knee) {
+  function limb(L, c, e, out, drop, len, t, knee, hs) {
     limbR[0] = c[0] + bx.x * out + by.x * drop; limbR[1] = c[1] + bx.y * out + by.y * drop; limbR[2] = c[2] + bx.z * out + by.z * drop;
     const s = Math.sign(out), j = knee ? limbJoint(limbR, e, len, [bz.x, bz.y, bz.z]) : limbJoint(limbR, e, len, [bx.x * s * 0.6 - bz.x, bx.y * s * 0.6 - bz.y, bx.z * s * 0.6 - bz.z]);
     along(L.up, limbR, j, t); along(L.low, j, e, t);
     // the hand sits on the end; the foot stands on it, toes forward
-    if (knee) L.end.position.set(e[0] + by.x * 0.05 + bz.x * 0.05, e[1] + by.y * 0.05 + bz.y * 0.05, e[2] + by.z * 0.05 + bz.z * 0.05); else L.end.position.set(e[0], e[1], e[2]);
+    const fo = 0.05 * hs;
+    if (knee) L.end.position.set(e[0] + by.x * fo + bz.x * fo, e[1] + by.y * fo + bz.y * fo, e[2] + by.z * fo + bz.z * fo); else L.end.position.set(e[0], e[1], e[2]);
     L.end.quaternion.copy(bq);
   }
   function along(m, a, b, t) {
@@ -705,9 +721,11 @@ export function createScene(cv, cfg) {
       v.head.position.set(P[0][0], P[0][1], P[0][2]); v.head.quaternion.copy(bq);
       v.body.position.set((P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2, (P[1][2] + P[2][2]) / 2); v.body.quaternion.copy(bq);
       // shoulders at the sides of the chest, hips under the pelvis; lengths follow the bot's height
-      const hs = b.h / 1.5;
-      limb(v.limbs[0], P[1], P[3], -0.29, 0.03, 0.5 * hs, 0.11, false); limb(v.limbs[1], P[1], P[4], 0.29, 0.03, 0.5 * hs, 0.11, false);
-      limb(v.limbs[2], P[2], P[5], -0.12, -0.04, 0.62 * hs, 0.14, true); limb(v.limbs[3], P[2], P[6], 0.12, -0.04, 0.62 * hs, 0.14, true);
+      const hs = b.h / 1.5, hk = b.h / BOT_H;
+      limb(v.limbs[0], P[1], P[3], -0.29 * hk, 0.03 * hk, 0.5 * hs, 0.11 * hk, false, hk); limb(v.limbs[1], P[1], P[4], 0.29 * hk, 0.03 * hk, 0.5 * hs, 0.11 * hk, false, hk);
+      limb(v.limbs[2], P[2], P[5], -0.12 * hk, -0.04 * hk, 0.62 * hs, 0.14 * hk, true, hk); limb(v.limbs[3], P[2], P[6], 0.12 * hk, -0.04 * hk, 0.62 * hs, 0.14 * hk, true, hk);
+      // the boss's crown: one point per knock it still takes
+      if (v.crown) for (let k = 0; k < v.crown.length; k++) v.crown[k].visible = k < b.hp;
       // the face: X or dizzy eyes when knocked, a happy smile while getting up and walking off, else its own mouth
       const eye = b.state === 'down' ? 1 + (b.id % 2) : b.state === 'reboot' || b.happy > 0 ? 3 : 0, fk = eye * 5 + (eye === 3 ? 0 : b.mouth);
       if (fk !== v.fk) { v.fk = fk; v.face.material = faceMat(eye, eye === 3 ? 0 : b.mouth); }
@@ -727,7 +745,7 @@ export function createScene(cv, cfg) {
       // a standing bot is picked by the points it was drawn with last frame
       const b = W.bots[i], P = b.pts || b.drawn || standingPoints(b);
       // ray-point distance with plain numbers (no new vectors per bot per frame)
-      for (const k of [0, 1]) { const px = P[k][0] - o.x, py = P[k][1] - o.y, pz = P[k][2] - o.z, t = px * d.x + py * d.y + pz * d.z; if (t <= 0 || t > maxT) continue; const off = Math.hypot(px - d.x * t, py - d.y * t, pz - d.z * t); if (off < 0.5 && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
+      for (const k of [0, 1]) { const px = P[k][0] - o.x, py = P[k][1] - o.y, pz = P[k][2] - o.z, t = px * d.x + py * d.y + pz * d.z; if (t <= 0 || t > maxT) continue; const off = Math.hypot(px - d.x * t, py - d.y * t, pz - d.z * t); if (off < 0.5 * b.h / BOT_H && (!best || t < best.t)) best = { i, t, p: { x: P[1][0], y: P[1][1], z: P[1][2] } }; }
     }
     return best;
   }
@@ -1120,6 +1138,8 @@ export function createScene(cv, cfg) {
     redrawSigns() { for (const x of signPool) if (x.k >= 0) paintSign(x); },
     /** Sign textures made so far (a fixed pool) and robots drawn. */
     get signCount() { return signPool.length; }, get botsDrawn() { return botMeshes.size; },
+    /** The boss robot as drawn: {id, points: crown points still on, scale: its size over a normal robot's}, or null. */
+    get bossLook() { for (const [id, v] of botMeshes) if (v.crown) return { id, points: v.crown.filter((c) => c.visible).length, scale: v.head.scale.x }; return null; },
     /** A robot's sign as drawn: {text, raised, x, y, z} of its board, or null. */
     signOf(id) { const v = botMeshes.get(id); if (!v || !v.sign) return null; const p = v.sign.g.position; return { text: signList[v.sign.sp.k] || '', k: v.sign.sp.k, x: p.x, y: p.y, z: p.z }; },
     /** A robot's face cell (eye kind × 5 + mouth). */

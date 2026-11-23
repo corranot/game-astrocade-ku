@@ -5,10 +5,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Block Smash Crew: Smash &amp; Destroy Buildings</title>
-<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/800.css">
-<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/800.css">
-<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/800.css">
+<!-- Three.js starts loading with the page: the importmap's URL and three.core.js, which that file imports (otherwise found only after it arrived), each fetched once; the title's font file too -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js">
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.js">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/files/baloo-2-latin-800-normal.woff2">
+<!-- the font stylesheets never hold back the first paint: they load as print sheets and the script after #app switches them on -->
+<link rel="stylesheet" data-font media="print" href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/800.css">
+<link rel="stylesheet" data-font media="print" href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/800.css">
+<link rel="stylesheet" data-font media="print" href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/800.css">
 <style>
+/* the title's face (Latin, 800) is declared here so the opening has it before the stylesheets above arrive: the same file they name */
+@font-face{font-family:"Baloo 2";font-style:normal;font-weight:800;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/files/baloo-2-latin-800-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 html,body{margin:0;height:100%;background:#3aa8ff;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Arial Rounded MT Bold","Nunito","Noto Sans","Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Arabic",system-ui,sans-serif;font-weight:800}
 button{font-family:inherit;font-weight:800}
 [hidden]{display:none!important}
@@ -23,13 +32,14 @@ body{display:flex;align-items:center;justify-content:center}
 .hud.attract #coins,.hud.attract .mid{visibility:hidden}
 .title,.cta{display:none}
 /* the game's name in the top band, each word slamming in; the call to action in the bottom band (sizes and places from cfg.demo) */
-.hud.attract .title{display:block;position:absolute;left:0;right:0;top:calc(var(--u)*var(--tt,120)*1px);text-align:center;font-weight:800;line-height:.98;font-size:calc(var(--u)*var(--ts,86)*1px);color:#ffe14a;-webkit-text-stroke:calc(var(--u)*16px) var(--ink);paint-order:stroke fill;pointer-events:none;z-index:var(--z-word)}
+/* #title sits after the HUD in #app: index.html paints it as the opening (.pre) and the show keeps the same element */
+.title.pre,.hud.attract~.title{display:block;position:absolute;left:0;right:0;top:calc(var(--u)*var(--tt,120)*1px);text-align:center;font-weight:800;line-height:.98;font-size:calc(var(--u)*var(--ts,86)*1px);color:#ffe14a;-webkit-text-stroke:calc(var(--u)*16px) var(--ink);paint-order:stroke fill;pointer-events:none;z-index:var(--z-word)}
 .title .tl{display:block;white-space:nowrap}
 .title .tl+.tl{color:#7dfcff}
 .title .tw{display:inline-block;opacity:0;animation:slam .5s cubic-bezier(.2,1.4,.4,1) both}
 @keyframes slam{0%{opacity:0;transform:translateY(calc(var(--u)*-140px)) scale(2.4)}55%{opacity:1;transform:translateY(0) scale(.92)}70%{opacity:1;transform:translate(calc(var(--u)*5px),calc(var(--u)*-6px)) scale(1.04)}85%{opacity:1;transform:translate(calc(var(--u)*-3px),0) scale(.99)}100%{opacity:1;transform:none}}
 .hud.attract .cta{display:block;position:absolute;left:var(--m);right:var(--m);width:max-content;margin-inline:auto;bottom:calc(var(--u)*var(--cb,84)*1px);font-size:calc(var(--u)*var(--cs,88)*1px);text-align:center;white-space:nowrap;font-weight:800;line-height:1;color:#fff;-webkit-text-stroke:calc(var(--u)*12px) var(--ink);paint-order:stroke fill;animation:pulse 1.2s ease-in-out infinite;pointer-events:none;z-index:var(--z-word)}
-@media (prefers-reduced-motion:reduce){.title .tw{animation-duration:.01s!important}.hud.attract .cta{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.title .tw{animation:none!important;opacity:1}.hud.attract .cta{animation:none!important}}
 /* first person: crosshair, the walking stick (phones), HIT (phones), key hint (desktop) */
 .cross{position:absolute;left:50%;top:50%;width:calc(var(--u)*26px);height:calc(var(--u)*26px);margin:calc(var(--u)*-13px) 0 0 calc(var(--u)*-13px);border-radius:50%;border:calc(var(--u)*4px) solid #fff;box-shadow:0 0 0 calc(var(--u)*2px) rgba(43,29,79,.6),inset 0 0 0 calc(var(--u)*2px) rgba(43,29,79,.6);box-sizing:border-box}
 .cross::after{content:"";position:absolute;left:50%;top:50%;width:calc(var(--u)*6px);height:calc(var(--u)*6px);margin:calc(var(--u)*-3px) 0 0 calc(var(--u)*-3px);border-radius:50%;background:#fff}
@@ -296,10 +306,11 @@ body{display:flex;align-items:center;justify-content:center}
 /* words that end faded out would be gone at once: they stand still for their whole time and only fade */
 .hud .pop{animation:still var(--t-word) linear forwards!important}.hud .wavebn.go{animation:still var(--wave-dur,3.5s) linear both!important}.hud .lvcard.go{animation:still var(--t-lv) linear both!important}}
 @keyframes still{0%{opacity:0}8%{opacity:1}85%{opacity:1}100%{opacity:0}}
-#load{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#d9f3ff,#3aa8ff 70%);transition:opacity .3s}
-#load.out{opacity:0;pointer-events:none}
-#load i{width:min(20vmin,120px);aspect-ratio:1;border-radius:18%;background:linear-gradient(#ff8a5a,#e0503c);border:min(1.4vmin,8px) solid #fff;animation:jig .7s ease-in-out infinite}
-@keyframes jig{50%{transform:scale(1.12,.88) rotate(8deg)}}
+/* the opening, painted before any script runs: the attract show's sky (demo.look.top and demo.look.low in game_config.json, which is not loaded yet), bright pieces tumbling down (demo.rain.colors) and the title above (demo.title). It goes at a cut with the first 3D frame */
+.boot{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none;background:linear-gradient(#1fb4ff,#2fe0ff)}
+.boot i{position:absolute;left:calc(var(--x)*1%);top:calc(var(--u)*-160px);width:calc(var(--u)*var(--s)*1px);height:calc(var(--u)*var(--s)*1px);background:var(--c);border-radius:8%;box-shadow:inset calc(var(--u)*var(--s)*-.14px) calc(var(--u)*var(--s)*-.14px) 0 rgba(20,40,90,.22),inset calc(var(--u)*var(--s)*.1px) calc(var(--u)*var(--s)*.1px) 0 rgba(255,255,255,.45);animation:bfall var(--d) linear var(--w) infinite;will-change:transform}
+@keyframes bfall{from{transform:translateY(0) rotate(0deg)}to{transform:translateY(calc(var(--u)*1600px)) rotate(var(--r))}}
+@media (prefers-reduced-motion:reduce){.boot i{display:none}}
 /* coach: a dimmed screen with a lit hole on the control being taught, a label and a moving hand (touches pass through) */
 .coach{position:absolute;inset:0;pointer-events:none;z-index:var(--z-coach);--cx:360;--cy:640;--cr:120;--hx:360;--hy:640;--ly:300;background:radial-gradient(circle at calc(var(--cx)*var(--u)*1px) calc(var(--cy)*var(--u)*1px),rgba(18,28,70,0) calc(var(--cr)*var(--u)*1px),rgba(18,28,70,var(--dim,.25)) calc((var(--cr) + 16)*var(--u)*1px));animation:cfade .35s ease-out}
 @keyframes cfade{from{opacity:0}}
@@ -350,11 +361,27 @@ body{display:flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
-<div id="app"></div>
-<div id="load" aria-hidden="true"><i></i></div>
+<!-- The opening IS the attract show's first picture, in HTML and CSS only: its sky, tumbling pieces and the title.
+     #title is the element the show goes on using (game.js showTitle), built exactly as showTitle builds it; its numbers copy
+     game_config.json, which is not loaded yet: demo.title.lines, demo.title.size (--ts), demo.title.top (--tt), and the word
+     times are demo.title.at with the first word already 0.03 s into its slam on the very first frame, so it is seen at once
+     (0.15, 1.05, 1.95 → -0.03, 0.87, 1.77). A check compares them. -->
+<div id="app"><div id="boot" class="boot" data-keep aria-hidden="true"><i style="--x:6;--s:84;--c:#ffd21f;--d:2.1s;--w:-0.3s;--r:380deg"></i><i style="--x:20;--s:60;--c:#ff5fa8;--d:1.7s;--w:-1.2s;--r:-300deg"></i><i style="--x:33;--s:104;--c:#3cff7a;--d:2.5s;--w:-1.9s;--r:240deg"></i><i style="--x:47;--s:66;--c:#ff7a1f;--d:1.9s;--w:-0.7s;--r:-420deg"></i><i style="--x:60;--s:92;--c:#ffe14a;--d:2.3s;--w:-1.5s;--r:320deg"></i><i style="--x:74;--s:58;--c:#7dff9a;--d:1.6s;--w:-0.1s;--r:-260deg"></i><i style="--x:86;--s:98;--c:#ff5fa8;--d:2.6s;--w:-2.2s;--r:400deg"></i><i style="--x:13;--s:70;--c:#ff7a1f;--d:2.2s;--w:-1.7s;--r:-340deg"></i><i style="--x:54;--s:76;--c:#ffd21f;--d:1.8s;--w:-1s;--r:460deg"></i><i style="--x:80;--s:64;--c:#3cff7a;--d:2s;--w:-0.5s;--r:-380deg"></i></div><div id="title" class="title pre" data-keep style="--ts:86;--tt:120"><span class="tl"><span class="tw" style="animation-delay:-0.03s">BLOCK</span> <span class="tw" style="animation-delay:0.87s">SMASH</span></span> <span class="tl"><span class="tw" style="animation-delay:1.77s">CREW</span></span></div></div>
 <script>
-// the loader goes once the first frame is drawn; a script error never leaves it up for good
-(function () { var el = document.getElementById('load'); window.__load = { done: function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 350); } }; addEventListener('error', function () { setTimeout(function () { if (document.getElementById('load')) window.__load.done(); }, 4000); }); })();
+(function () {
+  var app = document.getElementById('app'), boot = document.getElementById('boot');
+  // t0: when the opening began; touch: the player touched before the game could listen (game.js starts the game with it); live: the game has taken over
+  var B = window.__boot = { t0: performance.now(), touch: false, live: false };
+  // the frame's unit (1/720 of its width) until game.js sets it itself
+  function unit() { if (!B.live) app.style.setProperty('--u', String(app.getBoundingClientRect().width / 720)); }
+  unit(); addEventListener('resize', unit);
+  addEventListener('pointerdown', function () { if (!B.live) B.touch = true; }, true);
+  // the opening's backdrop goes at a cut once the first 3D frame is drawn (game.js); a script error never leaves it up for good
+  window.__load = { done: function () { if (boot.parentNode) boot.remove(); } };
+  addEventListener('error', function () { setTimeout(window.__load.done, 4000); });
+  // the font stylesheets, loaded without blocking, are switched on as each arrives
+  [].forEach.call(document.querySelectorAll('link[data-font]'), function (l) { function on() { l.media = 'all'; } if (l.sheet) on(); else l.addEventListener('load', on); });
+})();
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" } }</script>
 <script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>

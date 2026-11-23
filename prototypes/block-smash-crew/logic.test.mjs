@@ -239,7 +239,7 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   const okPts = (W, b) => b.pts.every((p) => p.every(Number.isFinite) && p[1] >= 0.05);
   let spawnOk = true, counts = [];
   for (let lv = 0; lv < 8; lv++) {
-    const W = WD.createWorld(cfg, lv, {}); counts.push(W.bots.length);
+    const W = WD.createWorld(cfg, lv, {}); counts.push(W.bots.filter((x) => !x.boss).length);
     for (const b of W.bots) if (W.g.get(Math.floor(b.x), 0, Math.floor(b.z)) || W.g.get(Math.floor(b.x), 1, Math.floor(b.z)) || Math.hypot(b.x - W.hero.x, b.z - W.hero.z) < 3) spawnOk = false;
   }
   check(spawnOk && counts.every((c) => c >= cfg.waves.count - 1 && c <= cfg.waves.count + 1), `a wave of ${cfg.waves.count} + the front-yard robot stand on free ground away from the hero on every building (${counts.join(',')})`);
@@ -700,5 +700,53 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
     check(paid <= earned * MS.maxShare, `mission prizes stay under ${MS.maxShare * 100}% of the coins smashing paid (${paid} of ${earned}: ${(paid / earned * 100).toFixed(1)}%)`); }
 }
 
+// ---- the boss: one giant crowned BONK-BOT on boss levels (every 5th building); three knocks bring it down
+{
+  const BS = cfg.boss, { knock, standing } = await import('./bots.js');
+  const bossOf = (W) => W.bots.filter((b) => b.boss);
+  const made = [0, 1, 2, 3, 4, 5, 9, 14].map((lv) => bossOf(WD.createWorld(cfg, lv, {})).length);
+  check(made.join() === '0,0,0,0,1,0,1,1', `one boss robot on boss levels only (levels 0,1,2,3,4,5,9,14: ${made.join()})`);
+  check(bossOf(WD.createWorld(cfg, 4, { demo: true })).length === 0 && bossOf(WD.createWorld(cfg, 4, { daily: true })).length === 0, 'no boss in the attract show, none on a daily challenge (W.boss is false there)');
+  // where it stands: ahead of the hero in the front yard, on free ground, off the line to the nearest barrel
+  let placeOk = true; const places = [];
+  for (const lv of [4, 9, 14, 19, 24, 29]) {
+    const W = WD.createWorld(cfg, lv, {}), b = bossOf(W)[0], h = W.hero; if (!b) { placeOk = false; continue; }
+    const ahead = (b.x - h.x) * Math.sin(h.yaw) + (b.z - h.z) * Math.cos(h.yaw), side = Math.abs((b.x - h.x) * Math.cos(h.yaw) - (b.z - h.z) * Math.sin(h.yaw));
+    let keg = null; for (const c of W.kegCells) if (!keg || Math.hypot(c.x - h.x, c.z - h.z) < Math.hypot(keg.x - h.x, keg.z - h.z)) keg = c;
+    let line = Infinity; if (keg) { const kx = keg.x + 0.5 - h.x, kz = keg.z + 0.5 - h.z, t = Math.max(0, Math.min(1, ((b.x - h.x) * kx + (b.z - h.z) * kz) / (kx * kx + kz * kz))); line = Math.hypot(b.x - h.x - kx * t, b.z - h.z - kz * t); }
+    places.push(`${ahead.toFixed(1)}/${side.toFixed(1)}/${line === Infinity ? '-' : line.toFixed(1)}`);
+    if (!(ahead >= BS.ahead - 1.5 && ahead <= BS.ahead + 1.5 && side < ahead * 0.5 && line >= BS.clear && b.z > W.box.z1 && !W.g.get(Math.floor(b.x), 0, Math.floor(b.z)) && Math.abs(b.h - cfg.bots.height * BS.botScale) < 1e-9 && b.hp === BS.hits && standing(b))) placeOk = false;
+  }
+  check(placeOk, `the boss stands in the front yard ahead of the spawn, in view, off the line to the nearest barrel, ${BS.botScale}× tall with ${BS.hits} knocks to go (ahead/side/line m: ${places.join(' ')})`);
+  // from the spawn the hero's eye sees its head and crown (nothing but air between): the yard's fence hides its legs
+  { let seen = true, low = 0; for (const lv of [4, 9, 14, 19, 24, 29]) { const W = WD.createWorld(cfg, lv, {}), b = bossOf(W)[0], h = W.hero, eye = cfg.camera.eye;
+    const sees = (y) => { const dx = b.x - h.x, dy = y - eye, dz = b.z - h.z, d = Math.hypot(dx, dy, dz); return raycast(W.g, h.x, eye, h.z, dx / d, dy / d, dz / d, d) === null; };
+    let lo = b.h; while (lo > 0.1 && sees(lo - 0.1)) lo -= 0.1; low = Math.max(low, lo);
+    if (!(sees(b.h * 0.9) && sees(b.h * 1.1))) seen = false; }
+    check(seen, `from the spawn the eye sees the boss's head and crown over the fence on 6 boss buildings (its middle line is in sight from ${low.toFixed(1)} m up at worst: the fence hides what is below)`); }
+  // left alone for 40 s (waves come and go): it stays where it stands
+  { const W = WD.createWorld(cfg, 4, {}), b = bossOf(W)[0], x0 = b && b.x, z0 = b && b.z; for (let i = 0; i < 40 * 30; i++) WD.step(W, 1 / 30);
+    check(!!b && W.bots.includes(b) && standing(b) && Math.hypot(b.x - x0, b.z - z0) < 1 && W.wave.n > 1, `waves come and go (${W.wave.n}), the boss stays in its place`); }
+  const W = WD.createWorld(cfg, 4, {}), b = bossOf(W)[0] || {}, idx = () => W.bots.indexOf(b);
+  const hit = () => { W.ev = []; knock(W, idx(), 0, 1, cfg.bots.knock, 'hammer'); return W.ev.slice(); };
+  const upIn = (max) => { let t = 0; while (t < max && !standing(b)) { WD.step(W, 1 / 30); t += 1 / 30; } return t; };
+  const stage = Math.round(BS.hitCoins * W.coinMult);
+  let c0 = W.coins; const e1 = hit().find((e) => e.type === 'bossHit');
+  check(!!e1 && e1.left === BS.hits - 1 && e1.coins === stage && W.coins - c0 === stage && !W.ev.some((e) => e.type === 'bossDown'), `knock 1: a bossHit event, ${BS.hits - 1} to go, boss.hitCoins paid (${e1 && e1.coins} of ${stage})`);
+  check(!!e1 && L.missionEvent(e1) === null, 'a stagger is no bonk for the missions');
+  c0 = W.coins; hit();
+  check(b.hp === BS.hits - 1 && W.coins === c0, 'a knock while it lies staggered counts for nothing');
+  const t1 = upIn(20);
+  check(standing(b) && t1 < cfg.bots.rebootAfter + cfg.bots.rebootTime, `it stands up again in ${t1.toFixed(2)} s, sooner than a normal robot (${cfg.bots.rebootAfter + cfg.bots.rebootTime} s)`);
+  const e2 = hit().find((e) => e.type === 'bossHit'); upIn(20);
+  check(!!e2 && e2.left === BS.hits - 2 && standing(b), 'knock 2: one to go, up again');
+  W.coins = 10000; const bonks = W.bonks || 0, e3 = hit().find((e) => e.type === 'bossDown'), want = Math.max(Math.round(BS.downCoins * W.coinMult), Math.round(BS.downShare * 10000));
+  check(!!e3 && e3.coins === want && W.coins === 10000 + want && (W.bonks || 0) === bonks + 1, `knock 3: bossDown pays max(boss.downCoins, boss.downShare × the building's coins) (${e3 && e3.coins} of ${want})`);
+  check(!!e3 && JSON.stringify(L.missionEvent(e3)) === JSON.stringify({ kind: 'bonk', n: 1 }), 'bossDown is one bonk for the missions');
+  check(typeof L.bossBonus === 'function' && L.bossBonus(cfg, 0, 1) === BS.downCoins && L.bossBonus(cfg, 1e6, 1) === Math.round(BS.downShare * 1e6), 'bossBonus: the flat prize early, the share of a rich building');
+  let reboot = false, up = false; for (let i = 0; i < 30 * 30; i++) { for (const e of WD.step(W, 1 / 30)) if (e.type === 'reboot' && W.bots[e.i] === b) reboot = true; if (standing(b) || b.state === 'reboot') up = true; }
+  c0 = W.coins; const e4 = hit();
+  check(!reboot && !up && W.bots.includes(b) && W.coins === c0 && !e4.some((e) => e.type === 'bossDown' || e.type === 'bossHit') && b.pts.every((p) => p.every(Number.isFinite)), 'after the last knock it never gets up again (30 s), and pays nothing more');
+}
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
 process.exit(fails.length ? 1 : 0);

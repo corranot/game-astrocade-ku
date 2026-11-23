@@ -47,6 +47,8 @@ export function levelBonus(cfg, n, stars, earned = 0) {
   return Math.max(base, Math.round((cfg.coins.levelShare || 0) * (+earned || 0)));
 }
 /** FLATTENED: coins.flat × the level's coin multiplier; or, when that is more, coins.flatShare of the building's coins so far. */
+/** The prize for the boss robot's last knock: boss.downCoins × mult, or boss.downShare of the building's coins so far if that is more. */
+export function bossBonus(cfg, earned, mult = 1) { const B = cfg.boss || {}; return Math.max(Math.round((B.downCoins || 0) * mult), Math.round((B.downShare || 0) * (+earned || 0))); }
 export function flatBonus(cfg, earned, mult = 1) { return Math.max(Math.round((cfg.coins.flat || 0) * mult), Math.round((cfg.coins.flatShare || 0) * (+earned || 0))); }
 
 /** Calendar day as a number YYYYMMDD in local time. */
@@ -155,6 +157,8 @@ export function missionEvent(e) {
   if (e.type === 'smash') return { kind: 'smash', n: e.removed.length };
   if (e.type === 'land') return { kind: 'smash', n: e.n };
   if (e.type === 'bonk') return e.again ? null : { kind: 'bonk', n: 1 };
+  // the boss robot's last knock is one bonk (its staggers are not)
+  if (e.type === 'bossDown') return { kind: 'bonk', n: 1 };
   if (e.type === 'detonate') return { kind: 'keg', n: 1 };
   if (e.type === 'treasure') return { kind: 'chest', n: 1 };
   if (e.type === 'flat' || e.type === 'clear') return { kind: e.type, n: 1 };

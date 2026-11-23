@@ -55,7 +55,8 @@ const Sound = (() => {
   }
   const fx = {
     // a toy robot knocked flying: a springy boing over a tin clank; back on its feet: a happy rising beep
-    boing() { tone('sine', 180, 720, 0.28, 0.45); tone('triangle', 900, 300, 0.12, 0.18); hiss(2500, 900, 0.08, 0.16); },
+    // (k: the pitch, 1 = as it is; the boss's boing is lower)
+    boing(a, k = 1) { tone('sine', 180 * k, 720 * k, 0.28, 0.45); tone('triangle', 900 * k, 300 * k, 0.12, 0.18); hiss(2500 * k, 900 * k, 0.08, 0.16); },
     reboot() { [660, 880, 1320].forEach((f, i) => tone('square', f, f, 0.07, 0.07, i * 0.07)); },
     swing(k = 1) { hiss(500, 2200, 0.14, 0.12 * k); },
     wood(k) { hiss(900, 300, 0.16, 0.45 * k); tone('sine', 190, 80, 0.12, 0.5 * k); },
@@ -167,7 +168,7 @@ const Sound = (() => {
   }
   return {
     unlock(cfg) { ensure(cfg); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); if (ctx && !seq) seq = setInterval(tick, 100); if (cfg) load(cfg); if (buf.music && !song) startSong(); }, // after run() again the recorded music comes back
-    play(id, a = 1) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a); else fx[id](a); },
+    play(id, a = 1, rate) { if (!ctx || muted || ctx.state !== 'running') return; if (id === 'coinS') { const n = ctx.currentTime; if (n - lastCoin < 0.05) return; lastCoin = n; } if (buf[id]) playBuf(id, a, rate); else fx[id](a, rate); },
     /** The hammer's hit sound (see hammer above); silent like play() while muted or before the first touch. */
     hammer(H, body, n = 0, clang = false) { if (!ctx || muted || ctx.state !== 'running') return; hammer(H, body, n, clang); },
     get lastRate() { return lastRate; },
@@ -213,7 +214,14 @@ function run(mode) {
 function startGame(mode) {
   const cfg = window.gameConfig || {};
   const root = document.getElementById('app') || document.body;
-  root.innerHTML = HTML;
+  // the opening that index.html painted (its backdrop and the title, marked data-keep) stays where it is: the game is built under it
+  for (const c of [...root.children]) if (!c.hasAttribute('data-keep')) c.remove();
+  root.insertAdjacentHTML('afterbegin', HTML);
+  if (!root.querySelector('#title')) root.insertAdjacentHTML('beforeend', '<div id="title" class="title" data-keep></div>');
+  // titlePre: the opening's title is up (showTitle keeps its words). Its class pre goes only once the HUD's attract state is set
+  // (newLevel): a style pass in between would hide it for a moment and its words would land again
+  let titlePre = root.querySelector('#title').classList.contains('pre');
+  if (window.__boot) window.__boot.live = true;
   const $ = (id) => root.querySelector('#' + id);
   const qs = new URLSearchParams(location.search);
   // the world's clock multiplier (1 in play)
@@ -256,7 +264,7 @@ function startGame(mode) {
     demo = !!opts.demo;
     // the attract show starts its script over on every building; the HUD is put away while it runs
     if (demo) { showT = 0; showI = 0; showAll = 0; if (!opts.cut) { showHome = n; showN = 0; } }
-    $('hud').classList.toggle('attract', demo && mode === 'play');
+    $('hud').classList.toggle('attract', demo && mode === 'play'); $('title').classList.remove('pre');
     if (demo && mode === 'play') showTitle(); else titleOn = false;
     scene.setLevel(W);
     sel = 'hammer'; resultsOpen = false; paidStars = null; levelPaid = 0; paidBonus = 0; hardHint = null; idleT = 0; firstTap = false;
@@ -724,6 +732,17 @@ function startGame(mode) {
       if (!demo) { save.coins += e.coins; save.total += e.coins; save.blocks += e.n; persistSoon(); const [sx, sy] = scene.screenOf(e.x, e.y, e.z); if (e.n >= 12) pop(T('crash'), sx, sy - 120, e.n > 120 ? 'p-big' : 'p-mid', '#ffb02e'); coinPop(e.coins, e.x, e.y + 1, e.z); }
     } else if (e.type === 'step') Sound.play('step');
     else if (e.type === 'treasure') { Sound.play('treasure'); buzz('success'); if (!demo) { save.coins += e.coins; save.total += e.coins; persistSoon(); banner(T('treasure'), 'p-big', -40); } }
+    else if (e.type === 'bossHit' || e.type === 'bossDown') {
+      // the boss robot: a low boing; a stagger says BONK! over its crown and pays; the last knock is a big moment
+      // (BOSS DOWN!, the fanfare, confetti, coins flying to the pill, slow motion, the strongest buzz)
+      const down = e.type === 'bossDown';
+      Sound.play('boing', 1, cfg.boss.hitPitch); buzz(down ? 'success' : 'thud'); if (e.by === 'hammer') hitStop('hammer');
+      if (!demo) {
+        save.coins += e.coins; save.total += e.coins; persistSoon(); idleT = 0;
+        if (down) { Sound.play('fanfare'); slowT = Math.max(slowT, cfg.feel.toppleSlow); banner(T('bossDown'), 'p-big', -40); confetti(); lastCelebration = 'boss'; flyBonus(e.coins, 640); }
+        else { const [sx, sy, behind] = scene.screenOf(e.hx, e.hy, e.hz); if (!behind) pop(T('bonk'), sx, sy - 60, 'p-mid', '#ffd23c'); coinPop(e.coins, e.x, e.y, e.z); }
+      }
+    }
     else if (e.type === 'bonk') {
       Sound.play('boing', e.again ? 0.6 : 1); buzz(e.again ? 'tap' : 'thud'); if (e.by === 'hammer' && !e.again) hitStop('hammer');
       if (!demo && !e.again) {
@@ -1097,10 +1116,21 @@ function startGame(mode) {
     return { x: x + 0.5, y: 0.6, z: z0 + 0.5 };
   }
   // the game's name in the top band: built once per attract session, each word slams in at its time (cfg.demo.title)
-  let titleOn = false, titleI = 0;
+  // titleLead: seconds the title's own clock is ahead of the show's (the opening had it up before the show began)
+  let titleOn = false, titleI = 0, titleLead = 0;
   function showTitle() {
-    if (titleOn) return; titleOn = true; titleI = 0;
+    if (titleOn) return; titleOn = true; titleI = 0; titleLead = 0;
     const TI = cfg.demo.title, el = $('title'); let k = 0;
+    // the opening's title goes on as it is: no word lands twice, and the words that have landed do not flash again
+    if (titlePre) {
+      titlePre = false;
+      const w = el.querySelector('.tw'), an = w && w.getAnimations ? w.getAnimations()[0] : null, B = window.__boot;
+      const ms = an && an.currentTime != null ? Number(an.currentTime) : B ? performance.now() - B.t0 : 0;
+      // the show's clock has the first word at TI.at[0]; the opening started it at its own delay
+      titleLead = ms / 1000 - (w ? parseFloat(w.style.animationDelay) || 0 : 0) + TI.at[0];
+      while (titleI < TI.at.length && (!an || TI.at[titleI] + 0.25 <= titleLead)) titleI++;
+      return;
+    }
     el.style.setProperty('--ts', TI.size); el.style.setProperty('--tt', TI.top);
     el.innerHTML = TI.lines.map((ws) => `<span class="tl">${ws.map((w) => `<span class="tw" style="animation-delay:${TI.at[Math.min(k++, TI.at.length - 1)]}s">${w}</span>`).join(' ')}</span>`).join(' ');
   }
@@ -1108,7 +1138,7 @@ function startGame(mode) {
   function showStep(dt) {
     const S = cfg.demo; showT += dt; showAll += dt;
     // each word of the title lands with a flash of its own (the show's pulse rule still holds: never two close together)
-    while (showN === 0 && titleI < S.title.at.length && S.title.at[titleI] + 0.25 <= showAll) { titleI++; scene.pulse(S.title.color); }
+    while (showN === 0 && titleI < S.title.at.length && S.title.at[titleI] + 0.25 <= showAll + titleLead) { titleI++; scene.pulse(S.title.color); }
     while (showI < S.show.length && S.show[showI].t <= showT) { const bt = S.show[showI++]; W.cool[bt.tool] = 0; WD.useTool(W, bt.tool, showAim(bt.at)); }
     if (showI >= S.show.length && showT >= S.loop) { showT -= S.loop; showI = 0; }
     if (showAll >= S.cut.after || WD.wreck(W) >= S.cut.wreck) { showN++; flashCut(S.cut.flash); newLevel(showHome + showN, { demo: true, cut: true }); }
@@ -1322,10 +1352,14 @@ function startGame(mode) {
     read(0);
   }
   scene.compile();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!alive) return; if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); }); // measure again with the real font
+  // measure again with the real font (its stylesheets come without blocking the first paint: also whenever a face arrives later)
+  const onFonts = () => { if (!alive) return; if (tipKey) setTip(tipKey); scene.redrawSigns(); hitLabel = ''; labelHit(); };
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(onFonts); if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts); }
   renderTop(); renderTools();
-  if (window.__load) window.__load.done();
-  raf = requestAnimationFrame((t) => { last = t; frame(t); });
+  // a touch during the opening (before the game could listen) starts the game now
+  if (window.__boot && window.__boot.touch) { window.__boot.touch = false; if (demo && mode === 'play') { Sound.unlock(cfg); firstTouch(); } }
+  // the opening's backdrop (index.html) goes at a cut with the first drawn frame
+  raf = requestAnimationFrame((t) => { last = t; frame(t); if (window.__load) window.__load.done(); });
 
   return {
     destroy() {
@@ -1334,6 +1368,7 @@ function startGame(mode) {
       root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onCancel);
       root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); root.removeEventListener('wheel', onWheel); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('pointerlockerror', onLockError); try { if (document.pointerLockElement === cv) document.exitPointerLock(); } catch (er) { /* fine */ }
       window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
+      if (document.fonts && document.fonts.removeEventListener) document.fonts.removeEventListener('loadingdone', onFonts);
       scene.dispose(); root.innerHTML = '';
     },
     // dev:start
@@ -1371,7 +1406,6 @@ const HTML = `
   <div id="confetti" class="confetti" hidden></div>
   <div id="flies" class="flies"></div>
   <div id="hand" class="hand" hidden>${UI.icon('hand')}</div>
-  <div id="title" class="title"></div>
   <div id="cta" class="cta"></div>
   <div id="panel" class="panel" hidden></div>
   <div id="shop" class="panel" hidden></div>
