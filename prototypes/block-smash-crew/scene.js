@@ -365,23 +365,73 @@ export function createScene(cv, cfg) {
     else if (s.kind === 'meteor') { const r = mRock(new THREE.Group(), TM.rock, false); r.scale.setScalar(1.3); g.add(r); }
     scene.add(g); return g;
   }
-  const fireMat = keep(new THREE.MeshBasicMaterial({ color: '#ffd23c', transparent: true, depthWrite: false, fog: false }));
-  const fireMat2 = keep(new THREE.MeshBasicMaterial({ color: '#ff7a1f', transparent: true, depthWrite: false, fog: false }));
-  const ringGeo = keep(new THREE.RingGeometry(0.85, 1, 40)), waveMat = keep(new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
-  const blasts = [];
-  const fireGeo = keep(new THREE.IcosahedronGeometry(1, 2));
-  function addBlast(x, y, z, r) {
-    const a = new THREE.Mesh(fireGeo, fireMat.clone()), b = new THREE.Mesh(fireGeo, fireMat2.clone()), w = new THREE.Mesh(ringGeo, waveMat.clone());
-    a.position.set(x, y, z); b.position.set(x, y, z); w.position.set(x, 0.05, z); w.rotation.x = -Math.PI / 2;
-    scene.add(a, b, w); blasts.push({ a, b, w, r, t: 0 });
-    flash.position.set(x, y + 1, z); flash.intensity = 60 * Math.min(1.5, r / 3);
-  }
   const falls = new Map();
 
   // ---- camera rig
   const cam = { yaw: 0, pitch: cfg.camera.pitch0, trauma: 0, follow: true, bob: 0, eyeY: cfg.camera.eye };
   const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4(), tmpS = new THREE.Vector3(), tmpC = new THREE.Color();
   const WHITE = new THREE.Color(1, 1, 1);
+
+  // ---- the explosion kit: every blast (bomb, rocket, meteor, barrels) is drawn from three pooled instanced meshes
+  // (cfg.feel.blast.kit): fire (the core, the shell's lumps, the embers), smoke (lit lumps, each with its own fade)
+  // and waves (the ring on the ground, the ring in the air). A pool is one Float32Array: nothing is made per blast.
+  // fire: t, life, x, y, z, vx, vy, vz, size, kind (0 core, 1 shell lump, 2 ember), colour at birth (3), at death (3)
+  // smoke: t, life, x, y, z, vx, vy, vz, size
+  // wave: t, life, x, y, z, radius, flat (1 = lies on the ground, 0 = faces the eye), colour (3)
+  const KT = FB.kit, kitPool = (max, st) => ({ n: 0, max, st, a: new Float32Array(max * st) });
+  const KF = kitPool(KT.max.fire, 16), KS = kitPool(KT.max.smoke, 9), KW = kitPool(KT.max.wave, 10), KITS = [KF, KS, KW];
+  const kitMesh = (geo, mat, max) => { const m = new THREE.InstancedMesh(geo, mat, max); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.setColorAt(0, WHITE); m.count = 0; scene.add(m); return m; };
+  const fireMesh = kitMesh(keep(new THREE.IcosahedronGeometry(1, 1)), keep(new THREE.MeshBasicMaterial({ fog: false, vertexColors: true })), KF.max);
+  // facets: a face is darker the more it turns from the sun, so a lump of one flat colour still reads as a solid
+  {
+    const p = fireMesh.geometry.attributes.position, col = new Float32Array(p.count * 3), L = new THREE.Vector3(0.4, 0.8, 0.45).normalize(), n = new THREE.Vector3();
+    for (let i = 0; i < p.count; i += 3) { n.set(p.getX(i) + p.getX(i + 1) + p.getX(i + 2), p.getY(i) + p.getY(i + 1) + p.getY(i + 2), p.getZ(i) + p.getZ(i + 1) + p.getZ(i + 2)).normalize(); col.fill(1 - KT.fire.facet * (0.5 - 0.5 * n.dot(L)), i * 3, i * 3 + 9); }
+    fireMesh.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
+  const smokeGeo = keep(new THREE.IcosahedronGeometry(1, 1)), smokeFade = new THREE.InstancedBufferAttribute(new Float32Array(KS.max), 1);
+  smokeFade.setUsage(THREE.DynamicDrawUsage); smokeGeo.setAttribute('aFade', smokeFade);
+  const smokeMat = keep(new THREE.MeshLambertMaterial({ transparent: true, depthWrite: false }));
+  // real transparency per puff: the instance's fade multiplies the alpha
+  smokeMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;');
+  };
+  const smokeMesh = kitMesh(smokeGeo, smokeMat, KS.max);
+  const waveMesh = kitMesh(keep(new THREE.RingGeometry(KT.wave.thin, 1, 40)), keep(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false })), KW.max);
+  const waveFlat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const kc0 = new THREE.Color(), kc1 = new THREE.Color(), kc2 = new THREE.Color(), smoke0 = new THREE.Color(KT.smoke.from), smoke1 = new THREE.Color(KT.smoke.to);
+  /** One more particle in a kit pool: its offset in the pool's array, or -1 when the pool is full. */
+  function kitAdd(P, life, x, y, z) { if (P.n >= P.max) return -1; const o = P.n++ * P.st, a = P.a; a[o] = 0; a[o + 1] = life; a[o + 2] = x; a[o + 3] = y; a[o + 4] = z; return o; }
+  function kitFire(life, x, y, z, vx, vy, vz, size, kind, c0, c1) { const o = kitAdd(KF, life, x, y, z), a = KF.a; if (o < 0) return; a[o + 5] = vx; a[o + 6] = vy; a[o + 7] = vz; a[o + 8] = size; a[o + 9] = kind; a[o + 10] = c0.r; a[o + 11] = c0.g; a[o + 12] = c0.b; a[o + 13] = c1.r; a[o + 14] = c1.g; a[o + 15] = c1.b; }
+  function kitWave(x, y, z, r, flat, c, k) { const o = kitAdd(KW, KT.wave.life, x, y, z), a = KW.a; if (o < 0) return; a[o + 5] = r; a[o + 6] = flat; a[o + 7] = c.r * k; a[o + 8] = c.g * k; a[o + 9] = c.b * k; }
+  /**
+   * A blast of radius e.r at e, from the kit: a white-hot core that swells, a shell of lumps that fly apart and shrink,
+   * embers under gravity, smoke that rises once the fire dies, a ring along the ground and (high tier, blast above
+   * the ground) one in the air. Colours: cfg.feel.<tool>.blast (the bomb's for barrels); tint = the show's colour.
+   * The low tier gets half the particles (cfg.quality.fx.low.blast).
+   */
+  function addBlast(e, tint) {
+    const B = (FL[e.kind] && FL[e.kind].blast) || FL.bomb.blast, T = fxTier(), F = KT.fire, S = KT.smoke, E = KT.embers, WV = KT.wave, r = e.r * (tint ? DM.fire : 1);
+    if (tint) { kc1.set(tint); kc0.copy(kc1).lerp(WHITE, F.white); } else { kc0.set(B.core); kc1.set(B.shell); }
+    kc2.setRGB(kc1.r * F.cool[0], kc1.g * F.cool[1], kc1.b * F.cool[2]);
+    kitFire(F.life, e.x, e.y, e.z, 0, 0, 0, r * F.core, 0, tmpC.copy(kc0).lerp(WHITE, F.white), kc0);
+    for (let i = Math.round(F.lumps * T.blast); i > 0; i--) {
+      const u = Math.random() * 2 - 1, ph = Math.random() * 6.283, q = Math.sqrt(1 - u * u), dx = q * Math.cos(ph), dy = u * 0.8 + 0.2, dz = q * Math.sin(ph), sp = r * F.out * F.drag * (0.7 + Math.random() * 0.6);
+      kitFire(F.life * (0.8 + Math.random() * 0.5), e.x + dx * r * F.from, e.y + dy * r * F.from, e.z + dz * r * F.from, dx * sp, dy * sp, dz * sp, r * F.lump * (0.7 + Math.random() * 0.6), 1, tmpC.copy(kc1).lerp(kc0, Math.random() * F.mix), kc2);
+    }
+    for (let i = Math.round(E.n * B.embers * T.blast); i > 0; i--) {
+      const u = Math.random(), ph = Math.random() * 6.283, q = Math.sqrt(1 - u * u), sp = E.speed * Math.sqrt(r) * (0.5 + Math.random());
+      kitFire(E.life[0] + Math.random() * E.life[1], e.x, e.y, e.z, q * Math.cos(ph) * sp, u * sp + E.up, q * Math.sin(ph) * sp, E.size * (0.6 + Math.random() * 0.8), 2, kc0, kc1);
+    }
+    for (let i = Math.round(S.n * T.blast); i > 0; i--) {
+      const o = kitAdd(KS, S.life[0] + Math.random() * S.life[1], e.x + (Math.random() - 0.5) * r * S.spread, e.y + (Math.random() - 0.3) * r * S.spread * 0.6, e.z + (Math.random() - 0.5) * r * S.spread), a = KS.a; if (o < 0) break;
+      // it waits for the fire to die (a negative age), then rises and drifts
+      a[o] = -S.delay * (0.5 + Math.random()); a[o + 5] = (Math.random() - 0.5) * S.drift * 2; a[o + 6] = S.rise * (0.6 + Math.random() * 0.8); a[o + 7] = (Math.random() - 0.5) * S.drift * 2; a[o + 8] = r * S.size * (0.7 + Math.random() * 0.6);
+    }
+    kitWave(e.x, 0.05, e.z, r * WV.size, 1, WHITE, WV.opacity);
+    if (T.sphere && e.y > FB.scorch.ground) kitWave(e.x, e.y, e.z, r * WV.air, 0, kc0, WV.airOpacity);
+    flash.position.set(e.x, e.y + 1, e.z); flash.intensity = 60 * Math.min(1.5, r / 3);
+  }
 
   /**
    * A broken block at (x, y, z) of material m becomes fragments of its kind (cfg.feel.frags.kinds): long tumbling
@@ -494,7 +544,7 @@ export function createScene(cv, cfg) {
       addTrauma(Math.min(0.6, 0.15 + e.n / 250), e);
     } else if (e.type === 'boom') {
       if (e.kind === 'keg') placeBarrels();
-      addBlast(e.x, e.y, e.z, e.r); blastFx(e, e.r); groundFx(e); if (isShow()) showBoom(e); puff(e.x, e.y, e.z, e.r * 0.6, '#ece6dc', 5); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
+      blastFx(e, e.r); groundFx(e); addBlast(e, isShow() ? showBoom(e) : null); addTrauma(Math.min(0.6, 0.25 + e.r * 0.06), e); sparks(e.x, e.y, e.z, 10);
       const R = e.r + 2.6; for (let x = e.x - R; x <= e.x + R + CS; x += CS) for (let y = Math.max(0, e.y - R); y <= e.y + R + CS; y += CS) for (let z = e.z - R; z <= e.z + R + CS; z += CS) markCell(Math.floor(Math.min(x, e.x + R)), Math.floor(Math.min(y, e.y + R)), Math.floor(Math.min(z, e.z + R))); // scorch shows
       kick(Math.min(0.06, 0.02 + e.r * 0.006));
     } else if (e.type === 'detonate') { placeBarrels(); sparks(e.x, e.y + 0.6, e.z, 24); addTrauma(0.35, e);
@@ -537,7 +587,7 @@ export function createScene(cv, cfg) {
   /** A blast of radius r at e: a flash sized by it, and the view widens by the tool's size, less the farther away. */
   function blastFx(e, r) {
     const T = FL[e.kind] && FL[e.kind].flash ? FL[e.kind] : FL.bomb, d = W ? Math.hypot(e.x - W.hero.x, e.z - W.hero.z) : 0, fall = Math.max(0, 1 - d / FL.shakeRange);
-    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = true; flash.color.set(T.flash.color);
+    BF.t = 0; BF.life = T.flash.life; BF.size = T.flash.size * r; boomFlash.position.set(e.x, e.y, e.z); boomFlash.material.color.set(T.flash.color); boomFlash.material.rotation = Math.random() * Math.PI; boomFlash.visible = !reduced; flash.color.set(T.flash.color);
     if (!(W && W.demo)) punch(T.camera.boomFov * fall);
   }
   /** A brief widening of the view (degrees), the biggest one wins; smaller with reduced motion. */
@@ -758,7 +808,7 @@ export function createScene(cv, cfg) {
     for (const m of chunks.values()) { chunkRoot.remove(m); m.geometry.dispose(); } chunks.clear(); dirty.clear();
     for (const it of falls.values()) { scene.remove(it.holder); it.mesh.geometry.dispose(); } falls.clear();
     for (const g of shotMeshes.values()) scene.remove(g); shotMeshes.clear();
-    for (const b of blasts) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); } blasts.length = 0;
+    for (const P of KITS) P.n = 0; fireMesh.count = smokeMesh.count = waveMesh.count = 0;
     D.n = 0; U.n = 0; C.n = 0; SP.n = 0; cam.kick = 0; cam.punch = 0;
     ham.sx = ham.sy = ham.svx = ham.svy = ham.rec = ham.recV = ham.imp = 0; ham.landed = false; ham.yaw = 0; ham.pitch = cfg.camera.pitch0; hitFlash.visible = false; HF.t = 1; boomFlash.visible = false; BF.t = 1; fr.kind = null; ham.eq = 1;
     for (let cy = 0; cy * CS < W.g.H; cy++) for (let cz = 0; cz * CS < W.g.D; cz++) for (let cx = 0; cx * CS < W.g.W; cx++) buildChunk(cx, cy, cz);
@@ -857,14 +907,14 @@ export function createScene(cv, cfg) {
       tmpC.set(RN.colors[(Math.random() * RN.colors.length) | 0]); D.c[o] = tmpC.r; D.c[o + 1] = tmpC.g; D.c[o + 2] = tmpC.b; debris.setColorAt(i, tmpC);
     }
   }
-  /** A blast during the show: its fire in the next of the show's colours, big dust rolling out, a brightness pulse (never two within flash.gap). */
+  /** A blast during the show: the next of the show's colours (returned: the kit's fire takes it), big dust rolling out, a brightness pulse (never two within flash.gap). */
   function showBoom(e) {
-    const c = DM.colors[show.ci++ % DM.colors.length], bl = blasts[blasts.length - 1];
-    if (bl) { bl.a.material.color.set(c); bl.b.material.color.set(c).offsetHSL(0.02, 0, -0.1); bl.r *= DM.fire; }
+    const c = DM.colors[show.ci++ % DM.colors.length];
     boomFlash.material.color.set(c); flash.color.set(c);
     tmpC.set(c).lerp(WHITE, DM.dust.lift); const hex = '#' + tmpC.getHexString(), n = low ? Math.ceil(DM.dust.n / 2) : DM.dust.n;
     for (let i = 0; i < n; i++) { const a = Math.random() * 6.283; puff(e.x + Math.cos(a) * e.r, Math.max(0.4, e.y - 0.5), e.z + Math.sin(a) * e.r, DM.dust.size, hex, 1, !low); }
     if (show.since >= DM.flash.gap) { show.since = 0; pulseC.set(c); }
+    return c;
   }
   // ---- per frame
   let time = 0;
@@ -1051,12 +1101,47 @@ export function createScene(cv, cfg) {
       tmpM.compose(tmpV.set(C.p[o], C.p[o + 1], C.p[o + 2]), tmpQ.setFromEuler(tmpE.set(Math.PI / 2, C.t[i] * 9, 0)), tmpS.set(cs, cs, cs)); coins.setMatrixAt(i, tmpM);
     }
     coins.count = C.n; coins.instanceMatrix.needsUpdate = true;
-    for (let i = blasts.length - 1; i >= 0; i--) {
-      const b = blasts[i]; b.t += dt; const k = b.t / 0.55;
-      if (k >= 1) { scene.remove(b.a, b.b, b.w); b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); blasts.splice(i, 1); continue; }
-      const e = 1 - Math.pow(1 - Math.min(1, k * 2.2), 3);
-      b.a.scale.setScalar(b.r * 0.45 * e); b.b.scale.setScalar(b.r * 0.65 * e); b.a.material.opacity = Math.max(0, 1 - k * 1.6); b.b.material.opacity = Math.max(0, 0.75 * (1 - k * 1.4));
-      b.w.scale.setScalar(b.r * 2.4 * k); b.w.material.opacity = 0.7 * (1 - k);
+    // the explosion kit: age and retire (the last one fills the gap), then place what is left
+    for (const P of KITS) for (let i = P.n - 1; i >= 0; i--) { const o = i * P.st; P.a[o] += dt; if (P.a[o] >= P.a[o + 1]) { const j = --P.n; if (i !== j) P.a.copyWithin(o, j * P.st, j * P.st + P.st); } }
+    {
+      const cp = camera.position, F = KT.fire, E = KT.embers, S = KT.smoke; let a = KF.a;
+      for (let i = 0; i < KF.n; i++) {
+        const o = i * 16, k = a[o] / a[o + 1], kind = a[o + 9]; let sc;
+        // the core swells fast and shrinks away; a lump flies out, slows and shrinks (the shell breaks up); an ember falls
+        if (kind === 0) sc = (0.35 + 0.65 * (1 - Math.pow(1 - Math.min(1, k * 2.5), 3))) * (k > 0.55 ? (1 - k) / 0.45 : 1);
+        else {
+          const dr = Math.max(0, 1 - (kind === 1 ? F.drag : E.drag) * dt);
+          for (let j = 2; j < 5; j++) { a[o + j] += a[o + j + 3] * dt; a[o + j + 3] *= dr; }
+          if (kind === 2) { a[o + 6] -= E.gravity * dt; if (a[o + 3] < 0.05) a[o] = a[o + 1]; }
+          sc = kind === 1 ? (1 - Math.pow(1 - Math.min(1, k * 3), 3)) * (1 - k * k) : Math.min(1, (1 - k) * 3);
+        }
+        // nothing in the camera's face (as the dust)
+        sc *= a[o + 8] * dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z));
+        tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); fireMesh.setMatrixAt(i, tmpM);
+        fireMesh.setColorAt(i, tmpC.setRGB(a[o + 10] + (a[o + 13] - a[o + 10]) * k, a[o + 11] + (a[o + 14] - a[o + 11]) * k, a[o + 12] + (a[o + 15] - a[o + 12]) * k));
+      }
+      fireMesh.count = KF.n; fireMesh.instanceMatrix.needsUpdate = fireMesh.instanceColor.needsUpdate = true;
+      a = KS.a;
+      for (let i = 0; i < KS.n; i++) {
+        const o = i * 9, k = Math.max(0, a[o] / a[o + 1]); let sc = 0;
+        if (a[o] > 0) {
+          const dr = Math.max(0, 1 - S.drag * dt); a[o + 2] += a[o + 5] * dt; a[o + 3] += a[o + 6] * dt; a[o + 4] += a[o + 7] * dt; a[o + 5] *= dr; a[o + 7] *= dr;
+          sc = a[o + 8] * (0.5 + S.grow * (1 - (1 - k) * (1 - k))) * dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z));
+        }
+        // dark at first, grey later; it comes in quickly and fades out softly
+        smokeFade.array[i] = S.opacity * Math.min(1, k * 6) * (1 - k);
+        tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), tmpQ.identity(), tmpS.set(sc, sc, sc)); smokeMesh.setMatrixAt(i, tmpM);
+        smokeMesh.setColorAt(i, tmpC.copy(smoke0).lerp(smoke1, k));
+      }
+      smokeMesh.count = KS.n; smokeMesh.instanceMatrix.needsUpdate = smokeMesh.instanceColor.needsUpdate = smokeFade.needsUpdate = true;
+      a = KW.a;
+      for (let i = 0; i < KW.n; i++) {
+        const o = i * 10, k = a[o] / a[o + 1], flat = a[o + 6] > 0, f = 1 - k;
+        const sc = a[o + 5] * (1 - Math.pow(1 - k, 3)) * (flat ? 1 : dustFade(Math.hypot(a[o + 2] - cp.x, a[o + 3] - cp.y, a[o + 4] - cp.z)));
+        tmpM.compose(tmpV.set(a[o + 2], a[o + 3], a[o + 4]), flat ? waveFlat : camera.quaternion, tmpS.set(sc, sc, sc)); waveMesh.setMatrixAt(i, tmpM);
+        waveMesh.setColorAt(i, tmpC.setRGB(a[o + 7] * f, a[o + 8] * f, a[o + 9] * f));
+      }
+      waveMesh.count = KW.n; waveMesh.instanceMatrix.needsUpdate = waveMesh.instanceColor.needsUpdate = true;
     }
     flash.intensity *= Math.exp(-dt * 9);
     for (const it of scorches) { if (!it.mesh.visible) continue; it.t += dt; const SC = FB.scorch; if (it.t >= SC.life) it.mesh.visible = false; else it.mesh.material.opacity = SC.opacity * Math.min(1, (SC.life - it.t) / SC.fade); }
@@ -1133,7 +1218,7 @@ export function createScene(cv, cfg) {
     get dustNear() { const out = [], m = dust.instanceMatrix.array, c = camera.position; for (let i = 0; i < U.n; i++) { const sc = dustSize(i), o = i * 3; if (sc > 1e-4 && U.life[i * 2] > 0) out.push({ d: Math.hypot(U.p[o] - c.x, U.p[o + 1] - c.y, U.p[o + 2] - c.z), k: m[i * 16] / sc }); } return out; },
     /** Test view: live coins {n, d: the nearest one's distance to the eye}. */
     get coinNear() { const c = camera.position; let d = Infinity; for (let i = 0; i < C.n; i++) d = Math.min(d, Math.hypot(C.p[i * 3] - c.x, C.p[i * 3 + 1] - c.y, C.p[i * 3 + 2] - c.z)); return { n: C.n, d }; },
-    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: blasts.length, shots: shotMeshes.size }; },
+    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: KW.n, fire: KF.n, smoke: KS.n, shots: shotMeshes.size }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
     /** Sets the pixel ratio (the dynamic resolution); a change of less than 0.01 is ignored. */
@@ -1161,12 +1246,11 @@ export function createScene(cv, cfg) {
     compile() { try { renderer.compile(scene, camera); } catch (e) { /* first frame compiles instead */ } },
     dispose() {
       for (const m of chunks.values()) m.geometry.dispose(); for (const it of falls.values()) it.mesh.geometry.dispose();
-      for (const b of blasts) { b.a.material.dispose(); b.b.material.dispose(); b.w.material.dispose(); }
       for (const x of disposables) x.dispose();
       for (const rt of envs.values()) rt.dispose();
       cv.removeEventListener('webglcontextrestored', onRestored);
       if (deco) deco.geometry.dispose();
-      debris.dispose(); dust.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
+      debris.dispose(); dust.dispose(); fireMesh.dispose(); smokeMesh.dispose(); waveMesh.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
       renderer.dispose(); try { renderer.forceContextLoss(); } catch (e) { /* already gone */ }
     },
   };

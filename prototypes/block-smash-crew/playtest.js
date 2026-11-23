@@ -1062,6 +1062,29 @@ async function main() {
     await page.close();
   }
 
+  // 27 "fx3": the explosion kit (fire, smoke, waves: three pooled instanced meshes). A blast fills the pools and
+  // they empty again; ten blasts leave the GPU's geometries and textures as they were.
+  if (!process.env.ONLY || process.env.ONLY === 'fx3') {
+    const { page, errors } = await open(browser, '', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    await page.touchscreen.tap(180, 300); await page.waitForTimeout(3000);
+    const r = await g(page, async () => {
+      const G = __game, h = G.W.hero, sc = G.scene, wait = (ms) => new Promise((res) => setTimeout(res, ms)), frame = () => new Promise((res) => requestAnimationFrame(res));
+      const kit = () => { const c = sc.counts; return [c.fire, c.smoke, c.blasts]; };
+      const boom = () => sc.event({ type: 'boom', kind: 'bomb', r: 3, x: h.x + Math.sin(h.yaw) * 10, y: 1.5, z: h.z + Math.cos(h.yaw) * 10 });
+      const mem0 = [G.geometries, G.textures], idle = kit();
+      boom(); await frame(); await frame(); const during = kit(); await wait(3000); const after = kit();
+      for (let i = 0; i < 9; i++) { boom(); await wait(200); }
+      await wait(3000);
+      return { idle, during, after, end: kit(), mem0, mem1: [G.geometries, G.textures] };
+    });
+    const zero = (a) => a.every((v) => v === 0);
+    check(zero(r.idle) && r.during.every((v) => v > 0), `fx3 a a bomb blast fills the kit: fire, smoke, waves ${r.during} (idle ${r.idle})`);
+    check(zero(r.after) && zero(r.end), `fx3 b the kit is empty again within 3 s (after one blast ${r.after}, after ten ${r.end})`);
+    check(r.mem0[0] === r.mem1[0] && r.mem0[1] === r.mem1[1], `fx3 c GPU [geometries, textures] before the first blast ${r.mem0}, after the tenth ${r.mem1}`);
+    check(errors.length === 0, `fx3 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);
