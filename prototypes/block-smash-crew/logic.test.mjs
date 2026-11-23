@@ -3,10 +3,11 @@
 // levels played by the bot (the pilot: every level is finished, the vault needs a tool, nothing pays in the demo).
 // Usage: node logic.test.mjs
 import fs from 'fs';
-import { createGrid, fill, raycast, smashSphere, collapse, meshRegion } from './voxels.js';
+import { createGrid, fill, raycast, smashSphere, collapse, weakLayer, meshRegion } from './voxels.js';
 import { buildLevel, KINDS, matIds } from './levels.js';
 import * as L from './logic.js';
 import * as WD from './world.js';
+import { knock as knockBot } from './bots.js';
 
 const cfg = JSON.parse(fs.readFileSync(new URL('./game_config.json', import.meta.url)));
 const fails = []; let n = 0;
@@ -140,6 +141,22 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
   for (const t of ['bomb', 'rocket', 'ball', 'hole', 'meteor']) WD.useTool(V, t, { x: 18, y: 2, z: 12 });
   const kinds = new Set(); for (let i = 0; i < 60 * 6; i++) for (const e of WD.step(V, 1 / 60)) if (e.type === 'boom' || e.type === 'pop') kinds.add(e.kind);
   check(V.shots.length === 0 && ['bomb', 'rocket', 'meteor', 'ball', 'hole'].every((k) => kinds.has(k)), 'all five throwables fly, act and finish');
+  // the meteor comes in at a slant from ahead of the hero (its tool's `from`: ahead of the target, up, to the right), or on the hero's side of the
+  // target when blocks hide that fall (`from.near`, in shares of the distance), and still lands on the target after 0.9 s
+  {
+    const M = WD.createWorld(cfg, 2, { owned: cfg.tools.map((t) => t.id) }), F = cfg.tools.find((t) => t.id === 'meteor').from, q = { x: M.hero.x, y: 2, z: M.hero.z + 10 };
+    WD.useTool(M, 'meteor', q); const s = M.shots.find((x) => x.kind === 'meteor') || {}, near = (u, v) => Math.abs(u - v) < 1e-6;
+    let at = null; for (let i = 1; i <= 80 && !at; i++) for (const e of WD.step(M, 1 / 60)) if (e.type === 'boom' && e.kind === 'meteor') at = [i / 60, e.x, e.y, e.z];
+    const far = near(s.sx, q.x - F.side) && near(s.sy, q.y + F.up) && near(s.sz, q.z + F.ahead), n = Math.max(10, F.near.min), close = near(s.sx, q.x - n * F.near.side) && near(s.sy, q.y + n * F.near.up) && near(s.sz, q.z - n * F.near.back);
+    check((far || close) && F.ahead > 0 && F.up > 0 && F.near.up > 0, `the meteor starts ${far ? `${F.ahead} ahead of its target, ${F.up} up, ${F.side} to the right` : `on the hero's side of its target (blocks hide the far start), ${n * F.near.up} up`}`);
+    // a wall across the far start's fall: the near start; no blocks at all: the far start
+    const eye = M.hero.z, wall = (on) => { for (let x = 0; x < M.g.W; x++) for (let y = 0; y < M.g.H; y++) M.g.set(x, y, Math.floor(eye + 12), on); };
+    const startOf = () => { M.cool.meteor = 0; WD.useTool(M, 'meteor', q); return M.shots[M.shots.length - 1]; };
+    for (let x = 0; x < M.g.W; x++) for (let y = 0; y < M.g.H; y++) for (let z = 0; z < M.g.D; z++) M.g.set(x, y, z, 0);
+    const open = startOf(); wall(1); const hid = startOf();
+    check(near(open.sz, q.z + F.ahead) && near(hid.sz, q.z - n * F.near.back) && near(hid.sy, q.y + n * F.near.up), `...far in front over open ground (z +${F.ahead}), on the hero's side behind a wall (z -${n * F.near.back})`);
+    check(at && Math.abs(at[0] - 0.9) < 0.04 && near(at[1], q.x) && near(at[2], q.y) && near(at[3], q.z), `...and lands on the target after 0.9 s (${at && at[0].toFixed(2)} s)`);
+  }
   check(V.left === V.g.count() + V.falls.reduce((a, f) => a + f.total, 0) || V.left === V.g.count(), 'blocks left matches the grid');
 }
 
@@ -820,6 +837,33 @@ function play(lv, opts = {}, secs = 60, tap = WD.botTap) {
     for (let y = 0.5; y < H * BS.crownRoom; y++) for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (W.g.get(Math.floor(b.x + dx), Math.floor(y), Math.floor(b.z + dz))) bad.push(`${n}: block at ${Math.floor(b.x + dx)},${Math.floor(y)},${Math.floor(b.z + dz)}`);
   }
   check(bad.length === 0, `the boss has headroom on every boss level (${bad.slice(0, 4).join('; ') || 'clear'})`);
+}
+
+// a storey that kept too few of its blocks gives way; one that kept enough holds
+{
+  const K = cfg.crush, mk = () => { const g = createGrid(12, 10, 12); fill(g, 1, 0, 1, 10, 7, 10, 1); g.orig = g.data.slice(); return g; };
+  const cut = (g, keep) => { const rem = []; let k = 0; for (let z = 1; z <= 10; z++) for (let x = 1; x <= 10; x++) if (k++ >= keep) { g.set(x, 0, z, 0); rem.push({ x, y: 0, z, m: 1 }); } return rem; };
+  const few = Math.floor(100 * K.ratio) - 5, many = Math.ceil(100 * K.ratio) + 5;
+  let g = mk(), weak = weakLayer(g, cut(g, few), K.ratio, K.minAbove);
+  check(weak.length === few && collapse(g, weak).reduce((a, c) => a + c.total, 0) === 700, `a ground floor left with ${few} of 100 blocks gives way and the 700 above fall (${weak.length} crushed)`);
+  g = mk(); weak = weakLayer(g, cut(g, many), K.ratio, K.minAbove);
+  check(weak.length === 0 && g.count() === 700 + many, `a ground floor left with ${many} of 100 blocks still holds`);
+  g = createGrid(12, 10, 12); fill(g, 5, 0, 5, 5, 3, 5, 1); fill(g, 3, 4, 3, 7, 6, 7, 1); g.orig = g.data.slice();
+  g.set(4, 6, 4, 0);
+  check(weakLayer(g, [{ x: 4, y: 6, z: 4, m: 1 }], K.ratio, K.minAbove).length === 0, 'a shape built on a thin stem (a tree) stands until its stem is cut');
+}
+// a robot thrown about never comes apart: head, hands and feet stay within reach of the body
+{
+  let worst = 0;
+  for (const lv of [1, 3, 5]) {
+    const W = WD.createWorld(cfg, lv); const hz = 30;
+    for (let t = 0; t < 20 * hz; t++) {
+      if (t % (hz * 2) === 0) for (let i = 0; i < W.bots.length; i++) knockBot(W, i, (i % 3) - 1, ((i + t) % 3) - 1, cfg.bots.knock * (0.5 + (t % 7) / 3));
+      WD.step(W, 1 / hz);
+      for (const b of W.bots) if (b.pts) worst = Math.max(worst, Math.hypot(b.pts[0][0] - b.pts[1][0], b.pts[0][1] - b.pts[1][1], b.pts[0][2] - b.pts[1][2]) / (0.24 * b.h));
+    }
+  }
+  check(worst <= cfg.bots.maxStretch + 0.01, `a robot's head stays on its body however it is thrown (neck at most ×${worst.toFixed(2)} of its length)`);
 }
 
 console.log(fails.length ? `\n${fails.length} of ${n} FAILED` : `\nall ${n} passed`);
