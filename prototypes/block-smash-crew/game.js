@@ -205,7 +205,9 @@ function run(mode) {
   }
   if (app) app.destroy();
   try { app = startGame(mode === 'edit' ? 'edit' : 'play'); } catch (e) { app = null; console.error(e); showRetry(); return; }
+  // dev:start
   window.__game = app.debug;
+  // dev:end
 }
 
 function startGame(mode) {
@@ -214,7 +216,11 @@ function startGame(mode) {
   root.innerHTML = HTML;
   const $ = (id) => root.querySelector('#' + id);
   const qs = new URLSearchParams(location.search);
-  const speed = Number(qs.get('speed')) || 1;
+  // the world's clock can be run faster by the test scripts (?speed=)
+  let speed = 1;
+  // dev:start
+  speed = Number(qs.get('speed')) || 1;
+  // dev:end
   let alive = true, raf = 0, last = performance.now();
 
   // ---- language
@@ -226,6 +232,8 @@ function startGame(mode) {
   // ---- save: one slot; nothing is written until the player's own save has been read
   const LESSONS = ['bomb', 'drag', 'shop', 'walk', 'hit'];
   const save = { v: 1, coins: 0, total: 0, level: 0, best: {}, owned: ['hammer', 'bomb'], lv: {}, learned: { bomb: false, drag: false, shop: false, walk: false, hit: false }, muted: false, lang: null, blocks: 0, levels: 0, day: 0, dailyDone: 0, bestBlast: 0 };
+  // three small missions at a time (cfg.missions); their progress lives in the save
+  save.missions = L.missionsFill(cfg, null, save.owned);
   let saveLoaded = false, persistT = 0, dirtySave = false;
   const persist = () => { if (mode === 'play' && saveLoaded) { dirtySave = false; Promise.resolve().then(() => lib.saveUserGameState(JSON.parse(JSON.stringify(save)))).catch(() => {}); } };
   const persistSoon = () => { dirtySave = true; };
@@ -268,11 +276,11 @@ function startGame(mode) {
 
   // ---- HUD
   const toolEls = {};
-  $('tools').innerHTML = cfg.tools.map((t) => `<button class="tool gloss" data-t="${t.id}" aria-label="${t.id}"><span class="ic">${UI.icon(t.id)}</span><i class="cd"></i><span class="free" hidden></span><span class="lock" hidden><i class="coin"></i><b></b></span></button>`).join('');
+  $('tools').innerHTML = cfg.tools.map((t) => `<button class="tool gloss" data-t="${t.id}" aria-label="${t.id}"><span class="ic">${UI.icon(t.id)}</span><i class="cd"></i><i class="tp" hidden><b></b></i><span class="free" hidden></span><span class="lock" hidden><i class="coin"></i><b></b></span></button>`).join('');
   for (const b of $('tools').querySelectorAll('.tool')) toolEls[b.dataset.t] = b;
   // the HIT button's verb follows the tool (BONK, BOOM, FIRE, SWING, PULL, CRASH); its ready pulse is tuned in the config
   const VERB = { hammer: 'vHammer', bomb: 'vBomb', rocket: 'vRocket', ball: 'vBall', hole: 'vHole', meteor: 'vMeteor' };
-  { const hp = cfg.hitPulse; root.style.setProperty('--wave-dur', cfg.waves.banner + 's'); root.style.setProperty('--hp-cycle', hp.cycle + 's'); root.style.setProperty('--hp-glow', String(hp.glow)); root.style.setProperty('--hp-bright', String(hp.bright)); root.style.setProperty('--hp-dim', String(hp.dim)); }
+  { const hp = cfg.hitPulse; root.style.setProperty('--wave-dur', cfg.waves.banner + 's'); root.style.setProperty('--tp-dur', cfg.toolBar.pulse + 's'); root.style.setProperty('--hp-cycle', hp.cycle + 's'); root.style.setProperty('--hp-glow', String(hp.glow)); root.style.setProperty('--hp-bright', String(hp.bright)); root.style.setProperty('--hp-dim', String(hp.dim)); }
   let hitLabel = '';
   function labelHit() { const el = $('hit').querySelector('.hl'), t = T(VERB[sel] || 'vHammer'); if (hitLabel === t + lang) return; hitLabel = t + lang; el.textContent = t; fitText(el, 132, 30); }
   $('stars').innerHTML = '<img class="st" alt=""><img class="st" alt=""><img class="st" alt="">';
@@ -284,8 +292,14 @@ function startGame(mode) {
   const modalOpen = () => !$('shop').hidden || !$('settings').hidden;
   const usable = (id) => save.owned.includes(id) || (W && (W.fever > 0 || !W.tried.has(id)));
   function renderTools() {
+    // the next tool to unlock (the rule of the result card's meter) carries a thin bar: coins in hand / its price
+    const nt = L.nextTool(cfg, save.owned, save.coins), full = !!nt && nt.have >= nt.need;
     for (const t of cfg.tools) {
       const el = toolEls[t.id], owned = save.owned.includes(t.id), fever = W && W.fever > 0;
+      const tp = el.querySelector('.tp'), next = !!nt && nt.tool.id === t.id;
+      tp.hidden = !next; if (next) tp.firstChild.style.width = Math.round(nt.have / nt.need * 100) + '%';
+      // one pulse at the moment the coins reach the price (not when a level starts with enough)
+      if (next && full && shown.nt === t.id + ':0' && !demo) { tp.classList.remove('go'); void tp.offsetWidth; tp.classList.add('go'); }
       el.classList.toggle('sel', sel === t.id);
       el.classList.toggle('locked', !owned && !fever);
       const lock = el.querySelector('.lock'); lock.hidden = owned || fever; lock.querySelector('b').textContent = fmt(t.cost);
@@ -294,6 +308,7 @@ function startGame(mode) {
       if (!free.hidden && free.dataset.l !== lang) { free.dataset.l = lang; fitText(free, 100, 18); }
       el.classList.toggle('can', !owned && save.coins >= t.cost);
     }
+    shown.nt = nt ? nt.tool.id + (full ? ':1' : ':0') : '';
     labelHit();
   }
   function renderTop() {
@@ -318,6 +333,7 @@ function startGame(mode) {
   /** Screen pixels per frame unit. */
   const unit = () => root.getBoundingClientRect().width / 720 || 1;
   /** A status line's box in frame units, from its layout (its entrance scale does not count). */
+  let chipAway = 0;
   const laneBox = (el) => { const k = unit(), ln = $('lane'), l = (ln.offsetLeft + el.offsetLeft) / k, t = (ln.offsetTop + el.offsetTop) / k; return { l, t, r: l + el.offsetWidth / k, b: t + el.offsetHeight / k }; };
   // where the status column ends, in frame units (0 when it is empty); kept up to date as its lines come and go
   let laneBottom = 0;
@@ -334,6 +350,9 @@ function startGame(mode) {
     // a place is free again when its time is up and its word is gone (a late frame can keep the word a moment longer)
     for (let i = G.up.length - 1; i >= 0; i--) if (G.up[i].until <= now && !(G.up[i].el && G.up[i].el.isConnected)) G.up.splice(i, 1);
     const taken = loose === 2 || loose >= 4 ? [G.cross] : [G.cross, ...G.up];
+    // many words at once, or one as wide as the frame, need the mission chip's place: it steps aside at once and
+    // stays away for a word's life (chipShow brings it back)
+    if (WORDS.up.length >= cfg.missions.chip.yieldWords || w >= cfg.missions.chip.yieldWidth) { $('mchip').hidden = true; chipAway = performance.now() + WORDS.life; }
     if (loose < 3) for (const el of $('lane').children) if (!el.hidden) taken.push(laneBox(el));
     if (!loose) for (const el of $('arrows').children) { const r = frameRect(el); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
     if (loose < 3 && !$('coach').hidden) { const r = frameRect($('coach').querySelector('.clabel')); taken.push({ l: r.x - r.w / 2, r: r.x + r.w / 2, t: r.y - r.h / 2, b: r.y + r.h / 2 }); }
@@ -666,6 +685,7 @@ function startGame(mode) {
   }
   function onEvent(e) {
     scene.event(e);
+    if (!demo) { const x = L.missionEvent(e); if (x) missionGain(x); }
     if (e.type === 'smash') {
       idleT = 0;
       const n = e.removed.length, mat = cfg.materials[(e.removed[0] || {}).m - 1] || {};
@@ -723,6 +743,35 @@ function startGame(mode) {
     else if (e.type === 'clear') { $('fever').hidden = true; $('ftime').hidden = true; Sound.setTempo(118); sel = 'hammer'; renderTools(); levelEnd(); }
     else if (e.type === 'pop') { if (e.kind === 'hole') Sound.layers(cfg.feel.hole.sound.impact); }
   }
+  // ---- missions (cfg.missions, rules in logic.js): a goal is always in view; a finished one pays and the next comes
+  const missionView = (x) => ({ ic: x.def.kind === 'tool' ? x.def.tool : cfg.missions.icon[x.def.kind], text: x.def.kind === 'tool' ? T('mTool', T(NAME[x.def.tool])) : T(cfg.missions.text[x.def.kind]), have: x.have, n: x.def.n });
+  /** Counts { kind, n, tool } on the missions; a finished one pays its coins with a word and flying coins. */
+  function missionGain(x) {
+    const got = L.missionsAdd(cfg, save.missions, save.owned, x.kind, x.n, x.tool);
+    for (const d of got) {
+      save.coins += d.coins; save.total += d.coins; lastMission = d.id;
+      // the word comes a moment later, and not at all under a card that this same event opened (the card lists the missions)
+      setTimeout(() => { if (!alive || !$('panel').hidden) return; const at = cfg.missions.chip.doneAt; Sound.play('gem'); buzz('success'); pop(T('mDone'), at[0], at[1], 'p-mid', '#7dff9a', 'check'); flyBonus(d.coins, at[1] + 100); }, 0);
+    }
+    persistSoon(); renderMission(got.length > 0);
+  }
+  let chipKey = '', lastMission = null;
+  /** The chip in the status column: the mission nearest to its goal (icon, words, count, a thin bar). */
+  function renderMission(bump) {
+    const el = $('mchip'), x = L.missionChip(cfg, save.missions); if (!x) { chipKey = ''; return; }
+    const v = missionView(x), key = x.def.id + lang;
+    if (key !== chipKey) { chipKey = key; el.innerHTML = UI.missionChip(v); fitText(el.querySelector('.tx'), cfg.missions.chip.width, 20); }
+    else { el.querySelector('.mn').textContent = v.have + '/' + v.n; el.querySelector('.mbar b').style.width = Math.round(v.have / v.n * 100) + '%'; }
+    if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  }
+  /** The chip keeps quiet: it shows in play, and waits while the level card, a wave banner, smash time or the coach has the column, and while many words are up (they need its place). */
+  function chipShow() {
+    const off = demo || !W || mode !== 'play' || W.fever > 0 || WORDS.up.length >= cfg.missions.chip.yieldWords || performance.now() < chipAway || !$('lvcard').hidden || !$('wavebn').hidden || !$('ftime').hidden || (coachK && coachK !== '-'); const el = $('mchip');
+    // it comes back only into free room: never under a word that stands just below the status lines
+    const top = laneBottom || WORDS.top, busy = el.hidden && !off && WORDS.up.some((b) => b.t < top + cfg.missions.chip.room && b.b > top);
+    if (el.hidden !== !!(off || busy)) el.hidden = !!(off || busy);
+  }
+  renderMission();
   function daily() {
     dailyChecked = true;
     const today = L.dayNum(new Date());
@@ -814,6 +863,7 @@ function startGame(mode) {
       <div class="brag">${T('brag', commas(cardBlocks))}</div>
       ${UI.meter({ ic: 'burst', label: T('wrecked'), value: `<b>${Math.round(wr * 100)}%</b>`, part: wr, marks })}
       ${nt ? UI.meter({ ic: nt.tool.id, label: T(NAME[nt.tool.id]), value: miss > 0 ? `${UI.COIN}<bdi>${T('need', fmt(miss))}</bdi>` : `${UI.icon('check')}${UI.COIN}<b>${fmt(nt.need)}</b>`, part: nt.have / nt.need, cls: 'ntool' }) : ''}
+      ${UI.missions(L.missionsList(cfg, save.missions).map(missionView))}
       <div class="btns">${UI.primary('nextBtn', T('next'), UI.icon('play', 'flip'))}<div class="brow">${quiet.join('')}</div></div></div>`;
     $('panel').hidden = false; resultsOpen = true; $('nextpill').hidden = true;
     Sound.play('clear'); buzz('success');
@@ -921,7 +971,7 @@ function startGame(mode) {
     if (b.id === 'setX') { hidePanel($('settings')); Sound.play('blip'); return; }
     if (b.id === 'mute') { muteTouched = true; Sound.unlock(cfg); Sound.setMuted(!Sound.muted); save.muted = Sound.muted; syncMute(); persist(); return; }
     const l = b.dataset.l; if (!l) return;
-    lang = l; save.lang = l; setDir(); signLang(); hidePanel($('settings')); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); persist();
+    lang = l; save.lang = l; setDir(); signLang(); hidePanel($('settings')); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); renderMission(); persist();
   });
 
   // ---- frame loop
@@ -987,7 +1037,7 @@ function startGame(mode) {
       if (hs !== hitState) { hitState = hs; hitBtn.classList.toggle('ready', hs === 'ready'); hitBtn.classList.toggle('cool', hs === 'cool'); }
       if (hardHint) { hardHint.t -= dt; if (hardHint.t <= 0) { hardHint = null; toolEls.bomb.classList.remove('hint'); } }
       idleT = W.phase === 'play' && !demo ? idleT + dt : 0;
-      placeHand(); placeArrows(); coachTick(dt);
+      placeHand(); placeArrows(); coachTick(dt); chipShow();
       if (dirtySave && (persistT -= dt) <= 0) { persistT = 2; persist(); }
     }
     scene.tool = sel;
@@ -1209,9 +1259,12 @@ function startGame(mode) {
         // a save from the 5-level shop keeps its levels; only known tools, whole levels inside 1..max (bounded)
         { const f = {}; for (const t of cfg.tools) if (save.lv[t.id] != null) f[t.id] = L.clampLv(cfg, num(save.lv[t.id])); save.lv = f; }
         // lessons learned on another day: the coach on screen goes quietly (no thumbs-up for them)
+        // the saved missions come back; what was done before the save arrived counts on top
+        { const loc = save.missions; save.missions = L.missionsFill(cfg, st.missions || loc, save.owned); if (st.missions) for (const a of loc.on) { const d = L.missionOf(cfg, a.id); if (a.have > 0) missionGain({ kind: d.kind, n: a.have, tool: d.tool }); } renderMission(); }
         coachK = '-'; showCoach(null);
         save.lang = picked || (LANGS.includes(st.lang) ? st.lang : null);
         if (save.lang) { lang = save.lang; setDir(); signLang(); }
+        renderMission();
         save.muted = muteTouched ? mutedLocal : !!st.muted; Sound.setMuted(save.muted); syncMute();
         if (W) { for (const id of save.owned) if (!W.owned.includes(id)) W.owned.push(id); for (const t of W.cfg.tools) Object.assign(t, L.toolAt(cfg, cfg.tools.find((x) => x.id === t.id), save.lv[t.id] || 1)); } // the saved upgrades apply to the level already running
         localGain = earnedTotal > 0 || levelsLocal > 0 || blocks > 0;
@@ -1240,14 +1293,16 @@ function startGame(mode) {
       window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
       scene.dispose(); root.innerHTML = '';
     },
+    // dev:start
     debug: {
       get W() { return W; }, get demo() { return demo; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get sel() { return sel; }, get resultsOpen() { return resultsOpen; }, get flow() { return { playT, chainT, n: chain.n, coins: chain.coins, smashed: chain.smashed }; }, cardDue() { chain.n = Math.max(chain.n, cfg.flow.cardEvery - 1); playT = Math.max(playT, cfg.flow.cardAfterSec); }, setPlayT(v) { playT = v; },
-      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, pop, banner, popIcon, starPop, waveBanner, setTip, words: WORDS, coachHold(k) { coachHeld = k; }, setLang(l) { lang = l; setDir(); signLang(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); }, celebrate, get lastCelebration() { return lastCelebration; }, canBuy: () => L.canBuy(cfg, save.owned, save.lv, save.coins),
+      fitText, scene, T, Sound, WD, newLevel, results, nextLevel, pickTool, onEvent, pop, banner, popIcon, starPop, waveBanner, setTip, words: WORDS, coachHold(k) { coachHeld = k; }, setLang(l) { lang = l; setDir(); signLang(); renderTools(); renderTop(); if (tipKey) setTip(tipKey); relabel(); renderMission(); }, chipShow, renderMission, missionGain, get lastMission() { return lastMission; }, missionSet(list) { save.missions = L.missionsFill(cfg, { on: list, next: save.missions.next, done: save.missions.done }, save.owned); renderMission(); }, celebrate, get lastCelebration() { return lastCelebration; }, canBuy: () => L.canBuy(cfg, save.owned, save.lv, save.coins),
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       get hitState() { return hitState; }, get stopT() { return stopT; }, get quality() { return { ...qs8, base: scene.dprBase }; },
       get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
     },
+    // dev:end
   };
 }
 
@@ -1268,7 +1323,7 @@ const HTML = `
   <div id="keys" class="keys out"><span>WASD</span>${UI.icon('mouse')}<span>1-6</span></div>
   <div id="tools" class="tools"></div>
   <div id="coach" class="coach" hidden><i class="cring"></i><div class="clabel"></div><div class="chand">${UI.icon('hand')}</div></div>
-  <div id="lane" class="lane"><div id="ftime" class="ftime pill gloss" hidden>${UI.icon('timer')}<b></b></div><div id="tip" class="tip out" hidden></div><div id="wavebn" class="wavebn out" hidden></div><div id="lvcard" class="lvcard" hidden></div></div>
+  <div id="lane" class="lane"><div id="ftime" class="ftime pill gloss" hidden>${UI.icon('timer')}<b></b></div><div id="tip" class="tip out" hidden></div><div id="wavebn" class="wavebn out" hidden></div><div id="lvcard" class="lvcard" hidden></div><div id="mchip" class="mchip" hidden></div></div>
   <div id="pops" class="pops"></div>
   <div id="confetti" class="confetti" hidden></div>
   <div id="flies" class="flies"></div>
@@ -1283,6 +1338,7 @@ const HTML = `
 
 window.run = run;
 
+// dev:start
 // Outside Astrocade (?local): stand in for the host, read the config file and start.
 if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('local') && !window.lib) {
   const none = async () => ({});
@@ -1295,3 +1351,4 @@ if (typeof location !== 'undefined' && new URLSearchParams(location.search).has(
     window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play');
   });
 }
+// dev:end
