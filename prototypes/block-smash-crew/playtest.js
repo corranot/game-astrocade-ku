@@ -1085,6 +1085,41 @@ async function main() {
     await page.close();
   }
 
+  // 28 "look2": the glow pass (bloom + grade, high tier only). SwiftShader steps the game down to the low tier, so the
+  // dev switch ?tier=high pins the high one. With the pass on and strength 0 and a neutral grade the frame is the
+  // direct render's (tone mapping and sRGB happen once, in the last shader); a quiet frame gets no haze; a bomb blast
+  // has more peak pixels with the glow than without; the low tier holds no render targets at all.
+  if (!process.env.ONLY || process.env.ONLY === 'look2') {
+    const { page, errors } = await open(browser, '&tier=high', { port, touch: true, init: () => { window.__preset = { coins: 500000, owned: ['hammer', 'bomb', 'rocket', 'ball', 'hole', 'meteor'], learned: { walk: true, drag: true, hit: true, bomb: true }, level: 1, lang: 'en' }; } });
+    await page.touchscreen.tap(180, 300); await page.waitForTimeout(5000);
+    const r = await g(page, async () => {
+      const G = __game, sc = G.scene, c = G.cfg.look, h = G.W.hero, gl = sc.renderer.getContext(), w = gl.drawingBufferWidth, hh = gl.drawingBufferHeight;
+      const frame = () => new Promise((res) => requestAnimationFrame(res));
+      const sync = () => { const b = document.getElementById('cv').getBoundingClientRect(); sc.resize(b.width, b.height); };
+      // the same instant drawn again (dt 0) and read back before the browser shows it
+      const grab = () => { sc.update(G.W, 0); const p = new Uint8Array(w * hh * 4); gl.readPixels(0, 0, w, hh, gl.RGBA, gl.UNSIGNED_BYTE, p); return p; };
+      const diff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i += 4) s += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]); return s / (a.length / 4) / 3; };
+      const stat = (p) => { let hot = 0, sum = 0; for (let i = 0; i < p.length; i += 4) { sum += p[i] + p[i + 1] + p[i + 2]; if (Math.max(p[i], p[i + 1], p[i + 2]) >= 250) hot++; } return { hot, mean: sum / (p.length / 4) / 3 }; };
+      const S = c.bloom.strength, grade = { ...c.grade }, pinned = { low: sc.low, q: G.quality, counts: sc.counts, tex: G.textures };
+      const full = grab(); c.bloom.strength = 0; const noGlow = grab();
+      Object.assign(c.grade, { vignette: 0, contrast: 1, saturation: 1 }); const zero = grab();
+      c.bloom.on = false; sync(); const off = sc.counts, direct = grab();
+      c.bloom.on = true; Object.assign(c.grade, grade); c.bloom.strength = S; sync();
+      sc.event({ type: 'boom', kind: 'bomb', r: 3, x: h.x + Math.sin(h.yaw) * 9, y: 1.5, z: h.z + Math.cos(h.yaw) * 9 }); await frame(); await frame();
+      const blastOn = stat(grab()); c.bloom.strength = 0; const blastOff = stat(grab()); c.bloom.strength = S;
+      sc.setLow(true); await frame(); const low = { counts: sc.counts, tex: G.textures }; sc.setLow(false); await frame();
+      return { pinned, identity: diff(direct, zero), haze: diff(noGlow, full), graded: diff(direct, full), off, blastOn, blastOff, low, back: { counts: sc.counts, tex: G.textures }, size: [w, hh] };
+    });
+    check(r.pinned.low === false && r.pinned.q.low === false && r.pinned.counts.bloom === 'on' && r.pinned.counts.targets === 5, `look2 a ?tier=high pins the high tier 5 s in and the glow pass is on (low ${r.pinned.low}, bloom ${r.pinned.counts.bloom}, targets ${r.pinned.counts.targets}, canvas ${r.size})`);
+    check(r.identity < 2, `look2 b strength 0 + neutral grade is the direct render: mean difference ${r.identity.toFixed(3)}/255 (under 2)`);
+    check(r.haze < 2, `look2 c a quiet frame gets no haze: glow on vs strength 0, mean difference ${r.haze.toFixed(3)}/255 (under 2; with the grade vs direct ${r.graded.toFixed(2)})`);
+    check(r.blastOn.hot > r.blastOff.hot && r.blastOn.mean > r.blastOff.mean, `look2 d a bomb blast has more peak pixels with the glow (${r.blastOn.hot} at 250+, mean ${r.blastOn.mean.toFixed(1)}) than with strength 0 (${r.blastOff.hot}, mean ${r.blastOff.mean.toFixed(1)})`);
+    check(r.low.counts.bloom === 'off' && r.low.counts.targets === 0 && r.low.tex < r.pinned.tex && r.off.targets === 0, `look2 e the low tier holds no render targets (bloom ${r.low.counts.bloom}, targets ${r.low.counts.targets}, GPU textures ${r.pinned.tex} → ${r.low.tex}); switched off in config too (${r.off.targets})`);
+    check(r.back.counts.bloom === 'on' && r.back.counts.targets === 5 && r.back.tex === r.pinned.tex, `look2 f back on the high tier the pass is rebuilt (targets ${r.back.counts.targets}, GPU textures ${r.back.tex})`);
+    check(errors.length === 0, `look2 no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nall passed');
   process.exit(fails.length ? 1 : 0);

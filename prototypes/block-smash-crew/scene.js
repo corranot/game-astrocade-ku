@@ -24,6 +24,13 @@ export function createScene(cv, cfg) {
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 720 / 1280, 0.1, 400);
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };
+  // what glows (cfg.look.glow): while the glow pass draws, these materials are brighter than white by their factor,
+  // so they cross the bloom threshold; the direct render (low tier) never sees the factors
+  const glowList = [], glows = (m, k, p = 'color') => { glowList.push({ m, k, p, r: 0, g: 0, b: 0 }); return m; };
+  // a dark decal blended into the pass's linear target comes out lighter than on the canvas (where it blends after
+  // sRGB): while the pass draws (uLin 1) its alpha is bent so the scorch mark is as dark as in the direct render
+  const scorchLin = { value: 0 };
+  const scorchFix = (sh) => { sh.uniforms.uLin = scorchLin; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLin;').replace('#include <opaque_fragment>', 'diffuseColor.a = mix(diffuseColor.a, 1.0 - pow(1.0 - diffuseColor.a, 2.2), uLin);\n#include <opaque_fragment>'); };
 
   // ---- sky, fog, light
   const SKY_TOP = new THREE.Color('#3aa8ff'), SKY_LOW = new THREE.Color('#d9f3ff');
@@ -162,7 +169,7 @@ export function createScene(cv, cfg) {
   }
   // a lost WebGL context takes the sky maps with it (they are render targets): on restore they are dropped and made
   // again on the next frame; the canvas textures and geometries are uploaded again by the renderer itself
-  const onRestored = () => { for (const rt of envs.values()) rt.dispose(); envs.clear(); envOn = ''; };
+  const onRestored = () => { for (const rt of envs.values()) rt.dispose(); envs.clear(); envOn = ''; postFree(); postSync(); };
   cv.addEventListener('webglcontextrestored', onRestored);
   /** The hammer's material for the tier: mirrored steel, or the plain one (low tier). */
   function hammerLook() {
@@ -274,7 +281,7 @@ export function createScene(cv, cfg) {
   // ---- the five other tools: one builder each, used for the tool in the hand and for the shot that flies
   const FL = cfg.feel, basic = (c, o = {}) => keep(new THREE.MeshBasicMaterial({ color: c, ...o }));
   const glowTex = tex(32, 32, (x) => { const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); });
-  const glowMats = {}, glow = (c, size, parent, own) => { const m = own ? keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })) : (glowMats[c] || (glowMats[c] = keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })))); const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); parent.add(sp); return sp; };
+  const glowMats = {}, glow = (c, size, parent, own) => { const m = own ? keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })) : (glowMats[c] || (glowMats[c] = keep(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })))); if (!glowList.some((x) => x.m === m)) glows(m, 'sprite'); const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); parent.add(sp); return sp; };
   const rockOpts = { color: FL.meteor.look.rock, emissive: FL.meteor.look.glow, emissiveIntensity: FL.meteor.look.heat, roughness: 0.9, metalness: 0, flatShading: true };
   const TM = {
     iron: toy({ color: FL.bomb.look.iron, roughness: 0.36, metalness: 0.9 }), brass: toy({ color: FL.bomb.look.cap, roughness: 0.3, metalness: 1 }), fuse: toy({ color: FL.bomb.look.fuse, roughness: 0.9, metalness: 0 }),
@@ -483,7 +490,7 @@ export function createScene(cv, cfg) {
     if (T.scorch > 0) {
       // a new mark while the tier's cap allows, else the oldest one moves here
       let it = scorches.length < T.scorch ? null : scorches.reduce((a, b) => (a.t > b.t ? a : b));
-      if (!it) { const mesh = new THREE.Mesh(scorchGeo, keep(new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }))); mesh.rotation.x = -Math.PI / 2; scene.add(mesh); it = { mesh, t: 0 }; scorches.push(it); }
+      if (!it) { const mesh = new THREE.Mesh(scorchGeo, Object.assign(keep(new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })), { onBeforeCompile: scorchFix })); mesh.rotation.x = -Math.PI / 2; scene.add(mesh); it = { mesh, t: 0 }; scorches.push(it); }
       it.t = 0; it.mesh.visible = true; it.mesh.position.set(e.x, 0.02 + (scorchN++ % 8) * 0.002, e.z); it.mesh.rotation.z = Math.random() * 6; it.mesh.scale.setScalar(e.r * SC.size);
     }
     const n = Math.round(Math.min(RG.max, e.r * RG.per) * T.ring), a0 = Math.random() * 6;
@@ -653,7 +660,7 @@ export function createScene(cv, cfg) {
   }
   // ---- BONK-BOTs: toy robots drawn from their points (marching, flying as a ragdoll, putting themselves together)
   const BOT_COLORS = ['#ffcf3a', '#4fd1c5', '#ff7ab6', '#7aa8ff', '#9be15d', '#ff9a3c'].map((c) => lam(c));
-  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' }));
+  const botWhite = lam('#f4f7ff'), botDark = lam('#3a4256'), botRed = keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' })), botGem = glows(keep(new THREE.MeshBasicMaterial({ color: '#ff4a4a' })), 'gem');
   const unitBox = box(1, 1, 1), botMeshes = new Map(), BOT_H = cfg.bots.height;
   const UPV = new THREE.Vector3(0, 1, 0), bva = new THREE.Vector3(), bvb = new THREE.Vector3(), bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), bm = new THREE.Matrix4(), bq = new THREE.Quaternion();
   // faces: one atlas of 4 eye kinds (normal, X, dizzy swirl, happy) × 5 mouths; each cell a shared material
@@ -711,7 +718,7 @@ export function createScene(cv, cfg) {
       const band = new THREE.Mesh(geo('crownBand', () => new THREE.CylinderGeometry(0.21, 0.18, 0.1, 14)), gold); band.position.set(0, 0.22, 0); band.castShadow = true; head.add(band);
       crown = [];
       for (let k = 0; k < n; k++) {
-        const a = (k - (n - 1) / 2) * 0.95, pt = new THREE.Mesh(geo('crownPoint', () => new THREE.ConeGeometry(0.09, 0.3, 4)), gold), gem = new THREE.Mesh(geo('crownGem', () => new THREE.SphereGeometry(0.06, 8, 6)), botRed);
+        const a = (k - (n - 1) / 2) * 0.95, pt = new THREE.Mesh(geo('crownPoint', () => new THREE.ConeGeometry(0.09, 0.3, 4)), gold), gem = new THREE.Mesh(geo('crownGem', () => new THREE.SphereGeometry(0.06, 8, 6)), botGem);
         pt.position.set(Math.sin(a) * 0.17, 0.41, Math.cos(a) * 0.17); gem.position.y = 0.18; pt.add(gem); head.add(pt); crown.push(pt);
       }
     }
@@ -916,20 +923,87 @@ export function createScene(cv, cfg) {
     if (show.since >= DM.flash.gap) { show.since = 0; pulseC.set(c); }
     return c;
   }
+  // ---- glow (bloom) and the final grade: the high tier only (cfg.look.bloom, .glow, .grade). The scene is drawn to a
+  // half-float target without tone mapping; what is brighter than the threshold is blurred at a quarter and an eighth of
+  // the resolution and added back; the last shader draws to the canvas, where the renderer's own tone mapping and sRGB
+  // output run once (the same code as the direct render), and then grades. The low tier has no targets at all.
+  glows(fireMesh.material, 'fire'); glows(hitFlash.material, 'flash'); glows(boomFlash.material, 'flash'); glows(sparkMesh.material, 'sparks');
+  glows(coinMat, 'coin', 'emissiveIntensity'); glows(markMat, 'star'); glows(beamMat, 'beam'); glows(ringMat, 'ring');
+  for (const m of [TM.rock, TM.rockHeld]) { glows(m.std, 'meteor', 'emissiveIntensity'); glows(m.low, 'meteor', 'emissiveIntensity'); }
+  const BL = LK.bloom, GW = LK.glow, GR = LK.grade;
+  // reduced motion: the glow stays, the flashes get no extra
+  const glowK = (x) => (reduced && x.k === 'flash' ? 1 : GW[x.k]);
+  function glowSet(on) {
+    for (const x of glowList) {
+      if (x.p === 'color') { const c = x.m.color; if (on) { x.r = c.r; x.g = c.g; x.b = c.b; c.multiplyScalar(glowK(x)); } else c.setRGB(x.r, x.g, x.b); }
+      else if (on) { x.r = x.m.emissiveIntensity; x.m.emissiveIntensity *= glowK(x); } else x.m.emissiveIntensity = x.r;
+    }
+  }
+  const fsCam = new THREE.Camera(), fsGeo = keep(new THREE.BufferGeometry()); fsGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+  const fsMesh = new THREE.Mesh(fsGeo, null); fsMesh.frustumCulled = false;
+  const fsVert = 'varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const fsMat = (uniforms, fragmentShader) => keep(new THREE.ShaderMaterial({ uniforms, vertexShader: fsVert, fragmentShader, depthTest: false, depthWrite: false, fog: false }));
+  // bright parts only, averaged over 4 x 4 pixels on the way down to a quarter
+  const brightMat = fsMat({ t: { value: null }, px: { value: new THREE.Vector2() }, thr: { value: 1 }, knee: { value: 1 }, lim: { value: 1 } },
+    'uniform sampler2D t; uniform vec2 px; uniform float thr; uniform float knee; uniform float lim; varying vec2 vUv; void main(){ vec3 c = (texture2D(t, vUv + px * vec2(-1.0, -1.0)).rgb + texture2D(t, vUv + px * vec2(1.0, -1.0)).rgb + texture2D(t, vUv + px * vec2(-1.0, 1.0)).rgb + texture2D(t, vUv + px).rgb) * 0.25; float b = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(min(c * smoothstep(thr, thr + knee, b), vec3(lim)), 1.0); }');
+  // one direction of a 9-pixel Gaussian in 5 samples
+  const blurMat = fsMat({ t: { value: null }, d: { value: new THREE.Vector2() } },
+    'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227027; c += (texture2D(t, vUv + d * 1.384615).rgb + texture2D(t, vUv - d * 1.384615).rgb) * 0.316216; c += (texture2D(t, vUv + d * 3.230769).rgb + texture2D(t, vUv - d * 3.230769).rgb) * 0.070270; gl_FragColor = vec4(c, 1.0); }');
+  // the picture: scene + glow, the renderer's tone mapping and sRGB (this material draws to the canvas), then the grade
+  const finalMat = fsMat({ t: { value: null }, b1: { value: null }, b2: { value: null }, strength: { value: 0 }, vig: { value: 0 }, con: { value: 1 }, sat: { value: 1 } },
+    'uniform sampler2D t; uniform sampler2D b1; uniform sampler2D b2; uniform float strength; uniform float vig; uniform float con; uniform float sat; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb + (texture2D(b1, vUv).rgb + texture2D(b2, vUv).rgb) * strength, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\nvec3 g = gl_FragColor.rgb; g = mix(vec3(dot(g, vec3(0.2126, 0.7152, 0.0722))), g, sat); g = (g - 0.5) * con + 0.5; g *= 1.0 - vig * smoothstep(0.35, 1.0, length(vUv - 0.5) * 1.4142); gl_FragColor.rgb = clamp(g, 0.0, 1.0); }');
+  let post = null;
+  const postSize = new THREE.Vector2();
+  /** Can this GPU draw to half-float targets? (WebGL2 with one of the two extensions.) */
+  function hdrOk() { try { const gl = renderer.getContext(); return typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext && !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float')); } catch (e) { return false; } }
+  function postFree() { if (post) for (const t of post.rt) t.dispose(); post = null; }
+  /** Makes, resizes or releases the glow pass's targets for the tier and the drawing size (after a resize, a tier change, a restored context). */
+  // the game switches the glow on once the frame rate has proved it can carry it (never during the first seconds)
+  let glowOn = false;
+  function postSync() {
+    // (the glow is the first thing to go when the frame rate dips: any step down in resolution drops it)
+    if (low || !BL.on || !glowOn || !hdrOk() || dpr < dprBase - 0.01) { postFree(); return; }
+    renderer.getDrawingBufferSize(postSize); const w = Math.max(1, postSize.x), h = Math.max(1, postSize.y), q = (d) => [Math.max(1, Math.round(w / d)), Math.max(1, Math.round(h / d))];
+    if (!post) {
+      const small = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small() };
+      post.rt = [post.scene, post.q1, post.q2, post.e1, post.e2];
+    }
+    post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8));
+  }
+  const fsPass = (mat, target) => { fsMesh.material = mat; renderer.setRenderTarget(target); renderer.render(fsMesh, fsCam); };
+  /** Draws the frame: the world, the hands on top (not in the attract show: it is not first person), then the glow pass if it is on. */
+  function draw(hands) {
+    // (the attract show is drawn direct: its colours were tuned without the pass)
+    const on = post && !isShow();
+    scorchLin.value = on ? 1 : 0;
+    if (on) { glowSet(true); renderer.setRenderTarget(post.scene); }
+    renderer.autoClear = true; renderer.render(scene, camera);
+    if (hands) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; }
+    if (!on) return;
+    glowSet(false);
+    const P = post, u = brightMat.uniforms, d = blurMat.uniforms.d.value, f = finalMat.uniforms;
+    u.t.value = P.scene.texture; u.px.value.set(1 / P.scene.width, 1 / P.scene.height); u.thr.value = BL.threshold; u.knee.value = BL.knee; u.lim.value = BL.max; fsPass(brightMat, P.q1);
+    blurMat.uniforms.t.value = P.q1.texture; d.set(1 / P.q1.width, 0); fsPass(blurMat, P.q2);
+    blurMat.uniforms.t.value = P.q2.texture; d.set(0, 1 / P.q1.height); fsPass(blurMat, P.q1);
+    // the wide level: the quarter one again, an eighth the size, blurred twice as far
+    blurMat.uniforms.t.value = P.q1.texture; d.set(1 / P.e1.width, 0); fsPass(blurMat, P.e2);
+    blurMat.uniforms.t.value = P.e2.texture; d.set(0, 1 / P.e1.height); fsPass(blurMat, P.e1);
+    f.t.value = P.scene.texture; f.b1.value = P.q1.texture; f.b2.value = P.e1.texture; f.strength.value = BL.strength; f.vig.value = GR.vignette; f.con.value = GR.contrast; f.sat.value = GR.saturation;
+    fsPass(finalMat, null);
+  }
   // ---- per frame
   let time = 0;
   function update(world, dt) {
     W = world; time += dt; frameN++;
-    if (!W) { renderer.render(scene, camera); return; }
+    if (!W) { draw(false); return; }
     // remesh what changed
     for (const k of dirty) { const [cx, cy, cz] = k.split(',').map(Number); if (cx * CS < W.g.W && cy * CS < W.g.H && cz * CS < W.g.D) buildChunk(cx, cy, cz); }
     dirty.clear();
     if (isShow()) { showCamera(dt); showRain(dt); } else updateCamera(dt);
     updateHero(dt); updateShots(dt); updateFx(dt); updateBots();
     if (boomBox.visible) { boomArrow.position.y = 2.25 + Math.sin(time * 4) * 0.16; boomArrow.rotation.y = time * 2; }
-    renderer.autoClear = true; renderer.render(scene, camera);
-    // the hands on top (not in the attract show: it is not first person)
-    if (!isShow()) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true; }
+    draw(!isShow());
   }
   function updateHero(dt) {
     const h = W.hero;
@@ -1189,7 +1263,7 @@ export function createScene(cv, cfg) {
     return { type: 'air', dist: gy, p: { x: o.x + d.x * gy, y: Math.max(0.5, o.y + d.y * gy), z: o.z + d.z * gy } };
   }
 
-  function resize(w, h) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); }
+  function resize(w, h) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); vmCam.aspect = w / h; vmCam.updateProjectionMatrix(); postSync(); }
 
   return {
     renderer, camera, event, setLevel, update, pick, screenOf, resize,
@@ -1218,7 +1292,7 @@ export function createScene(cv, cfg) {
     get dustNear() { const out = [], m = dust.instanceMatrix.array, c = camera.position; for (let i = 0; i < U.n; i++) { const sc = dustSize(i), o = i * 3; if (sc > 1e-4 && U.life[i * 2] > 0) out.push({ d: Math.hypot(U.p[o] - c.x, U.p[o + 1] - c.y, U.p[o + 2] - c.z), k: m[i * 16] / sc }); } return out; },
     /** Test view: live coins {n, d: the nearest one's distance to the eye}. */
     get coinNear() { const c = camera.position; let d = Infinity; for (let i = 0; i < C.n; i++) d = Math.min(d, Math.hypot(C.p[i * 3] - c.x, C.p[i * 3 + 1] - c.y, C.p[i * 3 + 2] - c.z)); return { n: C.n, d }; },
-    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: KW.n, fire: KF.n, smoke: KS.n, shots: shotMeshes.size }; },
+    get counts() { return { scorch: scorches.filter((x) => x.mesh.visible).length, deco: deco ? deco.geometry.attributes.position.count / 3 : 0, debris: D.n, dust: U.n, coins: C.n, falls: falls.size, chunks: chunks.size, blasts: KW.n, fire: KF.n, smoke: KS.n, shots: shotMeshes.size, bloom: post ? 'on' : 'off', targets: post ? post.rt.length : 0 }; },
     /** The resolution as a share of the device's own (1 = full), and the device's own pixel ratio. */
     get quality() { return dpr / dprBase; }, get trauma() { return cam.trauma; }, get dpr() { return dpr; }, get dprBase() { return dprBase; }, get low() { return low; },
     /** Sets the pixel ratio (the dynamic resolution); a change of less than 0.01 is ignored. */
@@ -1236,7 +1310,8 @@ export function createScene(cv, cfg) {
     /** A robot's face cell (eye kind × 5 + mouth). */
     faceOf(id) { const v = botMeshes.get(id); return v ? v.fk : -1; },
     /** The low tier: no sun shadows, half the debris, dust and sparks, the hammer without its reflection. */
-    setLow(v) { low = !!v; sun.castShadow = !low; hammerLook(); },
+    setLow(v) { low = !!v; sun.castShadow = !low; hammerLook(); postSync(); },
+    setGlow(v) { if (glowOn === !!v) return; glowOn = !!v; postSync(); },
     /** The tool in the hand as drawn: which, its charge (1 = ready), seconds since it fired, the hand's place. */
     get hand() { return { landed: ham.landed, aimed: ham.aimed, envs: envs.size, tool: heldTool, charge: heldTool === 'hammer' ? 1 : ham.charge, fired: fr.kind ? fr.t : -1, kind: fr.kind, eq: ham.eq, pos: rig.position.toArray(), rx: rig.rotation.x, recoil: ham.rec, punch: cam.punch || 0, flash: boomFlash.visible, mirrored: !low && !!hamStd.envMap }; },
     /** The hammer as drawn: its tier's material, triangles, the swing's layers (for tests and tuning). */
@@ -1248,6 +1323,7 @@ export function createScene(cv, cfg) {
       for (const m of chunks.values()) m.geometry.dispose(); for (const it of falls.values()) it.mesh.geometry.dispose();
       for (const x of disposables) x.dispose();
       for (const rt of envs.values()) rt.dispose();
+      postFree();
       cv.removeEventListener('webglcontextrestored', onRestored);
       if (deco) deco.geometry.dispose();
       debris.dispose(); dust.dispose(); fireMesh.dispose(); smokeMesh.dispose(); waveMesh.dispose(); coins.dispose(); sparkMesh.dispose(); barrel.dispose(); band.dispose();
