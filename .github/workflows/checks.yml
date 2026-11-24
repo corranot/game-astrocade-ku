@@ -22,7 +22,7 @@ jobs:
       contents: read
       pull-requests: read # to list the PR's files
     outputs:
-      dirs: ${{ needs.scope.outputs.dirs }}
+      dirs: ${{ steps.scope.outputs.dirs }} # the step below; `needs.scope` is empty inside this job, which skipped every check
     steps:
       - id: scope
         env:
