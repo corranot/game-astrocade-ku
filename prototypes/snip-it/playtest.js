@@ -95,6 +95,8 @@ async function main() {
     await winLevel(page); await page.click('#next', { force: true }); await page.waitForTimeout(600); await shot(page, 'en-6-level3');
     await winLevel(page); await page.waitForTimeout(400); await shot(page, 'en-7-level3-win');
     await page.click('#next', { force: true });
+    check((await g(page, () => __game.index)) === 3, 'NEXT keeps going to level 4');
+    await g(page, () => __game.loadLevel(__game.total - 1)); await winLevel(page); await page.click('#next', { force: true });
     check((await g(page, () => __game.index)) === 0, 'after the last level the first comes again');
 
     // ---- 6. buttons are not cuts; mute is kept
@@ -118,11 +120,11 @@ async function main() {
 
   // ---- 8. saves: an old one, a late one, a failing one
   {
-    let r = await open(browser, port, '', { init: 'window.__preset = { v: 1, lvl: 2, at: 1, stars: [3, 3], gags: ["kitty_cat", "gone_level", "bath_shower"], muted: true, learned: true, lang: "id" };' });
+    let r = await open(browser, port, '', { init: 'window.__preset = { v: 1, lvl: 2, at: 1, stars: [3, 3], gags: ["kitty_cat", "gone_level", "nap_bell"], muted: true, learned: true, lang: "id" };' });
     await r.page.waitForFunction(() => __game.saveLoaded);
     let s = await g(r.page, () => ({ i: __game.index, gags: __game.save.gags, lang: __game.lang, muted: __game.sound.muted, prompt: document.querySelector('#prompt').textContent, hand: document.querySelector('#hand').hidden, writes: (window.__writes || []).length }));
     check(s.i === 1 && s.gags.length === 2 && s.lang === 'id' && s.muted, 'an old save opens its level, drops unknown stickers, keeps language and mute');
-    check(s.prompt === 'Mandikan anjingnya!' && s.hand && s.writes === 0, 'the saved language shows; reading a save writes nothing');
+    check(s.prompt === 'Bangunkan!' && s.hand && s.writes === 0, 'the saved language shows; reading a save writes nothing');
     await r.page.close();
 
     r = await open(browser, port, '', { init: 'window.__saveDelay = 2500; window.__preset = { v: 1, lvl: 1, at: 1, stars: [3], gags: ["kitty_cat", "kitty_water"], learned: true };' });

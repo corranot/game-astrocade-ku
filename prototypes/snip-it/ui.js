@@ -63,6 +63,8 @@ export function createUi(root) {
       fit($('nextT')); fit($('againT'));
     },
     muteIcon(muted) { $('mute').firstElementChild.textContent = muted ? '🔇' : '🔊'; },
+    /** Takes the sticker card and the cheer off at once (a new level starts). */
+    wipe() { clearTimeout(toastTimer); clearTimeout(cheerTimer); $('toast').hidden = true; $('cheer').hidden = true; },
     clear() { clearTimeout(toastTimer); clearTimeout(cheerTimer); },
   };
 }

@@ -1,61 +1,34 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Snip It levels as data. The stage is 6.4 wide (x -3.2..3.2), the floor is y = 0 and the hooks hang near y = 8.7.
-// Each level has three roped things: one "win" that fixes the scene and two "gag" ones that end in a funny, harmless
-// mess. Every thing has a goal it lands on, an effect, a reaction of the hero and a sticker.
-//   item: { id, result, rope: { ax, ay, color }, body: { model, x, y, r, m, rest }, goal: { x, y, r },
-//           fx, sound, react, tint?, pop?, sticker }
-//   hero: an item id (the hero hangs on a rope) or { model, x, y, s } standing on the stage.
-//   props: [{ id?, model, x, y, s?, react? }] scenery; boxes: solid blocks for the physics.
+// Snip It levels: the worlds in order, each a pack file (w_*.js) with its wall, scenery models and five levels.
+// Each level hangs things on ropes: one "win" that fixes the scene and the rest "gag" ones that end in a funny,
+// harmless mess. Every thing has a goal it lands on, an effect, a reaction of the hero and a sticker.
+//   level: { id, prompt, hero, props, boxes, items }   (id is unique in the whole game)
+//   hero: an item id (the hero hangs on a rope) or { model, x, y, z?, s, asleep?, muddy?, tint?, wilted? }
+//   props: [{ id?, model, x, y, z?, s?, hidden? }] scenery; boxes: [{ x0, y0, x1, y1, rest? }] solid blocks
+//   item: { id, result: 'win' | 'gag', rope: { ax, ay, color }, body: { model, x, y, r, m, rest, lift, color },
+//           goal: { x, y, r }, fx, sound, react, sticker,
+//           pop? (the thing is used up on landing), tint? (colours the hero for a moment), untint? (cleans the hero
+//           for good), set? (a flag for the hero: 'wake', 'bloom'), propReact? [propId, reaction], show? / hide?
+//           [propIds], fxAt? [x, y] (effect elsewhere than the goal), burst? (effect size),
+//           needs? itemId (cut before that one is cut: it plays `early` and is hung back),
+//           early? { goal, fx, sound, react, sticker } }
+import room from './w_room.js';
+import bath from './w_bath.js';
+import garden from './w_garden.js';
 
-const RED = 0xff4d5e, BLUE = 0x2f9bff, YELLOW = 0xffc61a;
+export const WORLDS = [room, bath, garden];
+export const PER_WORLD = 5;
+export const LEVELS = WORLDS.flatMap((w) => w.levels.map((l) => ({ ...l, theme: w.id })));
 
-export const LEVELS = [
-  {
-    id: 'kitty', theme: 'room', prompt: 'p_kitty', hero: 'cat',
-    props: [{ model: 'sofa', x: 0, y: 0 }, { id: 'robot', model: 'robot', x: -2.15, y: 0 }, { id: 'drum', model: 'drum', x: 2.15, y: 0 }],
-    boxes: [{ x0: -1.15, y0: 0, x1: 1.15, y1: 1.0, rest: 0.45 }, { x0: -2.6, y0: 0, x1: -1.7, y1: 1.25 }, { x0: 1.6, y0: 0, x1: 2.7, y1: 0.85, rest: 0.6 }],
-    items: [
-      { id: 'cat', result: 'win', rope: { ax: 0, ay: 8.7, color: RED }, body: { model: 'cat', x: 0, y: 5.5, r: 0.56, m: 1, rest: 0.35 },
-        goal: { x: 0, y: 1.56, r: 0.5 }, fx: 'hearts', sound: 'land', react: 'happy', sticker: '😻' },
-      { id: 'water', result: 'gag', rope: { ax: -2.15, ay: 8.7, color: BLUE }, body: { model: 'waterBalloon', x: -2.15, y: 5.9, r: 0.42, m: 0.8 },
-        goal: { x: -2.15, y: 1.67, r: 0.55 }, fx: 'splash', sound: 'splash', react: 'laugh', pop: true, propReact: ['robot', 'dizzy'], sticker: '🤖' },
-      { id: 'gift', result: 'gag', rope: { ax: 2.15, ay: 8.7, color: YELLOW }, body: { model: 'gift', x: 2.15, y: 6.1, r: 0.44, m: 0.8, rest: 0.5 },
-        goal: { x: 2.15, y: 1.29, r: 0.55 }, fx: 'confetti', sound: 'horn', react: 'wow', pop: true, propReact: ['drum', 'bounce'], sticker: '🎉' },
-    ],
-  },
-  {
-    id: 'bath', theme: 'bath', prompt: 'p_bath', hero: { model: 'puppy', x: 0, y: 1.45, z: -0.15, s: 0.95, muddy: true },
-    props: [{ model: 'tub', x: 0, y: 0 }],
-    boxes: [],
-    items: [
-      { id: 'flour', result: 'gag', rope: { ax: -1.9, ay: 8.7, color: YELLOW }, body: { model: 'sack', x: -1.9, y: 5.9, r: 0.46, m: 0.9 },
-        goal: { x: -0.05, y: 2.9, r: 0.6 }, fx: 'flour', sound: 'puff', react: 'sneeze', tint: 0xffffff, pop: true, sticker: '👻' },
-      { id: 'shower', result: 'win', rope: { ax: 0, ay: 8.7, color: BLUE }, body: { model: 'bucket', x: 0, y: 6.3, r: 0.48, m: 1 },
-        goal: { x: 0, y: 2.9, r: 0.6 }, fx: 'bubbles', sound: 'splash', react: 'happy', clean: true, pop: true, sticker: '🛁' },
-      { id: 'ducks', result: 'gag', rope: { ax: 1.9, ay: 8.7, color: RED }, body: { model: 'crate', x: 1.9, y: 6.0, r: 0.46, m: 0.9 },
-        goal: { x: 0.05, y: 2.9, r: 0.6 }, fx: 'ducks', sound: 'squeak', react: 'laugh', pop: true, sticker: '🦆' },
-    ],
-  },
-  {
-    id: 'garden', theme: 'garden', prompt: 'p_garden', hero: { model: 'flower', x: 0, y: 0, s: 1, wilted: true },
-    props: [{ model: 'fence', x: 0, y: 0 }],
-    boxes: [],
-    items: [
-      { id: 'ball', result: 'gag', rope: { ax: -1.9, ay: 8.7, color: RED }, body: { model: 'ball', x: -1.9, y: 6.0, r: 0.48, m: 0.7, rest: 0.75 },
-        goal: { x: -0.1, y: 3.0, r: 0.6 }, fx: 'stars', sound: 'boing', react: 'dizzy', sticker: '💫' },
-      { id: 'seeds', result: 'gag', rope: { ax: 0, ay: 8.7, color: YELLOW }, body: { model: 'sack', x: 0, y: 6.4, r: 0.44, m: 0.9 },
-        goal: { x: 0, y: 3.0, r: 0.6 }, fx: 'birds', sound: 'chirp', react: 'wow', pop: true, sticker: '🐦' },
-      { id: 'can', result: 'win', rope: { ax: 1.9, ay: 8.7, color: BLUE }, body: { model: 'can', x: 1.9, y: 6.1, r: 0.48, m: 1 },
-        goal: { x: 0.1, y: 3.0, r: 0.6 }, fx: 'rain', sound: 'splash', react: 'happy', bloom: true, pop: true, sticker: '🌻' },
-    ],
-  },
-];
-
-/** Sticker id of an item: level id + item id. */
-export const stickerId = (level, item) => level.id + '_' + item.id;
+/** Sticker id of an ending: level id + item id (+ '_early' for a thing cut before its turn). */
+export const stickerId = (level, item, early) => level.id + '_' + item.id + (early ? '_early' : '');
 
 /** All stickers in book order: [{ id, icon, level }]. */
-export function allStickers() { const out = []; LEVELS.forEach((l, i) => l.items.forEach((it) => out.push({ id: stickerId(l, it), icon: it.sticker, level: i }))); return out; }
+export function allStickers() {
+  const out = [];
+  LEVELS.forEach((l, i) => l.items.forEach((it) => { out.push({ id: stickerId(l, it), icon: it.sticker, level: i }); if (it.early) out.push({ id: stickerId(l, it, true), icon: it.early.sticker, level: i }); }));
+  return out;
+}
 
 /**
  * A playable copy of level i with the creator's edits applied.

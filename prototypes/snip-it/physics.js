@@ -4,7 +4,7 @@
 // light points held by length links, a hanging thing is one heavy point with a radius. Fixed 1/60 s steps.
 
 export const STEP = 1 / 60;
-const ITER = 10;
+const ITER = 10, WALL = 3.2;
 
 /** Distance between segment a-b and segment c-d, with the closest point on c-d. */
 export function segDist(ax, ay, bx, by, cx, cy, dx, dy) {
@@ -26,18 +26,18 @@ export function segDist(ax, ay, bx, by, cx, cy, dx, dy) {
  */
 export function createWorld(level, tune = {}) {
   const W = { g: 17 * (tune.gravityScale || 1), t: 0, pts: [], links: [], ropes: [], bodies: [], boxes: level.boxes || [] };
-  const pt = (x, y, im, r) => { W.pts.push({ x, y, px: x, py: y, im, r }); return W.pts.length - 1; };
+  const pt = (x, y, im, r) => { W.pts.push({ x, y, px: x, py: y, im, r, hx: x, hy: y, him: im }); return W.pts.length - 1; };
   level.items.forEach((it, k) => {
     const b = it.body, n = it.rope.n || 7, r = b.r;
     const dx = it.rope.ax - b.x, dy = it.rope.ay - b.y, len = Math.hypot(dx, dy), seg = (len - r) / n;
-    const body = { id: it.id, p: pt(b.x, b.y, 1 / (b.m || 1), r), r, ang: 0, w: 0, lift: b.lift || 0, rest: b.rest === undefined ? 0.3 : b.rest,
-      goal: it.goal || null, free: false, freeT: 0, done: false, gone: false, phase: k * 2.1, grounded: false };
-    const rope = { id: it.id, links: [], cut: false, cutAt: -1 };
+    const body = { id: it.id, p: pt(b.x, b.y, 1 / (b.m || 1), r), r, ang: 0, w: 0, lift: (b.lift || 0) * (tune.gravityScale || 1), rest: b.rest === undefined ? 0.3 : b.rest,
+      goal: it.goal || null, goal0: it.goal || null, x0: b.x, y0: b.y, free: false, freeT: 0, done: false, gone: false, phase: k * 2.1, grounded: false };
+    const rope = { id: it.id, links: [], pts: [body.p], cut: false, cutAt: -1 };
     // chain from the hook (fixed) down to the top of the thing; the last link reaches its centre
-    let prev = pt(it.rope.ax, it.rope.ay, 0, 0);
+    let prev = pt(it.rope.ax, it.rope.ay, 0, 0); rope.pts.push(prev);
     for (let i = 1; i < n; i++) {
       const f = (seg * i) / len, cur = pt(it.rope.ax - dx * f, it.rope.ay - dy * f, 20, 0);
-      rope.links.push(W.links.push({ a: prev, b: cur, len: seg, cut: false }) - 1); prev = cur;
+      rope.links.push(W.links.push({ a: prev, b: cur, len: seg, cut: false }) - 1); prev = cur; rope.pts.push(cur);
     }
     rope.links.push(W.links.push({ a: prev, b: body.p, len: seg + r, cut: false }) - 1);
     W.bodies.push(body); W.ropes.push(rope);
@@ -71,6 +71,17 @@ export function hitRope(W, ax, ay, bx, by, tol) {
   return best;
 }
 
+/** Sends the cut thing `id` to another landing place (a thing cut before its turn). null = its own goal again. */
+export function setGoal(W, id, goal) { const b = W.bodies.find((x) => x.id === id); if (b) b.goal = goal || b.goal0; }
+
+/** Hangs thing `id` back on its hook with a whole rope, as the level started. */
+export function reset(W, id) {
+  const rope = W.ropes.find((r) => r.id === id), b = W.bodies.find((x) => x.id === id); if (!rope || !b) return;
+  for (const i of rope.pts) { const p = W.pts[i]; p.x = p.px = p.hx; p.y = p.py = p.hy; p.im = p.him; }
+  for (const li of rope.links) W.links[li].cut = false;
+  rope.cut = false; rope.cutAt = -1; b.free = false; b.freeT = 0; b.done = false; b.gone = false; b.w = 0; b.ang = 0; b.goal = b.goal0;
+}
+
 /** Takes a thing out of the world (it popped or was used up). */
 export function remove(W, id) { const b = W.bodies.find((x) => x.id === id); if (b) { b.gone = true; const p = W.pts[b.p]; p.im = 0; p.y = p.py = -50; } }
 
@@ -87,7 +98,8 @@ export function step(W, dt = STEP) {
     if (b.gone) continue;
     const p = W.pts[b.p];
     p.y += b.lift * dt2;
-    if (!b.free) p.x += Math.sin(W.t * 1.3 + b.phase) * 0.9 * dt2; // a little sway keeps the stage alive
+    if (!b.free && b.lift) { p.x += ((b.x0 - p.x) * 60 - (p.x - p.px) / dt * 6) * dt2; p.y += ((b.y0 - p.y) * 40 - (p.y - p.py) / dt * 5 - b.lift + W.g) * dt2 + Math.sin(W.t * 2 + b.phase) * 0.6 * dt2; } // a tied balloon tugs at its peg, in place
+    else if (!b.free) p.x += Math.sin(W.t * 1.3 + b.phase) * 0.9 * dt2; // a little sway keeps the stage alive
     else {
       b.freeT += dt;
       if (b.goal && !b.done) { // drift towards where this thing is meant to land, so every cut ends the same way
@@ -116,6 +128,7 @@ export function step(W, dt = STEP) {
       if (ny > 0.7) b.grounded = true;
     };
     if (p.y - b.r < 0) { p.y = b.r; bounce(0, 1, b.rest); }
+    if (p.x - b.r < -WALL) { p.x = b.r - WALL; bounce(1, 0, 0.3); } else if (p.x + b.r > WALL) { p.x = WALL - b.r; bounce(-1, 0, 0.3); } // the sides of the stage
     for (const bx of W.boxes) {
       const cx = Math.max(bx.x0, Math.min(bx.x1, p.x)), cy = Math.max(bx.y0, Math.min(bx.y1, p.y));
       const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
@@ -125,6 +138,7 @@ export function step(W, dt = STEP) {
     }
     if (hit > 2.5) ev.push({ type: 'bump', id: b.id, speed: hit });
     const vx = (p.x - p.px) / dt;
+    if (b.grounded && b.done) p.px = p.x - (p.x - p.px) * 0.93; // a thing that has had its ending rolls to a stop
     if (b.grounded) b.w = -vx / b.r; else b.w *= 0.995;
     b.ang += b.w * dt;
     if (b.free && b.goal && !b.done) {
