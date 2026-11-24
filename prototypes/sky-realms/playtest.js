@@ -374,6 +374,8 @@ const run = (name) => !ONLY || ONLY === name;
     const cos = await p.evaluate(() => { const g = __game, W = g.world, P = g.player; __arena(); for (let x = 4; x <= 16; x++) for (let z = 4; z <= 14; z++) for (let y = 46; y < 50; y++) W.set(x, y, z, 3); P.pos.set(10.5, 50, 16.5); __step(0.3); P.pitch = -0.5; g.S.gauge = g.cfg.tools[3].at; P.setTier(3); let n = 0; const sh = g.vfx.shock.bind(g.vfx); g.vfx.shock = (...a) => { n++; sh(...a); }; let maxT = 0; g.mouseMine = true; for (let i = 0; i < 120; i++) { __step(1 / 30); maxT = Math.max(maxT, g.trauma); P.yaw += 0.02; } g.mouseMine = false; g.vfx.shock = sh; return { perSec: n / 4, maxT, mined: g.S.mined }; });
     check(cos.perSec <= 1 && cos.mined > 10, `cosmic mining: shockwave ring ${cos.perSec.toFixed(2)}/s (max 1), ${cos.mined} blocks mined`);
     check(cos.maxT <= 0.3, `mining keeps camera shake small (trauma peak ${cos.maxT.toFixed(2)})`);
+    for (const i of [0, 3]) await scene(`wonder showcase mid-build (${['tree', 'fountain', 'bridge', 'castle'][i]})`, `const b = g.blueprints.list[${i}]; for (const k in b.cost) g.S.inv[k] = (g.S.inv[k] || 0) + b.cost[k]; g.player.spawnAt(b.pad.x + 0.5, b.pad.z + 0.5); g.phase = 0.2; __step(0.1); g.placeOrBuild(null); __step(3); if (!g.show || !g.show.cam) throw new Error('no showcase');`);
+    await p.evaluate(() => { __step(16); });
     // celebrations: fireworks + confetti right in view
     await scene('wonder fireworks in view', 'g.player.spawnAt(62.5, 80.5); g.player.yaw = 0; g.player.pitch = 0.2; g.phase = 0.15; const P = g.player.pos; g.vfx.fireworks(P.x, P.y, P.z - 8, 7); g.vfx.confetti(P.x, P.y + 2, P.z - 4, 160); for (let i = 0; i < 25; i++) g.frame(1 / 30);');
     // full-screen flashes are tinted, soft and never white
@@ -433,6 +435,71 @@ const run = (name) => !ONLY || ONLY === name;
     await p.waitForFunction(() => window.__started === true, null, { timeout: 20000 }).catch(() => {});
     check(await p.evaluate(() => window.__started === true && !document.getElementById('fail')), 'a late run() replaces the message with the game');
     await p.close();
+  }
+  // ---------------------------------------------------------------- show: a wonder is seen while it assembles
+  if (run('show')) {
+    const p = await open(browser); await startDesk(p);
+    for (let i = 0; i < 4; i++) {
+      const r = await p.evaluate((i) => {
+        const g = __game, b = g.blueprints.list[i], P = g.player, W = g.world, R = g.renderer, real = R.render; R.render = () => {};
+        for (const k in b.cost) g.S.inv[k] = (g.S.inv[k] || 0) + b.cost[k];
+        if (i === 3) { const nx = g.cfg.tools.find((t) => t.at > g.S.gauge); if (nx) g.S.gauge = nx.at - 5; } // the castle's bonus crosses a tool threshold
+        const tier0 = g.tier();
+        P.spawnAt(b.pad.x + 0.5, b.pad.z + 0.5); g.frame(1 / 30);
+        const c = b.center; P.yaw = Math.atan2(c.x - P.pos.x, c.z - P.pos.z); P.pitch = 0; g.frame(1 / 30); // facing straight away
+        const cam = g.camera, v = new THREE.Vector3();
+        const seen = () => { cam.updateMatrixWorld(); v.copy(c).project(cam); return Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1 && v.z < 1; };
+        const before = seen();
+        const laid = [], egg0 = g.pets.egg; g.pets.egg = function (x, y, z) { laid.push([x + 0.5, z + 0.5]); return egg0.call(this, x, y, z); };
+        g.placeOrBuild(null);
+        let frames = 0, inView = 0, inside = 0, hidden = 0; const mine = new Set(b.cells.map(([x, y, z]) => x + ',' + y + ',' + z)), d = new THREE.Vector3();
+        // occluded: the first block on the line from the camera to the wonder centre is not part of the wonder
+        const blocked = () => { const o = cam.position; d.copy(c).sub(o); const len = d.length(); d.divideScalar(len); const h = W.raycast(o.x, o.y, o.z, d.x, d.y, d.z, len - 0.5); return !!h && !mine.has(h.x + ',' + h.y + ',' + h.z); };
+        let both = 0; const toastEl = document.querySelector('.toast'), cardEl = document.querySelector('.wcard');
+        for (let k = 0; k < 2400 && g.show; k++) { g.frame(1 / 30); if (!cardEl.hidden && toastEl.classList.contains('show')) both++; if (g.show && g.show.cam && g.show.t > 0.6) { frames++; if (seen() && !blocked()) inView++; else if (seen()) hidden++; if (W.solid(Math.floor(cam.position.x), Math.floor(cam.position.y), Math.floor(cam.position.z))) inside++; } }
+        const e = P.eye(), back = cam.position.distanceTo(e);
+        const fw = new THREE.Vector3(); cam.getWorldDirection(fw); const to = new THREE.Vector3(c.x - e.x, 0, c.z - e.z).normalize(); fw.y = 0; fw.normalize();
+        const ang = Math.acos(clampDot(fw.dot(to))) * 180 / Math.PI;
+        function clampDot(d) { return Math.max(-1, Math.min(1, d)); }
+        const card = document.querySelector('.wcard'), cardOk = !card.hidden && card.querySelector('.wname').textContent === g.T('b_' + b.id);
+        g.pets.egg = egg0; const eggFront = laid.length === 1 && ((laid[0][0] - P.pos.x) * to.x + (laid[0][1] - P.pos.z) * to.z) > 0.5;
+        const p0 = P.pos.clone(); g.keys.add('KeyW'); for (let k = 0; k < 20; k++) g.frame(1 / 30); g.keys.delete('KeyW'); const walked = P.pos.distanceTo(p0);
+        for (let k = 0; k < 120; k++) { g.frame(1 / 30); if (!cardEl.hidden && toastEl.classList.contains('show')) both++; } // let the egg hatch before the next wonder
+        const upgraded = g.player.tier > tier0 || i !== 3;
+        R.render = real;
+        return { id: b.id, both, upgraded, before, done: b.done, frames, share: frames ? inView / frames : 0, hidden, inside, back, ang, cardOk, eggFront, walked };
+      }, i);
+      check(!r.before, `${r.id}: from the pad facing away, the wonder is out of view before building`);
+      check(r.done && r.frames > 30 && r.share >= 0.95, `${r.id}: the showcase keeps the wonder in view and unblocked (${(r.share * 100).toFixed(0)}% of ${r.frames} frames, ${r.hidden} blocked)`);
+      check(r.inside === 0, `${r.id}: the showcase camera never sits inside a block (${r.inside})`);
+      check(r.back < 0.35 && r.ang < 32, `${r.id}: back at the eyes, facing the wonder (${r.ang.toFixed(0)}°)`);
+      check(r.cardOk, `${r.id}: the finale card names the wonder`);
+      check(r.eggFront, `${r.id}: the egg lands in front of the player`);
+      check(r.both === 0 && r.upgraded, `${r.id}: the wonder card never shares the screen with another card; a tool upgrade comes after it (${r.both})`);
+      check(r.walked > 0.8, `${r.id}: walking works again after the show (${r.walked.toFixed(2)} m)`);
+    }
+    await p.close();
+    // the real BUILD! button (a finger tap, and a mouse click) starts the build and the showcase
+    for (const how of ['touch', 'mouse']) {
+      const t = await open(browser, { touch: how === 'touch' });
+      if (how === 'touch') { await t.touchscreen.tap(180, 200); } else { await t.mouse.click(180, 200); }
+      await t.waitForFunction(() => __game.started);
+      await t.evaluate(() => { const g = __game, b = g.blueprints.list[0]; for (const k in b.cost) g.S.inv[k] = b.cost[k]; g.player.spawnAt(b.pad.x + 0.5, b.pad.z + 0.5); __step(0.3); });
+      const box = await t.evaluate(() => { const r = document.querySelector('.bbuild').getBoundingClientRect(); return r.width ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+      // touch taps the button; with the mouse captured by the 3D view (pointer lock) a click on the scene builds; without it, the button is clicked
+      if (box) { if (how === 'touch') await t.touchscreen.tap(box[0], box[1]); else if (await t.evaluate(() => __game.locked)) { await t.mouse.down(); await t.mouse.up(); } else await t.mouse.click(box[0], box[1]); }
+      const st = await t.evaluate(() => ({ building: __game.blueprints.list[0].building || __game.blueprints.list[0].done, show: !!__game.show }));
+      check(!!box && st.building && st.show, `the BUILD! button (${how}) starts the wonder and its showcase`);
+      await t.close();
+    }
+    // a key skips it; assembly still finishes; reduced motion only turns the view
+    const q = await open(browser); await startDesk(q);
+    const sk = await q.evaluate(() => { const g = __game, b = g.blueprints.list[0], P = g.player; for (const k in b.cost) g.S.inv[k] = b.cost[k]; P.spawnAt(b.pad.x + 0.5, b.pad.z + 0.5); __step(0.1); g.placeOrBuild(null); __step(0.6); const was = !!(g.show && g.show.cam); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space' })); __step(0.1); const gone = !g.show; __step(12); return { was, gone, done: b.done, eye: g.camera.position.distanceTo(P.eye()) }; });
+    check(sk.was && sk.gone && sk.done && sk.eye < 0.35, 'a key skips the showcase; the wonder still finishes and the view is back at the eyes');
+    const rm = await q.evaluate(() => { const g = __game, b = g.blueprints.list[1], P = g.player; for (const k in b.cost) g.S.inv[k] = b.cost[k]; P.calm = true; P.spawnAt(b.pad.x + 0.5, b.pad.z + 0.5); __step(0.1); const c = b.center; P.yaw = Math.atan2(c.x - P.pos.x, c.z - P.pos.z); __step(0.1); g.placeOrBuild(null); let maxOff = 0; for (let k = 0; k < 45; k++) { __step(1 / 30); maxOff = Math.max(maxOff, g.camera.position.distanceTo(P.eye())); } const e = P.eye(), fw = new THREE.Vector3(); g.camera.getWorldDirection(fw); fw.y = 0; fw.normalize(); const to = new THREE.Vector3(c.x - e.x, 0, c.z - e.z).normalize(); P.calm = false; return { maxOff, ang: Math.acos(Math.max(-1, Math.min(1, fw.dot(to)))) * 180 / Math.PI }; });
+    check(rm.maxOff < 0.35 && rm.ang < 20, `reduced motion: no orbit, the view just turns to the wonder (${rm.ang.toFixed(0)}°)`);
+    check(q.errors.length === 0, 'no page errors in showcase checks: ' + q.errors.join(' / '));
+    await q.close();
   }
   // ---------------------------------------------------------------- 8 chaos: 600 seeded random inputs
   if (run('chaos')) {

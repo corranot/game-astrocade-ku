@@ -211,9 +211,9 @@ const PAINT = {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       if (g.r() < 0.13) { g.set(x, y, 0xff9ec4, 0); continue; }
       const n = Math.sin(x * 0.9) + Math.cos(y * 1.1);
-      g.set(x, y, n > 0.8 ? 0xffc6de : n < -0.8 ? 0xe9789f : g.pick([0xffb3d1, 0xff9ec4, 0xf990b8]));
+      g.set(x, y, n > 0.8 ? 0xf5b4d0 : n < -0.8 ? 0xd96b93 : g.pick([0xf0a0c0, 0xea8fb6, 0xe383ad]));
     }
-    for (let i = 0; i < 6; i++) g.set(Math.floor(g.r() * 16), Math.floor(g.r() * 16), 0xfff3f8);
+    for (let i = 0; i < 6; i++) g.set(Math.floor(g.r() * 16), Math.floor(g.r() * 16), 0xf9dbe8);
   },
   leaf(g) {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
@@ -1088,6 +1088,8 @@ class BlueprintSystem {
     const W = game.world, I = Object.fromEntries(game.cfg.islands.map((i) => [i.id, i]));
     this.holoMat = new THREE.MeshBasicMaterial({ color: 0x5fb8d8, transparent: true, opacity: 0.1, depthWrite: false, fog: false });
     this.boxGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+    this.lineMat = new THREE.LineBasicMaterial({ color: 0x8fd8f0, transparent: true, opacity: 0.35, depthWrite: false, fog: false });
+    const E = [[0, 0, 0, 1, 0, 0], [1, 0, 0, 1, 0, 1], [1, 0, 1, 0, 0, 1], [0, 0, 1, 0, 0, 0], [0, 1, 0, 1, 1, 0], [1, 1, 0, 1, 1, 1], [1, 1, 1, 0, 1, 1], [0, 1, 1, 0, 1, 0], [0, 0, 0, 0, 1, 0], [1, 0, 0, 1, 1, 0], [1, 0, 1, 1, 1, 1], [0, 0, 1, 0, 1, 1]];
     for (const bp of game.cfg.blueprints) {
       const isl = I[bp.island], pad = W.pads[bp.island];
       const cells = STRUCTURES[bp.id](W, pad, I).map(([dx, dy, dz, t]) => [pad.x + dx, pad.y + 1 + dy, pad.z + dz, t])
@@ -1096,13 +1098,24 @@ class BlueprintSystem {
       const holo = new THREE.InstancedMesh(this.boxGeo, this.holoMat, cells.length);
       const m = new THREE.Matrix4(); cells.forEach(([x, y, z], k) => { m.makeTranslation(x + 0.5, y + 0.5, z + 0.5); holo.setMatrixAt(k, m); });
       holo.frustumCulled = false; game.scene.add(holo);
+      // thin outlines so the planned wonder reads clearly before it is built (soft, not additive)
+      const lp = [], set = new Set(cells.map(([x, y, z]) => x + ',' + y + ',' + z));
+      for (const [x, y, z] of cells) {
+        const open = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].some(([a, b2, c2]) => !set.has((x + a) + ',' + (y + b2) + ',' + (z + c2)));
+        if (open) for (const e of E) lp.push(x + e[0], y + e[1], z + e[2], x + e[3], y + e[4], z + e[5]);
+      }
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+      const lines = new THREE.LineSegments(lg, this.lineMat); lines.frustumCulled = false; game.scene.add(lines);
+      let sx = 0, sy = 0, sz = 0, top = 0, rad = 0; for (const [x, y, z] of cells) { sx += x; sy += y; sz += z; top = Math.max(top, y); }
+      const center = new THREE.Vector3(sx / cells.length + 0.5, sy / cells.length + 0.5, sz / cells.length + 0.5);
+      for (const [x, , z] of cells) rad = Math.max(rad, Math.hypot(x + 0.5 - center.x, z + 0.5 - center.z));
       const beamMat = new THREE.MeshBasicMaterial({ color: isl.beam, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, fog: false });
       const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.9, 60, 12, 1, true), beamMat); beam.position.set(pad.x + 0.5, pad.y + 31, pad.z + 0.5); game.scene.add(beam);
       const cv = document.createElement('canvas'); cv.width = 512; cv.height = 160;
       const ct = new THREE.CanvasTexture(cv); ct.colorSpace = THREE.SRGBColorSpace;
       const card = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, transparent: true, depthTest: false, fog: false })); card.scale.set(4.8, 1.5, 1); card.renderOrder = 9;
       card.position.set(pad.x + 0.5, pad.y + 4, pad.z + 0.5); game.scene.add(card);
-      this.list.push({ id: bp.id, cost: bp.cost, pad, island: bp.island, cells, holo, beam, card, cv, ct, done: false, building: false, key: '' });
+      this.list.push({ id: bp.id, cost: bp.cost, pad, island: bp.island, cells, holo, lines, center, rad, top: top + 1, beam, card, cv, ct, done: false, building: false, key: '' });
     }
   }
   /** Marks a wonder as already built (from the save): its blocks are in the saved edits already. */
@@ -1112,7 +1125,7 @@ class BlueprintSystem {
     if (unfinished) { const W = this.g.world; for (const [x, y, z, t] of b.cells) if (W.get(x, y, z) !== t) W.set(x, y, z, t); }
     this.finish(b, true);
   }
-  finish(b, silent) { if (!this.g.S.done.includes(b.id)) this.g.S.done.push(b.id); b.done = true; b.building = false; b.holo.visible = false; b.beam.visible = false; b.card.visible = false; if (!silent) this.g.wonderDone(b); }
+  finish(b, silent) { if (!this.g.S.done.includes(b.id)) this.g.S.done.push(b.id); b.done = true; b.building = false; b.holo.visible = false; b.lines.visible = false; b.beam.visible = false; b.card.visible = false; if (!silent) this.g.wonderDone(b); }
   /** The pad the player stands on (feet on its top), or null. */
   padUnder(pos) { for (const b of this.list) { if (b.done || b.building) continue; if (Math.abs(pos.x - (b.pad.x + 0.5)) < 1.7 && Math.abs(pos.z - (b.pad.z + 0.5)) < 1.7 && Math.abs(pos.y - (b.pad.y + 1)) < 0.6) return b; } return null; }
   missing(b) { const inv = this.g.S.inv, out = {}; for (const k in b.cost) { const lack = b.cost[k] - (inv[k] || 0); if (lack > 0) out[k] = lack; } return out; }
@@ -1189,10 +1202,10 @@ class BlueprintSystem {
     b.ct.needsUpdate = true;
   }
   dispose() {
-    for (const b of this.list) { this.g.scene.remove(b.holo, b.beam, b.card); b.holo.dispose(); b.beam.geometry.dispose(); b.beam.material.dispose(); b.ct.dispose(); b.card.material.dispose(); }
+    for (const b of this.list) { this.g.scene.remove(b.holo, b.lines, b.beam, b.card); b.holo.dispose(); b.lines.geometry.dispose(); b.beam.geometry.dispose(); b.beam.material.dispose(); b.ct.dispose(); b.card.material.dispose(); }
     for (const f of this.flying) this.g.scene.remove(f.m);
     for (const k in this.cache) this.cache[k].dispose();
-    this.holoMat.dispose(); this.boxGeo.dispose();
+    this.holoMat.dispose(); this.lineMat.dispose(); this.boxGeo.dispose();
   }
 }
 
@@ -1459,6 +1472,8 @@ const SVG = {
   jump: '<svg viewBox="0 0 64 64"><path d="M32 8L12 32h12v22h16V32h12z" fill="#fff"/></svg>',
   pick: '<svg viewBox="0 0 64 64"><path d="M10 22C22 8 42 8 54 22L48 26C40 18 24 18 16 26z" fill="#9fe8ff" stroke="#fff" stroke-width="3"/><path d="M30 20l6 0 -4 38h-6z" fill="#c98a4b" stroke="#fff" stroke-width="3"/></svg>',
   brick: '<svg viewBox="0 0 64 64"><path d="M32 6l24 12v28L32 58 8 46V18z" fill="#ffb3d1" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M8 18l24 12 24-12M32 30v28" stroke="#fff" stroke-width="4" fill="none"/></svg>',
+  star: '<svg viewBox="0 0 64 64"><path d="M32 5l8 17 19 2-14 13 4 19-17-10-17 10 4-19L5 24l19-2z" fill="#ffd23f" stroke="#c77800" stroke-width="4" stroke-linejoin="round"/></svg>',
+  egg: '<svg viewBox="0 0 64 64"><path d="M32 6c12 0 20 20 20 32 0 12-9 20-20 20S12 50 12 38C12 26 20 6 32 6z" fill="#ffd23f" stroke="#c98a00" stroke-width="4"/><circle cx="26" cy="30" r="4" fill="#ff8fc8"/><circle cx="38" cy="42" r="4" fill="#5fc9ff"/></svg>',
   hand: '<svg viewBox="0 0 64 64"><path d="M26 6c3 0 5 2 5 5v18l3-1c3 0 5 2 5 4l3-1c3 0 4 2 4 4l3-1c3 0 4 2 4 5v12c0 7-6 13-14 13h-6c-5 0-9-3-12-7L10 42c-2-3 0-6 3-6 2 0 4 1 5 3l3 4V11c0-3 2-5 5-5z" fill="#fff" stroke="#3a2160" stroke-width="3.5" stroke-linejoin="round"/></svg>',
 };
 
@@ -1537,6 +1552,7 @@ class GameApp {
   <div class="goal"><div class="garrow"><svg viewBox="0 0 64 64"><path d="M32 6L56 50 32 40 8 50z" fill="#ffe066" stroke="#3a2160" stroke-width="5" stroke-linejoin="round"/></svg></div></div>
   <div class="cross"></div>
   <div class="toast out"></div>
+  <div class="wcard" hidden><div class="wstar">${SVG.star}</div><div class="wname out"></div><div class="wgain"><span class="wi">${SVG.egg}</span><span class="wi">${SVG.pick}</span><b>+20</b></div></div>
   <div class="hint"><div class="hhand">${SVG.hand}</div><div class="htext out"></div></div>
   <button class="bbuild" hidden><span class="bt"></span><span class="bcost"></span></button>
   <div class="hotbar glass"></div>
@@ -1546,7 +1562,7 @@ class GameApp {
 </div>`;
     this.cv = r.querySelector('#cv'); this.hud = r.querySelector('.hud');
     const q = (s) => r.querySelector(s);
-    this.el = { ticon: q('.ticon'), fill: q('.gauge .fill'), pn: q('.pn'), petbox: q('.petbox'), sound: q('.b-sound'), music: q('.b-music'), home: q('.b-home'), langB: q('.b-lang'), goal: q('.goal'), garrow: q('.garrow'), toast: q('.toast'), hint: q('.hint'), htext: q('.htext'), build: q('.bbuild'), bt: q('.bbuild .bt'), bcost: q('.bcost'), hotbar: q('.hotbar'), touch: q('.touch'), stick: q('.stick'), knob: q('.knob'), jumpB: q('.b-jump'), modeB: q('.b-mode'), title: q('.title'), play: q('.play'), l1: q('.l1'), l2: q('.l2'), fade: q('.fade'), cross: q('.cross'), toolbox: q('.toolbox') };
+    this.el = { ticon: q('.ticon'), fill: q('.gauge .fill'), pn: q('.pn'), petbox: q('.petbox'), sound: q('.b-sound'), music: q('.b-music'), home: q('.b-home'), langB: q('.b-lang'), goal: q('.goal'), garrow: q('.garrow'), toast: q('.toast'), wcard: q('.wcard'), hint: q('.hint'), htext: q('.htext'), build: q('.bbuild'), bt: q('.bbuild .bt'), bcost: q('.bcost'), hotbar: q('.hotbar'), touch: q('.touch'), stick: q('.stick'), knob: q('.knob'), jumpB: q('.b-jump'), modeB: q('.b-mode'), title: q('.title'), play: q('.play'), l1: q('.l1'), l2: q('.l2'), fade: q('.fade'), cross: q('.cross'), toolbox: q('.toolbox') };
     this.slots = [];
     for (let i = 0; i < 9; i++) {
       const s = document.createElement('button'); s.className = 'slot'; s.innerHTML = '<canvas width="64" height="64"></canvas><span class="cnt"></span><span class="key">' + (i + 1) + '</span>';
@@ -1633,13 +1649,15 @@ class GameApp {
       if (this.mode !== 'play') return;
       if (e.pointerType === 'touch' && !this.touch) { this.touch = true; this.refreshHud(); }
       this.sound.unlock();
-      if (!this.started) { this.start(e); }
+      if (!this.started) { this.start(e); return; }
+      // a tap during the showcase only skips it (the touch still reaches the page; the game ignores it as an action)
+      if (this.show && !e.target.closest('.tr')) this.skipShow();
     }, true);
     this.tap(E.sound, () => { this.S.muted = !this.S.muted; this.sound.setMuted(this.S.muted); this.texts(); this.saveDue(); });
     this.tap(E.music, () => { this.S.music = !this.S.music; this.sound.setMusic(this.S.music); this.texts(); this.saveDue(); });
     this.tap(E.home, () => this.respawn());
     this.tap(E.langB, () => { this.lang = LANGS[(LANGS.indexOf(this.lang) + 1) % LANGS.length]; this.S.lang = this.lang; this.texts(); this.saveDue(); this.toast(this.cfg.langNames[this.lang]); });
-    this.tap(E.build, () => this.tryBuild());
+    this.tap(E.build, () => this.tryBuild(this.blueprints.padUnder(this.player.pos)));
     this.tap(E.modeB, () => { this.placeMode = !this.placeMode; this.texts(); });
     this.slots.forEach((s, i) => this.tap(s.el, () => this.select(i)));
     // jump button: held
@@ -1648,6 +1666,7 @@ class GameApp {
     // keyboard
     this.on(window, 'keydown', (e) => {
       if (!this.started || this.mode !== 'play') return;
+      if (this.show && this.show.cam) { if (!e.repeat) this.skipShow(); return; }
       if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) this.input.jumpPressed = true; }
       this.keys.add(e.code);
       if (e.repeat) return;
@@ -1664,18 +1683,26 @@ class GameApp {
       if (!this.started || this.touch) return;
       if (!this.locked && (!this.dragLook || this.now - (this.lockTry || -9) > 3)) { this.lockTry = this.now; this.lock(); if (!this.dragLook) return; }
       if (!this.locked) return;
-      if (e.button === 0) this.mouseMine = true;
+      if (this.show && this.show.cam) return;
+      if (e.button === 0) {
+        // standing on a pad with everything it needs: a click builds (the BUILD! button can't be clicked while the mouse is captured)
+        const b = this.blueprints.padUnder(this.player.pos);
+        if (b && this.blueprints.affordable(b)) { this.tryBuild(b); return; }
+        this.mouseMine = true;
+      }
       if (e.button === 2) this.placeOrBuild(null);
     });
     this.on(window, 'mouseup', (e) => { if (e.button === 0) this.mouseMine = false; });
     this.on(document, 'mousemove', (e) => {
       if (!this.locked) return;
+      if (this.show && this.show.cam) return;
       const k = this.cfg.player.lookSpeed; this.look(e.movementX * k, e.movementY * k);
     });
     // touch / drag-look: stick on the lower left, drag elsewhere to look, hold on a block to mine, tap to act
     this.ptrs = new Map();
     this.on(cv, 'pointerdown', (e) => {
       if (!this.started || (!this.touch && !this.dragLook)) return;
+      if (this.show && this.show.cam) return;
       const r = this.root.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       if (this.touch && !this.stick && x < r.width * 0.45 && y > r.height * 0.5) { this.stick = { id: e.pointerId, x0: x, y0: y, x, y }; this.placeStick(); return; }
       if (e.pointerType === 'mouse' && e.button === 2) { this.placeOrBuild(this.ndc(x, y)); return; }
@@ -1688,6 +1715,7 @@ class GameApp {
       if (this.stick && this.stick.id === e.pointerId) { this.stick.x = x; this.stick.y = y; this.placeStick(); return; }
       const p = this.ptrs.get(e.pointerId); if (!p) return;
       if (!p.drag && Math.hypot(x - p.x0, y - p.y0) > 14 * (r.width / 720)) p.drag = true;
+      if (this.show && this.show.cam) return;
       if (p.drag) { const k = this.cfg.player.touchLook * (720 / r.width); this.look((x - p.x) * k, (y - p.y) * k); }
       p.x = x; p.y = y;
     });
@@ -1696,7 +1724,7 @@ class GameApp {
       const p = this.ptrs.get(e.pointerId); if (!p) return;
       this.ptrs.delete(e.pointerId);
       if (e.type === 'pointercancel' || p.drag) return;
-      if (this.now - p.t0 < 0.3) {
+      if (this.now - p.t0 < 0.3 && this.now > (this.ignoreTapUntil || 0) && !(this.show && this.show.cam)) {
         const ndc = this.ndc(p.x, p.y);
         if (this.placeMode) this.placeOrBuild(ndc); else { this.tapMine = 0.45; this.tapNdc = ndc; this.player.swingOnce = 1; }
       }
@@ -1743,11 +1771,13 @@ class GameApp {
       cam.position.set(c[0] + Math.sin(a) * 66, c[1] + 18 + Math.sin(this.now * 0.3) * 3, c[2] + Math.cos(a) * 66);
       cam.lookAt(c[0], c[1] - 2, c[2]);
     } else {
-      this.gather(dt);
+      const showing = this.show && this.show.cam;
+      if (showing) { this.input.fwd = 0; this.input.side = 0; this.input.jump = false; this.input.jumpPressed = false; } else this.gather(dt);
       P.update(dt, this.input);
       this.input.jumpPressed = false;
       P.applyCamera(cam, this.trauma, this.now);
-      this.act(dt);
+      if (this.show) this.updateShow(dt, cam);
+      if (!showing) this.act(dt); else { this.mining = false; this.hl.visible = false; this.ghost.visible = false; this.crack.visible = false; }
       this.blueprints.update(dt, this.now);
       this.padCheck();
       this.saveT -= dt; if (this.saveT <= 0) { this.saveT = this.cfg.save.every; this.flushSave(); }
@@ -1768,13 +1798,16 @@ class GameApp {
     this.remesh(this.demo ? 1 : 3);
     if (this.started && this.S.music) this.sound.tickMusic(L.night > 0.5);
     if (this.hudDirty) this.refreshHud();
+    if (this.wcardUntil && this.now > this.wcardUntil) { this.wcardUntil = 0; this.el.wcard.classList.remove('show'); this.el.wcard.hidden = true; }
+    if (this.toastUntil && this.now > this.toastUntil) { this.toastUntil = 0; this.el.toast.classList.remove('show'); }
+    if (!this.wcardUntil && !this.toastUntil && this.toastQ && this.toastQ.length) this.toast(this.toastQ.shift());
     this.updateGoal();
     // render: world, then the viewmodel on a fresh depth buffer so the tool never clips into blocks
     const R = this.renderer;
     this.frameN = (this.frameN || 0) + 1;
     if (R.shadowMap.enabled) R.shadowMap.needsUpdate = this.frameN % (this.perf.tier + 2) === 0;
     R.clear(); R.render(this.scene, cam);
-    if (this.started && !this.demo) {
+    if (this.started && !this.demo && !(this.show && this.show.cam)) {
       P.animate(dt, this.now, this.mining, this.miningRate || 4);
       R.clearDepth(); R.render(P.vmScene, P.vmCam);
     }
@@ -1917,7 +1950,7 @@ class GameApp {
   bumpHotbar() { const h = this.el.hotbar; h.classList.remove('nope'); void h.offsetWidth; h.classList.add('nope'); this.sound.tone(180, 0.12, { gain: 0.12, type: 'triangle' }); }
   tryBuild(b) {
     if (!b) return;
-    if (this.blueprints.start(b)) { this.toast('✨'); this.el.build.hidden = true; return; }
+    if (this.blueprints.start(b)) { this.el.build.hidden = true; this.beginShow(b); return; }
     if (!b.done && !b.building) { this.toast(this.T('need')); b.card.scale.set(5.4, 1.7, 1); setTimeout(() => b.card.scale.set(4.8, 1.5, 1), 200); this.sound.tone(200, 0.15, { gain: 0.12, type: 'triangle' }); }
   }
   padCheck() {
@@ -1937,13 +1970,87 @@ class GameApp {
       }
     }
   }
+  /** Showcase: the camera leaves the eyes and slowly circles the wonder while it assembles, then comes back
+   *  facing it. A tap or key skips it. With reduced motion the view only turns toward the wonder. */
+  beginShow(b) {
+    const P = this.player, c = b.center;
+    const s = { b, t: 0, end: -1, cam: !P.calm, a0: Math.atan2(P.pos.x - c.x, P.pos.z - c.z), R: Math.max(8, b.rad * 1.25 + 4), H: 2 + b.top * 0.15, from: this.camera.position.clone(), look0: new THREE.Vector3(), pos: new THREE.Vector3(), aim: new THREE.Vector3(), dir: new THREE.Vector3() };
+    this.camera.getWorldDirection(s.look0); s.look0.multiplyScalar(10).add(s.from);
+    // start the circle at the clear angle closest to the player's side (trees and hills can hide a wonder)
+    const a0 = s.a0;
+    for (let k = 0; k < 24; k++) { const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 12); s.a0 = a; if (!this.showBlocked(s, a)) break; if (k === 23) s.a0 = a0; }
+    this.show = s; this.ignoreTapUntil = this.now + 0.3; this.mouseMine = false; this.ptrs.clear();
+    this.hud.classList.toggle('showing', s.cam);
+  }
+  /** Where the orbit camera sits now: on a slow circle, pulled in front of anything solid between it and the wonder. */
+  showPos(s, out) {
+    const c = s.b.center, a = s.a0 + s.t * 0.12, W = this.world, d = s.dir, mine = s.b.cellSet || (s.b.cellSet = new Set(s.b.cells.map(([x, y, z]) => x + ',' + y + ',' + z)));
+    // the first block on the line from the wonder's centre to the camera, ignoring the wonder's own blocks
+    const block = () => { d.copy(out).sub(c); const len = d.length(); d.divideScalar(len); let t0 = 0; for (let k = 0; k < 40; k++) { const h = W.raycast(c.x + d.x * t0, c.y + d.y * t0, c.z + d.z * t0, d.x, d.y, d.z, len - t0); if (!h) return null; if (!mine.has(h.x + ',' + h.y + ',' + h.z)) return { t: t0 + h.t }; t0 += h.t + 0.01; } return null; };
+    out.set(c.x + Math.sin(a) * s.R, c.y + s.H, c.z + Math.cos(a) * s.R);
+    // blocked: first try rising above the obstacle, then come in front of it
+    for (let k = 0; k < 6 && block(); k++) out.y += 2;
+    const hit = block();
+    if (hit) out.copy(c).addScaledVector(d, Math.max(1.5, hit.t - 0.7));
+    for (let k = 0; k < 6 && W.solid(Math.floor(out.x), Math.floor(out.y), Math.floor(out.z)); k++) out.y += 1;
+    return out;
+  }
+  /** True if something other than the wonder hides it from the unraised orbit point at angle a. */
+  showBlocked(s, a) {
+    const c = s.b.center, W = this.world, mine = s.b.cellSet || (s.b.cellSet = new Set(s.b.cells.map(([x, y, z]) => x + ',' + y + ',' + z)));
+    const ox = c.x + Math.sin(a) * s.R, oy = c.y + s.H, oz = c.z + Math.cos(a) * s.R, dx = ox - c.x, dy = oy - c.y, dz = oz - c.z, len = Math.hypot(dx, dy, dz);
+    let t0 = 0;
+    for (let k = 0; k < 40; k++) { const h = W.raycast(c.x + dx / len * t0, c.y + dy / len * t0, c.z + dz / len * t0, dx / len, dy / len, dz / len, len - t0); if (!h) return false; if (!mine.has(h.x + ',' + h.y + ',' + h.z)) return true; t0 += h.t + 0.01; }
+    return false;
+  }
+  updateShow(dt, cam) {
+    const s = this.show, P = this.player, c = s.b.center;
+    s.t += dt;
+    if (s.end < 0 && s.b.done) s.end = s.t + 2.2;
+    const finished = s.end >= 0 && s.t >= s.end;
+    if (!s.cam) {
+      // reduced motion: turn the first-person view toward the wonder, nothing more
+      const yaw = Math.atan2(-(c.x - P.pos.x), -(c.z - P.pos.z));
+      P.yaw += ((((yaw - P.yaw) % TAU) + TAU * 1.5) % TAU - Math.PI) * damp(6, dt);
+      if (s.t > 1.2) this.show = null;
+      return;
+    }
+    if (finished || s.skip) { this.endShow(); P.applyCamera(cam, 0, this.now); return; }
+    const k = smooth(0, 0.6, s.t);
+    this.showPos(s, s.pos);
+    cam.position.lerpVectors(s.from, s.pos, k);
+    // aim a little below the centre: more island, less bright sky in the frame
+    s.aim.lerpVectors(s.look0, c, k); s.aim.y -= k * Math.min(1.5, s.b.top * 0.08);
+    cam.lookAt(s.aim);
+  }
+  /** Back to the eyes, turned to face the wonder. */
+  endShow() {
+    const s = this.show; if (!s) return;
+    const P = this.player, c = s.b.center, e = P.eye();
+    P.yaw = Math.atan2(-(c.x - e.x), -(c.z - e.z));
+    P.pitch = clamp(Math.atan2(c.y - e.y, Math.hypot(c.x - e.x, c.z - e.z)), -0.5, 0.7);
+    this.show = null; this.ignoreTapUntil = this.now + 0.3;
+    this.hud.classList.remove('showing');
+  }
+  /** Skip the showcase (a tap or key); assembly keeps going and the finale still shows. */
+  skipShow() { if (this.show && this.show.cam && this.now > this.ignoreTapUntil) { this.show.skip = true; return true; } return false; }
+  /** Centred celebration card for a finished wonder: name, star, and what it gave. */
+  wonderCard(b) {
+    this.el.toast.classList.remove('show'); this.toastUntil = 0;
+    const el = this.el.wcard;
+    el.querySelector('.wname').textContent = this.T('b_' + b.id);
+    el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    this.wcardUntil = this.now + 2.6;
+  }
   wonderDone(b) {
     if (!this.S.built.includes(b.id)) this.S.built.push(b.id);
-    const p = b.pad, c = b.cells.reduce((a, [x, y, z]) => { a[0] += x; a[1] += y; a[2] += z; return a; }, [0, 0, 0]).map((v) => v / b.cells.length + 0.5);
+    const c = b.cells.reduce((a, [x, y, z]) => { a[0] += x; a[1] += y; a[2] += z; return a; }, [0, 0, 0]).map((v) => v / b.cells.length + 0.5);
     this.vfx.fireworks(c[0], c[1] + 4, c[2], 7); this.vfx.confetti(c[0], c[1] + 2, c[2], 160);
-    this.sound.fanfare(); this.toast(this.T('b_' + b.id)); this.flash(0.2); buzz('success');
+    this.sound.fanfare(); this.wonderCard(b); this.flash(0.2); buzz('success');
     const before = this.tier(); this.S.gauge += this.cfg.build.gaugeBonus; if (this.tier() !== before) this.toolUp(this.tier());
-    this.pets.egg(p.x + 1, p.y + 1, p.z + 1);
+    // the egg lands in front of the player, on the side facing the wonder
+    const P = this.player, dx = c[0] - P.pos.x, dz = c[2] - P.pos.z, dl = Math.hypot(dx, dz) || 1;
+    this.pets.egg(Math.floor(P.pos.x + (dx / dl) * 2), Math.floor(P.pos.y + 1), Math.floor(P.pos.z + (dz / dl) * 2));
     this.hudDirty = true; this.saveDue(); this.flushSave();
     try { Promise.resolve(lib.addPlayerScoreToLeaderboard(this.S.built.length * 1000 + this.S.mined)).catch(() => {}); } catch (e) { /* no board here */ }
   }
@@ -1973,7 +2080,11 @@ class GameApp {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     f.dataset.tint = tint; f.style.transition = 'none'; f.style.opacity = String(k); void f.offsetWidth; f.style.transition = 'opacity .7s'; f.style.opacity = '0';
   }
-  toast(s) { const t = this.el.toast; t.textContent = s; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); clearTimeout(this.toastTo); this.toastTo = setTimeout(() => t.classList.remove('show'), 1900); }
+  /** Big centred message for 1.9 s of game time; while a wonder card is up, messages wait their turn. */
+  toast(s) {
+    if (this.wcardUntil) { (this.toastQ || (this.toastQ = [])).push(s); return; }
+    const t = this.el.toast; t.textContent = s; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); this.toastUntil = this.now + 1.9;
+  }
   hint(s, secs) { clearTimeout(this.hintTo); const h = this.el.hint; if (!s) { h.classList.remove('show'); return; } this.el.htext.textContent = s; h.classList.add('show'); if (secs) this.hintTo = setTimeout(() => h.classList.remove('show'), secs * 1000); }
   drawToolIcon() {
     const x = this.el.ticon.getContext('2d'), t = this.tier(), L = TOOL_LOOK[t];
@@ -2113,7 +2224,7 @@ class GameApp {
     for (const [el, ev, fn, o] of this.listeners) el.removeEventListener(ev, fn, o);
     window.removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis);
     if (document.pointerLockElement === this.cv) document.exitPointerLock();
-    clearTimeout(this.toastTo); clearTimeout(this.hintTo);
+    clearTimeout(this.hintTo);
     this.sound.close();
     for (const list of this.chunks.values()) for (const m of list) m.geometry.dispose();
     for (const k in this.world.mats) this.world.mats[k].dispose();

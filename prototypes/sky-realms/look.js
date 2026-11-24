@@ -42,8 +42,8 @@ const tp = (p, x, z, yaw, pitch) => p.evaluate(([x, z, yaw, pitch]) => { const g
   await settle(p, 0.6); await shot(p, '10-on-pad-ready');
   await p.evaluate(() => __game.placeOrBuild(null)); await settle(p, 2.2); await shot(p, '11-wonder-assembling');
   await p.waitForFunction(() => __game.blueprints.list[0].done, null, { timeout: 120000 });
-  await p.evaluate(() => { const g = __game, b = g.blueprints.list[0]; g.player.spawnAt(b.pad.x - 3.5, b.pad.z + 7.5); g.player.yaw = -0.75; g.player.pitch = 0.22; });
-  await settle(p, 0.6); await shot(p, '12-wonder-done');
+  await settle(p, 0.8); await shot(p, '12-wonder-finale');
+  await p.waitForFunction(() => !__game.show, null, { timeout: 60000 }); await settle(p, 0.3); await shot(p, '12b-back-facing-wonder');
   await settle(p, 2.6); await p.evaluate(() => { const g = __game, q = g.pets.pets[0]; if (q) { const P = g.player; q.p.set(P.pos.x - Math.sin(P.yaw) * 2.2, P.pos.y, P.pos.z - Math.cos(P.yaw) * 2.2); q.v.set(0, 0, 0); } g.player.pitch = -0.35; });
   await settle(p, 0.3); await shot(p, '13-pet-hatched');
   // the four pets lined up in front of the camera (follow logic paused for the photo)
