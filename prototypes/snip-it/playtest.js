@@ -97,12 +97,28 @@ async function main() {
     await page.click('#next', { force: true });
     check((await g(page, () => __game.index)) === 3, 'NEXT keeps going to level 4');
     await g(page, () => __game.loadLevel(__game.total - 1)); await winLevel(page); await page.click('#next', { force: true });
-    check((await g(page, () => __game.index)) === 0, 'after the last level the first comes again');
+    check(await g(page, () => __game.index === 0 && !document.querySelector('#sheet').hidden), 'after the last level the map opens, back at the first');
+    await page.click('#close', { force: true });
 
     // ---- 6. buttons are not cuts; mute is kept
     await page.click('#mute', { force: true });
     s = await g(page, () => ({ muted: __game.save.muted, cut: __game.W.ropes.filter((r) => r.cut).length, icon: document.querySelector('#mute').textContent }));
     check(s.muted && s.cut === 0 && s.icon === '🔇', 'the sound button mutes and cuts nothing');
+    // ---- 6b. the level map and the sticker book
+    await page.click('#lvl', { force: true });
+    s = await g(page, () => ({ open: !document.querySelector('#sheet').hidden, n: document.querySelectorAll('.lv').length, locked: document.querySelectorAll('.lv.lock').length, here: document.querySelector('.lv.here').dataset.n, total: __game.total, lvl: __game.save.lvl }));
+    check(s.open && s.n === s.total && s.locked === s.total - s.lvl - 1 && s.here === '1' && s.n % 5 === 0, `the map shows every level (${s.n}), locks the ones not reached (${s.locked}) and marks this one`);
+    const [gx, gy] = await ropeXY(page, win); await page.mouse.move(gx - 40, gy); await page.mouse.down(); await page.mouse.move(gx + 40, gy, { steps: 4 }); await page.mouse.up();
+    check((await cutN(page)) === 0, 'a swipe over the open map cuts nothing');
+    await page.click('.lv[data-n="3"]', { force: true });
+    check(await g(page, () => document.querySelector('#sheet').hidden && __game.index === 2), 'tapping an open level plays it and closes the map');
+    await shot(page, 'en-8-picked-level');
+    await page.click('#book', { force: true });
+    s = await g(page, () => ({ open: !document.querySelector('#sheet').hidden, n: document.querySelectorAll('.stk').length, got: document.querySelectorAll('.stk:not(.no)').length, gags: __game.save.gags.length, head: document.querySelector('#sheetT').textContent }));
+    check(s.open && s.got === s.gags && s.head === s.gags + '/' + s.n, `the book shows ${s.n} stickers, ${s.got} found`);
+    await shot(page, 'en-9-book'); await page.click('#close', { force: true });
+    check(await g(page, () => document.querySelector('#sheet').hidden), 'the sheet closes');
+    await page.click('#lvl', { force: true }); await page.waitForTimeout(200); await shot(page, 'en-10-map'); await page.click('#close', { force: true });
     check(errors.length === 0, 'no errors in a full play: ' + errors.slice(0, 2).join(' | '));
     await page.close();
   }
@@ -125,6 +141,10 @@ async function main() {
     let s = await g(r.page, () => ({ i: __game.index, gags: __game.save.gags, lang: __game.lang, muted: __game.sound.muted, prompt: document.querySelector('#prompt').textContent, hand: document.querySelector('#hand').hidden, writes: (window.__writes || []).length }));
     check(s.i === 1 && s.gags.length === 2 && s.lang === 'id' && s.muted, 'an old save opens its level, drops unknown stickers, keeps language and mute');
     check(s.prompt === 'Bangunkan!' && s.hand && s.writes === 0, 'the saved language shows; reading a save writes nothing');
+    await r.page.click('#lvl', { force: true });
+    const lk = await g(r.page, () => ({ lock: document.querySelectorAll('.lv.lock').length, total: __game.total })); await r.page.click('.lv.lock', { force: true });
+    check(lk.lock === lk.total - 3 && (await g(r.page, () => !document.querySelector('#sheet').hidden && __game.index === 1)), `levels past the save stay locked (${lk.lock}) and do not open`);
+    await r.page.click('#close', { force: true });
     await r.page.close();
 
     r = await open(browser, port, '', { init: 'window.__saveDelay = 2500; window.__preset = { v: 1, lvl: 1, at: 1, stars: [3], gags: ["kitty_cat", "kitty_water"], learned: true };' });

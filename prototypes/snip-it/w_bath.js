@@ -5,7 +5,7 @@ import { RED, BLUE, YELLOW, X3, rope, thing, at } from './palette.js';
 const TUB = { model: 'tub', x: 0, y: 0 };
 
 export default {
-  id: 'bath', sky: 0xbfeaff, floor: [0x9fd8ff, 0x6fb7e6], beam: 0xffffff, ambient: ['bubbles', 2.5, 0.04],
+  id: 'bath', icon: '🛁', sky: 0xbfeaff, floor: [0x9fd8ff, 0x6fb7e6], beam: 0xffffff, ambient: ['bubbles', 2.5, 0.04],
   wall(g, w, h) {
     g.fillStyle = '#bfeaff'; g.fillRect(0, 0, w, h);
     g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 5; for (let x = 0; x <= w; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } for (let y = 0; y <= h; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }

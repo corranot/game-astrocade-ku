@@ -1,19 +1,22 @@
 # Snip It: Cut to Fix (prototype)
 
-PROTOTYPE - NOT FOR PRODUCTION. Brief: `brief.md`. Status: stage 1 of 4 (engine + 3 levels).
+PROTOTYPE - NOT FOR PRODUCTION. Brief: `brief.md`. Status: 50 levels in 10 worlds, level map, sticker book.
 
 - Run: serve this folder and open `/?local` (the tests do it themselves). `?local&mode=edit` for edit mode, `&speed=2` to run fast.
-- Tests: `node physics.test.mjs` (rules, Node only), `node playtest.js <out>` (a child's play in a browser, 8 languages).
-- Spacing: `node layout.js [out]` measures the HUD in 8 languages against the one spacing system (margin 20, gap 12, control height 96; tolerance 2). Change the HUD only through the tokens `--m`, `--g`, `--h` in `index.html`.
-- Upload text: `README.upload.md`. Evidence: `production/qa/evidence/snip-it/`.
+- Rules: `node physics.test.mjs` (Node only): every rope of every level reaches its goal, the worlds' data is whole.
+- Play: `node playtest.js <out>` (a child's play in a browser, saves, map, book, 8 languages).
+- Look: `node look.js <out> [first] [last]` plays every level and makes one contact sheet per world. Look at them.
+- Spacing: `node layout.js [out]` measures the HUD, the map and the book in 8 languages against the one spacing system (margin 20, gap 12, control height 96; tolerance 2). Change the HUD only through the tokens `--m`, `--g`, `--h` in `index.html`.
+- Soak: `node soak.js [rounds]` wins all levels in a row and watches GPU objects and frame time.
+- Upload text: `README.upload.md`. Evidence: `production/qa/evidence/snip-it/` (a sheet per world).
 
-## Stages
-1. Engine + 3 levels (kitten, bath, garden): done.
-2. Nine more levels.
-3. Level map, sticker book, settings sheet, visual editor.
-4. Full check, then a private draft.
+## Adding a world or a level
+A world is one file `w_<id>.js` (wall, scenery models, five levels), listed in `levels.js`. Model names are shared by
+all worlds: prefix new ones with the world id. Level fields are described at the top of `levels.js`; helpers are in
+`palette.js`. After a change: `physics.test.mjs`, then `look.js` on the changed levels, then look at the sheet.
 
-## Known gaps (stage 1)
-- Sticker book and level map buttons do nothing yet; the edit mode is a still view.
-- Stickers and the hint hand are emoji: old phones may draw some differently.
-- Not proven here: FPS, touch feel and sound on a real phone; translation quality.
+## Known gaps
+- The edit mode is a still view (no visual editor yet).
+- Stickers, world icons and the hint hand are emoji: old phones may draw some differently.
+- Several levels share an idea (sleeper + bell, animal + its food, balloon cage); see the sheets.
+- Not proven here: FPS, touch feel and sound on a real phone; translation quality; whether 50 levels hold a player.

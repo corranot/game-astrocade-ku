@@ -4,7 +4,7 @@
 import { RED, BLUE, YELLOW, X3, rope, thing, at } from './palette.js';
 
 export default {
-  id: 'room', sky: 0xffe9b8, floor: [0xf2a65a, 0xd98a3d], beam: 0xc98a4e, ambient: ['mote', 1.2, 1],
+  id: 'room', icon: '🛋️', sky: 0xffe9b8, floor: [0xf2a65a, 0xd98a3d], beam: 0xc98a4e, ambient: ['mote', 1.2, 1],
   wall(g, w, h) {
     const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#ffe9b8'); gr.addColorStop(1, '#ffd08a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
     g.fillStyle = 'rgba(255,255,255,.28)'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 28, h);

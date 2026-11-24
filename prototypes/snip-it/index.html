@@ -23,7 +23,7 @@ body{display:flex;align-items:center;justify-content:center}
 .hud{position:absolute;inset:0;pointer-events:none;color:var(--ink);--b:calc(var(--u)*4px);--sh:calc(var(--u)*8px);font-size:calc(var(--h)*.42);line-height:1}
 .hud button{pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--ink);margin:0;font-size:inherit;line-height:1}
 .hud i{font-style:normal}
-.hud.edit .top,.hud.edit .pill,.hud.edit .mid,.hud.edit .hand,.hud.edit .bar{display:none}
+.hud.edit .top,.hud.edit .pill,.hud.edit .mid,.hud.edit .hand,.hud.edit .bar,.hud.edit .sheet{display:none}
 .out{--o:calc(var(--u)*4px);color:#fff;text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
 .gloss{border:var(--b) solid #fff;background:linear-gradient(#fff 0,#fff7e3 48%,#ffecc2 52%,#ffdf9c 100%);box-shadow:0 calc(var(--sh)*.75) 0 #d99a4a,0 calc(var(--sh)*1.25) calc(var(--sh)*1.75) rgba(90,50,10,.25)}
 /* words that shrink to their box: the game sets --k (ui.js fit) */
@@ -67,6 +67,25 @@ body{display:flex;align-items:center;justify-content:center}
 .next b{--fs:calc(var(--h)*.56)}
 .next .ic{--i:calc(var(--h)*.56)}
 @keyframes n-pulse{50%{transform:scale(1.04)}}
+/* the level map and the sticker book share one sheet over the stage: a head row, then rows that scroll */
+.sheet{position:absolute;inset:0;box-sizing:border-box;padding:var(--m);display:flex;background:rgba(59,31,74,.45);pointer-events:auto;z-index:8}
+.panel{box-sizing:border-box;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:var(--g);padding:var(--m);border-radius:calc(var(--m)*2)}
+.head{flex:none;height:var(--h);display:flex;align-items:center;gap:var(--g);font-size:calc(var(--h)*.5)}
+.head>.ic{--i:calc(var(--h)*.6)}
+.body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;display:flex;flex-direction:column;gap:var(--g);scrollbar-width:none}
+.body::-webkit-scrollbar{display:none}
+.wrow{flex:none;display:flex;align-items:center;gap:var(--g)}
+.wrow.w-book{align-items:flex-start}
+.wic{flex:none;width:var(--h);height:var(--h);display:grid;place-items:center;font-size:calc(var(--h)*.56);line-height:1;border-radius:var(--m);background:rgba(255,255,255,.6)}
+.lv{box-sizing:border-box;flex:1 1 0;min-width:0;height:var(--h);padding:0;border-radius:var(--m);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--g)*.5);box-shadow:0 calc(var(--sh)*.5) 0 #d99a4a}
+.lv.lock{filter:grayscale(1);opacity:.6}
+.lv.here{background:linear-gradient(#e6ffe9,#8ff0a6);border-color:#2fcb62}
+.lv .st{display:flex;gap:calc(var(--g)*.25)}
+.lv .st .ic{--i:calc(var(--h)*.2)}
+.lv .st .ic.off{filter:grayscale(1);opacity:.3}
+.slots{flex:1;min-width:0;display:grid;grid-template-columns:repeat(8,1fr);gap:calc(var(--g)*.5)}
+.stk{aspect-ratio:1;display:grid;place-items:center;border-radius:var(--g);background:rgba(255,255,255,.75);font-size:calc(var(--h)*.36);line-height:1}
+.stk.no{filter:grayscale(1);opacity:.4}
 @media (prefers-reduced-motion: reduce){.hud *{animation-duration:.01s!important;animation-iteration-count:1!important}}
 #load{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#fff6d6,#ffd08a 70%);transition:opacity .3s}
 #load.out{opacity:0;pointer-events:none}
