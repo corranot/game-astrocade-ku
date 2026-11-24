@@ -357,6 +357,51 @@ async function idleAndFever(browser) {
   await p.close();
 }
 
+/** A fall ends: one soft rebound at most, then the kitten stays on the floor. And the sunbeam does not white out the view. */
+async function fallsAndGlare(browser) {
+  const p = await open(browser);
+  await start(p);
+  await gameWait(p, 1);
+  // counts how often the kitten leaves the floor without a jump being asked for
+  // (a rebound is seen as the kitten rising past 0.3 m from below it)
+  await p.evaluate(() => { window.__up = 0; let low = true; (function f() { const y = __game.cat.y; if (low && y > 0.3) window.__up++; low = y <= 0.3; requestAnimationFrame(f); })(); });
+  for (const h of [3.2, 5.8, 8.3]) {
+    await p.evaluate((h) => { __game.tp(11, h, 6); const c = __game.cat; c.jumpAt = -9; c.grounded = false; c.peak = h; }, h);
+    await gameWait(p, 3.5);
+    await p.evaluate(() => { window.__up = 0; });
+    await gameWait(p, 2);
+    const r = await p.evaluate(() => ({ g: __game.cat.grounded, y: __game.cat.y, up: window.__up }));
+    check(r.g && r.y < 0.05 && r.up === 0, `a ${h} m drop to the floor ends: the kitten is down and stays down (left the floor ${r.up} more times)`);
+  }
+  // off the bouncy sofa onto the floor
+  await p.evaluate(() => { __game.tp(-10.2, 2.2, -4); const c = __game.cat; c.jumpAt = -9; c.grounded = false; c.peak = 2.2; __game.setYaw(-Math.PI / 2); });
+  await gameWait(p, 0.6);
+  await p.keyboard.down('KeyW'); await gameWait(p, 1.6); await p.keyboard.up('KeyW');
+  await gameWait(p, 3);
+  await p.evaluate(() => { window.__up = 0; });
+  await gameWait(p, 2);
+  const s = await p.evaluate(() => ({ g: __game.cat.grounded, y: __game.cat.y, x: __game.cat.x, up: window.__up }));
+  check(s.g && s.y < 0.05 && s.x > -9 && s.up === 0, `bounced off the sofa to the floor, the kitten stops bouncing (left the floor ${s.up} more times)`);
+  // one soft rebound is still there (a high fall is cushioned, not ignored)
+  await p.evaluate(() => { __game.tp(11, 4, 6); const c = __game.cat; c.jumpAt = -9; c.grounded = false; c.peak = 4; });
+  await until(p, () => __game.cat.y < 0.25, null, 8000);
+  await p.evaluate(() => { window.__up = 0; });
+  await gameWait(p, 4);
+  const reb = await p.evaluate(() => window.__up);
+  check(reb === 1, `a high fall still gives exactly one soft rebound (${reb})`);
+  // looking at the window through the sunbeam
+  await p.evaluate(() => { __game.tp(-3.5, 0, 5); __game.setYaw(Math.PI / 2); });
+  await gameWait(p, 1.5);
+  const g1 = await p.evaluate(() => __game.glare());
+  await shot(p, '13-sunbeam');
+  await p.evaluate(() => { __game.tp(-7.5, 3, 5); const c = __game.cat; c.jumpAt = -9; __game.setYaw(Math.PI / 2); });
+  await gameWait(p, 0.25);
+  const g2 = await p.evaluate(() => __game.glare());
+  check(g1 < 0.12 && g2 < 0.12, `the sunbeam does not white out the view (nearly white: ${(g1 * 100).toFixed(1)}% from the rug, ${(g2 * 100).toFixed(1)}% from inside the beam)`);
+  check(p.errors.length === 0, 'no page errors in falls and sunbeam' + (p.errors.length ? ': ' + p.errors[0] : ''));
+  await p.close();
+}
+
 /** Nothing is seen passing through anything: camera, kitten head and tail. */
 async function clipChecks(browser) {
   const p = await open(browser);
@@ -544,7 +589,7 @@ async function loadFailure(browser) {
 (async () => {
   const browser = await chromium.launch({ args: GPU });
   const only = process.argv[3];
-  const parts = { attractAndStart, worldBounds, climb, toysAndRules, idleAndFever, feverAndHats, events, clipChecks, saveAndModes, touchAndFuzz, languages, loadFailure };
+  const parts = { attractAndStart, worldBounds, climb, toysAndRules, fallsAndGlare, idleAndFever, feverAndHats, events, clipChecks, saveAndModes, touchAndFuzz, languages, loadFailure };
   for (const [name, fn] of Object.entries(parts)) {
     if (only && only !== name) continue;
     console.log('--- ' + name);
