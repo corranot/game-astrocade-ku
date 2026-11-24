@@ -32,6 +32,13 @@ for d in $GAMES; do
   grep -lq "THREE\." "$d"*.js 2>/dev/null && grep -q "^import " "$d"game.js 2>/dev/null || continue
   node tools/no-three-import.mjs "$d" || note "FAIL three-at-import $d"
 done
+# game lint: mistakes that already happened twice (field shadows a method, dead button call, live host config)
+node tools/lint-game.mjs --self-test >/dev/null || note "FAIL lint self-test (node tools/lint-game.mjs --self-test)"
+for d in $GAMES; do
+  [ -d "$d" ] || continue
+  out=$(node tools/lint-game.mjs "$d") || note "FAIL lint $d"
+  [ -n "$out" ] && echo "$out" | grep "^FAIL"
+done
 for d in $GAMES tools/fixtures/*/; do
   [ -f "$d/README.upload.md" ] || continue
   out=$(mktemp -d)
