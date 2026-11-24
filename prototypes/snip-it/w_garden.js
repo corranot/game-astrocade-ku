@@ -6,7 +6,7 @@ import { RED, BLUE, YELLOW, X3, rope, thing, at } from './palette.js';
 const FENCE = { model: 'fence', x: 0, y: 0 };
 
 export default {
-  id: 'garden', sky: 0x5ec8ff, floor: [0x7fd85a, 0x8a5a33], beam: 0x9b6431, ambient: ['mote', 1.2, 1],
+  id: 'garden', icon: '🌻', sky: 0x5ec8ff, floor: [0x7fd85a, 0x8a5a33], beam: 0x9b6431, ambient: ['mote', 1.2, 1],
   wall(g, w, h) {
     const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#5ec8ff'); gr.addColorStop(0.75, '#c9f1ff'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
     g.fillStyle = '#fff3a8'; g.beginPath(); g.arc(w * 0.8, h * 0.2, 60, 0, 7); g.fill(); g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(w * 0.8, h * 0.2, 44, 0, 7); g.fill();
@@ -29,7 +29,7 @@ export default {
       const mouth = K.add(head, 'ball', black, [0, -0.18, 0.2], [0.1, 0.04, 0.03]);
       let up = o.wilted ? 0 : 1;
       return { tinted: [petal, green, leaf], spin: false, update(A, dt) {
-        if (A.flags.bloom && up < 1) { up = Math.min(1, up + dt * 1.6); A.tint(null, false); }
+        if (A.flags.bloom && up < 1) { up = Math.min(1, up + dt * 1.6); A.clean(); }
         const d = 1 - up; head.rotation.x = d * 0.95; head.rotation.z = d * 0.5 + Math.sin(A.time * 1.5) * 0.05; head.position.set(d * 0.25, 2.45 - d * 0.35, d * 0.35);
         const blink = (A.time % 2.7) > 2.58 ? 0.12 : 1; for (const e of eyes) e.scale.set(0.11, 0.13 * blink * (A.mood === 'wow' ? 1.3 : 1), 0.05);
         mouth.scale.set(up > 0.9 || A.mood === 'happy' ? 0.17 : 0.1, A.mood === 'wow' ? 0.12 : up > 0.9 ? 0.09 : 0.04, 0.03);

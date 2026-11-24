@@ -57,7 +57,9 @@ export function createKit(packs = []) {
     const tinted = extra.tinted || [], tmp = new THREE.Color(), to = new THREE.Color();
     const A = { group: outer, inner, mood: null, moodT: 0, time: (o.seed || 0) * 1.7, tintK: 0, tintGoal: 0, flags: {}, spin: extra.spin !== false, base: o.r || o.s || 1 };
     A.react = (kind) => { A.mood = kind; A.moodT = 0; };
-    A.tint = (hex, on) => { if (hex !== null && hex !== undefined) to.set(hex); A.tintGoal = on ? 1 : 0; };
+    let own = o.tint; // the colour the model starts with (mud, cold), until clean() takes it off for good
+    A.tint = (hex, on) => { if (on) { to.set(hex); A.tintGoal = 1; } else if (own !== undefined) { to.set(own); A.tintGoal = 1; } else A.tintGoal = 0; };
+    A.clean = () => { own = undefined; A.tintGoal = 0; };
     A.set = (flag) => { A.flags[flag] = true; };
     if (o.tint !== undefined) { to.set(o.tint); A.tintK = A.tintGoal = 1; }
     A.update = (dt) => {
@@ -121,7 +123,7 @@ export function createKit(packs = []) {
       mouth.scale.set(A.mood === 'happy' || A.mood === 'laugh' ? 0.16 : 0.09, A.mood === 'wow' || A.mood === 'laugh' || A.mood === 'happy' ? 0.12 : 0.04, 0.04);
       tail.rotation.z = Math.sin(t * (A.mood === 'happy' ? 14 : 4)) * 0.35; head.rotation.z = Math.sin(t * 1.7) * 0.06 + shut * 0.25;
       const sw = o.hang && !A.flags.landed ? Math.sin(t * 5) * 0.25 : 0; legs[0].position.z = 0.22 + sw * 0.4; legs[1].position.z = 0.22 - sw * 0.4;
-      if (A.flags.landed && o.hang) { arms[0].position.set(-0.62, -0.14, 0.2); arms[1].position.set(0.62, -0.14, 0.2); arms[0].scale.setScalar(0.17); arms[1].scale.setScalar(0.17); }
+      if (o.hang) for (const s of [0, 1]) { const x = s ? 1 : -1; if (A.flags.landed) { arms[s].position.set(x * 0.62, -0.14, 0.2); arms[s].scale.setScalar(0.17); } else { arms[s].position.set(x * 0.3, 0.86, 0.02); arms[s].scale.set(0.15, 0.3, 0.15); } }
     } });
   }
 

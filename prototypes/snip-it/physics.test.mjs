@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, cut, hitRope, remove, reset, setGoal, segDist, STEP } from './physics.js';
-import { LEVELS, buildLevel, allStickers, stickerId } from './levels.js';
+import { LEVELS, WORLDS, buildLevel, allStickers, stickerId } from './levels.js';
+import { SPECIES, COMMON } from './models3d.js';
 
 const WAITS = [0, 0.37, 1.1, 2.9, 6.3]; // seconds of sway before the cut
 const MAX_ARRIVE = 2.0;
@@ -117,4 +118,19 @@ test('a tied balloon stays put, and flies up and away when its rope is cut', () 
   assert.ok(Math.abs(p.x - it.body.x) < 0.3 && Math.abs(p.y - it.body.y) < 0.3, `tied: stays at ${p.x.toFixed(2)}, ${p.y.toFixed(2)}`);
   cut(W, it.id, 1); let top = 0; for (let t = 0; t < 2; t += STEP) { step(W); top = Math.max(top, p.y); }
   assert.ok(top > it.body.y + 4, 'cut: it rises');
+});
+
+test('worlds: five levels each, model names used once in the whole game, every model and prompt exists', async () => {
+  const strings = JSON.parse((await import('node:fs')).readFileSync(new URL('./game_config.json', import.meta.url), 'utf8')).strings;
+  const names = new Map();
+  for (const w of WORLDS) { assert.equal(w.levels.length, 5, w.id + ' has five levels'); assert.ok(w.icon && w.wall && w.floor.length === 2, w.id + ' has an icon, a wall and a floor');
+    for (const n of Object.keys(w.models || {})) { assert.ok(!names.has(n) && !SPECIES[n] && !COMMON.includes(n), `model ${n} of ${w.id} is also in ${names.get(n) || 'the shared models'}`); names.set(n, w.id); } }
+  const known = (m) => SPECIES[m] || COMMON.includes(m) || names.has(m);
+  for (const l of LEVELS) {
+    for (const lang of Object.keys(strings)) assert.ok(strings[lang][l.prompt], `${l.id}: prompt ${l.prompt} in ${lang}`);
+    for (const it of l.items) { assert.ok(known(it.body.model), `${l.id}/${it.id}: model ${it.body.model}`); if (it.needs) assert.ok(l.items.some((x) => x.id === it.needs && x.id !== it.id) && it.early && it.early.goal && it.early.sticker, `${l.id}/${it.id}: needs a real other rope and an early ending`); }
+    for (const p of l.props || []) assert.ok(known(p.model), `${l.id}: prop ${p.model}`);
+    if (typeof l.hero === 'object') assert.ok(known(l.hero.model), `${l.id}: hero ${l.hero.model}`); else assert.ok(l.items.some((x) => x.id === l.hero), `${l.id}: hero rope`);
+    for (const it of l.items) assert.ok(it.rope.ay > 8.4 || it.body.lift, `${l.id}/${it.id}: hangs from the ceiling or is a balloon`);
+  }
 });

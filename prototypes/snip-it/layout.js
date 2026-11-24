@@ -87,6 +87,23 @@ function rules(tag, m) {
     await page.waitForFunction(() => !__game.busy, null, { timeout: 9000 });
     await swipe(ids.win); await page.waitForFunction(() => !document.querySelector('#bar').hidden, null, { timeout: 9000 }); await page.waitForTimeout(200);
     rules(`${lang} win bar`, await page.evaluate(MEASURE)); await shot('3-bar');
+    // the level map and the sticker book
+    const SHEET = () => { const root = document.querySelector('#app'), R = root.getBoundingClientRect(), u = R.width / 720; const box = (e) => { const r = e.getBoundingClientRect(); return { l: (r.left - R.left) / u, t: (r.top - R.top) / u, r: (r.right - R.left) / u, b: (r.bottom - R.top) / u, w: r.width / u, h: r.height / u }; };
+      const q = (s) => [...root.querySelectorAll(s)].map(box); const body = root.querySelector('#sheetB');
+      return { panel: box(root.querySelector('.panel')), head: box(root.querySelector('.head')), close: box(root.querySelector('#close')), rows: q('.wrow'), wic: q('.wic'), lv: q('.wrow:first-child .lv'), stk: q('.wrow:first-child .stk'), over: body.scrollWidth - body.clientWidth, rtl: root.dir === 'rtl' }; };
+    const sheet = (tag, m, kind) => { const say = (ok, msg) => note(ok, `${lang} ${tag}: ${msg}`);
+      say(near(m.panel.l, M) && near(720 - m.panel.r, M) && near(m.panel.t, M) && near(1280 - m.panel.b, M), `sheet margins ${f(m.panel.l)}/${f(720 - m.panel.r)}/${f(m.panel.t)}/${f(1280 - m.panel.b)} (want ${M})`);
+      say(near(m.head.h, H) && near(m.head.t - m.panel.t, M + BORDER) && near(m.close.w, H) && near(m.close.h, H), `head row height ${f(m.head.h)}, ${f(m.head.t - m.panel.t)} from the edge, close button ${f(m.close.w)} x ${f(m.close.h)}`);
+      say(near(m.rtl ? m.close.l - m.panel.l : m.panel.r - m.close.r, M + BORDER), 'close button on the inner margin');
+      say(near(m.rows[0].t - m.head.b, G) && m.rows.slice(1).every((r, i) => near(r.t - m.rows[i].b, G)), `rows ${G} apart (first ${f(m.rows[0].t - m.head.b)})`);
+      say(m.wic.every((w) => near(w.w, H) && near(w.h, H)) && m.over <= 1, `world icons ${H} square, nothing spills sideways (${m.over})`);
+      const cells = (kind === 'map' ? m.lv : m.stk).sort((a, b) => a.t - b.t || a.l - b.l), row = cells.filter((c) => near(c.t, cells[0].t));
+      if (kind === 'map') say(row.length === 5 && row.every((c) => near(c.h, H) && c.w >= H - TOL) && row.slice(1).every((c, i) => near(c.l - row[i].r, G)), `five level buttons, ${f(row[0].w)} x ${f(row[0].h)}, ${G} apart`);
+      else say(row.length === 8 && row.every((c) => near(c.w, c.h) && near(c.w, row[0].w)) && row.slice(1).every((c, i) => near(c.l - row[i].r, G / 2)), `eight square sticker slots of ${f(row[0].w)}, ${G / 2} apart`);
+    };
+    await page.setViewportSize({ width: 360, height: 640 }); await page.waitForTimeout(200);
+    await page.click('#lvl', { force: true }); await page.waitForTimeout(150); sheet('map', await page.evaluate(SHEET), 'map'); await shot('4-map'); await page.click('#close', { force: true });
+    await page.click('#book', { force: true }); await page.waitForTimeout(150); sheet('book', await page.evaluate(SHEET), 'book'); await shot('5-book'); await page.click('#close', { force: true });
     // a narrow and a wide window: the frame scales, the rules hold
     await page.setViewportSize({ width: 300, height: 700 }); await page.waitForTimeout(250); rules(`${lang} win bar, narrow window`, await page.evaluate(MEASURE));
     note(errors.length === 0, `${lang}: no errors ${errors.join(' | ')}`);

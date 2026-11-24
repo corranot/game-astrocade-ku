@@ -15,8 +15,15 @@
 import room from './w_room.js';
 import bath from './w_bath.js';
 import garden from './w_garden.js';
+import kitchen from './w_kitchen.js';
+import beach from './w_beach.js';
+import party from './w_party.js';
+import farm from './w_farm.js';
+import snow from './w_snow.js';
+import space from './w_space.js';
+import toyshop from './w_toyshop.js';
 
-export const WORLDS = [room, bath, garden];
+export const WORLDS = [room, bath, garden, kitchen, beach, party, farm, snow, space, toyshop];
 export const PER_WORLD = 5;
 export const LEVELS = WORLDS.flatMap((w) => w.levels.map((l) => ({ ...l, theme: w.id })));
 

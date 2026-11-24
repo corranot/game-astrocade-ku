@@ -114,15 +114,15 @@ function startGame(mode) {
 
   /** A cut thing reached its goal: play its ending. A thing cut before its turn plays its `early` ending and is hung back. */
   function arrive(id) {
-    const item = level.items.find((x) => x.id === id), it = early ? { ...item, ...item.early, result: 'gag', pop: false } : item;
+    const item = level.items.find((x) => x.id === id), it = early ? { id, body: item.body, result: 'gag', ...item.early } : item;
     const g = it.goal, hero = view.hero, sid = stickerId(level, item, early), win = it.result === 'win', at = it.fxAt || [g.x, g.y];
     scene.fx.emit(it.fx, at[0], at[1], it.burst || 1); scene.fx.ring(at[0], Math.max(0, at[1] - item.body.r), win ? 0xfff06a : 0xffffff); scene.shake(win ? 0.5 : 0.8);
     sound.play(it.sound); buzz(win ? 'thud' : 'warning');
     if (it.pop) { view.actors[id].group.visible = false; remove(W, id); }
-    if (early) later(0.9, () => { reset(W, id); view.actors[id].group.visible = true; scene.fx.emit('spark', item.body.x, item.body.y); });
+    if (early) later(0.9, () => { reset(W, id); view.actors[id].flags.landed = false; view.actors[id].group.visible = true; scene.fx.emit('spark', item.body.x, item.body.y); });
     hero.react(it.react);
     if (it.tint !== undefined) { hero.tint(it.tint, true); later(2.4, () => hero.tint(null, false)); }
-    if (it.untint) hero.tint(null, false);
+    if (it.untint) hero.clean();
     if (it.set) hero.set(it.set);
     if (it.propReact && view.props[it.propReact[0]]) view.props[it.propReact[0]].react(it.propReact[1]);
     for (const k of it.show || []) if (view.props[k]) view.props[k].group.visible = true;
@@ -144,10 +144,21 @@ function startGame(mode) {
 
   // ---- buttons
   const press = (id, fn) => $(id).addEventListener('click', (e) => { e.stopPropagation(); sound.start(); sound.play('tap'); buzz('tap'); fn(); });
-  press('next', () => loadLevel(index + 1));
+  press('next', () => { if (index === LEVELS.length - 1) { loadLevel(0); openMap(); } else loadLevel(index + 1); }); // after the last level: the map, to pick any
   press('again', () => loadLevel(index));
   press('mute', () => { save.muted = !sound.muted; sound.setMuted(save.muted); ui.muteIcon(save.muted); persistSoon(); });
-  press('book', () => {});
+  const icons = (w) => w.icon || '⭐';
+  function openMap() {
+    let n = 0;
+    ui.map(WORLDS.map((w) => ({ icon: icons(w), levels: w.levels.map(() => { const i = n++; return { n: i + 1, stars: save.stars[i] || 0, open: i <= save.lvl, here: i === index }; }) })), starCount(), (num) => { ui.closeSheet(); loadLevel(num - 1); });
+  }
+  function openBook() {
+    let n = 0; const all = allStickers();
+    ui.book(WORLDS.map((w) => { const from = n; n += w.levels.length; return { icon: icons(w), stickers: all.filter((s) => s.level >= from && s.level < n).map((s) => ({ icon: s.icon, got: save.gags.includes(s.id) })) }; }), save.gags.length, all.length);
+  }
+  press('lvl', openMap);
+  press('book', openBook);
+  press('close', () => ui.closeSheet());
 
   // ---- frame loop
   let fpsT = 0, fpsN = 0, slow = 0, fast = 0, quality = 1;
@@ -232,7 +243,7 @@ function startGame(mode) {
     // dev:start
     debug: {
       get W() { return W; }, get level() { return level; }, get index() { return index; }, get busy() { return busy; }, get won() { return won; }, get save() { return save; },
-      get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get touched() { return touched; }, get clock() { return clock; }, total: LEVELS.length, get landed() { return freeAt >= 0 || !busy; }, mode, scene, T, sound, loadLevel, flush,
+      get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get touched() { return touched; }, get clock() { return clock; }, total: LEVELS.length, get landed() { return freeAt >= 0 || !busy; }, mode, scene, T, sound, loadLevel, flush, openMap, openBook,
       setLang(l) { lang = l; setDir(); if (!$('prompt').hidden) ui.prompt(T(level.prompt)); if (won) ui.bar(true, { next: T('next'), again: T('again') }, found(), isRtl(lang)); },
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
