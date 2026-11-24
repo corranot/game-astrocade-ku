@@ -1,0 +1,117 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>NEKO ZOOMIES: The Great Toyroom Caper</title>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="modulepreload" href="https://unpkg.com/three@0.187.0/build/three.module.js">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/800.css">
+<style>
+html,body{margin:0;height:100%;background:#ffe9c9;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Fredoka","Arial Rounded MT Bold","Nunito","Noto Sans","Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Arabic",system-ui,sans-serif;font-weight:800}
+button{font-family:inherit;font-weight:800}
+[hidden]{display:none!important}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;--u:1;--ink:#4a2a3a;background:#ffe9c9;--m:calc(var(--u)*20px);--g:calc(var(--u)*12px)}
+@media (min-aspect-ratio: 3/4){#app{width:100vw;height:100vh}}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;inset:0;pointer-events:none;color:var(--ink);font-size:calc(var(--u)*30px)}
+.hud button{pointer-events:auto;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--ink);padding:0;background:none}
+.hud.edit>*:not(.keep){display:none!important}
+.out{--o:calc(var(--u)*3.5px);color:#fff;text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
+.pill{background:rgba(255,253,246,.92);border:calc(var(--u)*4px) solid #fff;border-radius:calc(var(--u)*40px);box-shadow:0 calc(var(--u)*5px) 0 #e5b98a,0 calc(var(--u)*8px) calc(var(--u)*14px) rgba(120,60,20,.22)}
+/* top bar: one height, one margin */
+.top{position:absolute;top:var(--m);left:var(--m);right:var(--m);height:calc(var(--u)*84px);display:flex;justify-content:space-between;align-items:flex-start}
+.stats{display:flex;flex-direction:column;gap:calc(var(--u)*8px)}
+.starpill{height:calc(var(--u)*76px);box-sizing:border-box;display:flex;align-items:center;gap:calc(var(--u)*8px);padding:0 calc(var(--u)*22px) 0 calc(var(--u)*8px);font-size:calc(var(--u)*46px);line-height:1;direction:ltr;align-self:flex-start}
+.starpill svg{width:calc(var(--u)*60px);height:calc(var(--u)*60px)}
+.bump{animation:bump .35s ease-out}
+@keyframes bump{40%{transform:scale(1.18)}}
+.hatbar{width:calc(var(--u)*250px);height:calc(var(--u)*60px);box-sizing:border-box;display:flex;align-items:center;gap:calc(var(--u)*8px);padding:0 calc(var(--u)*6px) 0 calc(var(--u)*14px);direction:ltr}
+.hatbar .track{flex:1;height:calc(var(--u)*18px);border-radius:calc(var(--u)*10px);background:#f1dcc4;overflow:hidden}
+.hatbar .fill{height:100%;width:100%;background:linear-gradient(90deg,#ffcf3f,#ff8a5c);transform-origin:0 50%;transform:scaleX(0);transition:transform .25s}
+.hatbar .sil{width:calc(var(--u)*50px);height:calc(var(--u)*50px);flex:none}
+.hatbar .sil svg{width:100%;height:100%;display:block}
+.hatbar .sil.locked svg{filter:brightness(0);opacity:.62}
+.right{display:flex;gap:calc(var(--u)*10px);align-items:flex-start}
+.icon{width:calc(var(--u)*76px);height:calc(var(--u)*76px);display:flex;align-items:center;justify-content:center;position:relative}
+.icon::after{content:"";position:absolute;inset:calc(var(--u)*-10px)}
+.icon svg{width:62%;height:62%}
+/* combo banner: top centre, between the counters and the buttons */
+.combo{position:absolute;left:calc(var(--u)*260px);right:calc(var(--u)*172px);top:0;height:calc(var(--u)*84px);display:flex;align-items:center;justify-content:center;font-size:calc(var(--u)*72px);line-height:1;opacity:0;direction:ltr;color:#ffe14d}
+.combo[data-m="3"]{color:#ffa23f}.combo[data-m="5"]{color:#ff5d8a}
+.combo.go{animation:combo 1.5s ease-out both}
+@keyframes combo{0%{opacity:0;transform:scale(.3) rotate(-12deg)}12%{opacity:1;transform:scale(1.35) rotate(6deg)}24%{transform:scale(1) rotate(-3deg)}80%{opacity:1}100%{opacity:0;transform:scale(.9)}}
+/* centre messages at eye level */
+.banner{position:absolute;left:0;right:0;top:calc(var(--u)*250px);display:flex;flex-direction:column;align-items:center;gap:var(--g);z-index:5}
+.banner .ico{width:calc(var(--u)*130px);height:calc(var(--u)*130px);opacity:0}
+.banner .ico:empty{display:none}
+.banner .ico svg{width:100%;height:100%;filter:drop-shadow(0 calc(var(--u)*6px) 0 rgba(74,42,58,.35))}
+.banner .t{font-size:calc(var(--u)*72px);line-height:1.05;text-align:center;max-width:calc(var(--u)*660px);opacity:0}
+.banner .go{animation:ban 1.9s ease-out both}
+@keyframes ban{0%{opacity:0;transform:scale(.4)}14%{opacity:1;transform:scale(1.12)}22%{transform:scale(.96)}30%{transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(calc(var(--u)*-30px))}}
+.float{position:absolute;left:0;top:0;font-size:calc(var(--u)*40px);white-space:nowrap;will-change:transform,opacity;opacity:0;direction:ltr;display:flex;align-items:center;gap:calc(var(--u)*4px)}
+.float svg{width:calc(var(--u)*40px);height:calc(var(--u)*40px)}
+/* Purr-Meter: bottom centre */
+.purr{position:absolute;left:50%;bottom:calc(var(--u)*34px);width:calc(var(--u)*150px);height:calc(var(--u)*150px);margin-left:calc(var(--u)*-75px)}
+.purr svg{position:absolute;inset:0;width:100%;height:100%}
+.purr>svg{transform:rotate(-90deg)}
+.purr .bg{fill:rgba(255,253,246,.9);stroke:#fff;stroke-width:16}
+.purr .fg{fill:none;stroke:#ff7ac8;stroke-width:11;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset .2s;filter:drop-shadow(0 0 calc(var(--u)*6px) #ff9ef0)}
+.purr .face{position:absolute;inset:22%}
+.purr.fever{animation:pulse .5s ease-in-out infinite}
+.purr.fever .fg{stroke:#ffcf3f;filter:drop-shadow(0 0 calc(var(--u)*10px) #ffe14d);transition:none}
+@keyframes pulse{50%{transform:scale(1.08)}}
+/* anime speed lines round the edge during MEGA ZOOMIES */
+.nz-lines{position:absolute;inset:-25%;pointer-events:none;opacity:0;transition:opacity .3s;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,0) 0deg 4deg,rgba(255,255,255,.85) 4.6deg 5deg,rgba(255,255,255,0) 5.6deg 9deg);-webkit-mask-image:radial-gradient(ellipse at center,transparent 44%,#000 66%);mask-image:radial-gradient(ellipse at center,transparent 44%,#000 66%)}
+.nz-lines.on{opacity:.75;animation:nzspin .42s steps(5) infinite}
+@keyframes nzspin{to{transform:rotate(9deg)}}
+/* controls */
+.stick{position:absolute;left:0;bottom:0;width:calc(var(--u)*340px);height:calc(var(--u)*440px);pointer-events:auto}
+.stick .base{position:absolute;width:calc(var(--u)*200px);height:calc(var(--u)*200px);margin:calc(var(--u)*-100px) 0 0 calc(var(--u)*-100px);border-radius:50%;background:rgba(255,255,255,.28);border:calc(var(--u)*5px) solid rgba(255,255,255,.75);box-sizing:border-box;box-shadow:0 0 calc(var(--u)*20px) rgba(120,60,20,.2);opacity:0}
+.touch .stick .base,.stick.held .base{opacity:1}
+.stick .knob{position:absolute;left:50%;top:50%;width:calc(var(--u)*96px);height:calc(var(--u)*96px);margin:calc(var(--u)*-48px) 0 0 calc(var(--u)*-48px);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ffd9b0);box-shadow:0 calc(var(--u)*5px) 0 #e5a46a}
+.btn{position:absolute;border-radius:50%;display:none;align-items:center;justify-content:center;background:rgba(255,253,246,.55)!important;border:calc(var(--u)*5px) solid rgba(255,255,255,.9)!important;box-sizing:border-box;box-shadow:0 calc(var(--u)*6px) 0 rgba(200,120,70,.55)}
+.touch .btn{display:flex}
+.btn svg{width:62%;height:62%}
+.btn.down{transform:scale(.9)}
+.jump{right:calc(var(--u)*36px);bottom:calc(var(--u)*120px);width:calc(var(--u)*170px);height:calc(var(--u)*170px)}
+.swipe{right:calc(var(--u)*60px);bottom:calc(var(--u)*320px);width:calc(var(--u)*124px);height:calc(var(--u)*124px)}
+/* opening card over the live room */
+.title{position:absolute;left:0;right:0;top:calc(var(--u)*170px);display:flex;flex-direction:column;align-items:center;z-index:8;transition:opacity .35s,transform .35s}
+.title.gone{opacity:0;transform:scale(1.2);pointer-events:none}
+.title.gone *{pointer-events:none!important}
+.title .t1{font-size:calc(var(--u)*88px);line-height:1;animation:bob 2.4s ease-in-out infinite;text-align:center;color:#ffe27a}
+.title .t2{font-size:calc(var(--u)*44px);line-height:1.1;animation:bob 2.4s .3s ease-in-out infinite;text-align:center}
+@keyframes bob{50%{transform:translateY(calc(var(--u)*-12px)) rotate(-1.5deg)}}
+.title .play{margin-top:calc(var(--u)*470px);height:calc(var(--u)*140px);min-width:calc(var(--u)*360px);padding:0 calc(var(--u)*44px);border-radius:calc(var(--u)*70px);background:linear-gradient(#7fe08a,#3dbb55)!important;color:#fff!important;font-size:calc(var(--u)*72px);border:calc(var(--u)*6px) solid #fff!important;box-shadow:0 calc(var(--u)*9px) 0 #2a8a3c,0 calc(var(--u)*14px) calc(var(--u)*24px) rgba(0,0,0,.25);animation:pulse 1s ease-in-out infinite;pointer-events:auto}
+.title .tap{margin-top:calc(var(--u)*18px);font-size:calc(var(--u)*34px)}
+#fail{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:20}
+#fail button{height:calc(var(--u)*120px);min-width:calc(var(--u)*120px);border-radius:60px;border:0;background:#3dbb55;color:#fff;font-size:calc(var(--u)*64px);padding:0 40px;box-shadow:0 8px 0 #2a8a3c}
+@media (prefers-reduced-motion: reduce){.hud *{animation-duration:.01s!important;animation-iteration-count:1!important}.nz-lines{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// if the 3D library never arrives (offline, blocked), a big retry button replaces the empty frame
+(function () {
+  function retry() {
+    if (window.__started || document.getElementById('fail')) return;
+    var app = document.getElementById('app'), d = document.createElement('div');
+    d.id = 'fail'; d.innerHTML = '<button aria-label="retry">&#8635;</button>';
+    d.firstChild.addEventListener('click', function () { location.reload(); });
+    app.appendChild(d);
+  }
+  addEventListener('error', function () { setTimeout(retry, 4000); });
+  setTimeout(retry, 12000);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.187.0/build/three.module.js" } }</script>
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
