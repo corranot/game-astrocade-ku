@@ -83,7 +83,7 @@ function startGame(mode) {
     if (!show) return ui.hand(null);
     const it = !save.learned ? level.items.find((x) => x.result === 'win') : level.items.find((x) => !W.ropes.find((r) => r.id === x.id).cut);
     if (!it) return ui.hand(null);
-    ui.hand(scene.screenOf(it.rope.ax, it.rope.ay - 1.5));
+    ui.hand(scene.screenOf(it.rope.ax, it.rope.ay - 1.25));
   }
   function loadLevel(i) {
     index = ((i % LEVELS.length) + LEVELS.length) % LEVELS.length;
