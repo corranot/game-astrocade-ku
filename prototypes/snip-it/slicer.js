@@ -22,7 +22,9 @@ export function createSlicer(root, scene, getWorld, onCut, onTouch) {
   }
   function move(e) {
     const f = fingers.get(e.pointerId); if (!f) return;
+    if (e.pointerType === 'mouse' && e.buttons === 0) { fingers.delete(e.pointerId); return; } // the button came up somewhere we did not see
     const [x, y] = scene.worldAt(e.clientX, e.clientY), W = getWorld();
+    if (!W) { f.x = x; f.y = y; return; }
     f.moved += Math.hypot(x - f.x, y - f.y);
     if (f.moved > 0.05) scene.fx.emit('trail', x, y);
     const hit = W && hitRope(W, f.x, f.y, x, y, SWIPE_TOL);

@@ -182,6 +182,7 @@ async function main() {
   // ---- 10. every language: words inside the frame, buttons apart
   for (const [lang, locale] of Object.entries(LANGS)) {
     const { page, errors } = await open(browser, port, '', { locale });
+    await page.addStyleTag({ content: '.hud .prompt{animation:none!important}' }); // its pop-in swells the box past the frame for a moment; the words are measured at rest
     const inside = (sel) => g(page, (sel) => { const r = document.querySelector('#app').getBoundingClientRect(), e = document.querySelector(sel).getBoundingClientRect(); return e.width > 0 && e.left >= r.left - 0.5 && e.right <= r.right + 0.5 && e.top >= r.top && e.bottom <= r.bottom + 0.5; }, sel);
     const wide = await g(page, () => { const p = document.querySelector('#prompt'); return p.scrollWidth <= p.clientWidth + 1; });
     check((await g(page, () => __game.lang)) === lang && wide && (await inside('#prompt')), `${lang}: the prompt fits the frame`);
@@ -213,6 +214,75 @@ async function main() {
     check(s.ok && errors.length === 0, 'random touches: no errors, no broken numbers: ' + errors.slice(0, 2).join(' | '));
     check(s.geo <= geo0 + 2 && s.tex <= 4, `random touches: GPU objects stay put (geometries ${geo0} -> ${s.geo}, textures ${s.tex})`);
     await page.close();
+  }
+
+  // ---- 12. the hint points at a rope whose turn it is, at its real middle (floor pegs too)
+  {
+    const { page, errors } = await open(browser, port, '&speed=4', { init: 'window.__preset = { v: 1, lvl: 49, at: 0, stars: [], gags: [], learned: true };' });
+    await page.waitForFunction(() => __game.saveLoaded);
+    const order = await g(page, () => __game.levels.map((l, i) => (l.items.some((x) => x.needs) ? i : -1)).filter((i) => i >= 0));
+    const peg = await g(page, () => __game.levels.findIndex((l) => l.items[0].body.lift));
+    const hint = async (i) => { await g(page, (i) => __game.loadLevel(i), i); await page.waitForFunction(() => !document.querySelector('#hand').hidden, null, { timeout: 15000 });
+      return g(page, () => { const hs = document.querySelector('#hand').style, at = (v) => Number((v.match(/\*\s*([-\d.]+)px/) || [])[1]), L = __game.level; // where the game put the hint (its swipe animation moves the box)
+        const isCut = (id) => __game.W.ropes.find((x) => x.id === id).cut, it = L.items.find((x) => !isCut(x.id) && (!x.needs || isCut(x.needs))), p = __game.ropeAt(it.id, true);
+        return { id: it.id, first: L.items[0].id, needs: !!L.items[0].needs, d: Math.hypot(at(hs.left) - p[0], at(hs.top) - p[1]) }; }); };
+    let ok = order.length >= 5;
+    for (const i of order) { const h = await hint(i); if (h.d > 30) { ok = false; console.log('     hint off by', h.d.toFixed(0), 'on level', i + 1); } }
+    check(ok, `on the ${order.length} levels with an order the idle hint sits on a rope whose turn it is`);
+    if (peg >= 0) { const h = await hint(peg); check(h.d <= 30, `a floor-peg rope first in line gets the hint on the rope itself (off by ${h.d.toFixed(0)})`); }
+    check(errors.length === 0, 'no errors while hinting'); await page.close();
+  }
+
+  // ---- 13. a second finger, a resting finger, the edit view, old and broken saves
+  {
+    let r = await open(browser, port);
+    const fire = (page, sel, type, id, primary) => g(page, ([sel, type, id, primary]) => { const e = document.querySelector(sel), b = e.getBoundingClientRect(); e.dispatchEvent(new PointerEvent(type, { pointerId: id, isPrimary: primary, pointerType: 'touch', clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, bubbles: true })); }, [sel, type, id, primary]);
+    await fire(r.page, '#cv', 'pointerdown', 1, true); // a thumb rests on the stage
+    await fire(r.page, '#lvl', 'pointerdown', 2, false); await fire(r.page, '#lvl', 'pointerup', 2, false); // the browser sends no click for a second finger
+    check(await g(r.page, () => !document.querySelector('#sheet').hidden), 'a button works under a second finger while the first rests on the stage');
+    const [x, y] = await ropeXY(r.page, (await ids(r.page, 'win'))[0]);
+    await g(r.page, ([x, y]) => { for (const dx of [-40, -10, 20, 40]) window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, isPrimary: true, pointerType: 'touch', clientX: x + dx, clientY: y, bubbles: true })); }, [x, y]);
+    check((await cutN(r.page)) === 0, 'the resting finger cuts nothing once the map is open');
+    await r.page.click('#close', { force: true });
+    let heard = 0; await g(r.page, () => { document.addEventListener('click', () => { window.__clicks = (window.__clicks || 0) + 1; }); }); await r.page.click('#mute', { force: true }); heard = await g(r.page, () => window.__clicks || 0);
+    check(heard === 1, 'a tap on a button still reaches the page as a click');
+    await r.page.mouse.move(x - 40, y); await r.page.mouse.down(); await g(r.page, ([x, y]) => { for (const dx of [-30, 0, 30]) window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, isPrimary: true, pointerType: 'mouse', buttons: 0, clientX: x + dx, clientY: y, bubbles: true })); }, [x, y]);
+    check((await cutN(r.page)) === 0, 'a mouse whose button is up does not cut by hovering'); await r.page.mouse.up();
+    check(r.errors.length === 0, 'no errors with two fingers'); await r.page.close();
+
+    r = await open(browser, port, '&mode=edit');
+    const [ex, ey] = await ropeXY(r.page, (await ids(r.page, 'win'))[0]); await r.page.mouse.move(ex - 40, ey); await r.page.mouse.down(); await r.page.mouse.move(ex + 40, ey, { steps: 4 }); await r.page.mouse.up();
+    const ed = await g(r.page, () => ({ buzz: (window.__buzz || []).length, sound: __game.sound.running, touched: __game.touched, cut: __game.W.ropes.filter((x) => x.cut).length }));
+    check(ed.buzz === 0 && !ed.sound && !ed.touched && ed.cut === 0, 'the edit view does not answer a touch: no buzz, no sound, no cut'); await r.page.close();
+
+    r = await open(browser, port, '', { init: 'window.__preset = { v: 1, lvl: 2, at: 0, stars: [3, 3, 3], gags: [], learned: true };' });
+    await r.page.waitForFunction(() => __game.saveLoaded);
+    check((await g(r.page, () => __game.save.lvl)) === 3, 'a save from the three-level version opens level 4'); await r.page.close();
+
+    r = await open(browser, port, '', { init: 'window.__preset = { v: 1, lvl: 2.7, at: 1.5, stars: [999, 1e999, -4, "x"], gags: 7, learned: true };' });
+    await r.page.waitForFunction(() => __game.saveLoaded);
+    const bad = await g(r.page, () => ({ i: __game.index, lvl: __game.save.lvl, stars: __game.save.stars.slice(0, 4), top: document.querySelector('#lvlN').textContent, total: document.querySelector('#starN').textContent }));
+    check(bad.i === 1 && bad.lvl === 2 && bad.stars.join() === '3,3,0,0' && bad.top === '2/' + (await g(r.page, () => __game.total)) && bad.total === '6', `a broken save is read as whole numbers in range (level ${bad.top}, stars ${bad.total})`);
+    await winLevel(r.page); await r.page.click('#next', { force: true });
+    check(r.errors.length === 0 && (await g(r.page, () => __game.index)) === 2, 'and play goes on from it'); await r.page.close();
+  }
+
+  // ---- 14. a second colouring gag keeps its full time; a thing cut too early is used up at its early place
+  {
+    const { page, errors } = await open(browser, port);
+    const i = await g(page, () => __game.levels.findIndex((l) => l.items.filter((x) => x.tint !== undefined && x.result === 'gag').length >= 2));
+    await g(page, (i) => __game.loadLevel(i), i);
+    const two = await g(page, () => __game.level.items.filter((x) => x.tint !== undefined && x.result === 'gag').map((x) => x.id));
+    await swipe(page, two[0]); await idle(page); await page.waitForFunction((t) => __game.clock > t, (await g(page, () => __game.clock)) + 1.0);
+    await swipe(page, two[1]); await idle(page); const t1 = await g(page, () => __game.clock);
+    await page.waitForFunction((t) => __game.clock > t, t1 + 0.9);
+    check(await g(page, () => __game.tinted), 'the second colour is still on 1.5 s after it landed, when the first one would have ended');
+    const j = await g(page, () => __game.levels.findIndex((l) => l.items.some((x) => x.early && x.early.pop)));
+    if (j >= 0) { await g(page, (j) => __game.loadLevel(j), j); const id = await g(page, () => __game.level.items.find((x) => x.early).id); await swipe(page, id);
+      await page.waitForFunction(() => __game.landed && __game.busy, null, { timeout: 8000 });
+      check(await g(page, (id) => !__game.scene.view(id).visible, id), 'a thing cut too early bursts where it lands, it does not fall on through');
+      await idle(page); check(await g(page, (id) => __game.scene.view(id).visible && !__game.W.ropes.find((r) => r.id === id).cut, id), 'and is hung back whole'); }
+    check(errors.length === 0, 'no errors in these endings'); await page.close();
   }
 
   await browser.close(); server.close();

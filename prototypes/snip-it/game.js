@@ -14,7 +14,7 @@ import { createScene } from './scene3d.js';
 import { createSlicer } from './slicer.js';
 import { createSound } from './audio.js';
 import { LANGS, detectLang, makeT, isRtl } from './i18n.js';
-import { HTML, createUi } from './ui.js';
+import { HTML, createUi, tap } from './ui.js';
 
 let app = null, pendingMode = null;
 function showRetry() {
@@ -72,7 +72,7 @@ function startGame(mode) {
   scene.setMotion(set.reduceMotion ? 0 : 1);
 
   // ---- the level being played
-  let index = 0, level = null, W = null, view = null, ambient = null, early = false, busy = null, won = false, touched = false, stopT = 0, acc = 0, idle = 0, barAt = -1, freeAt = -1, clock = 0;
+  let index = 0, level = null, W = null, view = null, ambient = null, early = false, tintEnd = -1, busy = null, won = false, touched = false, stopT = 0, acc = 0, idle = 0, barAt = -1, freeAt = -1, clock = 0;
   const timers = []; // things due later on the game clock: [time, fn]
   const later = (sec, fn) => timers.push([clock + sec, fn]);
 
@@ -81,15 +81,21 @@ function startGame(mode) {
   function placeHand() {
     const show = mode === 'play' && !won && !busy && (!save.learned || idle > 6) && W;
     if (!show) return ui.hand(null);
-    const it = !save.learned ? level.items.find((x) => x.result === 'win') : level.items.find((x) => !W.ropes.find((r) => r.id === x.id).cut);
+    // a first-time player is shown the rope to cut now: the winning one, or the one it needs first; later, any rope whose turn it is
+    const isCut = (id) => W.ropes.find((r) => r.id === id).cut, ready = (x) => !isCut(x.id) && (!x.needs || isCut(x.needs));
+    const win = level.items.find((x) => x.result === 'win');
+    const it = !save.learned ? (ready(win) ? win : level.items.find((x) => x.id === win.needs && ready(x))) : level.items.find(ready);
     if (!it) return ui.hand(null);
-    ui.hand(scene.screenOf(it.rope.ax, it.rope.ay - 1.25));
+    ui.hand(scene.screenOf(...ropeMid(it.id)));
   }
+  /** The middle of rope `id` as it hangs now, wherever its hook is: [x, y]. */
+  function ropeMid(id) { const rope = W.ropes.find((r) => r.id === id), l = W.links[rope.links[rope.links.length >> 1]], a = W.pts[l.a], b = W.pts[l.b]; return [(a.x + b.x) / 2, (a.y + b.y) / 2]; }
   function loadLevel(i) {
+    i = Math.floor(Number(i)) || 0;
     index = ((i % LEVELS.length) + LEVELS.length) % LEVELS.length;
-    level = buildLevel(index, cfg.levelEdits || {}); W = createWorld(level, { gravityScale: Number(set.gravityScale) || 1 }); view = scene.loadLevel(level);
+    level = buildLevel(index, cfg.levelEdits || {}); W = createWorld(level, { gravityScale: Math.max(0.6, Math.min(1.5, Number(set.gravityScale) || 1)) }); view = scene.loadLevel(level);
     ambient = (WORLDS.find((w) => w.id === level.theme) || {}).ambient || null;
-    busy = null; early = false; won = false; acc = 0; idle = 0; barAt = -1; freeAt = -1; timers.length = 0; slicer.reset();
+    busy = null; early = false; tintEnd = -1; won = false; acc = 0; idle = 0; barAt = -1; freeAt = -1; timers.length = 0; slicer.reset();
     ui.wipe(); ui.bar(false); ui.prompt(T(level.prompt)); renderTop(); placeHand();
     if (mode === 'play' && saveLoaded && save.at !== index) { save.at = index; persistSoon(); }
   }
@@ -106,6 +112,7 @@ function startGame(mode) {
     ui.prompt(''); placeHand();
   }
   function onTouch() {
+    if (mode !== 'play') return; // the edit view is a picture: no sound, no buzz
     sound.start();
     if (!touched) { touched = true; }
     idle = 0; buzz('tick'); sound.play('swish');
@@ -121,7 +128,7 @@ function startGame(mode) {
     if (it.pop) { view.actors[id].group.visible = false; remove(W, id); }
     if (early) later(0.9, () => { reset(W, id); view.actors[id].flags.landed = false; view.actors[id].group.visible = true; scene.fx.emit('spark', item.body.x, item.body.y); });
     hero.react(it.react);
-    if (it.tint !== undefined) { hero.tint(it.tint, true); later(2.4, () => hero.tint(null, false)); }
+    if (it.tint !== undefined) { hero.tint(it.tint, true); tintEnd = clock + 2.4; } // one end time: a second gag keeps its full time
     if (it.untint) hero.clean();
     if (it.set) hero.set(it.set);
     if (it.propReact && view.props[it.propReact[0]]) view.props[it.propReact[0]].react(it.propReact[1]);
@@ -143,16 +150,18 @@ function startGame(mode) {
   }
 
   // ---- buttons
-  const press = (id, fn) => $(id).addEventListener('click', (e) => { e.stopPropagation(); sound.start(); sound.play('tap'); buzz('tap'); fn(); });
+  const press = (id, fn) => tap($(id), () => { sound.start(); sound.play('tap'); buzz('tap'); fn(); });
   press('next', () => { if (index === LEVELS.length - 1) { loadLevel(0); openMap(); } else loadLevel(index + 1); }); // after the last level: the map, to pick any
   press('again', () => loadLevel(index));
   press('mute', () => { save.muted = !sound.muted; sound.setMuted(save.muted); ui.muteIcon(save.muted); persistSoon(); });
   const icons = (w) => w.icon || '⭐';
   function openMap() {
+    slicer.reset(); // a finger resting on the stage must not go on cutting behind the sheet
     let n = 0;
     ui.map(WORLDS.map((w) => ({ icon: icons(w), levels: w.levels.map(() => { const i = n++; return { n: i + 1, stars: save.stars[i] || 0, open: i <= save.lvl, here: i === index }; }) })), starCount(), (num) => { ui.closeSheet(); loadLevel(num - 1); });
   }
   function openBook() {
+    slicer.reset();
     let n = 0; const all = allStickers();
     ui.book(WORLDS.map((w) => { const from = n; n += w.levels.length; return { icon: icons(w), stickers: all.filter((s) => s.level >= from && s.level < n).map((s) => ({ icon: s.icon, got: save.gags.includes(s.id) })) }; }), save.gags.length, all.length);
   }
@@ -177,6 +186,7 @@ function startGame(mode) {
       while (acc >= STEP) { acc -= STEP; for (const e of step(W)) onEvent(e); }
       clock += dt; idle += dt;
       for (let i = timers.length - 1; i >= 0; i--) if (timers[i][0] <= clock) { const fn = timers[i][1]; timers.splice(i, 1); fn(); }
+      if (tintEnd >= 0 && clock >= tintEnd) { tintEnd = -1; view.hero.tint(null, false); }
       if (freeAt >= 0 && clock >= freeAt) { freeAt = -1; busy = null; placeHand(); }
       if (barAt >= 0 && clock >= barAt) { barAt = -1; ui.bar(true, { next: T('next'), again: T('again') }, found(), isRtl(lang)); }
       if (mode === 'play' && !busy && !won && idle > 6 && $('hand').hidden) placeHand();
@@ -188,14 +198,16 @@ function startGame(mode) {
 
   function fit() { const r = root.getBoundingClientRect(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
   const onResize = () => { fit(); ui.refit(); placeHand(); };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (alive) ui.refit(); });
+  // a font can arrive late, and more than once (each script loads its own file): fit the words again each time
+  const onFonts = () => { if (alive) ui.refit(); };
+  if (document.fonts) { if (document.fonts.ready) document.fonts.ready.then(onFonts); if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts); }
   window.addEventListener('resize', onResize);
   const onVis = () => { sound.suspend(document.hidden); if (document.hidden) flush(); };
   document.addEventListener('visibilitychange', onVis);
 
   try {
     lib.showGameParameters({ name: 'Snip It Settings', params: {
-      'Gravity': { key: 'settings.gravityScale', type: 'slider', min: 0.6, max: 1.6, step: 0.05 },
+      'Gravity': { key: 'settings.gravityScale', type: 'slider', min: 0.6, max: 1.5, step: 0.05 },
       'Freeze on a cut': { key: 'settings.cutSlowMo', type: 'slider', min: 0, max: 3, step: 0.25 },
       'Music (0 off, 1 on)': { key: 'settings.music', type: 'slider', min: 0, max: 1, step: 1 },
       'Sound effects (0 off, 1 on)': { key: 'settings.sfx', type: 'slider', min: 0, max: 1, step: 1 },
@@ -217,13 +229,15 @@ function startGame(mode) {
         // what was earned before the read finished is kept on top of the stored save
         const gags = save.gags.slice(), stars = save.stars.slice(), lvl = save.lvl, learned = save.learned, mutedNow = sound.muted, mutedTouched = save.muted !== false || mutedNow;
         save.gags = [...new Set([...(Array.isArray(st.gags) ? st.gags : []), ...gags])].filter((id) => allStickers().some((s) => s.id === id));
-        save.stars = Array.from({ length: LEVELS.length }, (_, i) => Math.max(Number((Array.isArray(st.stars) ? st.stars : [])[i]) || 0, stars[i] || 0));
-        save.lvl = Math.max(0, Math.min(LEVELS.length - 1, Math.max(Number(st.lvl) || 0, lvl)));
+        const whole = (v, max) => Math.max(0, Math.min(max, Math.floor(Number(v)) || 0)); // stored numbers are trusted only as whole numbers in range
+        save.stars = Array.from({ length: LEVELS.length }, (_, i) => Math.max(whole((Array.isArray(st.stars) ? st.stars : [])[i], 3), stars[i] || 0));
+        // every level up to the one after the last starred one is open, whatever an older version stored
+        save.lvl = Math.min(LEVELS.length - 1, Math.max(whole(st.lvl, LEVELS.length - 1), lvl, save.stars.reduce((m, s, i) => (s ? i + 1 : m), 0)));
         save.learned = !!st.learned || learned;
         if (!mutedTouched) save.muted = !!st.muted;
         sound.setMuted(save.muted); ui.muteIcon(save.muted);
         if (typeof st.lang === 'string' && LANGS.includes(st.lang)) { save.lang = st.lang; lang = st.lang; setDir(); }
-        const at = Math.max(0, Math.min(save.lvl, Number(st.at) || 0));
+        const at = whole(st.at, save.lvl);
         if (!touched && at !== index) loadLevel(at); else { ui.prompt(T(level.prompt)); renderTop(); placeHand(); }
       }
       saveLoaded = true; save.at = index;
@@ -238,6 +252,7 @@ function startGame(mode) {
     destroy() {
       alive = false; cancelAnimationFrame(raf); flush(); sound.stop(); ui.clear(); slicer.destroy();
       window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
+      if (document.fonts && document.fonts.removeEventListener) document.fonts.removeEventListener('loadingdone', onFonts);
       scene.dispose(); root.innerHTML = '';
     },
     // dev:start
@@ -248,7 +263,8 @@ function startGame(mode) {
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },
       /** Frame position of the middle of rope `id`, where a finger would cross it. */
-      ropeAt(id) { const rope = W.ropes.find((r) => r.id === id), l = W.links[rope.links[2]], a = W.pts[l.a], b = W.pts[l.b]; return scene.screenOf((a.x + b.x) / 2, (a.y + b.y) / 2); },
+      ropeAt(id, mid) { if (mid) return scene.screenOf(...ropeMid(id)); const rope = W.ropes.find((r) => r.id === id), l = W.links[rope.links[2]], a = W.pts[l.a], b = W.pts[l.b]; return scene.screenOf((a.x + b.x) / 2, (a.y + b.y) / 2); },
+      levels: LEVELS, get tinted() { return tintEnd >= 0; },
       get textures() { return scene.renderer.info.memory.textures; }, get geometries() { return scene.renderer.info.memory.geometries; },
     },
     // dev:end

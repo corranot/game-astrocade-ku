@@ -48,7 +48,7 @@ test('every rope, cut at any time and any link, lands its thing on its goal with
 });
 
 test('the creator gravity setting keeps every rope working', () => {
-  for (const g of [0.6, 1.6]) LEVELS.forEach((l, i) => { for (const it of l.items) { const r = arrive(i, it.id, 1, 2, { gravityScale: g }); assert.ok(r && !r.late, `${l.id}/${it.id} gravity ${g}`); } });
+  for (const g of [0.6, 1.5]) LEVELS.forEach((l, i) => { for (const it of l.items) for (const wait of WAITS) for (const seg of [0, 3, 6]) { const r = arrive(i, it.id, wait, seg, { gravityScale: g }); assert.ok(r && !r.late, `${l.id}/${it.id} gravity ${g} wait ${wait} seg ${seg}`); } });
 });
 
 test('uncut things keep hanging, and cutting one rope leaves the others alone', () => {
@@ -133,4 +133,14 @@ test('worlds: five levels each, model names used once in the whole game, every m
     if (typeof l.hero === 'object') assert.ok(known(l.hero.model), `${l.id}: hero ${l.hero.model}`); else assert.ok(l.items.some((x) => x.id === l.hero), `${l.id}: hero rope`);
     for (const it of l.items) assert.ok(it.rope.ay > 8.4 || it.body.lift, `${l.id}/${it.id}: hangs from the ceiling or is a balloon`);
   }
+});
+
+test('a thing cut before its turn reaches its early place in every level that has one', () => {
+  let n = 0;
+  LEVELS.forEach((l, i) => { for (const it of l.items) { if (!it.early) continue; n++;
+    for (const wait of WAITS) { const W = createWorld(buildLevel(i)); for (let t = 0; t < wait; t += STEP) step(W);
+      cut(W, it.id, 3); setGoal(W, it.id, it.early.goal);
+      let got = null; for (let t = 0; t < 4 && !got; t += STEP) for (const e of step(W)) if (e.type === 'arrive' && e.id === it.id) got = { t, late: e.late };
+      assert.ok(got && !got.late && got.t <= MAX_ARRIVE, `${l.id}/${it.id} early, wait ${wait}`); } } });
+  assert.ok(n >= 5, 'the game has levels with an order');
 });

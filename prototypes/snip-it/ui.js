@@ -33,6 +33,18 @@ export const HTML = `
   </div></div>
 </div>`;
 
+/**
+ * Calls fn when `button` is tapped. A second finger gets no `click` from the browser (a resting thumb would make
+ * every button dead), so a non-primary press and release on the button counts too. The event is left to travel on.
+ */
+export function tap(button, fn) {
+  let second = false;
+  button.addEventListener('click', () => fn());
+  button.addEventListener('pointerdown', (e) => { second = !e.isPrimary; });
+  button.addEventListener('pointerup', (e) => { if (second && !e.isPrimary) fn(); second = false; });
+  button.addEventListener('pointercancel', () => { second = false; });
+}
+
 /** Shrinks the words of a [data-fit] box until they fit on one line (never below half size). */
 export function fit(el) {
   if (!el || el.hidden || !el.clientWidth) return;
@@ -80,7 +92,7 @@ export function createUi(root) {
           const b = el('button', 'lv gloss' + (l.open ? '' : ' lock') + (l.here ? ' here' : '')); b.dataset.n = String(l.n);
           b.appendChild(el('b', 'num', l.open ? String(l.n) : '🔒'));
           const st = el('span', 'st'); for (let i = 0; i < 3; i++) { const s = el('i', 'ic' + (i < l.stars ? '' : ' off')); s.innerHTML = STAR; st.appendChild(s); } b.appendChild(st);
-          if (l.open) b.addEventListener('click', (e) => { e.stopPropagation(); pick(l.n); });
+          if (l.open) tap(b, () => pick(l.n));
           row.appendChild(b);
         }
         body.appendChild(row);
