@@ -1,4 +1,7 @@
 {
+ "room": {
+  "sunShaft": 0.16
+ },
  "cat": {
   "speed": 6.2,
   "accel": 30,
