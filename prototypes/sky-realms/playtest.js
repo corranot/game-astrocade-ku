@@ -384,6 +384,56 @@ const run = (name) => !ONLY || ONLY === name;
     check(p.errors.length === 0, 'no page errors in comfort checks: ' + p.errors.join(' / '));
     await p.close();
   }
+  // ---------------------------------------------------------------- boot: the game starts or says why it cannot
+  if (run('boot')) {
+    // a host config that is missing, partial or text still starts the game
+    let p = await open(browser);
+    const r = await p.evaluate(async () => {
+      const full = window.gameConfig, out = {};
+      for (const [k, v] of [['none', undefined], ['partial', { player: { speed: 5 } }], ['text', JSON.stringify(full)]]) {
+        window.gameConfig = v; run('play'); await new Promise((ok) => setTimeout(ok, 50));
+        out[k] = { ok: !!(__game && __game.alive && __game.world.cells.length), speed: __game && __game.cfg.player.speed, fail: !!document.getElementById('fail') };
+      }
+      window.gameConfig = full; return out;
+    });
+    check(r.none.ok && !r.none.fail, 'no host config: the game still starts');
+    check(r.partial.ok && r.partial.speed === 5, 'partial host config: starts, own values win');
+    check(r.text.ok, 'config sent as text: starts');
+    // a start that throws shows the retry button with the reason (E3)
+    const e3 = await p.evaluate(async () => { const gc = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (k, ...r) { if (/webgl/.test(k)) throw new Error('no webgl here'); return gc.call(this, k, ...r); }; window.__started = false; run('play'); HTMLCanvasElement.prototype.getContext = gc; const f = document.getElementById('fail'); return f ? f.textContent : ''; });
+    check(/E3 .*no webgl here/.test(e3), `a start that throws shows its reason under the retry button (${e3})`);
+    // a host that hands over a frozen (read-only) config: the game never writes into it
+    const fr = await p.evaluate(async () => { const deep = (o) => { Object.values(o).forEach((v) => v && typeof v === 'object' && deep(v)); return Object.freeze(o); }; const full = window.gameConfig; window.gameConfig = deep(JSON.parse(JSON.stringify(full))); window.__started = false; run('play'); await new Promise((ok) => setTimeout(ok, 50)); const ok = !!(__game && __game.alive) && !document.getElementById('fail'); window.gameConfig = full; return ok; });
+    check(fr, 'a frozen host config still starts the game (no writes into the host object)');
+    // Three.js itself logs the WebGL failure we forced above; anything else is a real error
+    const bootErr = p.errors.filter((m) => !/WebGLRenderer: no webgl here/.test(m));
+    check(bootErr.length === 0, 'no page errors in boot checks: ' + bootErr.join(' / '));
+    await p.close();
+    // the 3D library never arrives: no button while merely slow, E1 after 12 s
+    p = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await p.route(/three\.(module\.min|core)\.js/, (rt) => rt.abort());
+    await p.goto(`http://localhost:${srv.address().port}/?local`);
+    await p.waitForTimeout(10000);
+    const early = await p.evaluate(() => !!document.getElementById('fail'));
+    await p.waitForTimeout(3500);
+    const late = await p.evaluate(() => (document.getElementById('fail') || {}).textContent || '');
+    check(!early && /E1 3D/.test(late), `3D library blocked: retry button only after 12 s, with E1 (${late})`);
+    await p.close();
+    // the host never calls run(): no button at 12 s (it may start us late), E4 at 30 s
+    p = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await p.goto(`http://localhost:${srv.address().port}/`);
+    await p.waitForFunction(() => !!window.THREE, null, { timeout: 20000 });
+    await p.waitForTimeout(13000);
+    const at13 = await p.evaluate(() => !!document.getElementById('fail'));
+    await p.waitForTimeout(18000);
+    const at31 = await p.evaluate(() => (document.getElementById('fail') || {}).textContent || '');
+    check(!at13 && /E4 no run/.test(at31), `run() never called: no retry at 13 s, E4 at 31 s (${at31})`);
+    // and a late run() still starts the game over the message
+    await p.evaluate(() => fetch('./game_config.json').then((r) => r.json()).then((c) => { window.lib = { showGameParameters() {}, getUserGameState: async () => ({ state: null }), saveUserGameState: async () => {}, shouldUseTouchControls: () => false, haptics: { play() {} } }; window.gameConfig = c; run('play'); }));
+    await p.waitForFunction(() => window.__started === true, null, { timeout: 20000 }).catch(() => {});
+    check(await p.evaluate(() => window.__started === true && !document.getElementById('fail')), 'a late run() replaces the message with the game');
+    await p.close();
+  }
   // ---------------------------------------------------------------- 8 chaos: 600 seeded random inputs
   if (run('chaos')) {
     const p = await open(browser); await startDesk(p);
