@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Snip It: Cut to Fix</title>
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js">
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.js">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/800.css">
+<style>
+html,body{margin:0;height:100%;background:#ffe9b8;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Arial Rounded MT Bold","Nunito","Noto Sans","Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Arabic",system-ui,sans-serif;font-weight:800}
+button{font-family:inherit;font-weight:800}
+[hidden]{display:none!important}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;--u:1;--ink:#3b1f4a;--m:calc(var(--u)*20px);--g:calc(var(--u)*14px);background:#ffe9b8}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;inset:0;pointer-events:none;color:var(--ink);font-size:calc(var(--u)*34px)}
+.hud button{pointer-events:auto;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--ink);padding:0}
+.hud i{font-style:normal}
+.hud.edit .pill,.hud.edit .round,.hud.edit .hand,.hud.edit .bar{display:none}
+.out{--o:calc(var(--u)*4px);color:#fff;text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
+.gloss{border:calc(var(--u)*4px) solid #fff;background:linear-gradient(#fff 0,#fff7e3 48%,#ffecc2 52%,#ffdf9c 100%);box-shadow:0 calc(var(--u)*6px) 0 #d99a4a,0 calc(var(--u)*10px) calc(var(--u)*14px) rgba(90,50,10,.25)}
+.pill{position:absolute;top:var(--m);box-sizing:border-box;height:calc(var(--u)*96px);min-width:calc(var(--u)*96px);display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*8px);padding:0 calc(var(--u)*22px);border-radius:999px;font-size:calc(var(--u)*40px);line-height:1;direction:ltr}
+#lvl{left:var(--m)}
+[dir=rtl] #lvl{left:auto;right:var(--m)}
+#lvl .star{color:#ffb300;margin-inline-start:calc(var(--u)*10px)}
+#book{right:calc(var(--m) + var(--u)*96px + var(--g))}
+[dir=rtl] #book{right:auto;left:calc(var(--m) + var(--u)*96px + var(--g))}
+.round{position:absolute;top:var(--m);right:var(--m);box-sizing:border-box;width:calc(var(--u)*96px);height:calc(var(--u)*96px);border-radius:50%;font-size:calc(var(--u)*44px);display:grid;place-items:center}
+[dir=rtl] .round{right:auto;left:var(--m)}
+.prompt{position:absolute;top:calc(var(--u)*150px);left:0;right:0;text-align:center;font-size:calc(var(--u)*72px*var(--k,1));line-height:1.15;padding:0 var(--m);white-space:nowrap}
+.prompt.in{animation:u-pop .5s ease-out}
+@keyframes u-pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:none}}
+/* the swipe hint: a finger sliding across the rope */
+.hand{position:absolute;font-size:calc(var(--u)*110px);line-height:1;margin:calc(var(--u)*-20px) 0 0 calc(var(--u)*-55px);filter:drop-shadow(0 calc(var(--u)*6px) calc(var(--u)*4px) rgba(0,0,0,.3));animation:h-swipe 1.3s ease-in-out infinite;z-index:4}
+@keyframes h-swipe{0%{transform:translateX(calc(var(--u)*-120px)) rotate(-12deg);opacity:0}15%{opacity:1}75%{transform:translateX(calc(var(--u)*120px)) rotate(12deg);opacity:1}100%{transform:translateX(calc(var(--u)*120px)) rotate(12deg);opacity:0}}
+.toast{position:absolute;top:calc(var(--u)*262px);left:50%;translate:-50% 0;display:flex;align-items:center;gap:var(--g);padding:calc(var(--u)*10px) calc(var(--u)*28px) calc(var(--u)*10px) calc(var(--u)*14px);border-radius:999px;font-size:calc(var(--u)*40px);line-height:1;white-space:nowrap;z-index:5}
+.toast i{font-size:calc(var(--u)*72px)}
+.toast.in{animation:t-in 1.7s ease-out forwards}
+@keyframes t-in{0%{transform:scale(.3) rotate(-8deg);opacity:0}10%{transform:scale(1.12) rotate(3deg);opacity:1}18%{transform:none}85%{opacity:1}100%{opacity:0;transform:translateY(calc(var(--u)*-30px))}}
+.cheer{position:absolute;top:calc(var(--u)*430px);left:0;right:0;text-align:center;font-size:calc(var(--u)*110px);line-height:1;color:#fff06a;z-index:5}
+.cheer.in{animation:c-in 1.1s ease-out forwards}
+@keyframes c-in{0%{transform:scale(.2);opacity:0}20%{transform:scale(1.2);opacity:1}32%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.1)}}
+/* after a win: the scene stays alive above this bar */
+.bar{position:absolute;left:0;right:0;bottom:var(--m);display:flex;flex-direction:column;align-items:center;gap:var(--g);animation:b-up .35s ease-out;z-index:6}
+@keyframes b-up{0%{transform:translateY(60%);opacity:0}100%{transform:none;opacity:1}}
+.got{display:flex;align-items:center;gap:var(--m);padding:calc(var(--u)*6px) calc(var(--u)*26px);border-radius:999px;font-size:calc(var(--u)*44px);line-height:1.2;direction:ltr}
+.got #barStars{color:#ffb300;letter-spacing:calc(var(--u)*2px)}
+.btns{display:flex;align-items:center;justify-content:center;gap:var(--m);width:100%}
+.again{box-sizing:border-box;height:calc(var(--u)*120px);min-width:calc(var(--u)*120px);padding:0 calc(var(--u)*26px);border-radius:999px;display:flex;align-items:center;gap:calc(var(--u)*10px);font-size:calc(var(--u)*34px);white-space:nowrap}
+.again i{font-size:calc(var(--u)*56px);line-height:1}
+.next{box-sizing:border-box;height:calc(var(--u)*130px);min-width:calc(var(--u)*330px);padding:0 calc(var(--u)*40px);border-radius:999px;display:flex;align-items:center;justify-content:center;gap:var(--g);font-size:calc(var(--u)*54px);white-space:nowrap;color:#fff!important;border:calc(var(--u)*5px) solid #fff!important;background:linear-gradient(#8ff0a6 0,#4fdc7c 48%,#2fcb62 52%,#1fb152 100%);box-shadow:0 calc(var(--u)*8px) 0 #158a3f,0 calc(var(--u)*14px) calc(var(--u)*18px) rgba(20,90,50,.35);text-shadow:0 calc(var(--u)*3px) 0 #158a3f;animation:n-pulse 1.1s ease-in-out infinite}
+@keyframes n-pulse{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion: reduce){.hud *{animation-duration:.01s!important;animation-iteration-count:1!important}}
+#load{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#fff6d6,#ffd08a 70%);transition:opacity .3s}
+#load.out{opacity:0;pointer-events:none}
+#load i{width:min(22vmin,130px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 12%,#ff9a3c 40%,#d96f1a);border:min(1.4vmin,8px) solid #fff;animation:l-jig .7s ease-in-out infinite}
+@keyframes l-jig{50%{transform:scale(1.15,.85) translateY(10%)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="load" aria-hidden="true"><i></i></div>
+<script>
+// the loader goes once the first frame is drawn; a script error never leaves it up for good
+(function () { var el = document.getElementById('load'); window.__load = { done: function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 350); } }; addEventListener('error', function () { setTimeout(function () { if (document.getElementById('load')) window.__load.done(); }, 4000); }); })();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" } }</script>
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
