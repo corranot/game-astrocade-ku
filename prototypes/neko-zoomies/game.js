@@ -349,7 +349,7 @@ class WorldBuilder {
     H.add(G.box, '#ffffff', -11.84, 5.6, 5, 0, 0, 0, 0.08, 4.0, 0.18); H.add(G.box, '#ffffff', -11.84, 5.6, 5, 0, 0, 0, 0.08, 0.18, 5.0);
     const paneMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 }); D.push(paneMat);
     plane(4.9, 3.9, paneMat, -11.86, 5.6, 5, 0, Math.PI / 2).receiveShadow = false;
-    const shaftTex = canvasTex(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,240,190,0.5)'); gr.addColorStop(1, 'rgba(255,240,190,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+    const shaftTex = canvasTex(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, `rgba(255,240,190,${this.cfg.room.sunShaft})`); gr.addColorStop(1, 'rgba(255,240,190,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
     D.push(shaftTex);
     const shaftMat = new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }); D.push(shaftMat);
     const shaftGeo = new THREE.PlaneGeometry(4.6, 11); D.push(shaftGeo);
@@ -920,6 +920,8 @@ class CatController {
       this.vy = 0; this.grounded = true; this.lastGround = now; this.ground = g;
       if (!wasGround) {
         const fall = this.peak - this.y;
+        // the fall is over: a rebound from here starts counting from this height, not from the old one
+        this.peak = this.y;
         ev = { type: 'land', fall, speed: -landVy, g };
         this.squashV = -clamp(-landVy * 0.6, 2, 9);
         this.pounce = null;
@@ -2154,6 +2156,13 @@ class Game {
       give(n) { g.gain(n); }, addPurr(n) { g.addPurr(n); }, eventNow(kind) { if (g.event) g.endEvent(); g.startEvent(kind); }, swipe() { g.swipe(); },
       info() { return { geometries: g.renderer.info.memory.geometries, textures: g.renderer.info.memory.textures, calls: g.renderer.info.render.calls, tris: g.renderer.info.render.triangles }; },
       setYaw(y) { g.rig.yaw = y; g.rig.dragT = 0; },
+      /** Share of the 3D picture that is nearly white (every channel above 240 of 255). */
+      glare() {
+        const gl = g.renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(w * h * 4);
+        g.renderer.render(g.scene, g.camera); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        let n = 0; for (let i = 0; i < px.length; i += 4) if (px[i] > 240 && px[i + 1] > 240 && px[i + 2] > 240) n++;
+        return n / (w * h);
+      },
       tailTip() { const v = new THREE.Vector3(); g.cat.tail[5].getWorldPosition(v); return { x: v.x, y: v.y, z: v.z }; },
       headTip() { const v = new THREE.Vector3(0, 0, 0.36); g.cat.head.localToWorld(v); return { x: v.x, y: v.y, z: v.z }; },
       get cam() { const c = g.camera.position, t = g.rig.target; return { x: c.x, y: c.y, z: c.z, tx: t.x, ty: t.y, tz: t.z }; },

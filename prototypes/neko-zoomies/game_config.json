@@ -1,6 +1,7 @@
 {
  "room": {
-  "height": 10
+  "height": 10,
+  "sunShaft": 0.16
  },
  "cat": {
   "speed": 6.2,
