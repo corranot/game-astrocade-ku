@@ -1,0 +1,573 @@
+{
+ "room": {
+  "height": 10
+ },
+ "cat": {
+  "speed": 6.2,
+  "accel": 30,
+  "airControl": 0.55,
+  "gravity": 22,
+  "jump": 8.2,
+  "coyote": 0.15,
+  "buffer": 0.15,
+  "radius": 0.42,
+  "height": 0.9,
+  "stepUp": 0.36,
+  "softFall": 2.6,
+  "softBounce": 6,
+  "pickRange": 7.5,
+  "swipeRange": 2.4,
+  "swipePower": 4.5,
+  "headReach": 0.47,
+  "headRadius": 0.34,
+  "headHeight": 1.2,
+  "tailReach": 0.5,
+  "tailRadius": 0.24,
+  "headLow": 0.7,
+  "tailLow": 0.45,
+  "swipeCooldown": 0.4,
+  "swipeUp": 2.8
+ },
+ "skin": {
+  "id": "calico",
+  "pattern": "patches",
+  "base": "#fff8ee",
+  "stripe": "#5a4038",
+  "point": "#f5a04a",
+  "belly": "#ffffff",
+  "muzzle": "#ffffff"
+ },
+ "bounce": {
+  "cushion": 9.5,
+  "sofa": 10.5,
+  "whale": 9,
+  "whaleEvent": 15
+ },
+ "camera": {
+  "dist": 7.4,
+  "distHigh": 8.6,
+  "pitch": 0.34,
+  "pitchHigh": 0.24,
+  "fov": 62,
+  "follow": 6,
+  "dragSpeed": 0.0065,
+  "autoAlign": 0.55,
+  "fovFever": 76,
+  "tilt": 0.026,
+  "maxY": 9.6
+ },
+ "props": {
+  "gravity": 22,
+  "sleepSpeed": 0.18,
+  "sleepTime": 0.45,
+  "knockDrop": 0.7,
+  "pushStar": 2.2,
+  "tidyAfter": 22,
+  "tidyFar": 6,
+  "rollFriction": 1.1,
+  "slideFriction": 5,
+  "maxPush": 16
+ },
+ "score": {
+  "orb": 1,
+  "bat": 1,
+  "knock": 1,
+  "knockHigh": 2,
+  "highDrop": 2.4,
+  "fish": 40,
+  "laser": 30,
+  "bubble": 3,
+  "piano": 1,
+  "domino": 1,
+  "comboWindow": 2.5,
+  "comboMul": [
+   1,
+   2,
+   3,
+   5
+  ],
+  "hitStop": 0.035,
+  "bonusEvery": 500,
+  "boardEvery": 25,
+  "knockMemory": 6
+ },
+ "purr": {
+  "orb": 2,
+  "knock": 4,
+  "bat": 1,
+  "max": 100
+ },
+ "fever": {
+  "time": 12,
+  "speedMul": 2,
+  "jumpMul": 2,
+  "magnet": 7,
+  "magnetSpeed": 14,
+  "push": 2.6
+ },
+ "orbs": {
+  "respawn": 18,
+  "radius": 0.95,
+  "spots": [
+   [
+    3.4,
+    0.7,
+    2.0
+   ],
+   [
+    2.4,
+    0.7,
+    4.4
+   ],
+   [
+    0.0,
+    0.7,
+    5.4
+   ],
+   [
+    -2.4,
+    0.7,
+    4.4
+   ],
+   [
+    -3.4,
+    0.7,
+    2.0
+   ],
+   [
+    -2.4,
+    0.7,
+    -0.4
+   ],
+   [
+    -0.0,
+    0.7,
+    -1.4
+   ],
+   [
+    2.4,
+    0.7,
+    -0.4
+   ],
+   [
+    2.15,
+    0.7,
+    9.0
+   ],
+   [
+    4.35,
+    0.7,
+    9.0
+   ],
+   [
+    7.65,
+    0.7,
+    9.0
+   ],
+   [
+    9.850000000000001,
+    0.7,
+    9.0
+   ],
+   [
+    -3,
+    2.3,
+    -3
+   ],
+   [
+    -5.4,
+    2.4,
+    -5.6
+   ],
+   [
+    -3,
+    0.7,
+    0.2
+   ],
+   [
+    -6.5,
+    0.7,
+    -3.2
+   ],
+   [
+    -7.8,
+    1.9,
+    -8.6
+   ],
+   [
+    -6.6,
+    1.9,
+    -9.4
+   ],
+   [
+    -2.5,
+    2.0,
+    -8.3
+   ],
+   [
+    -10.2,
+    1.8,
+    -5.6
+   ],
+   [
+    -10.2,
+    3.2,
+    -4.0
+   ],
+   [
+    -10.2,
+    1.8,
+    -2.4
+   ],
+   [
+    -11.7,
+    3.0,
+    -4.0
+   ],
+   [
+    -2.9,
+    0.7,
+    -10.8
+   ],
+   [
+    -2.1,
+    0.7,
+    -10.8
+   ],
+   [
+    -4.4,
+    3.2,
+    -10.2
+   ],
+   [
+    -2.5,
+    3.2,
+    -10.6
+   ],
+   [
+    -0.8,
+    3.2,
+    -10.2
+   ],
+   [
+    0.7,
+    4.3,
+    -10.9
+   ],
+   [
+    1.7,
+    4.3,
+    -10.9
+   ],
+   [
+    3.0,
+    5.4,
+    -10.9
+   ],
+   [
+    4.0,
+    5.4,
+    -10.9
+   ],
+   [
+    5.2,
+    6.5,
+    -10.9
+   ],
+   [
+    6.4,
+    6.5,
+    -10.9
+   ],
+   [
+    8.4,
+    7.6,
+    -10.6
+   ],
+   [
+    9.3,
+    7.6,
+    -9.8
+   ],
+   [
+    9.6,
+    8.3,
+    -7.4
+   ],
+   [
+    10.4,
+    8.3,
+    -6.6
+   ],
+   [
+    7.2,
+    9.0,
+    -5.0
+   ],
+   [
+    8.0,
+    9.0,
+    -4.2
+   ],
+   [
+    8.5,
+    3.2,
+    2.5
+   ],
+   [
+    8.5,
+    4.6,
+    2.5
+   ],
+   [
+    6.6,
+    0.7,
+    4.2
+   ],
+   [
+    10.4,
+    0.7,
+    0.4
+   ],
+   [
+    -10.5,
+    0.7,
+    10.5
+   ],
+   [
+    10.5,
+    0.7,
+    10.5
+   ],
+   [
+    10.5,
+    0.7,
+    -3.5
+   ],
+   [
+    -10.5,
+    0.7,
+    2.5
+   ],
+   [
+    -8,
+    0.7,
+    5
+   ],
+   [
+    -6,
+    0.7,
+    6.5
+   ],
+   [
+    4.5,
+    0.7,
+    -4
+   ],
+   [
+    1.5,
+    0.7,
+    -6.5
+   ],
+   [
+    5.5,
+    0.7,
+    -7.5
+   ],
+   [
+    0,
+    0.7,
+    10.6
+   ]
+  ]
+ },
+ "hats": [
+  {
+   "id": "shark",
+   "at": 100
+  },
+  {
+   "id": "wizard",
+   "at": 250
+  },
+  {
+   "id": "wings",
+   "at": 450
+  },
+  {
+   "id": "crown",
+   "at": 700
+  },
+  {
+   "id": "jetpack",
+   "at": 1000
+  }
+ ],
+ "events": {
+  "first": 30,
+  "every": 90,
+  "laserLife": 20,
+  "bubbleLife": 18,
+  "flee": 2.4,
+  "darts": 3,
+  "catchDist": 0.85,
+  "bubbleEvery": 0.4
+ },
+ "piano": {
+  "x0": 1.6,
+  "key": 1.1,
+  "z0": 7.6,
+  "z1": 10.4,
+  "cooldown": 3,
+  "notes": [
+   261.63,
+   293.66,
+   329.63,
+   349.23,
+   392.0,
+   440.0,
+   493.88,
+   523.25
+  ]
+ },
+ "robot": {
+  "speed": 1.6,
+  "path": [
+   [
+    -6,
+    4
+   ],
+   [
+    3,
+    5
+   ],
+   [
+    5.5,
+    -3
+   ],
+   [
+    2.5,
+    -5.5
+   ]
+  ]
+ },
+ "dominoes": {
+  "x": -9.2,
+  "z": 7.6,
+  "yaw": 1.25,
+  "gap": 0.62,
+  "count": 10,
+  "reset": 14
+ },
+ "fish": {
+  "respawn": 60,
+  "spots": [
+   [
+    5.75,
+    6.7,
+    -10.9
+   ],
+   [
+    10,
+    8.5,
+    -7
+   ],
+   [
+    7.6,
+    9.2,
+    -4.6
+   ]
+  ]
+ },
+ "strings": {
+  "en": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "The Great Toyroom Caper",
+   "play": "PLAY!",
+   "tap": "TAP TO PLAY!",
+   "zoomies": "MEGA ZOOMIES!",
+   "hat_shark": "SHARK HAT!",
+   "hat_wizard": "WIZARD HAT!",
+   "hat_wings": "BUTTERFLY WINGS!",
+   "hat_crown": "GOLDEN CROWN!",
+   "hat_jetpack": "ROCKET JETPACK!"
+  },
+  "ar": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "مغامرة غرفة الألعاب",
+   "play": "العب!",
+   "tap": "اضغط للعب!",
+   "zoomies": "ميغا زوميز!",
+   "hat_shark": "قبعة القرش!",
+   "hat_wizard": "قبعة الساحر!",
+   "hat_wings": "أجنحة الفراشة!",
+   "hat_crown": "التاج الذهبي!",
+   "hat_jetpack": "حقيبة الصاروخ!"
+  },
+  "es": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "La gran travesura de los juguetes",
+   "play": "¡JUGAR!",
+   "tap": "¡TOCA PARA JUGAR!",
+   "zoomies": "¡MEGA ZOOMIES!",
+   "hat_shark": "¡GORRO DE TIBURÓN!",
+   "hat_wizard": "¡SOMBRERO DE MAGO!",
+   "hat_wings": "¡ALAS DE MARIPOSA!",
+   "hat_crown": "¡CORONA DORADA!",
+   "hat_jetpack": "¡MOCHILA COHETE!"
+  },
+  "vi": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "Phi vụ phòng đồ chơi",
+   "play": "CHƠI!",
+   "tap": "CHẠM ĐỂ CHƠI!",
+   "zoomies": "MEGA ZOOMIES!",
+   "hat_shark": "MŨ CÁ MẬP!",
+   "hat_wizard": "MŨ PHÙ THỦY!",
+   "hat_wings": "CÁNH BƯỚM!",
+   "hat_crown": "VƯƠNG MIỆN VÀNG!",
+   "hat_jetpack": "BA LÔ TÊN LỬA!"
+  },
+  "hi": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "खिलौना कमरे की बड़ी शरारत",
+   "play": "खेलो!",
+   "tap": "खेलने के लिए टैप करो!",
+   "zoomies": "मेगा ज़ूमीज़!",
+   "hat_shark": "शार्क टोपी!",
+   "hat_wizard": "जादूगर टोपी!",
+   "hat_wings": "तितली के पंख!",
+   "hat_crown": "सुनहरा ताज!",
+   "hat_jetpack": "रॉकेट जेटपैक!"
+  },
+  "bn": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "খেলনা ঘরের বড় দুষ্টুমি",
+   "play": "খেলো!",
+   "tap": "খেলতে ট্যাপ করো!",
+   "zoomies": "মেগা জুমিজ!",
+   "hat_shark": "হাঙর টুপি!",
+   "hat_wizard": "জাদুকর টুপি!",
+   "hat_wings": "প্রজাপতির ডানা!",
+   "hat_crown": "সোনার মুকুট!",
+   "hat_jetpack": "রকেট জেটপ্যাক!"
+  },
+  "id": {
+   "title1": "NEKO ZOOMIES",
+   "title2": "Petualangan Kamar Mainan",
+   "play": "MAIN!",
+   "tap": "KETUK UNTUK MAIN!",
+   "zoomies": "MEGA ZOOMIES!",
+   "hat_shark": "TOPI HIU!",
+   "hat_wizard": "TOPI PENYIHIR!",
+   "hat_wings": "SAYAP KUPU-KUPU!",
+   "hat_crown": "MAHKOTA EMAS!",
+   "hat_jetpack": "JETPACK ROKET!"
+  }
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ }
+}
