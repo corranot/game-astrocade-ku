@@ -109,6 +109,8 @@ export function createScene(canvas) {
 
   return {
     renderer, kit, fx, loadLevel, update, resize,
+    /** The model of roped thing `id` on the stage. */
+    view: (id) => view.actors[id].group,
     /** Play-plane point under a client position, as [x, y]. */
     worldAt(cx, cy) { const r = canvas.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, 1 - (cy - r.top) / r.height * 2); ray.setFromCamera(ndc, camera); ray.ray.intersectPlane(plane, hitP); return [hitP.x, hitP.y]; },
     /** Frame position (0..720, 0..1280) of a play-plane point. */

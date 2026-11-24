@@ -81,7 +81,7 @@ export default {
       items: [
         { id: 'shade', result: 'gag', rope: rope(-2.4, RED, 0.12), body: thing('umbrella', 0, 3.0, 1.0, { m: 1, lift: 30 }), goal: at(0, 10.5, 1.4), fx: 'stars', sound: 'boing', react: 'wow', pop: true, fxAt: [0, 3.2], sticker: '⛱️' },
         { id: 'bucket', result: 'win', needs: 'shade', rope: rope(0, BLUE), body: thing('bucket', 0, 6.5, 0.48, { m: 1 }), goal: at(0, 2.4), fx: 'splash', sound: 'splash', react: 'happy', untint: true, pop: true, burst: 2, sticker: '🐼',
-          early: { goal: at(0, 4.1, 0.5), fx: 'splash', sound: 'splash', react: 'laugh', untint: false, burst: 1, sticker: '☔' } },
+          early: { goal: at(0, 4.1, 0.5), fx: 'splash', sound: 'splash', react: 'laugh', pop: true, sticker: '☔' } },
         { id: 'ball', result: 'gag', rope: rope(2.1, YELLOW), body: thing('ball', 2.1, 6.0, 0.46, { m: 0.7, rest: 0.75 }), goal: at(1.5, 0.46, 0.5), fx: 'stars', sound: 'boing', react: 'dizzy', sticker: '💫' },
       ] },
   ],
