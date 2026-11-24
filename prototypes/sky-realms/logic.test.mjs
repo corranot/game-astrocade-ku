@@ -13,8 +13,8 @@ const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8
 const code = fs.readFileSync(path.join(dir, 'game.js'), 'utf8');
 const ctx = { window: {}, navigator: { languages: ['en'] }, console, Math, JSON, Map, Set, Promise, setTimeout };
 vm.createContext(ctx);
-vm.runInContext(code + '\n;globalThis.__T = { VoxelWorld, STRUCTURES, B, BLOCKS, FACES, AO_LEVEL, isOre, solidT, detectLang, SCALE };', ctx);
-const { VoxelWorld, STRUCTURES, B, BLOCKS, detectLang, SCALE } = ctx.__T;
+vm.runInContext(code + '\n;globalThis.__T = { VoxelWorld, STRUCTURES, B, BLOCKS, FACES, AO_LEVEL, isOre, solidT, detectLang, SCALE, DEFAULT_CFG, mergeCfg };', ctx);
+const { VoxelWorld, STRUCTURES, B, BLOCKS, detectLang, SCALE, DEFAULT_CFG, mergeCfg } = ctx.__T;
 
 let fails = 0, n = 0;
 const check = (ok, msg) => { n++; if (!ok) { fails++; console.log('FAIL ' + msg); } else console.log('ok   ' + msg); };
@@ -144,6 +144,18 @@ for (const bp of cfg.blueprints) {
   w4.set(ox, oy, oz, B.GOLDORE); check(w4.ores.size === before4, 'placed ore joins the ore list');
   // remesh marks: an edit on a chunk border also dirties the neighbour
   w4.dirty.clear(); w4.set(16, 40, 40, B.CANDY); check(w4.dirty.size === 2, 'edit on a chunk border remeshes both chunks');
+}
+// ---- built-in defaults (used when the host sends no or a broken config)
+{
+  // a fresh read: world generation writes island tops into the shared cfg object
+  const want = JSON.parse(fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8')); delete want.persistent_storage_config;
+  check(JSON.stringify(DEFAULT_CFG) === JSON.stringify(want), 'built-in defaults equal game_config.json (regenerate DEFAULT_CFG if this fails)');
+  const full = JSON.stringify(mergeCfg(DEFAULT_CFG, null));
+  check(full === JSON.stringify(want), 'no host config: defaults used');
+  const raw = fs.readFileSync(path.join(dir, 'game_config.json'), 'utf8'); check(JSON.stringify(mergeCfg(DEFAULT_CFG, raw)) === JSON.stringify(JSON.parse(raw)), 'config sent as JSON text is read');
+  const part = mergeCfg(DEFAULT_CFG, { player: { speed: 5.5, jump: 'high' }, islands: [], extra: 1 });
+  check(part.player.speed === 5.5 && part.player.jump === DEFAULT_CFG.player.jump && part.islands.length === 4 && part.world.w === 128 && part.extra === 1, 'partial config: own values win, wrong types and empty lists fall back');
+  check(mergeCfg(DEFAULT_CFG, 'not json').world.w === 128, 'unreadable config text falls back to defaults');
 }
 // ---- config sanity
 {

@@ -1175,7 +1175,7 @@ class BlueprintSystem {
     const x = b.cv.getContext('2d'), inv = this.g.S.inv, keys = Object.keys(b.cost);
     x.clearRect(0, 0, 512, 160);
     x.fillStyle = 'rgba(40,24,90,0.78)'; x.strokeStyle = '#ffffff'; x.lineWidth = 6;
-    x.beginPath(); x.roundRect(4, 4, 504, 152, 34); x.fill(); x.stroke();
+    x.beginPath(); if (x.roundRect) x.roundRect(4, 4, 504, 152, 34); else x.rect(4, 4, 504, 152); x.fill(); x.stroke();
     const w = 496 / keys.length;
     keys.forEach((k, i) => {
       const cx = 8 + w * i + w / 2, have = Math.min(inv[k] || 0, b.cost[k]), ok = !miss[k];
@@ -2126,17 +2126,45 @@ class GameApp {
   }
 }
 
+// ---------------------------------------------------------------- default config
+// The same values as game_config.json (a test keeps them equal), so the game still starts when the host sends a
+// missing, partial, reformatted or stringified config; whatever the host does send wins.
+const DEFAULT_CFG = {"world":{"w":128,"h":64,"d":128,"seed":20261124,"voidY":-6,"spawn":[62.5,0,74.5]},"islands":[{"id":"meadow","x":64,"y":30,"z":70,"r":15,"amp":2.5,"pad":[64,64],"beam":"#7dff9a"},{"id":"crystal","x":96,"y":30,"z":70,"r":12,"amp":2.0,"pad":[97,68],"beam":"#6ff3ff"},{"id":"candy","x":66,"y":35,"z":32,"r":12,"amp":2.0,"pad":[70,31],"beam":"#ff9be0"},{"id":"volcano","x":26,"y":30,"z":52,"r":14,"amp":2.0,"pad":[28,54],"beam":"#ffb347"}],"player":{"speed":4.6,"accel":14,"airAccel":5,"gravity":26,"jump":8.6,"coyote":0.12,"jumpBuffer":0.14,"reach":6.5,"eye":1.55,"cloudBounce":13.5,"lookSpeed":0.0026,"touchLook":0.0055},"mining":{"hard":{"1":0.45,"2":0.4,"3":0.85,"4":0.7,"5":0.6,"6":0.22,"7":0.9,"8":1.0,"9":0.6,"10":1.1,"12":0.3,"13":0.7,"14":0.3,"15":0.9,"16":0.22,"17":0.8,"18":0.3},"yield":{"7":3,"8":2,"17":2},"gaugePts":{"7":3,"8":4,"17":2,"10":2},"comboReset":2.0,"hitEvery":0.24},"tools":[{"id":"wood","speed":1,"at":0},{"id":"crystal","speed":2,"at":25},{"id":"gold","speed":3,"at":95,"splash":true},{"id":"cosmic","speed":40,"at":230,"splash":true,"shock":true}],"eggs":{"chance":0.2,"pity":6,"hatchTime":2.2,"max":3},"pets":{"species":["fox","bunny","turtle","dragon"],"follow":7,"damping":4.2,"seekRadius":9,"seekEvery":7,"mineTime":1.6,"maxActive":3},"blueprints":[{"id":"tree","island":"meadow","cost":{"4":10,"3":8,"16":6}},{"id":"fountain","island":"crystal","cost":{"7":12,"3":10,"12":4}},{"id":"bridge","island":"candy","cost":{"9":12,"14":8,"8":6}},{"id":"castle","island":"volcano","cost":{"15":20,"10":8,"8":6,"7":6}}],"build":{"stagger":0.022,"fly":0.42,"gaugeBonus":20,"maxFlying":70},"day":{"length":360,"start":0.08},"save":{"every":15},"langNames":{"en":"English","ar":"العربية","es":"Español","vi":"Tiếng Việt","hi":"हिन्दी","bn":"বাংলা","id":"Indonesia"},"strings":{"en":{"title":"Voxel Wonderland","sub":"Sky Realms","play":"PLAY!","build":"BUILD!","need":"Need more!","mine":"Hold to mine!","find":"Find the glowing pad!","egg":"Golden egg!","home":"Back home!","petUp":"Pets power up!","saved":"Saved!","night":"Starry night!","t_crystal":"Crystal Pickaxe!","t_gold":"Golden Star Pickaxe!","t_cosmic":"Cosmic Rainbow Pickaxe!","p_fox":"Fire Fox!","p_bunny":"Cloud Bunny!","p_turtle":"Emerald Turtle!","p_dragon":"Starlight Dragon!","b_tree":"Cozy Treehouse!","b_fountain":"Crystal Fountain!","b_bridge":"Rainbow Bridge!","b_castle":"Dragon Castle!"},"ar":{"title":"عالم المكعبات","sub":"ممالك السماء","play":"!العب","build":"!ابنِ","need":"!تحتاج المزيد","mine":"!اضغط للحفر","find":"!جد المنصة المضيئة","egg":"!بيضة ذهبية","home":"!عدنا للبيت","petUp":"!الحيوانات أقوى","saved":"!تم الحفظ","night":"!ليلة النجوم","t_crystal":"!فأس الكريستال","t_gold":"!فأس النجمة الذهبية","t_cosmic":"!فأس قوس قزح","p_fox":"!ثعلب النار","p_bunny":"!أرنب الغيم","p_turtle":"!سلحفاة الزمرد","p_dragon":"!تنين النجوم","b_tree":"!بيت الشجرة","b_fountain":"!نافورة الكريستال","b_bridge":"!جسر قوس قزح","b_castle":"!قلعة التنين"},"es":{"title":"Mundo Bloque","sub":"Reinos del Cielo","play":"¡JUGAR!","build":"¡CONSTRUIR!","need":"¡Falta más!","mine":"¡Mantén para picar!","find":"¡Busca la base brillante!","egg":"¡Huevo dorado!","home":"¡De vuelta!","petUp":"¡Mascotas más fuertes!","saved":"¡Guardado!","night":"¡Noche de estrellas!","t_crystal":"¡Pico de cristal!","t_gold":"¡Pico estrella dorada!","t_cosmic":"¡Pico arcoíris!","p_fox":"¡Zorro de fuego!","p_bunny":"¡Conejo nube!","p_turtle":"¡Tortuga esmeralda!","p_dragon":"¡Dragón estelar!","b_tree":"¡Casa del árbol!","b_fountain":"¡Fuente de cristal!","b_bridge":"¡Puente arcoíris!","b_castle":"¡Castillo dragón!"},"vi":{"title":"Thế Giới Khối","sub":"Vương Quốc Bầu Trời","play":"CHƠI!","build":"XÂY!","need":"Cần thêm!","mine":"Giữ để đào!","find":"Tìm bệ phát sáng!","egg":"Trứng vàng!","home":"Về nhà!","petUp":"Thú cưng mạnh hơn!","saved":"Đã lưu!","night":"Đêm đầy sao!","t_crystal":"Cuốc pha lê!","t_gold":"Cuốc sao vàng!","t_cosmic":"Cuốc cầu vồng!","p_fox":"Cáo lửa!","p_bunny":"Thỏ mây!","p_turtle":"Rùa ngọc lục!","p_dragon":"Rồng sao!","b_tree":"Nhà trên cây!","b_fountain":"Đài phun pha lê!","b_bridge":"Cầu cầu vồng!","b_castle":"Lâu đài rồng!"},"hi":{"title":"ब्लॉक वंडरलैंड","sub":"आसमानी दुनिया","play":"खेलो!","build":"बनाओ!","need":"और चाहिए!","mine":"खोदने को दबाओ!","find":"चमकता पैड ढूँढो!","egg":"सुनहरा अंडा!","home":"घर वापस!","petUp":"पालतू और ताकतवर!","saved":"सेव हुआ!","night":"तारों की रात!","t_crystal":"क्रिस्टल कुदाल!","t_gold":"सुनहरी तारा कुदाल!","t_cosmic":"इंद्रधनुष कुदाल!","p_fox":"आग लोमड़ी!","p_bunny":"बादल खरगोश!","p_turtle":"पन्ना कछुआ!","p_dragon":"तारा ड्रैगन!","b_tree":"पेड़ का घर!","b_fountain":"क्रिस्टल फव्वारा!","b_bridge":"इंद्रधनुष पुल!","b_castle":"ड्रैगन महल!"},"bn":{"title":"ব্লক ওয়ান্ডারল্যান্ড","sub":"আকাশ রাজ্য","play":"খেলো!","build":"বানাও!","need":"আরও লাগবে!","mine":"খুঁড়তে চেপে ধরো!","find":"উজ্জ্বল প্যাড খোঁজো!","egg":"সোনার ডিম!","home":"বাড়ি ফিরলাম!","petUp":"পোষা আরও শক্তিশালী!","saved":"সেভ হলো!","night":"তারার রাত!","t_crystal":"ক্রিস্টাল গাঁইতি!","t_gold":"সোনালি তারা গাঁইতি!","t_cosmic":"রংধনু গাঁইতি!","p_fox":"আগুন শিয়াল!","p_bunny":"মেঘ খরগোশ!","p_turtle":"পান্না কচ্ছপ!","p_dragon":"তারা ড্রাগন!","b_tree":"গাছবাড়ি!","b_fountain":"ক্রিস্টাল ফোয়ারা!","b_bridge":"রংধনু সেতু!","b_castle":"ড্রাগন দুর্গ!"},"id":{"title":"Dunia Balok","sub":"Negeri Langit","play":"MAIN!","build":"BANGUN!","need":"Kurang banyak!","mine":"Tahan untuk gali!","find":"Cari alas bersinar!","egg":"Telur emas!","home":"Pulang lagi!","petUp":"Peliharaan makin kuat!","saved":"Tersimpan!","night":"Malam berbintang!","t_crystal":"Beliung kristal!","t_gold":"Beliung bintang emas!","t_cosmic":"Beliung pelangi!","p_fox":"Rubah api!","p_bunny":"Kelinci awan!","p_turtle":"Kura-kura zamrud!","p_dragon":"Naga bintang!","b_tree":"Rumah pohon!","b_fountain":"Air mancur kristal!","b_bridge":"Jembatan pelangi!","b_castle":"Kastel naga!"}}};
+/** Deep-merges a host config over the defaults; values of a different type than the default are ignored. */
+function mergeCfg(def, over) {
+  if (typeof over === 'string') { try { over = JSON.parse(over); } catch (e) { over = null; } }
+  if (!over || typeof over !== 'object' || Array.isArray(over)) return JSON.parse(JSON.stringify(def));
+  const out = Array.isArray(def) ? [] : {};
+  for (const k of new Set([...Object.keys(def), ...Object.keys(over)])) {
+    const d = def[k], o = over[k];
+    if (d === undefined) out[k] = o;
+    else if (o === undefined || o === null) out[k] = JSON.parse(JSON.stringify(d));
+    else if (Array.isArray(d)) out[k] = JSON.parse(JSON.stringify(Array.isArray(o) && o.length ? o : d));
+    else if (typeof d === 'object') out[k] = mergeCfg(d, o);
+    else out[k] = typeof o === typeof d ? o : d;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- run
 let lastWrite = Promise.resolve();
 let game = null, pendingGo = null;
 /** Host entry point: run('play') or run('edit'); may be called more than once. */
 function run(mode) {
   if (game) { game.destroy(); game = null; }
+  window.__runCalled = true;
   const go = () => {
     if (game) { game.destroy(); game = null; }
     const root = document.getElementById('app');
-    try { game = new GameApp(root, window.gameConfig, mode === 'edit' ? 'edit' : 'play'); }
-    catch (e) { console.warn('start failed', e); root.innerHTML = '<div id="fail"><button aria-label="retry" onclick="location.reload()">&#8635;</button></div>'; }
+    try { game = new GameApp(root, mergeCfg(DEFAULT_CFG, window.gameConfig), mode === 'edit' ? 'edit' : 'play'); }
+    catch (e) {
+      // the reason is shown under the retry button so a player's screenshot names the cause
+      const at = String((e && e.stack) || '').split('\n').find((l) => /:\d+:\d+/.test(l)) || '';
+      const why = 'E3 ' + ((e && e.message) || String(e)) + (at ? ' @' + at.trim().split('/').pop().replace(/\)$/, '') : '');
+      console.warn('start failed', e); game = null;
+      if (window.__bootFail) { root.innerHTML = ''; window.__bootFail(why); }
+      else root.innerHTML = '<div id="fail"><button aria-label="retry" onclick="location.reload()">&#8635;</button></div>';
+    }
     // dev:start
     window.__game = game;
     // dev:end
