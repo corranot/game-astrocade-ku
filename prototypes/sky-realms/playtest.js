@@ -338,6 +338,8 @@ const run = (name) => !ONLY || ONLY === name;
     const b12 = await p.evaluate(() => ({ bar: __game.S.bar.slice(0, 4), inv: __game.S.inv, lvl: __game.pets.pets.map((q) => q.lvl) }));
     check(JSON.stringify(b12.bar) === '[0,0,0,3]' && !b12.inv[19] && !b12.inv['1e1'] && b12.inv[3] === 2, `saved hotbar/inventory keep only real block ids, never pads (${JSON.stringify(b12)})`);
     check(b12.lvl.join() === '1', 'pet power-up survives a reload');
+    const lb = await p.evaluate(async () => { const g = __game; let bad = 0; const on = () => { bad++; }; window.addEventListener('unhandledrejection', on); const keep = lib.addPlayerScoreToLeaderboard; lib.addPlayerScoreToLeaderboard = () => Promise.reject(new Error('guest')); g.wonderDone(g.blueprints.list[3]); await new Promise((r) => setTimeout(r, 200)); lib.addPlayerScoreToLeaderboard = keep; window.removeEventListener('unhandledrejection', on); return bad; });
+    check(lb === 0, 'a refused leaderboard post (guest) is caught, no unhandled rejection');
     check(p.errors.length === 0, 'no page errors in bug checks: ' + p.errors.join(' / '));
     // run() twice before Three.js has arrived: one game, not two
     const two = await p.evaluate(() => new Promise((res) => { const T = window.THREE; window.THREE = undefined; const live = window.__liveGames; run('play'); run('play'); window.THREE = T; window.dispatchEvent(new Event('three-ready')); setTimeout(() => res({ before: live, after: window.__liveGames }), 300); }));

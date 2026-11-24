@@ -1945,7 +1945,7 @@ class GameApp {
     const before = this.tier(); this.S.gauge += this.cfg.build.gaugeBonus; if (this.tier() !== before) this.toolUp(this.tier());
     this.pets.egg(p.x + 1, p.y + 1, p.z + 1);
     this.hudDirty = true; this.saveDue(); this.flushSave();
-    try { lib.addPlayerScoreToLeaderboard(this.S.built.length * 1000 + this.S.mined, 'wonders'); } catch (e) { /* no board here */ }
+    try { Promise.resolve(lib.addPlayerScoreToLeaderboard(this.S.built.length * 1000 + this.S.mined)).catch(() => {}); } catch (e) { /* no board here */ }
   }
   onBounce(p) { this.sound.boing(); this.vfx.sparkles(p.x, p.y, p.z, 0xb9c8f0, 14, 3, 0.18); this.trauma = Math.min(1, this.trauma + 0.15); buzz('light'); }
   respawn() {

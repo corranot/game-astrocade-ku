@@ -8,6 +8,7 @@ mkdir -p "$out"
 for p in "$src"/index.html "$src"/*.js; do # every module the game loads; test scripts stay home
   f=$(basename "$p")
   grep -q "require('playwright')" "$p" && continue # test and check scripts drive a browser; they never ship
+  grep -q "require('fs')" "$p" && continue # Node build tools (e.g. build-single.js) read files; they never ship
   # dev-only code (cheats, test hooks) sits between a line that is only "// dev:start" (or "<!-- dev:start -->")
   # and one that is only "// dev:end", and never ships. Any other use of the markers (same line, inside a string,
   # nested, reversed, left open) could cut real code, so it fails instead.
