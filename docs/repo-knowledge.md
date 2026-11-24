@@ -34,7 +34,7 @@ Teks lengkap 53 pelajaran: `docs/lessons-log.md`; riwayat tiap game (draft, sync
 | `pipeline.test.mjs` | Uji Node (9): pack sheet, kunci resep, lock aset + adopt (server palsu), blok DEV termasuk penanda satu baris/terbalik/dalam string | Dijalankan `ci-checks.sh` |
 | `market-check.js [--report|--selftest]` | Tangkap astrotopper + flag beranda + feed ke `production/market/<UTC>/`, beda dengan cek sebelumnya | Saat "cek backend" |
 | `competitor-check.js <id> <folder>` | Main satu game Astrocade sebagai tamu: tangkapan layar awal, ketuk, seret + `stack.json` (pustaka, ukuran kode, daftar aset, `disableRemix`) dari context-nya | Sebelum memilih genre atau menggambar (ASTROCADE.md §0.13, §0.18) |
-| `lint-game.mjs <dir>… | --self-test` | FAIL bila field kelas menimpa method bernama sama (pelajaran 51) atau `=> this.X()` tanpa argumen ke method yang langsung `if (!arg) return` (53); WARN bila `window.gameConfig` dipakai langsung sebagai config hidup (52). Fixture di `tools/fixtures/lint/` | Dijalankan `ci-checks.sh` |
+| `lint-game.mjs <dir>… | --self-test` | FAIL bila field kelas menimpa method bernama sama (pelajaran 51) atau `=> this.X()` tanpa argumen ke method yang langsung `if (!arg) return` (53); WARN bila `window.gameConfig` dipakai langsung sebagai config hidup (52). Fixture di `tools/lint-fixtures/` | Dijalankan `ci-checks.sh` |
 
 Pola uji per game yang dipakai ulang (bukan alat bersama): `playtest.js` dengan mode `ONLY=bugs` untuk uji mutan cepat, dan pilot simulasi (pengetuk asal vs pembidik) di `logic.test.mjs` untuk game ber-CPU (`prototypes/jelly-bump-party/`).
 

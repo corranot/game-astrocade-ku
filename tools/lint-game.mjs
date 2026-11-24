@@ -87,7 +87,7 @@ export function gameFiles(dir) {
 }
 
 function selfTest() {
-  const fx = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'lint');
+  const fx = path.join(path.dirname(fileURLToPath(import.meta.url)), 'lint-fixtures');
   const want = { 'shadow.js': ['shadow'], 'deadcall.js': ['deadcall'], 'hostcfg.js': ['hostcfg'], 'clean.js': [] };
   let ok = true;
   for (const [f, rules] of Object.entries(want)) {
