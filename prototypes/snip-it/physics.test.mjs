@@ -3,7 +3,7 @@
 // brings its thing to its goal by itself in time. Usage: node physics.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, cut, hitRope, remove, segDist, STEP } from './physics.js';
+import { createWorld, step, cut, hitRope, remove, reset, setGoal, segDist, STEP } from './physics.js';
 import { LEVELS, buildLevel, allStickers, stickerId } from './levels.js';
 
 const WAITS = [0, 0.37, 1.1, 2.9, 6.3]; // seconds of sway before the cut
@@ -20,15 +20,18 @@ function arrive(i, id, wait, seg, tune) {
 
 test('every level has one win, two gags and three different stickers', () => {
   for (const l of LEVELS) {
-    assert.equal(l.items.length, 3, l.id);
+    assert.ok(l.items.length === 3 || l.items.length === 4, l.id + ' has 3 or 4 ropes');
     assert.equal(l.items.filter((x) => x.result === 'win').length, 1, l.id);
-    assert.equal(l.items.filter((x) => x.result === 'gag').length, 2, l.id);
-    assert.equal(new Set(l.items.map((x) => x.sticker)).size, 3, l.id);
-    assert.equal(new Set(l.items.map((x) => x.rope.color)).size, 3, l.id + ' rope colours differ');
+    assert.equal(l.items.filter((x) => x.result === 'gag').length, l.items.length - 1, l.id);
+    assert.equal(new Set(l.items.map((x) => x.sticker)).size, l.items.length, l.id);
+    assert.equal(new Set(l.items.map((x) => x.rope.color)).size, l.items.length, l.id + ' rope colours differ');
+    assert.equal(new Set(l.items.map((x) => x.id)).size, l.items.length, l.id + ' item ids differ');
     for (const it of l.items) assert.ok(it.goal && it.fx && it.sound && it.react, l.id + '/' + it.id);
   }
-  assert.equal(allStickers().length, LEVELS.length * 3);
-  assert.equal(new Set(allStickers().map((s) => s.id)).size, LEVELS.length * 3);
+  const n = LEVELS.reduce((a, l) => a + l.items.length + l.items.filter((x) => x.early).length, 0);
+  assert.equal(allStickers().length, n);
+  assert.equal(new Set(allStickers().map((s) => s.id)).size, n);
+  assert.equal(new Set(LEVELS.map((l) => l.id)).size, LEVELS.length, 'level ids differ');
   assert.equal(stickerId(LEVELS[0], LEVELS[0].items[0]), 'kitty_cat');
 });
 
@@ -54,14 +57,14 @@ test('uncut things keep hanging, and cutting one rope leaves the others alone', 
     W.bodies.forEach((b, k) => assert.ok(Math.abs(W.pts[b.p].y - y0[k]) < 0.35 && Math.abs(W.pts[b.p].x - l.items[k].body.x) < 0.5, `${l.id}/${b.id} hangs still`));
     cut(W, l.items[0].id, 2);
     for (let t = 0; t < 3; t += STEP) step(W);
-    for (const k of [1, 2]) assert.ok(Math.abs(W.pts[W.bodies[k].p].y - y0[k]) < 0.35, `${l.id}: ${W.bodies[k].id} still hangs`);
+    for (let k = 1; k < W.bodies.length; k++) assert.ok(Math.abs(W.pts[W.bodies[k].p].y - y0[k]) < 0.35, `${l.id}: ${W.bodies[k].id} still hangs`);
     assert.equal(cut(W, l.items[0].id, 2), false, 'a rope is cut once');
   });
 });
 
 test('nothing leaves the stage or goes not-a-number, in any cut order', () => {
   LEVELS.forEach((l, i) => {
-    for (const order of [[0, 1, 2], [2, 1, 0], [1, 0, 2]]) {
+    for (const order of [[0, 1, 2, 3], [3, 2, 1, 0], [1, 0, 3, 2]].map((o) => o.filter((k) => k < l.items.length))) {
       const W = createWorld(buildLevel(i));
       for (const k of order) { cut(W, l.items[k].id, k * 2); for (let t = 0; t < 3; t += STEP) for (const e of step(W)) if (e.type === 'arrive' && l.items.find((x) => x.id === e.id).pop) remove(W, e.id); }
       for (const b of W.bodies) { if (b.gone) continue; const p = W.pts[b.p]; assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y), `${l.id}/${b.id} finite`); assert.ok(p.x > -3.4 && p.x < 3.4 && p.y >= b.r - 0.01 && p.y < 10, `${l.id}/${b.id} on stage at ${p.x.toFixed(2)}, ${p.y.toFixed(2)}`); }
@@ -81,7 +84,8 @@ test('a swipe across a rope finds it; a swipe through empty air finds nothing', 
 });
 
 test('the same cuts give the same result every time', () => {
-  const run = () => { const r = arrive(1, 'flour', 1.1, 3); const p = r.W.pts[r.W.bodies[0].p]; return [r.t, p.x, p.y]; };
+  const i = LEVELS.findIndex((l) => l.id === 'bath');
+  const run = () => { const r = arrive(i, 'flour', 1.1, 3); const p = r.W.pts[r.W.bodies[0].p]; return [r.t, p.x, p.y]; };
   assert.deepEqual(run(), run());
 });
 
@@ -89,4 +93,28 @@ test('edits move a hook and a thing, and ignore bad numbers', () => {
   const l = buildLevel(0, { kitty: { cat: { ax: 0.5, y: 5, x: 'bad' } } });
   assert.equal(l.items[0].rope.ax, 0.5); assert.equal(l.items[0].body.y, 5); assert.equal(l.items[0].body.x, 0);
   assert.equal(LEVELS[0].items[0].rope.ax, 0, 'the source level is untouched');
+});
+
+test('a thing cut before its turn goes to its early place and can be hung back whole', () => {
+  const W = createWorld(buildLevel(0)), id = LEVELS[0].items[0].id, p = () => W.pts[W.bodies[0].p], y0 = p().y;
+  for (let t = 0; t < 1; t += STEP) step(W);
+  cut(W, id, 2); setGoal(W, id, { x: 2.15, y: 1.41, r: 0.5 }); // on the drum
+  let got = null; for (let t = 0; t < 3 && !got; t += STEP) for (const e of step(W)) if (e.type === 'arrive') got = e;
+  assert.ok(got && !got.late && Math.abs(p().x - 2.15) < 0.6, 'lands at the early place');
+  reset(W, id);
+  assert.equal(W.ropes[0].cut, false); assert.ok(Math.abs(p().y - y0) < 1e-9);
+  for (let t = 0; t < 4; t += STEP) step(W);
+  assert.ok(Math.abs(p().y - y0) < 0.35, 'hangs again');
+  assert.ok(cut(W, id, 2), 'and can be cut again');
+  got = null; for (let t = 0; t < 3 && !got; t += STEP) for (const e of step(W)) if (e.type === 'arrive') got = e;
+  assert.ok(got && !got.late && Math.abs(p().x - LEVELS[0].items[0].goal.x) < 0.6, 'its own goal is back');
+});
+
+test('a tied balloon stays put, and flies up and away when its rope is cut', () => {
+  const i = LEVELS.findIndex((l) => l.items.some((x) => x.body.lift)), l = LEVELS[i], it = l.items.find((x) => x.body.lift);
+  const W = createWorld(buildLevel(i)), b = W.bodies.find((x) => x.id === it.id), p = W.pts[b.p];
+  for (let t = 0; t < 6; t += STEP) step(W);
+  assert.ok(Math.abs(p.x - it.body.x) < 0.3 && Math.abs(p.y - it.body.y) < 0.3, `tied: stays at ${p.x.toFixed(2)}, ${p.y.toFixed(2)}`);
+  cut(W, it.id, 1); let top = 0; for (let t = 0; t < 2; t += STEP) { step(W); top = Math.max(top, p.y); }
+  assert.ok(top > it.body.y + 4, 'cut: it rises');
 });

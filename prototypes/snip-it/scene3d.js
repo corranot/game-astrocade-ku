@@ -4,36 +4,9 @@
 /* global THREE */
 import { createKit } from './models3d.js';
 import { createFx } from './vfx.js';
+import { WORLDS } from './levels.js';
 
 const VIEW_W = 6.6, CAM_Z = 14, LOOK_Y = 3.7, MAX_SEG = 72;
-
-/** Paints the back wall of a theme on a canvas: (g, w, h). */
-const WALLS = {
-  room(g, w, h) {
-    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#ffe9b8'); gr.addColorStop(1, '#ffd08a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    g.fillStyle = 'rgba(255,255,255,.28)'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 28, h);
-    g.fillStyle = '#fff'; g.fillRect(w * 0.6, h * 0.3, w * 0.28, h * 0.2); g.fillStyle = '#9fe2ff'; g.fillRect(w * 0.62, h * 0.31, w * 0.24, h * 0.18);
-    g.fillStyle = '#fff'; g.fillRect(w * 0.735, h * 0.31, w * 0.012, h * 0.18); g.beginPath(); g.arc(w * 0.68, h * 0.37, 22, 0, 7); g.arc(w * 0.71, h * 0.36, 28, 0, 7); g.arc(w * 0.75, h * 0.37, 20, 0, 7); g.fill();
-    g.fillStyle = '#ff8fb1'; g.fillRect(w * 0.14, h * 0.34, w * 0.18, h * 0.11); g.fillStyle = '#fff6c9'; g.fillRect(w * 0.155, h * 0.35, w * 0.15, h * 0.09);
-    g.fillStyle = '#ffc61a'; g.beginPath(); g.arc(w * 0.23, h * 0.395, 26, 0, 7); g.fill();
-    g.fillStyle = '#f2a65a'; g.fillRect(0, h * 0.86, w, h * 0.14);
-  },
-  bath(g, w, h) {
-    g.fillStyle = '#bfeaff'; g.fillRect(0, 0, w, h);
-    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 5; for (let x = 0; x <= w; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } for (let y = 0; y <= h; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
-    g.fillStyle = '#8fd0f2'; for (let i = 0; i < 9; i++) g.fillRect(((i * 197) % w) & ~63, ((i * 331) % (h * 0.8)) & ~63, 64, 64);
-    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(w * 0.74, h * 0.36, 70, 92, 0, 0, 7); g.fill(); g.fillStyle = '#e3f6ff'; g.beginPath(); g.ellipse(w * 0.74, h * 0.36, 58, 80, 0, 0, 7); g.fill();
-    g.fillStyle = '#ffb3cf'; g.fillRect(w * 0.12, h * 0.4, w * 0.16, h * 0.15); g.fillStyle = '#ff8fb1'; g.fillRect(w * 0.12, h * 0.4, w * 0.16, 14);
-  },
-  garden(g, w, h) {
-    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#5ec8ff'); gr.addColorStop(0.75, '#c9f1ff'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#fff3a8'; g.beginPath(); g.arc(w * 0.8, h * 0.2, 60, 0, 7); g.fill(); g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(w * 0.8, h * 0.2, 44, 0, 7); g.fill();
-    g.fillStyle = '#fff'; for (const [x, y, s] of [[0.2, 0.3, 1], [0.55, 0.42, 0.8], [0.3, 0.55, 0.7]]) { g.beginPath(); g.arc(w * x, h * y, 30 * s, 0, 7); g.arc(w * x + 34 * s, h * y - 10 * s, 38 * s, 0, 7); g.arc(w * x + 72 * s, h * y, 28 * s, 0, 7); g.fill(); }
-    g.fillStyle = '#8ede6a'; g.beginPath(); g.ellipse(w * 0.25, h * 0.92, w * 0.5, h * 0.14, 0, 0, 7); g.fill(); g.fillStyle = '#6fcf55'; g.beginPath(); g.ellipse(w * 0.8, h * 0.95, w * 0.5, h * 0.15, 0, 0, 7); g.fill();
-  },
-};
-const FLOORS = { room: [0xf2a65a, 0xd98a3d], bath: [0x9fd8ff, 0x6fb7e6], garden: [0x7fd85a, 0x8a5a33] };
-const BEAMS = { room: 0xc98a4e, bath: 0xffffff, garden: 0x9b6431 };
 
 /** Builds the stage on `canvas`. */
 export function createScene(canvas) {
@@ -47,7 +20,7 @@ export function createScene(canvas) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0xffe2c4, 1.7));
   const sun = new THREE.DirectionalLight(0xfff4e0, 2.1); sun.position.set(-5, 12, 9); scene.add(sun);
 
-  const kit = createKit(), fx = createFx(scene);
+  const kit = createKit(WORLDS), fx = createFx(scene);
   const stage = new THREE.Group(); scene.add(stage);
   const wallTex = {}, owned = []; // textures per theme are kept; per-level geometry and materials are freed on load
   const wallGeo = new THREE.PlaneGeometry(11, 15), boxGeo = new THREE.BoxGeometry(1, 1, 1), hookGeo = new THREE.TorusGeometry(0.12, 0.04, 8, 16), shadowGeo = new THREE.CircleGeometry(1, 24);
@@ -69,7 +42,7 @@ export function createScene(canvas) {
 
   function wall(theme) {
     if (wallTex[theme]) return wallTex[theme];
-    const c = document.createElement('canvas'); c.width = 512; c.height = 704; (WALLS[theme] || WALLS.room)(c.getContext('2d'), 512, 704);
+    const c = document.createElement('canvas'); c.width = 512; c.height = 704; (WORLDS.find((w) => w.id === theme) || WORLDS[0]).wall(c.getContext('2d'), 512, 704);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; wallTex[theme] = t; return t;
   }
   const own = (o) => { owned.push(o); return o; };
@@ -78,22 +51,22 @@ export function createScene(canvas) {
   /** Puts level on the stage. Returns { actors: {itemId: actor}, props: {id: actor}, hero: actor }. */
   function loadLevel(level) {
     stage.clear(); for (const o of owned) o.dispose(); owned.length = 0; kit.clear(); fx.clear();
-    const theme = WALLS[level.theme] ? level.theme : 'room', fl = FLOORS[theme];
-    scene.background.set(theme === 'bath' ? 0xbfeaff : theme === 'garden' ? 0x5ec8ff : 0xffe9b8);
+    const world = WORLDS.find((w) => w.id === level.theme) || WORLDS[0], theme = world.id, fl = world.floor;
+    scene.background.set(world.sky);
     const w = new THREE.Mesh(wallGeo, own(new THREE.MeshBasicMaterial({ map: wall(theme) }))); w.position.set(0, 4.6, -2.2); stage.add(w);
     block(fl[0], 0, -0.25, 0, 7.6, 0.5, 4.4); block(fl[1], 0, -1.6, 0.1, 7.6, 2.2, 4.4);
-    block(BEAMS[theme], 0, 9.0, 0, 7.6, 0.34, 0.5);
+    block(world.beam, 0, 9.0, 0, 7.6, 0.34, 0.5);
     const hookMat = own(new THREE.MeshStandardMaterial({ color: 0x8a94a6, roughness: 0.3, metalness: 0.5 }));
     view = { level, actors: {}, props: {}, hero: null, shadows: [], list: [] };
     level.items.forEach((it, k) => {
       const h = new THREE.Mesh(hookGeo, hookMat); h.position.set(it.rope.ax, it.rope.ay + 0.1, 0); stage.add(h);
-      const a = kit.make(it.body.model, { r: it.body.r, hang: true, seed: k }); a.group.position.set(it.body.x, it.body.y, 0); stage.add(a.group);
+      const a = kit.make(it.body.model, { r: it.body.r, hang: true, seed: k, color: it.body.color }); a.group.position.set(it.body.x, it.body.y, 0); stage.add(a.group);
       const sh = new THREE.Mesh(shadowGeo, shadowMat); sh.rotation.x = -Math.PI / 2; stage.add(sh);
       view.actors[it.id] = a; view.shadows.push(sh); view.list.push(a);
     });
-    for (const p of level.props || []) { const a = kit.make(p.model, { s: p.s || 1, seed: 5 }); a.group.position.set(p.x, p.y, p.z || 0); stage.add(a.group); view.list.push(a); if (p.id) view.props[p.id] = a; }
+    for (const p of level.props || []) { const a = kit.make(p.model, { ...p, s: p.s || 1, seed: 5 }); a.group.position.set(p.x, p.y, p.z || 0); a.group.visible = !p.hidden; stage.add(a.group); view.list.push(a); if (p.id) view.props[p.id] = a; }
     if (typeof level.hero === 'string') view.hero = view.actors[level.hero];
-    else { const h = level.hero, a = kit.make(h.model, { s: h.s || 1, wilted: h.wilted, muddy: h.muddy, seed: 9 }); a.group.position.set(h.x, h.y, h.z || 0); stage.add(a.group); view.hero = a; view.list.push(a); }
+    else { const h = level.hero, a = kit.make(h.model, { ...h, s: h.s || 1, seed: 9 }); a.group.position.set(h.x, h.y, h.z || 0); stage.add(a.group); view.hero = a; view.list.push(a); }
     return view;
   }
 

@@ -8,8 +8,8 @@
 // index.html), models3d.js (characters and props), vfx.js (bursts), slicer.js (finger to cut), audio.js (sound made
 // in code), i18n.js (8 languages), ui.js (HUD).
 /* global THREE */ // set on window by index.html before run() starts the game
-import { createWorld, step, cut, remove, STEP } from './physics.js';
-import { LEVELS, buildLevel, stickerId, allStickers } from './levels.js';
+import { createWorld, step, cut, remove, reset, setGoal, STEP } from './physics.js';
+import { LEVELS, WORLDS, buildLevel, stickerId, allStickers } from './levels.js';
 import { createScene } from './scene3d.js';
 import { createSlicer } from './slicer.js';
 import { createSound } from './audio.js';
@@ -72,12 +72,12 @@ function startGame(mode) {
   scene.setMotion(set.reduceMotion ? 0 : 1);
 
   // ---- the level being played
-  let index = 0, level = null, W = null, view = null, busy = null, won = false, touched = false, stopT = 0, acc = 0, idle = 0, barAt = -1, freeAt = -1, clock = 0;
+  let index = 0, level = null, W = null, view = null, ambient = null, early = false, busy = null, won = false, touched = false, stopT = 0, acc = 0, idle = 0, barAt = -1, freeAt = -1, clock = 0;
   const timers = []; // things due later on the game clock: [time, fn]
   const later = (sec, fn) => timers.push([clock + sec, fn]);
 
   function renderTop() { ui.top((index % LEVELS.length) + 1, LEVELS.length, starCount(), save.gags.length); }
-  function found() { return level.items.map((it) => ({ icon: it.sticker, got: save.gags.includes(stickerId(level, it)) })); }
+  function found() { return level.items.flatMap((it) => [{ icon: it.sticker, got: save.gags.includes(stickerId(level, it)) }, ...(it.early ? [{ icon: it.early.sticker, got: save.gags.includes(stickerId(level, it, true)) }] : [])]); }
   function placeHand() {
     const show = mode === 'play' && !won && !busy && (!save.learned || idle > 6) && W;
     if (!show) return ui.hand(null);
@@ -88,14 +88,18 @@ function startGame(mode) {
   function loadLevel(i) {
     index = ((i % LEVELS.length) + LEVELS.length) % LEVELS.length;
     level = buildLevel(index, cfg.levelEdits || {}); W = createWorld(level, { gravityScale: Number(set.gravityScale) || 1 }); view = scene.loadLevel(level);
-    busy = null; won = false; acc = 0; idle = 0; barAt = -1; freeAt = -1; timers.length = 0; slicer.reset();
-    ui.bar(false); ui.prompt(T(level.prompt)); renderTop(); placeHand();
+    ambient = (WORLDS.find((w) => w.id === level.theme) || {}).ambient || null;
+    busy = null; early = false; won = false; acc = 0; idle = 0; barAt = -1; freeAt = -1; timers.length = 0; slicer.reset();
+    ui.wipe(); ui.bar(false); ui.prompt(T(level.prompt)); renderTop(); placeHand();
     if (mode === 'play' && saveLoaded && save.at !== index) { save.at = index; persistSoon(); }
   }
 
   function onCut(hit, ang) {
     if (mode !== 'play' || busy || !W) return;
     if (!cut(W, hit.id, hit.seg)) return;
+    const item = level.items.find((x) => x.id === hit.id);
+    early = !!(item.needs && item.early && !W.ropes.find((r) => r.id === item.needs).cut); // cut before its turn
+    if (early) setGoal(W, hit.id, item.early.goal);
     busy = hit.id; idle = 0; stopT = 0.045 * (Number(set.cutSlowMo) || 0);
     sound.play('snip'); buzz('tap'); scene.fx.emit('spark', hit.x, hit.y); scene.snip(hit.x, hit.y, ang);
     if (!save.learned) { save.learned = true; persistSoon(); }
@@ -108,24 +112,28 @@ function startGame(mode) {
   }
   const slicer = createSlicer(root, scene, () => (mode === 'play' ? W : null), onCut, onTouch);
 
-  /** A cut thing reached its goal: play its ending. */
+  /** A cut thing reached its goal: play its ending. A thing cut before its turn plays its `early` ending and is hung back. */
   function arrive(id) {
-    const it = level.items.find((x) => x.id === id), g = it.goal, hero = view.hero, sid = stickerId(level, it), win = it.result === 'win';
-    scene.fx.emit(it.fx, g.x, g.y); scene.fx.ring(g.x, Math.max(0, g.y - it.body.r), win ? 0xfff06a : 0xffffff); scene.shake(win ? 0.5 : 0.8);
+    const item = level.items.find((x) => x.id === id), it = early ? { ...item, ...item.early, result: 'gag', pop: false } : item;
+    const g = it.goal, hero = view.hero, sid = stickerId(level, item, early), win = it.result === 'win', at = it.fxAt || [g.x, g.y];
+    scene.fx.emit(it.fx, at[0], at[1], it.burst || 1); scene.fx.ring(at[0], Math.max(0, at[1] - item.body.r), win ? 0xfff06a : 0xffffff); scene.shake(win ? 0.5 : 0.8);
     sound.play(it.sound); buzz(win ? 'thud' : 'warning');
     if (it.pop) { view.actors[id].group.visible = false; remove(W, id); }
+    if (early) later(0.9, () => { reset(W, id); view.actors[id].group.visible = true; scene.fx.emit('spark', item.body.x, item.body.y); });
     hero.react(it.react);
     if (it.tint !== undefined) { hero.tint(it.tint, true); later(2.4, () => hero.tint(null, false)); }
-    if (it.clean) hero.tint(null, false);
-    if (it.bloom) hero.set('bloom');
+    if (it.untint) hero.tint(null, false);
+    if (it.set) hero.set(it.set);
     if (it.propReact && view.props[it.propReact[0]]) view.props[it.propReact[0]].react(it.propReact[1]);
+    for (const k of it.show || []) if (view.props[k]) view.props[k].group.visible = true;
+    for (const k of it.hide || []) if (view.props[k]) view.props[k].group.visible = false;
     if (!save.gags.includes(sid)) { save.gags.push(sid); later(0.35, () => { ui.toast(it.sticker, T('new_sticker')); sound.play('sticker'); }); }
     if (win) {
       won = true; save.stars[index] = 3; save.lvl = Math.max(save.lvl, Math.min(LEVELS.length - 1, index + 1));
-      later(0.25, () => { ui.cheer(T('great')); sound.play('win'); buzz('success'); scene.fx.emit('confetti', 0, 5.5); scene.fx.emit('stars', g.x, g.y + 0.6); });
+      later(0.25, () => { ui.cheer(T('great')); sound.play('win'); buzz('success'); scene.fx.emit('confetti', 0, 5.5); scene.fx.emit('stars', at[0], at[1] + 0.6); });
       barAt = clock + 0.9;
     }
-    freeAt = clock + 0.7; // the next rope can be cut once this ending has been seen
+    freeAt = clock + (early ? 1.1 : 0.7); // the next rope can be cut once this ending has been seen
     renderTop(); persistSoon(); sendScore();
   }
 
@@ -161,12 +169,11 @@ function startGame(mode) {
       if (freeAt >= 0 && clock >= freeAt) { freeAt = -1; busy = null; placeHand(); }
       if (barAt >= 0 && clock >= barAt) { barAt = -1; ui.bar(true, { next: T('next'), again: T('again') }, found(), isRtl(lang)); }
       if (mode === 'play' && !busy && !won && idle > 6 && $('hand').hidden) placeHand();
-      if (theme() !== 'bath' ? Math.random() < dt * 1.2 : Math.random() < dt * 2.5) scene.fx.emit(theme() === 'bath' ? 'bubbles' : 'mote', (Math.random() - 0.5) * 6, 1 + Math.random() * 7, theme() === 'bath' ? 0.04 : 1);
+      if (ambient && Math.random() < dt * ambient[1]) scene.fx.emit(ambient[0], (Math.random() - 0.5) * 6, 1 + Math.random() * 7, ambient[2]);
     }
     scene.update(W, mode === 'play' ? dt : real * 0.4);
     if (dirty && now - saveAt > 2000) { saveAt = now; flush(); }
   }
-  const theme = () => (level ? level.theme : 'room');
 
   function fit() { const r = root.getBoundingClientRect(); root.style.setProperty('--u', String(r.width / 720)); scene.resize(r.width, r.height); }
   const onResize = () => { fit(); ui.refit(); placeHand(); };
@@ -225,7 +232,7 @@ function startGame(mode) {
     // dev:start
     debug: {
       get W() { return W; }, get level() { return level; }, get index() { return index; }, get busy() { return busy; }, get won() { return won; }, get save() { return save; },
-      get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get touched() { return touched; }, get clock() { return clock; }, mode, scene, T, sound, loadLevel, flush,
+      get saveLoaded() { return saveLoaded; }, get lang() { return lang; }, get touched() { return touched; }, get clock() { return clock; }, total: LEVELS.length, get landed() { return freeAt >= 0 || !busy; }, mode, scene, T, sound, loadLevel, flush,
       setLang(l) { lang = l; setDir(); if (!$('prompt').hidden) ui.prompt(T(level.prompt)); if (won) ui.bar(true, { next: T('next'), again: T('again') }, found(), isRtl(lang)); },
       /** Client position of a frame point, for tests that touch like a finger. */
       client(x, y) { const r = root.getBoundingClientRect(); return [r.left + x / 720 * r.width, r.top + y / 1280 * r.height]; },

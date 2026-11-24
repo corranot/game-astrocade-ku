@@ -57,6 +57,8 @@ export function createSound(opts = {}) {
     sticker: () => { tone('triangle', hz(19), hz(19), 0.12, 0.3); tone('triangle', hz(24), hz(24), 0.2, 0.3, 0.1); },
     win: () => { [0, 4, 7, 12, 16].forEach((n, i) => tone('triangle', hz(n + 12), hz(n + 12), i === 4 ? 0.45 : 0.14, 0.32, i * 0.09)); },
     tap: () => tone('sine', 700, 500, 0.06, 0.25),
+    bell: () => { for (let i = 0; i < 3; i++) { tone('sine', 1760, 1740, 0.35, 0.3, i * 0.16); tone('sine', 2640, 2600, 0.2, 0.12, i * 0.16); } },
+    munch: () => { for (let i = 0; i < 3; i++) noise('bandpass', 900, 500, 0.07, 0.5, i * 0.13); tone('sine', 500, 800, 0.12, 0.2, 0.42); },
   };
 
   return {
