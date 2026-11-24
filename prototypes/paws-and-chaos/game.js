@@ -308,7 +308,7 @@ class WorldBuilder {
     H.add(G.box, '#ffffff', -11.86, 5.5, 6.5, 0, 0, 0, 0.08, 0.18, 5.0);
     const paneMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 }); this.disposables.push(paneMat);
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 3.8), paneMat); pane.position.set(-11.84, 5.5, 6.5); pane.rotation.y = Math.PI / 2; this.scene.add(pane); this.disposables.push(pane.geometry);
-    const shaftTex = canvasTex(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,240,190,0.55)'); gr.addColorStop(1, 'rgba(255,240,190,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+    const shaftTex = canvasTex(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, `rgba(255,240,190,${this.cfg.room.sunShaft})`); gr.addColorStop(1, 'rgba(255,240,190,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
     this.disposables.push(shaftTex);
     const shaftMat = new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     this.disposables.push(shaftMat);
@@ -979,6 +979,8 @@ class CatController {
       this.vy = 0; this.grounded = true; this.lastGround = now; this.ground = g;
       if (!wasGround) {
         const fall = this.peak - this.y;
+        // the fall is over: a rebound from here starts counting from this height, not from the old one
+        this.peak = this.y;
         ev = { type: 'land', fall, speed: -landVy, g };
         this.squashV = -clamp(-landVy * 0.6, 2, 9);
         this.pounce = null;
@@ -2167,7 +2169,14 @@ class Game {
       laserNow() { g.quests.laser.t = 0; g.quests.laser.on = false; },
       action(t) { g.action(t || null); },
       info() { return { geometries: g.renderer.info.memory.geometries, textures: g.renderer.info.memory.textures, calls: g.renderer.info.render.calls, tris: g.renderer.info.render.triangles }; },
-      setYaw(y) { g.rig.yaw = y; },
+      setYaw(y) { g.rig.yaw = y; g.rig.dragT = 0; },
+      /** Share of the 3D picture that is nearly white (every channel above 240 of 255). */
+      glare() {
+        const gl = g.renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(w * h * 4);
+        g.renderer.render(g.scene, g.camera); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        let n = 0; for (let i = 0; i < px.length; i += 4) if (px[i] > 240 && px[i + 1] > 240 && px[i + 2] > 240) n++;
+        return n / (w * h);
+      },
       get yarnMats() { return g.props.A.yarnMats; },
       get pounceTarget() { return g.pounceTarget; },
       camWhy() { const r = g.rig, tg = r.target, out = []; for (const pc of [0.34, 0.64, 0.94, 0.95, 1.15]) { const c = new THREE.Vector3(tg.x + Math.sin(r.yaw) * Math.cos(pc) * 7.4, tg.y + Math.sin(pc) * 7.4, tg.z + Math.cos(r.yaw) * Math.cos(pc) * 7.4); c.x = clamp(c.x, -11.6, 11.6); c.z = clamp(c.z, -11.6, 11.6); c.y = Math.min(c.y, 8.6); out.push([pc, r.cast(g.world, tg, c).toFixed(3), c.toArray().map((v) => v.toFixed(2)).join(',')]); } return out; },
