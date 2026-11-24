@@ -1,0 +1,656 @@
+{
+ "trending": [
+  {
+   "id": "01M7JR7Q804ESM5AY2G3Q7MBD7",
+   "title": "Snowball Rush: Frozen Race",
+   "by": "Gamingjon7756",
+   "plays": 11588,
+   "published": 1795051181,
+   "likes": 182,
+   "shares": 97
+  },
+  {
+   "id": "01M7SFCSVA7R625N8H2XHA69T2",
+   "title": "RELENTLESS",
+   "by": "Faizannnn",
+   "plays": 21081,
+   "published": 1795103720,
+   "likes": 365,
+   "shares": 258
+  },
+  {
+   "id": "01M7MA121F0JH4ERFMV8T7BXPB",
+   "title": "Squid Game with your Dream Girl",
+   "by": "Robertgames",
+   "plays": 33560,
+   "published": 1794975028,
+   "likes": 636,
+   "shares": 111
+  },
+  {
+   "id": "01M7NX5BSVW0V3GTV7JQPAPZFQ",
+   "title": "Spider-Man: Skyline",
+   "by": "ShadowZ",
+   "plays": 5834,
+   "published": 1795178062,
+   "likes": 170,
+   "shares": 68
+  },
+  {
+   "id": "01M7N6B3T01GSQMY60A7NMWC7V",
+   "title": "Black Cobra: River Hunter",
+   "by": "RAMMYYY",
+   "plays": 32616,
+   "published": 1795013343,
+   "likes": 421,
+   "shares": 79
+  },
+  {
+   "id": "01M7RKVTE8BGY4154HSW8TSBXH",
+   "title": "SUPERMAN VS RED HULK22",
+   "by": "3D_GAMING",
+   "plays": 29516,
+   "published": 1795049411,
+   "likes": 347,
+   "shares": 179
+  },
+  {
+   "id": "01M7JBMVGJYWDYG7C3WSTAZKK6",
+   "title": "Draw Path: Bathroom Dash",
+   "by": "tanuzzz",
+   "plays": 6420,
+   "published": 1795093384,
+   "likes": 51,
+   "shares": 123
+  },
+  {
+   "id": "01M6BJY4EJB54Z141T56FBWEHJ",
+   "title": "SHADOW HERO",
+   "by": "HermitGaming",
+   "plays": 789,
+   "published": 1793564624,
+   "likes": 10,
+   "shares": 1
+  },
+  {
+   "id": "01M7THS227VC3QMRPWDPHXERS2",
+   "title": "Dig To Fill",
+   "by": "ThatProGuy",
+   "plays": 3728,
+   "published": 1795167677,
+   "likes": 23,
+   "shares": 3
+  },
+  {
+   "id": "01M7PYGDYY1KAGK0PNKDYV571K",
+   "title": "Wildfang Park",
+   "by": "Si1ver",
+   "plays": 98155,
+   "published": 1795085847,
+   "likes": 1237,
+   "shares": 829
+  }
+ ],
+ "top_picks": [
+  {
+   "id": "01M6Y04CJP0MZF50W77Z2XTYYN",
+   "title": "Lakeside Egg Thief",
+   "by": "Laxci",
+   "plays": 91026,
+   "published": 1794190477,
+   "likes": 2093,
+   "shares": 533
+  },
+  {
+   "id": "01M4K7QKZZ149RT4W64EG9RXJT",
+   "title": "Slap and steal a car",
+   "by": "JustJonny",
+   "plays": 2258876,
+   "published": 1791652247,
+   "likes": 27941,
+   "shares": 32012
+  },
+  {
+   "id": "01M7675SHB4GE1JX6N8MCPXBGK",
+   "title": "Mecha Arm +1",
+   "by": "ProbablyWorks",
+   "plays": 210752,
+   "published": 1794440017,
+   "likes": 4852,
+   "shares": 3219
+  },
+  {
+   "id": "01M6NTAWWSANVNP00MVKX6MZYC",
+   "title": "Smash Everything!",
+   "by": "Si1ver",
+   "plays": 955591,
+   "published": 1793973846,
+   "likes": 14404,
+   "shares": 8634
+  },
+  {
+   "id": "01M6J7K826JG0GJKKJMPVYE4M0",
+   "title": "DIY Beauty Salon",
+   "by": "PokiGames",
+   "plays": 756794,
+   "published": 1793774162,
+   "likes": 13966,
+   "shares": 2780
+  },
+  {
+   "id": "01M52QCBX1JZMPCSPGVRTJP9E9",
+   "title": "Natural Disaster Survival",
+   "by": "Voxels",
+   "plays": 1049305,
+   "published": 1792226321,
+   "likes": 18906,
+   "shares": 10613
+  },
+  {
+   "id": "01M4013XDHF10RVPJJ0MR4TZ1E",
+   "title": "Forge Beyond",
+   "by": "VibeCreAI",
+   "plays": 627561,
+   "published": 1792402443,
+   "likes": 13519,
+   "shares": 16591
+  },
+  {
+   "id": "01M7KQ9RRX4PV5JRDHG93QYT10",
+   "title": "Throw Food for Animals",
+   "by": "FuStudio",
+   "plays": 88451,
+   "published": 1794899139,
+   "likes": 2568,
+   "shares": 950
+  },
+  {
+   "id": "01M6VNMPZRGARA6NF9RCZM9XAD",
+   "title": "Meat Masters",
+   "by": "aminraza99",
+   "plays": 251954,
+   "published": 1794118484,
+   "likes": 5753,
+   "shares": 4597
+  },
+  {
+   "id": "01M6XQANAF2KFJ35PN7FZFBCZ1",
+   "title": "Sunrise High School life",
+   "by": "lil.moonX",
+   "plays": 241145,
+   "published": 1794231635,
+   "likes": 4947,
+   "shares": 6572
+  }
+ ],
+ "local_multiplayer": [
+  {
+   "id": "01M7PZ2EJ0A2M3547TZ497ZA3X",
+   "title": "Tank Party",
+   "by": "standardcombo",
+   "plays": 39256,
+   "published": 1795213837,
+   "likes": 367,
+   "shares": 1085
+  },
+  {
+   "id": "01M79Q95DVFM0Q2SYBG6A1HBXC",
+   "title": "Math Party",
+   "by": "standardcombo",
+   "plays": 49883,
+   "published": 1795213941,
+   "likes": 418,
+   "shares": 1039
+  },
+  {
+   "id": "01M7BBX0RPRF9JJE85V10A0YRS",
+   "title": "Toilet Party",
+   "by": "standardcombo",
+   "plays": 48386,
+   "published": 1795213962,
+   "likes": 454,
+   "shares": 999
+  },
+  {
+   "id": "01M7SC84TAFW66CJA7NZ2JATP1",
+   "title": "Pinball Party",
+   "by": "standardcombo",
+   "plays": 38335,
+   "published": 1795213968,
+   "likes": 355,
+   "shares": 1008
+  },
+  {
+   "id": "01M7CG3K5QDYZE74K53VEDRKJK",
+   "title": "Fast Food Party",
+   "by": "standardcombo",
+   "plays": 42692,
+   "published": 1795213905,
+   "likes": 305,
+   "shares": 977
+  }
+ ],
+ "action": [
+  {
+   "id": "01M78G0FY6E05DC0FDZ41J4FGP",
+   "title": "Snowball Army Run",
+   "by": "ThatProGuy",
+   "plays": 36029,
+   "published": 1794564184,
+   "likes": 459,
+   "shares": 52
+  },
+  {
+   "id": "01M7D2MEMW8MFGQ5TNH5KYQD32",
+   "title": "CARGO PLANE BIKE TYCOON",
+   "by": "ASTRONIX",
+   "plays": 23035,
+   "published": 1794938510,
+   "likes": 262,
+   "shares": 97
+  },
+  {
+   "id": "01M7JG9VBW4AP7ET4AWB77HZN6",
+   "title": "Captain America vs Iron Man",
+   "by": "dr_baneer",
+   "plays": 1768,
+   "published": 1794977257,
+   "likes": 16,
+   "shares": 3
+  },
+  {
+   "id": "01M75NVF4RTW9QMCQFQPED06DR",
+   "title": "Robot Rescue: War of Nation",
+   "by": "unbeatable.in",
+   "plays": 103626,
+   "published": 1794465248,
+   "likes": 1613,
+   "shares": 334
+  },
+  {
+   "id": "01M6DTYGP61TZDK48CERMBGRVC",
+   "title": "BRICK RUSH",
+   "by": "GIYUTOMIOKA",
+   "plays": 8071,
+   "published": 1793754870,
+   "likes": 130,
+   "shares": 58
+  }
+ ],
+ "merge": [
+  {
+   "id": "01M77JB0S1K6G58NRYMF9HB0WX",
+   "title": "Steal a Lucky Block",
+   "by": "Frostyfrost",
+   "plays": 54493,
+   "published": 1794968458,
+   "likes": 994,
+   "shares": 465
+  },
+  {
+   "id": "01M54Z7D9RFYS6SBM8Q1Q6NTY0",
+   "title": "Find a Brainrot",
+   "by": "ProbablyWorks",
+   "plays": 42831,
+   "published": 1792359735,
+   "likes": 930,
+   "shares": 1043
+  },
+  {
+   "id": "01M8270TNZ8GA151A9HF8SAKTJ",
+   "title": "Starforge Merge",
+   "by": "LegendaryBlitz",
+   "plays": 10207,
+   "published": 1795380994,
+   "likes": 100,
+   "shares": 122
+  },
+  {
+   "id": "01M7H26HBE86DFEXG7H2FZ9KE2",
+   "title": "Sword Swing Chopper",
+   "by": "cardsharkg",
+   "plays": 149563,
+   "published": 1794800080,
+   "likes": 3425,
+   "shares": 1713
+  },
+  {
+   "id": "01M85YVZZF2SSGW6KYYWQYCW29",
+   "title": "Gate Runner",
+   "by": "Dudez",
+   "plays": 40,
+   "published": 1795499257,
+   "likes": 1,
+   "shares": 0
+  }
+ ],
+ "arcade": [
+  {
+   "id": "01M7N7XRR1BF75TRKR70K0PCG1",
+   "title": "Lamborghini vs tesla",
+   "by": "MARTINX1609",
+   "plays": 11938,
+   "published": 1795140210,
+   "likes": 149,
+   "shares": 29
+  },
+  {
+   "id": "01M782SHTAM6QQCXSE0SBAB7W6",
+   "title": "Mega City Life",
+   "by": "lil.moonX",
+   "plays": 66607,
+   "published": 1794558833,
+   "likes": 1525,
+   "shares": 268
+  },
+  {
+   "id": "01M7AJAPG67JNNPQT9HH4FEJ8F",
+   "title": "Sandbox City",
+   "by": "georg1222",
+   "plays": 12982,
+   "published": 1794593346,
+   "likes": 245,
+   "shares": 33
+  },
+  {
+   "id": "01M7VWEF35EPXGNVMRH50458MH",
+   "title": "Air Cargo: Train Engine Lift 3D",
+   "by": "GameWithBelal",
+   "plays": 16490,
+   "published": 1795236917,
+   "likes": 189,
+   "shares": 70
+  },
+  {
+   "id": "01M7B37Z2K6SHD27AB5353PJNE",
+   "title": "STEAL AN EGG",
+   "by": "voxelstudio",
+   "plays": 15175,
+   "published": 1794596829,
+   "likes": 171,
+   "shares": 81
+  }
+ ],
+ "horror": [
+  {
+   "id": "01M75GEV396SPK9RWNKG7NDDRK",
+   "title": "Last Contestant: 15 Trials",
+   "by": "Luna.exe",
+   "plays": 23372,
+   "published": 1794645638,
+   "likes": 367,
+   "shares": 174
+  },
+  {
+   "id": "01M71YM4G1BA64TMV0M1Z64T43",
+   "title": "Zombies vs Humans with Guns",
+   "by": "Leevai",
+   "plays": 315244,
+   "published": 1794318421,
+   "likes": 6717,
+   "shares": 1732
+  },
+  {
+   "id": "01M7FYRM9NX2JJ4HX46Q3NJVSZ",
+   "title": "Rage Scape",
+   "by": "Zumi",
+   "plays": 113546,
+   "published": 1794769101,
+   "likes": 2220,
+   "shares": 735
+  },
+  {
+   "id": "01M6WZH105SRQ8TPGABCE4B04P",
+   "title": "Spooky Village Zombie Rush",
+   "by": "nathaniel28",
+   "plays": 54,
+   "published": 1795476333,
+   "likes": 2,
+   "shares": 0
+  },
+  {
+   "id": "01M666QTMGB3SPNAYVA1TV3HYZ",
+   "title": "Mission Jungle: The Last Hope",
+   "by": "yashirxshaikh",
+   "plays": 111437,
+   "published": 1794367244,
+   "likes": 1894,
+   "shares": 262
+  }
+ ],
+ "tactics": [
+  {
+   "id": "01M7WM4ND3JBFWHWPG60CC3CD9",
+   "title": "IGL 2 : FINAL ASSAULT",
+   "by": "Sadik_Sarkar",
+   "plays": 24330,
+   "published": 1795233674,
+   "likes": 455,
+   "shares": 63
+  },
+  {
+   "id": "01M6TB00SYAQ0R3FAYJ2C9ZM0D",
+   "title": "Counter Arena",
+   "by": "AbduGames",
+   "plays": 444816,
+   "published": 1794307248,
+   "likes": 5958,
+   "shares": 7246
+  },
+  {
+   "id": "01M5R9KJCNZQXS1QYMPY4QW2G8",
+   "title": "10,000 Monster Runner",
+   "by": "cardsharkg",
+   "plays": 16312,
+   "published": 1792894195,
+   "likes": 410,
+   "shares": 199
+  },
+  {
+   "id": "01M7TE6MD05EE9M3YR65Q5Z50Q",
+   "title": "Army Evolution: Kingdom Conquest",
+   "by": "JJStudio",
+   "plays": 837,
+   "published": 1795113425,
+   "likes": 10,
+   "shares": 8
+  },
+  {
+   "id": "01M4P0VQTJK10QQCG3MNV81Z6Y",
+   "title": "KINGDOM ARMY EVOLUTION RUN",
+   "by": "ProGameStudio",
+   "plays": 29864,
+   "published": 1794665960,
+   "likes": 577,
+   "shares": 256
+  }
+ ],
+ "creative": [
+  {
+   "id": "01M7NSVJEFB8PJ31YFQSR9769B",
+   "title": "MINECRAFT: STEELMAN",
+   "by": "BigSalvRman",
+   "plays": 72982,
+   "published": 1794965032,
+   "likes": 830,
+   "shares": 202
+  },
+  {
+   "id": "01M7BG3CFRK11Z0FTQBM8VJ09C",
+   "title": "Minecraft Flat World",
+   "by": "sizzlebun",
+   "plays": 38633,
+   "published": 1794613205,
+   "likes": 532,
+   "shares": 121
+  },
+  {
+   "id": "01M7RQDSFKN882NBMYT8K0G4D7",
+   "title": "SCHOOL DRESS-UP UNIFORM ",
+   "by": "VinceDev",
+   "plays": 44008,
+   "published": 1795096250,
+   "likes": 1150,
+   "shares": 357
+  },
+  {
+   "id": "01M7EX50M87RC1XHEKCKM9QBP0",
+   "title": "Tuft Master",
+   "by": "muhummado.",
+   "plays": 104,
+   "published": 1795338335,
+   "likes": 0,
+   "shares": 1
+  },
+  {
+   "id": "01M82QA68QGC2A3VQYXETTSX0T",
+   "title": "Room Curator",
+   "by": "Charlie12343",
+   "plays": 151,
+   "published": 1795390349,
+   "likes": 0,
+   "shares": 0
+  }
+ ],
+ "simulation": [
+  {
+   "id": "01M7MZ8MXN4WS3S1EWFFGVM6B2",
+   "title": "Robot Rescue 2: War of Nation",
+   "by": "gmtytrf007",
+   "plays": 13473,
+   "published": 1795168954,
+   "likes": 129,
+   "shares": 28
+  },
+  {
+   "id": "01M83AS53CFGBB28N41WEYEWJP",
+   "title": "The Forge",
+   "by": "haz1m1",
+   "plays": 42,
+   "published": 1795496344,
+   "likes": 0,
+   "shares": 0
+  },
+  {
+   "id": "01M7FZ1Q461M3CWX0DJ6DMR2W4",
+   "title": "Parking City: Prank Simulator",
+   "by": "sxm",
+   "plays": 47107,
+   "published": 1794840311,
+   "likes": 1063,
+   "shares": 169
+  },
+  {
+   "id": "01M84QD311JHNKRA1ZKQ33NMQA",
+   "title": "City Tractor Driver",
+   "by": "khanqaynat",
+   "plays": 108,
+   "published": 1795456194,
+   "likes": 1,
+   "shares": 0
+  },
+  {
+   "id": "01M74X4JTFEKVSJ42M9VE2VA0W",
+   "title": "Water Rescue Game 3D",
+   "by": "TOTALGAMING",
+   "plays": 11565,
+   "published": 1794392286,
+   "likes": 173,
+   "shares": 111
+  }
+ ],
+ "platformer": [
+  {
+   "id": "01M7M8BAE9CY5334B20SXNPMRN",
+   "title": "LADDER RUNNER 3D",
+   "by": "Hamidarzoo",
+   "plays": 8819,
+   "published": 1794977554,
+   "likes": 139,
+   "shares": 85
+  },
+  {
+   "id": "01M77WP3NA5N767VH7TGYQDD8W",
+   "title": "SQUID GAME: The Red Light Run 3d",
+   "by": "ajmal_39.5m",
+   "plays": 19814,
+   "published": 1794565396,
+   "likes": 322,
+   "shares": 206
+  },
+  {
+   "id": "01M7Z9G7R305AH58DAQ54715JV",
+   "title": "LOST TEMPLE: THE FORGOTTEN RUINS",
+   "by": "inixabu",
+   "plays": 32,
+   "published": 1795444636,
+   "likes": 0,
+   "shares": 0
+  },
+  {
+   "id": "01M3NJKRWGJQKTFDBWND871ZE6",
+   "title": "TUMBLE GUYS",
+   "by": "GillDeeKrator",
+   "plays": 174658,
+   "published": 1790940465,
+   "likes": 4060,
+   "shares": 7352
+  },
+  {
+   "id": "01M7KN0GQN5QN5HDQEEKDQMGG8",
+   "title": "OrbitStrike.io 2.0",
+   "by": "kittyplayer",
+   "plays": 14299,
+   "published": 1794888653,
+   "likes": 163,
+   "shares": 107
+  }
+ ],
+ "educational": [
+  {
+   "id": "01M7D7MPYK9QJV8CA82G4P7QFV",
+   "title": "Grandview High School Life",
+   "by": "shadoww",
+   "plays": 78547,
+   "published": 1794759414,
+   "likes": 1765,
+   "shares": 242
+  },
+  {
+   "id": "01M7QMVM6E4RCV574PSMZBEJK7",
+   "title": "University Students Life",
+   "by": "xelfezer",
+   "plays": 16983,
+   "published": 1795146165,
+   "likes": 251,
+   "shares": 45
+  },
+  {
+   "id": "01M83354R2W3QXG6K9NNNXKEJ9",
+   "title": "Flag Master",
+   "by": "avonengine",
+   "plays": 39,
+   "published": 1795486784,
+   "likes": 1,
+   "shares": 0
+  },
+  {
+   "id": "01M7J205RXB1AA8044RZYXG73J",
+   "title": "MemoMatch: The Great Museum Mystery",
+   "by": "aniketkuma9806",
+   "plays": 67,
+   "published": 1795332370,
+   "likes": 0,
+   "shares": 0
+  },
+  {
+   "id": "01M7W7Q7DTYC23H6JS1NR2RSJ2",
+   "title": "SCHOOL TYCOON: GRADE & REWARDS",
+   "by": "saysanuu",
+   "plays": 9048,
+   "published": 1795174280,
+   "likes": 170,
+   "shares": 27
+  }
+ ]
+}
