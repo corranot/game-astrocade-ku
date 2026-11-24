@@ -4,6 +4,7 @@ PROTOTYPE - NOT FOR PRODUCTION. Brief: `brief.md`. Status: stage 1 of 4 (engine 
 
 - Run: serve this folder and open `/?local` (the tests do it themselves). `?local&mode=edit` for edit mode, `&speed=2` to run fast.
 - Tests: `node physics.test.mjs` (rules, Node only), `node playtest.js <out>` (a child's play in a browser, 8 languages).
+- Spacing: `node layout.js [out]` measures the HUD in 8 languages against the one spacing system (margin 20, gap 12, control height 96; tolerance 2). Change the HUD only through the tokens `--m`, `--g`, `--h` in `index.html`.
 - Upload text: `README.upload.md`. Evidence: `production/qa/evidence/snip-it/`.
 
 ## Stages
