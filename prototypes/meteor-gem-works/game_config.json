@@ -178,6 +178,19 @@
     "rigAt": {
       "x": 2.9,
       "z": -1
+    },
+    "cart": {
+      "x": 3.0,
+      "z": 9.7,
+      "r": 1.1
+    },
+    "rig2At": {
+      "x": -4.7,
+      "z": -1.0
+    },
+    "jeweler": {
+      "x": 7.0,
+      "z": 2.7
     }
   },
   "mining": {
@@ -284,12 +297,71 @@
       "icon": "laser",
       "x": 0.7,
       "z": -0.55,
-      "price": 180,
+      "price": 170,
       "obstacle": [
         0.7,
         -0.75,
         0.55
       ]
+    },
+    {
+      "id": "ghost",
+      "icon": "cart",
+      "x": 3.0,
+      "z": 9.6,
+      "price": 190
+    },
+    {
+      "id": "rig2",
+      "icon": "rig",
+      "x": -4.3,
+      "z": 0.5,
+      "price": 220,
+      "obstacle": [
+        -4.7,
+        -1.0,
+        0.85
+      ]
+    },
+    {
+      "id": "cable",
+      "icon": "cable",
+      "x": -3.8,
+      "z": 9.5,
+      "price": 250
+    },
+    {
+      "id": "stargaze",
+      "icon": "star",
+      "x": -1.0,
+      "z": 4.2,
+      "price": 265
+    },
+    {
+      "id": "crown",
+      "icon": "crown",
+      "x": 6.8,
+      "z": 2.6,
+      "price": 300,
+      "obstacle": [
+        7.0,
+        2.7,
+        0.6
+      ]
+    },
+    {
+      "id": "neon",
+      "icon": "neon",
+      "x": -6.5,
+      "z": 0.4,
+      "price": 350
+    },
+    {
+      "id": "heart",
+      "icon": "heart",
+      "x": -1.5,
+      "z": 2.3,
+      "price": 420
     }
   ],
   "rig": {
@@ -300,10 +372,16 @@
   },
   "egg": {
     "dropAt": 22,
-    "every": 70,
+    "every": 62,
     "hatch": 2.4,
     "r": 1,
-    "carryBonus": 5
+    "carryBonus": 5,
+    "weights": {
+      "common": 5,
+      "shiny": 3,
+      "rare": 2
+    },
+    "pity": 5
   },
   "critter": {
     "follow": 1.4,
@@ -391,7 +469,12 @@
         "lamps": 1,
         "meteor": 1.3
       }
-    ]
+    ],
+    "byPad": {
+      "stargaze": 0.5,
+      "neon": 0.82,
+      "heart": 1
+    }
   },
   "quality": {
     "dpr": [
@@ -481,7 +564,39 @@
       "newGame": "NEW GAME",
       "sure": "TAP AGAIN",
       "next": "NEXT",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "GHOST TOWN",
+      "ghostGoal": "LIGHT THE GHOST TOWN!",
+      "ghostLit": "A HOUSE LIGHTS UP!",
+      "districtDone": "THE TOWN IS ALIVE!",
+      "rig2": "DRILL RIG 2",
+      "cable": "CABLE CAR",
+      "stargaze": "STARGAZER DECK",
+      "crown": "CROWN JEWELER",
+      "neon": "NEON STREET",
+      "heart": "HEART OF THE METEOR",
+      "finale": "THE HEART!",
+      "comet": "A COMET! CHAPTER 2 IS NEXT",
+      "star": "TOWN STAR!",
+      "hat": "NEW HAT!",
+      "album": "ALBUM",
+      "share": "SHOW A FRIEND",
+      "brag": "My crystal town in Meteor Gems!",
+      "perkTip": "bigger tips",
+      "perkLuck": "more sparkles",
+      "perkBonus": "+1 every sale",
+      "fizz": "Fizz",
+      "nugget": "Nugget",
+      "zephyr": "Zephyr",
+      "twinkle": "Twinkle",
+      "mossy": "Mossy",
+      "nova": "Nova",
+      "soon": "SOON",
+      "chapter1": "CRYSTAL METEOR",
+      "chapter2": "FROST COMET",
+      "rare": "RARE!",
+      "shiny": "SHINY!",
+      "legendary": "LEGENDARY!"
     },
     "ar": {
       "drag": "اسحب للتحرك",
@@ -516,7 +631,39 @@
       "newGame": "لعبة جديدة",
       "sure": "المس مرة أخرى",
       "next": "التالي",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "مدينة الأشباح",
+      "ghostGoal": "أنر مدينة الأشباح!",
+      "ghostLit": "بيت يضيء!",
+      "districtDone": "المدينة عادت للحياة!",
+      "rig2": "حفّارة 2",
+      "cable": "التلفريك",
+      "stargaze": "منصة النجوم",
+      "crown": "صائغ التيجان",
+      "neon": "شارع النيون",
+      "heart": "قلب النيزك",
+      "finale": "القلب!",
+      "comet": "مذنّب! الفصل 2 قادم",
+      "star": "نجمة المدينة!",
+      "hat": "قبعة جديدة!",
+      "album": "الألبوم",
+      "share": "أرِ صديقك",
+      "brag": "مدينتي الكريستالية في Meteor Gems!",
+      "perkTip": "بقشيش أكبر",
+      "perkLuck": "لمعات أكثر",
+      "perkBonus": "+1 لكل بيع",
+      "fizz": "فِز",
+      "nugget": "نَغِت",
+      "zephyr": "زفير",
+      "twinkle": "توينكل",
+      "mossy": "موسي",
+      "nova": "نوفا",
+      "soon": "قريبًا",
+      "chapter1": "النيزك الكريستالي",
+      "chapter2": "مذنّب الجليد",
+      "rare": "نادر!",
+      "shiny": "لامع!",
+      "legendary": "أسطوري!"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
@@ -551,7 +698,39 @@
       "newGame": "NUEVO JUEGO",
       "sure": "TOCA OTRA VEZ",
       "next": "SIGUIENTE",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "PUEBLO FANTASMA",
+      "ghostGoal": "¡ILUMINA EL PUEBLO FANTASMA!",
+      "ghostLit": "¡UNA CASA SE ILUMINA!",
+      "districtDone": "¡EL PUEBLO REVIVE!",
+      "rig2": "TALADRO 2",
+      "cable": "TELEFÉRICO",
+      "stargaze": "MIRADOR DE ESTRELLAS",
+      "crown": "JOYERO DE CORONAS",
+      "neon": "CALLE DE NEÓN",
+      "heart": "CORAZÓN DEL METEORITO",
+      "finale": "¡EL CORAZÓN!",
+      "comet": "¡UN COMETA! LUEGO EL CAPÍTULO 2",
+      "star": "¡ESTRELLA DEL PUEBLO!",
+      "hat": "¡SOMBRERO NUEVO!",
+      "album": "ÁLBUM",
+      "share": "ENSÉÑALO",
+      "brag": "¡Mi pueblo de cristal en Meteor Gems!",
+      "perkTip": "más propinas",
+      "perkLuck": "más destellos",
+      "perkBonus": "+1 por venta",
+      "fizz": "Fizz",
+      "nugget": "Pepita",
+      "zephyr": "Céfiro",
+      "twinkle": "Destello",
+      "mossy": "Musgo",
+      "nova": "Nova",
+      "soon": "PRONTO",
+      "chapter1": "METEORITO DE CRISTAL",
+      "chapter2": "COMETA DE HIELO",
+      "rare": "¡RARO!",
+      "shiny": "¡BRILLANTE!",
+      "legendary": "¡LEGENDARIO!"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
@@ -586,7 +765,39 @@
       "newGame": "CHƠI MỚI",
       "sure": "CHẠM LẦN NỮA",
       "next": "TIẾP",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "THỊ TRẤN MA",
+      "ghostGoal": "THẮP SÁNG THỊ TRẤN MA!",
+      "ghostLit": "MỘT NGÔI NHÀ SÁNG ĐÈN!",
+      "districtDone": "THỊ TRẤN SỐNG LẠI!",
+      "rig2": "MÁY KHOAN 2",
+      "cable": "CÁP TREO",
+      "stargaze": "ĐÀI NGẮM SAO",
+      "crown": "THỢ KIM HOÀN",
+      "neon": "PHỐ NEON",
+      "heart": "TRÁI TIM THIÊN THẠCH",
+      "finale": "TRÁI TIM!",
+      "comet": "SAO CHỔI! CHƯƠNG 2 SẮP TỚI",
+      "star": "NGÔI SAO THỊ TRẤN!",
+      "hat": "MŨ MỚI!",
+      "album": "ALBUM",
+      "share": "KHOE BẠN BÈ",
+      "brag": "Thị trấn pha lê của mình trong Meteor Gems!",
+      "perkTip": "tiền boa to",
+      "perkLuck": "nhiều lấp lánh",
+      "perkBonus": "+1 mỗi lần bán",
+      "fizz": "Fizz",
+      "nugget": "Cốm",
+      "zephyr": "Gió",
+      "twinkle": "Lấp Lánh",
+      "mossy": "Rêu",
+      "nova": "Nova",
+      "soon": "SẮP CÓ",
+      "chapter1": "THIÊN THẠCH PHA LÊ",
+      "chapter2": "SAO CHỔI BĂNG",
+      "rare": "HIẾM!",
+      "shiny": "LẤP LÁNH!",
+      "legendary": "HUYỀN THOẠI!"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
@@ -621,7 +832,39 @@
       "newGame": "नया खेल",
       "sure": "फिर छुएँ",
       "next": "अगला",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "भूतिया कस्बा",
+      "ghostGoal": "भूतिया कस्बा रोशन करो!",
+      "ghostLit": "एक घर जगमगाया!",
+      "districtDone": "कस्बा जाग उठा!",
+      "rig2": "ड्रिल रिग 2",
+      "cable": "केबल कार",
+      "stargaze": "तारा डेक",
+      "crown": "मुकुट जौहरी",
+      "neon": "नियॉन गली",
+      "heart": "उल्का का दिल",
+      "finale": "दिल!",
+      "comet": "धूमकेतु! अगला अध्याय 2",
+      "star": "कस्बे का तारा!",
+      "hat": "नई टोपी!",
+      "album": "एल्बम",
+      "share": "दोस्त को दिखाओ",
+      "brag": "Meteor Gems में मेरा क्रिस्टल कस्बा!",
+      "perkTip": "बड़ी टिप",
+      "perkLuck": "ज़्यादा चमक",
+      "perkBonus": "हर बिक्री +1",
+      "fizz": "फ़िज़",
+      "nugget": "नगेट",
+      "zephyr": "ज़ेफ़िर",
+      "twinkle": "ट्विंकल",
+      "mossy": "मॉसी",
+      "nova": "नोवा",
+      "soon": "जल्द",
+      "chapter1": "क्रिस्टल उल्का",
+      "chapter2": "बर्फ़ीला धूमकेतु",
+      "rare": "दुर्लभ!",
+      "shiny": "चमकीला!",
+      "legendary": "दिग्गज!"
     },
     "bn": {
       "drag": "চলতে টানো",
@@ -656,7 +899,39 @@
       "newGame": "নতুন খেলা",
       "sure": "আবার ছোঁও",
       "next": "পরের",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "ভুতুড়ে শহর",
+      "ghostGoal": "ভুতুড়ে শহর আলোকিত করো!",
+      "ghostLit": "একটা বাড়ি জ্বলে উঠল!",
+      "districtDone": "শহর জেগে উঠেছে!",
+      "rig2": "ড্রিল রিগ ২",
+      "cable": "কেবল কার",
+      "stargaze": "তারা দেখার মঞ্চ",
+      "crown": "মুকুট জহুরি",
+      "neon": "নিয়ন রাস্তা",
+      "heart": "উল্কার হৃদয়",
+      "finale": "হৃদয়!",
+      "comet": "ধূমকেতু! এরপর অধ্যায় ২",
+      "star": "শহরের তারা!",
+      "hat": "নতুন টুপি!",
+      "album": "অ্যালবাম",
+      "share": "বন্ধুকে দেখাও",
+      "brag": "Meteor Gems-এ আমার ক্রিস্টাল শহর!",
+      "perkTip": "বড় বকশিশ",
+      "perkLuck": "বেশি ঝিলিক",
+      "perkBonus": "প্রতি বিক্রিতে +১",
+      "fizz": "ফিজ",
+      "nugget": "নাগেট",
+      "zephyr": "জেফির",
+      "twinkle": "টুইঙ্কল",
+      "mossy": "মসি",
+      "nova": "নোভা",
+      "soon": "শীঘ্রই",
+      "chapter1": "ক্রিস্টাল উল্কা",
+      "chapter2": "বরফের ধূমকেতু",
+      "rare": "বিরল!",
+      "shiny": "ঝকঝকে!",
+      "legendary": "কিংবদন্তি!"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
@@ -691,7 +966,39 @@
       "newGame": "MAIN BARU",
       "sure": "KETUK LAGI",
       "next": "BERIKUTNYA",
-      "title": "METEOR GEM WORKS"
+      "title": "METEOR GEM WORKS",
+      "ghost": "KOTA HANTU",
+      "ghostGoal": "TERANGI KOTA HANTU!",
+      "ghostLit": "SEBUAH RUMAH MENYALA!",
+      "districtDone": "KOTA HIDUP LAGI!",
+      "rig2": "BOR ROBOT 2",
+      "cable": "KERETA GANTUNG",
+      "stargaze": "DEK BINTANG",
+      "crown": "PERAJIN MAHKOTA",
+      "neon": "JALAN NEON",
+      "heart": "JANTUNG METEOR",
+      "finale": "JANTUNGNYA!",
+      "comet": "KOMET! LALU BAB 2",
+      "star": "BINTANG KOTA!",
+      "hat": "TOPI BARU!",
+      "album": "ALBUM",
+      "share": "PAMERKAN",
+      "brag": "Kota kristalku di Meteor Gems!",
+      "perkTip": "tip lebih besar",
+      "perkLuck": "kilau lebih sering",
+      "perkBonus": "+1 tiap jual",
+      "fizz": "Fizz",
+      "nugget": "Bongkah",
+      "zephyr": "Angin",
+      "twinkle": "Kerlip",
+      "mossy": "Lumut",
+      "nova": "Nova",
+      "soon": "SEGERA",
+      "chapter1": "METEOR KRISTAL",
+      "chapter2": "KOMET ES",
+      "rare": "LANGKA!",
+      "shiny": "BERKILAU!",
+      "legendary": "LEGENDA!"
     }
   },
   "start": {
@@ -721,16 +1028,17 @@
   },
   "bus": {
     "first": 6,
-    "every": 110,
+    "every": 100,
     "wave": 6,
     "spawn": 0.35
   },
   "order": {
     "first": 30,
-    "every": 45,
+    "every": 38,
     "tip": 6,
     "ringAfter": "workshop",
-    "ringShare": 0.4
+    "ringShare": 0.4,
+    "quiet": 24
   },
   "rush": {
     "first": 100,
@@ -747,46 +1055,157 @@
       "perk": "carry",
       "v": 5,
       "body": "#f0c48c",
-      "shell": "#5ab8ff"
+      "shell": "#5ab8ff",
+      "rarity": "common"
     },
     {
       "id": "sparky",
       "perk": "speed",
       "v": 0.15,
       "body": "#f6e2c8",
-      "shell": "#ff8ad8"
+      "shell": "#ff8ad8",
+      "rarity": "common"
     },
     {
       "id": "dusty",
       "perk": "magnet",
       "v": 1,
       "body": "#e8a060",
-      "shell": "#ffd35a"
+      "shell": "#ffd35a",
+      "rarity": "common"
     },
     {
       "id": "glimmer",
       "perk": "polish",
       "v": 0.7,
       "body": "#a8d8a0",
-      "shell": "#7ae8b0"
+      "shell": "#7ae8b0",
+      "rarity": "shiny"
     },
     {
       "id": "pip",
       "perk": "tourists",
       "v": 0.75,
       "body": "#d8b090",
-      "shell": "#b08cff"
+      "shell": "#b08cff",
+      "rarity": "shiny"
     },
     {
       "id": "boom",
       "perk": "swing",
       "v": 0.8,
       "body": "#b0a090",
-      "shell": "#ff9a5a"
+      "shell": "#ff9a5a",
+      "rarity": "rare"
+    },
+    {
+      "id": "fizz",
+      "perk": "tip",
+      "v": 4,
+      "body": "#f4d0e0",
+      "shell": "#ff6fa8",
+      "rarity": "common"
+    },
+    {
+      "id": "nugget",
+      "perk": "carry",
+      "v": 5,
+      "body": "#e0b878",
+      "shell": "#ffc23a",
+      "rarity": "common"
+    },
+    {
+      "id": "zephyr",
+      "perk": "speed",
+      "v": 0.1,
+      "body": "#d8e8f0",
+      "shell": "#7ad8ff",
+      "rarity": "shiny"
+    },
+    {
+      "id": "twinkle",
+      "perk": "luck",
+      "v": 0.75,
+      "body": "#f0e0f8",
+      "shell": "#c890ff",
+      "rarity": "shiny"
+    },
+    {
+      "id": "mossy",
+      "perk": "magnet",
+      "v": 0.6,
+      "body": "#a8c890",
+      "shell": "#5ae08a",
+      "rarity": "rare"
+    },
+    {
+      "id": "nova",
+      "perk": "bonus",
+      "v": 1,
+      "body": "#ffe2a0",
+      "shell": "#ffd060",
+      "rarity": "legendary"
     }
   ],
   "save": {
     "every": 4,
     "version": 1
-  }
+  },
+  "cart": {
+    "cap": 4,
+    "trip": 4,
+    "pay": 6,
+    "lights": 3,
+    "tip": 20
+  },
+  "cable": {
+    "tourists": 0.7,
+    "busWave": 3
+  },
+  "stargaze": {
+    "bonus": 1
+  },
+  "crown": {
+    "every": 6,
+    "pay": 22
+  },
+  "neon": {
+    "tourists": 0.85
+  },
+  "finale": {
+    "rise": 3.5,
+    "crown": 7,
+    "comet": 11,
+    "end": 15,
+    "critter": "nova"
+  },
+  "stars": {
+    "orders": 8,
+    "critters": 7
+  },
+  "hats": [
+    {
+      "id": "cowboy"
+    },
+    {
+      "id": "flower",
+      "stars": 1
+    },
+    {
+      "id": "bunny",
+      "stars": 2
+    },
+    {
+      "id": "astro",
+      "stars": 3
+    },
+    {
+      "id": "top",
+      "hearts": 15
+    },
+    {
+      "id": "crown",
+      "finale": true
+    }
+  ]
 }

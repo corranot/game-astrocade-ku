@@ -1,9 +1,10 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Meteor Gem Works rules, pure (no THREE, no DOM): the mine -> polish -> sell -> build loop with unlocks 1-7
-// (drill rig, conveyor + polisher 2, stand 2, shopkeeper, road + tour bus, ring workshop, laser cutter), glints,
-// orders, critter eggs and their perks, Crystal Rush, the guide (never points at a step that does nothing), save /
-// restore, and adaptive quality. game.js steps it and draws the result.
-// Plan: prototypes/meteor-gem-works/plan.md (v2), milestone M2.
+// Meteor Gem Works rules, pure (no THREE, no DOM): the mine -> polish -> sell -> build loop with the 14 unlocks of
+// chapter 1 (drill rig, conveyor + polisher 2, stand 2, shopkeeper, road + tour bus, ring workshop, laser cutter, mine
+// cart + ghost town, drill rig 2, cable car, stargazer deck, crown jeweler, neon main street, the heart of the meteor),
+// glints, orders, critter eggs with rarities and a pity counter, Crystal Rush, the ghost town goal, town stars, hats,
+// the finale, the guide (never points at a step that does nothing), save / restore, and adaptive quality.
+// game.js steps it and draws the result. Plan: plan.md (v2) §2, §4, §12 (milestones M2 and M3).
 
 /** Seeded random in [0, 1) (mulberry32). */
 export function rng(seed) {
@@ -32,20 +33,35 @@ export function createState(cfg, seed = cfg.seed) {
     order: null, orderT: cfg.order.first, hearts: 0,
     rush: { on: false, next: cfg.rush.first, left: 0, spawnT: 0 }, loose: [], lid: 0,
     pads: cfg.pads.map((p) => ({ id: p.id, price: p.price, paid: 0, shown: false, done: false, rate: cfg.cashFlow.payStart, payT: 0 })),
+    rig2: { t: 0 }, jw: { t: 0 }, ghost: { n: 0, lit: 0, go: -1 }, eggs: 0, noRare: 0,
+    stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false,
     sold: 0, made: 0, earned: 0, progressT: 0, events: [],
   };
 }
 
 /** True once the pad with this id is paid for. */
 export const has = (S, id) => S.pads.some((p) => p.id === id && p.done);
-const perk = (cfg, S, name) => { let v = 0; for (const c of S.critters) { const d = cfg.critters.find((q) => q.id === c.id); if (d && d.perk === name) v = d.v; } return v; };
-/** Carry capacity (Pebble's perk adds to it). */
+const MULT = ['swing', 'polish', 'tourists', 'luck'];
+/** A perk summed over the parade (carry, speed, magnet, tip, bonus) or multiplied (swing, polish, tourists, luck). */
+const perk = (cfg, S, name) => {
+  let v = MULT.includes(name) ? 1 : 0;
+  for (const c of S.critters) { const d = cfg.critters.find((q) => q.id === c.id); if (d && d.perk === name) v = MULT.includes(name) ? v * d.v : v + d.v; }
+  return v;
+};
+/** Carry capacity (Pebble's and Nugget's perks add to it). */
 export const carryCap = (cfg, S) => cfg.hero.carry + perk(cfg, S, 'carry');
 const heroSpeed = (cfg, S) => cfg.hero.speed * (1 + perk(cfg, S, 'speed'));
-const swingTime = (cfg, S) => cfg.mining.swing * (perk(cfg, S, 'swing') || 1);
-const polishTime = (cfg, S) => cfg.polish.time * (perk(cfg, S, 'polish') || 1);
-const spawnEvery = (cfg, S) => cfg.sell.spawnEvery * (perk(cfg, S, 'tourists') || 1);
+const swingTime = (cfg, S) => cfg.mining.swing * perk(cfg, S, 'swing');
+const polishTime = (cfg, S) => cfg.polish.time * perk(cfg, S, 'polish');
+const spawnEvery = (cfg, S) => cfg.sell.spawnEvery * perk(cfg, S, 'tourists') * (has(S, 'cable') ? cfg.cable.tourists : 1) * (has(S, 'neon') ? cfg.neon.tourists : 1);
 const cashR = (cfg, S) => cfg.world.cash.r + perk(cfg, S, 'magnet');
+/** What a tourist pays for an item: the base price, plus the stargazer deck and Nova's bonus. */
+export const price = (cfg, S, kind) => (cfg.sell.prices[kind] || cfg.sell.prices.gem) + (has(S, 'stargaze') ? cfg.stargaze.bonus : 0) + perk(cfg, S, 'bonus');
+const cartRoom = (cfg, S) => has(S, 'ghost') && S.ghost.go < 0 && S.ghost.n < cfg.cart.cap;
+/** The ghost town goal: the cart has lit fewer buildings than there are. */
+export const ghostOpen = (cfg, S) => has(S, 'ghost') && S.ghost.lit < cfg.cart.lights;
+/** The time of day the town is heading to (noon at the start, dusk with the neon street, night after the finale). */
+export function todGoal(cfg, S) { let t = cfg.tod.start; for (const [id, v] of Object.entries(cfg.tod.byPad)) if (has(S, id)) t = Math.max(t, v); return t; }
 /** Polishers / stands that are built (the first of each is there from the start). */
 const polOn = (cfg, S) => S.pols.filter((p, i) => !cfg.world.polishers[i].pad || has(S, cfg.world.polishers[i].pad));
 const standOn = (cfg, S) => S.stands.filter((s, i) => !cfg.world.stands[i].pad || has(S, cfg.world.stands[i].pad));
@@ -62,6 +78,7 @@ export function useful(cfg, S, what) {
   if (what === 'cash') return S.cashPile > 0;
   if (what === 'egg') return S.egg.st === 'waiting';
   if (what === 'order') return !!S.order && h.kind === S.order.kind && h.n > 0;
+  if (what === 'cart' && !S.pads.some((q) => q.id === 'ghost' && !q.done)) return cartRoom(cfg, S) && h.kind === 'gem' && h.n > (S.order && S.order.kind === 'gem' ? 1 : 0);
   const pad = S.pads.find((q) => q.id === what && !q.done); // an unbuilt pad shares its id with the station it builds
   if (pad) return pad.shown && h.cash > 0;
   if (what === 'workshop') return has(S, 'workshop') && ((h.kind === 'gem' && h.n > 0 && S.ws.gemsIn < W.workshop.gemCap) || (S.ws.rings > 0 && room > 0 && (h.kind === null || h.kind === 'ring')));
@@ -79,7 +96,7 @@ export function spot(cfg, what, S = null) {
   if (p) return pt(p.in);
   if (s) return pt(s.in);
   if (what === 'workshop') return pt(W.workshop.in);
-  if (what === 'counter' || what === 'mine' || what === 'pile' || what === 'crate' || what === 'cash' || what === 'egg' || what === 'order') return pt(W[what]);
+  if (what === 'counter' || what === 'mine' || what === 'pile' || what === 'crate' || what === 'cash' || what === 'egg' || what === 'order' || what === 'cart') return pt(W[what]);
   return d ? pt(d) : null;
 }
 
@@ -93,8 +110,9 @@ export function guide(cfg, S) {
   const ord = pick('order'); if (ord) return ord;
   if (S.order && S.order.kind === 'ring' && h.kind === null) { const w = pick('workshop'); if (w) return w; } // fetch the ring the kid asked for
   if (ITEMS.includes(h.kind) && h.n > 0) {
+    if (h.kind === 'gem' && ghostOpen(cfg, S)) { const c = pick('cart'); if (c) return c; } // the ghost town goal comes first
     if (h.kind === 'gem' && S.ws.gemsIn < cfg.workshop.per * 2) { const w = pick('workshop'); if (w) return w; } // keep the ring workshop fed
-    return nearest(S.stands.map((s) => s.id)) || pick('workshop') || pick('cash') || (pad && pick(pad.id)) || { what: 'stand', wait: true, ...spot(cfg, 'stand', S) };
+    return nearest(S.stands.map((s) => s.id)) || pick('cart') || pick('workshop') || pick('cash') || (pad && pick(pad.id)) || { what: 'stand', wait: true, ...spot(cfg, 'stand', S) };
   }
   if (h.kind === 'chunk' && h.n > 0) {
     if (h.n < carryCap(cfg, S) && S.pile > 0 && near(h, cfg.world.pile.x, cfg.world.pile.z, cfg.world.pile.r)) return pick('pile');
@@ -115,14 +133,16 @@ export function walkable(cfg, x, z, S = null) {
   return true;
 }
 
-const ev = (S, type, data) => S.events.push({ type, t: S.t, ...data });
+/** Event types the player feels as a reward; the quiet timer (beatT) restarts on each one. */
+export const REWARDS = ['unlock', 'hatch', 'orderDone', 'rush', 'bus', 'ghostLight', 'cartBack', 'crown', 'star', 'hat', 'finale', 'crownHatch'];
+const ev = (S, type, data) => { S.events.push({ type, t: S.t, ...data }); if (REWARDS.includes(type)) S.beatT = 0; };
 
 /**
  * Advances the game by dt seconds. input = { x, z } wanted world direction (length <= 1), tap = { glint: true } when
  * the player tapped the glint. Appends events to S.events (the caller drains them).
  */
 export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
-  S.t += dt; S.progressT += dt;
+  S.t += dt; S.progressT += dt; S.beatT = (S.beatT || 0) + dt;
   const W = cfg.world, h = S.hero, rand = S.random;
   // ---- movement: ease towards the wanted velocity, slide along edges
   const sp = heroSpeed(cfg, S), k = Math.min(1, dt * cfg.hero.accel);
@@ -144,7 +164,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
 
   // ---- the glint: a sparkle on the meteor; a tap on it is a Perfect Strike (3 chunks and a big burst)
   if (S.glint) { S.glint.t += dt; if (S.glint.t > cfg.glint.life) { ev(S, 'glintGone', {}); S.glint = null; S.glintT = 0; } }
-  else if ((S.glintT += dt) >= cfg.glint.every) { S.glint = { t: 0, lon: (rand() - 0.5) * 1.5, lat: 0.15 + rand() * 0.55 }; ev(S, 'glint', { ...S.glint }); }
+  else if ((S.glintT += dt) >= cfg.glint.every * perk(cfg, S, 'luck')) { S.glint = { t: 0, lon: (rand() - 0.5) * 1.5, lat: 0.15 + rand() * 0.55 }; ev(S, 'glint', { ...S.glint }); }
   if (tap && tap.glint && S.glint) {
     ev(S, 'perfect', { n: addPile(cfg.glint.chunks), lon: S.glint.lon, lat: S.glint.lat }); S.glint = null; S.glintT = 0; S.progressT = 0;
   }
@@ -152,6 +172,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   // ---- machines that mine on their own: drill rig, laser cutter
   if (has(S, 'rig')) { S.rig = S.rig || { t: 0 }; if ((S.rig.t += dt) >= cfg.rig.period) { S.rig.t -= cfg.rig.period; ev(S, 'rigHit', { n: addPile(cfg.rig.chunks) }); } }
   if (has(S, 'laser') && (S.laser.t += dt) >= cfg.laser.period) { S.laser.t -= cfg.laser.period; ev(S, 'laserHit', { n: addPile(cfg.laser.chunks) }); }
+  if (has(S, 'rig2') && (S.rig2.t += dt) >= cfg.rig.period) { S.rig2.t -= cfg.rig.period; ev(S, 'rig2Hit', { n: addPile(cfg.rig.chunks) }); }
 
   // ---- conveyor: chunks ride from the pile to the emptiest built polisher
   if (has(S, 'conveyor') && S.pile > 0 && (S.conv.t += dt) >= cfg.conveyor.every) {
@@ -172,13 +193,18 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
     const O = W.order;
     let done = false;
     if (S.order && h.kind === S.order.kind && near(h, O.x, O.z, O.r)) {
-      h.n--; done = true; S.hearts++; S.cashPile += cfg.order.tip; S.earned += cfg.order.tip; S.progressT = 0; ev(S, 'orderDone', { kind: S.order.kind, tip: cfg.order.tip, n: h.n }); S.order = null; S.orderT = cfg.order.every;
+      const tip = cfg.order.tip + perk(cfg, S, 'tip');
+      h.n--; done = true; S.hearts++; S.cashPile += tip; S.earned += tip; S.progressT = 0; ev(S, 'orderDone', { kind: S.order.kind, tip, n: h.n }); S.order = null; S.orderT = cfg.order.every;
     }
     if (!done && h.kind === 'chunk') for (const p of polOn(cfg, S)) { const q = pt(polDef(cfg, p.id).in); if (near(h, q.x, q.z, W.polisherR) && p.polIn < W.polisherCap) { h.n--; p.polIn++; ev(S, 'drop', { at: p.id, n: h.n }); done = true; break; } }
     if (!done && h.kind === 'chunk' && near(h, W.crate.x, W.crate.z, W.crate.r)) { h.n--; S.cashPile += W.crate.pay; ev(S, 'drop', { at: 'crate', n: h.n }); S.progressT = 0; done = true; }
     const keep = S.order && S.order.kind === h.kind && h.n === 1; // the last one is saved for the kid's order
     if (!done && ITEMS.includes(h.kind) && !keep) for (const s of standOn(cfg, S)) { const q = pt(standDef(cfg, s.id).in); if (near(h, q.x, q.z, W.standR) && s.items.length < W.standCap) { h.n--; s.items.push(h.kind); ev(S, 'drop', { at: s.id, kind: h.kind, n: h.n }); done = true; break; } }
     if (!done && h.kind === 'gem' && has(S, 'workshop') && near(h, wsIn.x, wsIn.z, W.workshop.r) && S.ws.gemsIn < W.workshop.gemCap) { h.n--; S.ws.gemsIn++; ev(S, 'drop', { at: 'workshop', n: h.n }); done = true; }
+    if (!done && h.kind === 'gem' && !keep && cartRoom(cfg, S) && near(h, W.cart.x, W.cart.z, W.cart.r)) {
+      h.n--; S.ghost.n++; ev(S, 'drop', { at: 'cart', n: h.n }); done = true;
+      if (S.ghost.n >= cfg.cart.cap) { S.ghost.go = 0; ev(S, 'cartGo', { lit: S.ghost.lit }); S.progressT = 0; }
+    }
     if (done) h.dropT = cfg.hero.dropEvery;
     if (h.n === 0) h.kind = null;
   }
@@ -192,6 +218,18 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   if (has(S, 'workshop') && S.ws.gemsIn >= cfg.workshop.per && S.ws.rings < W.workshop.ringCap) {
     if ((S.ws.t += dt) >= cfg.workshop.time) { S.ws.t = 0; S.ws.gemsIn -= cfg.workshop.per; S.ws.rings++; ev(S, 'ring', {}); S.progressT = 0; }
   } else S.ws.t = 0;
+  // the crown jeweler turns a ring into a crown and ships it off for a big payout (one ring stays for a ring order)
+  if (has(S, 'crown') && (S.jw.t += dt) >= cfg.crown.every) {
+    if (S.ws.rings > (S.order && S.order.kind === 'ring' ? 1 : 0)) { S.jw.t = 0; S.ws.rings--; S.cashPile += cfg.crown.pay; S.earned += cfg.crown.pay; S.progressT = 0; ev(S, 'crown', { pay: cfg.crown.pay }); }
+    else S.jw.t = cfg.crown.every;
+  }
+  // the mine cart: a full cart rolls to the ghost town; the first trips each light a building up (the district goal)
+  if (S.ghost.go >= 0 && (S.ghost.go += dt) >= cfg.cart.trip) {
+    const lightUp = S.ghost.lit < cfg.cart.lights, pay = S.ghost.n * cfg.cart.pay + (lightUp ? cfg.cart.tip : 0);
+    S.ghost.go = -1; S.ghost.n = 0; S.cashPile += pay; S.earned += pay; S.progressT = 0;
+    if (lightUp) { S.ghost.lit++; ev(S, 'ghostLight', { i: S.ghost.lit - 1, pay }); if (S.ghost.lit === cfg.cart.lights) ev(S, 'districtDone', {}); }
+    else ev(S, 'cartBack', { pay });
+  }
 
   // ---- the shopkeeper (an armadillo): counter -> the stand with the most room, on foot
   if (has(S, 'keeper')) stepKeeper(cfg, S, dt);
@@ -199,7 +237,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   // ---- tourists: walk to a free spot at a built stand, take an item, pay, leave; the tour bus brings a wave
   if (has(S, 'road')) {
     if (S.bus.next < 0) S.bus.next = S.t + cfg.bus.first;
-    if (S.t >= S.bus.next) { S.bus.next = S.t + cfg.bus.every; S.bus.wave = cfg.bus.wave; S.nextTourist = 0; ev(S, 'bus', {}); }
+    if (S.t >= S.bus.next) { S.bus.next = S.t + cfg.bus.every; S.bus.wave = cfg.bus.wave + (has(S, 'cable') ? cfg.cable.busWave : 0); S.nextTourist = 0; ev(S, 'bus', {}); }
   }
   for (const s of S.stands) s.lock = Math.max(0, s.lock - dt);
   S.nextTourist -= dt;
@@ -223,15 +261,15 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
     if (q.st === 'come' && L <= 0.05) { q.st = 'wait'; q.t = 0; q.face = Math.atan2(sd.x - q.x, sd.z - q.z); }
     else if (q.st === 'wait' && s.items.length > 0 && s.lock <= 0) { q.item = s.items.shift(); s.lock = cfg.sell.takeLock; q.st = 'buy'; q.t = 0; ev(S, 'take', { id: q.id, stand: q.stand, kind: q.item }); }
     else if (q.st === 'buy' && q.t >= cfg.sell.pay) {
-      const price = cfg.sell.prices[q.item] || cfg.sell.prices.gem;
-      q.st = 'leave'; q.ox = q.x + (rand() - 0.5) * 4; S.cashPile += price; S.sold++; S.earned += price; S.progressT = 0;
-      ev(S, 'sale', { id: q.id, amount: price, kind: q.item, x: q.x, z: q.z });
+      const pay = price(cfg, S, q.item);
+      q.st = 'leave'; q.ox = q.x + (rand() - 0.5) * 4; S.cashPile += pay; S.sold++; S.earned += pay; S.progressT = 0;
+      ev(S, 'sale', { id: q.id, amount: pay, kind: q.item, x: q.x, z: q.z });
     }
   }
   S.tourists = S.tourists.filter((q) => !(q.st === 'leave' && q.z >= W.crowd.z1 + 1.4));
 
   // ---- orders: one tourist kid at a time asks for a gem (or a ring once the workshop is built); no timer
-  if (!S.order && S.sold > 0 && (S.orderT -= dt) <= 0) {
+  if (!S.order && S.sold > 0 && ((S.orderT -= dt) <= 0 || S.beatT > cfg.order.quiet)) { // a quiet spell brings the next kid early
     const ring = has(S, cfg.order.ringAfter) && rand() < cfg.order.ringShare;
     S.order = { kind: ring ? 'ring' : 'gem', t: 0 }; ev(S, 'order', { kind: S.order.kind });
   }
@@ -251,7 +289,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
       while (p.payT <= 0 && h.cash > 0 && p.paid < p.price) {
         p.rate = Math.min(cfg.cashFlow.payMax, p.rate * cfg.cashFlow.payGrow); p.payT += 1 / p.rate; h.cash--; p.paid++; ev(S, 'pay', { id: p.id, paid: p.paid });
       }
-      if (p.paid >= p.price) { p.done = true; S.progressT = 0; ev(S, 'unlock', { id: p.id }); pushOut(cfg, S, def); }
+      if (p.paid >= p.price) { p.done = true; S.progressT = 0; ev(S, 'unlock', { id: p.id }); pushOut(cfg, S, def); if (p.id === 'heart') S.finale = { t: 0, st: 0 }; }
     } else { p.payT = 0; p.rate = cfg.cashFlow.payStart; }
   });
 
@@ -261,7 +299,9 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   if (E.st === 'lodged' && E.who && S.t >= E.at) { E.st = 'waiting'; E.t = 0; ev(S, 'eggDrop', { who: E.who }); }
   else if (E.st === 'waiting' && near(h, W.egg.x, W.egg.z, cfg.egg.r)) { E.st = 'hatching'; E.t = 0; ev(S, 'hatchStart', { who: E.who }); S.progressT = 0; }
   else if (E.st === 'hatching' && E.t >= cfg.egg.hatch) {
-    S.critters.push({ id: E.who, x: W.egg.x, z: W.egg.z, vx: 0, vz: 0, face: 0 }); ev(S, 'hatch', { who: E.who }); S.progressT = 0;
+    const rare = (cfg.critters.find((c) => c.id === E.who) || {}).rarity;
+    S.critters.push({ id: E.who, x: W.egg.x, z: W.egg.z, vx: 0, vz: 0, face: 0 }); S.eggs++; S.noRare = rare === 'rare' ? 0 : S.noRare + 1;
+    ev(S, 'hatch', { who: E.who, rarity: rare }); S.progressT = 0;
     nextEgg(cfg, S);
   }
   // critters walk in a parade: each one follows the one in front (the first follows the hero)
@@ -274,9 +314,29 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
     lead = c;
   }
 
+  // ---- the finale: the heart of the meteor rises, the crown critter hatches from it, a comet points to chapter 2
+  if (S.finale) {
+    const F = S.finale, FC = cfg.finale; F.t += dt;
+    const beats = [['finale', 0], ['heartRise', FC.rise], ['crownHatch', FC.crown], ['comet', FC.comet], ['finaleEnd', FC.end]];
+    while (F.st < beats.length && F.t >= beats[F.st][1]) {
+      const [type] = beats[F.st++]; S.progressT = 0;
+      if (type === 'finale') { S.rush.on = true; S.rush.left = cfg.rush.length; S.rush.spawnT = 0; }
+      if (type === 'crownHatch' && !S.critters.some((c) => c.id === FC.critter)) S.critters.push({ id: FC.critter, x: W.egg.x, z: W.egg.z, vx: 0, vz: 0, face: 0 });
+      ev(S, type, type === 'crownHatch' ? { who: FC.critter } : {});
+      if (type === 'finaleEnd') { S.finale = null; S.done1 = true; break; }
+    }
+  }
+  // ---- town stars and the hats they unlock (checked every step; each fires once)
+  const SC = cfg.stars, earn = (id, ok) => { if (ok && !S.stars.includes(id)) { S.stars.push(id); ev(S, 'star', { id, n: S.stars.length }); S.progressT = 0; } };
+  earn('orders', S.hearts >= SC.orders); earn('critters', S.critters.length >= SC.critters); earn('town', S.ghost.lit >= cfg.cart.lights && has(S, 'neon'));
+  for (const hd of cfg.hats) {
+    if (S.hats.includes(hd.id)) continue;
+    if ((hd.stars && S.stars.length >= hd.stars) || (hd.hearts && S.hearts >= hd.hearts) || (hd.finale && S.done1)) { S.hats.push(hd.id); S.hat = hd.id; ev(S, 'hat', { id: hd.id }); }
+  }
+
   // ---- Crystal Rush: the meteor flares, chunks and coins rain onto the deck for a few seconds; scoop them up
   const R = S.rush, RC = cfg.rush;
-  if (!R.on && S.t >= R.next) { R.on = true; R.left = RC.length; R.spawnT = 0; ev(S, 'rush', {}); }
+  if (!R.on && S.t >= R.next && !S.finale) { R.on = true; R.left = RC.length; R.spawnT = 0; ev(S, 'rush', {}); }
   if (R.on) {
     R.left -= dt;
     if ((R.spawnT -= dt) <= 0 && S.loose.length < RC.max) {
@@ -297,11 +357,18 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   return S;
 }
 
-/** Picks the next critter (the ones not hatched yet, at random) and schedules its egg; the laser makes eggs come sooner. */
+/**
+ * Picks the next critter from the ones not hatched yet (weighted by rarity; after egg.pity eggs without a rare one, a
+ * rare one is sure) and schedules its egg. The laser makes eggs come sooner. Legendary critters never come from eggs.
+ */
 function nextEgg(cfg, S) {
-  const left = cfg.critters.filter((c) => !S.critters.some((o) => o.id === c.id));
+  let left = cfg.critters.filter((c) => c.rarity !== 'legendary' && !S.critters.some((o) => o.id === c.id));
   if (!left.length) { S.egg = { st: 'none', t: 0, at: Infinity, who: null }; return; }
-  const who = left[Math.floor(S.random() * left.length)].id;
+  const rares = left.filter((c) => c.rarity === 'rare');
+  if (rares.length && S.noRare >= cfg.egg.pity) left = rares;
+  const wsum = left.reduce((a, c) => a + cfg.egg.weights[c.rarity], 0); let r = S.random() * wsum, pickC = left[left.length - 1];
+  for (const c of left) { r -= cfg.egg.weights[c.rarity]; if (r < 0) { pickC = c; break; } }
+  const who = pickC.id;
   S.egg = { st: 'lodged', t: 0, at: S.t + cfg.egg.every * (has(S, 'laser') ? cfg.laser.eggK : 1), who };
 }
 
@@ -344,16 +411,52 @@ function stepKeeper(cfg, S, dt) {
   } else k.moving = false;
 }
 
+/**
+ * One step of a route on a coarse grid over the deck: a distance field from the target (breadth first, rebuilt when
+ * the target or the buildings change), then the neighbour cell nearest to the target. Returns a direction or null.
+ */
+function navStep(cfg, S, g) {
+  const D = cfg.world.deck, c = 0.4, nx = Math.ceil((D.x1 - D.x0) / c) + 1, nz = Math.ceil((D.z1 - D.z0) / c) + 1, h = S.hero;
+  const key = `${g.x.toFixed(1)},${g.z.toFixed(1)}:${S.pads.filter((p) => p.done).length}`;
+  if (!S._nav || S._nav.key !== key) {
+    const open = new Uint8Array(nx * nz), dist = new Int32Array(nx * nz).fill(-1), q = [];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) open[j * nx + i] = walkable(cfg, D.x0 + i * c, D.z0 + j * c, S) ? 1 : 0;
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (open[k] && (D.x0 + i * c - g.x) ** 2 + (D.z0 + j * c - g.z) ** 2 < 0.8 * 0.8) { dist[k] = 0; q.push(k); } }
+    for (let qi = 0; qi < q.length; qi++) {
+      const k = q[qi], i = k % nx, j = (k - i) / nx;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = j + dj, kk = b * nx + a; if (a >= 0 && b >= 0 && a < nx && b < nz && open[kk] && dist[kk] < 0) { dist[kk] = dist[k] + 1; q.push(kk); } }
+    }
+    Object.defineProperty(S, '_nav', { value: { key, dist }, configurable: true, writable: true, enumerable: false });
+  }
+  const dist = S._nav.dist, i0 = Math.round((h.x - D.x0) / c), j0 = Math.round((h.z - D.z0) / c);
+  let best = null, bd = 1e9;
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const i = i0 + di, j = j0 + dj; if (i < 0 || j < 0 || i >= nx || j >= nz) continue;
+    const d = dist[j * nx + i]; if (d < 0) continue;
+    const vx = D.x0 + i * c - h.x, vz = D.z0 + j * c - h.z, l = Math.hypot(vx, vz);
+    if (l < 0.05 || !walkable(cfg, h.x + (vx / l) * 0.12, h.z + (vz / l) * 0.12, S)) continue; // never steer into a wall the hero touches
+    const cost = d + l * 0.5;
+    if (cost < bd) { bd = cost; best = { x: vx / l, z: vz / l }; }
+  }
+  return best;
+}
+
 /** Bot input: walk toward the guide's target (used by tests and ?bot). Returns { x, z } and the target. */
 export function botInput(cfg, S) {
   const g = guide(cfg, S); if (!g) return { x: 0, z: 0, g };
   const h = S.hero, dx = g.x - h.x, dz = g.z - h.z, L = Math.hypot(dx, dz);
   if (L < 0.25) return { x: 0, z: 0, g };
-  // steer around a station in the way: the first of 0, ±25°, ±50°, ... whose next metre is walkable
-  const a0 = Math.atan2(dx, dz); let x = dx / L, z = dz / L;
-  for (const d of [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.25, -2.25, 2.7, -2.7, 3.14]) {
-    const a = a0 + d, ok = [0.35, 0.7, 1.05].every((r) => walkable(cfg, h.x + Math.sin(a) * Math.min(r, L), h.z + Math.cos(a) * Math.min(r, L), S));
-    if (ok) { x = Math.sin(a); z = Math.cos(a); break; }
+  let x = dx / L, z = dz / L;
+  const clear = (() => { for (let r = 0.3; r < L; r += 0.3) if (!walkable(cfg, h.x + x * r, h.z + z * r, S)) return false; return true; })();
+  const step = clear ? null : navStep(cfg, S, g);
+  if (step) { x = step.x; z = step.z; }
+  else if (!clear) {
+    // no route from here (hero just pushed out of a new building): steer around, first of 0, ±25°, ±50°, ... that is open
+    const a0 = Math.atan2(dx, dz);
+    for (const d of [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.25, -2.25, 2.7, -2.7, 3.14]) {
+      const a = a0 + d, ok = [0.35, 0.7, 1.05].every((r) => walkable(cfg, h.x + Math.sin(a) * Math.min(r, L), h.z + Math.cos(a) * Math.min(r, L), S));
+      if (ok) { x = Math.sin(a); z = Math.cos(a); break; }
+    }
   }
   // the bot also scoops Rush pickups on the way when one is close
   if (S.loose.length && !g.wait) { const l = S.loose.find((q) => Math.hypot(q.x - h.x, q.z - h.z) < 2.5 && (q.kind === 'coin' || h.kind === null || h.kind === 'chunk')); if (l) { const lx = l.x - h.x, lz = l.z - h.z, ll = Math.hypot(lx, lz) || 1; x = lx / ll; z = lz / ll; } }
@@ -366,6 +469,8 @@ export function serialize(cfg, S) {
     v: cfg.save.version, t: Math.round(S.t), cash: S.hero.cash, kind: S.hero.kind, n: S.hero.n, cashPile: S.cashPile, pile: S.pile, counter: S.counter,
     pols: S.pols.map((p) => p.polIn), stands: S.stands.map((s) => s.items.slice()), ws: { g: S.ws.gemsIn, r: S.ws.rings },
     pads: S.pads.map((p) => [p.paid, p.done ? 1 : 0]), critters: S.critters.map((c) => c.id), hearts: S.hearts, sold: S.sold, made: S.made, earned: S.earned,
+    ghost: { n: S.ghost.go >= 0 ? 0 : S.ghost.n, lit: S.ghost.lit + (S.ghost.go >= 0 && S.ghost.lit < cfg.cart.lights ? 1 : 0) }, stars: ['orders', 'critters', 'town'].filter((id) => S.stars.includes(id)), hats: cfg.hats.map((x) => x.id).filter((id) => S.hats.includes(id)), hat: S.hat,
+    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare,
   };
 }
 
@@ -383,6 +488,13 @@ export function restore(cfg, d, seed = cfg.seed) {
   S.hearts = num(d.hearts, 0, 1e9, 0); S.sold = num(d.sold, 0, 1e9, 0); S.made = num(d.made, 0, 1e9, 0); S.earned = num(d.earned, 0, 1e9, 0);
   if (Array.isArray(d.critters)) for (const id of d.critters) if (cfg.critters.some((c) => c.id === id) && !S.critters.some((c) => c.id === id)) S.critters.push({ id, x: S.hero.x, z: S.hero.z + 1, vx: 0, vz: 0, face: 0 });
   if (ITEMS.concat('chunk').includes(d.kind)) { S.hero.kind = d.kind; S.hero.n = num(d.n, 0, carryCap(cfg, S), 0); if (!S.hero.n) S.hero.kind = null; }
+  if (d.ghost) { S.ghost.lit = num(d.ghost.lit, 0, cfg.cart.lights, 0); S.ghost.n = num(d.ghost.n, 0, cfg.cart.cap - 1, 0); }
+  if (Array.isArray(d.stars)) S.stars = ['orders', 'critters', 'town'].filter((id) => d.stars.includes(id));
+  if (Array.isArray(d.hats)) S.hats = cfg.hats.map((x) => x.id).filter((id, i) => i === 0 || d.hats.includes(id));
+  if (S.hats.includes(d.hat)) S.hat = d.hat;
+  S.done1 = !!d.done1 && has(S, 'heart'); S.eggs = num(d.eggs, 0, 1e6, S.critters.length); S.noRare = num(d.noRare, 0, 1e6, 0);
+  if (has(S, 'heart') && !S.done1) S.done1 = true; // a save made mid-finale: the finale counts as seen
+  if (S.done1 && !S.critters.some((c) => c.id === cfg.finale.critter)) S.critters.push({ id: cfg.finale.critter, x: S.hero.x, z: S.hero.z + 1, vx: 0, vz: 0, face: 0 });
   if (S.critters.length) { nextEgg(cfg, S); S.egg.at = S.t + Math.min(cfg.egg.every, 25); }
   S.rush.next = S.t + cfg.rush.first; S.orderT = cfg.order.first * 0.5; S.glintT = cfg.glint.every * 0.5;
   return S;

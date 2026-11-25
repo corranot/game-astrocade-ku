@@ -1,5 +1,5 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Rules tests for Meteor Gem Works (node --test). Plan: plan.md §10 and §11 (fix A: the guide never dead-ends).
+// Rules tests for Meteor Gem Works (node --test). Plan: plan.md §10, §11 (fix A: the guide never dead-ends) and §12 (M2, M3).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,7 +18,7 @@ function play(c, sec, seed) {
   return { S, all };
 }
 
-const REWARDS = ['unlock', 'hatch', 'orderDone', 'rush', 'bus'];
+const REWARDS = L.REWARDS;
 
 test('3 chunks make 1 gem, and the counter fills', () => {
   const c = cfg(), S = L.createState(c);
@@ -79,7 +79,7 @@ test('bot plays 4 min: first sale early, all 7 unlocks by ~3:50, a reward at lea
     const sale = all.find((e) => e.type === 'sale');
     assert.ok(sale && sale.t < 25, `first sale by 25 s (seed ${seed}): ${sale && sale.t.toFixed(1)}`);
     const unlocks = all.filter((e) => e.type === 'unlock').map((e) => e.id);
-    assert.deepEqual(unlocks, c.pads.map((p) => p.id), `unlock order (seed ${seed})`);
+    assert.deepEqual(unlocks.slice(0, 7), c.pads.slice(0, 7).map((p) => p.id), `unlock order (seed ${seed})`);
     const laser = all.find((e) => e.type === 'unlock' && e.id === 'laser');
     assert.ok(laser.t < 230, `laser by 3:50 (seed ${seed}): ${laser.t.toFixed(1)}`);
     let last = 0, worst = 0;
@@ -90,6 +90,71 @@ test('bot plays 4 min: first sale early, all 7 unlocks by ~3:50, a reward at lea
   }
 });
 
+test('chapter 1 with the bot: all 14 unlocks in order, the ghost town, 3 stars, the finale by ~11 min, no quiet spell over 45 s', () => {
+  const c = cfg();
+  for (const seed of [1, 2, 3]) {
+    const { S, all } = play(c, 680, seed), at = (type, id) => all.find((e) => e.type === type && (!id || e.id === id));
+    assert.deepEqual(all.filter((e) => e.type === 'unlock').map((e) => e.id), c.pads.map((p) => p.id), `unlock order (seed ${seed})`);
+    assert.ok(at('unlock', 'heart').t < 660, `heart by 11:00 (seed ${seed}): ${at('unlock', 'heart').t.toFixed(0)}`);
+    assert.ok(at('finaleEnd') && S.done1, `the finale plays to its end (seed ${seed})`);
+    assert.equal(all.filter((e) => e.type === 'ghostLight').length, c.cart.lights, `ghost town lit (seed ${seed})`);
+    assert.ok(at('districtDone'), `district goal done (seed ${seed})`);
+    assert.deepEqual(S.stars.slice().sort(), ['critters', 'orders', 'town'], `3 town stars (seed ${seed})`);
+    assert.ok(S.hats.length >= 5 && S.hats.includes('crown'), `hats (seed ${seed}): ${S.hats}`);
+    assert.ok(S.critters.length >= 10 && S.critters.some((q) => q.id === 'nova'), `critters (seed ${seed}): ${S.critters.length}`);
+    assert.ok(at('crown') && at('rig2Hit'), `crowns ship and rig 2 drills (seed ${seed})`);
+    let last = 0, worst = 0;
+    for (const e of all) if (REWARDS.includes(e.type)) { worst = Math.max(worst, e.t - last); last = e.t; }
+    assert.ok(worst <= 45, `longest gap between rewards ${worst.toFixed(1)} s (seed ${seed})`);
+  }
+});
+
+test('perks add up or multiply over the parade; Nova and the stargazer deck raise prices', () => {
+  const c = cfg(), S = L.createState(c);
+  S.critters = ['pebble', 'nugget'].map((id) => ({ id, x: 0, z: 0, vx: 0, vz: 0, face: 0 }));
+  assert.equal(L.carryCap(c, S), c.hero.carry + 10);
+  const base = L.price(c, S, 'gem');
+  S.critters.push({ id: 'nova', x: 0, z: 0, vx: 0, vz: 0, face: 0 }); S.pads.find((p) => p.id === 'stargaze').done = true;
+  assert.equal(L.price(c, S, 'gem'), base + c.stargaze.bonus + 1);
+});
+
+test('eggs: legendary never hatches from an egg, and a rare one comes by the pity count', () => {
+  const c = cfg();
+  for (let seed = 1; seed <= 20; seed++) {
+    const S = L.createState(c, seed), got = [];
+    S.critters.push({ id: 'pebble', x: 0, z: 0, vx: 0, vz: 0, face: 0 });
+    for (let k = 0; k < 11; k++) {
+      S.egg = { st: 'hatching', t: 99, at: 0, who: S.egg.who };
+      if (k === 0) { S.egg.who = 'sparky'; }
+      L.step(c, S, 1 / 60, { x: 0, z: 0 }); got.push(...S.events.filter((e) => e.type === 'hatch').map((e) => e.who)); S.events.length = 0;
+      if (!S.egg.who) break;
+    }
+    assert.ok(!got.includes('nova'), 'no legendary from eggs');
+    const firstRare = got.findIndex((id) => c.critters.find((q) => q.id === id).rarity === 'rare');
+    assert.ok(firstRare >= 0 && firstRare <= c.egg.pity, `a rare by egg ${c.egg.pity + 1} (seed ${seed}): ${got.join(',')}`);
+  }
+});
+
+test('the mine cart: a full cart lights a ghost town house and pays; the guide takes gems there first', () => {
+  const c = cfg(), S = L.createState(c);
+  S.pads.forEach((p) => { if (p.id === 'ghost') p.done = true; }); S.sold = 1;
+  Object.assign(S.hero, { x: c.world.cart.x, z: c.world.cart.z, kind: 'gem', n: c.cart.cap });
+  assert.equal(L.guide(c, S).what, 'cart');
+  const ev = [];
+  for (let i = 0; i < (c.cart.trip + 1) * 60; i++) { L.step(c, S, 1 / 60, { x: 0, z: 0 }); ev.push(...S.events); S.events.length = 0; }
+  assert.ok(ev.some((e) => e.type === 'cartGo'));
+  const lit = ev.find((e) => e.type === 'ghostLight');
+  assert.ok(lit && lit.i === 0 && lit.pay === c.cart.cap * c.cart.pay + c.cart.tip, JSON.stringify(lit));
+  assert.equal(S.ghost.lit, 1);
+});
+
+test('the town gets later in the day as the chapter goes on', () => {
+  const c = cfg(), S = L.createState(c);
+  assert.equal(L.todGoal(c, S), c.tod.start);
+  S.pads.find((p) => p.id === 'neon').done = true;
+  assert.equal(L.todGoal(c, S), c.tod.byPad.neon);
+});
+
 test('save round trip keeps progress, and restore rejects junk', () => {
   const c = cfg(), { S } = play(c, 150, 4), d = JSON.parse(JSON.stringify(L.serialize(c, S))), R = L.restore(c, d, 9);
   assert.deepEqual(L.serialize(c, R), L.serialize(c, S));
@@ -98,6 +163,15 @@ test('save round trip keeps progress, and restore rejects junk', () => {
   assert.equal(J.hero.cash, 1e9); assert.equal(J.pile, 0); assert.equal(J.counter, c.start.counter);
   assert.equal(J.pols[0].polIn, c.world.polisherCap); assert.deepEqual(J.stands[0].items, ['gem']);
   assert.equal(J.critters.length, 1); assert.equal(J.hero.n, L.carryCap(c, J)); assert.equal(J.pads[0].paid, J.pads[0].price);
+  const K = L.restore(c, { v: c.save.version, ghost: { lit: 99, n: -3 }, stars: ['town', 'fake'], hats: ['bunny', 'nope'], hat: 'nope', done1: true });
+  assert.equal(K.ghost.lit, c.cart.lights); assert.equal(K.ghost.n, 0); assert.deepEqual(K.stars, ['town']);
+  assert.deepEqual(K.hats, ['cowboy', 'bunny']); assert.equal(K.hat, 'cowboy'); assert.equal(K.done1, false, 'no finale without the heart');
+});
+
+test('a late save (chapter done) round trips: stars, hats, the hat worn, Nova', () => {
+  const c = cfg(), { S } = play(c, 680, 1), d = JSON.parse(JSON.stringify(L.serialize(c, S))), R = L.restore(c, d, 9);
+  assert.deepEqual(L.serialize(c, R), L.serialize(c, S));
+  assert.ok(R.done1 && R.critters.some((q) => q.id === 'nova'));
 });
 
 test('a restored game keeps playing: the bot reaches the next unlock', () => {

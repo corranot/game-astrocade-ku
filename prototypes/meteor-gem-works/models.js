@@ -607,3 +607,199 @@ export function buildLaser() {
   for (const dx of [-0.2, 0, 0.2]) parts.push(P(at(cyl(0.06, 0.08, 0.55, 8), dx, dx === 0 ? 0.06 : -0.08, -0.65, Math.PI / 2), PAL.steel), P(at(cyl(0.085, 0.085, 0.06, 10), dx, dx === 0 ? 0.06 : -0.08, -0.92, Math.PI / 2), PAL.brass));
   return { base, head: merge(parts) };
 }
+
+// ---------------------------------------------------------------- chapter 1, unlocks 8-14 and the finale (M3)
+
+/** Adds a constant float attribute (one value per vertex) to a painted geometry; returns it. */
+export function tag(g, name, v) { g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(v), 1)); return g; }
+
+/** Like merge(), but keeps every attribute of the first part (all parts must carry the same ones). */
+export function mergeX(parts) {
+  let count = 0; for (const g of parts) count += g.attributes.position.count;
+  const out = new THREE.BufferGeometry();
+  for (const name of Object.keys(parts[0].attributes)) {
+    const size = parts[0].attributes[name].itemSize, a = new Float32Array(count * size); let o = 0;
+    for (const g of parts) { a.set(g.attributes[name].array, o); o += g.attributes[name].array.length; }
+    out.setAttribute(name, new THREE.BufferAttribute(a, size));
+  }
+  for (const g of parts) g.dispose();
+  out.computeBoundingSphere();
+  return out;
+}
+
+/**
+ * The ghost town: three false-front houses in one geometry. Each vertex carries aIdx (house 0..2), aKind (0 always, 1
+ * ghost only: boards and cobwebs, 2 lit only: bunting and flower boxes), aWin (1 on window panes) and aGhost (the grey
+ * colour it has before it is lit). The material blends from aGhost to the real colour as house aIdx lights up.
+ * houses: [[x, z, ry, w, h, wall, trim, roof], ...]
+ */
+export function buildGhostTown(houses) {
+  const parts = [];
+  const grey = (c) => { const k = col(c); const l = k.r * 0.3 + k.g * 0.55 + k.b * 0.15; return col(0x6a6470).lerp(new THREE.Color(l, l, l), 0.45); };
+  houses.forEach(([x, z, ry, w, h, wall, trim, roof], i) => {
+    const s = buildShop(w, h, wall, trim, roof), m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)), new THREE.Vector3(1, 1, 1));
+    const d = 3.2, local = [];
+    local.push([s.body, 0, 0], [s.windows, 0, 1]);
+    // ghost only: crossed boards over the windows and door, a sagging sign, cobweb tufts
+    const boards = [];
+    for (const sx of [-1, 1]) for (const a of [0.5, -0.5]) boards.push(P(at(rbox(1.0, 0.12, 0.05, 0.02), sx * w * 0.3, 1.2, d / 2 + 0.08, 0, 0, a), PAL.woodDark));
+    for (const a of [0.35, -0.35]) boards.push(P(at(rbox(1.2, 0.14, 0.05, 0.02), 0, 0.95, d / 2 + 0.07, 0, 0, a), PAL.wood));
+    boards.push(P(at(rbox(w * 0.6, 0.4, 0.06, 0.03), 0.2, h + h * 0.13, d / 2 + 0.02, 0, 0, 0.12), PAL.woodDark));
+    for (const [cx, cy] of [[-w / 2 + 0.2, h - 0.2], [w / 2 - 0.25, h * 0.6]]) boards.push(P(at(new THREE.TorusGeometry(0.22, 0.012, 3, 12, Math.PI / 2), cx, cy, d / 2 + 0.06), 0xd8d4dc));
+    local.push([merge(boards), 1, 0]);
+    // lit only: bunting along the false front, flower boxes under the windows, a lantern by the door
+    const lit = [];
+    for (let k = 0; k < 7; k++) { const t = k / 6; lit.push(P(at(new THREE.ConeGeometry(0.12, 0.26, 3), -w * 0.48 + t * w * 0.96, h + 0.1 - Math.sin(t * Math.PI) * 0.18, d / 2 + 0.16, Math.PI, 0, 0), [PAL.red, PAL.sun, PAL.teal, PAL.pink][k % 4])); }
+    for (const sx of [-1, 1]) { lit.push(P(at(rbox(0.9, 0.2, 0.24, 0.05), sx * w * 0.3, 0.62, d / 2 + 0.16), PAL.woodDark)); for (let f = 0; f < 4; f++) lit.push(P(at(sphere(0.08, 6, 4), sx * w * 0.3 - 0.3 + f * 0.2, 0.76, d / 2 + 0.18), [PAL.flower, PAL.sun, PAL.pink, PAL.mint][(f + i) % 4])); }
+    lit.push(P(at(sphere(0.14, 8, 6), 0.62, 1.9, d / 2 + 0.2, 0, 0, 0, [1, 1.3, 1]), 0xffd08a));
+    local.push([merge(lit), 2, 0]);
+    for (const [g, kind, win] of local) {
+      g.applyMatrix4(m);
+      const c = g.attributes.color, gh = new Float32Array(c.count * 3);
+      for (let v = 0; v < c.count; v++) { const q = win ? col(0x3a3440) : grey(new THREE.Color(c.getX(v), c.getY(v), c.getZ(v)).getHex()); gh[v * 3] = q.r; gh[v * 3 + 1] = q.g; gh[v * 3 + 2] = q.b; }
+      if (win) { const wc = col(0xffc878); for (let v = 0; v < c.count; v++) c.setXYZ(v, wc.r, wc.g, wc.b); }
+      g.setAttribute('aGhost', new THREE.BufferAttribute(gh, 3)); tag(g, 'aIdx', i); tag(g, 'aKind', kind); tag(g, 'aWin', win);
+      parts.push(g);
+    }
+  });
+  return mergeX(parts);
+}
+
+/** Mine-cart rail along [[x, z], ...]: sleepers and two steel rails, merged. */
+export function buildRail(pts) {
+  const parts = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az), ry = Math.atan2(bx - ax, bz - az);
+    for (const sd of [-1, 1]) parts.push(P(at(rbox(0.07, 0.08, L + 0.08, 0.02), (ax + bx) / 2 + Math.cos(ry) * sd * 0.32, 0.1, (az + bz) / 2 - Math.sin(ry) * sd * 0.32, 0, ry), PAL.steel));
+    const n = Math.max(1, Math.round(L / 0.55));
+    for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; parts.push(P(at(rbox(0.95, 0.07, 0.2, 0.02), ax + (bx - ax) * t, 0.04, az + (bz - az) * t, 0, ry), k % 2 ? PAL.woodDark : PAL.wood)); }
+  }
+  return merge(parts);
+}
+
+/** A mine cart: a riveted wooden tub on an iron frame with four wheels; faces +z. */
+export function buildMineCart() {
+  const parts = [];
+  parts.push(P(at(lathe([[0, 0], [0.5, 0], [0.62, 0.5], [0.56, 0.52], [0.45, 0.06], [0, 0.06]], 4), 0, 0.42, 0, 0, Math.PI / 4, 0, [1.05, 1, 1.4]), (x, y) => shade(PAL.wood, PAL.woodDark, Math.abs(Math.sin(y * 18)) > 0.9 ? 0.6 : 0.15)));
+  for (const y of [0.5, 0.82]) parts.push(P(at(new THREE.TorusGeometry(0.66, 0.035, 4, 4), 0, y, 0, Math.PI / 2, 0, Math.PI / 4, [1.02 + (y - 0.5) * 0.3, 1.38 + (y - 0.5) * 0.4, 1]), PAL.iron));
+  parts.push(P(at(rbox(0.7, 0.12, 1.3, 0.04), 0, 0.33, 0), PAL.iron));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(P(at(cyl(0.17, 0.17, 0.1, 12), sx * 0.34, 0.2, sz * 0.42, 0, 0, Math.PI / 2), PAL.ink), P(at(cyl(0.07, 0.07, 0.12, 8), sx * 0.34, 0.2, sz * 0.42, 0, 0, Math.PI / 2), PAL.brass));
+  parts.push(P(at(rbox(0.12, 0.12, 0.25, 0.04), 0, 0.42, 0.78), PAL.brass));
+  return merge(parts);
+}
+
+/** Cable car: two lattice pylons and the cable between them (one geometry); the gondola is separate. */
+export function buildCableLine(a, b) {
+  const parts = [];
+  for (const [x, z, top] of [a, b]) {
+    for (const sx of [-1, 1]) parts.push(P(at(cyl(0.12, 0.2, top, 6), x + sx * 0.5, top / 2, z, 0, 0, sx * -0.06), PAL.iron));
+    for (let k = 1; k < top / 1.4; k++) parts.push(P(at(rbox(1.0 - k * 0.04, 0.08, 0.08, 0.02), x, k * 1.4, z), PAL.iron));
+    parts.push(P(at(rbox(1.8, 0.25, 0.4, 0.06), x, top + 0.1, z), PAL.red), P(at(cyl(0.18, 0.18, 0.3, 10), x, top + 0.3, z, Math.PI / 2), PAL.brass));
+  }
+  const c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(a[0], a[2] + 0.35, a[1]), new THREE.Vector3((a[0] + b[0]) / 2, Math.min(a[2], b[2]) - 1.2, (a[1] + b[1]) / 2), new THREE.Vector3(b[0], b[2] + 0.35, b[1]));
+  parts.push(P(new THREE.TubeGeometry(c, 40, 0.05, 4), PAL.ink));
+  return { line: merge(parts), curve: c };
+}
+/** A cable car gondola: a rounded cabin with windows, a striped roof and the hanger arm (hangs from y 0). */
+export function buildGondola(c1 = PAL.red, c2 = PAL.cream) {
+  return merge([
+    P(at(cyl(0.04, 0.04, 0.8, 6), 0, -0.4, 0), PAL.iron), P(at(sphere(0.12, 8, 6), 0, 0, 0), PAL.brass),
+    P(at(rbox(1.1, 0.9, 0.9, 0.2), 0, -1.25, 0), (x, y) => shade(c1, c2, y < -1.45 ? 0.9 : 0)),
+    P(at(rbox(1.2, 0.14, 1.0, 0.06), 0, -0.76, 0), c2), P(at(rbox(1.02, 0.36, 0.92, 0.1), 0, -1.12, 0), 0x6a7a96),
+  ]);
+}
+
+/** Stargazer deck: a round platform on stilts with a railing and a big brass telescope on a tripod. */
+export function buildStargazer() {
+  const parts = [];
+  parts.push(P(at(cyl(1.5, 1.5, 0.2, 20), 0, 1.6, 0), (x, y, z) => shade(PAL.plank, PAL.plankDark, Math.abs(Math.sin(x * 8)) > 0.9 ? 0.6 : 0.1)));
+  for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28; parts.push(P(at(cyl(0.08, 0.1, 1.6, 6), Math.cos(a) * 1.25, 0.8, Math.sin(a) * 1.25), PAL.woodDark)); }
+  for (let k = 0; k < 14; k++) { const a = k / 14 * 6.28; parts.push(P(at(cyl(0.035, 0.035, 0.6, 5), Math.cos(a) * 1.42, 1.98, Math.sin(a) * 1.42), PAL.brass)); }
+  parts.push(P(at(new THREE.TorusGeometry(1.42, 0.04, 4, 28), 0, 2.28, 0, Math.PI / 2), PAL.brass));
+  for (let s = 0; s < 6; s++) parts.push(P(at(rbox(0.5, 0.08, 0.3, 0.02), -1.0, 1.4 - s * 0.26, 1.55 + s * 0.22), PAL.wood)); // steps
+  for (const a of [0, 2.1, 4.2]) parts.push(P(at(cyl(0.04, 0.05, 1.1, 6), Math.cos(a) * 0.3, 2.2, Math.sin(a) * 0.3, Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3), PAL.iron));
+  parts.push(P(at(lathe([[0.14, -0.9], [0.18, -0.2], [0.24, 0.6], [0.3, 0.9], [0, 0.9]], 14), 0, 2.85, 0, 0.9, 0, 0), PAL.brass));
+  parts.push(P(at(new THREE.TorusGeometry(0.3, 0.05, 6, 16), 0, 3.4, -0.55, 0.9 - Math.PI / 2), PAL.navy));
+  return merge(parts);
+}
+
+/** Crown jeweler: a small hut with a striped awning, a counter, and a big gold crown sign on the roof. */
+export function buildJeweler() {
+  const parts = [];
+  parts.push(P(at(rbox(1.5, 1.6, 1.3, 0.1), 0, 0.8, 0), (x, y) => shade(PAL.violet, 0x5a3cb0, Math.abs(Math.sin(y * 9)) > 0.93 ? 0.5 : 0.1)));
+  parts.push(P(at(rbox(1.7, 0.16, 1.5, 0.05), 0, 1.68, 0), PAL.brassDark), P(at(rbox(1.6, 0.12, 0.7, 0.04), 0, 1.35, 0.95, 0.35), (x) => (Math.floor((x + 2) * 3) % 2 ? col(PAL.pink) : col(PAL.cream))));
+  parts.push(P(at(rbox(1.3, 0.12, 0.4, 0.04), 0, 0.95, 0.7), PAL.woodLight), P(at(rbox(0.9, 0.55, 0.06, 0.04), 0, 1.1, 0.66), 0x3a3048));
+  // the crown sign
+  const crown = [P(at(cyl(0.5, 0.42, 0.22, 16, ), 0, 2.05, 0), PAL.sun)];
+  for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28; crown.push(P(at(new THREE.ConeGeometry(0.12, 0.38, 6), Math.cos(a) * 0.42, 2.34, Math.sin(a) * 0.42), PAL.sun), P(at(sphere(0.06, 6, 4), Math.cos(a) * 0.42, 2.56, Math.sin(a) * 0.42), [PAL.magenta, PAL.cyan, PAL.violet, PAL.mint, PAL.red][k])); }
+  parts.push(...crown);
+  return merge(parts);
+}
+
+/** A little crown (item that flies off to the cable car): gold band, five points, gem dots. */
+export function crownGeo(s = 0.24) {
+  const parts = [P(at(cyl(s * 0.75, s * 0.65, s * 0.45, 12), 0, 0, 0), PAL.sun)];
+  for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28; parts.push(P(at(new THREE.ConeGeometry(s * 0.2, s * 0.55, 5), Math.cos(a) * s * 0.66, s * 0.45, Math.sin(a) * s * 0.66), PAL.sun), P(at(sphere(s * 0.11, 6, 4), Math.cos(a) * s * 0.72, s * 0.02, Math.sin(a) * s * 0.72), [PAL.magenta, PAL.cyan, PAL.violet, PAL.mint, PAL.red][k])); }
+  return merge(parts);
+}
+
+/**
+ * Neon signs as glowing tubes in one geometry: each sign carries aIdx (lit in order) and its colour. signs:
+ * [{ shape: 'star' | 'heart' | 'gem' | 'wave' | 'arch', x, y, z, ry, s, color }].
+ */
+export function buildNeon(signs) {
+  const parts = [];
+  const path = (shape) => {
+    const p = [];
+    if (shape === 'star') for (let k = 0; k <= 10; k++) { const a = k / 10 * 6.283 - Math.PI / 2, r = k % 2 ? 0.42 : 1; p.push([Math.cos(a) * r, -Math.sin(a) * r]); }
+    else if (shape === 'heart') for (let k = 0; k <= 40; k++) { const t = k / 40 * 6.283; p.push([0.06 * 16 * Math.sin(t) ** 3, 0.06 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]); }
+    else if (shape === 'gem') for (const q of [[-1, 0.3], [-0.5, 0.8], [0.5, 0.8], [1, 0.3], [0, -0.9], [-1, 0.3], [1, 0.3]]) p.push(q);
+    else if (shape === 'wave') for (let k = 0; k <= 30; k++) p.push([-1.6 + k / 30 * 3.2, Math.sin(k / 30 * 12.56) * 0.25]);
+    else if (shape === 'arch') for (let k = 0; k <= 30; k++) { const a = Math.PI - k / 30 * Math.PI; p.push([Math.cos(a) * 1.6, Math.sin(a) * 0.7]); }
+    return p;
+  };
+  signs.forEach((sg, i) => {
+    const pts = path(sg.shape).map(([x, y]) => new THREE.Vector3(x * sg.s, y * sg.s, 0));
+    const curve = new THREE.CatmullRomCurve3(pts, sg.shape === 'heart', 'catmullrom', sg.shape === 'star' || sg.shape === 'gem' ? 0.05 : 0.5);
+    const g = P(new THREE.TubeGeometry(curve, pts.length * 6, 0.055, 5, sg.shape === 'heart'), sg.color);
+    g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(sg.x, sg.y, sg.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sg.ry, 0)), new THREE.Vector3(1, 1, 1)));
+    tag(g, 'aIdx', i); parts.push(g);
+  });
+  return mergeX(parts);
+}
+
+/** The heart of the meteor: a faceted crystal heart (extruded, bevelled), centred, about 1.6 m tall. */
+export function heartGeo() {
+  const s = new THREE.Shape(); s.moveTo(0, -0.8); s.bezierCurveTo(-0.2, -0.55, -0.95, -0.2, -0.85, 0.3); s.bezierCurveTo(-0.75, 0.75, -0.2, 0.85, 0, 0.45); s.bezierCurveTo(0.2, 0.85, 0.75, 0.75, 0.85, 0.3); s.bezierCurveTo(0.95, -0.2, 0.2, -0.55, 0, -0.8);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.22, bevelSize: 0.18, bevelSegments: 2, curveSegments: 7 });
+  g.translate(0, 0, -0.15); return P(g, 0xffffff);
+}
+
+/** The comet: a bright head and a long soft tail cone (pointing +x behind the head), both drawn additive. */
+export function cometGeo() {
+  const tail = new THREE.ConeGeometry(0.9, 9, 16, 1, true).rotateZ(Math.PI / 2).translate(4.6, 0, 0);
+  const a = tail.attributes.position, c = new Float32Array(a.count * 3);
+  for (let i = 0; i < a.count; i++) { const k = Math.max(0, 1 - a.getX(i) / 9.2); c[i * 3] = 0.55 * k; c[i * 3 + 1] = 0.85 * k; c[i * 3 + 2] = 1.0 * k; }
+  tail.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  return { head: new THREE.SphereGeometry(0.55, 14, 10), tail };
+}
+
+/**
+ * The hero's hats (sit on the head group of makePerson, y 0 at the head centre): cowboy, flower crown, bunny ears,
+ * astronaut helmet, top hat, crown. One geometry per hat.
+ */
+export function buildHat(id) {
+  if (id === 'cowboy') return merge([P(at(lathe([[0, 0], [0.5, 0.0], [0.52, 0.04], [0.42, 0.06], [0.24, 0.07], [0.22, 0.28], [0.15, 0.33], [0, 0.31]], 18), 0, 0.17, 0, -0.08), 0xc98d58), P(at(new THREE.TorusGeometry(0.225, 0.03, 4, 18), 0, 0.27, 0, Math.PI / 2 - 0.08), PAL.teal)]);
+  if (id === 'flower') {
+    const parts = [P(at(new THREE.TorusGeometry(0.27, 0.04, 6, 20), 0, 0.2, 0, Math.PI / 2 - 0.1), PAL.sageDark)];
+    for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28, x = Math.cos(a) * 0.27, z = Math.sin(a) * 0.27; for (let p = 0; p < 5; p++) { const b = p / 5 * 6.28; parts.push(P(at(sphere(0.045, 6, 4), x + Math.cos(b) * 0.05, 0.22 + Math.sin(b) * 0.05 + (z < 0 ? 0.02 : -0.02), z), [PAL.flower, PAL.sun, PAL.pink, 0xb08cff][k % 4])); } parts.push(P(at(sphere(0.03, 6, 4), x, 0.22, z), PAL.sun)); }
+    return merge(parts);
+  }
+  if (id === 'bunny') return merge([P(at(new THREE.TorusGeometry(0.29, 0.03, 4, 18, Math.PI), 0, 0.05, 0, 0, Math.PI / 2, 0), PAL.pink), ...[-1, 1].flatMap((s) => [P(at(sphere(0.09, 10, 8), s * 0.13, 0.48, -0.02, 0, 0, s * -0.2, [0.75, 2.4, 0.5]), PAL.cream), P(at(sphere(0.06, 8, 6), s * 0.13, 0.48, 0.02, 0, 0, s * -0.2, [0.6, 2.0, 0.3]), PAL.pink)])]);
+  if (id === 'astro') return merge([P(at(new THREE.SphereGeometry(0.42, 18, 12, 0, 6.29, 0, 2.2), 0, 0, 0), (x, y, z) => (z > 0.18 && y > -0.18 && y < 0.2 ? col(0x3a5a8a) : col(0xf3f0ea))), P(at(new THREE.TorusGeometry(0.34, 0.06, 6, 22), 0, -0.28, 0, Math.PI / 2), PAL.steel), P(at(cyl(0.02, 0.02, 0.22, 5), 0.2, 0.48, -0.05), PAL.iron), P(at(sphere(0.05, 6, 4), 0.2, 0.6, -0.05), PAL.red)]);
+  if (id === 'top') return merge([P(at(cyl(0.44, 0.44, 0.04, 20), 0, 0.2, 0, -0.08), PAL.ink), P(at(cyl(0.22, 0.24, 0.46, 18), 0, 0.44, -0.02, -0.08), PAL.ink), P(at(cyl(0.245, 0.245, 0.08, 18), 0, 0.28, -0.01, -0.08), PAL.velvet)]);
+  // crown
+  const parts = [P(at(cyl(0.24, 0.22, 0.16, 16), 0, 0.3, 0), PAL.sun)];
+  for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28 + 0.3; parts.push(P(at(new THREE.ConeGeometry(0.07, 0.2, 5), Math.cos(a) * 0.22, 0.46, Math.sin(a) * 0.22), PAL.sun), P(at(sphere(0.04, 6, 4), Math.cos(a) * 0.23, 0.3, Math.sin(a) * 0.23), [PAL.magenta, PAL.cyan, PAL.violet, PAL.mint, PAL.red][k])); }
+  return merge(parts);
+}
