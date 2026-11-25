@@ -526,12 +526,13 @@ export function buildHammer() {
     tier = t;
     const [h, b, glow] = TIERS[Math.min(t, TIERS.length - 1)];
     if (!skin || !skin.head) {
-      matHead.map = null; matHead.color.set(h); matHead.emissive.set(h); matHead.emissiveIntensity = glow;
+      matHead.map = null; matHead.emissiveMap = null; matHead.color.set(h); matHead.emissive.set(h); matHead.emissiveIntensity = glow;
       matBand.color.set(b); matBand.emissive.set(b); matBand.emissiveIntensity = glow * 0.6;
       gem.material.color.set(b); gem.material.emissive.set(b);
     } else {
       const g = Math.min(0.5, t * 0.07);
-      matHead.color.set(0xffffff); matHead.emissive.set(skin.head); matHead.emissiveIntensity = g;
+      // the glow lights the skin's own pattern, so a pale head (rainbow) keeps its colours instead of turning white
+      matHead.color.set(0xffffff); matHead.emissive.set(0xffffff); matHead.emissiveMap = matHead.map; matHead.emissiveIntensity = g * 0.6;
       matBand.color.set(skin.band); matBand.emissive.set(skin.band); matBand.emissiveIntensity = g * 0.8;
       gem.material.color.set(skin.p2 || skin.band); gem.material.emissive.set(skin.p2 || skin.band);
     }
