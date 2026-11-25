@@ -38,56 +38,22 @@
       "r": 0.9,
       "pay": 1
     },
-    "polisher": {
-      "x": -3.7,
-      "z": 6.2,
-      "in": [
-        -3.7,
-        4.75
-      ],
-      "r": 1.25,
-      "cap": 30
-    },
     "counter": {
       "x": -1.2,
       "z": 6.6,
       "r": 1.75,
-      "cap": 12
-    },
-    "stand": {
-      "x": 3.6,
-      "z": 6.0,
-      "in": [
-        2.1,
-        6.0
-      ],
-      "r": 1.25,
-      "cap": 8
+      "cap": 16
     },
     "cash": {
-      "x": 5.3,
-      "z": 3.6,
-      "r": 1.35
+      "x": 4.4,
+      "z": 3.4,
+      "r": 1.3
     },
-    "spots": [
-      [
-        3.0,
-        8.1
-      ],
-      [
-        4.2,
-        8.1
-      ],
-      [
-        5.4,
-        7.7
-      ]
-    ],
     "crowd": {
-      "x0": -8.0,
-      "x1": 8.0,
-      "z0": 12.0,
-      "z1": 14.0,
+      "x0": -8,
+      "x1": 8,
+      "z0": 12,
+      "z1": 14,
       "n": 36
     },
     "egg": {
@@ -102,23 +68,116 @@
       ],
       [
         3.6,
-        6.0,
+        6,
         0.9
       ],
       [
         -1.2,
         6.6,
         0.6
-      ],
-      [
-        2.9,
-        -1.0,
-        1.0
       ]
     ],
+    "polishers": [
+      {
+        "id": "polisher",
+        "x": -3.7,
+        "z": 6.2,
+        "in": [
+          -3.7,
+          4.75
+        ]
+      },
+      {
+        "id": "polisher2",
+        "x": -6,
+        "z": 8.3,
+        "in": [
+          -6,
+          6.85
+        ],
+        "pad": "conveyor"
+      }
+    ],
+    "polisherR": 1.25,
+    "polisherCap": 30,
+    "stands": [
+      {
+        "id": "stand",
+        "x": 3.6,
+        "z": 6,
+        "in": [
+          2.1,
+          6
+        ],
+        "spots": [
+          [
+            2.6,
+            7.9
+          ],
+          [
+            3.6,
+            8.1
+          ],
+          [
+            4.6,
+            7.9
+          ]
+        ]
+      },
+      {
+        "id": "stand2",
+        "x": 6.3,
+        "z": 6.2,
+        "in": [
+          6.3,
+          4.75
+        ],
+        "spots": [
+          [
+            5.6,
+            8
+          ],
+          [
+            6.6,
+            8.2
+          ],
+          [
+            7.3,
+            7.4
+          ]
+        ],
+        "pad": "stand2"
+      }
+    ],
+    "standR": 1.25,
+    "standCap": 8,
+    "workshop": {
+      "x": 5.6,
+      "z": 0.3,
+      "in": [
+        5.6,
+        1.6
+      ],
+      "r": 1.1,
+      "gemCap": 12,
+      "ringCap": 8
+    },
+    "order": {
+      "x": -1.4,
+      "z": 9.4,
+      "r": 1.1
+    },
+    "keeperHome": {
+      "x": -1.2,
+      "z": 8
+    },
+    "laserAt": {
+      "x": 0.7,
+      "z": -0.75
+    },
     "rigAt": {
       "x": 2.9,
-      "z": -1.0
+      "z": -1
     }
   },
   "mining": {
@@ -141,11 +200,14 @@
     "time": 0.55
   },
   "sell": {
-    "price": 3,
     "takeLock": 0.35,
     "pay": 0.8,
-    "spawnEvery": 2.2,
-    "walk": 2.6
+    "spawnEvery": 1.6,
+    "walk": 2.6,
+    "prices": {
+      "gem": 4,
+      "ring": 10
+    }
   },
   "cashFlow": {
     "collectEvery": 0.03,
@@ -160,20 +222,88 @@
       "x": 2.7,
       "z": 2.4,
       "price": 25,
-      "after": "firstSale"
+      "after": "firstSale",
+      "obstacle": [
+        2.9,
+        -1,
+        1
+      ]
+    },
+    {
+      "id": "conveyor",
+      "icon": "conveyor",
+      "x": -6,
+      "z": 8.3,
+      "price": 60,
+      "obstacle": [
+        -6,
+        8.3,
+        0.95
+      ]
+    },
+    {
+      "id": "stand2",
+      "icon": "stand",
+      "x": 6.3,
+      "z": 6.2,
+      "price": 80,
+      "obstacle": [
+        6.3,
+        6.2,
+        0.9
+      ]
+    },
+    {
+      "id": "keeper",
+      "icon": "keeper",
+      "x": 1.3,
+      "z": 9.3,
+      "price": 105
+    },
+    {
+      "id": "road",
+      "icon": "road",
+      "x": -3.8,
+      "z": 9.5,
+      "price": 125
+    },
+    {
+      "id": "workshop",
+      "icon": "ring",
+      "x": 5.6,
+      "z": 0.3,
+      "price": 155,
+      "obstacle": [
+        5.6,
+        0.3,
+        0.8
+      ]
+    },
+    {
+      "id": "laser",
+      "icon": "laser",
+      "x": 0.7,
+      "z": -0.55,
+      "price": 180,
+      "obstacle": [
+        0.7,
+        -0.75,
+        0.55
+      ]
     }
   ],
   "rig": {
-    "period": 1.6,
-    "chunks": 2,
+    "period": 1.3,
+    "chunks": 3,
     "carveR": 0.62,
     "carveD": 0.2
   },
   "egg": {
     "dropAt": 22,
+    "every": 70,
     "hatch": 2.4,
-    "carryBonus": 5,
-    "r": 1.0
+    "r": 1,
+    "carryBonus": 5
   },
   "critter": {
     "follow": 1.4,
@@ -184,20 +314,22 @@
   },
   "camera": {
     "fov": 36,
-    "yaw": 0.0,
+    "yaw": 0,
     "pitch": 0.78,
     "width": 15,
     "lead": 0.9,
-    "follow": 3.0,
-    "zMin": 1.0,
+    "follow": 3,
+    "zMin": 1,
     "zMid": 3.8,
-    "lean": 0.35
+    "lean": 0.35,
+    "mineZoom": 0.88,
+    "punch": 0.9
   },
   "tod": {
-    "start": 0.0,
+    "start": 0,
     "keys": [
       {
-        "t": 0.0,
+        "t": 0,
         "sky": [
           "#5fa9e0",
           "#8ec5ea",
@@ -215,7 +347,7 @@
         "elev": 1.05,
         "exp": 0.95,
         "lamps": 0,
-        "meteor": 1.0
+        "meteor": 1
       },
       {
         "t": 0.5,
@@ -239,7 +371,7 @@
         "meteor": 1.15
       },
       {
-        "t": 1.0,
+        "t": 1,
         "sky": [
           "#1e2350",
           "#4a3f7e",
@@ -290,20 +422,20 @@
   },
   "look": {
     "postTier": 2,
-    "contact": 1.0,
+    "contact": 1,
     "bloom": {
       "on": true,
       "threshold": 1.25,
       "knee": 0.55,
-      "strength": 0.34,
-      "max": 6,
+      "strength": 0.26,
+      "max": 3,
       "samples": 4
     },
     "glow": {
       "meteor": 1.5,
       "gem": 1.8,
       "fx": 1.6,
-      "lamp": 2.0
+      "lamp": 2
     },
     "grade": {
       "vignette": 0.2,
@@ -320,10 +452,33 @@
       "rigDone": "IT MINES FOR YOU!",
       "hatch": "NEW FRIEND!",
       "pup": "Pebble",
-      "perk": "+5 carry",
       "full": "MAX",
       "perfect": "PERFECT!",
-      "tapGlint": "TAP THE SPARKLE!"
+      "tapGlint": "TAP THE SPARKLE!",
+      "perkCarry": "+5 carry",
+      "perkSpeed": "faster feet",
+      "perkMagnet": "coin magnet",
+      "perkPolish": "faster polish",
+      "perkTourists": "more visitors",
+      "perkSwing": "faster swing",
+      "sparky": "Sparky",
+      "dusty": "Dusty",
+      "glimmer": "Glimmer",
+      "pip": "Pip",
+      "boom": "Boom",
+      "conveyor": "CONVEYOR",
+      "stand2": "NEW STAND",
+      "keeper": "SHOPKEEPER",
+      "road": "ROAD FIXED",
+      "workshop": "RING WORKSHOP",
+      "laser": "LASER CUTTER",
+      "rush": "CRYSTAL RUSH!",
+      "bus": "TOUR BUS!",
+      "thanks": "THANK YOU!",
+      "cont": "CONTINUE",
+      "newGame": "NEW GAME",
+      "sure": "TAP AGAIN",
+      "next": "NEXT"
     },
     "ar": {
       "drag": "اسحب للتحرك",
@@ -331,10 +486,33 @@
       "rigDone": "تحفر من أجلك!",
       "hatch": "صديق جديد!",
       "pup": "حصوة",
-      "perk": "+5 حمل",
       "full": "ممتلئ",
       "perfect": "رائع!",
-      "tapGlint": "المس البريق!"
+      "tapGlint": "المس البريق!",
+      "perkCarry": "+5 حمل",
+      "perkSpeed": "أقدام أسرع",
+      "perkMagnet": "مغناطيس العملات",
+      "perkPolish": "صقل أسرع",
+      "perkTourists": "زوار أكثر",
+      "perkSwing": "ضربة أسرع",
+      "sparky": "بريق",
+      "dusty": "غبار",
+      "glimmer": "لمعة",
+      "pip": "بيب",
+      "boom": "بوم",
+      "conveyor": "الناقل",
+      "stand2": "منصة جديدة",
+      "keeper": "البائع",
+      "road": "الطريق جاهز",
+      "workshop": "ورشة الخواتم",
+      "laser": "قاطع الليزر",
+      "rush": "اندفاع الكريستال!",
+      "bus": "حافلة سياحية!",
+      "thanks": "شكراً!",
+      "cont": "متابعة",
+      "newGame": "لعبة جديدة",
+      "sure": "المس مرة أخرى",
+      "next": "التالي"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
@@ -342,10 +520,33 @@
       "rigDone": "¡MINA POR TI!",
       "hatch": "¡NUEVO AMIGO!",
       "pup": "Guijarro",
-      "perk": "+5 carga",
       "full": "MÁX",
       "perfect": "¡PERFECTO!",
-      "tapGlint": "¡TOCA EL BRILLO!"
+      "tapGlint": "¡TOCA EL BRILLO!",
+      "perkCarry": "+5 carga",
+      "perkSpeed": "pies veloces",
+      "perkMagnet": "imán de monedas",
+      "perkPolish": "pulido rápido",
+      "perkTourists": "más visitas",
+      "perkSwing": "golpe rápido",
+      "sparky": "Chispa",
+      "dusty": "Polvito",
+      "glimmer": "Brillito",
+      "pip": "Pip",
+      "boom": "Bum",
+      "conveyor": "CINTA",
+      "stand2": "NUEVO PUESTO",
+      "keeper": "TENDERO",
+      "road": "¡CAMINO LISTO!",
+      "workshop": "TALLER DE ANILLOS",
+      "laser": "LÁSER",
+      "rush": "¡LLUVIA DE CRISTAL!",
+      "bus": "¡AUTOBÚS!",
+      "thanks": "¡GRACIAS!",
+      "cont": "CONTINUAR",
+      "newGame": "NUEVO JUEGO",
+      "sure": "TOCA OTRA VEZ",
+      "next": "SIGUIENTE"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
@@ -353,10 +554,33 @@
       "rigDone": "NÓ ĐÀO GIÚP BẠN!",
       "hatch": "BẠN MỚI!",
       "pup": "Sỏi",
-      "perk": "+5 mang",
       "full": "ĐẦY",
       "perfect": "HOÀN HẢO!",
-      "tapGlint": "CHẠM VÀO TIA SÁNG!"
+      "tapGlint": "CHẠM VÀO TIA SÁNG!",
+      "perkCarry": "+5 mang",
+      "perkSpeed": "chạy nhanh",
+      "perkMagnet": "nam châm xu",
+      "perkPolish": "mài nhanh",
+      "perkTourists": "thêm khách",
+      "perkSwing": "đào nhanh",
+      "sparky": "Lấp Lánh",
+      "dusty": "Bụi",
+      "glimmer": "Ánh",
+      "pip": "Pip",
+      "boom": "Bùm",
+      "conveyor": "BĂNG CHUYỀN",
+      "stand2": "QUẦY MỚI",
+      "keeper": "NGƯỜI BÁN",
+      "road": "ĐƯỜNG ĐÃ SỬA",
+      "workshop": "XƯỞNG NHẪN",
+      "laser": "MÁY LASER",
+      "rush": "MƯA PHA LÊ!",
+      "bus": "XE DU LỊCH!",
+      "thanks": "CẢM ƠN!",
+      "cont": "TIẾP TỤC",
+      "newGame": "CHƠI MỚI",
+      "sure": "CHẠM LẦN NỮA",
+      "next": "TIẾP"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
@@ -364,10 +588,33 @@
       "rigDone": "यह आपके लिए खोदता है!",
       "hatch": "नया दोस्त!",
       "pup": "कंकड़",
-      "perk": "+5 भार",
       "full": "पूरा",
       "perfect": "शानदार!",
-      "tapGlint": "चमक को छुओ!"
+      "tapGlint": "चमक को छुओ!",
+      "perkCarry": "+5 भार",
+      "perkSpeed": "तेज़ पैर",
+      "perkMagnet": "सिक्का चुंबक",
+      "perkPolish": "तेज़ पॉलिश",
+      "perkTourists": "ज़्यादा मेहमान",
+      "perkSwing": "तेज़ वार",
+      "sparky": "चमकू",
+      "dusty": "धूलू",
+      "glimmer": "झिलमिल",
+      "pip": "पिप",
+      "boom": "बूम",
+      "conveyor": "कन्वेयर",
+      "stand2": "नया स्टैंड",
+      "keeper": "दुकानदार",
+      "road": "सड़क तैयार",
+      "workshop": "अंगूठी कारख़ाना",
+      "laser": "लेज़र कटर",
+      "rush": "क्रिस्टल बारिश!",
+      "bus": "टूर बस!",
+      "thanks": "धन्यवाद!",
+      "cont": "जारी रखें",
+      "newGame": "नया खेल",
+      "sure": "फिर छुएँ",
+      "next": "अगला"
     },
     "bn": {
       "drag": "চলতে টানো",
@@ -375,10 +622,33 @@
       "rigDone": "এটা তোমার জন্য খোঁড়ে!",
       "hatch": "নতুন বন্ধু!",
       "pup": "নুড়ি",
-      "perk": "+5 বহন",
       "full": "পূর্ণ",
       "perfect": "দারুণ!",
-      "tapGlint": "ঝিলিক ছোঁও!"
+      "tapGlint": "ঝিলিক ছোঁও!",
+      "perkCarry": "+5 বহন",
+      "perkSpeed": "দ্রুত পা",
+      "perkMagnet": "মুদ্রা চুম্বক",
+      "perkPolish": "দ্রুত পালিশ",
+      "perkTourists": "বেশি অতিথি",
+      "perkSwing": "দ্রুত আঘাত",
+      "sparky": "ঝিকমিক",
+      "dusty": "ধুলো",
+      "glimmer": "আভা",
+      "pip": "পিপ",
+      "boom": "বুম",
+      "conveyor": "কনভেয়র",
+      "stand2": "নতুন স্টল",
+      "keeper": "দোকানি",
+      "road": "রাস্তা ঠিক",
+      "workshop": "আংটির কারখানা",
+      "laser": "লেজার কাটার",
+      "rush": "স্ফটিক বৃষ্টি!",
+      "bus": "ট্যুর বাস!",
+      "thanks": "ধন্যবাদ!",
+      "cont": "চালিয়ে যাও",
+      "newGame": "নতুন খেলা",
+      "sure": "আবার ছোঁও",
+      "next": "পরের"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
@@ -386,10 +656,33 @@
       "rigDone": "IA MENAMBANG UNTUKMU!",
       "hatch": "TEMAN BARU!",
       "pup": "Kerikil",
-      "perk": "+5 bawa",
       "full": "PENUH",
       "perfect": "SEMPURNA!",
-      "tapGlint": "KETUK KILAUANNYA!"
+      "tapGlint": "KETUK KILAUANNYA!",
+      "perkCarry": "+5 bawa",
+      "perkSpeed": "kaki cepat",
+      "perkMagnet": "magnet koin",
+      "perkPolish": "poles cepat",
+      "perkTourists": "tamu bertambah",
+      "perkSwing": "ayunan cepat",
+      "sparky": "Kilau",
+      "dusty": "Debu",
+      "glimmer": "Kemilau",
+      "pip": "Pip",
+      "boom": "Bum",
+      "conveyor": "KONVEYOR",
+      "stand2": "LAPAK BARU",
+      "keeper": "PENJAGA TOKO",
+      "road": "JALAN DIPERBAIKI",
+      "workshop": "BENGKEL CINCIN",
+      "laser": "PEMOTONG LASER",
+      "rush": "HUJAN KRISTAL!",
+      "bus": "BUS WISATA!",
+      "thanks": "TERIMA KASIH!",
+      "cont": "LANJUTKAN",
+      "newGame": "MAIN BARU",
+      "sure": "KETUK LAGI",
+      "next": "BERIKUTNYA"
     }
   },
   "start": {
@@ -397,5 +690,94 @@
     "counter": 2,
     "polIn": 3
   },
-  "title": "Meteor Gem Works"
+  "title": "Meteor Gem Works",
+  "conveyor": {
+    "every": 0.45
+  },
+  "keeper": {
+    "speed": 3.2,
+    "carry": 4,
+    "pickEvery": 0.15
+  },
+  "workshop": {
+    "per": 2,
+    "time": 0.9
+  },
+  "laser": {
+    "period": 1.3,
+    "chunks": 2,
+    "carveR": 0.7,
+    "carveD": 0.22,
+    "eggK": 0.8
+  },
+  "bus": {
+    "first": 6,
+    "every": 110,
+    "wave": 6,
+    "spawn": 0.35
+  },
+  "order": {
+    "first": 30,
+    "every": 45,
+    "tip": 6,
+    "ringAfter": "workshop",
+    "ringShare": 0.4
+  },
+  "rush": {
+    "first": 100,
+    "every": 150,
+    "length": 15,
+    "spawn": 0.22,
+    "max": 26,
+    "coinShare": 0.35,
+    "pickR": 0.95
+  },
+  "critters": [
+    {
+      "id": "pebble",
+      "perk": "carry",
+      "v": 5,
+      "body": "#f0c48c",
+      "shell": "#5ab8ff"
+    },
+    {
+      "id": "sparky",
+      "perk": "speed",
+      "v": 0.15,
+      "body": "#f6e2c8",
+      "shell": "#ff8ad8"
+    },
+    {
+      "id": "dusty",
+      "perk": "magnet",
+      "v": 1,
+      "body": "#e8a060",
+      "shell": "#ffd35a"
+    },
+    {
+      "id": "glimmer",
+      "perk": "polish",
+      "v": 0.7,
+      "body": "#a8d8a0",
+      "shell": "#7ae8b0"
+    },
+    {
+      "id": "pip",
+      "perk": "tourists",
+      "v": 0.75,
+      "body": "#d8b090",
+      "shell": "#b08cff"
+    },
+    {
+      "id": "boom",
+      "perk": "swing",
+      "v": 0.8,
+      "body": "#b0a090",
+      "shell": "#ff9a5a"
+    }
+  ],
+  "save": {
+    "every": 4,
+    "version": 1
+  }
 }
