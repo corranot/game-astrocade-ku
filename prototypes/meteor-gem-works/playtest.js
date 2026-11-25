@@ -5,6 +5,10 @@
 // hour, dusk, tier 0, Arabic HUD). Checks: no page errors, glare under look.glareMax on every shot, live textures stay
 // bounded after a long run (fix B), a real drag moves the hero, a real tap on the sparkle lands a Perfect Strike, the
 // game saves and CONTINUE brings the progress back, NEW GAME needs a second tap, draw calls stay in the tier budget.
+// M3 (from a simulated save, so it starts late): the ghost town goal card and each house lighting up, unlocks 8-14,
+// a crown riding the cable car, neon at night, the finale (heart, legendary hatch, comet, fireworks), the share button
+// (sends a picture), the album (tap a hat to wear it), the tier budgets with chapter 1 complete, the perf guard (slow
+// frames lower the resolution, then the tier) and a soak of 16 game minutes (textures, geometries and heap stay flat).
 // Usage: node playtest.js <out folder>   (Playwright + swiftshader: frame times here are not a phone's)
 // THREE_DIR=<three/build folder> serves three.js locally when the CDN is not reachable.
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -18,6 +22,12 @@ const server = http.createServer((q, s) => {
 }).listen(0);
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json')));
 const BUDGET = { 0: 160, 2: 260 }; // draw calls per tier (see README: mobile budget)
+/** A save of a bot game played (logic only, no rendering) to second sec: late-game shots start from it. */
+async function saveAt(sec) {
+  const L = await import(require('url').pathToFileURL(path.join(__dirname, 'logic.js')).href), S = L.createState(cfg, 1);
+  for (let i = 0; i < sec * 60; i++) { L.step(cfg, S, 1 / 60, L.botInput(cfg, S), S.glint && S.glint.t > 0.6 ? { glint: true } : null); S.events.length = 0; }
+  return L.serialize(cfg, S);
+}
 
 async function open(browser, q = '', seed = null) {
   const page = await browser.newPage({ viewport: { width: 405, height: 720 }, deviceScaleFactor: 2 });
@@ -135,12 +145,12 @@ async function open(browser, q = '', seed = null) {
       ['keeperDrop', null, '14-keeper-delivers', 10, at(W.stands[0].x - 0.5, 0.6, W.stands[0].z + 0.4), 0.5],
       ['unlock', 'road', '15-unlock-road', 50],
       ['bus', null, '16-tour-bus', 150],
-      ['order', null, '17-order-bubble', 30, at(W.order.x, 0.6, W.order.z - 0.6), 0.55],
       ['unlock', 'workshop', '18-unlock-ring-workshop', 50],
       ['ring', null, '19-rings', 30, at(W.workshop.x - 0.4, 0.8, W.workshop.z + 0.8), 0.5],
       ['unlock', 'laser', '20-unlock-laser', 50],
       ['laserHit', null, '21-laser-fires', 5, at(W.laserAt.x, 1.2, W.laserAt.z - 0.6), 0.55],
       ['rush', null, '22-crystal-rush', 110],
+      ['order', null, '17-order-bubble', 30, at(W.order.x, 0.6, W.order.z - 0.6), 0.55], // orders recur: wait for one after the unlocks
     ];
     const seen = [];
     for (const [type, id, name, frameN, focus, zoom] of moments) {
@@ -155,7 +165,7 @@ async function open(browser, q = '', seed = null) {
     check(st.calls <= BUDGET[2], `tier 2 draw calls with everything built: ${st.calls} (budget ${BUDGET[2]}), ${st.tris} triangles`);
     // the parade: all six critters behind the hero
     await ev(page, () => { for (let k = 0; k < 8 && __game.S.critters.length < 6; k++) __game.until('hatch', 120); __game.run(4); const S = __game.S; __game.scene.showcase(new THREE.Vector3(S.hero.x, 0.6, S.hero.z - 1), 0.6, 3); for (let i = 0; i < 50; i++) __game.frame(1 / 60); });
-    check(await ev(page, () => __game.S.critters.length) === 6, 'all six critters hatch');
+    check(await ev(page, () => __game.S.critters.length) >= 6, 'six critters hatch');
     await shoot(page, '23-critter-parade');
     // a long run: textures must stay bounded (pops are DOM, pads redraw in place)
     await ev(page, () => __game.run(120));
@@ -179,6 +189,84 @@ async function open(browser, q = '', seed = null) {
       console.log(`info tier 0: ${ms.toFixed(1)} ms per frame on swiftshader (CPU raster, not a phone)`);
     }
     check(errors.length === 0, `no page errors (${name}) ${errors.slice(0, 2).join(' | ')}`);
+    await page.close();
+  }
+
+  // ---- M3: chapter 1's second half from a save taken right after the laser (seed 1)
+  {
+    const { page, errors } = await open(browser, '&tier=2&nointro', await saveAt(300));
+    await page.waitForFunction(() => !document.getElementById('menu').hidden, null, { timeout: 8000 });
+    await ev(page, () => { document.getElementById('cont').click(); __game.pause(); document.getElementById('hint').classList.add('gone'); }); // a returning player has already touched
+    const until = (t, id = null, max = 300) => ev(page, ([t, i, m]) => { for (let k = 0; k < m; k++) { if (!__game.until(t, 1)) continue; if (!i || __game.lastEvents.some((x) => x.type === t && x.id === i)) return true; } return false; }, [t, id, max]);
+    const after = (n) => ev(page, (k) => { for (let i = 0; i < k; i++) __game.frame(1 / 60); }, n);
+    await after(20);
+    check(await ev(page, () => !document.getElementById('goal').hidden), 'the ghost town goal card is up while houses are dark');
+    await shoot(page, '29-ghost-goal-card');
+    check(await until('ghostLight'), 'the mine cart lights a house'); await after(70); await shoot(page, '30-ghost-house-lights');
+    const M3 = [['unlock', 'rig2', '31-unlock-rig2', 60], ['unlock', 'cable', '32-unlock-cable-car', 70], ['unlock', 'stargaze', '33-unlock-stargazer-dusk', 70],
+      ['unlock', 'crown', '34-unlock-crown-jeweler', 60], ['crown', null, '35-crown-to-cable-car', 75], ['unlock', 'neon', '36-unlock-neon-night', 150]];
+    for (const [t, id, name, n] of M3) { const ok = await until(t, id); check(ok, `moment ${name} happened`); await after(n); console.log(`info ${name} at game time ${(await ev(page, () => __game.S.t)) | 0} s`); await shoot(page, name); }
+    // the share button: shows at a big moment and sends a picture of the town with the brag line
+    await ev(page, () => __game.offerShare()); await after(40);
+    check(await ev(page, () => __game.shareOn), 'the share button shows at a big moment');
+    await shoot(page, '37-share-button');
+    await page.click('#share', { force: true });
+    const sh = await ev(page, () => (window.__shares || []).map((o) => ({ img: String(o.image).slice(0, 15), len: String(o.image).length, text: o.text })));
+    check(sh.length === 1 && sh[0].img === 'data:image/jpeg' && sh[0].len > 20000 && !!sh[0].text, `share sends a picture and a line (${JSON.stringify(sh).slice(0, 120)})`);
+    // the finale
+    for (const [t, name, n] of [['heartRise', '38-finale-heart-rises', 150], ['crownHatch', '39-finale-legendary-hatch', 50], ['comet', '40-finale-comet', 150], ['finaleEnd', '41-chapter-1-complete', 60]]) {
+      const ok = await until(t, null, 400); check(ok, `moment ${name} happened`); await after(n); console.log(`info ${name} at game time ${(await ev(page, () => __game.S.t)) | 0} s`); await shoot(page, name);
+    }
+    const S1 = await ev(page, () => ({ done1: __game.S.done1, crit: __game.S.critters.length, hats: __game.S.hats.length, stars: __game.S.stars.length, nova: __game.S.critters.some((c) => c.id === 'nova') }));
+    check(S1.done1 && S1.nova && S1.crit >= 10, `chapter 1 is complete with the legendary critter (${JSON.stringify(S1)})`);
+    check(await ev(page, () => !document.getElementById('next').hidden && /\d+\/\d+/.test(document.querySelector('#next b').textContent)), 'after the last unlock the NEXT card shows the album count (the next goal)');
+    // the album: tap a hat to wear it
+    await ev(page, () => __game.openAlbum()); await after(2);
+    check(await ev(page, () => __game.phase) === 'album', 'the album opens and game time stops');
+    await shoot(page, '42-album');
+    const hat0 = await ev(page, () => __game.S.hat);
+    await page.locator('#album .hats button.tile').first().click({ force: true });
+    check(await ev(page, () => __game.S.hat) !== hat0 || hat0 === cfg.hats[0].id, `tapping a hat in the album wears it (${hat0} -> ${await ev(page, () => __game.S.hat)})`);
+    await ev(page, () => __game.closeAlbum()); await after(20);
+    // budgets with everything built and twelve critters on screen
+    const st2 = await ev(page, () => __game.stats());
+    check(st2.calls <= BUDGET[2], `tier 2 draw calls with chapter 1 complete: ${st2.calls} (budget ${BUDGET[2]}), ${st2.tris} triangles`);
+    await ev(page, () => __game.setTier(0)); await after(5);
+    const st0 = await ev(page, () => __game.stats());
+    check(st0.calls <= BUDGET[0], `tier 0 draw calls with chapter 1 complete: ${st0.calls} (budget ${BUDGET[0]}), ${st0.tris} triangles`);
+    await shoot(page, '43-tier0-chapter1-night');
+    check(errors.length === 0, `no page errors in the M3 run (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // ---- perf guard: slow frames (a phone that cannot keep up) lower the resolution first, then the tier
+  {
+    const { page, errors } = await open(browser, '&tod=0&bot');
+    const t0 = await ev(page, () => ({ tier: __game.scene.tier, pr: __game.scene.renderer.getPixelRatio() }));
+    await ev(page, () => { const r = __game.scene.render; __game.scene.render = () => { const e = performance.now() + 34; while (performance.now() < e) { /* a slow GPU */ } r(); }; });
+    await page.waitForTimeout(20000);
+    const t1 = await ev(page, () => ({ tier: __game.scene.tier, pr: __game.scene.renderer.getPixelRatio() }));
+    check(t1.tier < t0.tier, `slow frames drop the quality (tier ${t0.tier} -> ${t1.tier}, pixel ratio ${t0.pr} -> ${t1.pr})`);
+    check(errors.length === 0, `no page errors in the perf-guard run (${errors.slice(0, 2).join(' | ')})`);
+    await page.close();
+  }
+
+  // ---- soak: 16 game minutes from a fresh start; textures, geometries and the JS heap must stay flat once built
+  {
+    const { page, errors } = await open(browser, '&tier=1&tod=0.3&bot');
+    await ev(page, () => __game.pause());
+    const rows = [];
+    for (let m = 1; m <= 16; m++) {
+      await ev(page, () => __game.run(60));
+      rows.push(await ev(page, (m) => { const st = __game.stats(), mem = performance.memory ? performance.memory.usedJSHeapSize : 0; return { m, tex: st.textures, geo: st.geometries, heapMB: Math.round(mem / 1e6), t: __game.S.t | 0, pads: __game.S.pads.filter((q) => q.done).length }; }, m));
+    }
+    console.log('info soak ' + rows.map((r) => `${r.m}m tex ${r.tex} geo ${r.geo} heap ${r.heapMB}MB pads ${r.pads}`).join(' | '));
+    fs.writeFileSync(path.join(out, 'soak.json'), JSON.stringify(rows, null, 1));
+    const late = rows.filter((r) => r.m >= 12), texSpan = Math.max(...late.map((r) => r.tex)) - Math.min(...late.map((r) => r.tex)), geoSpan = Math.max(...late.map((r) => r.geo)) - Math.min(...late.map((r) => r.geo));
+    check(texSpan <= 2 && geoSpan <= 8 && Math.max(...rows.map((r) => r.tex)) <= 60, `soak: textures and geometries flat in the last 5 minutes (spans ${texSpan} / ${geoSpan}, max textures ${Math.max(...rows.map((r) => r.tex))})`);
+    const h0 = rows[5].heapMB, h1 = rows[rows.length - 1].heapMB;
+    check(!h0 || h1 - h0 < 40, `soak: JS heap does not climb (${h0} MB at 6 min -> ${h1} MB at 16 min)`);
+    check(errors.length === 0, `no page errors in the soak run (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
   }
 

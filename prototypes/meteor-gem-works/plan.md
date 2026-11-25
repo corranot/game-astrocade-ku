@@ -1,6 +1,6 @@
 # Meteor Gem Works — game plan (v2)
 
-**Status:** approved by the owner on 2026-11-25. M1 merged; M2 in this build.
+**Status:** approved by the owner on 2026-11-25. M1 and M2 merged; M3 (chapter 1 complete) in this build.
 **v1:** 2026-11-25, PR #198. **v2:** 2026-11-25, a full upgrade the owner asked for.
 
 The v2 brief, in the owner's words: target **kids**; a **median session of 10+ minutes**; a detailed objective loop

@@ -37,7 +37,8 @@ body{display:flex;align-items:center;justify-content:center}
 .pop.big{font-size:calc(var(--u)*78px);color:#ffe3f6;--ink:#5a1f5e;animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
 /* banner for unlocks and the hatch: a ribbon with a brass rim, slides in, holds, fades */
 .banner{position:absolute;top:calc(var(--u)*230px);left:50%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*4px);padding:calc(var(--u)*18px) calc(var(--u)*56px) calc(var(--u)*22px);border-radius:calc(var(--u)*40px);text-align:center;
-  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*6px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*5px) 0 rgba(255,255,255,.25),0 calc(var(--u)*12px) calc(var(--u)*30px) rgba(58,36,24,.45);white-space:nowrap}
+  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*6px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*5px) 0 rgba(255,255,255,.25),0 calc(var(--u)*12px) calc(var(--u)*30px) rgba(58,36,24,.45);white-space:nowrap;max-width:calc(var(--u)*640px);box-sizing:border-box}
+.banner .bs{white-space:normal}
 .banner.go{animation:ban .5s cubic-bezier(.2,1.5,.4,1)}
 .banner .bt{font-size:calc(var(--u)*64px);line-height:1;color:#ffe08a}
 .banner .bs{font-size:calc(var(--u)*36px);line-height:1.1;color:#fff3dc}
@@ -58,6 +59,48 @@ body{display:flex;align-items:center;justify-content:center}
 .next b{font-size:calc(var(--u)*44px);line-height:1;color:#ffe08a;min-width:calc(var(--u)*60px)}
 .next.ready{animation:pulse .8s ease-in-out infinite}.next.ready b{color:#fff3dc}
 .next[hidden],.bubble[hidden],.menu[hidden],.tap[hidden]{display:none}
+/* ghost town goal: a small plaque under the NEXT card with three house lights */
+.goal{position:absolute;top:calc(var(--m) + var(--u)*200px);left:50%;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*12px);padding:calc(var(--u)*8px) calc(var(--u)*20px);border-radius:calc(var(--u)*24px);background:rgba(58,36,24,.72);box-shadow:0 0 0 calc(var(--u)*3px) #e5b75a;white-space:nowrap}
+.goal b{font-size:calc(var(--u)*30px);color:#fff3dc}
+.goal .gh{display:flex;gap:calc(var(--u)*6px)}
+.goal i{width:calc(var(--u)*30px);height:calc(var(--u)*30px);clip-path:polygon(50% 0,100% 40%,100% 100%,0 100%,0 40%);background:#6e6474}
+.goal i.lit{background:#ffd35a;filter:drop-shadow(0 0 calc(var(--u)*6px) #ffb860)}
+/* album button under the sound button; a badge when something new is in it */
+.albumB{position:absolute;top:calc(var(--m) + var(--u)*104px);right:var(--m);width:calc(var(--u)*86px);height:calc(var(--u)*86px);border-radius:50%;pointer-events:auto;cursor:pointer;padding:calc(var(--u)*14px);-webkit-tap-highlight-color:transparent;box-sizing:border-box;
+  background:radial-gradient(circle at 38% 30%,#5ec8b8,#2a7f78 70%);border:calc(var(--u)*5px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*7px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+[dir=rtl] .albumB{right:auto;left:var(--m)}
+.albumB svg{display:block;width:100%;height:100%;fill:#ffe08a;stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
+.albumB .pg{fill:#fff3dc}.albumB .st{fill:#e04cc0;stroke:none}
+.albumB em{display:none;position:absolute;top:calc(var(--u)*-6px);right:calc(var(--u)*-6px);width:calc(var(--u)*30px);height:calc(var(--u)*30px);border-radius:50%;background:#e04c8c;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink)}
+.albumB.dot em{display:block;animation:pulse .8s ease-in-out infinite}
+/* share button: slides up at a big moment, leaves by itself */
+.share{position:absolute;right:var(--m);bottom:calc(var(--u)*170px);display:flex;align-items:center;gap:calc(var(--u)*10px);height:calc(var(--u)*92px);padding:0 calc(var(--u)*28px) 0 calc(var(--u)*18px);border-radius:calc(var(--u)*46px);pointer-events:auto;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;
+  background:linear-gradient(#ff8ac8,#d8479a);border:calc(var(--u)*5px) solid #ffe08a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*8px) 0 calc(var(--u)*2px) rgba(58,36,24,.55);color:#fff3dc}
+[dir=rtl] .share{right:auto;left:var(--m)}
+.share svg{width:calc(var(--u)*50px);height:calc(var(--u)*50px);fill:none;stroke:#fff3dc;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.share b{font-size:calc(var(--u)*38px);white-space:nowrap}
+.share.go{animation:shareIn .5s cubic-bezier(.2,1.5,.4,1),pulse 1.1s ease-in-out .6s infinite}
+@keyframes shareIn{from{transform:translateY(calc(var(--u)*120px)) scale(.6);opacity:0}}
+/* the sticker album: a wooden book over a dim veil; game time stops while it is open */
+.album{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(42,34,51,.55);pointer-events:auto}
+.album .card{position:relative;width:calc(var(--u)*640px);max-height:calc(var(--u)*1120px);overflow:auto;box-sizing:border-box;padding:calc(var(--u)*26px);border-radius:calc(var(--u)*40px);
+  background:linear-gradient(#f6e2bf,#e9c890);border:calc(var(--u)*8px) solid #a8693c;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),inset 0 0 0 calc(var(--u)*4px) #e5b75a,0 calc(var(--u)*16px) calc(var(--u)*40px) rgba(20,10,10,.5)}
+.album h2{margin:0 0 calc(var(--u)*14px);text-align:center;font-size:calc(var(--u)*56px);line-height:1;color:#ffe08a}
+.album .sec{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u)*10px);margin-bottom:calc(var(--u)*18px);padding:calc(var(--u)*12px);border-radius:calc(var(--u)*24px);background:rgba(126,79,46,.18)}
+.album .hats,.album .stars{grid-template-columns:repeat(6,1fr)}
+.album .stars{grid-template-columns:repeat(3,1fr)}
+.album .chap{grid-template-columns:1fr}
+.album .tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*2px);min-height:calc(var(--u)*110px);padding:calc(var(--u)*6px);border-radius:calc(var(--u)*20px);background:#2a7f78;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,255,255,.2);font:inherit;color:#fff3dc;border:0}
+.album button.tile{cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
+.album .tile canvas{width:calc(var(--u)*76px);height:calc(var(--u)*76px)}
+.album .tile b{font-size:calc(var(--u)*24px);line-height:1;white-space:nowrap}
+.album .tile.off{background:#4a3a50}
+.album .tile.on{box-shadow:0 0 0 calc(var(--u)*5px) #ffd35a,0 0 calc(var(--u)*18px) #ffd35a}
+.album .r-shiny:not(.off){background:linear-gradient(#5ec8e8,#2a7fa8)}.album .r-rare:not(.off){background:linear-gradient(#b08cff,#6a44c0)}.album .r-legendary:not(.off){background:linear-gradient(#ffd35a,#d98a2a)}
+.album .tile.wide{flex-direction:row;justify-content:flex-start;gap:calc(var(--u)*16px);min-height:calc(var(--u)*96px);padding:0 calc(var(--u)*18px)}
+.album .tile.wide b{font-size:calc(var(--u)*32px)}
+.album .close{position:absolute;top:calc(var(--u)*14px);right:calc(var(--u)*14px);width:calc(var(--u)*70px);height:calc(var(--u)*70px);border-radius:50%;border:calc(var(--u)*4px) solid #e5b75a;background:#86502c;color:#ffe08a;font:inherit;font-size:calc(var(--u)*36px);cursor:pointer;pointer-events:auto}
+.goal[hidden],.album[hidden],.share[hidden]{display:none}
 /* the order kid's speech bubble: just the item it wants and a heart */
 .bubble{position:absolute;translate:-50% -100%;display:flex;align-items:center;gap:calc(var(--u)*6px);padding:calc(var(--u)*10px) calc(var(--u)*18px);border-radius:calc(var(--u)*28px);background:#fff3dc;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 calc(var(--u)*6px) 0 calc(var(--u)*2px) rgba(58,36,24,.45);animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
 .bubble::after{content:"";position:absolute;left:50%;bottom:calc(var(--u)*-16px);margin-left:calc(var(--u)*-12px);border:calc(var(--u)*12px) solid transparent;border-top-color:#fff3dc;border-bottom:0}
@@ -83,7 +126,7 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes popIn{from{transform:scale(.3)}}
 @keyframes ban{from{transform:translateY(calc(var(--u)*-60px)) scale(.6);opacity:0}}
 @keyframes drag{0%,100%{transform:translateX(calc(var(--u)*-70px))}50%{transform:translateX(calc(var(--u)*70px))}}
-@media (prefers-reduced-motion: reduce){.banner.go,.pop.big,.hand,.carry.max,.next.ready,.menu .go,.tap i,.bubble{animation:none}}
+@media (prefers-reduced-motion: reduce){.share.go,.albumB.dot em,.banner.go,.pop.big,.hand,.carry.max,.next.ready,.menu .go,.tap i,.bubble{animation:none}}
 </style>
 </head>
 <body>

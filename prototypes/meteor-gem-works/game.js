@@ -5,7 +5,10 @@
 // road with its tour bus, the ring workshop and the laser cutter. Tap the sparkle for a Perfect Strike; eggs hatch six
 // critters that follow in a parade with a perk each; a kid asks for an item now and then (no timer); Crystal Rush
 // rains pickups. Progress saves through lib.saveUserGameState; a 3 s cold open greets a new game.
-// Plan: plan.md (v2) §2-§4, §6-§8, §12.
+// M3 finishes chapter 1: seven more unlocks (the ghost town and its mine cart, drill rig 2, the cable car, the stargazer
+// deck, the crown jeweler, neon signs, the heart of the meteor), rare eggs (12 critters), town stars, hats, the
+// sticker album, the finale with its comet, a share button at the big moments, and a goal on screen at all times.
+// Plan: plan.md (v2) §2-§4, §6-§8, §12, §15.
 // Modules: logic.js (rules), models.js (geometry), scene.js (3D look, Three.js r187 loaded by index.html).
 /* global THREE */ // set on window by index.html before run() starts the game
 import * as L from './logic.js';
@@ -99,6 +102,10 @@ const HTML = `
   <div id="banner" class="banner" hidden><b class="bt out"></b><span class="bs out"></span></div>
   <div id="hint" class="hint"><i class="hand" aria-hidden="true"></i><b class="out"></b></div>
   <div id="stick" class="stick" hidden><i></i></div>
+  <div id="goal" class="goal" hidden><b class="gt out"></b><span class="gh"><i></i><i></i><i></i></span></div>
+  <button id="albumB" class="albumB" aria-label="album"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 8h24a4 4 0 0 1 4 4v28H14a4 4 0 0 1-4-4z"/><path class="pg" d="M14 40a4 4 0 0 1 0-8h24"/><path class="st" d="M24 13l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></svg><em class="out"></em></button>
+  <button id="share" class="share out" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 30V8M15 16l9-9 9 9"/><path d="M12 24v14h24V24"/></svg><b></b></button>
+  <div id="album" class="album" hidden><div class="card"><h2 class="out"></h2><div class="sec crit"></div><div class="sec hats"></div><div class="sec stars"></div><div class="sec chap"></div><button class="close out" aria-label="close">&#10005;</button></div></div>
   <div id="menu" class="menu" hidden><h1 class="out"></h1><button id="cont" class="go out"></button><button id="newg" class="new out"></button></div>
 </div>`;
 
@@ -222,6 +229,7 @@ export function run(mode = 'play') {
       }
       case 'glint': scene.glintOn(e.lon, e.lat); Sound.glint(); break;
       case 'glintGone': scene.glintOff(); break;
+      case 'rig2Hit': { const p = scene.rigHit(1); for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.1 + i * 0.08, 2.6); break; }
       case 'rigHit': { const p = scene.rigHit(); for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.1 + i * 0.08, 2.6); break; }
       case 'laserHit': { const p = scene.laserHit(); Sound.laser(); for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.15 + i * 0.08, 3.0); break; }
       case 'conv': scene.fly('chunk', scene.slot('pile', Math.max(0, S.pile), V()), 'pol:' + e.to, () => Math.max(0, polN(e.to) - 1), 0, 0.8, () => scene.bump(e.to), scene.beltPath(e.to)); break;
@@ -235,6 +243,7 @@ export function run(mode = 'play') {
         if (S.pols.some((p) => p.id === e.at)) scene.fly(kind, from, 'pol:' + e.at, () => Math.max(0, polN(e.at) - 1), 0, 0.9, () => scene.bump(e.at));
         else if (S.stands.some((p) => p.id === e.at)) scene.fly(kind, from, 'stand:' + e.at, () => Math.max(0, standN(e.at) - 1), 0, 0.9, () => scene.bump(e.at));
         else if (e.at === 'workshop') scene.fly(kind, from, 'ws', () => Math.max(0, S.ws.gemsIn - 1), 0, 0.9, () => scene.bump('workshop'));
+        else if (e.at === 'cart') scene.fly('gem', from, 'cart', () => Math.max(0, S.ghost.n - 1), 0, 1.0, (p) => scene.twinkle(p, 3, 0xfff0c0, 0.35));
         else scene.fly(kind, from, 'crate', () => 0, 0, 0.9, (p) => { scene.bump('crate'); scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), 0, 1.6); });
         Sound.drop(h.n);
         break;
@@ -258,7 +267,11 @@ export function run(mode = 'play') {
       case 'pay': { if (e.paid % 2 === 0) scene.fly('coin', V(h.x, 1.4, h.z), 'pad', () => 0, 0, 1.0); scene.padPay(); Sound.pay(e.paid); break; }
       case 'unlock': {
         const c = scene.unlock(e.id); Sound.fanfare(); banner(T(e.id), e.id === 'rig' ? T('rigDone') : '', 2.6);
-        scene.showcase(V(c.x, 1.0, c.z - 0.5), e.id === 'road' ? 0.8 : 0.7, 2.2); saveNow();
+        if (e.id === 'heart') scene.showcase(V(0, 3, cfg.world.meteor.z + 2), 0.85, 2.0);
+        else scene.showcase(V(c.x, 1.0, c.z - 0.5), e.id === 'road' || e.id === 'cable' ? 0.8 : 0.7, 2.2);
+        if (e.id === 'ghost') banner(T('ghost'), T('ghostGoal'), 2.6);
+        if (e.id === 'laser') offerShare();
+        saveNow();
         break;
       }
       case 'bus': scene.busIn(); Sound.honk(); banner(T('bus'), '', 2.2); scene.showcase(scene.busAt, 0.85, 2.4); break;
@@ -273,10 +286,106 @@ export function run(mode = 'play') {
       case 'scoop': if (e.kind === 'coin') { cashBump = 1; Sound.coin(coinK++); } else Sound.pick(e.n || 1, false); break;
       case 'eggDrop': scene.eggDrop(); Sound.whoosh(); scene.showcase(V(cfg.world.egg.x, 0, cfg.world.egg.z - 1.5), 0.8, 1.6); break;
       case 'hatchStart': scene.hatchStart(); hatchCracks = 0; break;
-      case 'hatch': scene.hatch(); Sound.fanfare(); banner(T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); scene.showcase(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0); saveNow(); break;
+      case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); scene.showcase(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0); saveNow(); break;
+      // ---- M3
+      case 'cartGo': Sound.whoosh(); pop('➜', scene.cartAt.x, 1.8, scene.cartAt.z, 'gold'); break;
+      case 'ghostLight': {
+        const p = scene.lightHouse(e.i); Sound.fanfare(); banner(T('ghostLit'), `${e.i + 1} / ${cfg.cart.lights}`, 2.4);
+        scene.showcase(scene.houseAt(e.i), 0.72, 2.6); coinsTo(p, e.pay); pop('+' + e.pay, p.x, p.y + 1.5, p.z, 'gold'); saveNow();
+        break;
+      }
+      case 'districtDone': banner(T('districtDone'), '', 2.6); scene.showcase(V(0, 1.5, 19.5), 0.9, 2.4); break;
+      case 'cartBack': { const p = scene.cartAt; coinsTo(V(p.x, 1.2, p.z), e.pay); pop('+' + e.pay, p.x, 2, p.z, 'gold'); Sound.sale(); break; }
+      case 'crown': {
+        const jw = scene.slot('jw', 0, V()), to = S.pads.some((q) => q.id === 'cable' && q.done) ? 'gond' : 'sky';
+        scene.fly('ring', scene.slot('wsR', Math.max(0, S.ws.rings), V()), 'jw', () => 0, 0, 1.4, (q) => {
+          scene.twinkle(q, 8, 0xffe6a0, 0.45); Sound.ring();
+          const gi = Math.floor(Math.random() * 3); scene.fly('crown', q, to, () => gi, 0.15, 2.2, (r) => scene.twinkle(r, 6, 0xffd35a, 0.4));
+          coinsTo(q, e.pay); pop('+' + e.pay, jw.x, 2.6, jw.z, 'gold');
+        });
+        break;
+      }
+      case 'finale': scene.rush(); Sound.rush(); banner(T('finale'), '', 2.6); scene.showcase(V(0, 4, cfg.world.meteor.z + 1), 0.8, 3.4, 0, true); break;
+      case 'heartRise': scene.finale('rise'); Sound.boom(); scene.showcase(V(0, 6, cfg.world.meteor.z + 1), 0.72, 3.6, 0, true); break;
+      case 'crownHatch': scene.finale('burst'); Sound.perfect(); Sound.fanfare(); banner(T('legendary'), `${critterName(e.who)}  ${perkText(e.who)}`, 3.0); offerShare(); break;
+      case 'comet': scene.finale('comet'); Sound.whoosh(); banner(T('chapter2'), T('comet'), 3.2); scene.showcase(scene.cometAt.add(V(2.5, 0, 0)), 0.55, 4.2, cfg.camera.cometPitch, true); break;
+      case 'finaleEnd': scene.finale('fireworks'); Sound.fanfare(); banner(T('chapter1'), '★', 2.6); offerShare(); saveNow(); break;
+      case 'star': Sound.heart(); banner(T('star'), '★'.repeat(e.n) + '☆'.repeat(Math.max(0, 3 - e.n)), 2.4); offerShare(); saveNow(); break;
+      case 'hat': Sound.pop(); banner(T('hat'), '', 2.0); pop('✦', h.x, 3.0, h.z, 'big'); albumDot = true; saveNow(); break;
       default: break;
     }
   }
+  /** Up to 12 coins fly from p to the cash tray (the logic already paid the full amount into it). */
+  function coinsTo(p, n) { for (let i = 0; i < Math.min(12, n); i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), 0.1 + i * 0.06, 2.4, () => Sound.coin(coinK++)); }
+  let albumDot = false;
+
+  // ---- share at the big moments: a button shows for a few seconds; it sends a picture of the town and a brag line
+  const canShare = mode === 'play' && typeof lib !== 'undefined' && typeof lib.share === 'function';
+  let shareT = 0;
+  $('share').querySelector('b').textContent = T('share');
+  function offerShare() { if (!canShare) return; shareT = cfg.share.show; const b = $('share'); b.hidden = false; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
+  $('share').addEventListener('click', () => {
+    Sound.unlock(); let image;
+    try { draw(0); image = $('cv').toDataURL('image/jpeg', 0.85); } catch (e) { image = undefined; } // read right after drawing: the buffer is still there
+    Promise.resolve().then(() => lib.share({ image, title: T('title'), text: T('brag') })).catch(() => { /* host has no sheet: nothing to do */ });
+    shareT = 0; $('share').hidden = true;
+  });
+
+  // ---- the sticker album: critters (silhouettes until hatched), hats (tap to wear), town stars, the chapter map
+  const albumTotal = () => cfg.critters.length + cfg.hats.length + 3;
+  const albumHave = () => S.critters.length + S.hats.length + S.stars.length;
+  function tile(cls, draw, label, onTap) {
+    const d = document.createElement(onTap ? 'button' : 'div'); d.className = 'tile ' + cls;
+    const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'); g.translate(48, 50); draw(g); d.appendChild(c);
+    if (label) { const b = document.createElement('b'); b.className = 'out'; b.textContent = label; d.appendChild(b); }
+    if (onTap) d.addEventListener('click', onTap);
+    return d;
+  }
+  const drawCritter = (g, d, have) => {
+    g.fillStyle = have ? d.body : '#5a4a5e'; g.beginPath(); g.ellipse(0, 10, 30, 26, 0, 0, 6.3); g.fill(); g.beginPath(); g.arc(0, -14, 22, 0, 6.3); g.fill();
+    g.fillStyle = have ? d.shell : '#6e5e72'; for (const [x, y, r] of [[-14, -2, 10], [2, -8, 13], [16, 2, 9]]) { g.beginPath(); g.moveTo(x, y - r - 10); g.lineTo(x + r * 0.7, y - 6); g.lineTo(x - r * 0.7, y - 6); g.closePath(); g.fill(); }
+    if (have) { g.fillStyle = '#3a2418'; for (const x of [-8, 8]) { g.beginPath(); g.arc(x, -14, 4, 0, 6.3); g.fill(); } }
+    else { g.fillStyle = '#e8d8f0'; g.font = '900 34px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 0, 6); }
+  };
+  function drawHat(g, id, have) {
+    const fg = have ? '#ffe6a8' : '#6e5e72', bg = have ? '#2a7f78' : '#3a2a40';
+    g.fillStyle = fg; g.strokeStyle = fg; g.lineWidth = 6;
+    if (id === 'cowboy') { g.beginPath(); g.ellipse(0, 14, 40, 10, 0, 0, 6.3); g.fill(); g.beginPath(); g.roundRect(-20, -18, 40, 32, 12); g.fill(); }
+    else if (id === 'flower') { for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28; g.fillStyle = have ? ['#f27aa0', '#ffd35a', '#ff8ad8', '#b08cff'][k % 4] : fg; g.beginPath(); g.arc(Math.cos(a) * 26, Math.sin(a) * 12, 10, 0, 6.3); g.fill(); } }
+    else if (id === 'bunny') { for (const x of [-14, 14]) { g.beginPath(); g.ellipse(x, -8, 9, 30, x * 0.01, 0, 6.3); g.fill(); } g.fillRect(-28, 20, 56, 8); }
+    else if (id === 'astro') { g.beginPath(); g.arc(0, 2, 34, 0, 6.3); g.fill(); g.fillStyle = bg; g.beginPath(); g.roundRect(-22, -10, 44, 22, 10); g.fill(); }
+    else if (id === 'top') { g.fillRect(-36, 18, 72, 8); g.fillRect(-20, -30, 40, 50); g.fillStyle = bg; g.fillRect(-20, 8, 40, 8); }
+    else drawIcon(g, 'crown', fg, bg);
+  }
+  const hatNeed = (hd) => (hd.stars ? '★' + hd.stars : hd.hearts ? '♥' + hd.hearts : hd.finale ? '♛' : '');
+  function openAlbum() {
+    if (phase !== 'play') return;
+    phase = 'album'; albumDot = false; stick.on = false; showStick();
+    const a = $('album'), card = a.querySelector('.card');
+    card.querySelector('h2').textContent = `${T('album')}  ${albumHave()}/${albumTotal()}`;
+    const crit = card.querySelector('.crit'); crit.innerHTML = '';
+    for (const d of cfg.critters) { const have = S.critters.some((c) => c.id === d.id); const t = tile('r-' + (d.rarity || 'common') + (have ? '' : ' off'), (g) => drawCritter(g, d, have), have ? critterName(d.id) : ''); crit.appendChild(t); }
+    const hats = card.querySelector('.hats'); hats.innerHTML = '';
+    for (const hd of cfg.hats) {
+      const have = S.hats.includes(hd.id);
+      hats.appendChild(tile((have ? '' : 'off ') + (S.hat === hd.id ? 'on' : ''), (g) => drawHat(g, hd.id, have), have ? '' : hatNeed(hd), have ? () => { S.hat = hd.id; Sound.pop(); saveNow(); openAlbum.refresh(); } : null));
+    }
+    const st = card.querySelector('.stars'); st.innerHTML = '';
+    for (const [id, need] of [['orders', '♥' + cfg.stars.orders], ['critters', '✿' + cfg.stars.critters], ['town', '⌂']]) {
+      const have = S.stars.includes(id);
+      st.appendChild(tile(have ? '' : 'off', (g) => { g.scale(1.1, 1.1); drawIcon(g, 'star', have ? '#ffd35a' : '#6e5e72', have ? '#c98a2a' : '#3a2a40'); }, need));
+    }
+    const ch = card.querySelector('.chap'); ch.innerHTML = '';
+    const done = S.pads.filter((p) => p.done).length;
+    ch.appendChild(tile('wide ch1', (g) => drawIcon(g, 'heart', '#ff8ad8', '#5a1f5e'), `1 · ${T('chapter1')}  ${S.done1 ? '✓' : done + '/' + S.pads.length}`));
+    ch.appendChild(tile('wide ch2 off', (g) => { g.fillStyle = '#9ae8ff'; g.beginPath(); g.arc(-18, 6, 16, 0, 6.3); g.fill(); g.beginPath(); g.moveTo(-10, -6); g.lineTo(40, -26); g.lineTo(-4, 18); g.closePath(); g.globalAlpha = 0.6; g.fill(); }, `2 · ${T('chapter2')}  ${T('soon')}`));
+    a.hidden = false;
+  }
+  openAlbum.refresh = () => { phase = 'play'; openAlbum(); };
+  const closeAlbum = () => { $('album').hidden = true; if (phase === 'album') phase = 'play'; last = performance.now(); };
+  $('albumB').addEventListener('click', () => { Sound.unlock(); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } openAlbum(); });
+  $('album').querySelector('.close').addEventListener('click', () => { Sound.pop(); closeAlbum(); });
+  $('album').addEventListener('pointerdown', (e) => { if (e.target === $('album')) closeAlbum(); });
   let hatchCracks = 0, glintsHit = 0;
 
   // ---- save / continue: read first, write only after the read came back (a failed read never overwrites a save)
@@ -305,7 +414,7 @@ export function run(mode = 'play') {
     go.onclick = () => {
       Sound.unlock(); m.hidden = true;
       // shortcut: a save that arrives after this session already bought something replaces it; fine while reads take < 3 s
-      S = L.restore(cfg, st, cfg.seed + 7); scene.restoreBuilt(S); scene.snap(S); phase = 'play'; saveT = 0; Sound.pop();
+      S = L.restore(cfg, st, cfg.seed + 7); scene.restoreBuilt(S); scene.snap(S); if (!qs.has('tod')) scene.setTod(L.todGoal(cfg, S)); phase = 'play'; saveT = 0; Sound.pop();
     };
     nw.onclick = () => {
       Sound.unlock();
@@ -350,15 +459,29 @@ export function run(mode = 'play') {
     }
     if (bannerT > 0 && (bannerT -= dt) <= 0) { $('banner').hidden = true; if (bannerQ.length) banner(...bannerQ.shift()); }
     // NEXT card: what the coins are for (icon, how far along, coins still to pay)
+    // after the last unlock it shows the album instead: stickers collected of all there are (the next goal)
     const nx = $('next'), P = S.pads.find((p) => !p.done);
-    nx.hidden = !P || phase === 'menu';
-    if (P) {
+    nx.hidden = phase === 'menu';
+    if (!P) {
+      if (nextIcon !== 'star') { nextIcon = 'star'; const c = nx.querySelector('canvas'), g = c.getContext('2d'); g.clearRect(0, 0, 96, 96); g.save(); g.translate(48, 50); g.scale(0.82, 0.82); drawIcon(g, 'star', '#ffe6a8', '#2a7f78'); g.restore(); }
+      nx.querySelector('i').style.width = ((albumHave() / albumTotal()) * 100).toFixed(1) + '%';
+      const t = `${albumHave()}/${albumTotal()}`; if (nx.querySelector('b').textContent !== t) nx.querySelector('b').textContent = t;
+      nx.classList.remove('ready');
+    } else {
       const d = padDef(P.id), left = P.price - P.paid;
       if (nextIcon !== d.icon) { nextIcon = d.icon; const c = nx.querySelector('canvas'), g = c.getContext('2d'); g.clearRect(0, 0, 96, 96); g.save(); g.translate(48, 50); g.scale(0.82, 0.82); drawIcon(g, d.icon, '#ffe6a8', '#2a7f78'); g.restore(); }
       nx.querySelector('i').style.width = Math.min(100, ((h.cash + P.paid) / P.price) * 100).toFixed(1) + '%';
       const t = String(left); if (nx.querySelector('b').textContent !== t) nx.querySelector('b').textContent = t;
       nx.classList.toggle('ready', h.cash >= left && P.shown);
     }
+    // the ghost town goal: three houses, lit as the cart delivers
+    const go = $('goal'), gOpen = L.ghostOpen(cfg, S) && phase !== 'menu';
+    go.hidden = !gOpen;
+    if (gOpen) { if (go.querySelector('b').textContent !== T('ghostGoal')) go.querySelector('b').textContent = T('ghostGoal'); go.querySelectorAll('i').forEach((el, i) => el.classList.toggle('lit', i < S.ghost.lit)); }
+    // share button timer, album badge, the sky easing toward the time of day the town has reached
+    if (shareT > 0 && (shareT -= dt) <= 0) $('share').hidden = true;
+    $('albumB').classList.toggle('dot', albumDot);
+    if (!qs.has('tod')) { const want = L.todGoal(cfg, S), now = scene.tod; if (Math.abs(want - now) > 1e-3) scene.setTod(now + Math.sign(want - now) * Math.min(Math.abs(want - now), dt * cfg.tod.ease)); }
     // the order kid's bubble
     const bu = $('bubble');
     if (S.order) {
@@ -381,12 +504,12 @@ export function run(mode = 'play') {
   function frame(now) {
     raf = requestAnimationFrame(frame);
     if (paused) return;
-    const real = Math.min(0.1, (now - last) / 1000); last = now; acc += real;
+    const raw = (now - last) / 1000, real = Math.min(0.1, raw); last = now; acc += real;
     let n = 0; while (acc >= DT && n < 6) { tick(DT); acc -= DT; n++; }
     if (n === 6) acc = 0;
     draw(real);
     // adaptive quality every window seconds (CPU frame time stands in for GPU time)
-    perfT += real; perfN++; perfMs += real * 1000;
+    perfT += Math.min(1, raw); perfN++; perfMs += Math.min(1, raw) * 1000; // uncapped: a 10 FPS phone must count as slow, and soon
     if (perfT >= cfg.quality.window && !qs.has('tier')) {
       const nq = L.adaptQuality(cfg.quality, qa, perfMs / perfN, cfg.quality.window);
       if (nq.tier !== qa.tier) scene.setTier(nq.tier); if (nq.rs !== qa.rs) scene.setScale(nq.rs); qa = nq;
@@ -429,6 +552,7 @@ export function run(mode = 'play') {
       setTod: (t) => scene.setTod(t), setTier: (t) => scene.setTier(t), snap: () => scene.snap(S),
       glintScreen() { const g = scene.glint; if (!g) return null; const [x, y] = scene.toScreen(g.x, g.y, g.z); const r = root.getBoundingClientRect(); return [r.left + x * r.width, r.top + y * r.height]; },
       stats: () => scene.stats(),
+      openAlbum: () => openAlbum(), closeAlbum: () => closeAlbum(), offerShare: () => offerShare(), get shareOn() { return !$('share').hidden; },
       /** Glare of the picture: share of near-white pixels, of very bright pixels, mean luminance (0..255). */
       glare() {
         draw(0); const gl = scene.renderer.getContext(), w = gl.drawingBufferWidth, hh = gl.drawingBufferHeight, px = new Uint8Array(w * hh * 4);
@@ -450,6 +574,6 @@ if (typeof location !== 'undefined' && new URLSearchParams(location.search).has(
   const none = async () => ({});
   const store = { state: window.__seedSave || null }; window.__store = store; // tests seed a save and read it back
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => ({ state: store.state }), saveUserGameState: async (s) => { store.state = s; }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
-    shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
+    shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, share: async (o) => { (window.__shares = window.__shares || []).push(o); }, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
   fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });
 }
