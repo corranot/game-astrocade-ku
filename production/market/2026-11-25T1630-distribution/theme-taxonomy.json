@@ -1,0 +1,83 @@
+{
+ "themes": {
+  "action": {
+   "description": "Challenging high octane gameplay, such as fighting, shooting, racing, exploding"
+  },
+  "adventure": {
+   "description": "Exploration, main character, rpg elements. Adventure games are about the emotion of being in an expansive environment and being a hero. Less intense gameplay than action"
+  },
+  "arcade": {
+   "description": "Classic challenging gameplay, such as shoot-em-up, themepark and festival classics, often single-mechanic gameplay that repeats in high frequency."
+  },
+  "cooking": {
+   "description": "Cooking games are about cooking, serving, and managing a restaurant or kitchen"
+  },
+  "farm": {
+   "description": "Focused on farming or farming-adjacent. Plant, collect, sell. Manage resources. Includes games that are farming gameplay reskined as other themes"
+  },
+  "horror": {
+   "description": "Scary, dark, violent, creepy, haunted. Can sometimes be funny, but usually contains jump scares. Horror games are about the theme, can have a variety of gameplay mechanics"
+  },
+  "meme": {
+   "description": "Gimicky or uses popular meme elements. Quirky games that don't fit anywhere else"
+  },
+  "platformer": {
+   "description": "The core mechanic is running and jumping onto platforms with a main character"
+  },
+  "puzzle": {
+   "description": "Mentally challenging. Often spatial challenges, sometimes with math, other times sorting, sequencing or merging challenges, question-based, etc."
+  },
+  "rhythm": {
+   "description": "Games requiring timing to the beat"
+  },
+  "simulation": {
+   "description": "Gameplay simulates a real-world concept, such as tycoon, god-sim, city building. Sometimes resource management and operationalization, other times can be sandbox"
+  },
+  "sports": {
+   "description": "Related to classical sports, such as soccer, basketball, but also gymnastics, pool, etc."
+  },
+  "survival": {
+   "description": "Centered around a main character or troop of characters. Limited resources, crafting, death and defeat, rpg elements"
+  },
+  "tactics": {
+   "description": "Strategy and tactical gameplay. Auto-battler, card battler, tower defense, turn-based combat, etc"
+  },
+  "zen": {
+   "description": "Relaxing gameplay, without competition, combat or time preassure. Often sandbox, decoration or exploration"
+  },
+  "incremental": {
+   "description": "Clicker and similar gameplay. The core theme is 'number goes up'. Spend resource to buy upgrades, click to get resource, or get resource passively"
+  },
+  "creative": {
+   "description": "Self-expressive artistic experience. Drawing, painting, pixel-art, collage, scrapbook, etc. Can have specific challenges, but sometimes not"
+  },
+  "chess": {
+   "description": "Specifically games that center around Chess"
+  },
+  "educational": {
+   "description": "Math, word and trivia games that center around question and answer. Sometimes with multiple choice and other times with a field to type answers."
+  },
+  "merge": {
+   "description": "Games where the central mechanic is merging: Combine smaller objects to make bigger ones (or low tier combine to make high tier)."
+  },
+  "chat": {
+   "description": "Games in which you primarily chat or role-play with one or more characters."
+  },
+  "toys": {
+   "description": "A simple interactive experience with no purpose other than pure fun: no winning or losing, no fail state, no levels, no currency or upgrade shops, no leaderboards. Just a single, mindlessly entertaining mechanic that is inherently enjoyable without any overall goal. Physics play (spinning, dragging and dropping, pushing and pulling, popping, smashing, ragdolls, destruction) and creative play (doodling, drawing, coloring, tracing, decorating) both count. A passive tally of actions is fine, but if the game presents a score to beat, a leaderboard, levels to clear, or any way to fail or win, it is NOT toys."
+  },
+  "minecraft": {
+   "description": "A Minecraft game or a direct clone of one. Strong signals: 'Minecraft', 'craft' or 'mine' in the title; a first-person or third-person 3D voxel world made of cube blocks that the player breaks and places; open-world exploration with mining, crafting, building, and surviving mobs. Do NOT tag a game just because is blocky, low-poly, has cubes, or mentions Minecraft in passing \u2014 a voxel racer, a block puzzle, or a 2D platformer with pixel blocks is not minecraft."
+  }
+ },
+ "dead_game_config": {
+  "plays_threshold": 200,
+  "min_p50_secs": 40
+ },
+ "max_games_per_run": 2000,
+ "game_taxonomy": {
+  "max_games_per_run": 1000,
+  "max_concurrent_llm_calls": 40,
+  "extract_chunk_size": 1000
+ }
+}
