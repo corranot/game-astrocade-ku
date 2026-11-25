@@ -401,7 +401,8 @@
     "zMid": 3.8,
     "lean": 0.35,
     "mineZoom": 0.88,
-    "punch": 0.9
+    "punch": 0.9,
+    "cometPitch": 0.18
   },
   "tod": {
     "start": 0,
@@ -474,7 +475,8 @@
       "stargaze": 0.5,
       "neon": 0.82,
       "heart": 1
-    }
+    },
+    "ease": 0.04
   },
   "quality": {
     "dpr": [
@@ -1207,5 +1209,8 @@
       "id": "crown",
       "finale": true
     }
-  ]
+  ],
+  "share": {
+    "show": 7
+  }
 }

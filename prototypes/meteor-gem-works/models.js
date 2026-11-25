@@ -125,7 +125,7 @@ export function chunkGeo(s = 0.2) {
   const pt = (h, r, x, z, rx, rz) => { const c = lathe([[0, 0], [r, 0.02], [r * 0.95, h * 0.72], [0, h]], 6); return at(c, x, 0, z, rx, 0, rz); };
   parts.push(pt(s * 2.2, s * 0.42, 0, 0, 0.1, -0.15), pt(s * 1.6, s * 0.34, s * 0.32, s * 0.12, 0.2, 0.55), pt(s * 1.3, s * 0.3, -s * 0.3, -s * 0.1, -0.25, -0.6));
   const base = new THREE.IcosahedronGeometry(s * 0.45, 0); base.scale(1.3, 0.55, 1.1);
-  const all = [...parts.map((g) => g.toNonIndexed()), at(base.toNonIndexed(), 0, s * 0.05, 0)];
+  const all = [...parts.map((g) => g.toNonIndexed()), at(base, 0, s * 0.05, 0)];
   const out = new THREE.BufferGeometry(); let n = 0; for (const g of all) n += g.attributes.position.count;
   const pos = new Float32Array(n * 3), ao = new Float32Array(n * 3); let o = 0;
   all.forEach((g, gi) => { pos.set(g.attributes.position.array, o * 3); for (let i = 0; i < g.attributes.position.count; i++) { const rock = gi === all.length - 1; ao[(o + i) * 3] = rock ? 0.32 : 1; ao[(o + i) * 3 + 1] = rock ? 0.27 : 1; ao[(o + i) * 3 + 2] = rock ? 0.34 : 1; } o += g.attributes.position.count; g.dispose(); });
@@ -433,6 +433,7 @@ export function makeCritter(mat, gemMat, fur = 0xf0c48c) {
     const a = c * 0.42, z = -0.26 + r * 0.17, g = lathe([[0, 0], [0.1, 0.01], [0.08, 0.13], [0, 0.17]], 6).toNonIndexed();
     shell.push(at(g, Math.sin(a) * 0.3, 0.42 + Math.cos(a) * 0.24, z, 0, 0, -a * 0.9));
   }
+  shell.push(at(lathe([[0, 0], [0.05, 0.02], [0.04, 0.1], [0, 0.14]], 6).toNonIndexed(), 0, 0.2, -0.62, -2.3)); // the tail's crystal tip
   const sg = new THREE.BufferGeometry(); let n = 0; for (const g of shell) n += g.attributes.position.count;
   const pos = new Float32Array(n * 3); let o = 0; for (const g of shell) { pos.set(g.attributes.position.array, o); o += g.attributes.position.array.length; g.dispose(); }
   sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); sg.computeVertexNormals();
@@ -450,9 +451,9 @@ export function makeCritter(mat, gemMat, fur = 0xf0c48c) {
   const feet = [];
   // feet ride with the body (baked in, one draw call): the hop and squash carry them
   for (const [x, z] of [[-0.18, 0.18], [0.18, 0.18], [-0.18, -0.2], [0.18, -0.2]]) add(body, at(sphere(0.085, 8, 6), x, 0.07, z, 0, 0, 0, [1, 0.7, 1.2]), b2);
-  const tail = new THREE.Group(); tail.position.set(0, 0.3, -0.42); body.add(tail); add(tail, at(lathe([[0.06, 0], [0.04, 0.2], [0, 0.26]], 6), 0, 0, 0, -2.1), b2);
-  const tip = add(body, at(lathe([[0, 0], [0.05, 0.02], [0.04, 0.1], [0, 0.14]], 6), 0, 0.2, -0.62, -2.3), null, gemMat);
-  void tip;
+  // the tail rides with the body (baked in): three draws per critter (body, head, crystal), twelve critters in a parade
+  add(body, at(lathe([[0.06, 0], [0.04, 0.2], [0, 0.26]], 6), 0, 0.3, -0.42, -2.1), b2);
+  const tail = new THREE.Group(); body.add(tail);
   collapse([body, head], mat);
   return { root, body, head, feet, tail, shell: shellMesh, phase: 0 };
 }
@@ -475,7 +476,7 @@ export function eggGeos() {
   const spots = [];
   for (let k = 0; k < 9; k++) {
     const a = k * 2.39, y = 0.2 + ((k * 0.37) % 0.55), r = Math.sin(Math.min(Math.PI, (y / 0.84) * Math.PI)) * 0.34;
-    const g = new THREE.OctahedronGeometry(0.06 + (k % 3) * 0.015, 0).toNonIndexed(); at(g, Math.cos(a) * r, y, Math.sin(a) * r, k, k, 0);
+    const g = new THREE.OctahedronGeometry(0.06 + (k % 3) * 0.015, 0); at(g, Math.cos(a) * r, y, Math.sin(a) * r, k, k, 0);
     spots.push(g);
   }
   const sg = new THREE.BufferGeometry(); let n = 0; for (const g of spots) n += g.attributes.position.count;

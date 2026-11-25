@@ -6,7 +6,9 @@
 // between time-of-day keys. High tiers add a glow (bloom) pass with a colour grade (copied from +1 Mega Hammer).
 // M2 adds the seven unlock buildings (rig, conveyor + polisher 2, stand 2 + lanterns, armadillo shopkeeper, canyon road
 // + tour bus, ring workshop, laser cutter), six critters in a parade, the order kid, Crystal Rush and a rim light on
-// the characters. Plan: plan.md §5, §6, §9, §12. This file only draws; logic.js owns the rules.
+// the characters. M3 adds chapter 1's last seven unlocks (ghost town + mine cart, rig 2, cable car, stargazer deck, crown
+// jeweler, neon signs, the heart of the meteor with its finale and comet), six more critters and the hero's hats.
+// Plan: plan.md §5, §6, §9, §12. This file only draws; logic.js owns the rules.
 /* global THREE */
 import * as M from './models.js';
 import { todBlend } from './logic.js';
@@ -47,6 +49,26 @@ export function drawIcon(g, icon, fg, bg) {
     rr(-26, 10, 52, 26, 8); rr(-20, -16, 40, 26, 8);
     for (const dx of [-12, 0, 12]) { g.fillRect(dx - 3, -42, 6, 26); }
     g.fillStyle = bg; g.beginPath(); g.arc(0, 22, 6, 0, 6.3); g.fill();
+  } else if (icon === 'cart') {
+    g.beginPath(); g.moveTo(-40, -14); g.lineTo(40, -14); g.lineTo(30, 18); g.lineTo(-30, 18); g.closePath(); g.fill();
+    for (const x of [-20, 20]) { g.beginPath(); g.arc(x, 26, 11, 0, 6.3); g.fill(); }
+    g.fillStyle = bg; for (const x of [-20, 20]) { g.beginPath(); g.arc(x, 26, 4, 0, 6.3); g.fill(); }
+    g.fillStyle = fg; for (const [x, y, r] of [[-16, -24, 11], [6, -28, 13], [24, -22, 9]]) { g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r * 0.8); g.lineTo(x - r, y); g.closePath(); g.fill(); }
+  } else if (icon === 'cable') {
+    g.lineWidth = 5; g.strokeStyle = fg; g.beginPath(); g.moveTo(-46, -34); g.quadraticCurveTo(0, -12, 46, -38); g.stroke();
+    g.fillRect(-2, -24, 5, 14); rr(-24, -10, 48, 40, 9); g.fillStyle = bg; rr(-17, -3, 14, 12, 3); rr(3, -3, 14, 12, 3);
+  } else if (icon === 'star') {
+    g.beginPath(); for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI * 2 - Math.PI / 2, r = k % 2 ? 18 : 42; g.lineTo(Math.cos(a) * r, Math.sin(a) * r + 2); } g.closePath(); g.fill();
+    g.fillStyle = bg; g.beginPath(); g.arc(0, 4, 8, 0, 6.3); g.fill();
+  } else if (icon === 'crown') {
+    g.beginPath(); g.moveTo(-40, 26); g.lineTo(-44, -22); g.lineTo(-20, 0); g.lineTo(0, -34); g.lineTo(20, 0); g.lineTo(44, -22); g.lineTo(40, 26); g.closePath(); g.fill();
+    g.fillStyle = bg; for (const x of [-22, 0, 22]) { g.beginPath(); g.arc(x, 14, 6, 0, 6.3); g.fill(); }
+  } else if (icon === 'neon') {
+    g.lineWidth = 9; g.strokeStyle = fg; g.beginPath(); for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI * 2 - Math.PI / 2, r = k % 2 ? 14 : 32; g.lineTo(Math.cos(a) * r - 6, Math.sin(a) * r - 6); } g.closePath(); g.stroke();
+    g.lineWidth = 6; g.beginPath(); g.moveTo(-42, 34); g.quadraticCurveTo(-20, 22, 0, 34); g.quadraticCurveTo(20, 46, 42, 32); g.stroke();
+  } else if (icon === 'heart') {
+    g.beginPath(); g.moveTo(0, 38); g.bezierCurveTo(-12, 26, -46, 6, -42, -16); g.bezierCurveTo(-38, -40, -8, -40, 0, -18); g.bezierCurveTo(8, -40, 38, -40, 42, -16); g.bezierCurveTo(46, 6, 12, 26, 0, 38); g.fill();
+    g.fillStyle = bg; g.beginPath(); g.ellipse(-16, -16, 7, 11, -0.5, 0, 6.3); g.fill();
   }
 }
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -69,11 +91,11 @@ export function createScene(canvas, cfg, random) {
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 9 / 16, 1, 160);
 
   // ---- sky dome: four-stop gradient from the zenith to the horizon, a soft sun glow; colours come from the tod keys
-  const skyU = { c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, c2: { value: new THREE.Color() }, c3: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 0.5, -1) }, sunC: { value: new THREE.Color() } };
+  const skyU = { c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, c2: { value: new THREE.Color() }, c3: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 0.5, -1) }, sunC: { value: new THREE.Color() }, uStars: { value: 0 } };
   const sky = new THREE.Mesh(K(new THREE.SphereGeometry(140, 32, 16)), K(new THREE.ShaderMaterial({
     uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3; uniform vec3 sunDir; uniform vec3 sunC; varying vec3 vD; void main(){ float y = clamp(vD.y, -0.2, 1.0); vec3 c = mix(c3, c2, smoothstep(-0.05, 0.08, y)); c = mix(c, c1, smoothstep(0.08, 0.3, y)); c = mix(c, c0, smoothstep(0.3, 0.8, y)); float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += sunC * (pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08); gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
+    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3; uniform vec3 sunDir; uniform vec3 sunC; uniform float uStars; varying vec3 vD; void main(){ float y = clamp(vD.y, -0.2, 1.0); vec3 c = mix(c3, c2, smoothstep(-0.05, 0.08, y)); c = mix(c, c1, smoothstep(0.08, 0.3, y)); c = mix(c, c0, smoothstep(0.3, 0.8, y)); float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += sunC * (pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08); vec3 sc = floor(normalize(vD) * 260.0); float st = fract(sin(dot(sc, vec3(12.9898, 78.233, 37.719))) * 43758.5453); c += vec3(1.0, 0.95, 0.85) * step(0.9975, st) * smoothstep(0.12, 0.45, y) * uStars; gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
   })));
   sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
   scene.fog = new THREE.Fog(0xf0d9b8, 34, 90);
@@ -117,6 +139,18 @@ export function createScene(canvas, cfg, random) {
   const lanternMat = K(new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
   const beamMat = K(new THREE.MeshBasicMaterial({ color: 0xff6ad8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   const mesh = (g, m = mat, shadow = true) => { const o = new THREE.Mesh(K(g), m); o.castShadow = shadow; o.receiveShadow = true; scene.add(o); return o; };
+  // set dressing that never moves is baked into one mesh per material and shadow flag at the end (draw-call budget)
+  const statics = [], smesh = (g, m = mat, shadow = true) => { const o = mesh(g, m, shadow); statics.push(o); return o; };
+  function bakeStatics() {
+    const groups = new Map();
+    for (const o of statics) { o.updateMatrixWorld(true); const k = o.material.uuid + o.castShadow; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(o); }
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const one = mesh(M.merge(list.map((o) => o.geometry.clone().applyMatrix4(o.matrixWorld))), list[0].material, list[0].castShadow);
+      for (const o of list) { scene.remove(o); o.geometry.dispose(); }
+      void one;
+    }
+  }
 
   // ---- ground: warm sand with ripples and pebbles, a big plane that fades into the fog
   const sandTex = K(canvasTex(512, 512, (g, s) => {
@@ -157,7 +191,7 @@ export function createScene(canvas, cfg, random) {
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fl = uFlash.w * exp(-dot(vObj - uFlash.xyz, vObj - uFlash.xyz) * 0.8); float facet = 0.55 + 0.45 * abs(sin(dot(floor(vObj * 2.6), vec3(12.9898, 78.233, 37.719))));\ntotalEmissiveRadiance = crys * (cr * (0.24 + 0.1 * uPulse) * facet + fl) * uGlow;');
   };
   const meteor = mesh(meteorGeo, meteorMat); meteor.position.set(W.meteor.x, W.meteor.y, W.meteor.z); meteor.rotation.y = 0;
-  const crater = mesh(M.buildCrater(MR), mat, false); crater.position.set(W.meteor.x, 0, W.meteor.z); crater.scale.set(1, 1, 0.72); // flattened toward the deck so its rim stops at the boards
+  const crater = smesh(M.buildCrater(MR), mat, false); crater.position.set(W.meteor.x, 0, W.meteor.z); crater.scale.set(1, 1, 0.72); // flattened toward the deck so its rim stops at the boards
   /** World point (and outward normal) on the meteor's surface at lon/lat (lon 0 faces the deck), cut depth d in m. */
   const surf = (lon, lat, d = 0, out = new THREE.Vector3()) => {
     const nx = Math.sin(lon) * Math.cos(lat), ny = Math.sin(lat), nz = Math.cos(lon) * Math.cos(lat), r = MR * 1.0 - d;
@@ -190,7 +224,7 @@ export function createScene(canvas, cfg, random) {
 
   // ---- the deck (play area) and its rope fence, the crowd behind it
   const D = W.deck;
-  mesh(M.buildDeck(D), mat, false);
+  smesh(M.buildDeck(D), mat, false);
   // plank boards as a texture (vertex colours cannot draw thin seams): warm boards, dark gaps, nail heads, grain
   const plankTex = K(canvasTex(256, 256, (g, s) => {
     const n = 6, w = s / n;
@@ -210,20 +244,20 @@ export function createScene(canvas, cfg, random) {
   const shops = [];
   const shopDefs = [[-11.2, 1.0, Math.PI / 2, 4.2, 4.6, 0xd98a6a, PAL.cream, PAL.terraDark], [-11.6, 7.6, Math.PI / 2, 4.8, 3.6, 0x7ab8b0, PAL.cream, PAL.woodDark], [11.3, 0.4, -Math.PI / 2, 4.6, 4.2, 0xe6c56a, PAL.woodDark, PAL.red], [11.6, 7.2, -Math.PI / 2, 4.2, 5.0, 0xb88ad0, PAL.cream, PAL.navy], [-6.6, -9.5, 0.35, 4.4, 3.8, 0x9ab0d8, PAL.cream, PAL.terraDark], [7.2, -9.8, -0.4, 4.0, 4.4, 0xe8a27a, PAL.cream, PAL.woodDark]];
   for (const [x, z, ry, w, h, wall, trim, roof] of shopDefs) {
-    const g = M.buildShop(w, h, wall, trim, roof), b = mesh(g.body), wn = mesh(g.windows, winMat, false);
+    const g = M.buildShop(w, h, wall, trim, roof), b = smesh(g.body), wn = smesh(g.windows, winMat, false);
     for (const o of [b, wn]) { o.position.set(x, 0, z); o.rotation.y = ry; }
     shops.push(b);
   }
-  const tower = mesh(M.buildWaterTower()); tower.position.set(-9.6, 0, -4.2);
-  const wm = M.buildWindmill(), mill = mesh(wm.tower), blades = mesh(wm.blades); mill.position.set(10.4, 0, -4.6); mill.rotation.y = -0.5;
+  const tower = smesh(M.buildWaterTower()); tower.position.set(-9.6, 0, -4.2);
+  const wm = M.buildWindmill(), mill = smesh(wm.tower), blades = mesh(wm.blades); mill.position.set(10.4, 0, -4.6); mill.rotation.y = -0.5;
   blades.position.set(10.4 + Math.sin(-0.5) * 0.95, 6.35, -4.6 + Math.cos(-0.5) * 0.95); blades.rotation.y = -0.5;
-  for (const [x, z, w, h, d, ry] of [[-24, -30, 20, 10, 8, 0.2], [6, -38, 28, 14, 10, -0.05], [30, -28, 18, 9, 8, -0.3], [-40, -18, 16, 8, 8, 0.9], [42, -14, 16, 10, 8, -0.9], [-12, -46, 26, 18, 10, 0.1], [22, -52, 24, 20, 10, -0.15]]) { const m = mesh(M.buildMesa(w, h, d), mat, false); m.position.set(x, -0.4, z); m.rotation.y = ry; }
-  const cactusPos = [[-9.2, 10.5], [9.4, 11.2], [-13.6, 4.6], [14.0, 3.6], [-8.4, -1.8], [8.8, -1.4], [-15, -7], [15.5, -9], [-4.5, -12.5], [3.2, -13.2], [-18, 12], [18, 13]];
-  cactusPos.forEach(([x, z], i) => { const c = mesh(M.buildCactus(i)); c.position.set(x, 0, z); c.rotation.y = i * 1.7; c.scale.setScalar(0.85 + (i % 3) * 0.15); });
-  for (const [x, z, ry] of [[-9.0, 4.4, 0.4], [9.1, 3.8, -0.6], [-8.8, -6.6, 1.2], [9.4, 9.4, 2.1]]) { const b = mesh(M.buildBarrels()); b.position.set(x, 0, z); b.rotation.y = ry; }
-  // foreground: a parked ore wagon, flower pots and cacti in front of the crowd so the bottom of the frame is never bare
-  for (const [x, z, ry, k] of [[-6.6, 18.4, 0.3, 0], [5.2, 18.6, -0.5, 1], [0.4, 18.9, 0.1, 2], [-2.6, 18.3, 0, 3], [8.6, 14.6, 0, 4], [-8.8, 14.8, 0, 5]]) {
-    const o = k < 2 ? mesh(M.buildBarrels()) : mesh(M.buildCactus(k)); o.position.set(x, 0, z); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
+  for (const [x, z, w, h, d, ry] of [[-24, -30, 20, 10, 8, 0.2], [6, -38, 28, 14, 10, -0.05], [30, -28, 18, 9, 8, -0.3], [-40, -18, 16, 8, 8, 0.9], [42, -14, 16, 10, 8, -0.9], [-12, -46, 26, 18, 10, 0.1], [22, -52, 24, 20, 10, -0.15]]) { const m = smesh(M.buildMesa(w, h, d), mat, false); m.position.set(x, -0.4, z); m.rotation.y = ry; }
+  const cactusPos = [[-9.2, 10.5], [9.4, 11.2], [-13.6, 4.6], [14.0, 3.6], [-8.4, -1.8], [-15, -7], [15.5, -9], [-4.5, -12.5], [3.2, -13.2], [-18, 12], [18, 13]];
+  cactusPos.forEach(([x, z], i) => { const c = smesh(M.buildCactus(i)); c.position.set(x, 0, z); c.rotation.y = i * 1.7; c.scale.setScalar(0.85 + (i % 3) * 0.15); });
+  for (const [x, z, ry] of [[-9.0, 4.4, 0.4], [9.1, 3.8, -0.6], [-8.8, -6.6, 1.2], [9.4, 9.4, 2.1]]) { const b = smesh(M.buildBarrels()); b.position.set(x, 0, z); b.rotation.y = ry; }
+  // foreground: barrels and cacti beside the crowd (the ghost town fills the bottom of the frame)
+  for (const [x, z, ry, k] of [[-7.4, 17.2, 0.3, 0], [8.6, 14.6, 0, 4], [-8.8, 14.8, 0, 5]]) {
+    const o = k < 2 ? smesh(M.buildBarrels()) : smesh(M.buildCactus(k)); o.position.set(x, 0, z); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
   }
   // lamp posts along both deck edges (instanced): bulbs glow at dusk
   const lampXZ = []; for (const sx of [-1, 1]) for (const z of [-0.4, 3.6, 7.6]) lampXZ.push([sx * (D.x1 + 0.75), z, sx < 0 ? 0 : Math.PI]);
@@ -290,7 +324,7 @@ export function createScene(canvas, cfg, random) {
   const laserFx = { t: 0, p: new THREE.Vector3() };
   // canyon road with the bridge (planks come back when it is fixed) and the tour bus
   const RD = { z: 16.2, bx: -5.2, park: 1.6 };
-  const road = M.buildRoad(-60, 60, RD.z, RD.bx); mesh(road.road, mat, false);
+  const road = M.buildRoad(-60, 60, RD.z, RD.bx); smesh(road.road, mat, false);
   unlockObj('road', mesh(M.merge(road.planks)));
   const busB = M.buildBus(), bus = new THREE.Group(); scene.add(bus);
   { const b = new THREE.Mesh(K(busB.body), mat), w = new THREE.Mesh(K(busB.windows), winMat); b.castShadow = true; bus.add(b, w); }
@@ -349,9 +383,78 @@ export function createScene(canvas, cfg, random) {
   const rigLon = Math.atan2(W.rigAt.x - W.meteor.x, W.rigAt.z - W.meteor.z) * 0.9, rigLat = 0.05;
   const laserLon = Math.atan2(LA.x - W.meteor.x, LA.z - W.meteor.z);
 
+  // ---- M3, chapter 1 unlocks 8-14 (plan.md §12): the ghost town and its mine cart, a second drill rig, the cable car,
+  // the stargazer deck, the crown jeweler, the neon main street and the heart of the meteor (finale + comet)
+  // the ghost town across the road: grey and boarded up until the cart lights each house (one draw: aIdx picks the
+  // house, uLit[i] blends it from its ghost colour to its real one, swaps boards for bunting and lights the windows)
+  const GH = [[-4.6, 19.7, 0.08, 3.8, 3.6, 0xe8a27a, PAL.cream, PAL.terraDark], [0.2, 20.1, 0, 4.2, 4.4, 0x7ab8b0, PAL.cream, PAL.woodDark], [4.9, 19.7, -0.08, 3.8, 3.8, 0xe6c56a, PAL.woodDark, PAL.red]];
+  const ghostU = { uLit: { value: [0, 0, 0] }, uWin: { value: 0 } };
+  const ghostMat = K(mat.clone());
+  ghostMat.onBeforeCompile = (s) => {
+    Object.assign(s.uniforms, ghostU);
+    s.vertexShader = 'attribute vec3 aGhost; attribute float aIdx; attribute float aKind; attribute float aWin; uniform float uLit[3]; varying float vK; varying float vWin;\n' + s.vertexShader
+      .replace('#include <color_vertex>', '#include <color_vertex>\nint gi = int(aIdx + 0.5); vK = gi == 0 ? uLit[0] : gi == 1 ? uLit[1] : uLit[2]; vColor.xyz = mix(aGhost, vColor.xyz, vK); vWin = aWin;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat gk = int(aIdx + 0.5) == 0 ? uLit[0] : int(aIdx + 0.5) == 1 ? uLit[1] : uLit[2]; float hide = aKind > 1.5 ? step(gk, 0.5) : aKind > 0.5 ? step(0.5, gk) : 0.0; transformed.y -= hide * 60.0;');
+    s.fragmentShader = 'uniform float uWin; varying float vK; varying float vWin;\n' + s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.72, 0.38) * vWin * vK * uWin;');
+  };
+  const ghostTown = mesh(M.buildGhostTown(GH), ghostMat, false);
+  const ghostFx = { k: [0, 0, 0], to: [0, 0, 0] };
+  // the mine cart rail: from the cart stop east along the deck edge, down past the road, then west along the houses
+  const CA = W.cart, railPts = [[CA.x, CA.z + 0.55], [CA.x, 10.95], [8.4, 10.95], [8.4, 18.0], [-4.6, 18.0]];
+  unlockObj('ghost', mesh(M.buildRail(railPts), mat, false));
+  const railPath = new THREE.CurvePath(); for (let i = 0; i < railPts.length - 1; i++) railPath.add(new THREE.LineCurve3(new THREE.Vector3(railPts[i][0], 0.16, railPts[i][1]), new THREE.Vector3(railPts[i + 1][0], 0.16, railPts[i + 1][1])));
+  const railLen = railPath.getLength(), houseU = GH.map(([x]) => { let best = 0, bd = 1e9; for (let u = 0; u <= 1; u += 0.005) { const p = railPath.getPointAt(u); const d = Math.abs(p.x - x) + Math.abs(p.z - 18.0) * 3; if (d < bd) { bd = d; best = u; } } return best; });
+  const cart = unlockObj('ghost', mesh(M.buildMineCart(), mat, true)); cart.position.set(CA.x, 0.16, CA.z + 0.55);
+  const cartSt = { u: 0, back: 0 };
+  // drill rig 2, on the left of the meteor (same build as rig 1)
+  const rig2 = unlockObj('rig2', new THREE.Group()); rig2.position.set(W.rig2At.x, 0, W.rig2At.z); rig2.rotation.y = -0.4; scene.add(rig2);
+  { const b = new THREE.Mesh(K(M.buildRig()), mat); b.castShadow = true; rig2.add(b); }
+  const drill2 = new THREE.Mesh(drill.geometry, brassMat); drill2.castShadow = true; drill2.position.set(0, 2.3, -2.15); drill2.rotation.x = -0.32; rig2.add(drill2);
+  const rig2Lon = Math.atan2(W.rig2At.x - W.meteor.x, W.rig2At.z - W.meteor.z) * 0.9;
+  const rigs = [{ g: rig, drill, lon: rigLon, k: 0 }, { g: rig2, drill: drill2, lon: rig2Lon, k: 0 }];
+  // the cable car across the back of town: two pylons, the cable and three gondolas (one instanced draw)
+  const CB = M.buildCableLine([-12.5, -10.6, 6.6], [12.5, -11.4, 7.2]);
+  unlockObj('cable', mesh(CB.line, mat, false));
+  const gondolas = unlockObj('cable', new THREE.InstancedMesh(K(M.buildGondola()), mat, 3)); gondolas.frustumCulled = false; scene.add(gondolas);
+  const gondU = [0.1, 0.77, 1.43];
+  /** Gondola i rides back and forth along the cable (hanging from the point it returns). */
+  const gondAt = (i, out) => { const p = (gondU[i] + tAll * 0.025) % 2; return CB.curve.getPoint(0.04 + 0.92 * (p < 1 ? p : 2 - p), out); };
+  // the stargazer deck on the right, beside the windmill
+  const stargazer = unlockObj('stargaze', mesh(M.buildStargazer(), mat, true)); stargazer.position.set(8.9, 0.16, -0.6); stargazer.rotation.y = -0.6;
+  // the crown jeweler: turns rings into crowns that ride off on the cable car
+  const JW = W.jeweler, jeweler = unlockObj('crown', mesh(M.buildJeweler(), mat, true)); jeweler.position.set(JW.x, 0.16, JW.z); jeweler.rotation.y = -0.5;
+  // neon on main street: five signs that light one after another (one draw; uOn counts the lit signs)
+  const neonU = { uOn: { value: 0 }, uBoost: { value: 1 } };
+  const neonMat = K(new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
+  neonMat.onBeforeCompile = (s) => {
+    Object.assign(s.uniforms, neonU);
+    s.vertexShader = 'attribute float aIdx; uniform float uOn; varying float vOn;\n' + s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvOn = clamp(uOn - aIdx, 0.0, 1.0);');
+    s.fragmentShader = 'uniform float uBoost; varying float vOn;\n' + s.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.16, uBoost, vOn);');
+  };
+  const neon = unlockObj('neon', mesh(M.buildNeon([
+    { shape: 'star', x: -6.2, y: 4.4, z: -2.6, ry: 0.25, s: 0.7, color: 0xffd35a },
+    { shape: 'gem', x: 6.3, y: 4.3, z: -2.7, ry: -0.25, s: 0.75, color: 0x6fe0f0 },
+    { shape: 'heart', x: -8.2, y: 3.4, z: 5.6, ry: 0.6, s: 0.75, color: 0xff6fa8 },
+    { shape: 'wave', x: 8.3, y: 3.6, z: 5.4, ry: -0.6, s: 0.6, color: 0x8fe0a8 },
+    { shape: 'arch', x: 0.5, y: 6.2, z: -3.9, ry: 0, s: 1.6, color: 0xc890ff },
+  ]), neonMat, false));
+  const neonFx = { on: 0, to: 0 };
+  // the heart of the meteor (rises in the finale) and the comet that points to chapter 2
+  const heartMat = K(shellMat.clone()); heartMat.color.set(0xff7ad0); heartMat.emissive.set(0xe0409a);
+  const heart = new THREE.Mesh(K(M.heartGeo()), heartMat); heart.visible = false; scene.add(heart);
+  const cg = M.cometGeo(), comet = new THREE.Group(); comet.visible = false; scene.add(comet);
+  const cometMat = K(new THREE.MeshBasicMaterial({ color: 0x9fd8f0, fog: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  comet.add(new THREE.Mesh(K(cg.head), cometMat), new THREE.Mesh(K(cg.tail), K(new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))));
+  comet.children.forEach((m) => { m.renderOrder = -5; });
+  const COMET = { from: new THREE.Vector3(40, 30, -60), to: new THREE.Vector3(-4, 24, -54) }; // high over the mesas: the finale camera turns up to it
+  const finFx = { st: null, t: 0 };
+
   // ---- characters: the hero (miner), tourists (pool), the crowd (instanced), the critter and its egg
-  const hero = M.makePerson(charMat, { pants: PAL.navy, boots: PAL.woodDark, shirt: PAL.red, shirt2: 0xb8443c, vest: PAL.woodLight, scarf: PAL.teal, belt: PAL.brassDark, skin: PAL.skin, hair: PAL.woodDark, hat: 'cowboy', hatCol: 0xc98d58, band: PAL.teal, pickaxe: true, sleeve: 0xe7d4b4 });
+  const hero = M.makePerson(charMat, { pants: PAL.navy, boots: PAL.woodDark, shirt: PAL.red, shirt2: 0xb8443c, vest: PAL.woodLight, scarf: PAL.teal, belt: PAL.brassDark, skin: PAL.skin, hair: PAL.woodDark, hat: null, pickaxe: true, sleeve: 0xe7d4b4 });
   hero.root.scale.setScalar(1.4); scene.add(hero.root);
+  // the hat slot: one mesh on the head, its geometry swapped for the hat that is worn (album)
+  const hatGeos = {}; for (const hd of cfg.hats) hatGeos[hd.id] = K(M.buildHat(hd.id));
+  const hatMesh = new THREE.Mesh(hatGeos[cfg.hats[0].id], mat); hatMesh.castShadow = true; hero.head.add(hatMesh); let hatOn = cfg.hats[0].id;
   const outfits = [
     { pants: 0x5a6a8a, boots: PAL.ink, shirt: PAL.pink, shirt2: 0xd47898, skin: PAL.skin, hair: 0x4a2e22, hat: 'sun', hatCol: 0xf3d6a6, band: PAL.pink, camera: true },
     { pants: 0x3e5a4a, boots: PAL.woodDark, shirt: PAL.sun, shirt2: 0xd8a64a, skin: PAL.skinDark, skin2: 0xa8704e, hair: PAL.ink, hat: 'cap', hatCol: PAL.teal, band: PAL.tealDark },
@@ -378,6 +481,7 @@ export function createScene(canvas, cfg, random) {
     const sm = K(shellMat.clone()); sm.color.set(d.shell); sm.emissive.set(d.shell).multiplyScalar(0.55);
     const c = M.makeCritter(charMat, sm, new THREE.Color(d.body).getHex()); c.root.visible = false; c.root.scale.setScalar(1.25); noCast(c.root); scene.add(c.root);
     c.sm = sm; c.hatchK = 0; critters[d.id] = c;
+    if (d.rarity === 'legendary') { const cr = new THREE.Mesh(hatGeos.crown || K(M.buildHat('crown')), mat); cr.scale.setScalar(0.8); cr.position.set(0, 0.02, -0.02); c.head.add(cr); }
   }
   // the shopkeeper armadillo
   const keeper = M.makeKeeper(charMat); keeper.root.scale.setScalar(1.25); noCast(keeper.root); scene.add(keeper.root); unlockObj('keeper', keeper.root);
@@ -413,8 +517,9 @@ export function createScene(canvas, cfg, random) {
     gem: new THREE.InstancedMesh(K(M.gemGeo(0.24)), gemMat, 120),
     coin: new THREE.InstancedMesh(coinGeo, cashMat, 220),
     ring: new THREE.InstancedMesh(K(M.ringGeo(0.24)), ringMat, 60),
+    crown: new THREE.InstancedMesh(K(M.crownGeo(0.3)), ringMat, 16),
   };
-  const KINDS = Object.keys(items), itemN = { chunk: 0, gem: 0, coin: 0, ring: 0 };
+  const KINDS = Object.keys(items), itemN = { chunk: 0, gem: 0, coin: 0, ring: 0, crown: 0 };
   for (const m of Object.values(items)) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); }
   for (const k of ['chunk', 'gem']) { const m = items[k]; for (let i = 0; i < m.instanceMatrix.count; i++) m.setColorAt(i, new THREE.Color(GEM_COLS[(i * 7) % GEM_COLS.length])); }
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
@@ -446,6 +551,10 @@ export function createScene(canvas, cfg, random) {
     if (k0 === 'hero') return out.set(heroPos.x, 1.4, heroPos.z);
     if (k0 === 'pad') return out.set(pad.position.x, 0.5, pad.position.z);
     if (k0 === 'crate') return out.set(W.crate.x, 0.7, W.crate.z);
+    if (k0 === 'jw') return out.set(JW.x, 1.25, JW.z + 0.5);
+    if (k0 === 'cart') return out.set(cart.position.x + ((i % 2) - 0.5) * 0.4, 0.95 + Math.floor(i / 2) * 0.15, cart.position.z + ((i >> 1) % 2 - 0.5) * 0.3);
+    if (k0 === 'gond') { gondAt(i % 3, out); out.y -= 1.2; return out; }
+    if (k0 === 'sky') return out.set(JW.x + 2, 14, JW.z - 8);
     return out.set(0, 0, 0);
   }
   /**
@@ -562,7 +671,7 @@ export function createScene(canvas, cfg, random) {
     keyCol(a.hemiSky, b.hemiSky, k, hemi.color); keyCol(a.hemiGround, b.hemiGround, k, hemi.groundColor); hemi.intensity = L('hemiI');
     const el = L('elev'); sun.position.set(Math.cos(el) * -9, Math.sin(el) * 22 + 2, Math.cos(el) * 14 + 4); sun.target.position.set(0, 0, 3);
     skyU.sunDir.value.copy(sun.position).normalize();
-    renderer.toneMappingExposure = L('exp'); lampsK = L('lamps'); meteorK = L('meteor');
+    renderer.toneMappingExposure = L('exp'); lampsK = L('lamps'); skyU.uStars.value = Math.max(0, lampsK - 0.3) * 1.4; meteorK = L('meteor');
     glowMat.color.setRGB(0.35 + lampsK * 1.6, 0.27 + lampsK * 1.15, 0.18 + lampsK * 0.6);
     winMat.emissiveIntensity = lampsK * 1.4; crystalLight.intensity = 0.8 + meteorK * 1.2;
     scene.environmentIntensity = 0.45 - lampsK * 0.15;
@@ -634,7 +743,7 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---------------------------------------------------------------- per-frame sync with the logic state
-  const fx = { rigPlunge: 0, padPop: -1, padPulse: 0, stationBump: {}, flash: 0, crowdCheer: 0, rush: 0 };
+  const fx = { padPop: -1, padPulse: 0, stationBump: {}, flash: 0, crowdCheer: 0, rush: 0 };
   const pops = []; // unlock build-up bounces: { o, t, d }
   const bump = (k) => { fx.stationBump[k] = 1; };
   const bumpS = (o, k, base = 1) => { const b = fx.stationBump[k] || 0; o.scale.set(base * (1 + b * 0.08), base * (1 - b * 0.1), base * (1 + b * 0.08)); };
@@ -678,6 +787,39 @@ export function createScene(canvas, cfg, random) {
     for (let i = 0; i < m; i++) { slot(key, i, tmp); const k = typeof kind === 'function' ? kind(i) : kind; put(k, tmp.x, tmp.y + Math.sin(tAll * 2 + i) * bob, tmp.z, tAll * 0.8 + i, s, i + 1); }
   }
 
+  /** M3 per-frame: hat, mine cart, ghost town lights, gondolas, neon, the finale's heart and comet, night fireflies. */
+  function m3Update(S, dt) {
+    if (S.hat !== hatOn && hatGeos[S.hat]) { hatOn = S.hat; hatMesh.geometry = hatGeos[S.hat]; }
+    // mine cart: waits at its stop (gems ride in it), rolls along the rail to the next dark house, then comes back
+    if (cart.visible && !cart.popping) {
+      const tgt = houseU[Math.min(GH.length - 1, S.ghost.go >= 0 ? S.ghost.lit : Math.max(0, S.ghost.lit - 1))];
+      if (S.ghost.go >= 0) { cartSt.u = tgt * ease(Math.min(1, S.ghost.go / (cfg.cart.trip * 0.8))); cartSt.back = 1; }
+      else if (cartSt.back > 0) { cartSt.back = Math.max(0, cartSt.back - dt / 1.2); cartSt.u = tgt * cartSt.back * cartSt.back; }
+      railPath.getPointAt(Math.min(1, cartSt.u), tmp); const ta = railPath.getTangentAt(Math.min(0.999, cartSt.u + 1e-3), tmp2);
+      cart.position.set(tmp.x, 0.16 + (S.ghost.go >= 0 ? Math.abs(Math.sin(tAll * 18)) * 0.02 : 0), tmp.z); cart.rotation.y = Math.atan2(ta.x, ta.z);
+      if (S.ghost.go >= 0 && Math.random() < dt * 10) puff(cart.position.x, cart.position.z, 1, 0.4);
+    }
+    // ghost town: each house blends from grey to colour as it lights; windows glow at dusk
+    for (let i = 0; i < 3; i++) { ghostFx.k[i] = lerp(ghostFx.k[i], ghostFx.to[i], Math.min(1, dt * 1.6)); ghostU.uLit.value[i] = ghostFx.k[i]; }
+    ghostU.uWin.value = 0.35 + lampsK * 1.3;
+    for (let i = 0; i < 3; i++) if (ghostFx.to[i] && Math.random() < dt * (0.6 + lampsK)) twinkle(tmp.set(GH[i][0] + (Math.random() - 0.5) * GH[i][3], 1 + Math.random() * GH[i][4], GH[i][1] + 1.8), 1, 0xffe0a0, 0.3);
+    // gondolas glide along the cable
+    if (gondolas.visible) { for (let i = 0; i < 3; i++) { gondAt(i, tmp); gondolas.setMatrixAt(i, _m.compose(tmp, _q.setFromEuler(_e.set(0, 0, Math.sin(tAll * 1.3 + i) * 0.05)), _s.setScalar(1))); } gondolas.instanceMatrix.needsUpdate = true; }
+    // neon: signs light one by one, then hum
+    neonFx.on = Math.min(neonFx.to, neonFx.on + dt * 2.2); neonU.uOn.value = neonFx.on;
+    neonU.uBoost.value = (0.9 + lampsK * 1.1) * (1 + Math.sin(tAll * 11) * 0.03) * (post ? LK.glow.lantern : 1);
+    // the finale: the heart rises out of the meteor and spins, then bursts; the comet streaks to its place
+    if (finFx.st) {
+      finFx.t += dt; const top = tmp3.set(W.meteor.x, W.meteor.y + MR * 0.9, W.meteor.z);
+      if (finFx.st === 'rise') { const k = ease(Math.min(1, finFx.t / 3)); heart.visible = true; heart.position.set(top.x, lerp(top.y - 1.5, top.y + 2.6, k), top.z + 1); heart.rotation.y = finFx.t * 2.4; heart.scale.setScalar(0.4 + k * 0.9); if (Math.random() < dt * 30) twinkle(heart.position, 2, 0xffb0e8, 0.45); }
+      else if (finFx.st === 'comet') { const k = Math.min(1, finFx.t / 3.2); comet.visible = true; comet.position.lerpVectors(COMET.from, COMET.to, ease(k)); if (Math.random() < dt * 40) glowPts.spawn({ x: comet.position.x + 1, y: comet.position.y, z: comet.position.z, vx: 2, vy: -0.5, vz: 0, drag: 1, max: 1.2, s0: 1.4, s1: 0.2, r: 0.7, gg: 0.9, b: 1 }); if (k >= 1) finFx.st = null; }
+    }
+    if (heart.visible && finFx.st !== 'rise') heart.position.y += dt * 0.5;
+    if (comet.visible) comet.children[0].scale.setScalar(1 + Math.sin(tAll * 6) * 0.08);
+    // night: fireflies drift over the sand around the deck
+    if (lampsK > 0.5 && Math.random() < dt * 4 * lampsK) { const a = Math.random() * 6.28, r = 9 + Math.random() * 4; twinkle(tmp.set(Math.cos(a) * r, 0.6 + Math.random() * 1.5, 5 + Math.sin(a) * r * 0.7), 1, 0xd8ff8a, 0.22); }
+  }
+
   /** Draws the state S (logic.js) for this frame; dt in seconds; g is the guide target ({ x, z } or null). */
   function update(S, dt, g) {
     tAll += dt;
@@ -704,6 +846,7 @@ export function createScene(canvas, cfg, random) {
     fill('counter', S.counter, 'gem', 1.0);
     S.stands.forEach((st) => fill('stand:' + st.id, st.items.length, (i) => st.items[i] || 'gem', 1.15, 0.03));
     fill('cash', S.cashPile, 'coin', 1.0, 0, 150);
+    if (cart.visible) fill('cart', S.ghost.n, 'gem', 0.9, 0, 8);
     if (hasB(S, 'workshop')) { fill('ws', S.ws.gemsIn, 'gem', 0.75, 0); fill('wsR', S.ws.rings, 'ring', 0.9, 0.02); }
     // polishers: each wheel spins and throws sparks while it works
     for (const P of pols) {
@@ -794,13 +937,13 @@ export function createScene(canvas, cfg, random) {
       if (q.o.userData.fall) q.o.position.y = lerp(q.o.userData.fall, q.o.userData.y0, ease(k));
       if (k >= 1) { pops.splice(i, 1); q.o.popping = false; for (const x of [...pols, ...stands]) if (x.g === q.o) x.popping = false; }
     }
-    // rig: the drill turns and plunges on each rig hit
-    if (rig.visible) {
-      drill.rotation.y += dt * (8 + fx.rigPlunge * 30);
-      fx.rigPlunge = Math.max(0, fx.rigPlunge - dt * 2.5);
-      const pl = Math.sin(Math.min(1, fx.rigPlunge) * Math.PI);
-      drill.position.set(0, 2.3 - pl * 0.35, -2.15 - pl * 0.5);
+    // rigs: each drill turns and plunges on its hit
+    for (const R of rigs) {
+      if (!R.g.visible) continue;
+      R.drill.rotation.y += dt * (8 + R.k * 30); R.k = Math.max(0, R.k - dt * 2.5);
+      const pl = Math.sin(Math.min(1, R.k) * Math.PI); R.drill.position.set(0, 2.3 - pl * 0.35, -2.15 - pl * 0.5);
     }
+    m3Update(S, dt);
     // laser: the head tracks its target, beams flash on each cut
     if (laser.visible) {
       const tg = laserFx.p.lengthSq() ? laserFx.p : surf(laserLon, 0.25, 0, tmp3);
@@ -921,7 +1064,7 @@ export function createScene(canvas, cfg, random) {
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 3);
     cam.mineK = lerp(cam.mineK, h.mining ? 1 : 0, Math.min(1, dt * (h.mining ? 1.5 : 0.8))); cam.punch = Math.max(0, cam.punch - dt * 2.2);
     const zoom = lerp(1, cfg.camera.mineZoom, ease(cam.mineK)) * lerp(1, cfg.camera.punch, Math.sin(Math.min(1, cam.punch) * Math.PI / 2));
-    const dist = camDist() * zoom, pitch = cfg.camera.pitch, yaw = cfg.camera.yaw;
+    const dist = camDist() * zoom, yaw = cfg.camera.yaw; let pitch = cfg.camera.pitch;
     camLook.set(lerp(cam.x, h.x * 0.5, cam.mineK * 0.5), 0, lerp(cam.z, cfg.camera.zMin, cam.mineK * 0.6));
     let dd = dist, look = camLook;
     const ik = introStep(dt);
@@ -929,7 +1072,7 @@ export function createScene(canvas, cfg, random) {
     if (cam.show) {
       cam.showK = Math.min(1, cam.showK + dt / 0.6); cam.show.t -= dt; if (cam.show.t <= 0) cam.show = null;
     } else cam.showK = Math.max(0, cam.showK - dt / 0.7);
-    if (cam.showK > 0 && (cam.show || cam.last)) { const sh = cam.show || cam.last; cam.last = sh; const k = ease(cam.showK); look = tmp.copy(camLook).lerp(sh.p, k); dd = lerp(dist, camDist() * sh.zoom, k); }
+    if (cam.showK > 0 && (cam.show || cam.last)) { const sh = cam.show || cam.last; cam.last = sh; const k = ease(cam.showK); look = tmp.copy(camLook).lerp(sh.p, k); dd = lerp(dist, camDist() * sh.zoom, k); if (sh.pitch) pitch = lerp(pitch, sh.pitch, k); }
     camBase.set(look.x + Math.sin(yaw) * Math.cos(pitch) * dd, look.y + Math.sin(pitch) * dd, look.z + Math.cos(yaw) * Math.cos(pitch) * dd);
     const sh = cam.trauma * cam.trauma * 0.35;
     camera.position.set(camBase.x + (Math.random() - 0.5) * sh, camBase.y + (Math.random() - 0.5) * sh, camBase.z + (Math.random() - 0.5) * sh);
@@ -951,10 +1094,12 @@ export function createScene(canvas, cfg, random) {
       for (const x of [...pols, ...stands]) if (x.g === o) x.popping = true;
     });
     if (n) c.divideScalar(n);
+    if (id === 'neon') neonFx.to = 5;
     if (!instant) { c.y = 1.4; confetti(c, 90, 4); ring(tmp.set(c.x, 0.25, c.z), 0xffd35a, 0.5, 6, 0.7); puff(c.x, c.z, 14, 1.2); cam.trauma = Math.min(1, cam.trauma + 0.4); }
     return c;
   }
 
+  bakeStatics();
   const proj = new THREE.Vector3();
   /** Screen position (0..1) of a world point. */
   function toScreen(x, y, z) { proj.set(x, y, z).project(camera); return [(proj.x + 1) / 2, (1 - proj.y) / 2, proj.z]; }
@@ -975,7 +1120,7 @@ export function createScene(canvas, cfg, random) {
       return p;
     },
     /** The drill rig strikes: plunge, carve near its lon, spray. Returns the hit point. */
-    rigHit() { fx.rigPlunge = 1; const lon = rigLon + (Math.random() - 0.5) * 0.25, lat = rigLat + Math.random() * 0.25; carve(lon, lat, cfg.rig.carveR, cfg.rig.carveD); const p = surf(lon, lat, cutAt(lon, lat) * cfg.mining.maxD * 0.8, new THREE.Vector3()); burst(p, 0.8, 4); return p; },
+    rigHit(i = 0) { const R = rigs[i]; R.k = 1; const lon = R.lon + (Math.random() - 0.5) * 0.25, lat = rigLat + Math.random() * 0.25; carve(lon, lat, cfg.rig.carveR, cfg.rig.carveD); const p = surf(lon, lat, cutAt(lon, lat) * cfg.mining.maxD * 0.8, new THREE.Vector3()); burst(p, 0.8, 4); return p; },
     surf: (lon, lat, d = 0) => surf(lon, lat, d, new THREE.Vector3()),
     glintOn(lon, lat) { Object.assign(glintState, { on: true, lon, lat, t: 0 }); },
     glintOff() { glintState.on = false; },
@@ -988,7 +1133,12 @@ export function createScene(canvas, cfg, random) {
     skipIntro() { if (intro.t < 0) return; if (!intro.hit) introImpact(true); intro.t = Math.max(intro.t, INTRO.len - 0.6); },
     get introOn() { return intro.t >= 0; },
     /** Shows every building already bought (a continued game), without the bounce or confetti. */
-    restoreBuilt(S) { for (const p of S.pads) if (p.done) unlock(p.id, true); },
+    restoreBuilt(S) {
+      for (const p of S.pads) if (p.done) unlock(p.id, true);
+      for (let i = 0; i < 3; i++) ghostFx.k[i] = ghostFx.to[i] = i < S.ghost.lit ? 1 : 0;
+      neonFx.on = neonFx.to = hasB(S, 'neon') ? 5 : 0;
+      if (S.done1) { comet.visible = true; comet.position.copy(COMET.to); }
+    },
     /** The laser fires: three beams to a point near its lon, a wide carve, sparks. Returns the hit point. */
     laserHit() {
       const lon = laserLon + (Math.random() - 0.5) * 0.7, lat = 0.1 + Math.random() * 0.4; carve(lon, lat, cfg.laser.carveR, cfg.laser.carveD);
@@ -1005,9 +1155,28 @@ export function createScene(canvas, cfg, random) {
     hatch() { eggState.mode = 'done'; const p = new THREE.Vector3(W.egg.x, 0.8, W.egg.z); confetti(p, 110, 3.5); burst(p, 1.8, 14); ring(new THREE.Vector3(W.egg.x, 0.25, W.egg.z), 0xffc8f0, 0.4, 5, 0.7); cam.trauma = Math.min(1, cam.trauma + 0.3); },
     /** Crystal Rush starts: a big flare and ring on the meteor. */
     rush() { const p = surf(0, 0.3, 0, new THREE.Vector3()); meteorU.uFlash.value.set(p.x - meteor.position.x, p.y - meteor.position.y, p.z - meteor.position.z, 3); burst(p, 2.4, 20); ring(p, 0xffd35a, 0.5, 9, 0.9, p.clone().sub(meteor.position).normalize()); cam.trauma = Math.min(1, cam.trauma + 0.5); },
+    /** A house of the ghost town lights up (i 0..2): colour floods in, the boards fall, sparkles and a ring. Returns its centre. */
+    lightHouse(i) {
+      ghostFx.to[i] = 1; const [x, z, , w, hh] = GH[i], p = new THREE.Vector3(x, hh * 0.5, z + 1.7);
+      confetti(p, 80, 3); burst(p, 1.4, 10); ring(new THREE.Vector3(x, 0.25, z + 1.2), 0xffd35a, 0.5, w * 1.6, 0.8); for (let k = 0; k < 8; k++) puff(x + (k - 3.5) * w / 8, z + 1.7, 1, 1.0, 0xc8b8a8);
+      return p;
+    },
+    get cartAt() { return cart.position.clone(); },
+    houseAt: (i) => new THREE.Vector3(GH[i][0], 1.5, GH[i][1]),
+    /** The finale beats: 'rise' (heart lifts out of the meteor), 'burst' (it shatters into sparkles), 'comet'. */
+    finale(beat) {
+      const top = new THREE.Vector3(W.meteor.x, W.meteor.y + MR * 0.9, W.meteor.z + 1);
+      if (beat === 'rise') { finFx.st = 'rise'; finFx.t = 0; meteorU.uFlash.value.set(0, MR * 0.9, 1, 3); burst(top, 2.4, 24); ring(top, 0xff9ae8, 0.5, 8, 0.9); cam.trauma = Math.min(1, cam.trauma + 0.6); }
+      else if (beat === 'burst') { finFx.st = null; const p = heart.position.clone(); heart.visible = false; confetti(p, 160, 6); burst(p, 3, 40); ring(p, 0xffd35a, 0.5, 14, 1.0); ring(p, 0xff9ae8, 0.3, 10, 0.8, new THREE.Vector3(0, 0, 1)); cam.trauma = 1; }
+      else if (beat === 'comet') { finFx.st = 'comet'; finFx.t = 0; comet.visible = true; comet.position.copy(COMET.from); }
+      else if (beat === 'fireworks') for (let k = 0; k < 5; k++) confetti(new THREE.Vector3(-6 + k * 3, 6 + (k % 2) * 2, -2 - (k % 3)), 70, 5);
+      return top;
+    },
+    get cometAt() { return COMET.to.clone(); },
+    get heartAt() { return heart.position.clone(); },
     beltPath: (to) => { const P = pols[polIdx(to)]; return P === pols[1] ? beltPath : [beltPath[0]]; },
     /** Camera showcase: ease toward world point p and zoom (fraction of the normal distance) for sec seconds. */
-    showcase(p, zoom, sec) { cam.show = { p: p.clone(), zoom, t: sec }; cam.last = cam.show; },
+    showcase(p, zoom, sec, pitch = 0, lock = false) { if (cam.show && cam.show.lock && !lock) return; cam.show = { p: p.clone(), zoom, t: sec, pitch, lock }; cam.last = cam.show; }, // a locked one (finale) is not cut short
     cheer(id) { fx.crowdCheer = 1.2; const p = tourists.find((o) => o.id === id); if (p) p.cheer = 0.9; },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
     /** Snaps the camera to its follow target (no easing): for the first frame and screenshots. */
