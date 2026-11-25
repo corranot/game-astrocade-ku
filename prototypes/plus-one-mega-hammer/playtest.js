@@ -86,6 +86,8 @@ async function calm(page) {
   await tapWorld(first[0], 0.3, first[1]); await waitIdle();
   check(await g((id) => !__game.R.objects[id].alive && __game.R.L > 1, first[2]), 'first tap breaks the fruit under the finger and the hammer grows');
   check(await g(() => document.getElementById('hint').hidden), 'the tap hint goes away after the first touch');
+  check(await g(() => { const ps = window.__params || []; if (ps.length !== 1) return false; const v = Object.values(ps[0].params); return v.length > 0 && v.every((q) => typeof q.key.split('.').reduce((o, k) => o && o[k], __game.cfg) === 'number' && q.min <= q.max); }), 'run() registers the settings panel once, every slider on a number in the config');
+  check(await g(() => (window.__haptics || []).length > 0 && window.__haptics.every((k) => ['tick', 'tap', 'thud', 'success', 'warning', 'error'].includes(k))), 'every haptic is a platform preset (hits vibrate)');
 
   // a numbered object too big for the hammer bounces and stays
   const big = await g(() => { const o = __game.R.objects.filter((p) => p.zone === 0 && p.req > __game.R.L).sort((a, b) => b.req - a.req)[0]; return [o.x, o.z, o.id]; });

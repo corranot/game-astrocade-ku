@@ -11,5 +11,35 @@
     "subtype": "music",
     "type": "audio",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M88CR5FKBDHSF0R6CDXSPA99_14a55f4a-950c-4e98-9ddd-0e78f8a17d46_ee2b29e1-5361-48ee-b3da-cc1d044c3b1d.mp3"
+  },
+  "font_baloo2_latin": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795606843482_01M898442TZ48G22TMGT9Y4C2F.woff2",
+    "type": "other",
+    "description": "Baloo font (SIL Open Font License 1.1), weight 800"
+  },
+  "font_baloo2_latin_ext": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795606915773_01M8986ANX1NDK4Q36FS3RPMKB.woff2",
+    "type": "other",
+    "description": "Baloo font (SIL Open Font License 1.1), weight 800"
+  },
+  "font_baloo2_vietnamese": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795606917098_01M8986BZADJMQZVY9N2GR0MH7.woff2",
+    "type": "other",
+    "description": "Baloo font (SIL Open Font License 1.1), weight 800"
+  },
+  "font_baloo2_devanagari": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795606917988_01M8986CV4ZVR9X3HCKPART7K2.woff2",
+    "type": "other",
+    "description": "Baloo font (SIL Open Font License 1.1), weight 800"
+  },
+  "font_baloo_da2_bengali": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795606918803_01M8986DMKVW1ZDP2XTDDA8R11.woff2",
+    "type": "other",
+    "description": "Baloo font (SIL Open Font License 1.1), weight 800"
+  },
+  "font_baloo_bhaijaan2_arabic": {
+    "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_110121609879044057577/1795606920202_01M8986F0ADRNKAP9Y7MR8RK17.woff2",
+    "type": "other",
+    "description": "Baloo font (SIL Open Font License 1.1), weight 800"
   }
 }

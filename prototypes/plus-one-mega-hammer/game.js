@@ -120,6 +120,42 @@ const Sound = (() => {
 const buzz = (kind) => { try { lib.haptics.play(kind); } catch (e) { /* no vibration on web */ } };
 const fmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n)));
 
+/** Settings-panel entries: [label, config path, min, max, step]. */
+const PARAMS = [
+  ['Swing time', 'hammer.swing', 0.04, 0.3, 0.01], ['Recover time', 'hammer.recover', 0.08, 0.6, 0.01],
+  ['Hammer reach', 'hammer.hitR', 0.2, 1, 0.02], ['Combo bonus', 'growth.combo', 1, 2, 0.05],
+  ['Respawn time', 'growth.respawn', 0.5, 8, 0.5], ['Screen shake', 'fx.shake', 0, 0.6, 0.02],
+  ['Hit pause', 'fx.hitstop', 0, 0.15, 0.01], ['Music volume', 'music.volume', 0, 1, 0.02],
+  ['Rebirth multiplier', 'rebirth.mult', 1.5, 5, 0.5], ['Daily reward', 'daily.reward', 0, 500, 10],
+  ['Cutscenes per run', 'cine.maxPerRun', 0, 30, 1], ['Music duck in cutscenes', 'cine.duck', 0, 1, 0.05],
+];
+const setPath = (o, path, v) => { const k = path.split('.'); const last = k.pop(); for (const p of k) o = o[p] = o[p] || {}; o[last] = v; };
+/** Registers the settings panel (once per run, both modes). A change applies to this run; edit mode also writes it to window.gameConfig. */
+function showParams(cfg, mode) {
+  const params = {};
+  for (const [label, key, min, max, step] of PARAMS) params[label] = { key, type: 'slider', min, max, step,
+    onChange(v) { setPath(cfg, key, Number(v)); if (mode === 'edit' && window.gameConfig) setPath(window.gameConfig, key, Number(v)); } };
+  try { lib.showGameParameters({ name: '+1 Mega Hammer', params }); } catch (e) { /* no settings panel outside the host */ }
+}
+/** Game font faces from the asset map: [asset id, family, unicode range]. The browser fetches a file only when its script is on screen. */
+const FONTS = [
+  ['font_baloo2_latin', 'Baloo 2', 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD'],
+  ['font_baloo2_latin_ext', 'Baloo 2', 'U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF'],
+  ['font_baloo2_vietnamese', 'Baloo 2', 'U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB'],
+  ['font_baloo2_devanagari', 'Baloo 2', 'U+0900-097F,U+1CD0-1CF9,U+200C-200D,U+20A8,U+20B9,U+20F0,U+25CC,U+A830-A839,U+A8E0-A8FF,U+11B00-11B09'],
+  ['font_baloo_da2_bengali', 'Baloo Da 2', 'U+0951-0952,U+0964-0965,U+0980-09FE,U+1CD0,U+1CD2,U+1CD5-1CD6,U+1CD8,U+1CE1,U+1CEA,U+1CED,U+1CF2,U+1CF5-1CF7,U+200C-200D,U+20B9,U+25CC,U+A8F1'],
+  ['font_baloo_bhaijaan2_arabic', 'Baloo Bhaijaan 2', 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC'],
+];
+let fontsAdded = false;
+/** Adds the game fonts once; with no asset (local run) the CSS falls back to system fonts. */
+function loadFonts() {
+  if (fontsAdded || typeof FontFace === 'undefined' || !document.fonts) return; fontsAdded = true;
+  for (const [id, family, unicodeRange] of FONTS) {
+    let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map */ }
+    if (a && a.url) try { document.fonts.add(new FontFace(family, `url(${a.url}) format('woff2')`, { weight: '800', display: 'swap', unicodeRange })); } catch (e) { /* bad face: fallback font */ }
+  }
+}
+
 /** Starts the game in mode 'play' or 'edit' (edit: live picture, no input, no saving). Returns { destroy, debug }. */
 export function run(mode = 'play') {
   if (window.__mh) { try { window.__mh.destroy(); } catch (e) { console.warn('previous run', e); } }
@@ -132,6 +168,8 @@ export function run(mode = 'play') {
     return wait;
   }
   const cfg = JSON.parse(JSON.stringify(window.gameConfig || {}));
+  showParams(cfg, mode);
+  loadFonts();
   const qs = new URLSearchParams(location.search);
   const root = document.getElementById('app');
   root.innerHTML = HTML;
@@ -252,8 +290,8 @@ export function run(mode = 'play') {
   /** A tap on a collection card: equip an owned hammer, buy an affordable one, or shake when gems are short. */
   function pick(id) {
     const k = SK[id]; if (!k) return;
-    if (save.owned.includes(id)) { if (save.skin !== id) { save.skin = id; wear(); persist(); Sound.ding(5); buzz('light'); } renderColl(); return; }
-    if (save.gems < k.cost) { const b = $('grid').querySelector(`[data-id="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } Sound.bonk(); buzz('light'); return; }
+    if (save.owned.includes(id)) { if (save.skin !== id) { save.skin = id; wear(); persist(); Sound.ding(5); buzz('tick'); } renderColl(); return; }
+    if (save.gems < k.cost) { const b = $('grid').querySelector(`[data-id="${id}"]`); if (b) { b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); } Sound.bonk(); buzz('tick'); return; }
     save.gems -= k.cost; save.owned.push(id); save.skin = id; wear(); persist(); renderColl();
     const b = $('grid').querySelector(`[data-id="${id}"]`); if (b) b.classList.add('got');
     Sound.evolve(); Sound.fanfare(); buzz('success'); showBanner(T('unlocked'), 'gold');
@@ -309,12 +347,12 @@ export function run(mode = 'play') {
         if (o.req > 1) { bigHit = true; scene.gems(o.x, o.z, o.boss ? cfg.gems.vault : Math.min(cfg.gems.max, 1 + Math.floor(Math.log10(o.req))), cfg.kinds[o.kind].r * 1.4); }
         popNumber(o.x, cfg.kinds[o.kind].r * 2, o.z, e.gain, o.req > 1);
       } else if (e.type === 'bonk') { scene.bonk(e.id); Sound.bonk(); }
-      else if (e.type === 'hit') { scene.hit(e.id, R.L); Sound.clang(e.hp); bigHit = true; buzz('heavy'); }
+      else if (e.type === 'hit') { scene.hit(e.id, R.L); Sound.clang(e.hp); bigHit = true; buzz('thud'); }
       else if (e.type === 'open') scene.open(e.id, R.L);
       else if (e.type === 'tier') {
         // the tier-up moment: slow motion, a camera punch-in, a golden ring three reaches wide, the hammer overshoots
         scene.hammer.setTier(e.tier); evolveFx = 1; slowT = cfg.fx.tierSlowMo; scene.punch(1); scene.ring(swing.x, swing.z, reach * cfg.fx.tierRing, 0.9);
-        Sound.evolve(); Sound.whoom(); showBanner(T('evolve'), 'gold'); buzz('heavy'); tierAt = { x: swing.x, z: swing.z }; if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
+        Sound.evolve(); Sound.whoom(); showBanner(T('evolve'), 'gold'); buzz('thud'); tierAt = { x: swing.x, z: swing.z }; if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
       else if (e.type === 'clear') {
         if (touched) persist(); const Z = cfg.zones[e.zone]; scene.confetti(0, Z.z); Sound.fanfare(); showBanner(T('clear'), 'jade');
         // the zone before the boss is done: the boss cutscene follows a moment later
@@ -329,7 +367,7 @@ export function run(mode = 'play') {
     squashT = 1; if (bigHit) { scene.kick(1); scene.scare(swing.x, swing.z, reach * cfg.fx.scare); }
     scene.shake(broke || bigHit ? (bigHit ? 0.75 : 0.45) : 0.25);
     hitstop = broke || bigHit ? (bigHit ? cfg.fx.hitstopBig : cfg.fx.hitstop) : 0;
-    if (broke) { Sound.ding(R.combo); Sound.grow(); growFx = 1; buzz(bigHit ? 'medium' : 'light'); showCombo(); daily('size', R.L, false); daily('combo', R.combo, false); }
+    if (broke) { Sound.ding(R.combo); Sound.grow(); growFx = 1; buzz(bigHit ? 'tap' : 'tick'); showCombo(); daily('size', R.L, false); daily('combo', R.combo, false); }
     // every label that is now within reach of the new size turns green
     for (const o of R.objects) if (o.alive && o.req > 1) scene.relabel(o.id, R.L);
     renderTop();
@@ -499,7 +537,7 @@ export function run(mode = 'play') {
     // reduce motion: the camera stays at play, only the bars and the titles show; a blended one eases in from play
     scene.cineCam.w = reduce || C.blend ? 0 : 1; cineOut = 0;
     Sound.duck(cfg.cine.duck, 0.25); if (id !== 'defeat') Sound.sting(id, d);
-    if (id === 'defeat') { slowT = C.slow; showBanner(T('boss_down'), 'gold', T('boss_' + o.kind)); Sound.bossDown(); buzz('heavy'); scene.confetti(o.x, o.z); scene.ring(o.x, o.z, cfg.kinds[o.kind].r * 6, 0.9); }
+    if (id === 'defeat') { slowT = C.slow; showBanner(T('boss_down'), 'gold', T('boss_' + o.kind)); Sound.bossDown(); buzz('thud'); scene.confetti(o.x, o.z); scene.ring(o.x, o.z, cfg.kinds[o.kind].r * 6, 0.9); }
     root.style.setProperty('--bars', String(cfg.cine.bars));
     root.classList.add('cine'); root.classList.toggle('intro', id === 'intro'); root.classList.toggle('endc', id === 'end'); scene.labels(!C.rel || C.k);
     if (id === 'end') { $('tally').firstChild.textContent = T('size'); $('tally').lastChild.textContent = '0'; tallyN = 0; }
@@ -520,12 +558,12 @@ export function run(mode = 'play') {
   function introLand(quiet) {
     const s = L.hammerScale(cfg, R.L);
     scene.impact(aim.x, aim.z, L.reach(cfg, R.L), true); scene.puff(aim.x, aim.z, 14, 0.9); scene.shake(0.6);
-    if (!quiet) { Sound.thud(s * 2.2); buzz('heavy'); }
+    if (!quiet) { Sound.thud(s * 2.2); buzz('thud'); }
   }
   /** The boss cutscene's beat: the boss wobbles awake with a growl and its name comes up. */
   function bossWake(c, quiet) {
     c.woke = true; scene.wake(c.o.id); showBanner(T('boss'), 'gold', T('boss_' + c.o.kind));
-    if (!quiet) { Sound.roar(); buzz('heavy'); }
+    if (!quiet) { Sound.roar(); buzz('thud'); }
   }
   function stepCine(dt) {
     if (introWait >= 0) {
@@ -698,8 +736,8 @@ window.run = run;
 if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('local') && !window.lib) {
   const none = async () => ({});
   const store = { state: window.__preset || null };
-  window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => (window.__saveFails ? Promise.reject(new Error('offline')) : { state: store.state }),
+  window.lib = { showGameParameters(o) { (window.__params = window.__params || []).push(o); }, log() {}, getUserGameState: async () => (window.__saveFails ? Promise.reject(new Error('offline')) : { state: store.state }),
     saveUserGameState: async (s) => { store.state = s; (window.__writes = window.__writes || []).push(s); }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none, share: async () => { window.__shares = (window.__shares || 0) + 1; },
-    shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
+    shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play(k) { (window.__haptics = window.__haptics || []).push(k); }, start() {}, stop() {} }, getAsset: () => undefined };
   fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });
 }
