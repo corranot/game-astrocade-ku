@@ -178,3 +178,45 @@ test('the daily goal is fixed for a day, changes type every day, and follows the
     assert.notEqual(g.type, L.dailyGoal(cfg, d + 1).type, `day ${d}`);
   }
 });
+
+test('a cutscene path starts and ends on its first and last keys and moves smoothly between', () => {
+  const keys = cfg.cine.intro.keys, T = L.cineLen(keys), first = L.cinePose(keys, 0), end = L.cinePose(keys, T);
+  assert.deepEqual(first.pos, keys[0].pos); assert.deepEqual(end.pos, keys.at(-1).pos); assert.equal(end.fov, keys.at(-1).fov);
+  // no jump bigger than the path allows in one 60 FPS frame, anywhere on the track
+  let prev = first.pos.slice(), worst = 0;
+  for (let t = 1 / 60; t <= T; t += 1 / 60) { const p = L.cinePose(keys, t).pos; worst = Math.max(worst, Math.hypot(p[0] - prev[0], p[1] - prev[1], p[2] - prev[2])); prev = p.slice(); }
+  assert.ok(worst < 0.6, `largest step per frame ${worst.toFixed(3)}`);
+  // eased: it leaves at rest
+  const a = L.cinePose(keys, 1 / 60).pos; assert.ok(Math.hypot(a[0] - keys[0].pos[0], a[1] - keys[0].pos[1], a[2] - keys[0].pos[2]) < 0.01);
+});
+
+test('cutscenes fit the run budget: shorter when seen, none past the cap', () => {
+  const C = cfg.cine, full = L.cineLen(C.world.keys);
+  assert.equal(L.cineFit(cfg, full, false, 0), full);
+  assert.equal(L.cineFit(cfg, full, true, 0), full * C.repeat);
+  assert.equal(L.cineFit(cfg, full, false, C.maxPerRun - 1), 1);
+  assert.equal(L.cineFit(cfg, full, false, C.maxPerRun - C.minLen / 2), 0);
+  // every track and the intro together fit one run
+  const all = Object.values(C).filter((v) => v && v.keys).reduce((s, v) => s + L.cineLen(v.keys), 0);
+  assert.ok(all <= C.maxPerRun, `all cutscenes ${all} s`);
+});
+
+test('adaptive quality lowers the render scale first, then the tier, and climbs back only when fast for a while', () => {
+  const q = cfg.quality, slow = q.dropMs + 5, fast = q.upMs - 3;
+  let s = { tier: q.start, rs: 1, okT: 0, fails: [] };
+  const steps = Math.round((1 - q.resMin) / q.resStep);
+  for (let i = 0; i < steps; i++) { s = L.adaptQuality(q, s, slow, 2); assert.equal(s.tier, q.start); }
+  assert.equal(s.rs, q.resMin);
+  s = L.adaptQuality(q, s, slow, 2); assert.equal(s.tier, q.start - 1); assert.equal(s.rs, 1);
+  // a middling frame resets the fast streak; a long fast streak climbs back up step by step
+  s = L.adaptQuality(q, s, (q.dropMs + q.upMs) / 2, 2); assert.equal(s.okT, 0);
+  for (let i = 0; i < 100 && s.tier < q.start; i++) s = L.adaptQuality(q, s, fast, 2);
+  assert.equal(s.tier, q.start); assert.equal(s.rs, q.resMin);
+  // a tier that failed twice is not tried again
+  s = { tier: q.start, rs: q.resMin, okT: 0, fails: [0, 0, 1] };
+  s = L.adaptQuality(q, s, slow, 2); assert.equal(s.tier, q.start - 1);
+  for (let i = 0; i < 100; i++) s = L.adaptQuality(q, s, fast, 2);
+  assert.equal(s.tier, q.start - 1);
+  // never below tier 0 at the lowest scale
+  s = { tier: 0, rs: q.resMin, okT: 0, fails: [] }; s = L.adaptQuality(q, s, slow, 2); assert.equal(s.tier, 0); assert.equal(s.rs, q.resMin);
+});

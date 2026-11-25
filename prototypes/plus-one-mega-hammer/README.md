@@ -132,6 +132,32 @@ play. This container has no GPU, so WebGL runs on SwiftShader, a software render
   frame rate. They can only be checked on a phone (Astrocade draft link, Chrome remote debugging), and that is
   still to do.
 
+## Cinematics and 60 FPS (owner-approved 2026-11-25, plan in the Claude Doc "plan sinematik dan 60 FPS")
+
+### M1-M2: cutscene system, adaptive quality, intro and world fly-over
+
+- **Cutscene system** (`playCine` / `endCine` in `game.js`, `cinePose` / `cineFit` in `logic.js`, `cfg.cine`).
+    - A cutscene flies the camera along keys on an eased Catmull-Rom path. The scene blends the camera in and back
+      out (`cfg.cine.blendOut`), so play resumes without a cut.
+    - Letterbox bars slide in and the HUD fades, while the banner and "+N" numbers stay. A skip chevron shows in the
+      lower bar.
+    - One tap skips to the end state (after `cfg.cine.skipAfter`). The session clock stops while a cutscene plays.
+    - A cutscene plays shorter when seen before (`repeat`), and never past `maxPerRun` seconds a run.
+    - Reduce motion keeps the camera still and shows only the bars and titles.
+- **Intro.** The camera falls from the sky over the whole island, the hammer drops onto the fruit stand with dust
+  and a thud, and the name lands. The full version (3.5 s) plays the first time; after that the short one (1.2 s)
+  plays, remembered in the save as `seen`. A returning player gets the next world's fly-over instead.
+- **World fly-over** (2.5 s). It opens on the new world's boss, rises over the island and lands on the start. It
+  plays on "Again" and for a returning player.
+- **Adaptive quality** (`L.adaptQuality`, `cfg.quality`).
+    - Every `window` seconds, a slow median frame (over `dropMs`) first lowers the render scale by `resStep`, down
+      to `resMin`. Only then does the tier drop.
+    - A fast streak (under `upMs` for `upAfter` seconds) climbs back up.
+    - A tier that failed twice is not tried again.
+- **Shader prewarm.** `scene.prewarm()` compiles every material of the world at the start of each run, so nothing
+  compiles mid-cutscene.
+- **Cheaper relabels.** A label texture swap no longer rebuilds the label's shader on every slam.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N

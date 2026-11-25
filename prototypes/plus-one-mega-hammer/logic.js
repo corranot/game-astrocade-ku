@@ -186,3 +186,63 @@ export function dailyGoal(cfg, day) {
   for (let d = anchor + 1; d <= day; d++) i = (i + 1 + Math.floor(rng(cfg.seed * 7919 + d)() * (n - 1))) % n;
   return { type: G[i].type, n: G[i].n };
 }
+
+// ---------------------------------------------------------------- cutscenes and adaptive quality
+
+/** Smootherstep easing of k (clamped to 0..1): starts and ends at rest. */
+export function ease(k) { k = Math.max(0, Math.min(1, k)); return k * k * k * (k * (k * 6 - 15) + 10); }
+
+/** Length in seconds of a cutscene track: the time of its last key. */
+export function cineLen(keys) { return keys.length ? keys[keys.length - 1].t : 0; }
+
+/**
+ * Camera pose at time t on a cutscene track. keys = [{ t, pos: [x, y, z], look: [x, y, z], fov }], sorted by t.
+ * The whole track's time is eased (it leaves and arrives at rest), and the path runs through every key on a
+ * Catmull-Rom curve, so it never stops at a middle key. Before the first key: the first; after the last: the last.
+ * Writes into out ({ pos, look, fov }) and returns it.
+ */
+export function cinePose(keys, t, out = { pos: [0, 0, 0], look: [0, 0, 0], fov: 0 }) {
+  const n = keys.length, T = cineLen(keys);
+  if (n === 1 || T <= 0) { const k = keys[0]; out.pos = k.pos.slice(); out.look = k.look.slice(); out.fov = k.fov; return out; }
+  const tt = ease(t / T) * T;
+  let i = 0; while (i < n - 2 && tt > keys[i + 1].t) i++;
+  const a = keys[i], b = keys[i + 1], p0 = keys[Math.max(0, i - 1)], p3 = keys[Math.min(n - 1, i + 2)];
+  const u = Math.max(0, Math.min(1, (tt - a.t) / Math.max(1e-6, b.t - a.t))), u2 = u * u, u3 = u2 * u;
+  const cr = (q0, q1, q2, q3) => 0.5 * (2 * q1 + (-q0 + q2) * u + (2 * q0 - 5 * q1 + 4 * q2 - q3) * u2 + (-q0 + 3 * q1 - 3 * q2 + q3) * u3);
+  for (let j = 0; j < 3; j++) { out.pos[j] = cr(p0.pos[j], a.pos[j], b.pos[j], p3.pos[j]); out.look[j] = cr(p0.look[j], a.look[j], b.look[j], p3.look[j]); }
+  out.fov = a.fov + (b.fov - a.fov) * u;
+  return out;
+}
+
+/**
+ * How long a cutscene may play: its full length the first time, cfg.cine.repeat of it after that, and never past
+ * what is left of the run's cutscene time (cfg.cine.maxPerRun). Below cfg.cine.minLen it is not worth playing: 0.
+ */
+export function cineFit(cfg, len, seen, used) {
+  const C = cfg.cine, d = Math.min(seen ? len * C.repeat : len, C.maxPerRun - used);
+  return d >= C.minLen ? d : 0;
+}
+
+/**
+ * Adaptive quality, once per check window of win seconds with that window's median frame time (ms).
+ * Slow (over q.dropMs): the render scale steps down by q.resStep to q.resMin, then the tier drops (scale back to 1).
+ * Fast (under q.upMs) for q.upAfter seconds: the scale steps back up, then the tier climbs, but never to a tier
+ * that has failed twice and never past start. Returns a new state { tier, rs, okT, fails }; s is not changed.
+ */
+export function adaptQuality(q, s, ms, win) {
+  const n = { tier: s.tier, rs: s.rs, okT: s.okT, fails: s.fails.slice() };
+  const step = (v, d) => Math.round((v + d) * 100) / 100;
+  if (ms > q.dropMs) {
+    n.okT = 0;
+    if (n.rs > q.resMin) n.rs = Math.max(q.resMin, step(n.rs, -q.resStep));
+    else if (n.tier > 0) { n.fails[n.tier] = (n.fails[n.tier] || 0) + 1; n.tier--; n.rs = 1; }
+  } else if (ms < q.upMs) {
+    n.okT += win;
+    if (n.okT >= q.upAfter) {
+      n.okT = 0;
+      if (n.rs < 1) n.rs = Math.min(1, step(n.rs, q.resStep));
+      else if (n.tier < q.start && (n.fails[n.tier + 1] || 0) < 2) { n.tier++; n.rs = q.resMin; }
+    }
+  } else n.okT = 0;
+  return n;
+}

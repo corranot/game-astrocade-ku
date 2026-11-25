@@ -128,10 +128,11 @@ export function run(mode = 'play') {
   }
   let tier = qs.has('tier') ? Number(qs.get('tier')) : cfg.quality.start;
   scene.setTier(tier);
+  let qa = { tier, rs: 1, okT: 0, fails: [] }; // adaptive quality state (L.adaptQuality)
   const speed = Math.max(1, Number(qs.get('speed')) || 1);
 
   const today = L.dayNumber(new Date()), goal = L.dailyGoal(cfg, today);
-  const save = { best: 0, runs: 0, tier: 0, gems: 0, owned: ['classic'], skin: 'classic', worlds: 1, daily: { day: today, p: 0, done: false } };
+  const save = { best: 0, runs: 0, tier: 0, gems: 0, owned: ['classic'], skin: 'classic', worlds: 1, seen: 0, daily: { day: today, p: 0, done: false } };
   const baseZones = cfg.zones, NW = cfg.worlds.length;
   let world = 0; // run n plays world n mod NW: Toy Town, Sunny Beach, Candy Land, Snow Peak
   const SK = Object.fromEntries(cfg.skins.map((k) => [k.id, k]));
@@ -153,7 +154,7 @@ export function run(mode = 'play') {
     scene.hammer.setTier(0);
     const first = L.bestSlam(cfg, R) || { x: 0, z: 0 };
     aim.x = aim.tx = first.x; aim.z = aim.tz = first.z + 0.6;
-    renderTop(true);
+    renderTop(true); if (scene.prewarm) scene.prewarm();
   }
 
   // ---------------------------------------------------------------- HUD
@@ -197,7 +198,8 @@ export function run(mode = 'play') {
     if (card) { card = false; $('card').classList.remove('show'); $('card').hidden = true; }
     mult *= cfg.rebirth.mult; gemsGot = 0; world = (world + 1) % NW;
     if (mode === 'play') { save.worlds = Math.max(save.worlds, Math.min(NW, world + 1)); persist(); }
-    newRun(); showBanner(T('world_' + cfg.worlds[world].id), 'gold world', 'x' + mult + '!'); Sound.fanfare();
+    cineUsed = 0; newRun(); showBanner(T('world_' + cfg.worlds[world].id), 'gold world', 'x' + mult + '!'); Sound.fanfare();
+    playCine('world');
   }
   // ---------------------------------------------------------------- gems and the hammer collection
   /** Gem total in the HUD chip and the collection; a dot on the hammer buttons when a new hammer is affordable. */
@@ -325,6 +327,7 @@ export function run(mode = 'play') {
   function onDown(e) {
     if (mode !== 'play' || card || collOpen || e.target.closest('button')) return;
     if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+    if (cine) { if (cine.t >= cfg.cine.skipAfter) endCine(); return; }
     const r = rect(), sx = (e.clientX - r.left) / r.width, sy = (e.clientY - r.top) / r.height;
     Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume);
     if (!touched) { touched = true; $('hint').hidden = true; $('hamBtn').hidden = true; $('daily').hidden = true; }
@@ -336,7 +339,7 @@ export function run(mode = 'play') {
   function onKey(e) {
     if (mode !== 'play' || e.code !== 'Space' || e.repeat || collOpen) return;
     e.preventDefault();
-    if (card) { again(); return; } Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume); touched = true; $('hint').hidden = true; $('hamBtn').hidden = true; $('daily').hidden = true;
+    if (card) { again(); return; } if (cine) { if (cine.t >= cfg.cine.skipAfter) endCine(); return; } Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume); touched = true; $('hint').hidden = true; $('hamBtn').hidden = true; $('daily').hidden = true;
     const p = L.bestSlam(cfg, R) || target(hold.sx, hold.sy); if (p) startSlam(p.x, p.z);
   }
   const noMenu = (e) => e.preventDefault();
@@ -361,7 +364,7 @@ export function run(mode = 'play') {
   // ---------------------------------------------------------------- frame
   function step(dt) {
     for (const id of L.tick(cfg, R, dt)) scene.regrow(id);
-    if (touched) sessT += dt;
+    if (touched && !cine) sessT += dt; // cutscenes never eat play time
     // attract mode before the first touch: the hammer taps the ground next to the first apple, breaking nothing
     if (!touched) {
       demoT += dt;
@@ -389,7 +392,7 @@ export function run(mode = 'play') {
     growFx = Math.max(0, growFx - dt * 3); evolveFx = Math.max(0, evolveFx - dt * 1.2); squashT = Math.max(0, squashT - dt / cfg.fx.squash);
     const over = 1 + Math.sin(growFx * Math.PI) * 0.12 + Math.sin(evolveFx * Math.PI) * 0.35;
     // the drawn hammer grows a little faster than its reach (s ^ visExp), so it reads as giant as the camera pulls back
-    H.root.position.set(aim.x, 0, aim.z); H.root.rotation.y = cfg.hammer.yaw; H.root.scale.setScalar(Math.pow(s, cfg.hammer.visExp) * over * cfg.hammer.model); H.pivot.rotation.x = ang;
+    H.root.position.set(aim.x, dropY, aim.z); H.root.rotation.y = cfg.hammer.yaw; H.root.scale.setScalar(Math.pow(s, cfg.hammer.visExp) * over * cfg.hammer.model); H.pivot.rotation.x = ang;
     // the head squashes flat on impact and springs back
     const q = Math.sin(squashT * Math.PI) * squashT; H.head.scale.set(1 + 0.22 * q, 1 - 0.3 * q, 1 + 0.22 * q);
     for (let i = pend.length - 1; i >= 0; i--) { const p = pend[i]; p.t -= dt; if (p.t <= 0) { scene.burst(p.id); Sound.breakMat(p.mat, i % 4); pend.splice(i, 1); } }
@@ -401,6 +404,7 @@ export function run(mode = 'play') {
     if (got) { gemsGot += got; Sound.gem(gemTick++); if (mode === 'play') { save.gems += got; showGems(true); daily('gems', got, true); } }
     scene.updateWorld(dt, R.zone);
     // the view leans towards the hammer (aimW in depth, aimX sideways, at most 0.3 of the zone width), so the head stays in frame
+    stepCine(dt);
     const Zc = cfg.zones[R.zone], fx = Math.max(-Zc.w * 0.3, Math.min(Zc.w * 0.3, aim.x * cfg.camera.aimX));
     scene.updateCamera(dt, Zc.z * (1 - cfg.camera.aimW) + aim.z * cfg.camera.aimW, s, fx);
     if (banner > 0) { banner -= dt; if (banner <= 0) $('banner').classList.remove('show'); }
@@ -423,19 +427,80 @@ export function run(mode = 'play') {
     if (slowT > 0) { slowT -= dt; dt *= cfg.fx.tierSlowScale; } // the tier-up slow motion runs on real time
     for (let i = 0; i < speed; i++) step(dt);
     if (touched) Sound.music();
-    // adaptive quality: after 3 s, every 2 s, drop a tier when the median frame is slower than cfg.quality.dropMs
+    // adaptive quality: after 3 s, once per window, the median frame steers the render scale first, then the tier,
+    // down when slow and back up when it has been fast for a while (L.adaptQuality)
     tierCheckT += Math.min(0.05, frames[frames.length - 1]);
-    if (tierCheckT > 2 && performance.now() > 3000 && !qs.has('tier')) {
-      const f = frames.slice().sort((a, b) => a - b), med = f[f.length >> 1] * 1000;
-      if (med > cfg.quality.dropMs && tier > 0) { tier--; scene.setTier(tier); fit(); }
-      frames = []; tierCheckT = 0;
+    if (tierCheckT > cfg.quality.window && performance.now() > 3000 && !qs.has('tier')) {
+      const f = frames.slice().sort((a, b) => a - b), med = f[f.length >> 1] * 1000, n = L.adaptQuality(cfg.quality, qa, med, tierCheckT);
+      if (n.tier !== qa.tier) { tier = n.tier; scene.setTier(tier); scene.setScale(n.rs); fit(); } else if (n.rs !== qa.rs) scene.setScale(n.rs);
+      qa = n; frames = []; tierCheckT = 0;
     }
     if (frames.length > 400) frames = frames.slice(-200);
     scene.render();
   }
 
+  // ---------------------------------------------------------------- cutscenes
+  // A cutscene flies the camera along cfg.cine[id].keys (L.cinePose), with letterbox bars and the HUD faded out.
+  // One tap skips it to its end state. Its length comes from L.cineFit: shorter when seen before this session, and
+  // never past cfg.cine.maxPerRun seconds a run. The session clock stops while one plays.
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const seenCine = new Set();
+  let cine = null, cineUsed = 0, cineOut = 0, dropY = 0, introWait = -1;
+  /** Starts cutscene id; len overrides its length. Returns false when there is no time left for it this run. */
+  function playCine(id, len) {
+    const C = cfg.cine[id]; if (!C || mode !== 'play') return false;
+    const full = L.cineLen(C.keys), d = len || L.cineFit(cfg, full, seenCine.has(id), cineUsed);
+    if (!d) return false;
+    if (cine) endCine(true);
+    seenCine.add(id); cineUsed += d; hold.on = false;
+    cine = { id, t: 0, d, k: full / d, C, landed: false };
+    // reduce motion: the camera stays at play, only the bars and the titles show
+    scene.cineCam.w = reduce ? 0 : 1; cineOut = 0;
+    root.style.setProperty('--bars', String(cfg.cine.bars));
+    root.classList.add('cine'); root.classList.toggle('intro', id === 'intro');
+    return true;
+  }
+  /** Ends the cutscene now (a skip lands on the same end state as a full play) and hands the camera back. */
+  function endCine(quiet) {
+    if (!cine) return;
+    const c = cine; cine = null; dropY = 0;
+    if (c.id === 'intro' && !c.landed) introLand(quiet);
+    root.classList.remove('cine', 'intro', 'landed');
+    cineOut = reduce ? 0 : cfg.cine.blendOut;
+  }
+  function introLand(quiet) {
+    const s = L.hammerScale(cfg, R.L);
+    scene.impact(aim.x, aim.z, L.reach(cfg, R.L), true); scene.puff(aim.x, aim.z, 14, 0.9); scene.shake(0.6);
+    if (!quiet) { Sound.thud(s * 2.2); buzz('heavy'); }
+  }
+  function stepCine(dt) {
+    if (introWait >= 0) {
+      // the first frames hold on the sky until the save says whether this player has seen the long intro
+      introWait += dt; if (saveLoaded || introWait > 1.2) { introWait = -1; startIntro(); }
+      else { L.cinePose(cfg.cine.intro.keys, 0, scene.cineCam); scene.cineCam.w = reduce ? 0 : 1; dropY = cfg.cine.intro.dropFrom; return; }
+    }
+    if (!cine) { if (cineOut > 0) { cineOut -= dt; scene.cineCam.w = reduce ? 0 : Math.max(0, cineOut / cfg.cine.blendOut); } else scene.cineCam.w = 0; return; }
+    cine.t += dt; const tau = Math.min(cine.t * cine.k, L.cineLen(cine.C.keys));
+    if (!reduce) L.cinePose(cine.C.keys, tau, scene.cineCam);
+    if (cine.id === 'intro') {
+      const I = cine.C, u = Math.max(0, Math.min(1, (tau - I.dropAt) / (I.dropLand - I.dropAt)));
+      dropY = tau < I.dropAt ? I.dropFrom : I.dropFrom * (1 - u * u);
+      if (u >= 1 && !cine.landed) { cine.landed = true; dropY = 0; introLand(false); root.classList.add('landed'); }
+    }
+    if (cine.t >= cine.d) endCine();
+  }
+  function startIntro() {
+    if (mode !== 'play' || touched) { dropY = 0; scene.cineCam.w = 0; return; }
+    // a returning player gets the new world's fly-over instead; a new player the long intro once, then the short one
+    if (save.runs > 0) { dropY = 0; if (!playCine('world')) scene.cineCam.w = 0; return; }
+    playCine('intro', save.seen ? cfg.cine.intro.short : 0);
+    save.seen = 1;
+  }
+
   newRun();
   fit();
+  scene.prewarm();
+  if (mode === 'play') introWait = 0;
   wear(); showGems(false); renderDaily();
   if (mode === 'play') {
     const read = (tries) => Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
@@ -445,7 +510,7 @@ export function run(mode = 'play') {
         const num = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0);
         save.best = Math.max(save.best, num(st.best)); save.runs = num(st.runs) + save.runs; save.tier = Math.min(7, Math.max(save.tier, Math.floor(num(st.tier))));
         // gems earned before the save arrived add to the saved ones; owned hammers merge; a saved skin is worn if owned
-        save.gems = Math.floor(num(st.gems)) + save.gems;
+        save.gems = Math.floor(num(st.gems)) + save.gems; save.seen = save.seen || (st.seen ? 1 : 0);
         if (Array.isArray(st.owned)) for (const id of st.owned) if (SK[id] && !save.owned.includes(id)) save.owned.push(id);
         if (save.skin === 'classic' && SK[st.skin] && save.owned.includes(st.skin)) save.skin = st.skin;
         const sd = st.daily;
@@ -476,6 +541,8 @@ export function run(mode = 'play') {
       get tier() { return tier; }, get world() { return world; }, scene, cfg, L, Sound, get collOpen() { return collOpen; }, openColl, closeColl, pick,
       setLang(l) { lang = l; setDir(); renderDaily(); },
       get goal() { return goal; },
+      get cine() { return cine && { id: cine.id, t: cine.t, d: cine.d }; }, get cineUsed() { return cineUsed; }, get introWait() { return introWait; }, get quality() { return qa; },
+      playCine, endCine,
       // dev:start
       /** Test shortcut: finish today's goal (as if played). */
       dailyFinish() { daily(goal.type, goal.n, false); },
@@ -544,6 +611,9 @@ function hamIcon(k, sk) {
 const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
+  <i class="lb t" aria-hidden="true"></i><i class="lb b" aria-hidden="true"></i>
+  <div id="logo" class="logo out" aria-hidden="true"><b>+1</b>MEGA<br>HAMMER</div>
+  <svg class="skip" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 12l14 12-14 12zM26 12l14 12-14 12z"/></svg>
   <div id="gemchip" class="gemchip"><i class="gemi" aria-hidden="true"></i><b id="gemN" class="out">0</b></div>
   <div id="counter" class="counter"><span id="hudHam" class="ham" aria-hidden="true">${hamIcon(1)}</span><b id="size" class="out">1</b><i id="mult" class="mult out" hidden></i></div>
   <div class="prog"><span id="zone" class="zone out">1/2</span><i><b id="bar"></b></i></div>

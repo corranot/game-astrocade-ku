@@ -251,10 +251,12 @@ export function createScene(canvas, cfg, random) {
     const e = byId[id]; if (!e || !e.label) return;
     // breakable now: green; within cfg.labels.ahead x the size: red with the number; further: a padlock
     e.lab = e.o.req <= L ? 'ok' : e.o.req <= L * cfg.labels.ahead || e.o.boss ? 'near' : 'lock';
-    if (e.lab === 'lock') { e.label.material.map = labelTexture('', 'lock'); e.label.material.needsUpdate = true; return; }
+    if (e.lab === 'lock') { setMap(e.label.material, labelTexture('', 'lock')); return; }
     const ok = e.o.req <= L, text = e.o.boss && ok ? '\u00d7' + e.o.hp : String(e.o.req);
-    e.label.material.map = labelTexture(text, ok); e.label.material.needsUpdate = true;
+    setMap(e.label.material, labelTexture(text, ok));
   }
+  /** Swaps a label's texture; only a material that had no map yet needs its shader rebuilt (every slam relabels all). */
+  function setMap(m, t) { if (m.map === t) return; const had = !!m.map; m.map = t; if (!had) m.needsUpdate = true; }
   let clock = 0, labelK = 1;
   function updateObjects(dt, zone) {
     for (const k of Object.values(kinds)) k.shown = 0;
@@ -426,6 +428,7 @@ export function createScene(canvas, cfg, random) {
 
   // ---- camera: follows a focus point, pulls back and up as the hammer grows, trauma shake decays
   const cam = { focus: new THREE.Vector3(0, 0, 0), k: 1, trauma: 0, t: 0, punch: 0, kick: 0 };
+  const lookP = new THREE.Vector3(), cineCam = { w: 0, pos: [0, 0, 0], look: [0, 0, 0], fov: cfg.camera.fov };
   function updateCamera(dt, focusZ, scale, focusX = 0) {
     cam.focus.z += (focusZ - cam.focus.z) * Math.min(1, dt * cfg.camera.follow);
     cam.focus.x += (focusX - cam.focus.x) * Math.min(1, dt * cfg.camera.follow * 0.6);
@@ -435,11 +438,23 @@ export function createScene(canvas, cfg, random) {
     // tier-up punch-in (pulls the camera in, then lets go) and the FOV kick of a big hit
     cam.punch = Math.max(0, cam.punch - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 5);
     const pk = cam.k * (1 - cfg.fx.punch * Math.sin(cam.punch * Math.PI));
-    const fov = cfg.camera.fov + cfg.fx.fovKick * cam.kick * cam.kick; if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    const fov = cfg.camera.fov + cfg.fx.fovKick * cam.kick * cam.kick;
+    if (cineCam.w > 0) camera.fov = fov; // the cutscene blend below starts from the play FOV and updates the projection
+    else if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
     const sh = cam.trauma * cam.trauma * cfg.fx.shake;
     const ox = (Math.sin(cam.t * 41) + Math.sin(cam.t * 67) * 0.5) * sh, oy = (Math.sin(cam.t * 53) + Math.sin(cam.t * 29) * 0.5) * sh;
     camera.position.set(cam.focus.x + ox, cfg.camera.height * pk + oy, cam.focus.z + cfg.camera.back * pk);
-    camera.lookAt(cam.focus.x, 0, cam.focus.z - cfg.camera.look);
+    lookP.set(cam.focus.x, 0, cam.focus.z - cfg.camera.look);
+    // a cutscene takes the camera over, blended by its weight w, so it leaves and returns to play without a cut
+    const C = cineCam;
+    if (C.w > 0) {
+      const w = C.w; camera.position.x += (C.pos[0] + ox - camera.position.x) * w; camera.position.y += (C.pos[1] + oy - camera.position.y) * w; camera.position.z += (C.pos[2] - camera.position.z) * w;
+      lookP.x += (C.look[0] - lookP.x) * w; lookP.y += (C.look[1] - lookP.y) * w; lookP.z += (C.look[2] - lookP.z) * w;
+      camera.fov += (C.fov - camera.fov) * w; camera.updateProjectionMatrix();
+    }
+    camera.lookAt(lookP);
+    // fog keeps its depth relative to the view: a cutscene's high or far camera is not washed out
+    if (C.w > 0) { const fk = Math.max(cam.k, camera.position.distanceTo(lookP) / 17.9); scene.fog.near = 26 * fk; scene.fog.far = 70 * fk; }
     // the sun's shadow box follows the view and grows with it
     const ext = 7 * cam.k;
     sun.position.set(cam.focus.x + 6, 14, cam.focus.z + 4); sun.target.position.copy(cam.focus);
@@ -490,10 +505,13 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---- quality tiers: pixel ratio and shadow map size
-  let tier = -1;
+  let tier = -1, rs = 1;
+  const ratio = () => Math.max(0.5, Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[tier]) * rs);
+  /** Render scale (cfg.quality.resMin..1) on top of the tier's pixel ratio: the first step when frames run slow. */
+  function setScale(v) { if (v === rs || tier < 0) return; rs = v; renderer.setPixelRatio(ratio()); postSync(); }
   function setTier(t) {
     t = Math.max(0, Math.min(cfg.quality.dpr.length - 1, t)); if (t === tier) return; tier = t;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[t]));
+    renderer.setPixelRatio(ratio());
     const sm = cfg.quality.shadow[t];
     renderer.shadowMap.enabled = sm > 0; sun.castShadow = sm > 0;
     if (sm > 0) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
@@ -566,7 +584,10 @@ export function createScene(canvas, cfg, random) {
 
   return {
     renderer, scene, camera, hammer: H, cam,
-    setObjects, setWorld, scare, relabel, updateObjects, burst, impact, confetti, puff, updateFx, updateCamera, updateWorld, setTier, resize, toScreen, toGround,
+    setObjects, setWorld, scare, setScale, cineCam,
+    /** Compiles every shader the current world needs now, so no material compiles in the middle of a cutscene. */
+    prewarm() { try { renderer.compile(scene, camera); } catch (e) { /* a driver without compile: shaders build on first draw */ } },
+    get scale() { return rs; }, relabel, updateObjects, burst, impact, confetti, puff, updateFx, updateCamera, updateWorld, setTier, resize, toScreen, toGround,
     get tier() { return tier; },
     bonk(id) { const e = byId[id]; if (e) e.squash = 1; },
     /** A multi-hit object took a hit: squash, a spray of chunks and dust, its hits-left label. */
