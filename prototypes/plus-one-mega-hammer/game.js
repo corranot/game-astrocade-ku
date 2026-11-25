@@ -291,7 +291,7 @@ export function run(mode = 'play') {
       else if (e.type === 'tier') {
         // the tier-up moment: slow motion, a camera punch-in, a golden ring three reaches wide, the hammer overshoots
         scene.hammer.setTier(e.tier); evolveFx = 1; slowT = cfg.fx.tierSlowMo; scene.punch(1); scene.ring(swing.x, swing.z, reach * cfg.fx.tierRing, 0.9);
-        Sound.evolve(); Sound.whoom(); showBanner(T('evolve'), 'gold'); buzz('heavy'); if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
+        Sound.evolve(); Sound.whoom(); showBanner(T('evolve'), 'gold'); buzz('heavy'); tierAt = { x: swing.x, z: swing.z }; if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
       else if (e.type === 'clear') {
         if (touched) persist(); const Z = cfg.zones[e.zone]; scene.confetti(0, Z.z); Sound.fanfare(); showBanner(T('clear'), 'jade');
         // the zone before the boss is done: the boss cutscene follows a moment later
@@ -299,7 +299,8 @@ export function run(mode = 'play') {
       }
       else if (e.type === 'done') doneT = cfg.results.delay;
     }
-    if (defeatOf) { playCine('defeat', 0, defeatOf); defeatOf = null; }
+    if (defeatOf) { playCine('defeat', 0, defeatOf); defeatOf = null; } else if (tierAt) playCine('tier', 0, tierAt);
+    tierAt = null;
     if (splashSum) popNumber(swing.x, 0.6, swing.z, splashSum, false);
     scene.impact(swing.x, swing.z, reach, bigHit);
     squashT = 1; if (bigHit) { scene.kick(1); scene.scare(swing.x, swing.z, reach * cfg.fx.scare); }
@@ -311,7 +312,7 @@ export function run(mode = 'play') {
     renderTop();
     if (touched && mode === 'play' && R.L > save.best) save.best = R.L;
   }
-  let defeatOf = null, bossT = 0, evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0, slowT = 0, squashT = 0, comboT = 0, shownCombo = 0;
+  let defeatOf = null, tierAt = null, bossT = 0, evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0, slowT = 0, squashT = 0, comboT = 0, shownCombo = 0;
   const pend = []; // splash breaks waiting for their ripple delay
   /** The combo chip under the progress bar: shown from cfg.fx.comboShow breaks in a row, pops on every step. */
   function showCombo() {
@@ -336,7 +337,7 @@ export function run(mode = 'play') {
   function onDown(e) {
     if (mode !== 'play' || card || collOpen || e.target.closest('button')) return;
     if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
-    if (cine) { if (cine.t >= cfg.cine.skipAfter) endCine(); return; }
+    if (cine) { if (cine.C.queue) cine.queued = true; else if (cine.t >= cfg.cine.skipAfter) endCine(); return; }
     const r = rect(), sx = (e.clientX - r.left) / r.width, sy = (e.clientY - r.top) / r.height;
     Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume);
     if (!touched) { touched = true; $('hint').hidden = true; $('hamBtn').hidden = true; $('daily').hidden = true; }
@@ -348,7 +349,7 @@ export function run(mode = 'play') {
   function onKey(e) {
     if (mode !== 'play' || e.code !== 'Space' || e.repeat || collOpen) return;
     e.preventDefault();
-    if (card) { again(); return; } if (cine) { if (cine.t >= cfg.cine.skipAfter) endCine(); return; } Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume); touched = true; $('hint').hidden = true; $('hamBtn').hidden = true; $('daily').hidden = true;
+    if (card) { again(); return; } if (cine) { if (cine.C.queue) cine.queued = true; else if (cine.t >= cfg.cine.skipAfter) endCine(); return; } Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume); touched = true; $('hint').hidden = true; $('hamBtn').hidden = true; $('daily').hidden = true;
     const p = L.bestSlam(cfg, R) || target(hold.sx, hold.sy); if (p) startSlam(p.x, p.z);
   }
   const noMenu = (e) => e.preventDefault();
@@ -423,7 +424,7 @@ export function run(mode = 'play') {
       if (doneT <= 0) {
         if (touched && mode === 'play') { save.runs++; persist(); Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(Math.floor(save.best))).catch(() => {}); }
         // no end screen before cfg.results.minSession: a short session goes straight on into the x2 run
-        if (touched && mode === 'play' && sessT >= cfg.results.minSession) showCard(); else again();
+        if (touched && mode === 'play' && sessT >= cfg.results.minSession) { if (!playCine('end')) showCard(); } else again();
       }
     }
   }
@@ -455,6 +456,7 @@ export function run(mode = 'play') {
   // never past cfg.cine.maxPerRun seconds a run. The session clock stops while one plays.
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const seenCine = new Set(), cineLog = [];
+  let tallyN = 0;
   let cine = null, cineUsed = 0, cineOut = 0, dropY = 0, introWait = -1;
   /** Starts cutscene id; len overrides its length. Returns false when there is no time left for it this run. */
   function playCine(id, len, o) {
@@ -466,13 +468,17 @@ export function run(mode = 'play') {
     if (!d) return false;
     if (cine) endCine(true);
     seenCine.add(id); cineLog.push(id); cineUsed += d; hold.on = false;
-    const keys = C.rel ? C.keys.map((q) => ({ ...q, pos: [q.pos[0] + o.x, q.pos[1], q.pos[2] + o.z], look: [q.look[0] + o.x, q.look[1], q.look[2] + o.z] })) : C.keys;
+    // a track marked k grows with the camera's pull-back (k 'hammer': with the hammer's drawn size, over kDiv),
+    // so it frames the same at any size
+    const m = C.k === 'hammer' ? Math.pow(L.hammerScale(cfg, R.L), cfg.hammer.visExp) / C.kDiv : C.k ? scene.cam.k : 1;
+    const keys = C.rel ? C.keys.map((q) => ({ ...q, pos: [q.pos[0] * m + o.x, q.pos[1] * m, q.pos[2] * m + o.z], look: [q.look[0] * m + o.x, q.look[1] * m, q.look[2] * m + o.z] })) : C.keys;
     cine = { id, t: 0, d, k: full / d, C, keys, o, landed: false, woke: false, wave: false };
     // reduce motion: the camera stays at play, only the bars and the titles show; a blended one eases in from play
     scene.cineCam.w = reduce || C.blend ? 0 : 1; cineOut = 0;
     if (id === 'defeat') { slowT = C.slow; showBanner(T('boss_down'), 'gold', T('boss_' + o.kind)); Sound.bossDown(); buzz('heavy'); scene.confetti(o.x, o.z); scene.ring(o.x, o.z, cfg.kinds[o.kind].r * 6, 0.9); }
     root.style.setProperty('--bars', String(cfg.cine.bars));
-    root.classList.add('cine'); root.classList.toggle('intro', id === 'intro'); scene.labels(!C.rel);
+    root.classList.add('cine'); root.classList.toggle('intro', id === 'intro'); root.classList.toggle('endc', id === 'end'); scene.labels(!C.rel || C.k);
+    if (id === 'end') { $('tally').firstChild.textContent = T('size'); $('tally').lastChild.textContent = '0'; tallyN = 0; }
     return true;
   }
   /** Ends the cutscene now (a skip lands on the same end state as a full play) and hands the camera back. */
@@ -481,7 +487,10 @@ export function run(mode = 'play') {
     const c = cine; cine = null; dropY = 0;
     if (c.id === 'intro' && !c.landed) introLand(quiet);
     if (c.id === 'boss' && !c.woke) bossWake(c, true);
-    root.classList.remove('cine', 'intro', 'landed'); scene.labels(true);
+    root.classList.remove('cine', 'intro', 'landed', 'endc'); scene.labels(true);
+    // a tap during a queueing cutscene (tier-up) slams the best spot once it ends; the end of run opens the card
+    if (c.queued && mode === 'play') { const b = L.bestSlam(cfg, R); if (b) startSlam(b.x, b.z); }
+    if (c.id === 'end') showCard();
     cineOut = reduce ? 0 : cfg.cine.blendOut;
   }
   function introLand(quiet) {
@@ -509,6 +518,11 @@ export function run(mode = 'play') {
       const I = cine.C, u = Math.max(0, Math.min(1, (tau - I.dropAt) / (I.dropLand - I.dropAt)));
       dropY = tau < I.dropAt ? I.dropFrom : I.dropFrom * (1 - u * u);
       if (u >= 1 && !cine.landed) { cine.landed = true; dropY = 0; introLand(false); root.classList.add('landed'); }
+    }
+    if (cine.id === 'end') {
+      // the size counts up over the first part of the flight, ticking higher as it goes
+      const v = R.L * L.ease(Math.min(1, tau / cine.C.countFor)), n = Math.floor(v * 12 / Math.max(1, R.L));
+      $('tally').lastChild.textContent = fmt(v); if (n > tallyN) { tallyN = n; Sound.gem(n); }
     }
     if (cine.t >= cine.d) endCine();
   }
@@ -635,6 +649,7 @@ const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
   <i class="lb t" aria-hidden="true"></i><i class="lb b" aria-hidden="true"></i>
+  <div id="tally" class="tally out" aria-hidden="true"><small></small><b></b></div>
   <div id="logo" class="logo out" aria-hidden="true"><b>+1</b>MEGA<br>HAMMER</div>
   <svg class="skip" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 12l14 12-14 12zM26 12l14 12-14 12z"/></svg>
   <div id="gemchip" class="gemchip"><i class="gemi" aria-hidden="true"></i><b id="gemN" class="out">0</b></div>

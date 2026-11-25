@@ -83,14 +83,18 @@ body{display:flex;align-items:center;justify-content:center}
 .lb{position:absolute;left:0;right:0;height:calc(var(--bars)*100%);background:#0d0e1c;transform:scaleY(0);transition:transform .35s cubic-bezier(.2,.8,.2,1);z-index:1}
 .lb.t{top:0;transform-origin:top}.lb.b{bottom:0;transform-origin:bottom}
 .cine .lb{transform:none}
-.hud>*:not(.lb):not(#pops):not(#banner):not(.logo):not(.skip){transition:opacity .25s}
-.cine .hud>*:not(.lb):not(#pops):not(#banner):not(.logo):not(.skip){opacity:0;pointer-events:none}
+.hud>*:not(.lb):not(#pops):not(#banner):not(.logo):not(.skip):not(.tally){transition:opacity .25s}
+.cine .hud>*:not(.lb):not(#pops):not(#banner):not(.logo):not(.skip):not(.tally){opacity:0;pointer-events:none}
 .skip{position:absolute;right:var(--m);bottom:calc(var(--sb) + var(--bars)*50% - var(--u)*28px);width:calc(var(--u)*56px);height:calc(var(--u)*56px);fill:#f4ede2;opacity:0;transition:opacity .3s .4s;z-index:2}
 .cine .skip{opacity:.7}
 [dir=rtl] .skip{right:auto;left:var(--m);transform:scaleX(-1)}
 /* the game's name: lands with the hammer in the first-run intro */
 .logo{position:absolute;top:calc(var(--bars)*100% + var(--st) + var(--u)*40px);left:50%;translate:-50% 0;text-align:center;font-size:calc(var(--u)*84px);line-height:.92;color:#f2c96a;white-space:nowrap;direction:ltr;opacity:0;transform:scale(.4);z-index:2}
 .logo b{display:block;font-size:1.35em;color:#e06356}
+/* the end-of-run cutscene counts the hammer size up over the island */
+.tally{position:absolute;top:calc(var(--bars)*100% + var(--st) + var(--u)*56px);left:50%;translate:-50% 0;text-align:center;font-size:calc(var(--u)*104px);line-height:1;color:#f2c96a;white-space:nowrap;direction:ltr;opacity:0;transform:scale(.6);transition:opacity .3s,transform .45s cubic-bezier(.2,1.6,.4,1);z-index:2}
+.tally small{display:block;font-size:.3em;color:#f4ede2;margin-bottom:.15em}
+.endc.cine .tally{opacity:1;transform:scale(1)}
 .intro.cine.landed .logo{animation:logo .55s cubic-bezier(.2,1.7,.4,1) forwards}
 @keyframes logo{0%{opacity:0;transform:scale(.4) rotate(-8deg)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.intro.cine .logo{animation-duration:.01s}}
