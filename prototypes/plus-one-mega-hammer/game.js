@@ -14,10 +14,10 @@ const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
 
 // ---------------------------------------------------------------- sound: all made in code, no files to load
 const Sound = (() => {
-  let ctx = null, master = null, music = null, noise = null, muted = false, step = 0, nextT = 0, song = null, songBuf = null, songLoading = false, songVol = 0.3;
+  let ctx = null, master = null, bus = null, music = null, noise = null, muted = false, step = 0, nextT = 0, song = null, songBuf = null, songLoading = false, songVol = 0.3;
   const ensure = () => {
     if (ctx) return ctx;
-    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination); music = ctx.createGain(); music.gain.value = 0.13; music.connect(master); } catch (e) { ctx = null; }
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination); bus = ctx.createGain(); bus.connect(master); music = ctx.createGain(); music.gain.value = 0.13; music.connect(bus); } catch (e) { ctx = null; }
     if (ctx) { noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noise.getChannelData(0); let s = 1; for (let i = 0; i < d.length; i++) { s = (s * 16807) % 2147483647; d[i] = s / 1073741823.5 - 1; } }
     return ctx;
   };
@@ -26,6 +26,13 @@ const Sound = (() => {
     o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.02);
+  }
+  /** A filtered noise sweep from f0 to f1 Hz over dur seconds (cutscene whooshes and risers). */
+  function sweep(f0, f1, dur, vol, at = 0) {
+    const t = ctx.currentTime + at, s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noise; s.loop = true; fl.type = 'bandpass'; fl.Q.value = 1.2; fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(fl).connect(g).connect(master); s.start(t); s.stop(t + dur + 0.05);
   }
   function hiss(f, q, dur, vol, at = 0) {
     const t = ctx.currentTime + at, s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -36,7 +43,7 @@ const Sound = (() => {
   function playSong() {
     if (!ctx || ctx.state === 'closed' || !songBuf || song) return;
     const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = songBuf; src.loop = true; g.gain.value = 0.0001;
-    g.gain.exponentialRampToValueAtTime(songVol, ctx.currentTime + 1.2); src.connect(g).connect(master); src.start(); song = src;
+    g.gain.exponentialRampToValueAtTime(songVol, ctx.currentTime + 1.2); src.connect(g).connect(bus); src.start(); song = src;
   }
   const MAT = { fruit: [900, 2, 0.12], wood: [420, 4, 0.16], cloth: [1300, 1.5, 0.12], toy: [1700, 3, 0.1], stone: [260, 1.2, 0.3], cake: [650, 0.8, 0.2], sand: [500, 0.7, 0.18], snow: [700, 0.6, 0.2], ice: [2600, 3, 0.14] };
   return {
@@ -64,6 +71,19 @@ const Sound = (() => {
     roar() { if (!ctx) return; tone('sawtooth', 110, 52, 0.75, 0.16); tone('sine', 70, 34, 0.9, 0.4); hiss(380, 0.8, 0.7, 0.22, 0.05); },
     /** A boss breaks: a rising major arpeggio over a deep boom. */
     bossDown() { if (!ctx) return; tone('sine', 90, 30, 1.0, 0.5); [0, 4, 7, 12, 16, 19, 24].forEach((n, i) => { tone('triangle', 392 * 2 ** (n / 12), 392 * 2 ** (n / 12), 0.35, 0.12, 0.12 + i * 0.07); tone('sine', 196 * 2 ** (n / 12), 196 * 2 ** (n / 12), 0.4, 0.06, 0.12 + i * 0.07); }); hiss(3200, 0.6, 0.9, 0.08, 0.5); },
+    /**
+     * Music ducking for cutscenes: k is the music level (1 = full), reached over sec seconds. The effects stay full.
+     */
+    duck(k, sec) { if (!ctx) return; const t = ctx.currentTime; bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(k, t + sec); },
+    /** Cutscene stingers: id picks the cue, d is the cutscene's length in seconds. */
+    sting(id, d) {
+      if (!ctx) return;
+      if (id === 'intro') { sweep(3200, 260, Math.min(1.6, d * 0.5), 0.3); tone('sine', 55, 40, Math.min(2, d), 0.18); }
+      else if (id === 'world') { sweep(300, 2400, d * 0.55, 0.22); sweep(2400, 400, d * 0.45, 0.16, d * 0.55); }
+      else if (id === 'boss') { tone('sawtooth', 55, 55, d * 0.8, 0.06); tone('sine', 41, 41, d * 0.9, 0.3); sweep(200, 900, d * 0.3, 0.14); [0, 3, 6].forEach((n, i) => tone('triangle', 220 * 2 ** (n / 12), 220 * 2 ** (n / 12), 0.5, 0.1, 0.25 + i * 0.22)); }
+      else if (id === 'tier') sweep(400, 3600, Math.min(0.9, d), 0.16);
+      else if (id === 'end') { for (let i = 0; i < 10; i++) tone('triangle', 130, 120, 0.09, 0.05 + i * 0.012, i * d * 0.07); sweep(250, 1800, d, 0.14); }
+    },
     fanfare() { if (!ctx) return; [0, 4, 7, 12].forEach((n, i) => { tone('triangle', 523 * 2 ** (n / 12), 523 * 2 ** (n / 12), 0.3, 0.13, i * 0.09); tone('sine', 261 * 2 ** (n / 12), 261 * 2 ** (n / 12), 0.35, 0.08, i * 0.09); }); },
     evolve() { if (!ctx) return; [0, 7, 12, 16, 19, 24].forEach((n, i) => tone('triangle', 392 * 2 ** (n / 12), 392 * 2 ** (n / 12), 0.25, 0.12, i * 0.06)); hiss(3000, 0.7, 0.6, 0.08, 0.1); },
     /**
@@ -263,7 +283,10 @@ export function run(mode = 'play') {
   /** A burst of gems from the screen centre into the gem chip (the daily reward), as flying "+N" numbers. */
   function gems2hud(n) { const c = $('gemchip').getBoundingClientRect(), r = rect(); popAt(0.5, 0.42, (c.left + c.width / 2 - r.left) / r.width, (c.top + c.height / 2 - r.top) / r.height, '+' + n); }
 
-  function showBanner(text, cls, sub) { const b = $('banner'); b.textContent = text; if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.prepend(sm); } b.className = 'banner out ' + (cls || ''); void b.offsetWidth; b.classList.add('show'); banner = 1.6; }
+  function showBanner(text, cls, sub) { const b = $('banner'); b.textContent = text; if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.prepend(sm); } b.className = 'banner out ' + (cls || ''); b.style.fontSize = '';
+    // a long title (some languages) shrinks to fit the screen width instead of running off it
+    const max = rect().width * 0.92; if (b.scrollWidth > max) b.style.fontSize = (parseFloat(getComputedStyle(b).fontSize) * max / b.scrollWidth).toFixed(1) + 'px';
+    void b.offsetWidth; b.classList.add('show'); banner = 1.6; }
 
   // ---------------------------------------------------------------- slams
   function startSlam(x, z) {
@@ -475,6 +498,7 @@ export function run(mode = 'play') {
     cine = { id, t: 0, d, k: full / d, C, keys, o, landed: false, woke: false, wave: false };
     // reduce motion: the camera stays at play, only the bars and the titles show; a blended one eases in from play
     scene.cineCam.w = reduce || C.blend ? 0 : 1; cineOut = 0;
+    Sound.duck(cfg.cine.duck, 0.25); if (id !== 'defeat') Sound.sting(id, d);
     if (id === 'defeat') { slowT = C.slow; showBanner(T('boss_down'), 'gold', T('boss_' + o.kind)); Sound.bossDown(); buzz('heavy'); scene.confetti(o.x, o.z); scene.ring(o.x, o.z, cfg.kinds[o.kind].r * 6, 0.9); }
     root.style.setProperty('--bars', String(cfg.cine.bars));
     root.classList.add('cine'); root.classList.toggle('intro', id === 'intro'); root.classList.toggle('endc', id === 'end'); scene.labels(!C.rel || C.k);
@@ -491,7 +515,7 @@ export function run(mode = 'play') {
     // a tap during a queueing cutscene (tier-up) slams the best spot once it ends; the end of run opens the card
     if (c.queued && mode === 'play') { const b = L.bestSlam(cfg, R); if (b) startSlam(b.x, b.z); }
     if (c.id === 'end') showCard();
-    cineOut = reduce ? 0 : cfg.cine.blendOut;
+    cineOut = reduce ? 0 : cfg.cine.blendOut; Sound.duck(1, 0.6);
   }
   function introLand(quiet) {
     const s = L.hammerScale(cfg, R.L);

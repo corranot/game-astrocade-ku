@@ -433,6 +433,8 @@ export function createScene(canvas, cfg, random) {
 
   // ---- camera: follows a focus point, pulls back and up as the hammer grows, trauma shake decays
   const cam = { focus: new THREE.Vector3(0, 0, 0), k: 1, trauma: 0, t: 0, punch: 0, kick: 0 };
+  // reduce motion (system setting): shake, punch-in and FOV kick are scaled down to cfg.fx.calm
+  const calmK = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? cfg.fx.calm : 1;
   const lookP = new THREE.Vector3(), cineCam = { w: 0, pos: [0, 0, 0], look: [0, 0, 0], fov: cfg.camera.fov };
   function updateCamera(dt, focusZ, scale, focusX = 0) {
     cam.focus.z += (focusZ - cam.focus.z) * Math.min(1, dt * cfg.camera.follow);
@@ -442,11 +444,11 @@ export function createScene(canvas, cfg, random) {
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6); cam.t += dt;
     // tier-up punch-in (pulls the camera in, then lets go) and the FOV kick of a big hit
     cam.punch = Math.max(0, cam.punch - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 5);
-    const pk = cam.k * (1 - cfg.fx.punch * Math.sin(cam.punch * Math.PI));
-    const fov = cfg.camera.fov + cfg.fx.fovKick * cam.kick * cam.kick;
+    const pk = cam.k * (1 - cfg.fx.punch * calmK * Math.sin(cam.punch * Math.PI));
+    const fov = cfg.camera.fov + cfg.fx.fovKick * calmK * cam.kick * cam.kick;
     if (cineCam.w > 0) camera.fov = fov; // the cutscene blend below starts from the play FOV and updates the projection
     else if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
-    const sh = cam.trauma * cam.trauma * cfg.fx.shake;
+    const sh = cam.trauma * cam.trauma * cfg.fx.shake * calmK;
     const ox = (Math.sin(cam.t * 41) + Math.sin(cam.t * 67) * 0.5) * sh, oy = (Math.sin(cam.t * 53) + Math.sin(cam.t * 29) * 0.5) * sh;
     camera.position.set(cam.focus.x + ox, cfg.camera.height * pk + oy, cam.focus.z + cfg.camera.back * pk);
     lookP.set(cam.focus.x, 0, cam.focus.z - cfg.camera.look);

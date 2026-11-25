@@ -189,6 +189,21 @@ play. This container has no GPU, so WebGL runs on SwiftShader, a software render
   card. A short session that goes straight on to the next run skips it.
 - `cfg.cine.maxPerRun` is now 16 s, enough for the intro, every tier-up, both boss cutscenes and the end.
 
+### M5: cinematic audio, titles that fit, reduce motion
+
+- **Music ducking.** The music (recorded song or code loop) runs through its own bus. Each cutscene lowers it to
+  `cfg.cine.duck` over 0.25 s and brings it back over 0.6 s, while the effects stay at full level.
+- **Stingers** (`Sound.sting`), all made in code, timed to each cutscene's length:
+    - intro: a falling whoosh over a low swell;
+    - world fly-over: a rise and fall;
+    - boss: a low drone with a rising minor triad before the growl;
+    - tier-up: a riser under the existing evolve chime;
+    - end of run: a drum roll and riser under the count-up ticks.
+- **Titles that fit.** A banner wider than 92% of the screen shrinks its font to fit. The longest boss titles were
+  checked in all seven languages at 360x800, 390x844 and 600x800, with no overflow.
+- **Reduce motion** (system setting). Besides the still cutscene camera, shake, punch-in and the FOV kick drop to
+  `cfg.fx.calm` (30%).
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N

@@ -426,7 +426,8 @@
     "comboShow": 3,
     "splashDelay": 0.09,
     "birds": 10,
-    "scare": 4
+    "scare": 4,
+    "calm": 0.3
   },
   "quality": {
     "dpr": [
@@ -1464,6 +1465,7 @@
           "fov": 50
         }
       ]
-    }
+    },
+    "duck": 0.3
   }
 }
