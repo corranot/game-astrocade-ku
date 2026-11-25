@@ -1,12 +1,15 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Meteor Gem Works, milestone M1 (visual sample): drag to walk a little miner around a crater town; swing at the
-// crystal meteor for chunks, carry them to the polisher, bring the gems to the glass stand, tourists buy them, scoop
-// the coins, pay the pad for a drill rig; tap the sparkle on the meteor for a Perfect Strike; an egg drops and
-// hatches a crystal pup that follows you (+5 carry). Plan: plan.md (v2) §2, §3, §6, §7, §8.
+// Meteor Gem Works, milestone M2 (core loop, unlocks 1-7): drag to walk a little miner around a crater town; swing at
+// the crystal meteor for chunks, carry them to a polisher, bring the gems to a glass stand, tourists buy them, scoop
+// the coins and pay the price pads: drill rig, conveyor + polisher 2, stand 2, the armadillo shopkeeper, the canyon
+// road with its tour bus, the ring workshop and the laser cutter. Tap the sparkle for a Perfect Strike; eggs hatch six
+// critters that follow in a parade with a perk each; a kid asks for an item now and then (no timer); Crystal Rush
+// rains pickups. Progress saves through lib.saveUserGameState; a 3 s cold open greets a new game.
+// Plan: plan.md (v2) §2-§4, §6-§8, §12.
 // Modules: logic.js (rules), models.js (geometry), scene.js (3D look, Three.js r187 loaded by index.html).
 /* global THREE */ // set on window by index.html before run() starts the game
 import * as L from './logic.js';
-import { createScene } from './scene.js';
+import { createScene, drawIcon } from './scene.js';
 
 const LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28];
@@ -55,6 +58,13 @@ const Sound = (() => {
     crack(k) { if (!on()) return; hiss(2200 + k * 500, 3, 0.08, 0.2); tone('triangle', 900 + k * 200, 700, 0.08, 0.05); },
     pop() { if (!on()) return; tone('sine', 300, 900, 0.12, 0.15); },
     step() { if (!on()) return; hiss(700, 1.2, 0.05, 0.035); },
+    /** Tour bus horn: two friendly toots. */
+    honk() { if (!on()) return; for (const at of [0, 0.22]) { tone('square', 392, 380, 0.18, 0.06, at); tone('square', 494, 480, 0.18, 0.05, at); } },
+    laser() { if (!on()) return; tone('sawtooth', 1400, 500, 0.3, 0.03); hiss(3000, 2, 0.25, 0.06); },
+    ring() { if (!on()) return; tone('sine', 2093, 2093, 0.35, 0.05); tone('triangle', 3136, 3136, 0.25, 0.03, 0.05); },
+    heart() { if (!on()) return; [0, 4, 7, 12].forEach((n, i) => tone('triangle', 784 * 2 ** (n / 12), 784 * 2 ** (n / 12), 0.22, 0.07, i * 0.06)); },
+    rush() { if (!on()) return; tone('sine', 80, 40, 0.9, 0.4); [0, 5, 7, 12, 17, 19, 24].forEach((n, i) => tone('triangle', 330 * 2 ** (n / 12), 330 * 2 ** (n / 12), 0.25, 0.07, i * 0.05)); },
+    boom() { if (!on()) return; tone('sine', 90, 28, 1.2, 0.6); hiss(400, 0.6, 1.0, 0.35); hiss(2400, 1, 0.4, 0.15, 0.02); },
   };
 })();
 
@@ -80,12 +90,16 @@ const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
   <div id="cash" class="chip cash"><i class="coin" aria-hidden="true"></i><b id="cashN" class="out">0</b></div>
+  <div id="next" class="next" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><span class="bar"><i></i></span><b class="out"></b></div>
+  <div id="bubble" class="bubble" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><em>&#9829;</em></div>
+  <div id="tap" class="tap" hidden><i aria-hidden="true"></i><b class="out"></b></div>
   <button id="mute" class="mute" aria-label="sound"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="spk" d="M9 19h7l10-8v26l-10-8H9z"/><path class="wav" d="M31 17c3 2 4 4.5 4 7s-1 5-4 7M35 12c5 3.5 7 7.5 7 12s-2 8.5-7 12"/><path class="x" d="M31 18l11 12M42 18L31 30"/></svg></button>
   <div id="carry" class="carry out" hidden></div>
   <div id="pops"></div>
   <div id="banner" class="banner" hidden><b class="bt out"></b><span class="bs out"></span></div>
   <div id="hint" class="hint"><i class="hand" aria-hidden="true"></i><b class="out"></b></div>
   <div id="stick" class="stick" hidden><i></i></div>
+  <div id="menu" class="menu" hidden><h1 class="out"></h1><button id="cont" class="go out"></button><button id="newg" class="new out"></button></div>
 </div>`;
 
 /** Starts the game in mode 'play' or 'edit' (edit: a live picture played by the guide, no input). Returns { destroy, debug }. */
@@ -123,7 +137,7 @@ export function run(mode = 'play') {
   let qa = { tier, rs: 1, okT: 0, fails: [] };
   scene.setTod(qs.has('tod') ? Number(qs.get('tod')) : cfg.tod.start);
   const bot = qs.has('bot') || mode === 'edit';
-  const S = L.createState(cfg, cfg.seed);
+  let S = L.createState(cfg, cfg.seed);
 
   // ---- layout: --u is the design scale (1 at 720 x 1280)
   function layout() {
@@ -141,6 +155,8 @@ export function run(mode = 'play') {
   const onDown = (e) => {
     if (mode !== 'play' || e.target.closest('button')) return;
     Sound.unlock();
+    if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } // any touch skips the cold open and the same drag walks
+    if (phase !== 'play') return;
     if (stick.on) return; Object.assign(stick, { on: true, id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, t0: performance.now() });
     try { root.setPointerCapture(e.pointerId); } catch (er) { /* synthetic pointer */ }
   };
@@ -157,7 +173,7 @@ export function run(mode = 'play') {
     return false;
   }
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
-  const onKey = (e) => { const k = e.key.toLowerCase(); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '].includes(k)) { e.preventDefault(); Sound.unlock(); if (e.type === 'keydown') { keys.add(k); if (k === ' ' && scene.glint) tapGlint = true; } else keys.delete(k); } };
+  const onKey = (e) => { const k = e.key.toLowerCase(); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '].includes(k)) { e.preventDefault(); Sound.unlock(); if (e.type === 'keydown') { keys.add(k); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } else if (k === ' ' && scene.glint) tapGlint = true; } else keys.delete(k); } };
   addEventListener('keydown', onKey); addEventListener('keyup', onKey);
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); });
   function readInput() {
@@ -184,7 +200,11 @@ export function run(mode = 'play') {
 
   // ---- events from the logic -> flyers, bursts, sounds, pops
   const mineLon = Math.atan2(cfg.world.mine.x - cfg.world.meteor.x, cfg.world.mine.z - cfg.world.meteor.z);
-  const V = (x, y, z) => new THREE.Vector3(x, y, z), tmp = V(0, 0, 0);
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const padDef = (id) => cfg.pads.find((p) => p.id === id);
+  const critterName = (id) => T(id === 'pebble' ? 'pup' : id);
+  const perkText = (id) => { const d = cfg.critters.find((c) => c.id === id); return d ? T('perk' + d.perk[0].toUpperCase() + d.perk.slice(1)) : ''; };
+  const polN = (id) => (S.pols.find((p) => p.id === id) || { polIn: 0 }).polIn, standN = (id) => (S.stands.find((p) => p.id === id) || { items: [] }).items.length;
   let coinK = 0;
   function onEvent(e) {
     const h = S.hero;
@@ -197,27 +217,33 @@ export function run(mode = 'play') {
       case 'perfect': {
         const p = scene.hit(e.lon, e.lat, true); Sound.perfect();
         for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.1 + i * 0.08, 3.2);
-        pop(T('perfect'), p.x, p.y + 1.2, p.z, 'big');
+        pop(T('perfect'), p.x, p.y + 1.2, p.z, 'big'); glintsHit++;
         break;
       }
       case 'glint': scene.glintOn(e.lon, e.lat); Sound.glint(); break;
       case 'glintGone': scene.glintOff(); break;
       case 'rigHit': { const p = scene.rigHit(); for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.1 + i * 0.08, 2.6); break; }
+      case 'laserHit': { const p = scene.laserHit(); Sound.laser(); for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.15 + i * 0.08, 3.0); break; }
+      case 'conv': scene.fly('chunk', scene.slot('pile', Math.max(0, S.pile), V()), 'pol:' + e.to, () => Math.max(0, polN(e.to) - 1), 0, 0.8, () => scene.bump(e.to), scene.beltPath(e.to)); break;
       case 'pick': {
-        const from = e.kind === 'chunk' ? scene.slot('pile', Math.max(0, S.pile), V()) : scene.slot('counter', Math.max(0, S.counter), V());
-        scene.fly(e.kind, from, 'stack', () => Math.max(0, h.n - 1), 0, 0.7); Sound.pick(e.n, e.kind === 'gem');
+        const from = e.from === 'pile' ? scene.slot('pile', Math.max(0, S.pile), V()) : e.from === 'workshop' ? scene.slot('wsR', Math.max(0, S.ws.rings), V()) : scene.slot('counter', Math.max(0, S.counter), V());
+        scene.fly(e.kind, from, 'stack', () => Math.max(0, h.n - 1), 0, 0.7); Sound.pick(e.n, e.kind !== 'chunk');
         break;
       }
       case 'drop': {
-        const from = scene.slot('stack', h.n, V()), kind = e.at === 'stand' ? 'gem' : 'chunk';
-        if (e.at === 'polisher') scene.fly(kind, from, 'pol', () => Math.max(0, S.polIn - 1), 0, 0.9, () => scene.bump('pol'));
-        else if (e.at === 'stand') scene.fly(kind, from, 'stand', () => Math.max(0, S.stand - 1), 0, 0.9, () => scene.bump('stand'));
+        const from = scene.slot('stack', h.n, V()), kind = e.kind || (e.at === 'workshop' ? 'gem' : 'chunk');
+        if (S.pols.some((p) => p.id === e.at)) scene.fly(kind, from, 'pol:' + e.at, () => Math.max(0, polN(e.at) - 1), 0, 0.9, () => scene.bump(e.at));
+        else if (S.stands.some((p) => p.id === e.at)) scene.fly(kind, from, 'stand:' + e.at, () => Math.max(0, standN(e.at) - 1), 0, 0.9, () => scene.bump(e.at));
+        else if (e.at === 'workshop') scene.fly(kind, from, 'ws', () => Math.max(0, S.ws.gemsIn - 1), 0, 0.9, () => scene.bump('workshop'));
         else scene.fly(kind, from, 'crate', () => 0, 0, 0.9, (p) => { scene.bump('crate'); scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), 0, 1.6); });
         Sound.drop(h.n);
         break;
       }
-      case 'gem': scene.fly('gem', scene.slot('wheel', 0, V()), 'counter', () => Math.max(0, S.counter - 1), 0, 1.2, (p) => { scene.bump('counter'); scene.twinkle(p, 4, 0xfff0c0, 0.4); }); Sound.gem(); break;
-      case 'take': scene.bump('stand'); break;
+      case 'gem': scene.fly('gem', scene.slot('wheel:' + e.from, 0, V()), 'counter', () => Math.max(0, S.counter - 1), 0, 1.2, (p) => { scene.bump('counter'); scene.twinkle(p, 4, 0xfff0c0, 0.4); }); Sound.gem(); break;
+      case 'ring': { const p = scene.slot('wsR', Math.max(0, S.ws.rings - 1), V()); scene.bump('workshop'); scene.twinkle(p, 8, 0xffe6a0, 0.45); scene.puff(p.x, p.z, 2, 0.5, 0xfff0d0); Sound.ring(); break; }
+      case 'keeperPick': scene.fly('gem', scene.slot('counter', Math.max(0, S.counter), V()), 'keeper', () => Math.max(0, (S.keeper ? S.keeper.n : 1) - 1), 0, 0.6); Sound.pick(e.n, true); break;
+      case 'keeperDrop': scene.bump(e.at); scene.twinkle(scene.slot('stand:' + e.at, 0, V()), 6, 0xfff0c0, 0.4); Sound.drop(4); break;
+      case 'take': scene.bump(e.stand); break;
       case 'sale': {
         const p = V(e.x, 1.3, e.z);
         for (let i = 0; i < e.amount; i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), i * 0.08, 2.0, () => { Sound.coin(coinK++); scene.bump('cash'); });
@@ -228,21 +254,74 @@ export function run(mode = 'play') {
         for (let i = 0; i < Math.min(3, e.n); i++) scene.fly('coin', scene.slot('cash', S.cashPile + i, V()), 'hero', () => 0, i * 0.04, 1.0, () => { cashBump = 1; Sound.coin(coinK++); });
         break;
       }
-      case 'padShow': Sound.pop(); scene.showcase(V(cfg.pads[0].x, 0, cfg.pads[0].z), 0.82, 1.2); break;
+      case 'padShow': { const d = padDef(e.id); Sound.pop(); if (d) scene.showcase(V(d.x, 0, d.z), 0.82, 1.2); break; }
       case 'pay': { if (e.paid % 2 === 0) scene.fly('coin', V(h.x, 1.4, h.z), 'pad', () => 0, 0, 1.0); scene.padPay(); Sound.pay(e.paid); break; }
-      case 'unlock': scene.unlockRig(); Sound.fanfare(); banner(T('rig'), T('rigDone'), 2.6); scene.showcase(V(cfg.world.rigAt.x, 1.5, cfg.world.rigAt.z - 1), 0.7, 2.2); break;
+      case 'unlock': {
+        const c = scene.unlock(e.id); Sound.fanfare(); banner(T(e.id), e.id === 'rig' ? T('rigDone') : '', 2.6);
+        scene.showcase(V(c.x, 1.0, c.z - 0.5), e.id === 'road' ? 0.8 : 0.7, 2.2); saveNow();
+        break;
+      }
+      case 'bus': scene.busIn(); Sound.honk(); banner(T('bus'), '', 2.2); scene.showcase(scene.busAt, 0.85, 2.4); break;
+      case 'order': Sound.pop(); break;
+      case 'orderDone': {
+        const k = scene.slot('kid', 0, V()); scene.kidHappy(); Sound.heart(); pop('♥', k.x, k.y + 1.2, k.z, 'big');
+        for (let i = 0; i < e.tip; i++) scene.fly('coin', k, 'cash', () => Math.max(0, S.cashPile - 1), 0.2 + i * 0.07, 2.2, () => Sound.coin(coinK++));
+        banner(T('thanks'), '', 1.6);
+        break;
+      }
+      case 'rush': scene.rush(); Sound.rush(); banner(T('rush'), '', 2.2); break;
+      case 'scoop': if (e.kind === 'coin') { cashBump = 1; Sound.coin(coinK++); } else Sound.pick(e.n || 1, false); break;
       case 'eggDrop': scene.eggDrop(); Sound.whoosh(); scene.showcase(V(cfg.world.egg.x, 0, cfg.world.egg.z - 1.5), 0.8, 1.6); break;
       case 'hatchStart': scene.hatchStart(); hatchCracks = 0; break;
-      case 'hatch': scene.hatch(); Sound.fanfare(); banner(T('hatch'), `${T('pup')}  ${T('perk')}`, 2.8); scene.showcase(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0); break;
+      case 'hatch': scene.hatch(); Sound.fanfare(); banner(T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); scene.showcase(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0); saveNow(); break;
       default: break;
     }
   }
-  let hatchCracks = 0;
+  let hatchCracks = 0, glintsHit = 0;
+
+  // ---- save / continue: read first, write only after the read came back (a failed read never overwrites a save)
+  const canSave = mode === 'play' && !bot && typeof lib !== 'undefined' && !!lib.saveUserGameState;
+  let phase = 'play', loaded = false, lastWrite = Promise.resolve(), saveT = 0, alive = true;
+  function saveNow() {
+    if (!canSave || !loaded || phase !== 'play') return;
+    const snap = L.serialize(cfg, S);
+    lastWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => { /* host refused: try again on the next tick */ });
+  }
+  function readSave(tries = 0) {
+    const read = () => Promise.race([Promise.resolve().then(() => lib.getUserGameState()), new Promise((res, rej) => setTimeout(() => rej(new Error('save read timed out')), 8000))]);
+    lastWrite.then(read).then((r) => {
+      if (!alive) return;
+      loaded = true;
+      const st = r && r.state;
+      if (st && typeof st === 'object' && st.v === cfg.save.version && (st.sold > 0 || (Array.isArray(st.pads) && st.pads.some((p) => p && p[1])))) offer(st);
+    }).catch(() => { if (alive) setTimeout(() => readSave(tries + 1), Math.min(8000, 600 * (tries + 1))); });
+  }
+  /** The CONTINUE / NEW GAME card. New game asks for a second tap so a stray tap never wipes progress. */
+  function offer(st) {
+    phase = 'menu'; scene.skipIntro();
+    const m = $('menu'), go = $('cont'), nw = $('newg');
+    m.querySelector('h1').textContent = T('title'); go.textContent = T('cont'); nw.textContent = T('newGame'); nw.classList.remove('sure'); m.hidden = false;
+    let sureT = 0;
+    go.onclick = () => {
+      Sound.unlock(); m.hidden = true;
+      // shortcut: a save that arrives after this session already bought something replaces it; fine while reads take < 3 s
+      S = L.restore(cfg, st, cfg.seed + 7); scene.restoreBuilt(S); scene.snap(S); phase = 'play'; saveT = 0; Sound.pop();
+    };
+    nw.onclick = () => {
+      Sound.unlock();
+      if (!nw.classList.contains('sure')) { nw.classList.add('sure'); nw.textContent = T('sure'); clearTimeout(sureT); sureT = setTimeout(() => { nw.classList.remove('sure'); nw.textContent = T('newGame'); }, 2500); return; }
+      clearTimeout(sureT); m.hidden = true; phase = 'play'; saveNow(); // this session's fresh game becomes the save
+    };
+  }
+  const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); };
+  document.addEventListener('visibilitychange', onHide);
 
   // ---- loop
   let raf = 0, last = performance.now(), acc = 0, perfT = 0, perfN = 0, perfMs = 0, paused = false, glintAuto = 0;
   const DT = 1 / 60;
   function tick(dt) {
+    if (phase === 'intro' && !scene.introOn) phase = 'play';
+    if (phase !== 'play') return;
     let input = bot ? L.botInput(cfg, S) : readInput();
     if (!bot && (input.x || input.z) && !touched) { touched = true; $('hint').classList.add('gone'); }
     let tap = null;
@@ -252,6 +331,7 @@ export function run(mode = 'play') {
     for (const e of S.events) onEvent(e);
     S.events.length = 0;
     if (S.egg.st === 'hatching') { const k = Math.floor((S.egg.t / cfg.egg.hatch) * 5); if (k > hatchCracks) { hatchCracks = k; Sound.crack(k); } }
+    if ((saveT += dt) >= cfg.save.every) { saveT = 0; saveNow(); }
   }
   const proj = (x, y, z) => { const [sx, sy] = scene.toScreen(x, y, z); return [sx * 100, sy * 100]; };
   function hud(dt) {
@@ -269,6 +349,34 @@ export function run(mode = 'play') {
       const [x, y] = proj(p.x, p.y + k * 1.2, p.z); p.d.style.left = x + '%'; p.d.style.top = y + '%'; p.d.style.opacity = k > 0.7 ? (1 - k) / 0.3 : 1;
     }
     if (bannerT > 0 && (bannerT -= dt) <= 0) { $('banner').hidden = true; if (bannerQ.length) banner(...bannerQ.shift()); }
+    // NEXT card: what the coins are for (icon, how far along, coins still to pay)
+    const nx = $('next'), P = S.pads.find((p) => !p.done);
+    nx.hidden = !P || phase === 'menu';
+    if (P) {
+      const d = padDef(P.id), left = P.price - P.paid;
+      if (nextIcon !== d.icon) { nextIcon = d.icon; const c = nx.querySelector('canvas'), g = c.getContext('2d'); g.clearRect(0, 0, 96, 96); g.save(); g.translate(48, 50); g.scale(0.82, 0.82); drawIcon(g, d.icon, '#ffe6a8', '#2a7f78'); g.restore(); }
+      nx.querySelector('i').style.width = Math.min(100, ((h.cash + P.paid) / P.price) * 100).toFixed(1) + '%';
+      const t = String(left); if (nx.querySelector('b').textContent !== t) nx.querySelector('b').textContent = t;
+      nx.classList.toggle('ready', h.cash >= left && P.shown);
+    }
+    // the order kid's bubble
+    const bu = $('bubble');
+    if (S.order) {
+      if (bubbleKind !== S.order.kind) { bubbleKind = S.order.kind; paintItem(bu.querySelector('canvas'), bubbleKind); bu.hidden = true; }
+      const [x, y] = proj(cfg.world.order.x, 2.9, cfg.world.order.z); bu.hidden = false; bu.style.left = x + '%'; bu.style.top = y + '%';
+    } else { bu.hidden = true; bubbleKind = null; }
+    // first glint: a tapping finger over the sparkle until the first Perfect Strike
+    const tp = $('tap'), gl = scene.glint;
+    if (gl && !glintsHit && !bot && phase === 'play' && touched) { const [x, y] = proj(gl.x, gl.y, gl.z); tp.hidden = false; tp.style.left = x + '%'; tp.style.top = y + '%'; }
+    else tp.hidden = true;
+  }
+  let nextIcon = null, bubbleKind = null, lastEvents = [];
+  /** The item an order asks for, drawn flat on the bubble's canvas (gem: a faceted diamond; ring: the ring icon). */
+  function paintItem(c, kind) {
+    const g = c.getContext('2d'); g.clearRect(0, 0, 96, 96); g.save(); g.translate(48, 50);
+    if (kind === 'ring') { g.scale(0.85, 0.85); drawIcon(g, 'ring', '#d99a2e', '#fff3dc'); g.fillStyle = '#e04cc0'; g.beginPath(); g.moveTo(0, -40); g.lineTo(16, -24); g.lineTo(0, -10); g.lineTo(-16, -24); g.closePath(); g.fill(); }
+    else { const pts = [[0, -34], [28, -10], [0, 36], [-28, -10]]; g.fillStyle = '#e04cc0'; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill(); g.fillStyle = '#ff9ae8'; g.beginPath(); g.moveTo(0, -34); g.lineTo(12, -10); g.lineTo(0, 10); g.lineTo(-12, -10); g.closePath(); g.fill(); g.strokeStyle = '#3a2418'; g.lineWidth = 5; g.lineJoin = 'round'; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.stroke(); }
+    g.restore();
   }
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -289,15 +397,18 @@ export function run(mode = 'play') {
     const g = L.guide(cfg, S);
     scene.update(S, dt, g); scene.render(); hud(dt);
   }
+  $('tap').querySelector('b').textContent = T('tapGlint');
   scene.snap(S);
   scene.prewarm();
+  // a new game in play mode opens with the meteor landing (3 s, any tap skips); the save is read at the same time
+  if (mode === 'play' && !bot) { if (!qs.has('nointro')) { phase = 'intro'; scene.startIntro(); Sound.boom(); } if (canSave) readSave(); else loaded = true; }
   if (window.__load) window.__load.done();
   raf = requestAnimationFrame(frame);
 
   const api = {
-    destroy() { cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
+    destroy() { alive = false; saveNow(); document.removeEventListener('visibilitychange', onHide); cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
     debug: {
-      S, cfg, scene, L,
+      get S() { return S; }, cfg, scene, L, get phase() { return phase; }, saveNow, get lastEvents() { return lastEvents; },
       /** Stops the real-time loop; frame(dt) then advances by hand (tests and screenshots). */
       pause(p = true) { paused = p; last = performance.now(); },
       /** Runs sec seconds of game time (bot input when bot is true), drawing only the last frame. */
@@ -307,7 +418,7 @@ export function run(mode = 'play') {
       until(type, maxSec = 120) {
         for (let i = 0; i < maxSec * 60; i++) {
           const b = L.botInput(cfg, S); L.step(cfg, S, DT, b, S.glint && S.glint.t > 0.6 && type !== 'glint' ? { glint: true } : null);
-          const hit = S.events.some((e) => e.type === type); for (const e of S.events) onEvent(e); S.events.length = 0;
+          const hit = S.events.some((e) => e.type === type); if (hit) lastEvents = S.events.slice(); for (const e of S.events) onEvent(e); S.events.length = 0;
           scene.update(S, DT, L.guide(cfg, S)); hud(DT);
           if (hit) { draw(DT); return true; }
         }
@@ -337,7 +448,7 @@ window.run = run;
 // Outside Astrocade (?local): stand in for the host, read the config file and start.
 if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('local') && !window.lib) {
   const none = async () => ({});
-  const store = { state: null };
+  const store = { state: window.__seedSave || null }; window.__store = store; // tests seed a save and read it back
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => ({ state: store.state }), saveUserGameState: async (s) => { store.state = s; }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
     shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
   fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });

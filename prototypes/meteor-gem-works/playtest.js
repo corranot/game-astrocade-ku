@@ -1,8 +1,10 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// M1 playtest: serves this folder, plays with the guide bot, and saves a screenshot of each moment the M1 look must
-// show (noon square, Perfect Strike, polisher, stand with tourists, egg hatch, critter, drill rig unlock, golden hour,
-// dusk, tier 0, Arabic HUD). Checks: no page errors, glare under look.glareMax on every shot, live textures stay
-// bounded after a long run (fix B), a real drag moves the hero, a real tap on the sparkle lands a Perfect Strike.
+// M2 playtest: serves this folder, plays with the guide bot and with real input, and saves a screenshot of each moment
+// the M2 build must show (cold open, NEXT card, first-glint finger, continue card, each of the seven unlocks, the bus,
+// rings, the laser, the critter parade, Crystal Rush, the order bubble, mining close-up and Perfect punch-in, golden
+// hour, dusk, tier 0, Arabic HUD). Checks: no page errors, glare under look.glareMax on every shot, live textures stay
+// bounded after a long run (fix B), a real drag moves the hero, a real tap on the sparkle lands a Perfect Strike, the
+// game saves and CONTINUE brings the progress back, NEW GAME needs a second tap, draw calls stay in the tier budget.
 // Usage: node playtest.js <out folder>   (Playwright + swiftshader: frame times here are not a phone's)
 // THREE_DIR=<three/build folder> serves three.js locally when the CDN is not reachable.
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -15,9 +17,11 @@ const server = http.createServer((q, s) => {
   fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'content-type': types[path.extname(f)] || 'text/plain' }); s.end(d); });
 }).listen(0);
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json')));
+const BUDGET = { 0: 160, 2: 260 }; // draw calls per tier (see README: mobile budget)
 
-async function open(browser, q = '') {
+async function open(browser, q = '', seed = null) {
   const page = await browser.newPage({ viewport: { width: 405, height: 720 }, deviceScaleFactor: 2 });
+  if (seed) await page.addInitScript((s) => { window.__seedSave = s; }, seed);
   if (process.env.THREE_DIR) {
     const dir = process.env.THREE_DIR;
     await page.route(/cdnjs\.cloudflare\.com\/.*three\.module\.min\.js/, (r) => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(dir, 'three.module.min.js')) }));
@@ -46,92 +50,133 @@ async function open(browser, q = '') {
   const shots = [];
   const shoot = async (page, name) => {
     const g = await page.evaluate(() => __game.glare());
-    await page.screenshot({ path: path.join(out, name + '.png') });
+    await page.screenshot({ path: path.join(out, name + '.jpg'), type: 'jpeg', quality: 84 });
     shots.push(name); check(g.white < cfg.look.glareMax, `${name}: glare ${(g.white * 100).toFixed(2)}% near-white (max ${cfg.look.glareMax * 100}%), mean luminance ${g.meanL.toFixed(0)}`);
   };
   const ev = (page, fn, arg) => page.evaluate(fn, arg);
+  const frames = (n) => `for (let i = 0; i < ${n}; i++) __game.frame(1 / 60);`;
 
-  // ---- real input: a drag walks the hero, a tap on the sparkle is a Perfect Strike
+  // ---- a new game: the cold open (meteor lands, any tap skips), then the NEXT card, real drag and the first-glint finger
+  let saved = null;
   {
-    const { page, errors } = await open(browser, '&tier=1');
+    const { page, errors } = await open(browser, '&tier=2&tod=0.1');
     await ev(page, () => __game.pause());
+    check(await ev(page, () => __game.phase) === 'intro', 'a new game opens with the cold open');
+    await ev(page, () => { for (let i = 0; i < 50; i++) __game.draw(1 / 60); });
+    await shoot(page, '01-cold-open-fall');
+    await ev(page, () => { for (let i = 0; i < 46; i++) __game.draw(1 / 60); });
+    await shoot(page, '02-cold-open-impact');
+    await page.mouse.click(200, 400); // any tap skips the rest
+    await ev(page, () => { for (let i = 0; i < 50; i++) { __game.draw(1 / 60); __game.frame(1 / 60); } });
+    check(await ev(page, () => __game.phase) === 'play', 'a tap skips the cold open into play');
+    await shoot(page, '03-start-next-card');
     const x0 = await ev(page, () => __game.S.hero.x);
     await page.mouse.move(200, 500); await page.mouse.down(); await page.mouse.move(280, 500, { steps: 4 });
     await ev(page, () => { for (let i = 0; i < 40; i++) __game.frame(1 / 60); });
     await page.mouse.up();
     const x1 = await ev(page, () => __game.S.hero.x);
     check(x1 > x0 + 1, `a drag to the right walks the hero right (${x0.toFixed(2)} -> ${x1.toFixed(2)})`);
-    await ev(page, () => __game.until('glint', 20));
+    await ev(page, () => { __game.until('glint', 20); for (let i = 0; i < 20; i++) __game.frame(1 / 60); });
+    check(await ev(page, () => !document.getElementById('tap').hidden), 'the first sparkle gets a tapping finger');
+    await shoot(page, '04-first-glint-finger');
     const p = await ev(page, () => __game.glintScreen());
-    check(!!p, 'a sparkle appears on the meteor');
     if (p) {
+      const before = await ev(page, () => __game.S.pile);
       await page.mouse.click(p[0], p[1]);
-      const got = await ev(page, () => { for (let i = 0; i < 3; i++) { __game.frame(1 / 60); } return __game.S.glint === null && __game.S.pile >= 0; });
-      const perfect = await ev(page, () => __game.S.pile);
-      check(got, `a tap on the sparkle lands a Perfect Strike (pile now ${perfect})`);
-    }
-    check(errors.length === 0, `no page errors in the input test (${errors.slice(0, 2).join(' | ')})`);
+      await ev(page, () => { for (let i = 0; i < 3; i++) __game.frame(1 / 60); });
+      const after = await ev(page, () => __game.S.pile);
+      check(after > before, `a tap on the sparkle lands a Perfect Strike (pile ${before} -> ${after})`);
+    } else check(false, 'a sparkle appears on the meteor');
+    // play on with the guide, then save
+    await ev(page, () => __game.run(150));
+    await ev(page, () => __game.saveNow());
+    await page.waitForTimeout(200);
+    saved = await ev(page, () => window.__store.state);
+    const st = await ev(page, () => ({ sold: __game.S.sold, pads: __game.S.pads.filter((q) => q.done).length }));
+    check(saved && saved.sold === st.sold && saved.pads.filter((q) => q[1]).length === st.pads && st.pads >= 3, `the game saves its progress (${st.sold} sold, ${st.pads} unlocks)`);
+    check(errors.length === 0, `no page errors in the new-game run (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
   }
 
-  // ---- the M1 moments at noon, tier 2 (glow pass)
+  // ---- a returning player: CONTINUE brings the town back; NEW GAME needs a second tap
   {
-    const { page, errors } = await open(browser, '&tier=2&tod=0&bot');
+    const { page, errors } = await open(browser, '&tier=2&tod=0.2', saved);
     await ev(page, () => __game.pause());
-    await ev(page, () => __game.run(1.5)); await shoot(page, '01-noon-start');
-    await ev(page, () => { const S = __game.S; __game.until('hit', 10); __game.scene.showcase(new THREE.Vector3(S.hero.x, 1.2, S.hero.z - 1.2), 0.42, 4); for (let i = 0; i < 50; i++) __game.frame(1 / 60); });
-    await shoot(page, '01b-mining-closeup');
-    // Perfect Strike close-up
-    await ev(page, () => { __game.until('glint', 20); for (let i = 0; i < 30; i++) __game.frame(1 / 60); });
-    await ev(page, () => { const g = __game.S.glint; __game.scene.showcase(__game.scene.surf(g.lon, g.lat), 0.5, 3); __game.tapGlint(); for (let i = 0; i < 40; i++) __game.frame(1 / 60); });
-    await ev(page, () => { __game.tapGlint(); for (let i = 0; i < 9; i++) __game.frame(1 / 60); });
-    await shoot(page, '02-perfect-strike');
-    // first sale -> stand and tourists close-up
-    await ev(page, () => { __game.until('sale', 30); const W = __game.cfg.world; __game.scene.showcase(new THREE.Vector3(W.stand.x, 0.5, W.stand.z + 0.8), 0.5, 3); for (let i = 0; i < 40; i++) __game.frame(1 / 60); });
-    await shoot(page, '03-stand-tourists');
-    // polisher and counter close-up
-    await ev(page, () => { const W = __game.cfg.world; __game.until('gem', 30); __game.scene.showcase(new THREE.Vector3((W.polisher.x + W.counter.x) / 2, 0.8, W.polisher.z), 0.5, 3); for (let i = 0; i < 40; i++) __game.frame(1 / 60); });
-    await shoot(page, '04-polisher-counter');
-    // egg: drop, hatching, the critter
-    await ev(page, () => { __game.run(6); const S = __game.S; __game.scene.showcase(new THREE.Vector3(S.hero.x, 0.6, S.hero.z), 0.45, 3); for (let i = 0; i < 45; i++) __game.frame(1 / 60); });
-    await shoot(page, '08-critter-follows');
-    // a long run: textures must stay bounded (pops are DOM, pads redraw in place)
-    await ev(page, () => __game.run(90));
-    const st = await ev(page, () => __game.stats());
-    check(st.textures <= 60, `live textures after a long run: ${st.textures} (max 60); geometries ${st.geometries}`);
-    await shoot(page, '09-noon-busy');
-    const s = await ev(page, () => ({ sold: __game.S.sold, made: __game.S.made, rig: !!__game.S.rig, critter: !!__game.S.critter }));
-    check(s.sold > 20 && s.rig && s.critter, `bot loop after ~3 min: ${s.sold} sold, ${s.made} polished, rig ${s.rig}, critter ${s.critter}`);
-    console.log(`info draw calls ${st.calls}, triangles ${st.tris} (tier 2)`);
-    check(errors.length === 0, `no page errors at noon (${errors.slice(0, 2).join(' | ')})`);
+    await page.waitForFunction(() => !document.getElementById('menu').hidden, null, { timeout: 5000 }).catch(() => {});
+    check(await ev(page, () => __game.phase) === 'menu', 'a saved game shows the CONTINUE / NEW GAME card');
+    await ev(page, () => { for (let i = 0; i < 90; i++) __game.draw(1 / 60); });
+    await shoot(page, '05-continue-card');
+    await page.click('#newg', { force: true });
+    check(await ev(page, () => __game.phase) === 'menu' && await ev(page, () => document.getElementById('newg').classList.contains('sure')), 'NEW GAME asks for a second tap');
+    await page.click('#cont', { force: true });
+    const r = await ev(page, () => ({ phase: __game.phase, sold: __game.S.sold, pads: __game.S.pads.filter((q) => q.done).length }));
+    check(r.phase === 'play' && r.sold === saved.sold && r.pads === saved.pads.filter((q) => q[1]).length, `CONTINUE restores the save (${r.sold} sold, ${r.pads} unlocks)`);
+    await ev(page, () => { for (let i = 0; i < 30; i++) __game.frame(1 / 60); });
+    await shoot(page, '06-continued-town');
+    check(errors.length === 0, `no page errors in the continue run (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
   }
 
-  // ---- the big moments in order from a fresh start (each one waits for its own event, so none is missed)
+  // ---- every unlock and big moment in order from a fresh start (each waits for its own event, then a close-up)
   {
     const { page, errors } = await open(browser, '&tier=2&tod=0&bot');
     await ev(page, () => __game.pause());
+    await ev(page, () => { __game.until('hit', 10); for (let i = 0; i < 60; i++) __game.frame(1 / 60); });
+    await shoot(page, '07-mining-closeup');
+    await ev(page, () => { __game.until('perfect', 20); for (let i = 0; i < 8; i++) __game.frame(1 / 60); });
+    await shoot(page, '08-perfect-punch-in');
+    const W = cfg.world, at = (x, y, z) => ({ x, y, z });
+    const moments = [
+      ['unlock', 'rig', '09-unlock-drill-rig', 50],
+      ['hatch', null, '10-new-critter', 40],
+      ['unlock', 'conveyor', '11-unlock-conveyor', 70, at(-5.4, 0.8, 5.6), 0.62],
+      ['unlock', 'stand2', '12-unlock-stand2-lanterns', 60],
+      ['unlock', 'keeper', '13-unlock-shopkeeper', 50],
+      ['keeperDrop', null, '14-keeper-delivers', 10, at(W.stands[0].x - 0.5, 0.6, W.stands[0].z + 0.4), 0.5],
+      ['unlock', 'road', '15-unlock-road', 50],
+      ['bus', null, '16-tour-bus', 150],
+      ['order', null, '17-order-bubble', 30, at(W.order.x, 0.6, W.order.z - 0.6), 0.55],
+      ['unlock', 'workshop', '18-unlock-ring-workshop', 50],
+      ['ring', null, '19-rings', 30, at(W.workshop.x - 0.4, 0.8, W.workshop.z + 0.8), 0.5],
+      ['unlock', 'laser', '20-unlock-laser', 50],
+      ['laserHit', null, '21-laser-fires', 5, at(W.laserAt.x, 1.2, W.laserAt.z - 0.6), 0.55],
+      ['rush', null, '22-crystal-rush', 110],
+    ];
     const seen = [];
-    for (const [type, name, frames, show] of [['hatchStart', '05-egg-hatching', 130, true], ['hatch', '06-hatch-new-friend', 20, false], ['unlock', '07-drill-rig-unlock', 45, false]]) {
-      const ok = await ev(page, ([t, f, sh]) => { const W = __game.cfg.world, S = __game.S; const done = t === 'unlock' ? S.pads[0].done : t === 'hatchStart' ? S.egg.st === 'hatching' || S.egg.st === 'done' : S.egg.st === 'done'; const r = done || __game.until(t, 60); if (sh) __game.scene.showcase(new THREE.Vector3(W.egg.x, 0.6, W.egg.z), 0.45, 4); for (let i = 0; i < f; i++) __game.frame(1 / 60); return r && !done; }, [type, frames, show]);
-      seen.push(`${type}${ok ? '' : ' (already past)'}`);
+    for (const [type, id, name, frameN, focus, zoom] of moments) {
+      const ok = await ev(page, ([t, i]) => { for (let k = 0; k < 400; k++) { if (!__game.until(t, 1)) continue; const e = __game.lastEvents; if (!i || e.some((x) => x.type === t && x.id === i)) return true; } return false; }, [type, id]);
+      if (focus) await ev(page, ([f, z]) => __game.scene.showcase(new THREE.Vector3(f.x, f.y, f.z), z, 3), [focus, zoom]);
+      await ev(page, (n) => { for (let i = 0; i < n; i++) __game.frame(1 / 60); }, frameN);
+      seen.push(`${type}${id ? ':' + id : ''}${ok ? '' : ' (missed)'}`); check(ok, `moment ${name} happened`); console.log(`info ${name} at game time ${(await ev(page, () => __game.S.t)) | 0} s`);
       await shoot(page, name);
     }
     console.log('info moments: ' + seen.join(', '));
+    const st = await ev(page, () => __game.stats());
+    check(st.calls <= BUDGET[2], `tier 2 draw calls with everything built: ${st.calls} (budget ${BUDGET[2]}), ${st.tris} triangles`);
+    // the parade: all six critters behind the hero
+    await ev(page, () => { for (let k = 0; k < 8 && __game.S.critters.length < 6; k++) __game.until('hatch', 120); __game.run(4); const S = __game.S; __game.scene.showcase(new THREE.Vector3(S.hero.x, 0.6, S.hero.z - 1), 0.6, 3); for (let i = 0; i < 50; i++) __game.frame(1 / 60); });
+    check(await ev(page, () => __game.S.critters.length) === 6, 'all six critters hatch');
+    await shoot(page, '23-critter-parade');
+    // a long run: textures must stay bounded (pops are DOM, pads redraw in place)
+    await ev(page, () => __game.run(120));
+    const s2 = await ev(page, () => __game.stats());
+    check(s2.textures <= 60, `live textures after a long run: ${s2.textures} (max 60); geometries ${s2.geometries}`);
+    await shoot(page, '24-noon-busy');
     check(errors.length === 0, `no page errors in the moments run (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
   }
 
-  // ---- golden hour, dusk, tier 0, Arabic HUD
-  for (const [name, q, sec] of [['10-golden-hour', '&tier=2&tod=0.5&bot', 40], ['11-dusk', '&tier=2&tod=1&bot', 40], ['12-tier0-noon', '&tier=0&tod=0&bot', 40], ['13-arabic-hud', '&tier=1&tod=0.3&lang=ar', 3]]) {
+  // ---- golden hour, dusk, tier 0 (budget), Arabic HUD: a built-up town from a late save
+  for (const [name, q, sec] of [['25-golden-hour', '&tier=2&tod=0.5&bot', 230], ['26-dusk-lanterns', '&tier=2&tod=1&bot', 230], ['27-tier0-noon', '&tier=0&tod=0&bot', 230], ['28-arabic-hud', '&tier=1&tod=0.3&lang=ar&bot', 60]]) {
     const { page, errors } = await open(browser, q);
     await ev(page, () => __game.pause());
     await ev(page, (s) => __game.run(s), sec);
     await shoot(page, name);
-    if (name.startsWith('12')) {
+    if (name.startsWith('27')) {
       const ms = await ev(page, () => { const t0 = performance.now(); for (let i = 0; i < 60; i++) __game.frame(1 / 60); return (performance.now() - t0) / 60; });
       const st = await ev(page, () => __game.stats());
-      console.log(`info tier 0: ${ms.toFixed(1)} ms per frame on swiftshader (CPU raster, not a phone), ${st.calls} draw calls, ${st.tris} triangles`);
+      check(st.calls <= BUDGET[0], `tier 0 draw calls late game: ${st.calls} (budget ${BUDGET[0]}), ${st.tris} triangles`);
+      console.log(`info tier 0: ${ms.toFixed(1)} ms per frame on swiftshader (CPU raster, not a phone)`);
     }
     check(errors.length === 0, `no page errors (${name}) ${errors.slice(0, 2).join(' | ')}`);
     await page.close();

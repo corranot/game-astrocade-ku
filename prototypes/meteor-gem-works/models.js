@@ -421,10 +421,11 @@ export function crowdGeos() {
  * The crystal pup (first critter): a round sandy armadillo pup with a crystal shell. Returns parts for animation and
  * the shell geometry (drawn with the gem material).
  */
-export function makeCritter(mat, gemMat) {
+export function makeCritter(mat, gemMat, fur = 0xf0c48c) {
+  const b2 = shade(fur, 0x8a5a3a, 0.22).getHex(), b3 = shade(fur, 0xffffff, 0.18).getHex();
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const add = (parent, geo, c, m = mat) => { const mm = new THREE.Mesh(c === null ? geo : P(geo, c), m); mm.castShadow = true; parent.add(mm); return mm; };
-  add(body, at(sphere(0.34, 16, 12), 0, 0.36, 0, 0, 0, 0, [1, 0.86, 1.15]), (x, y) => shade(0xf0c48c, 0xd99a68, 0.2 - y * 0.6));
+  add(body, at(sphere(0.34, 16, 12), 0, 0.36, 0, 0, 0, 0, [1, 0.86, 1.15]), (x, y) => shade(fur, b2, 0.2 - y * 0.6));
   // crystal shell: rows of faceted plates along the back
   const shell = [];
   for (let r = 0; r < 4; r++) for (let c = -2; c <= 2; c++) {
@@ -437,18 +438,19 @@ export function makeCritter(mat, gemMat) {
   sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); sg.computeVertexNormals();
   const shellMesh = add(body, sg, null, gemMat);
   const head = new THREE.Group(); head.position.set(0, 0.42, 0.38); body.add(head);
-  add(head, at(sphere(0.22, 14, 10), 0, 0, 0, 0, 0, 0, [1, 0.92, 1]), 0xf3cc96);
+  add(head, at(sphere(0.22, 14, 10), 0, 0, 0, 0, 0, 0, [1, 0.92, 1]), b3);
   add(head, at(sphere(0.09, 10, 8), 0, -0.05, 0.18, 0, 0, 0, [1.1, 0.8, 1]), 0xf7dcb4);
   add(head, at(sphere(0.03, 6, 5), 0, -0.02, 0.27), PAL.ink);
   for (const s of [-1, 1]) {
     add(head, at(sphere(0.06, 10, 8), s * 0.1, 0.05, 0.16, 0, 0, 0, [1, 1.15, 0.8]), PAL.ink);
     add(head, at(sphere(0.022, 6, 4), s * 0.1 + 0.02, 0.08, 0.21), 0xfaf3e8);
-    add(head, at(sphere(0.07, 8, 6), s * 0.14, 0.2, -0.02, 0, 0, s * -0.4, [0.7, 1.2, 0.5]), 0xe9b07c);
+    add(head, at(sphere(0.07, 8, 6), s * 0.14, 0.2, -0.02, 0, 0, s * -0.4, [0.7, 1.2, 0.5]), b2);
     add(head, at(sphere(0.04, 6, 5), s * 0.15, -0.06, 0.13, 0, 0, 0, [1, 0.6, 0.4]), 0xf09a9a);
   }
   const feet = [];
-  for (const [x, z] of [[-0.18, 0.18], [0.18, 0.18], [-0.18, -0.2], [0.18, -0.2]]) { const f = add(root, at(sphere(0.085, 8, 6), 0, 0, 0, 0, 0, 0, [1, 0.7, 1.2]), 0xd99a68); f.position.set(x, 0.07, z); feet.push(f); }
-  const tail = add(body, at(lathe([[0.06, 0], [0.04, 0.2], [0, 0.26]], 6), 0, 0.3, -0.42, -2.1), 0xe9b07c);
+  // feet ride with the body (baked in, one draw call): the hop and squash carry them
+  for (const [x, z] of [[-0.18, 0.18], [0.18, 0.18], [-0.18, -0.2], [0.18, -0.2]]) add(body, at(sphere(0.085, 8, 6), x, 0.07, z, 0, 0, 0, [1, 0.7, 1.2]), b2);
+  const tail = new THREE.Group(); tail.position.set(0, 0.3, -0.42); body.add(tail); add(tail, at(lathe([[0.06, 0], [0.04, 0.2], [0, 0.26]], 6), 0, 0, 0, -2.1), b2);
   const tip = add(body, at(lathe([[0, 0], [0.05, 0.02], [0.04, 0.1], [0, 0.14]], 6), 0, 0.2, -0.62, -2.3), null, gemMat);
   void tip;
   collapse([body, head], mat);
@@ -464,7 +466,6 @@ export function animCritter(c, dt, speed, t, happy = 0) {
   c.body.scale.set(1 + (1 - sq) * 0.6, sq, 1 + (1 - sq) * 0.6);
   c.head.rotation.y = speed > 0.25 ? 0 : Math.sin(t * 0.9) * 0.4; c.head.rotation.z = Math.sin(t * 1.7) * 0.08;
   c.tail.rotation.y = Math.sin(t * 8) * 0.4;
-  c.feet.forEach((f, i) => { f.position.y = 0.07 + (speed > 0.25 ? Math.max(0, Math.sin(c.phase + i * 1.6)) * 0.08 : 0); });
   if (happy) c.root.rotation.y += dt * happy * 10;
 }
 
@@ -488,4 +489,121 @@ export function buildTumbleweed() {
   const parts = [];
   for (let k = 0; k < 26; k++) parts.push(P(at(new THREE.TorusGeometry(0.32 + (k % 4) * 0.03, 0.012, 3, 10), 0, 0, 0, k * 1.3, k * 0.7, k * 2.1), k % 3 ? 0xb08a58 : 0x8e6a40));
   return merge(parts);
+}
+
+// ---------------------------------------------------------------- M2 unlocks
+
+/** Ring item: a brass band with a small gem on top (the gem part is drawn tinted by the instance colour). */
+export function ringGeo(s = 0.22) {
+  return merge([P(at(new THREE.TorusGeometry(s * 0.75, s * 0.2, 8, 20), 0, 0, 0, Math.PI / 2), PAL.brass), P(at(new THREE.OctahedronGeometry(s * 0.42, 0), 0, s * 0.85, 0, 0, 0, 0, [1, 0.8, 1]), 0xf8f0ff)]);
+}
+
+/** Chunk conveyor along the points [[x, z], ...] at belt height y: legs, side rails, a dark belt, rollers. */
+export function buildConveyor(pts, y = 0.95) {
+  const parts = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az), ry = Math.atan2(bx - ax, bz - az), mx = (ax + bx) / 2, mz = (az + bz) / 2;
+    parts.push(P(at(rbox(0.62, 0.16, L + 0.3, 0.05), mx, y - 0.1, mz, 0, ry), PAL.tealDark));
+    parts.push(P(at(rbox(0.5, 0.05, L + 0.2, 0.02), mx, y, mz, 0, ry), (x, yy, z) => shade(0x3a3440, 0x4e4656, Math.abs(Math.sin((x + z) * 9)) > 0.8 ? 0.8 : 0)));
+    for (const sd of [-1, 1]) parts.push(P(at(rbox(0.06, 0.14, L + 0.3, 0.02), mx + Math.cos(ry) * sd * 0.31, y + 0.05, mz - Math.sin(ry) * sd * 0.31, 0, ry), PAL.brass));
+    const legs = Math.max(1, Math.round(L / 1.6));
+    for (let k = 0; k <= legs; k++) { const t = k / legs, x = ax + (bx - ax) * t, z = az + (bz - az) * t; parts.push(P(at(cyl(0.06, 0.07, y - 0.15, 6), x, (y - 0.15) / 2, z), PAL.iron)); }
+  }
+  return merge(parts);
+}
+
+/** A string of paper lanterns from (ax, az) to (bx, bz) at height y, with two posts: { rope, lanterns } (lanterns glow). */
+export function buildLanternRope(ax, az, bx, bz, y = 2.9, n = 7) {
+  const rope = [], lan = [], cols = [0xffb14a, 0xff7aa8, 0xffd36a, 0x8fd8ff];
+  for (const [x, z] of [[ax, az], [bx, bz]]) rope.push(P(at(cyl(0.06, 0.08, y + 0.2, 8), x, (y + 0.2) / 2, z), PAL.woodDark), P(at(sphere(0.1, 8, 6), x, y + 0.25, z), PAL.brass));
+  const c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(ax, y, az), new THREE.Vector3((ax + bx) / 2, y - 0.55, (az + bz) / 2), new THREE.Vector3(bx, y, bz));
+  rope.push(P(new THREE.TubeGeometry(c, 16, 0.025, 4), PAL.ink));
+  for (let i = 1; i <= n; i++) {
+    const p = c.getPoint(i / (n + 1));
+    lan.push(P(at(sphere(0.16, 10, 8), p.x, p.y - 0.24, p.z, 0, 0, 0, [1, 1.25, 1]), cols[i % cols.length]));
+    rope.push(P(at(cyl(0.09, 0.09, 0.05, 8), p.x, p.y - 0.05, p.z), PAL.ink), P(at(cyl(0.008, 0.008, 0.1, 3), p.x, p.y - 0.02, p.z), PAL.ink));
+  }
+  return { rope: merge(rope), lanterns: merge(lan) };
+}
+
+/**
+ * The shopkeeper: a round armadillo standing upright in a teal apron and a little brass bowler, banded shell on the
+ * back. Same part layout as makePerson ({ root, body, head, armL, armR, legL, legR }) so animPerson can drive it.
+ */
+export function makeKeeper(mat) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const add = (parent, geo, c) => { const m = new THREE.Mesh(P(geo, c), mat); m.castShadow = true; parent.add(m); return m; };
+  const fur = 0xd9a878, furD = 0xb07a4e, shell = 0x9c7a64;
+  const legs = [-1, 1].map((s) => { const g = new THREE.Group(); g.position.set(s * 0.16, 0.36, 0); add(g, at(sphere(0.11, 8, 6), 0, -0.14, 0, 0, 0, 0, [1, 1.3, 1]), furD); add(g, at(sphere(0.1, 8, 6), 0, -0.3, 0.06, 0, 0, 0, [1, 0.6, 1.4]), furD); root.add(g); return g; });
+  add(body, at(sphere(0.36, 16, 12), 0, 0.68, 0, 0, 0, 0, [1, 1.12, 0.92]), (x, y) => shade(fur, 0xf3d6a6, Math.max(0, 0.3 - y * 0.2)));
+  for (let k = 0; k < 5; k++) add(body, at(new THREE.TorusGeometry(0.33 - Math.abs(k - 2) * 0.04, 0.055, 6, 18, Math.PI * 1.1), 0, 0.5 + k * 0.1, -0.06, 0, 0, Math.PI * 0.95 + Math.PI / 2 - 0.05).rotateY(0), (x, y) => shade(shell, 0x6e5444, (k % 2) * 0.4));
+  add(body, at(rbox(0.46, 0.5, 0.06, 0.03), 0, 0.62, 0.31, -0.12), PAL.teal);
+  add(body, at(rbox(0.2, 0.1, 0.04, 0.02), 0, 0.6, 0.35, -0.12), PAL.brass);
+  const head = new THREE.Group(); head.position.set(0, 1.1, 0.04); body.add(head);
+  add(head, at(sphere(0.23, 14, 10), 0, 0, 0, 0, 0, 0, [1, 0.95, 1]), fur);
+  add(head, at(lathe([[0, 0], [0.1, 0.02], [0.08, 0.18], [0, 0.22]], 10), 0, -0.04, 0.12, Math.PI / 2 - 0.1), 0xf3d6a6);
+  add(head, at(sphere(0.035, 6, 5), 0, -0.02, 0.36), PAL.ink);
+  for (const s of [-1, 1]) {
+    add(head, at(sphere(0.05, 8, 6), s * 0.1, 0.06, 0.18, 0, 0, 0, [1, 1.2, 0.7]), PAL.ink);
+    add(head, at(sphere(0.018, 6, 4), s * 0.1 + 0.015, 0.085, 0.215), 0xfaf3e8);
+    add(head, at(sphere(0.08, 8, 6), s * 0.17, 0.17, -0.04, 0, 0, s * -0.5, [0.6, 1.25, 0.45]), furD);
+    add(head, at(sphere(0.04, 6, 5), s * 0.15, -0.05, 0.16, 0, 0, 0, [1, 0.6, 0.4]), 0xf09a9a);
+  }
+  add(head, at(lathe([[0, 0], [0.26, 0], [0.27, 0.03], [0.16, 0.05], [0.15, 0.17], [0.1, 0.21], [0, 0.21]], 16), 0, 0.17, -0.02, -0.12), PAL.brassDark);
+  add(head, at(new THREE.TorusGeometry(0.152, 0.022, 4, 16), 0, 0.24, -0.03, Math.PI / 2 - 0.12), PAL.teal);
+  const arms = [-1, 1].map((s) => { const g = new THREE.Group(); g.position.set(s * 0.33, 0.86, 0.04); body.add(g); add(g, at(cyl(0.065, 0.06, 0.3, 8), 0, -0.14, 0), fur); add(g, at(sphere(0.075, 8, 6), 0, -0.31, 0), furD); return g; });
+  collapse([body, head, ...legs, ...arms], mat);
+  return { root, body, head, armL: arms[0], armR: arms[1], legL: legs[0], legR: legs[1], prop: null, phase: 0 };
+}
+
+/** Canyon road (dirt strip with ruts) from x0 to x1 at z, and a plank bridge over a dry gully at bx; planks separate. */
+export function buildRoad(x0, x1, z, bx) {
+  const parts = [], L = x1 - x0;
+  parts.push(P(at(new THREE.PlaneGeometry(L, 2.6, Math.round(L), 4).rotateX(-Math.PI / 2), (x0 + x1) / 2, 0.03, z), (x, y, zz) => shade(0xc99863, 0xa87a4e, Math.abs(Math.sin(zz * 3.2)) > 0.9 ? 0.6 : noise3(x * 0.4, 0, zz) * 0.3)));
+  // the gully: a dark trench either side of the bridge, rocks at its lips
+  parts.push(P(at(rbox(2.4, 0.4, 3.4, 0.15), bx, -0.15, z), 0x6e4a32));
+  for (let k = 0; k < 8; k++) parts.push(P(at(new THREE.DodecahedronGeometry(0.25 + (k % 3) * 0.12, 0), bx + (k % 2 ? 1.35 : -1.35), 0.08, z - 1.5 + k * 0.42, k, k * 2, 0), k % 2 ? PAL.terra : PAL.terraDark));
+  for (const sd of [-1, 1]) { parts.push(P(at(rbox(2.8, 0.14, 0.14, 0.04), bx, 0.62, z + sd * 1.25), PAL.woodDark)); for (const dx of [-1.3, 0, 1.3]) parts.push(P(at(cyl(0.07, 0.08, 0.7, 6), bx + dx, 0.32, z + sd * 1.25), PAL.woodDark)); }
+  const planks = []; for (let k = 0; k < 7; k++) planks.push(P(at(rbox(0.36, 0.08, 2.5, 0.03), bx - 1.15 + k * 0.38, 0.22, z), k % 2 ? PAL.plank : PAL.woodLight));
+  // bus stop sign
+  parts.push(P(at(cyl(0.05, 0.05, 2.0, 6), bx + 5.2, 1.0, z + 1.7), PAL.iron), P(at(cyl(0.32, 0.32, 0.06, 18), bx + 5.2, 2.05, z + 1.7, Math.PI / 2), PAL.sun), P(at(cyl(0.22, 0.22, 0.07, 18), bx + 5.2, 2.05, z + 1.72, Math.PI / 2), PAL.teal));
+  return { road: merge(parts), planks };
+}
+
+/** Tour bus: a rounded mint-and-cream coach with a striped roof rack; wheels separate (they spin). Faces +x. */
+export function buildBus() {
+  const parts = [], win = [];
+  parts.push(P(at(rbox(4.6, 1.7, 2.0, 0.35), 0, 1.25, 0), (x, y) => shade(PAL.mint, PAL.teal, y < 0.95 ? 0.55 : 0.05)));
+  parts.push(P(at(rbox(4.7, 0.16, 2.06, 0.06), 0, 1.0, 0), PAL.cream));
+  parts.push(P(at(rbox(4.2, 0.22, 1.7, 0.08), 0, 2.18, 0), PAL.cream));
+  for (let k = 0; k < 4; k++) parts.push(P(at(rbox(0.7, 0.3, 0.5, 0.06), -1.5 + k * 0.95, 2.43, (k % 2 ? 0.35 : -0.3)), [PAL.red, PAL.sun, PAL.violet, PAL.pink][k]));
+  parts.push(P(at(rbox(0.3, 0.35, 1.7, 0.1), 2.35, 0.6, 0), PAL.brassDark));
+  for (const sz of [-0.7, 0.7]) parts.push(P(at(sphere(0.13, 10, 8), 2.32, 0.95, sz, 0, 0, 0, [0.5, 1, 1]), 0xfff0c0));
+  for (let k = 0; k < 4; k++) for (const sz of [-1, 1]) win.push(P(at(rbox(0.72, 0.55, 0.06, 0.08), -1.6 + k * 0.95, 1.55, sz * 1.0), 0xffffff));
+  win.push(P(at(rbox(0.06, 0.62, 1.6, 0.08), 2.31, 1.55, 0), 0xffffff));
+  const wheels = []; for (const wx of [-1.5, 1.5]) for (const sz of [-1, 1]) wheels.push([wx, 0.42, sz * 0.98]);
+  return { body: merge(parts), windows: merge(win), wheel: merge([P(at(cyl(0.42, 0.42, 0.26, 18), 0, 0, 0, Math.PI / 2), PAL.ink), P(at(cyl(0.22, 0.22, 0.28, 12), 0, 0, 0, Math.PI / 2), PAL.steel)]), wheels };
+}
+
+/** Ring workshop: a little canopied bench with an anvil, a brass press and a ring tray. */
+export function buildWorkshop() {
+  const parts = [];
+  parts.push(P(at(rbox(2.2, 0.85, 1.3, 0.08), 0, 0.42, 0), (x, y) => shade(PAL.wood, PAL.woodDark, Math.abs(Math.sin(y * 11)) > 0.92 ? 0.5 : 0.12)));
+  parts.push(P(at(rbox(2.35, 0.1, 1.45, 0.04), 0, 0.88, 0), PAL.woodLight));
+  parts.push(P(at(rbox(0.5, 0.25, 0.35, 0.06), -0.55, 1.05, 0), PAL.iron), P(at(rbox(0.75, 0.14, 0.32, 0.05), -0.55, 1.22, 0), PAL.iron), P(at(lathe([[0, 0], [0.12, 0], [0.02, 0.3]], 8), -0.17, 1.22, 0, 0, 0, -Math.PI / 2), PAL.iron));
+  parts.push(P(at(rbox(0.4, 0.9, 0.4, 0.08), 0.55, 1.35, -0.2), PAL.teal), P(at(cyl(0.1, 0.1, 0.4, 10), 0.55, 1.0, -0.2), PAL.steel), P(at(sphere(0.12, 8, 6), 0.55, 1.88, -0.2), PAL.brass));
+  parts.push(P(at(rbox(0.8, 0.06, 0.5, 0.02), 0.5, 0.95, 0.35), PAL.velvet));
+  // canopy on four posts, striped awning
+  for (const [x, z] of [[-1.05, -0.6], [1.05, -0.6], [-1.05, 0.6], [1.05, 0.6]]) parts.push(P(at(cyl(0.05, 0.06, 2.5, 8), x, 1.25, z), PAL.woodDark));
+  parts.push(P(at(rbox(2.6, 0.12, 1.7, 0.05), 0, 2.55, 0, 0.08), (x) => (Math.floor((x + 2) * 2.5) % 2 ? col(PAL.red) : col(PAL.cream))));
+  parts.push(P(at(rbox(1.6, 0.42, 0.1, 0.05), 0, 2.95, -0.7), PAL.violet), P(at(new THREE.TorusGeometry(0.14, 0.04, 6, 16), 0, 2.95, -0.63), PAL.brass));
+  return merge(parts);
+}
+
+/** Laser cutter turret: a mint base, a brass ring and a swivel head with three emitter barrels (head separate). */
+export function buildLaser() {
+  const base = merge([P(at(rbox(1.2, 0.3, 1.2, 0.12), 0, 0.15, 0), PAL.tealDark), P(at(cyl(0.35, 0.45, 0.8, 14), 0, 0.7, 0), PAL.teal), P(at(new THREE.TorusGeometry(0.38, 0.05, 6, 20), 0, 1.1, 0, Math.PI / 2), PAL.brass)]);
+  const parts = [P(at(rbox(0.7, 0.5, 0.9, 0.16), 0, 0, 0), PAL.cream), P(at(rbox(0.74, 0.1, 0.94, 0.04), 0, 0.2, 0), PAL.teal)];
+  for (const dx of [-0.2, 0, 0.2]) parts.push(P(at(cyl(0.06, 0.08, 0.55, 8), dx, dx === 0 ? 0.06 : -0.08, -0.65, Math.PI / 2), PAL.steel), P(at(cyl(0.085, 0.085, 0.06, 10), dx, dx === 0 ? 0.06 : -0.08, -0.92, Math.PI / 2), PAL.brass));
+  return { base, head: merge(parts) };
 }

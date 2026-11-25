@@ -8,22 +8,27 @@ Perfect Strike when tapped. An egg falls out of the meteor and hatches a crystal
 
 Plan: [plan.md](plan.md) (v2, approved by the owner on 2026-11-25).
 
-## Milestone 1: visual sample (this build)
+## Milestone 2: core loop, unlocks 1-7 (this build)
 
-What M1 must show, so the owner can approve the look before M2 (plan.md §11):
+- Unlocks in order, one price pad that moves on: drill rig 25, conveyor + polisher 2 60, stand 2 + lanterns 80,
+  armadillo shopkeeper 105, road + tour bus 125, ring workshop 155, mining laser 180.
+- Orders (a kid wants a gem or a ring, no timer), 6 critters from eggs, Crystal Rush (loose gems rain down),
+  tour bus waves, the guide arrow, and save/continue.
+- Onboarding: a 3 s cold open (the meteor falls in) that any touch or key skips and hands over control at once,
+  the NEXT card (icon, fill bar, coins left), a "drag to move" hint and a tapping finger on the first glint.
+- Returning players get a CONTINUE / NEW GAME card; NEW GAME needs a second tap. Save every 4 s, on hide, on unlock
+  and on hatch; writes are chained and only start after the first read succeeded.
+- Look: fresnel rim light on characters and critters, bloom capped so gems stay readable, the camera frames the
+  meteor closer while mining and punches in on a Perfect Strike.
+- The bot reaches the laser in about 3:35 (3:27 to 4:12 over 12 seeds) with a reward at least every 45 s.
 
-- The crater square at noon, golden hour and dusk (time-of-day keys in `game_config.json` `tod`).
-- The meteor: lumpy lat-long sphere, crystal seams that glow, and a cut map (DataTexture) that digs the rock in and
-  reveals glowing crystal where it is mined (hand, Perfect Strike, drill rig).
-- The hero mining with a pickaxe swing, a glint strike, chunks flying to the pile, the carried stack.
-- One polisher, the counter, the glass stand with tourists who buy and cheer, the crowd behind the rope.
-- One price pad (drill rig), its build-up bounce, the rig drilling the meteor.
-- One egg: lodged, falls, hatches; one critter (the crystal pup) that follows the hero.
-- Gem material (faceted, tinted emissive), HUD frame (wood and brass), tone mapping and grade, selective bloom.
-- Glare and contrast checks, tier 0 (no shadow map, no glow pass, blob shadows) for 60 FPS on phones.
+Distribution notes (theme row, first 40 s, update plan, listing text) are in [plan.md](plan.md) §15.
 
-M1 does not save progress, has no music loop yet (sound effects are made in code), and has one unlock. Those come
-in M2 to M4.
+## Milestone 1: visual sample
+
+M1 showed the look before M2 (plan.md §12): the crater square at three times of day, the meteor with its cut map,
+mining, polishing, selling, one pad, one egg and one critter. Its evidence is in
+`production/qa/evidence/meteor-gem-works/`.
 
 ## Controls
 
@@ -33,10 +38,10 @@ in M2 to M4.
 ## Run it
 
 - `?local` serves as the host (stub `lib`, reads `game_config.json`). Other parameters: `tier=0..3`,
-  `tod=0..1` (0 noon, 0.5 golden hour, 1 dusk), `bot` (the guide plays), `lang=en|ar|es|vi|hi|bn|id`.
-- `node --test logic.test.mjs`: rules (polish, carry cap, the guide never dead-ends, bot pacing, quality, tod).
-- `node playtest.js <out>`: plays with the bot and real input, saves the M1 screenshots, checks glare per shot,
-  live textures after a long run, and that no module touches THREE on import.
+  `tod=0..1` (0 noon, 0.5 golden hour, 1 dusk), `bot` (the guide plays, no cold open), `nointro`, `lang=en|ar|es|vi|hi|bn|id`.
+- `node --test logic.test.mjs`: rules (polish, carry with a critter, the guide is never stuck, unlock order and pacing, save round trip, quality, tod).
+- `node playtest.js <out>`: plays with the bot and real input, saves the M2 screenshots, checks the cold open skip,
+  save/continue, every unlock and moment, draw-call budgets, glare per shot, live textures after a long run, and that no module touches THREE on import.
 
 ## Code structure
 
@@ -48,11 +53,12 @@ in M2 to M4.
 - `game_config.json`: all tuning values and the 7-language strings.
 - `asset_map.json`: the Baloo font files (SIL Open Font License 1.1), shared with the studio's other games.
 
-## M1 evidence
+## Evidence
 
-Screenshots from `playtest.js` (tier 2 unless named, 405 x 720 at 2x) are in
-`production/qa/evidence/meteor-gem-works/`: noon start, mining close-up, Perfect Strike, stand with tourists,
-polisher and counter, egg hatching, new friend, drill rig, critter following, busy noon after 3 minutes, golden
-hour, dusk, tier 0, Arabic HUD. Every shot is under 0.25% near-white pixels (limit 2%). Live GPU textures stay at
-15 after a 3-minute run. Frame times come from swiftshader (CPU raster), so the 60 FPS check on a real phone is
-still open: tier 0 draws about 100 calls and 106k triangles, tier 2 about 180 calls and 230k triangles.
+- M1: `production/qa/evidence/meteor-gem-works/`.
+- M2: `production/qa/evidence/meteor-gem-works/m2/`, from `playtest.js` (405 x 720 at 2x, tier 2 unless named):
+  cold open, NEXT card, first-glint finger, continue card, every unlock, keeper, bus, order, rings, laser, Rush,
+  critter parade, busy noon, golden hour, dusk, tier 0, Arabic HUD. Every shot is under 0.2% near-white pixels.
+- Budgets with everything built: tier 0 about 139 draw calls and 141k triangles (budget 160), tier 2 about 211 calls
+  and 277k triangles (budget 260). Live textures stay at 15 after a long run.
+- Frame times come from swiftshader (CPU raster), so the 60 FPS check on a real phone is still open.

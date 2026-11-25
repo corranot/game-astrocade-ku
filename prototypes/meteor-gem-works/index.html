@@ -49,6 +49,33 @@ body{display:flex;align-items:center;justify-content:center}
 /* the joystick ring */
 .stick{position:absolute;width:calc(var(--u)*180px);height:calc(var(--u)*180px);translate:-50% -50%;border-radius:50%;border:calc(var(--u)*5px) solid rgba(255,243,220,.6);background:rgba(58,36,24,.18)}
 .stick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*80px);height:calc(var(--u)*80px);margin:calc(var(--u)*-40px);border-radius:50%;background:radial-gradient(circle at 38% 30%,#ffe9b0,#e5b75a 70%);box-shadow:0 calc(var(--u)*5px) 0 rgba(58,36,24,.5)}
+/* NEXT card: the unlock that is up next, its icon, a fill bar for the coins you have toward it, and the price */
+.next{position:absolute;top:var(--m);left:50%;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*10px);height:calc(var(--u)*86px);box-sizing:border-box;padding:0 calc(var(--u)*22px) 0 calc(var(--u)*8px);border-radius:calc(var(--u)*30px);direction:ltr;
+  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*5px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,255,255,.22),0 calc(var(--u)*8px) 0 calc(var(--u)*2px) rgba(58,36,24,.55);transition:opacity .3s}
+.next canvas{width:calc(var(--u)*66px);height:calc(var(--u)*66px)}
+.next .bar{position:relative;width:calc(var(--u)*120px);height:calc(var(--u)*22px);border-radius:calc(var(--u)*11px);background:rgba(20,40,40,.5);box-shadow:inset 0 0 0 calc(var(--u)*3px) var(--ink);overflow:hidden}
+.next .bar i{position:absolute;inset:0;width:0;border-radius:inherit;background:linear-gradient(#ffe9a0,#f2b43a);box-shadow:inset 0 0 0 calc(var(--u)*3px) var(--ink);transition:width .25s}
+.next b{font-size:calc(var(--u)*44px);line-height:1;color:#ffe08a;min-width:calc(var(--u)*60px)}
+.next.ready{animation:pulse .8s ease-in-out infinite}.next.ready b{color:#fff3dc}
+.next[hidden],.bubble[hidden],.menu[hidden],.tap[hidden]{display:none}
+/* the order kid's speech bubble: just the item it wants and a heart */
+.bubble{position:absolute;translate:-50% -100%;display:flex;align-items:center;gap:calc(var(--u)*6px);padding:calc(var(--u)*10px) calc(var(--u)*18px);border-radius:calc(var(--u)*28px);background:#fff3dc;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 calc(var(--u)*6px) 0 calc(var(--u)*2px) rgba(58,36,24,.45);animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:calc(var(--u)*-16px);margin-left:calc(var(--u)*-12px);border:calc(var(--u)*12px) solid transparent;border-top-color:#fff3dc;border-bottom:0}
+.bubble canvas{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
+.bubble em{font-style:normal;font-size:calc(var(--u)*40px);color:#e04c8c}
+/* continue / new game card */
+.menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*34px);background:radial-gradient(ellipse at 50% 45%,rgba(42,34,51,.15),rgba(42,34,51,.55));pointer-events:auto}
+.menu h1{margin:0 0 calc(var(--u)*20px);font-size:calc(var(--u)*92px);line-height:1;color:#ffe08a;text-align:center}
+.menu button{pointer-events:auto;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;min-width:calc(var(--u)*420px);height:calc(var(--u)*128px);border-radius:calc(var(--u)*44px);font-size:calc(var(--u)*58px);color:#ffe08a;
+  background:linear-gradient(#a8693c,#86502c 55%,#6e4024);border:calc(var(--u)*6px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),inset 0 calc(var(--u)*5px) 0 rgba(255,220,170,.35),0 calc(var(--u)*10px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+.menu .go{background:linear-gradient(#3fb3a3,#2a7f78);font-size:calc(var(--u)*66px);height:calc(var(--u)*150px);animation:pulse 1.2s ease-in-out infinite}
+.menu .new{min-width:calc(var(--u)*320px);height:calc(var(--u)*100px);font-size:calc(var(--u)*44px)}
+.menu .new.sure{background:linear-gradient(#d9544a,#a83a32);color:#fff3dc}
+/* first-glint hint: a tapping finger over the sparkle */
+.tap{position:absolute;translate:-50% -10%;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6px)}
+.tap i{width:calc(var(--u)*90px);height:calc(var(--u)*90px);border-radius:50%;background:radial-gradient(circle,rgba(255,243,220,.95) 0 30%,rgba(255,243,220,.35) 31% 55%,transparent 56%);animation:tapf 1s ease-in-out infinite}
+.tap b{font-size:calc(var(--u)*40px);white-space:nowrap}
+@keyframes tapf{0%,100%{transform:scale(1)}40%{transform:scale(.72)}}
 .retry{position:absolute;inset:0;margin:auto;width:140px;height:140px;border-radius:50%;border:5px solid #e5b75a;background:#7e4f2e;color:#ffe08a;font-size:64px;cursor:pointer}
 .retry small{display:block;font-size:18px}
 @keyframes bump{40%{transform:scale(1.14)}}
@@ -56,7 +83,7 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes popIn{from{transform:scale(.3)}}
 @keyframes ban{from{transform:translateY(calc(var(--u)*-60px)) scale(.6);opacity:0}}
 @keyframes drag{0%,100%{transform:translateX(calc(var(--u)*-70px))}50%{transform:translateX(calc(var(--u)*70px))}}
-@media (prefers-reduced-motion: reduce){.banner.go,.pop.big,.hand,.carry.max{animation:none}}
+@media (prefers-reduced-motion: reduce){.banner.go,.pop.big,.hand,.carry.max,.next.ready,.menu .go,.tap i,.bubble{animation:none}}
 </style>
 </head>
 <body>
