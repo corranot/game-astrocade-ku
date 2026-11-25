@@ -1,0 +1,134 @@
+ok   no module touches THREE when imported (all 4 load)
+ok   a new game opens with the cold open
+ok   01-cold-open-fall: glare 0.00% near-white (max 2%), mean luminance 160
+ok   02-cold-open-impact: glare 0.03% near-white (max 2%), mean luminance 137
+ok   a tap skips the cold open into play
+ok   03-start-next-card: glare 0.00% near-white (max 2%), mean luminance 125
+ok   a drag to the right walks the hero right (-2.30 -> 1.49)
+ok   the first sparkle gets a tapping finger
+ok   04-first-glint-finger: glare 0.01% near-white (max 2%), mean luminance 125
+ok   a tap on the sparkle lands a Perfect Strike (pile 9 -> 12)
+ok   the game saves its progress (119 sold, 5 unlocks)
+ok   no page errors in the new-game run ()
+ok   a saved game shows the CONTINUE / NEW GAME card
+ok   05-continue-card: glare 0.00% near-white (max 2%), mean luminance 119
+ok   NEW GAME asks for a second tap
+ok   CONTINUE restores the save (119 sold, 5 unlocks)
+ok   06-continued-town: glare 0.00% near-white (max 2%), mean luminance 118
+ok   no page errors in the continue run ()
+ok   07-mining-closeup: glare 0.03% near-white (max 2%), mean luminance 132
+ok   08-perfect-punch-in: glare 0.14% near-white (max 2%), mean luminance 135
+ok   moment 09-unlock-drill-rig happened
+info 09-unlock-drill-rig at game time 15 s
+ok   09-unlock-drill-rig: glare 0.00% near-white (max 2%), mean luminance 125
+ok   moment 10-new-critter happened
+info 10-new-critter at game time 25 s
+ok   10-new-critter: glare 0.12% near-white (max 2%), mean luminance 121
+ok   moment 11-unlock-conveyor happened
+info 11-unlock-conveyor at game time 49 s
+ok   11-unlock-conveyor: glare 0.00% near-white (max 2%), mean luminance 130
+ok   moment 12-unlock-stand2-lanterns happened
+info 12-unlock-stand2-lanterns at game time 76 s
+ok   12-unlock-stand2-lanterns: glare 0.00% near-white (max 2%), mean luminance 123
+ok   moment 13-unlock-shopkeeper happened
+info 13-unlock-shopkeeper at game time 120 s
+ok   13-unlock-shopkeeper: glare 0.00% near-white (max 2%), mean luminance 122
+ok   moment 14-keeper-delivers happened
+info 14-keeper-delivers at game time 122 s
+ok   14-keeper-delivers: glare 0.00% near-white (max 2%), mean luminance 132
+ok   moment 15-unlock-road happened
+info 15-unlock-road at game time 145 s
+ok   15-unlock-road: glare 0.00% near-white (max 2%), mean luminance 127
+ok   moment 16-tour-bus happened
+info 16-tour-bus at game time 152 s
+ok   16-tour-bus: glare 0.06% near-white (max 2%), mean luminance 127
+ok   moment 18-unlock-ring-workshop happened
+info 18-unlock-ring-workshop at game time 174 s
+ok   18-unlock-ring-workshop: glare 0.10% near-white (max 2%), mean luminance 127
+ok   moment 19-rings happened
+info 19-rings at game time 180 s
+ok   19-rings: glare 0.00% near-white (max 2%), mean luminance 120
+ok   moment 20-unlock-laser happened
+info 20-unlock-laser at game time 232 s
+ok   20-unlock-laser: glare 0.00% near-white (max 2%), mean luminance 125
+ok   moment 21-laser-fires happened
+info 21-laser-fires at game time 232 s
+ok   21-laser-fires: glare 0.25% near-white (max 2%), mean luminance 122
+ok   moment 22-crystal-rush happened
+info 22-crystal-rush at game time 266 s
+ok   22-crystal-rush: glare 0.03% near-white (max 2%), mean luminance 130
+ok   moment 17-order-bubble happened
+info 17-order-bubble at game time 292 s
+ok   17-order-bubble: glare 0.00% near-white (max 2%), mean luminance 139
+info moments: unlock:rig, hatch, unlock:conveyor, unlock:stand2, unlock:keeper, keeperDrop, unlock:road, bus, unlock:workshop, ring, unlock:laser, laserHit, rush, order
+ok   tier 2 draw calls with everything built: 134 (budget 260), 305312 triangles
+ok   six critters hatch
+ok   23-critter-parade: glare 0.01% near-white (max 2%), mean luminance 125
+ok   live textures after a long run: 15 (max 60); geometries 154
+ok   24-noon-busy: glare 0.05% near-white (max 2%), mean luminance 131
+ok   no page errors in the moments run ()
+ok   25-golden-hour: glare 0.04% near-white (max 2%), mean luminance 104
+ok   no page errors (25-golden-hour) 
+ok   26-dusk-lanterns: glare 0.05% near-white (max 2%), mean luminance 64
+ok   no page errors (26-dusk-lanterns) 
+ok   27-tier0-noon: glare 0.11% near-white (max 2%), mean luminance 148
+ok   tier 0 draw calls late game: 118 (budget 160), 178212 triangles
+info tier 0: 1.5 ms per frame on swiftshader (CPU raster, not a phone)
+ok   no page errors (27-tier0-noon) 
+ok   28-arabic-hud: glare 0.08% near-white (max 2%), mean luminance 122
+ok   no page errors (28-arabic-hud) 
+ok   the ghost town goal card is up while houses are dark
+ok   29-ghost-goal-card: glare 0.00% near-white (max 2%), mean luminance 127
+ok   the mine cart lights a house
+ok   30-ghost-house-lights: glare 0.02% near-white (max 2%), mean luminance 129
+ok   moment 31-unlock-rig2 happened
+ok   31-unlock-rig2: glare 0.01% near-white (max 2%), mean luminance 123
+ok   moment 32-unlock-cable-car happened
+info 32-unlock-cable-car at game time 357 s
+ok   32-unlock-cable-car: glare 0.05% near-white (max 2%), mean luminance 131
+ok   moment 33-unlock-stargazer-dusk happened
+info 33-unlock-stargazer-dusk at game time 417 s
+ok   33-unlock-stargazer-dusk: glare 0.00% near-white (max 2%), mean luminance 127
+ok   moment 34-unlock-crown-jeweler happened
+info 34-unlock-crown-jeweler at game time 465 s
+ok   34-unlock-crown-jeweler: glare 0.00% near-white (max 2%), mean luminance 92
+ok   moment 35-crown-to-cable-car happened
+info 35-crown-to-cable-car at game time 471 s
+ok   35-crown-to-cable-car: glare 0.03% near-white (max 2%), mean luminance 100
+ok   moment 36-unlock-neon-night happened
+info 36-unlock-neon-night at game time 515 s
+ok   36-unlock-neon-night: glare 0.05% near-white (max 2%), mean luminance 97
+ok   the share button shows at a big moment
+ok   37-share-button: glare 0.07% near-white (max 2%), mean luminance 95
+ok   share sends a picture and a line ([{"img":"data:image/jpeg","len":184859,"text":"My crystal town in Meteor Gems!"}])
+ok   moment 38-finale-heart-rises happened
+info 38-finale-heart-rises at game time 597 s
+ok   38-finale-heart-rises: glare 0.10% near-white (max 2%), mean luminance 72
+ok   moment 39-finale-legendary-hatch happened
+info 39-finale-legendary-hatch at game time 598 s
+ok   39-finale-legendary-hatch: glare 0.06% near-white (max 2%), mean luminance 72
+ok   moment 40-finale-comet happened
+info 40-finale-comet at game time 604 s
+ok   40-finale-comet: glare 0.70% near-white (max 2%), mean luminance 171
+ok   moment 41-chapter-1-complete happened
+info 41-chapter-1-complete at game time 607 s
+ok   41-chapter-1-complete: glare 0.08% near-white (max 2%), mean luminance 66
+ok   chapter 1 is complete with the legendary critter ({"done1":true,"crit":12,"hats":5,"stars":3,"nova":true})
+ok   after the last unlock the NEXT card shows the album count (the next goal)
+ok   the album opens and game time stops
+ok   42-album: glare 0.06% near-white (max 2%), mean luminance 66
+ok   tapping a hat in the album wears it (crown -> cowboy)
+ok   tier 2 draw calls with chapter 1 complete: 194 (budget 260), 390150 triangles
+ok   tier 0 draw calls with chapter 1 complete: 144 (budget 160), 236936 triangles
+ok   43-tier0-chapter1-night: glare 0.12% near-white (max 2%), mean luminance 72
+ok   no page errors in the M3 run ()
+ok   slow frames drop the quality (tier 2 -> 0, pixel ratio 1.35 -> 0.8)
+ok   no page errors in the perf-guard run ()
+info soak 1m tex 10 geo 81 heap 45MB pads 2 | 2m tex 10 geo 95 heap 45MB pads 4 | 3m tex 10 geo 115 heap 45MB pads 6 | 4m tex 10 geo 120 heap 45MB pads 7 | 5m tex 10 geo 132 heap 45MB pads 8 | 6m tex 10 geo 140 heap 45MB pads 9 | 7m tex 10 geo 146 heap 45MB pads 10 | 8m tex 10 geo 152 heap 45MB pads 11 | 9m tex 10 geo 156 heap 45MB pads 12 | 10m tex 10 geo 161 heap 45MB pads 13 | 11m tex 10 geo 168 heap 45MB pads 14 | 12m tex 10 geo 168 heap 45MB pads 14 | 13m tex 10 geo 168 heap 45MB pads 14 | 14m tex 10 geo 168 heap 45MB pads 14 | 15m tex 10 geo 168 heap 45MB pads 14 | 16m tex 10 geo 168 heap 45MB pads 14
+ok   soak: textures and geometries flat in the last 5 minutes (spans 0 / 0, max textures 10)
+ok   soak: JS heap does not climb (45 MB at 6 min -> 45 MB at 16 min)
+ok   no page errors in the soak run ()
+
+43 screenshots in <outDir>
+all checks passed
+exit 0

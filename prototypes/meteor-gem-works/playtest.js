@@ -202,8 +202,14 @@ async function open(browser, q = '', seed = null) {
     await after(20);
     check(await ev(page, () => !document.getElementById('goal').hidden), 'the ghost town goal card is up while houses are dark');
     await shoot(page, '29-ghost-goal-card');
-    check(await until('ghostLight'), 'the mine cart lights a house'); await after(70); await shoot(page, '30-ghost-house-lights');
-    const M3 = [['unlock', 'rig2', '31-unlock-rig2', 60], ['unlock', 'cable', '32-unlock-cable-car', 70], ['unlock', 'stargaze', '33-unlock-stargazer-dusk', 70],
+    // the second rig and the first lit house land a few seconds apart; either may come first
+    const rig2First = await ev(page, () => { for (let k = 0; k < 120; k++) { __game.until('unlock', 1); if (__game.S.pads.find((p) => p.id === 'rig2').done) return true; if (__game.S.ghost.lit > 0) return false; } return null; });
+    const rigShot = async () => { await after(60); await shoot(page, '31-unlock-rig2'); };
+    if (rig2First) await rigShot();
+    check(await ev(page, () => __game.S.ghost.lit > 0) || await until('ghostLight'), 'the mine cart lights a house'); await after(70); await shoot(page, '30-ghost-house-lights');
+    if (!rig2First) { check(await ev(page, () => __game.S.pads.find((p) => p.id === 'rig2').done) || await until('unlock', 'rig2'), 'moment 31-unlock-rig2 happened'); await rigShot(); }
+    else check(true, 'moment 31-unlock-rig2 happened');
+    const M3 = [['unlock', 'cable', '32-unlock-cable-car', 70], ['unlock', 'stargaze', '33-unlock-stargazer-dusk', 70],
       ['unlock', 'crown', '34-unlock-crown-jeweler', 60], ['crown', null, '35-crown-to-cable-car', 75], ['unlock', 'neon', '36-unlock-neon-night', 150]];
     for (const [t, id, name, n] of M3) { const ok = await until(t, id); check(ok, `moment ${name} happened`); await after(n); console.log(`info ${name} at game time ${(await ev(page, () => __game.S.t)) | 0} s`); await shoot(page, name); }
     // the share button: shows at a big moment and sends a picture of the town with the brag line
