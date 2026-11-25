@@ -113,6 +113,7 @@ async function calm(page) {
     if (z === 1 && (await g(() => __game.R.L > 60)) && !fs.existsSync(path.join(out, '03-big-hammer.jpg'))) await page.screenshot({ path: path.join(out, '03-big-hammer.jpg'), type: 'jpeg', quality: 82 });
   }
   check(seen === 5, `play moves through all six zones (${seen + 1} reached, ${guard} taps)`);
+  check(await g(() => ['boss', 'defeat'].every((id) => __game.cineLog.includes(id))), 'the boss cutscene plays on reaching the boss, and the defeat one when it breaks');
   if (!cardSeen) await page.waitForFunction(() => __game.mult === 2 || __game.card, null, { timeout: 15000 }).catch(() => {});
   if (await g(() => __game.card)) { cardSeen = true; cardAt = await g(() => __game.sessT); }
   const sess = await g(() => __game.sessT);
@@ -179,6 +180,8 @@ async function calm(page) {
       hps.push(await g6((id) => __game.R.objects[id].hp, v.id));
       if (i === 2) { await p6.waitForTimeout(300); await p6.screenshot({ path: path.join(out, '10-vault-hit.jpg'), type: 'jpeg', quality: 82 }); }
     }
+    check(await g6(() => __game.cine && __game.cine.id === 'defeat' && !__game.card), 'the boss break plays its defeat cutscene, and the results wait for it');
+    await p6.waitForTimeout(500); await p6.screenshot({ path: path.join(out, '29-boss-defeat.jpg'), type: 'jpeg', quality: 82 });
     check(hps.length === v.hp && hps.slice(0, -1).every((h, i) => h === v.hp - 1 - i) && !(await g6((id) => __game.R.objects[id].alive, v.id)), `the vault takes ${v.hp} hits (hp ${hps.join(', ')})`);
     const shown = await p6.waitForFunction(() => __game.card, null, { timeout: 15000 }).then(() => true, () => false);
     check(shown, 'the results card shows after the vault once the session is long enough');

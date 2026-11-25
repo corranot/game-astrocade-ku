@@ -158,6 +158,23 @@ play. This container has no GPU, so WebGL runs on SwiftShader, a software render
   compiles mid-cutscene.
 - **Cheaper relabels.** A label texture swap no longer rebuilds the label's shader on every slam.
 
+### M3: boss intro and boss defeat (all four bosses)
+
+- **Boss intro** (`cfg.cine.boss`, 2.4 s). It starts `delay` seconds after the zone before the boss clears, so the
+  "zone clear" banner reads first.
+    - The camera eases in from play (`blend`) and swings low around the boss. Its keys are offsets from the boss
+      (`rel`), so one track fits every world.
+    - At `wakeAt`, the boss wobbles awake with a dust ring, a shake and a growl. "BIG BOSS!" comes up with the
+      boss's name: Cake Vault, Sand Castle, Ginger House or Ice Palace, in all seven languages.
+- **Boss defeat** (`cfg.cine.defeat`, 2.2 s). It plays when the boss breaks.
+    - The first `slow` real seconds run in slow motion. The camera circles from the side, away from the hammer
+      head, and rises out.
+    - There is confetti and a shockwave ring, then a second, wider wave at `waveAt`. "BOSS DOWN!" comes up with a
+      victory arpeggio, and the boss's gems fly into the hammer.
+    - The results card or the next run waits until the cutscene ends.
+- Number labels hide during the boss cutscenes, so the titles read clean.
+- The per-run budget test counts the intro or the fly-over, whichever is longer, plus every other track once.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N

@@ -196,8 +196,9 @@ test('cutscenes fit the run budget: shorter when seen, none past the cap', () =>
   assert.equal(L.cineFit(cfg, full, true, 0), full * C.repeat);
   assert.equal(L.cineFit(cfg, full, false, C.maxPerRun - 1), 1);
   assert.equal(L.cineFit(cfg, full, false, C.maxPerRun - C.minLen / 2), 0);
-  // every track and the intro together fit one run
-  const all = Object.values(C).filter((v) => v && v.keys).reduce((s, v) => s + L.cineLen(v.keys), 0);
+  // a run opens with either the intro or the world fly-over, then plays every other track once; all of it fits
+  const len = (id) => L.cineLen(C[id].keys), open = Math.max(len('intro'), len('world'));
+  const all = Object.keys(C).filter((id) => C[id] && C[id].keys && id !== 'intro' && id !== 'world').reduce((s, id) => s + len(id), open);
   assert.ok(all <= C.maxPerRun, `all cutscenes ${all} s`);
 });
 

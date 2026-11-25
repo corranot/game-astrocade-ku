@@ -60,6 +60,10 @@ const Sound = (() => {
     },
     /** A gem lands in the hammer: a bright tick that climbs with each gem of the burst (k). */
     gem(k) { if (!ctx) return; const n = PENTA[k % PENTA.length]; tone('sine', 1760 * 2 ** (n / 12), 1760 * 2 ** (n / 12), 0.08, 0.05); },
+    /** A boss wakes: a low growl (saw sweep over a sub) with a breathy rumble. */
+    roar() { if (!ctx) return; tone('sawtooth', 110, 52, 0.75, 0.16); tone('sine', 70, 34, 0.9, 0.4); hiss(380, 0.8, 0.7, 0.22, 0.05); },
+    /** A boss breaks: a rising major arpeggio over a deep boom. */
+    bossDown() { if (!ctx) return; tone('sine', 90, 30, 1.0, 0.5); [0, 4, 7, 12, 16, 19, 24].forEach((n, i) => { tone('triangle', 392 * 2 ** (n / 12), 392 * 2 ** (n / 12), 0.35, 0.12, 0.12 + i * 0.07); tone('sine', 196 * 2 ** (n / 12), 196 * 2 ** (n / 12), 0.4, 0.06, 0.12 + i * 0.07); }); hiss(3200, 0.6, 0.9, 0.08, 0.5); },
     fanfare() { if (!ctx) return; [0, 4, 7, 12].forEach((n, i) => { tone('triangle', 523 * 2 ** (n / 12), 523 * 2 ** (n / 12), 0.3, 0.13, i * 0.09); tone('sine', 261 * 2 ** (n / 12), 261 * 2 ** (n / 12), 0.35, 0.08, i * 0.09); }); },
     evolve() { if (!ctx) return; [0, 7, 12, 16, 19, 24].forEach((n, i) => tone('triangle', 392 * 2 ** (n / 12), 392 * 2 ** (n / 12), 0.25, 0.12, i * 0.06)); hiss(3000, 0.7, 0.6, 0.08, 0.1); },
     /**
@@ -147,7 +151,7 @@ export function run(mode = 'play') {
   let demoT = 0;
 
   function newRun() {
-    pend.length = 0; shownCombo = 0; comboT = 0; if ($('combo')) $('combo').hidden = true;
+    pend.length = 0; bossT = 0; shownCombo = 0; comboT = 0; if ($('combo')) $('combo').hidden = true;
     cfg.zones = L.worldZones(cfg, baseZones, world); scene.setWorld(cfg.worlds[world]);
     R = L.createRun(cfg, random, mult);
     scene.setObjects(R.objects, R.L);
@@ -278,7 +282,7 @@ export function run(mode = 'play') {
         splashSum += e.gain; gainSum += e.gain; broke++;
       } else if (e.type === 'break') {
         const o = R.objects[e.id]; scene.burst(e.id); Sound.breakMat(cfg.kinds[o.kind].mat, broke); broke++; gainSum += e.gain;
-        if (o.req > 1) { daily('smash', 1, true); if (o.boss) daily('boss', 1, true); }
+        if (o.req > 1) { daily('smash', 1, true); if (o.boss) { daily('boss', 1, true); defeatOf = o; } }
         if (o.req > 1) { bigHit = true; scene.gems(o.x, o.z, o.boss ? cfg.gems.vault : Math.min(cfg.gems.max, 1 + Math.floor(Math.log10(o.req))), cfg.kinds[o.kind].r * 1.4); }
         popNumber(o.x, cfg.kinds[o.kind].r * 2, o.z, e.gain, o.req > 1);
       } else if (e.type === 'bonk') { scene.bonk(e.id); Sound.bonk(); }
@@ -288,9 +292,14 @@ export function run(mode = 'play') {
         // the tier-up moment: slow motion, a camera punch-in, a golden ring three reaches wide, the hammer overshoots
         scene.hammer.setTier(e.tier); evolveFx = 1; slowT = cfg.fx.tierSlowMo; scene.punch(1); scene.ring(swing.x, swing.z, reach * cfg.fx.tierRing, 0.9);
         Sound.evolve(); Sound.whoom(); showBanner(T('evolve'), 'gold'); buzz('heavy'); if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
-      else if (e.type === 'clear') { if (touched) persist(); const Z = cfg.zones[e.zone]; scene.confetti(0, Z.z); Sound.fanfare(); showBanner(T('clear'), 'jade'); }
+      else if (e.type === 'clear') {
+        if (touched) persist(); const Z = cfg.zones[e.zone]; scene.confetti(0, Z.z); Sound.fanfare(); showBanner(T('clear'), 'jade');
+        // the zone before the boss is done: the boss cutscene follows a moment later
+        if (e.zone === cfg.zones.length - 2 && R.objects.some((b) => b.boss && b.alive && b.zone === R.zone)) bossT = cfg.cine.boss.delay;
+      }
       else if (e.type === 'done') doneT = cfg.results.delay;
     }
+    if (defeatOf) { playCine('defeat', 0, defeatOf); defeatOf = null; }
     if (splashSum) popNumber(swing.x, 0.6, swing.z, splashSum, false);
     scene.impact(swing.x, swing.z, reach, bigHit);
     squashT = 1; if (bigHit) { scene.kick(1); scene.scare(swing.x, swing.z, reach * cfg.fx.scare); }
@@ -302,7 +311,7 @@ export function run(mode = 'play') {
     renderTop();
     if (touched && mode === 'play' && R.L > save.best) save.best = R.L;
   }
-  let evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0, slowT = 0, squashT = 0, comboT = 0, shownCombo = 0;
+  let defeatOf = null, bossT = 0, evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0, slowT = 0, squashT = 0, comboT = 0, shownCombo = 0;
   const pend = []; // splash breaks waiting for their ripple delay
   /** The combo chip under the progress bar: shown from cfg.fx.comboShow breaks in a row, pops on every step. */
   function showCombo() {
@@ -408,7 +417,8 @@ export function run(mode = 'play') {
     const Zc = cfg.zones[R.zone], fx = Math.max(-Zc.w * 0.3, Math.min(Zc.w * 0.3, aim.x * cfg.camera.aimX));
     scene.updateCamera(dt, Zc.z * (1 - cfg.camera.aimW) + aim.z * cfg.camera.aimW, s, fx);
     if (banner > 0) { banner -= dt; if (banner <= 0) $('banner').classList.remove('show'); }
-    if (doneT > 0) {
+    if (bossT > 0 && !cine) { bossT -= dt; if (bossT <= 0) playCine('boss'); }
+    if (doneT > 0 && !cine) {
       doneT -= dt;
       if (doneT <= 0) {
         if (touched && mode === 'play') { save.runs++; persist(); Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(Math.floor(save.best))).catch(() => {}); }
@@ -444,20 +454,25 @@ export function run(mode = 'play') {
   // One tap skips it to its end state. Its length comes from L.cineFit: shorter when seen before this session, and
   // never past cfg.cine.maxPerRun seconds a run. The session clock stops while one plays.
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const seenCine = new Set();
+  const seenCine = new Set(), cineLog = [];
   let cine = null, cineUsed = 0, cineOut = 0, dropY = 0, introWait = -1;
   /** Starts cutscene id; len overrides its length. Returns false when there is no time left for it this run. */
-  function playCine(id, len) {
+  function playCine(id, len, o) {
     const C = cfg.cine[id]; if (!C || mode !== 'play') return false;
+    // a boss cutscene's keys are offsets from its boss (o, else the run's boss)
+    if (C.rel && !o) o = R.objects.find((b) => b.boss && b.alive) || R.objects.find((b) => b.boss);
+    if (C.rel && !o) return false;
     const full = L.cineLen(C.keys), d = len || L.cineFit(cfg, full, seenCine.has(id), cineUsed);
     if (!d) return false;
     if (cine) endCine(true);
-    seenCine.add(id); cineUsed += d; hold.on = false;
-    cine = { id, t: 0, d, k: full / d, C, landed: false };
-    // reduce motion: the camera stays at play, only the bars and the titles show
-    scene.cineCam.w = reduce ? 0 : 1; cineOut = 0;
+    seenCine.add(id); cineLog.push(id); cineUsed += d; hold.on = false;
+    const keys = C.rel ? C.keys.map((q) => ({ ...q, pos: [q.pos[0] + o.x, q.pos[1], q.pos[2] + o.z], look: [q.look[0] + o.x, q.look[1], q.look[2] + o.z] })) : C.keys;
+    cine = { id, t: 0, d, k: full / d, C, keys, o, landed: false, woke: false, wave: false };
+    // reduce motion: the camera stays at play, only the bars and the titles show; a blended one eases in from play
+    scene.cineCam.w = reduce || C.blend ? 0 : 1; cineOut = 0;
+    if (id === 'defeat') { slowT = C.slow; showBanner(T('boss_down'), 'gold', T('boss_' + o.kind)); Sound.bossDown(); buzz('heavy'); scene.confetti(o.x, o.z); scene.ring(o.x, o.z, cfg.kinds[o.kind].r * 6, 0.9); }
     root.style.setProperty('--bars', String(cfg.cine.bars));
-    root.classList.add('cine'); root.classList.toggle('intro', id === 'intro');
+    root.classList.add('cine'); root.classList.toggle('intro', id === 'intro'); scene.labels(!C.rel);
     return true;
   }
   /** Ends the cutscene now (a skip lands on the same end state as a full play) and hands the camera back. */
@@ -465,13 +480,19 @@ export function run(mode = 'play') {
     if (!cine) return;
     const c = cine; cine = null; dropY = 0;
     if (c.id === 'intro' && !c.landed) introLand(quiet);
-    root.classList.remove('cine', 'intro', 'landed');
+    if (c.id === 'boss' && !c.woke) bossWake(c, true);
+    root.classList.remove('cine', 'intro', 'landed'); scene.labels(true);
     cineOut = reduce ? 0 : cfg.cine.blendOut;
   }
   function introLand(quiet) {
     const s = L.hammerScale(cfg, R.L);
     scene.impact(aim.x, aim.z, L.reach(cfg, R.L), true); scene.puff(aim.x, aim.z, 14, 0.9); scene.shake(0.6);
     if (!quiet) { Sound.thud(s * 2.2); buzz('heavy'); }
+  }
+  /** The boss cutscene's beat: the boss wobbles awake with a growl and its name comes up. */
+  function bossWake(c, quiet) {
+    c.woke = true; scene.wake(c.o.id); showBanner(T('boss'), 'gold', T('boss_' + c.o.kind));
+    if (!quiet) { Sound.roar(); buzz('heavy'); }
   }
   function stepCine(dt) {
     if (introWait >= 0) {
@@ -480,8 +501,10 @@ export function run(mode = 'play') {
       else { L.cinePose(cfg.cine.intro.keys, 0, scene.cineCam); scene.cineCam.w = reduce ? 0 : 1; dropY = cfg.cine.intro.dropFrom; return; }
     }
     if (!cine) { if (cineOut > 0) { cineOut -= dt; scene.cineCam.w = reduce ? 0 : Math.max(0, cineOut / cfg.cine.blendOut); } else scene.cineCam.w = 0; return; }
-    cine.t += dt; const tau = Math.min(cine.t * cine.k, L.cineLen(cine.C.keys));
-    if (!reduce) L.cinePose(cine.C.keys, tau, scene.cineCam);
+    cine.t += dt; const tau = Math.min(cine.t * cine.k, L.cineLen(cine.keys));
+    if (!reduce) { L.cinePose(cine.keys, tau, scene.cineCam); if (cine.C.blend) scene.cineCam.w = L.ease(Math.min(1, cine.t / cfg.cine.blendIn)); }
+    if (cine.id === 'boss' && !cine.woke && tau >= cine.C.wakeAt) bossWake(cine, false);
+    if (cine.id === 'defeat' && !cine.wave && tau >= cine.C.waveAt) { cine.wave = true; const r = cfg.kinds[cine.o.kind].r; scene.ring(cine.o.x, cine.o.z, r * 9, 1.1); scene.puff(cine.o.x, cine.o.z, 6, r); scene.shake(0.5); }
     if (cine.id === 'intro') {
       const I = cine.C, u = Math.max(0, Math.min(1, (tau - I.dropAt) / (I.dropLand - I.dropAt)));
       dropY = tau < I.dropAt ? I.dropFrom : I.dropFrom * (1 - u * u);
@@ -541,13 +564,13 @@ export function run(mode = 'play') {
       get tier() { return tier; }, get world() { return world; }, scene, cfg, L, Sound, get collOpen() { return collOpen; }, openColl, closeColl, pick,
       setLang(l) { lang = l; setDir(); renderDaily(); },
       get goal() { return goal; },
-      get cine() { return cine && { id: cine.id, t: cine.t, d: cine.d }; }, get cineUsed() { return cineUsed; }, get introWait() { return introWait; }, get quality() { return qa; },
+      get cine() { return cine && { id: cine.id, t: cine.t, d: cine.d }; }, get cineUsed() { return cineUsed; }, get introWait() { return introWait; }, get cineLog() { return cineLog; }, get quality() { return qa; },
       playCine, endCine,
       // dev:start
       /** Test shortcut: finish today's goal (as if played). */
       dailyFinish() { daily(goal.type, goal.n, false); },
       /** Test shortcut: start a fresh run in world w. */
-      setWorld(w) { world = w % NW; newRun(); },
+      setWorld(w) { world = w % NW; cineUsed = 0; seenCine.clear(); newRun(); },
       /** Test shortcut: earlier zones gone, play at zone z with hammer size size (the finale test uses it). */
       skipTo(z, size) {
         for (const o of R.objects) if (o.zone < z && o.alive) { o.alive = false; o.regrow = 0; scene.burst(o.id); }

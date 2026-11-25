@@ -493,7 +493,13 @@
       "daily_gems": "Collect {n} gems",
       "daily_boss": "Break {n} big bosses",
       "daily_combo": "Make a ×{n} combo",
-      "daily_done": "GOAL DONE!"
+      "daily_done": "GOAL DONE!",
+      "boss": "BIG BOSS!",
+      "boss_down": "BOSS DOWN!",
+      "boss_vault": "CAKE VAULT",
+      "boss_bigcastle": "SAND CASTLE",
+      "boss_ginger": "GINGER HOUSE",
+      "boss_palace": "ICE PALACE"
     },
     "ar": {
       "tap": "اضغط للتحطيم!",
@@ -526,7 +532,13 @@
       "daily_gems": "اجمع {n} جوهرة",
       "daily_boss": "حطّم {n} من الزعماء الكبار",
       "daily_combo": "اصنع كومبو ×{n}",
-      "daily_done": "تم الهدف!"
+      "daily_done": "تم الهدف!",
+      "boss": "زعيم كبير!",
+      "boss_down": "هُزم الزعيم!",
+      "boss_vault": "خزنة الكعك",
+      "boss_bigcastle": "قلعة الرمل",
+      "boss_ginger": "بيت الزنجبيل",
+      "boss_palace": "قصر الجليد"
     },
     "es": {
       "tap": "¡TOCA Y APLASTA!",
@@ -559,7 +571,13 @@
       "daily_gems": "Junta {n} gemas",
       "daily_boss": "Rompe {n} jefes grandes",
       "daily_combo": "Haz un combo ×{n}",
-      "daily_done": "¡META LOGRADA!"
+      "daily_done": "¡META LOGRADA!",
+      "boss": "¡JEFE GRANDE!",
+      "boss_down": "¡JEFE VENCIDO!",
+      "boss_vault": "BÓVEDA DE PASTEL",
+      "boss_bigcastle": "CASTILLO DE ARENA",
+      "boss_ginger": "CASA DE JENGIBRE",
+      "boss_palace": "PALACIO DE HIELO"
     },
     "vi": {
       "tap": "CHẠM ĐỂ ĐẬP!",
@@ -592,7 +610,13 @@
       "daily_gems": "Nhặt {n} viên ngọc",
       "daily_boss": "Phá {n} trùm lớn",
       "daily_combo": "Đạt combo ×{n}",
-      "daily_done": "XONG MỤC TIÊU!"
+      "daily_done": "XONG MỤC TIÊU!",
+      "boss": "TRÙM LỚN!",
+      "boss_down": "HẠ TRÙM!",
+      "boss_vault": "KÉT BÁNH",
+      "boss_bigcastle": "LÂU ĐÀI CÁT",
+      "boss_ginger": "NHÀ GỪNG",
+      "boss_palace": "CUNG ĐIỆN BĂNG"
     },
     "hi": {
       "tap": "टैप करो, तोड़ो!",
@@ -625,7 +649,13 @@
       "daily_gems": "{n} रत्न जमा करो",
       "daily_boss": "{n} बड़े बॉस तोड़ो",
       "daily_combo": "×{n} कॉम्बो बनाओ",
-      "daily_done": "लक्ष्य पूरा!"
+      "daily_done": "लक्ष्य पूरा!",
+      "boss": "बड़ा बॉस!",
+      "boss_down": "बॉस हारा!",
+      "boss_vault": "केक तिजोरी",
+      "boss_bigcastle": "रेत का किला",
+      "boss_ginger": "जिंजर घर",
+      "boss_palace": "बर्फ़ महल"
     },
     "bn": {
       "tap": "ট্যাপ করে ভাঙো!",
@@ -658,7 +688,13 @@
       "daily_gems": "{n}টি রত্ন জমাও",
       "daily_boss": "{n}টি বড় বস ভাঙো",
       "daily_combo": "×{n} কম্বো করো",
-      "daily_done": "লক্ষ্য পূরণ!"
+      "daily_done": "লক্ষ্য পূরণ!",
+      "boss": "বড় বস!",
+      "boss_down": "বস হারল!",
+      "boss_vault": "কেকের সিন্দুক",
+      "boss_bigcastle": "বালির দুর্গ",
+      "boss_ginger": "জিঞ্জার বাড়ি",
+      "boss_palace": "বরফের প্রাসাদ"
     },
     "id": {
       "tap": "TAP UNTUK HANTAM!",
@@ -691,7 +727,13 @@
       "daily_gems": "Kumpulkan {n} permata",
       "daily_boss": "Hancurkan {n} bos besar",
       "daily_combo": "Buat kombo ×{n}",
-      "daily_done": "TARGET BERES!"
+      "daily_done": "TARGET BERES!",
+      "boss": "BOS BESAR!",
+      "boss_down": "BOS KALAH!",
+      "boss_vault": "BRANKAS KUE",
+      "boss_bigcastle": "ISTANA PASIR",
+      "boss_ginger": "RUMAH JAHE",
+      "boss_palace": "ISTANA ES"
     }
   },
   "persistent_storage_config": {
@@ -1223,6 +1265,105 @@
             -1.6
           ],
           "fov": 46
+        }
+      ]
+    },
+    "boss": {
+      "rel": true,
+      "blend": true,
+      "delay": 1.0,
+      "wakeAt": 0.7,
+      "keys": [
+        {
+          "t": 0,
+          "pos": [
+            10,
+            9,
+            20
+          ],
+          "look": [
+            0,
+            4.5,
+            0
+          ],
+          "fov": 46
+        },
+        {
+          "t": 1.1,
+          "pos": [
+            -9,
+            6.5,
+            17
+          ],
+          "look": [
+            0,
+            5,
+            0
+          ],
+          "fov": 44
+        },
+        {
+          "t": 2.4,
+          "pos": [
+            0,
+            16,
+            24
+          ],
+          "look": [
+            0,
+            2,
+            0
+          ],
+          "fov": 46
+        }
+      ]
+    },
+    "defeat": {
+      "rel": true,
+      "slow": 0.9,
+      "waveAt": 0.35,
+      "keys": [
+        {
+          "t": 0,
+          "pos": [
+            16,
+            9,
+            10
+          ],
+          "look": [
+            0,
+            3,
+            0
+          ],
+          "fov": 46
+        },
+        {
+          "t": 0.8,
+          "pos": [
+            20,
+            12,
+            0
+          ],
+          "look": [
+            0,
+            3,
+            0
+          ],
+          "fov": 48
+        },
+        {
+          "t": 2.2,
+          "pos": [
+            12,
+            26,
+            22
+          ],
+          "look": [
+            0,
+            1,
+            0
+          ],
+          "fov": 50
         }
       ]
     }
