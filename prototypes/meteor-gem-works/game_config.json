@@ -1,0 +1,401 @@
+{
+  "seed": 11,
+  "hero": {
+    "speed": 6.2,
+    "accel": 14,
+    "carry": 20,
+    "pickEvery": 0.06,
+    "dropEvery": 0.06,
+    "r": 0.45
+  },
+  "world": {
+    "deck": {
+      "x0": -7.6,
+      "x1": 7.6,
+      "z0": -1.2,
+      "z1": 10.6
+    },
+    "meteor": {
+      "x": 0,
+      "y": 1.55,
+      "z": -6.2,
+      "r": 4.3
+    },
+    "mine": {
+      "x": -1.7,
+      "z": -0.35,
+      "r": 1.15
+    },
+    "pile": {
+      "x": -5.2,
+      "z": 2.2,
+      "r": 1.25,
+      "cap": 60
+    },
+    "crate": {
+      "x": -6.4,
+      "z": 4.6,
+      "r": 0.9,
+      "pay": 1
+    },
+    "polisher": {
+      "x": -3.7,
+      "z": 6.2,
+      "in": [
+        -3.7,
+        4.75
+      ],
+      "r": 1.25,
+      "cap": 30
+    },
+    "counter": {
+      "x": -1.2,
+      "z": 6.6,
+      "r": 1.75,
+      "cap": 12
+    },
+    "stand": {
+      "x": 3.6,
+      "z": 6.0,
+      "in": [
+        2.1,
+        6.0
+      ],
+      "r": 1.25,
+      "cap": 8
+    },
+    "cash": {
+      "x": 5.3,
+      "z": 3.6,
+      "r": 1.35
+    },
+    "spots": [
+      [
+        3.0,
+        8.1
+      ],
+      [
+        4.2,
+        8.1
+      ],
+      [
+        5.4,
+        7.7
+      ]
+    ],
+    "crowd": {
+      "x0": -8.0,
+      "x1": 8.0,
+      "z0": 12.0,
+      "z1": 14.0,
+      "n": 36
+    },
+    "egg": {
+      "x": 0.8,
+      "z": 2.4
+    },
+    "obstacles": [
+      [
+        -3.7,
+        6.2,
+        0.95
+      ],
+      [
+        3.6,
+        6.0,
+        0.9
+      ],
+      [
+        -1.2,
+        6.6,
+        0.6
+      ],
+      [
+        2.9,
+        -1.0,
+        1.0
+      ]
+    ],
+    "rigAt": {
+      "x": 2.9,
+      "z": -1.0
+    }
+  },
+  "mining": {
+    "swing": 0.62,
+    "perHit": 1,
+    "carveR": 0.5,
+    "carveD": 0.16,
+    "maxD": 1.4
+  },
+  "glint": {
+    "every": 4.5,
+    "life": 4.2,
+    "chunks": 3,
+    "carveR": 0.85,
+    "carveD": 0.34,
+    "tapPx": 70
+  },
+  "polish": {
+    "per": 3,
+    "time": 0.55
+  },
+  "sell": {
+    "price": 3,
+    "takeLock": 0.35,
+    "pay": 0.8,
+    "spawnEvery": 2.2,
+    "walk": 2.6
+  },
+  "cashFlow": {
+    "collectEvery": 0.03,
+    "payStart": 14,
+    "payMax": 140,
+    "payGrow": 1.12
+  },
+  "pads": [
+    {
+      "id": "rig",
+      "icon": "rig",
+      "x": 2.7,
+      "z": 2.4,
+      "price": 25,
+      "after": "firstSale"
+    }
+  ],
+  "rig": {
+    "period": 1.6,
+    "chunks": 2,
+    "carveR": 0.62,
+    "carveD": 0.2
+  },
+  "egg": {
+    "dropAt": 22,
+    "hatch": 2.4,
+    "carryBonus": 5,
+    "r": 1.0
+  },
+  "critter": {
+    "follow": 1.4,
+    "spring": 7
+  },
+  "guide": {
+    "cashMin": 6
+  },
+  "camera": {
+    "fov": 36,
+    "yaw": 0.0,
+    "pitch": 0.78,
+    "width": 15,
+    "lead": 0.9,
+    "follow": 3.0,
+    "zMin": 1.0,
+    "zMid": 3.8,
+    "lean": 0.35
+  },
+  "tod": {
+    "start": 0.0,
+    "keys": [
+      {
+        "t": 0.0,
+        "sky": [
+          "#5fa9e0",
+          "#8ec5ea",
+          "#f3dcb8",
+          "#f7e6c8"
+        ],
+        "fog": "#f0d9b8",
+        "fogNear": 55,
+        "fogFar": 130,
+        "sun": "#fff1d6",
+        "sunI": 2.5,
+        "hemiSky": "#fff4e4",
+        "hemiGround": "#b86f45",
+        "hemiI": 1.05,
+        "elev": 1.05,
+        "exp": 0.95,
+        "lamps": 0,
+        "meteor": 1.0
+      },
+      {
+        "t": 0.5,
+        "sky": [
+          "#6d8fc9",
+          "#e0a7a0",
+          "#f6b97c",
+          "#f7d39a"
+        ],
+        "fog": "#efb98a",
+        "fogNear": 50,
+        "fogFar": 120,
+        "sun": "#ffc387",
+        "sunI": 2.1,
+        "hemiSky": "#ffd9b0",
+        "hemiGround": "#a65e42",
+        "hemiI": 0.95,
+        "elev": 0.42,
+        "exp": 0.95,
+        "lamps": 0.25,
+        "meteor": 1.15
+      },
+      {
+        "t": 1.0,
+        "sky": [
+          "#1e2350",
+          "#4a3f7e",
+          "#b2648a",
+          "#ef9c78"
+        ],
+        "fog": "#7a5a86",
+        "fogNear": 44,
+        "fogFar": 110,
+        "sun": "#ff9f7a",
+        "sunI": 1.1,
+        "hemiSky": "#8c86d6",
+        "hemiGround": "#5a3a4a",
+        "hemiI": 0.85,
+        "elev": 0.2,
+        "exp": 1.05,
+        "lamps": 1,
+        "meteor": 1.3
+      }
+    ]
+  },
+  "quality": {
+    "dpr": [
+      1,
+      1.25,
+      1.5,
+      2
+    ],
+    "shadow": [
+      0,
+      1024,
+      1024,
+      2048
+    ],
+    "crowd": [
+      18,
+      27,
+      36,
+      36
+    ],
+    "dropMs": 23.8,
+    "start": 2,
+    "resMin": 0.7,
+    "resStep": 0.1,
+    "upMs": 15,
+    "upAfter": 8,
+    "window": 2
+  },
+  "look": {
+    "postTier": 2,
+    "contact": 1.0,
+    "bloom": {
+      "on": true,
+      "threshold": 1.25,
+      "knee": 0.55,
+      "strength": 0.34,
+      "max": 6,
+      "samples": 4
+    },
+    "glow": {
+      "meteor": 1.5,
+      "gem": 1.8,
+      "fx": 1.6,
+      "lamp": 2.0
+    },
+    "grade": {
+      "vignette": 0.2,
+      "contrast": 1.04,
+      "saturation": 1.06,
+      "warmth": 0.025
+    },
+    "glareMax": 0.02
+  },
+  "strings": {
+    "en": {
+      "drag": "DRAG TO MOVE",
+      "rig": "DRILL RIG",
+      "rigDone": "IT MINES FOR YOU!",
+      "hatch": "NEW FRIEND!",
+      "pup": "Pebble",
+      "perk": "+5 carry",
+      "full": "MAX",
+      "perfect": "PERFECT!",
+      "tapGlint": "TAP THE SPARKLE!"
+    },
+    "ar": {
+      "drag": "اسحب للتحرك",
+      "rig": "منصة الحفر",
+      "rigDone": "تحفر من أجلك!",
+      "hatch": "صديق جديد!",
+      "pup": "حصوة",
+      "perk": "+5 حمل",
+      "full": "ممتلئ",
+      "perfect": "رائع!",
+      "tapGlint": "المس البريق!"
+    },
+    "es": {
+      "drag": "ARRASTRA PARA MOVER",
+      "rig": "TALADRO",
+      "rigDone": "¡MINA POR TI!",
+      "hatch": "¡NUEVO AMIGO!",
+      "pup": "Guijarro",
+      "perk": "+5 carga",
+      "full": "MÁX",
+      "perfect": "¡PERFECTO!",
+      "tapGlint": "¡TOCA EL BRILLO!"
+    },
+    "vi": {
+      "drag": "KÉO ĐỂ DI CHUYỂN",
+      "rig": "GIÀN KHOAN",
+      "rigDone": "NÓ ĐÀO GIÚP BẠN!",
+      "hatch": "BẠN MỚI!",
+      "pup": "Sỏi",
+      "perk": "+5 mang",
+      "full": "ĐẦY",
+      "perfect": "HOÀN HẢO!",
+      "tapGlint": "CHẠM VÀO TIA SÁNG!"
+    },
+    "hi": {
+      "drag": "चलने के लिए खींचें",
+      "rig": "ड्रिल रिग",
+      "rigDone": "यह आपके लिए खोदता है!",
+      "hatch": "नया दोस्त!",
+      "pup": "कंकड़",
+      "perk": "+5 भार",
+      "full": "पूरा",
+      "perfect": "शानदार!",
+      "tapGlint": "चमक को छुओ!"
+    },
+    "bn": {
+      "drag": "চলতে টানো",
+      "rig": "ড্রিল রিগ",
+      "rigDone": "এটা তোমার জন্য খোঁড়ে!",
+      "hatch": "নতুন বন্ধু!",
+      "pup": "নুড়ি",
+      "perk": "+5 বহন",
+      "full": "পূর্ণ",
+      "perfect": "দারুণ!",
+      "tapGlint": "ঝিলিক ছোঁও!"
+    },
+    "id": {
+      "drag": "GESER UNTUK JALAN",
+      "rig": "BOR ROBOT",
+      "rigDone": "IA MENAMBANG UNTUKMU!",
+      "hatch": "TEMAN BARU!",
+      "pup": "Kerikil",
+      "perk": "+5 bawa",
+      "full": "PENUH",
+      "perfect": "SEMPURNA!",
+      "tapGlint": "KETUK KILAUANNYA!"
+    }
+  },
+  "start": {
+    "pile": 9,
+    "counter": 2,
+    "polIn": 3
+  },
+  "title": "Meteor Gem Works"
+}
