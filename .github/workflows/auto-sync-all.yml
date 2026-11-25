@@ -48,4 +48,4 @@ jobs:
           git commit -m "chore: auto-update skill pilihan (ponytail, caveman, leanrea)"
           git push origin "$branch"
           gh pr create --base main --head "$branch" --title "chore: auto-update skill pilihan $(date -u +%Y-%m-%d)" \
-            --body "Dibuat otomatis oleh Auto Sync. Isi: salinan terbaru skill ponytail, caveman, leanrea dari repo aslinya. Masuk lewat CI seperti PR lain; tinjau isinya bila perlu, karena skill dibaca agen sebagai instruksi."
+            --body "Dibuat otomatis oleh Auto Sync. Isi: salinan terbaru skill ponytail, caveman, leanrea dari repo aslinya. Masuk lewat CI seperti PR lain. Cek \"Skill sync adds nothing suspicious\" memindai baris yang ditambahkan; bila ada yang mencurigakan, PR ini tidak di-merge otomatis dan log cek itu menyebut baris dan alasannya."
