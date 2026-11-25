@@ -94,6 +94,42 @@ How it fits the existing rules:
   show the standard was met (see Coding Standards), and a 60 FPS check on a
   mobile-sized viewport is part of done.
 
+## Plan Before Building (MANDATORY)
+
+The project owner set this as a permanent rule: **before building any new game,
+write a complete, detailed plan first and get the owner's approval before
+writing any code.** This applies to every new game, including quick and
+throwaway prototypes, and to `/prototype` (its one-page brief becomes this full
+plan). The plan covers at least:
+
+1. **Concept**: the pitch, the fantasy, the audience.
+2. **Core loop**: what the player does every few seconds and every minute.
+3. **Controls**: touch and keyboard/mouse input, mapped to actions.
+4. **Progression**: levels, difficulty curve, unlocks, session length.
+5. **Art and 3D direction**: style, palette, characters, environments, lighting,
+   camera, held to the Game Quality Standard above.
+6. **VFX**: particles, impacts, trails, shockwaves and other effects per
+   interaction.
+7. **Audio**: music, SFX and feedback per interaction.
+8. **UI**: HUD, menus, screens and their flow.
+9. **Performance plan**: 60 FPS mobile budget, pooling, instancing, adaptive
+   quality.
+10. **Test plan**: what is tested automatically and what is checked by play and
+    screenshots.
+11. **Milestones**: the build order, each with what "done" means.
+
+Show the plan to the owner and wait for an explicit yes. A skipped or
+unanswered plan is not approval. Changes to an existing game don't need a new
+full plan unless they add a new game mode or rework the game.
+
+## Owner Preferences
+
+- **Language**: the owner (Larisha) writes in Indonesian. Reply to the owner in
+  Indonesian. Code, comments, commit messages and docs in the repo stay in
+  English.
+- **Every new rule goes in the repo.** When the owner gives a new standing rule,
+  add it to this CLAUDE.md as well, so it never has to be repeated.
+
 ## Context Management
 
 Read `.claude/docs/context-management.md` on demand — it is a reference, not
