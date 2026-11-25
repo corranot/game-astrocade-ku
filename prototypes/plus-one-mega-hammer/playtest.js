@@ -309,6 +309,14 @@ async function calm(page) {
     console.log(`info FPS at tier 2 on swiftshader: ${fps.toFixed(1)}; draw calls ${info[0]}, triangles ${info[1]}`);
     // renderer.info counts every pass of a frame (shadow, scene, glow); six zones are in view from the start
     check(info[0] <= 130 && info[1] <= 220000, `render budget at the start view: ${info[0]} draw calls (<= 130), ${info[1]} triangles with shadows (<= 220k)`);
+    // the widest cutscene views hold the same budget: the world fly-over over a fresh island, and the end-of-run
+    // flight over the island as a run leaves it (earlier zones cleared)
+    for (const id of ['world', 'end']) {
+      await p5.evaluate((c) => { __game.endCine(true); if (c === 'end') __game.skipTo(5, 30000); __game.playCine(c, 2); }, id);
+      await p5.waitForFunction(() => __game.cine && __game.cine.t > 1.7, null, { timeout: 120000 }).catch(() => {});
+      const ci = await p5.evaluate(() => { const r = __game.scene.renderer.info.render; return [r.calls, r.triangles, !!__game.cine]; });
+      check(ci[2] && ci[0] <= 130 && ci[1] <= 220000, `render budget in the ${id} cutscene's widest view: ${ci[0]} draw calls, ${ci[1]} triangles`);
+    }
     await p5.close();
   }
   await browser.close(); server.close();
