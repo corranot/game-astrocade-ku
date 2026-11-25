@@ -56,8 +56,9 @@ async function calm(page) {
   const { page, errors } = await open(browser, { keepIntro: true });
   const g = (fn, arg) => page.evaluate(fn, arg);
   /** Clicks like a finger on the world point (x, y, z). */
-  const tapWorld = async (x, y, z) => { const [cx, cy] = await g(([a, b, c]) => __game.client(a, b, c), [x, y, z]); await page.mouse.click(cx, cy); };
-  const waitIdle = () => page.waitForFunction(() => !__game.busy, null, { timeout: 5000 });
+  // a spot past the screen edge is tapped at the edge, as a player would, and the view leans that way
+  const tapWorld = async (x, y, z) => { const [cx, cy] = await g(([a, b, c]) => __game.client(a, b, c), [x, y, z]); const vp = page.viewportSize(); await page.mouse.click(Math.max(8, Math.min(vp.width - 8, cx)), Math.max(8, Math.min(vp.height - 8, cy))); };
+  const waitIdle = () => page.waitForFunction(() => !__game.busy && !(__game.cine && __game.cfg.cine[__game.cine.id].queue), null, { timeout: 30000 }); // a tier-up orbit holds taps (queued)
 
   // attract mode: moves before a touch, counts nothing
   const a0 = await g(() => __game.scene.hammer.pivot.rotation.x);
@@ -113,7 +114,7 @@ async function calm(page) {
     if (z === 1 && (await g(() => __game.R.L > 60)) && !fs.existsSync(path.join(out, '03-big-hammer.jpg'))) await page.screenshot({ path: path.join(out, '03-big-hammer.jpg'), type: 'jpeg', quality: 82 });
   }
   check(seen === 5, `play moves through all six zones (${seen + 1} reached, ${guard} taps)`);
-  check(await g(() => ['boss', 'defeat'].every((id) => __game.cineLog.includes(id))), 'the boss cutscene plays on reaching the boss, and the defeat one when it breaks');
+  check(await g(() => ['tier', 'boss', 'defeat'].every((id) => __game.cineLog.includes(id))), 'tier-ups, the boss and its defeat play their cutscenes in a real run');
   if (!cardSeen) await page.waitForFunction(() => __game.mult === 2 || __game.card, null, { timeout: 15000 }).catch(() => {});
   if (await g(() => __game.card)) { cardSeen = true; cardAt = await g(() => __game.sessT); }
   const sess = await g(() => __game.sessT);
@@ -170,6 +171,19 @@ async function calm(page) {
     const o0 = await g6(() => { const o = __game.R.objects.find((q) => q.zone === 0 && q.req === 1); return __game.client(o.x, 0.3, o.z); });
     await p6.mouse.click(o0[0], o0[1]); // first touch starts the session clock
     await p6.waitForFunction(() => __game.sessT > 3.2, null, { timeout: 30000 });
+    // a tier-up plays its orbit; a tap during it does not cut it short, it slams once the orbit ends
+    await g6(() => __game.skipTo(0, 11.5)); await p6.waitForTimeout(1500);
+    for (let i = 0; i < 12 && !(await g6(() => __game.cine && __game.cine.id === 'tier')); i++) {
+      const b = await g6(() => { const q = __game.L.bestSlam(__game.cfg, __game.R); return q && __game.client(q.x, 0.3, q.z); });
+      if (b) await p6.mouse.click(b[0], b[1]); await p6.waitForTimeout(350);
+    }
+    const tierOn = await g6(() => __game.cine && __game.cine.id === 'tier');
+    await p6.waitForFunction((a) => __game.cine && __game.cine.t > a, await g6(() => __game.cfg.cine.skipAfter), { timeout: 30000 }).catch(() => {});
+    const sl0 = await g6(() => __game.R.slams); await p6.mouse.click(200, 400); await p6.waitForTimeout(100);
+    const kept = await g6(() => !!__game.cine && __game.cine.id === 'tier');
+    await p6.waitForFunction((k) => !__game.cine && __game.R.slams > k, sl0, { timeout: 30000 }).catch(() => {});
+    check(tierOn && kept && (await g6((k) => __game.R.slams > k, sl0)), 'a tier-up plays its orbit, and a tap during it is queued as a slam after it');
+    await p6.waitForFunction(() => !__game.busy && !__game.cine, null, { timeout: 30000 });
     await g6(() => __game.skipTo(5, 30000));
     await p6.waitForTimeout(3000);
     const v = await g6(() => { const o = __game.R.objects.find((q) => q.boss); return { id: o.id, x: o.x, z: o.z, hp: o.hp }; });
@@ -183,7 +197,10 @@ async function calm(page) {
     check(await g6(() => __game.cine && __game.cine.id === 'defeat' && !__game.card), 'the boss break plays its defeat cutscene, and the results wait for it');
     await p6.waitForTimeout(500); await p6.screenshot({ path: path.join(out, '29-boss-defeat.jpg'), type: 'jpeg', quality: 82 });
     check(hps.length === v.hp && hps.slice(0, -1).every((h, i) => h === v.hp - 1 - i) && !(await g6((id) => __game.R.objects[id].alive, v.id)), `the vault takes ${v.hp} hits (hp ${hps.join(', ')})`);
-    const shown = await p6.waitForFunction(() => __game.card, null, { timeout: 15000 }).then(() => true, () => false);
+    const endOn = await p6.waitForFunction(() => (__game.cine && __game.cine.id === 'end') || __game.card, null, { timeout: 60000 }).then(() => g6(() => !__game.card && __game.cine.id === 'end'), () => false);
+    if (endOn) { await p6.waitForFunction(() => __game.cine && __game.cine.t > 0.9, null, { timeout: 30000 }).catch(() => {}); await p6.screenshot({ path: path.join(out, '31-end-of-run.jpg'), type: 'jpeg', quality: 82 }); }
+    check(endOn, 'the end-of-run cutscene flies over the island and counts the size up before the card');
+    const shown = await p6.waitForFunction(() => __game.card, null, { timeout: 60000 }).then(() => true, () => false);
     check(shown, 'the results card shows after the vault once the session is long enough');
     check(await g6(() => __game.gemsGot >= __game.cfg.gems.vault && Number(document.getElementById('cGems').textContent) === __game.gemsGot), 'the vault gems fly into the hammer and the card counts them');
     await p6.waitForTimeout(700);

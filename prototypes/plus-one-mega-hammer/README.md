@@ -175,6 +175,20 @@ play. This container has no GPU, so WebGL runs on SwiftShader, a software render
 - Number labels hide during the boss cutscenes, so the titles read clean.
 - The per-run budget test counts the intro or the fly-over, whichever is longer, plus every other track once.
 
+### M4: tier-up orbit and end of run
+
+- **Tier-up orbit** (`cfg.cine.tier`, 1.2 s, then 0.6 s for repeats).
+    - On every new hammer look, the camera eases in and circles the hammer. The slow motion, ring and banner of
+      the tier-up stay as they were.
+    - Its keys scale with the hammer's drawn size (`k: "hammer"`, `kDiv`), so it frames a size 12 hammer and a size
+      14,000 hammer the same way.
+    - A tap during the orbit does not cut it short (`queue`). It is kept, and the hammer slams the best spot as soon
+      as the orbit ends.
+- **End of run** (`cfg.cine.end`, 2 s). Before the results card, the camera rises from the boss over the whole
+  cleared island, and the hammer size counts up from 0 with rising ticks (`countFor`). A tap skips straight to the
+  card. A short session that goes straight on to the next run skips it.
+- `cfg.cine.maxPerRun` is now 16 s, enough for the intro, every tier-up, both boss cutscenes and the end.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N
