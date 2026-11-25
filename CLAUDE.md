@@ -127,6 +127,15 @@ full plan unless they add a new game mode or rework the game.
 - **Language**: the owner (Larisha) writes in Indonesian. Reply to the owner in
   Indonesian. Code, comments, commit messages and docs in the repo stay in
   English.
+- **Skills always on.** Activate the `caveman`, `ponytail` and `leanrea` skills
+  at the start of every session and keep them on for all work in this project.
+  `caveman` shapes chat replies only; anything persisted (code, docs, commits,
+  PRs) stays in normal prose, as that skill already says.
+- **New-game concepts follow platform traffic.** Base new-game concepts on the
+  latest Astrocade platform-wide data on the games with the most daily plays,
+  not on the owner's own games. Name the data source and its date; when daily
+  plays are not exposed, say which proxy was used (for example 7-day gain or
+  plays divided by age). Use genres and mechanics, never a recreation.
 - **Every new rule goes in the repo.** When the owner gives a new standing rule,
   add it to this CLAUDE.md as well, so it never has to be repeated.
 
