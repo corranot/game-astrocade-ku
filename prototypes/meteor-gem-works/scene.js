@@ -272,6 +272,9 @@ export function createScene(canvas, cfg, random) {
   // across the front of the meteor, high: a festival line from the water tower to the windmill
   bunting.push(mesh(M.buildBunting(-8.6, 5.2, -3.6, 9.6, 5.6, -3.8, 22), bunting[0].material, false));
 
+  // the festival set (a content drop, off until its day): flower arch over the front and paper lantern strings
+  if (cfg.drops && cfg.drops.festival) { const fs = M.buildFestival(W.deck.z1 + 0.5); smesh(fs.body); smesh(fs.lanterns, lanternMat, false); }
+
   // ---- soft round blob shadows under everything that moves (the only shadows on tier 0)
   const blobTex = K(canvasTex(64, 64, (g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); gr.addColorStop(0, 'rgba(60,30,20,0.55)'); gr.addColorStop(0.6, 'rgba(60,30,20,0.25)'); gr.addColorStop(1, 'rgba(60,30,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, s, s); }));
   const blobs = new THREE.InstancedMesh(K(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: LK.contact })), 28);
@@ -479,8 +482,8 @@ export function createScene(canvas, cfg, random) {
   const critters = {};
   for (const d of cfg.critters) {
     const sm = K(shellMat.clone()); sm.color.set(d.shell); sm.emissive.set(d.shell).multiplyScalar(0.55);
-    const c = M.makeCritter(charMat, sm, new THREE.Color(d.body).getHex()); c.root.visible = false; c.root.scale.setScalar(1.25); noCast(c.root); scene.add(c.root);
-    c.sm = sm; c.hatchK = 0; critters[d.id] = c;
+    const c = M.makeCritter(charMat, sm, new THREE.Color(d.body).getHex()); c.root.visible = false; c.root.scale.setScalar(1.25 * (d.s || 1)); noCast(c.root); scene.add(c.root);
+    c.sm = sm; c.hatchK = 0; c.s = 1.25 * (d.s || 1); critters[d.id] = c;
     if (d.rarity === 'legendary') { const cr = new THREE.Mesh(hatGeos.crown || K(M.buildHat('crown')), mat); cr.scale.setScalar(0.8); cr.position.set(0, 0.02, -0.02); c.head.add(cr); }
   }
   // the shopkeeper armadillo
@@ -635,6 +638,15 @@ export function createScene(canvas, cfg, random) {
       const a = Math.random() * 6.28, sp = 1 + Math.random() * spread;
       glowPts.spawn({ x: p.x, y: p.y, z: p.z, vx: Math.cos(a) * sp, vy: 5 + Math.random() * 5, vz: Math.sin(a) * sp, g: 7, drag: 1.2, max: 1.2 + Math.random() * 0.8, s0: 0.45, s1: 0.2, ...hexToRGB([0xffd35a, 0xff8ac8, 0x6fe0f0, 0xb08cff, 0x8fe0a8][i % 5]) });
     }
+  }
+  /** A festival firework: a round burst of sparks high over the meteor, with a ring. */
+  function firework() {
+    const p = new THREE.Vector3(-7 + Math.random() * 14, 7 + Math.random() * 2.5, -5 + Math.random() * 3), c = [0xffd35a, 0xff8ac8, 0x6fe0f0, 0xb08cff, 0x8fe0a8][(Math.random() * 5) | 0], rgb = hexToRGB(c);
+    for (let i = 0; i < 42; i++) {
+      const u = Math.random() * 2 - 1, a = Math.random() * 6.28, r = Math.sqrt(1 - u * u), sp = 3.5 + Math.random() * 1.5;
+      glowPts.spawn({ x: p.x, y: p.y, z: p.z, vx: r * Math.cos(a) * sp, vy: u * sp, vz: r * Math.sin(a) * sp, g: 1.5, drag: 1.6, max: 1.1 + Math.random() * 0.5, s0: 0.5, s1: 0.1, ...rgb });
+    }
+    ring(p, c, 0.4, 5, 0.7, new THREE.Vector3(0, 0, 1));
   }
   /** Sparkles rising from a point (twinkle, gem made, polisher). */
   function twinkle(p, n = 3, col = 0xffe6a0, s = 0.35) {
@@ -992,16 +1004,17 @@ export function createScene(canvas, cfg, random) {
     // critters: the parade behind the hero; a fresh one pops out of its egg with a hop
     for (const c of S.critters) {
       const m = critters[c.id]; if (!m) continue;
+      if (c.hide) { m.root.visible = false; continue; }
       if (!m.root.visible) { m.root.visible = true; m.hatchK = 0; }
       m.hatchK = Math.min(1, m.hatchK + dt / 0.6);
       m.root.position.set(c.x, 0.16 + (m.hatchK < 1 ? Math.sin(m.hatchK * Math.PI) * 1.6 : 0), c.z);
-      m.root.scale.setScalar(1.25 * Math.max(0.05, back(m.hatchK)));
+      m.root.scale.setScalar(m.s * Math.max(0.05, back(m.hatchK)));
       let d = c.face - m.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.root.rotation.y += d * Math.min(1, dt * 8);
       M.animCritter(m, dt, Math.hypot(c.vx, c.vz), tAll, m.hatchK < 1 ? 0.3 : 0);
     }
     // blob shadows (hero, critters, keeper, kid, tourists, egg)
     let bn = 0; const blob = (x, z, s) => { if (bn < BLOBS) blobs.setMatrixAt(bn++, _m.compose(_p.set(x, 0.19, z), _q.identity(), _s.set(s, 1, s))); };
-    blob(h.x, h.z, 1.3); for (const c of S.critters) blob(c.x, c.z, 0.9);
+    blob(h.x, h.z, 1.3); for (const c of S.critters) if (!c.hide) blob(c.x, c.z, 0.9);
     if (keeper.root.visible) blob(keeper.root.position.x, keeper.root.position.z, 1.1); if (kid.root.visible) blob(kid.root.position.x, kid.root.position.z, 0.9 * kidSt.k);
     if (eggState.mode !== 'lodged' && eggState.mode !== 'done') blob(egg.position.x, egg.position.z, 1.0);
     for (const p of tourists) if (p.root.visible) blob(p.root.position.x, p.root.position.z, 1.1);
@@ -1106,7 +1119,7 @@ export function createScene(canvas, cfg, random) {
 
   return {
     renderer, scene, camera, setTier, setScale, resize, setTod, update, render: draw, toScreen, slot, fly, burst, puff, confetti, twinkle, ring,
-    get tier() { return tier; }, get post() { return !!post; }, get tod() { return tod; },
+    get tier() { return tier; }, get post() { return !!post; }, get tod() { return tod; }, get lamps() { return lampsK; }, firework,
     /** Hand-mining hit at lon/lat: carve, flash, burst; returns the world point of the hit. */
     hit(lon, lat, big = false) {
       const r = big ? cfg.glint.carveR : cfg.mining.carveR, d = big ? cfg.glint.carveD : cfg.mining.carveD;

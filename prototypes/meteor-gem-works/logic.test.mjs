@@ -1,11 +1,12 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Rules tests for Meteor Gem Works (node --test). Plan: plan.md §10, §11 (fix A: the guide never dead-ends) and §12 (M2, M3).
+// Rules tests for Meteor Gem Works (node --test). Plan: plan.md §10, §11 (fix A: the guide never dead-ends) and §12 (M2, M3) and the post-launch drops (updates.md).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as L from './logic.js';
 
-const cfg = () => JSON.parse(fs.readFileSync(new URL('./game_config.json', import.meta.url)));
+/** The config as the game sees it: content drops off unless named in `on` (e.g. { night: true }). */
+const cfg = (on = {}) => { const c = JSON.parse(fs.readFileSync(new URL('./game_config.json', import.meta.url))); Object.assign(c.drops, on); return L.applyDrops(c); };
 
 /** Plays the game with the bot for sec seconds at 60 Hz; returns the state and every event. */
 function play(c, sec, seed) {
@@ -192,4 +193,44 @@ test('adaptQuality drops scale then tier, and climbs back', () => {
 test('time of day blends between keys', () => {
   const k = cfg().tod.keys, m = L.todBlend(k, 0.25);
   assert.equal(m.a.t, 0); assert.equal(m.b.t, 0.5); assert.ok(Math.abs(m.k - 0.5) < 1e-9);
+});
+
+test('drops: chapter 1 ships 12 critters and 6 hats; the night drop adds 6 and 3, all named in every language', () => {
+  const off = cfg(), on = cfg({ night: true });
+  assert.equal(off.critters.length, 12); assert.equal(off.hats.length, 6);
+  assert.equal(on.critters.length, 18); assert.equal(on.hats.length, 9);
+  assert.equal(new Set(on.critters.map((q) => q.id)).size, 18);
+  assert.equal(on.critters[on.critters.length - 1].rarity, 'legendary');
+  for (const [lang, t] of Object.entries(on.strings)) for (const q of on.critters) assert.ok(t[q.id === 'pebble' ? 'pup' : q.id], `${lang}: ${q.id}`);
+  for (const [lang, t] of Object.entries(on.strings)) for (const k of ['gift', 'giftSub']) assert.ok(t[k], `${lang}: ${k}`);
+});
+
+test('night drop: all 18 critters hatch, the parade stays at critter.show with Nova in it, the new hats come', () => {
+  const c = cfg({ night: true }), { S } = play(c, 26 * 60, 1);
+  assert.equal(S.critters.length, 18);
+  const shown = S.critters.filter((q) => !q.hide);
+  assert.equal(shown.length, c.critter.show); assert.ok(shown.some((q) => q.id === 'nova'));
+  for (const id of ['lamp', 'antenna', 'bandana']) assert.ok(S.hats.includes(id), id);
+});
+
+test('night drop on an old finished save: a new egg comes within 30 s of Continue', () => {
+  const old = cfg(), { S } = play(old, 680, 1), d = JSON.parse(JSON.stringify(L.serialize(old, S)));
+  assert.equal(S.egg.st, 'none');
+  const c = cfg({ night: true }), R = L.restore(c, d, 4), all = [];
+  for (let i = 0; i < 40 * 60; i++) { L.step(c, R, 1 / 60, L.botInput(c, R)); all.push(...R.events); R.events.length = 0; }
+  assert.ok(all.some((e) => e.type === 'hatch'), 'a night critter hatched');
+});
+
+test('welcome-back gift: only with the festival drop, after awayH, capped, one egg a day', () => {
+  const H = 3600e3, d = { seen: 0, giftDay: -1, pads: Array.from({ length: 30 }, () => [0, 1]) };
+  assert.equal(L.welcomeGift(cfg(), d, 20 * H), null);
+  const c = cfg({ festival: true });
+  assert.equal(L.welcomeGift(c, d, c.gift.awayH * H - 1), null);
+  const g = L.welcomeGift(c, d, 20 * H);
+  assert.equal(g.coins, c.gift.cap); assert.equal(g.egg, true);
+  assert.equal(L.welcomeGift(c, { ...d, giftDay: g.day }, 20 * H).egg, false);
+  const S = L.createState(c, 1), pile = S.cashPile; S.egg.at = S.t + 50;
+  L.applyGift(c, S, g);
+  assert.equal(S.cashPile, pile + g.coins); assert.ok(S.egg.at <= S.t + c.gift.eggIn); assert.equal(S.giftDay, g.day);
+  assert.equal(L.restore(c, JSON.parse(JSON.stringify(L.serialize(c, S))), 2).giftDay, g.day);
 });

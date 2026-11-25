@@ -1,0 +1,16 @@
+ok   welcome-back gift on Continue after 10 h ({"type":"gift","t":1440,"coins":198,"egg":true})
+ok   44-welcome-back-gift: glare 0.00% near-white (max 2%)
+ok   the gift egg hatches a night critter within 15 s
+ok   45-night-critter-hatch: glare 0.00% near-white (max 2%)
+ok   parade shows 12 of 17 critters, Nova among them
+ok   fireworks go up at night on their own (5 in 30 s)
+ok   46-festival-night-fireworks: glare 0.04% near-white (max 2%)
+ok   album lists 18 critters and 9 hats ({"crit":18,"hats":9,"fits":true})
+ok   album card fits without scrolling
+ok   47-album-night-critters: glare 0.04% near-white (max 2%)
+ok   tier 2 draw calls with both drops: 204 (budget 260)
+ok   tier 0 draw calls with both drops: 151 (budget 160)
+ok   48-festival-day-tier0: glare 0.08% near-white (max 2%)
+ok   no page errors ()
+all checks passed
+exit 0

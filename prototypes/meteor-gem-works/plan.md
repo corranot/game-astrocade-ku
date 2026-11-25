@@ -1,6 +1,6 @@
 # Meteor Gem Works — game plan (v2)
 
-**Status:** approved by the owner on 2026-11-25. M1 and M2 merged; M3 (chapter 1 complete) in this build.
+**Status:** approved by the owner on 2026-11-25. M1–M3 merged; M4 saved as an Astrocade draft (not published). §16 plans chapter 2 (M5).
 **v1:** 2026-11-25, PR #198. **v2:** 2026-11-25, a full upgrade the owner asked for.
 
 The v2 brief, in the owner's words: target **kids**; a **median session of 10+ minutes**; a detailed objective loop
@@ -536,3 +536,143 @@ Have all three ready before first publish:
 - **M2:** adds the "act within 1 s" skip rule and the 10/20/30/40 s reward checks to the bot test.
 - **M3:** adds `lib.share` at peak moments (P0) and the day-3 critter/hat drop content.
 - **M4:** adds the playbook's pre-publish checklist (§10) as part of done.
+
+## 16. Chapter 2 "The Frost Comet" (M5 plan, added 2026-11-25)
+
+Chapter 2 is the day-6 update (`updates.md`). It is new content on the same loop, not a new mode: the kid mines,
+polishes, sells and builds exactly as in chapter 1, in a second place with new things to unlock. This section
+replaces the short sketch in §4.4. Code waits for this section's approval (the planning rule in `CLAUDE.md`).
+
+### 16.1 Concept
+
+- **Pitch:** the comet from the chapter 1 finale has landed on the snowy mesa above the canyon. A frozen star sits in
+  its crater. The kid rides the cable car up, mines frost crystals and builds a winter village around the comet.
+- **Fantasy:** "my town grew a second, secret place": a cosy snow village with skaters, a penguin shopkeeper, hot
+  cocoa and an aurora at night, while the desert town keeps earning down below.
+- **Audience:** the same kids (6–12) who finished chapter 1, about 10–12 minutes in. Chapter 2 is their reason to
+  come back on day 6 and to play a second long session.
+
+### 16.2 Core loop (unchanged verbs, new place)
+
+- **Every few seconds:** swing at the comet for ice chunks, carry them to the ice saw, carry gems to the snow stands,
+  scoop coins. Glints and Perfect Strikes work the same.
+- **Every minute:** fill a price pad, watch the unlock show, hatch a frost critter, serve an order (gem, ring or the
+  new snow globe), catch a Snow Rush (Crystal Rush reskinned: snowflakes that are gems).
+- **Between the two places:** the cable car pad at each end. A ride takes 3 s with a camera swing over the canyon.
+  The desert town keeps running while the kid is away: the shopkeeper, rigs and conveyor keep selling, and its cash
+  pile fills (capped at `ch2.awayCap`) for a big collect when the kid rides back.
+- **One coin wallet** across both places, so chapter 1 income helps chapter 2 start fast.
+
+### 16.3 Controls
+
+Unchanged: drag anywhere to walk, tap the sparkle for a Perfect Strike; WASD or arrows and Space on keyboard.
+The cable car is a pad the hero steps on, like every other action; there is no new button.
+
+### 16.4 Progression
+
+Chapter 2 opens on the first Continue after the update for any save with `done1`, and right after the finale for
+new players. The comet pad "Follow the comet!" ($0) appears next to the cable car station.
+
+| # | Unlock | Price | What is new | Target time |
+|---|---|---|---|---|
+| 0 | Follow the comet | $0 | Cable car ride up; the frost crater and one ice saw | 0:00 |
+| 1 | Ice Drill | $320 | A drill arm on the comet | 0:30 |
+| 2 | Sled Conveyor | $400 | Chunks slide down a sled track to a second saw | 1:05 |
+| 3 | Snow Stand 2 + Icicle Lights | $480 | More buyers; icicle lights on the crater rim | 1:40 |
+| 4 | Penguin Shopkeeper | $560 | Gems go to the stands by themselves | 2:20 |
+| 5 | Ski Lift | $650 | Twice the skier tourists | 3:05 |
+| 6 | Snow Globe Workshop | $750 | New product: snow globes (2 gems each), orders can ask for them | 3:55 |
+| 7 | Hot Cocoa Stand | $850 | Tourists linger and tip; steam and a warm glow | 4:45 |
+| 8 | Ice Rink | $950 | District goal: each delivery of 3 globes brings a skater family to the rink (4 families) | 5:40 |
+| 9 | Aurora Tower | $1,100 | Night falls; the aurora ribbons light the sky | 6:40 |
+| 10 | The Frost Heart | $1,300 | Finale (16.4.2) | ~7:45 |
+
+- Prices are first drafts in `game_config.json` (`ch2.pads`), tuned with the bot so a reward lands at least every
+  45 s (the same rule as chapter 1), with critters, orders, Rush and chapter 1's income switched on.
+- **Session length:** about 8 minutes for chapter 2 on top of chapter 1's 10, so a returning kid's session is the
+  8-minute chapter plus collecting and the album.
+
+#### 16.4.1 Critters, stars and hats
+
+- **8 frost critters** (5 common or shiny, 2 rare, 1 legendary from the finale): Snowball, Flurry, Icicle, Mitten,
+  Glacier, Puffin Pup, Aurora Fox (rare), and Polaris (legendary, hatches from the Frost Heart). Same 3-draw body
+  and perk list as chapter 1; frost critters can only hatch in the frost crater.
+- **The parade** stays at `critter.show` (12) with the legendary ones always in it, so the draw budget holds.
+- **3 town stars for chapter 2:** orders served up here, frost critters found, the rink full. They unlock 3 hats:
+  earmuffs, a pompom beanie and the ice crown (finale).
+- **Album:** a second page with a tab per chapter, so neither page needs to scroll.
+
+#### 16.4.2 Finale and hand-off
+
+- All lasers fire at the frozen star; the ice shell cracks and slides away; the **Frost Heart** rises and Polaris
+  hatches wearing the ice crown. Snow-gem Rush and fireworks over both places (the camera pulls back to show the
+  desert town below lighting up too).
+- Hand-off: a red-orange glow under the far mesa and a puff of smoke: chapter 3 "Lava Meteor" (P2). The album's
+  chapter row shows "3 · soon". No end card; free play continues in both places.
+
+### 16.5 Art and 3D direction
+
+- **Place:** a flat snowy mesa top above the canyon (built east of the desert town, about 60 m away at the same
+  height, so both share one scene and one sky). A wooden deck over packed snow, timber and stone chalets with warm
+  windows, pine trees with snow caps, a frozen pond (the rink), the comet crater with blue-violet frost crystals.
+- **Palette:** cool blues and lilac with warm accents (amber windows, red scarves, cocoa brown). **Snow is never pure
+  white:** albedo capped at about `#e6ecf4`, exposure lowered for the snow keys, and the glare check (≤ 2 %
+  near-white) must pass in every shot. This is the chapter's biggest look risk.
+- **Characters:** skiers and skaters (the existing crowd and tourist rigs in winter colours with hats and scarves),
+  the penguin shopkeeper (built in code like the armadillo), the frost critters.
+- **Lighting:** cold noon, pink dusk, aurora night. Time of day follows the unlocks like chapter 1 (`ch2.tod`).
+- **Camera:** the same follow camera and showcases; the cable car ride is a 3 s spline over the canyon.
+
+### 16.6 VFX
+
+- Mining: ice shards and a frost puff instead of dust; a crisp blue ring on a Perfect Strike.
+- Ambient: falling snowflakes (one instanced points pool), breath puffs at the cocoa stand, steam, skaters' trails on
+  the rink (a decal strip), pine needles of snow dropping when the hero brushes a tree.
+- Unlocks: the same build show (pop, confetti, ring) with snow sparkles.
+- Aurora: a sky-shader band that ripples (no extra draw call), switched on by the Aurora Tower.
+- Finale: ice shell crack shader (the meteor carve shader reused), heart rise, burst, fireworks.
+
+### 16.7 Audio
+
+- The same code-made synth with brighter bell timbres; coins ring like small sleigh bells.
+- A soft wind bed and a crackle at the cocoa stand; a whoosh for the cable car ride.
+- Each unlock and hatch keeps the chapter 1 fanfares, transposed up, so kids recognise the reward sounds.
+
+### 16.8 UI
+
+- No new HUD elements. The NEXT card and the guide arrow point at chapter 2 pads while the kid is up there; when
+  the desert cash pile is full, a small coin badge on the cable car icon says so.
+- The goal card shows the rink families (4 skater icons) like the ghost town houses.
+- The album gets chapter tabs (16.4.1). All new strings in 7 languages, Arabic layout checked.
+
+### 16.9 Performance plan
+
+- **One scene, two places.** Statics are baked per place (one mesh per material per place), so the far place is
+  culled by the frustum as one object per material. Moving things in the far place update at a low rate.
+- **Budgets unchanged:** tier 0 ≤ 160 and tier 2 ≤ 260 draw calls in either place, measured with everything built
+  and the parade full. The shadow camera follows the hero's place.
+- Snowflakes, skaters and skiers are instanced; frost critters use the shared critter body.
+- Soak 15 minutes across both places with rides back and forth: textures, geometries and heap flat.
+
+### 16.10 Save and compatibility
+
+- The save keeps `save.version` 1. New fields (`area`, `ch2` pads, rink families, frost stars) restore to fresh
+  values when missing, so every chapter 1 save loads and simply finds the comet pad waiting. Bumping the version
+  would wipe every player's town, so it is not allowed.
+
+### 16.11 Test plan
+
+- **Logic tests:** the bot finishes chapter 2 from a chapter 1 save in 7–9 minutes over 12 seeds with a reward at
+  least every 45 s; the desert town earns while away and its pile caps; save round trip in both places and mid-ride;
+  an old save gets the comet pad; frost critters only hatch up top; the parade cap holds with 26 critters.
+- **Browser playtest:** screenshots of the ride, each unlock, the rink goal, aurora night, the finale and the album
+  page 2, each with the glare check; draw calls at tier 0 and 2 in both places; Arabic HUD; the bundle test.
+- **By eye:** the snow look (no glare), the ride's camera, the aurora.
+
+### 16.12 Milestones
+
+| # | Milestone | Done means |
+|---|---|---|
+| M5a | **Look and travel** | Frost mesa, comet crater, chalets, snow at noon and dusk; the cable car ride both ways; unlock 0–3 working. Screenshots pass the glare check; draw calls in budget. |
+| M5b | **Chapter 2 complete** | Unlocks 4–10, snow globes, rink goal, 8 frost critters, stars, hats, album tabs, finale and the lava hint; logic tests and bot timings above. |
+| M5c | **Ship as the day-6 update** | Full playtest and soak, bundle test, clean upload set, draft saved; publish only on the owner's word. If it is not ready by day 6, the festival goes out on day 6 and chapter 2 on day 9. |
