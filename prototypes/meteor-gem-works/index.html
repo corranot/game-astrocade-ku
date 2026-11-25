@@ -115,6 +115,15 @@ body{display:flex;align-items:center;justify-content:center}
 .bubble canvas{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
 .bubble em{font-style:normal;font-size:calc(var(--u)*40px);color:#e04c8c}
 /* continue / new game card */
+.ride{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*18px);background:linear-gradient(#e08a5a,#7a4a6a 55%,#3a2a4a);opacity:0;pointer-events:auto}
+.ride.frost{background:linear-gradient(#8a9ce0,#6a6ab8 55%,#2c3170)}
+.ride[hidden]{display:none}
+.ride.go{animation:ride 1.9s ease-in-out forwards}
+.ride canvas{width:calc(var(--u)*240px);height:calc(var(--u)*180px);animation:gond 1.9s ease-in-out forwards}
+.ride b{font-size:calc(var(--u)*64px);color:#ffe08a;text-align:center;padding:0 calc(var(--u)*40px)}
+.ride span{font-size:calc(var(--u)*40px);color:#f3e6cf}
+@keyframes ride{0%{opacity:0}25%,72%{opacity:1}100%{opacity:0}}
+@keyframes gond{0%{transform:translateX(-60%)}100%{transform:translateX(60%)}}
 .menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*34px);background:radial-gradient(ellipse at 50% 45%,rgba(42,34,51,.15),rgba(42,34,51,.55));pointer-events:auto}
 .menu h1{margin:0 0 calc(var(--u)*20px);font-size:calc(var(--u)*92px);line-height:1;color:#ffe08a;text-align:center}
 .menu button{pointer-events:auto;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;min-width:calc(var(--u)*420px);height:calc(var(--u)*128px);border-radius:calc(var(--u)*44px);font-size:calc(var(--u)*58px);color:#ffe08a;
@@ -134,7 +143,7 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes popIn{from{transform:scale(.3)}}
 @keyframes ban{from{transform:translateY(calc(var(--u)*-60px)) scale(.6);opacity:0}}
 @keyframes drag{0%,100%{transform:translateX(calc(var(--u)*-70px))}50%{transform:translateX(calc(var(--u)*70px))}}
-@media (prefers-reduced-motion: reduce){.share.go,.albumB.dot em,.banner.go,.pop.big,.hand,.carry.max,.next.ready,.menu .go,.tap i,.bubble{animation:none}}
+@media (prefers-reduced-motion: reduce){.share.go,.albumB.dot em,.banner.go,.pop.big,.hand,.carry.max,.next.ready,.menu .go,.tap i,.bubble,.ride.go,.ride canvas{animation:none}.ride.go{opacity:1}}
 </style>
 </head>
 <body>

@@ -607,7 +607,36 @@
       "frosty": "Frosty",
       "cometpup": "Comet Pup",
       "gift": "WELCOME BACK!",
-      "giftSub": "A gift from the town"
+      "giftSub": "A gift from the town",
+      "toFrost": "FOLLOW THE COMET!",
+      "toDesert": "BACK TO THE DESERT",
+      "ride": "Hop on the cable car",
+      "awayCoins": "Your town kept selling!",
+      "f_rig": "ICE DRILL",
+      "f_conveyor": "SLED SLIDE",
+      "f_stand2": "SNOW STAND",
+      "f_keeper": "PENGUIN HELPER",
+      "f_cable": "SKI LIFT",
+      "f_workshop": "SNOW GLOBES",
+      "f_stargaze": "HOT COCOA",
+      "f_ghost": "SLEEPY CHALETS",
+      "f_neon": "AURORA LIGHTS",
+      "f_heart": "THE FROST HEART",
+      "f_ghostGoal": "Wake the chalets",
+      "f_title": "FROST COMET",
+      "snowball": "Snowball",
+      "flurry": "Flurry",
+      "icicle": "Icicle",
+      "mitten": "Mitten",
+      "glacier": "Glacier",
+      "puffin": "Puffin Pup",
+      "aurorafox": "Aurora Fox",
+      "polaris": "Polaris",
+      "lava": "Something glows under the far mesa...",
+      "f_ghostLit": "A CHALET WAKES UP!",
+      "f_districtDone": "THE VILLAGE IS AWAKE!",
+      "f_finale": "THE FROST HEART!",
+      "f_comet": "A RED GLOW! CHAPTER 3 SOON"
     },
     "ar": {
       "drag": "اسحب للتحرك",
@@ -682,7 +711,36 @@
       "frosty": "فروستي",
       "cometpup": "جرو المذنّب",
       "gift": "أهلًا بعودتك!",
-      "giftSub": "هدية من البلدة"
+      "giftSub": "هدية من البلدة",
+      "toFrost": "اتبع المذنّب!",
+      "toDesert": "عودة إلى الصحراء",
+      "ride": "اركب التلفريك",
+      "awayCoins": "بلدتك واصلت البيع!",
+      "f_rig": "مثقاب الجليد",
+      "f_conveyor": "زلّاجة النقل",
+      "f_stand2": "كشك الثلج",
+      "f_keeper": "البطريق المساعد",
+      "f_cable": "مصعد التزلج",
+      "f_workshop": "كرات الثلج",
+      "f_stargaze": "شوكولاتة ساخنة",
+      "f_ghost": "الأكواخ النائمة",
+      "f_neon": "أضواء الشفق",
+      "f_heart": "قلب الصقيع",
+      "f_ghostGoal": "أيقظ الأكواخ",
+      "f_title": "مذنّب الصقيع",
+      "snowball": "كرة ثلج",
+      "flurry": "زخّة",
+      "icicle": "إبرة جليد",
+      "mitten": "قفّاز",
+      "glacier": "نهر جليد",
+      "puffin": "جرو البفن",
+      "aurorafox": "ثعلب الشفق",
+      "polaris": "بولاريس",
+      "lava": "شيء يتوهّج تحت الهضبة البعيدة...",
+      "f_ghostLit": "كوخ يستيقظ!",
+      "f_districtDone": "القرية استيقظت!",
+      "f_finale": "قلب الصقيع!",
+      "f_comet": "وهج أحمر! الفصل 3 قريبًا"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
@@ -757,7 +815,36 @@
       "frosty": "Escarcha",
       "cometpup": "Cometín",
       "gift": "¡HOLA DE NUEVO!",
-      "giftSub": "Un regalo del pueblo"
+      "giftSub": "Un regalo del pueblo",
+      "toFrost": "¡SIGUE AL COMETA!",
+      "toDesert": "VOLVER AL DESIERTO",
+      "ride": "Sube al teleférico",
+      "awayCoins": "¡Tu pueblo siguió vendiendo!",
+      "f_rig": "TALADRO DE HIELO",
+      "f_conveyor": "TOBOGÁN",
+      "f_stand2": "PUESTO DE NIEVE",
+      "f_keeper": "PINGÜINO AYUDANTE",
+      "f_cable": "TELESILLA",
+      "f_workshop": "BOLAS DE NIEVE",
+      "f_stargaze": "CHOCOLATE CALIENTE",
+      "f_ghost": "CABAÑAS DORMIDAS",
+      "f_neon": "LUCES DE AURORA",
+      "f_heart": "EL CORAZÓN DE HIELO",
+      "f_ghostGoal": "Despierta las cabañas",
+      "f_title": "COMETA DE HIELO",
+      "snowball": "Bolita",
+      "flurry": "Ventisca",
+      "icicle": "Carámbano",
+      "mitten": "Manopla",
+      "glacier": "Glaciar",
+      "puffin": "Frailecillo",
+      "aurorafox": "Zorro Aurora",
+      "polaris": "Polaris",
+      "lava": "Algo brilla bajo la meseta lejana...",
+      "f_ghostLit": "¡UNA CABAÑA DESPIERTA!",
+      "f_districtDone": "¡EL PUEBLO DESPERTÓ!",
+      "f_finale": "¡EL CORAZÓN DE HIELO!",
+      "f_comet": "¡UN BRILLO ROJO! CAPÍTULO 3 PRONTO"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
@@ -832,7 +919,36 @@
       "frosty": "Sương Giá",
       "cometpup": "Sao Chổi Con",
       "gift": "CHÀO MỪNG TRỞ LẠI!",
-      "giftSub": "Quà từ thị trấn"
+      "giftSub": "Quà từ thị trấn",
+      "toFrost": "ĐUỔI THEO SAO CHỔI!",
+      "toDesert": "VỀ SA MẠC",
+      "ride": "Lên cáp treo",
+      "awayCoins": "Thị trấn vẫn bán hàng!",
+      "f_rig": "MŨI KHOAN BĂNG",
+      "f_conveyor": "CẦU TRƯỢT",
+      "f_stand2": "QUẦY TUYẾT",
+      "f_keeper": "CHIM CÁNH CỤT",
+      "f_cable": "CÁP TRƯỢT TUYẾT",
+      "f_workshop": "QUẢ CẦU TUYẾT",
+      "f_stargaze": "CA CAO NÓNG",
+      "f_ghost": "NHÀ GỖ NGỦ SAY",
+      "f_neon": "ĐÈN CỰC QUANG",
+      "f_heart": "TRÁI TIM BĂNG",
+      "f_ghostGoal": "Đánh thức nhà gỗ",
+      "f_title": "SAO CHỔI BĂNG",
+      "snowball": "Bông Tuyết",
+      "flurry": "Gió Tuyết",
+      "icicle": "Trụ Băng",
+      "mitten": "Găng Tay",
+      "glacier": "Sông Băng",
+      "puffin": "Hải Âu Con",
+      "aurorafox": "Cáo Cực Quang",
+      "polaris": "Bắc Đẩu",
+      "lava": "Có gì đó phát sáng dưới núi xa...",
+      "f_ghostLit": "MỘT NHÀ GỖ THỨC GIẤC!",
+      "f_districtDone": "LÀNG ĐÃ THỨC DẬY!",
+      "f_finale": "TRÁI TIM BĂNG!",
+      "f_comet": "ÁNH ĐỎ! CHƯƠNG 3 SẮP TỚI"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
@@ -907,7 +1023,36 @@
       "frosty": "फ्रॉस्टी",
       "cometpup": "धूमकेतु पिल्ला",
       "gift": "फिर से स्वागत है!",
-      "giftSub": "शहर की ओर से तोहफ़ा"
+      "giftSub": "शहर की ओर से तोहफ़ा",
+      "toFrost": "धूमकेतु के पीछे चलो!",
+      "toDesert": "रेगिस्तान वापस",
+      "ride": "केबल कार में बैठो",
+      "awayCoins": "तुम्हारा शहर बेचता रहा!",
+      "f_rig": "बर्फ़ की ड्रिल",
+      "f_conveyor": "स्लेज फिसलन",
+      "f_stand2": "बर्फ़ की दुकान",
+      "f_keeper": "पेंगुइन मददगार",
+      "f_cable": "स्की लिफ़्ट",
+      "f_workshop": "स्नो ग्लोब",
+      "f_stargaze": "गरम कोको",
+      "f_ghost": "सोते कॉटेज",
+      "f_neon": "ऑरोरा रोशनी",
+      "f_heart": "बर्फ़ का दिल",
+      "f_ghostGoal": "कॉटेज जगाओ",
+      "f_title": "बर्फ़ीला धूमकेतु",
+      "snowball": "स्नोबॉल",
+      "flurry": "फुहार",
+      "icicle": "हिमलट",
+      "mitten": "दस्ताना",
+      "glacier": "हिमनद",
+      "puffin": "पफ़िन पिल्ला",
+      "aurorafox": "ऑरोरा लोमड़ी",
+      "polaris": "ध्रुव",
+      "lava": "दूर पठार के नीचे कुछ चमक रहा है...",
+      "f_ghostLit": "एक कॉटेज जागा!",
+      "f_districtDone": "गाँव जाग गया!",
+      "f_finale": "बर्फ़ का दिल!",
+      "f_comet": "लाल चमक! अध्याय 3 जल्द"
     },
     "bn": {
       "drag": "চলতে টানো",
@@ -982,7 +1127,36 @@
       "frosty": "ফ্রস্টি",
       "cometpup": "ধূমকেতু ছানা",
       "gift": "আবার স্বাগতম!",
-      "giftSub": "শহরের পক্ষ থেকে উপহার"
+      "giftSub": "শহরের পক্ষ থেকে উপহার",
+      "toFrost": "ধূমকেতুর পিছু নাও!",
+      "toDesert": "মরুভূমিতে ফেরো",
+      "ride": "কেবল কারে ওঠো",
+      "awayCoins": "তোমার শহর বিক্রি চালিয়ে গেছে!",
+      "f_rig": "বরফের ড্রিল",
+      "f_conveyor": "স্লেজ স্লাইড",
+      "f_stand2": "বরফের দোকান",
+      "f_keeper": "পেঙ্গুইন সহকারী",
+      "f_cable": "স্কি লিফট",
+      "f_workshop": "স্নো গ্লোব",
+      "f_stargaze": "গরম কোকো",
+      "f_ghost": "ঘুমন্ত কুটির",
+      "f_neon": "অরোরা আলো",
+      "f_heart": "বরফের হৃদয়",
+      "f_ghostGoal": "কুটিরগুলো জাগাও",
+      "f_title": "বরফ ধূমকেতু",
+      "snowball": "তুষারবল",
+      "flurry": "ঝিরিঝিরি",
+      "icicle": "বরফকাঠি",
+      "mitten": "দস্তানা",
+      "glacier": "হিমবাহ",
+      "puffin": "পাফিন ছানা",
+      "aurorafox": "অরোরা শেয়াল",
+      "polaris": "ধ্রুবতারা",
+      "lava": "দূরের মালভূমির নিচে কিছু জ্বলছে...",
+      "f_ghostLit": "একটা কুটির জেগেছে!",
+      "f_districtDone": "গ্রাম জেগে উঠেছে!",
+      "f_finale": "বরফের হৃদয়!",
+      "f_comet": "লাল আভা! অধ্যায় ৩ শিগগির"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
@@ -1057,7 +1231,36 @@
       "frosty": "Beku",
       "cometpup": "Anak Komet",
       "gift": "SELAMAT DATANG LAGI!",
-      "giftSub": "Hadiah dari kota"
+      "giftSub": "Hadiah dari kota",
+      "toFrost": "IKUTI KOMETNYA!",
+      "toDesert": "KEMBALI KE GURUN",
+      "ride": "Naik kereta gantung",
+      "awayCoins": "Kotamu tetap berjualan!",
+      "f_rig": "BOR ES",
+      "f_conveyor": "PELUNCUR KERETA SALJU",
+      "f_stand2": "KIOS SALJU",
+      "f_keeper": "PENGUIN PENOLONG",
+      "f_cable": "KURSI GANTUNG SKI",
+      "f_workshop": "BOLA SALJU",
+      "f_stargaze": "COKELAT PANAS",
+      "f_ghost": "PONDOK TERTIDUR",
+      "f_neon": "LAMPU AURORA",
+      "f_heart": "JANTUNG ES",
+      "f_ghostGoal": "Bangunkan pondok",
+      "f_title": "KOMET ES",
+      "snowball": "Bola Salju",
+      "flurry": "Hujan Salju",
+      "icicle": "Es Runcing",
+      "mitten": "Sarung Tangan",
+      "glacier": "Gletser",
+      "puffin": "Anak Puffin",
+      "aurorafox": "Rubah Aurora",
+      "polaris": "Polaris",
+      "lava": "Ada yang menyala di bawah bukit jauh...",
+      "f_ghostLit": "SEBUAH PONDOK BANGUN!",
+      "f_districtDone": "DESA SUDAH BANGUN!",
+      "f_finale": "JANTUNG ES!",
+      "f_comet": "CAHAYA MERAH! BAB 3 SEGERA"
     }
   },
   "start": {
@@ -1260,6 +1463,88 @@
       "body": "#ffe2a0",
       "shell": "#ffd060",
       "rarity": "legendary"
+    },
+    {
+      "id": "snowball",
+      "perk": "carry",
+      "v": 3,
+      "body": "#e4e2f2",
+      "shell": "#9fd4ff",
+      "rarity": "common",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "flurry",
+      "perk": "speed",
+      "v": 0.08,
+      "body": "#d6e4f4",
+      "shell": "#c8a8ff",
+      "rarity": "common",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "icicle",
+      "perk": "tip",
+      "v": 2,
+      "body": "#c8d8ee",
+      "shell": "#7ae0ff",
+      "rarity": "common",
+      "area": "frost",
+      "drop": "ch2",
+      "s": 0.9
+    },
+    {
+      "id": "mitten",
+      "perk": "magnet",
+      "v": 0.4,
+      "body": "#e89aa8",
+      "shell": "#ffc0d8",
+      "rarity": "shiny",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "glacier",
+      "perk": "polish",
+      "v": 0.9,
+      "body": "#a8c4e0",
+      "shell": "#5ad0f0",
+      "rarity": "shiny",
+      "area": "frost",
+      "drop": "ch2",
+      "s": 1.1
+    },
+    {
+      "id": "puffin",
+      "perk": "tourists",
+      "v": 0.9,
+      "body": "#4a4a62",
+      "shell": "#ff9a6a",
+      "rarity": "rare",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "aurorafox",
+      "perk": "luck",
+      "v": 0.85,
+      "body": "#f0d8e8",
+      "shell": "#8af0c8",
+      "rarity": "rare",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "polaris",
+      "perk": "bonus",
+      "v": 3,
+      "body": "#dfe8f8",
+      "shell": "#9ad8ff",
+      "rarity": "legendary",
+      "area": "frost",
+      "drop": "ch2"
     }
   ],
   "save": {
@@ -1336,6 +1621,24 @@
       "id": "bandana",
       "sold": 1000,
       "drop": "night"
+    },
+    {
+      "id": "earmuffs",
+      "stars": 1,
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "beanie",
+      "stars": 2,
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "icecrown",
+      "finale": true,
+      "area": "frost",
+      "drop": "ch2"
     }
   ],
   "share": {
@@ -1343,7 +1646,8 @@
   },
   "drops": {
     "night": false,
-    "festival": false
+    "festival": false,
+    "ch2": false
   },
   "festival": {
     "fireworks": 7,
@@ -1355,5 +1659,179 @@
     "perPad": 12,
     "cap": 240,
     "eggIn": 3
+  },
+  "travel": {
+    "x": 6.4,
+    "z": 9.9,
+    "r": 0.95,
+    "hold": 0.8
+  },
+  "away": {
+    "perPadMin": 5,
+    "cap": 160
+  },
+  "ch2": {
+    "seed": 23,
+    "scale": 3,
+    "pads": [
+      {
+        "id": "rig",
+        "label": "f_rig",
+        "price": 120
+      },
+      {
+        "id": "conveyor",
+        "label": "f_conveyor",
+        "price": 280
+      },
+      {
+        "id": "stand2",
+        "label": "f_stand2",
+        "price": 380
+      },
+      {
+        "id": "keeper",
+        "label": "f_keeper",
+        "price": 480
+      },
+      {
+        "id": "cable",
+        "label": "f_cable",
+        "price": 590
+      },
+      {
+        "id": "workshop",
+        "label": "f_workshop",
+        "price": 700,
+        "icon": "globe"
+      },
+      {
+        "id": "stargaze",
+        "label": "f_stargaze",
+        "price": 810,
+        "icon": "cocoa"
+      },
+      {
+        "id": "ghost",
+        "label": "f_ghost",
+        "price": 920
+      },
+      {
+        "id": "neon",
+        "label": "f_neon",
+        "price": 1060,
+        "icon": "aurora"
+      },
+      {
+        "id": "heart",
+        "label": "f_heart",
+        "price": 1260
+      }
+    ],
+    "finale": {
+      "critter": "polaris"
+    },
+    "stars": {
+      "orders": 6,
+      "critters": 5
+    },
+    "egg": {
+      "dropAt": 18
+    },
+    "rush": {
+      "first": 80
+    },
+    "tod": {
+      "start": 0,
+      "ease": 0.04,
+      "byPad": {
+        "stargaze": 0.5,
+        "neon": 0.85,
+        "heart": 1
+      },
+      "keys": [
+        {
+          "t": 0,
+          "sky": [
+            "#6f9ee0",
+            "#a9c4ee",
+            "#dcd6f0",
+            "#e8dcef"
+          ],
+          "fog": "#d8d6ec",
+          "fogNear": 50,
+          "fogFar": 125,
+          "sun": "#fff4ec",
+          "sunI": 2.0,
+          "hemiSky": "#eef0ff",
+          "hemiGround": "#7a7aa8",
+          "hemiI": 1.0,
+          "elev": 0.95,
+          "exp": 0.86,
+          "lamps": 0,
+          "meteor": 1
+        },
+        {
+          "t": 0.5,
+          "sky": [
+            "#7a86c8",
+            "#c8a0c8",
+            "#f0b8c0",
+            "#f2d0cc"
+          ],
+          "fog": "#dcb8cc",
+          "fogNear": 46,
+          "fogFar": 115,
+          "sun": "#ffc8b0",
+          "sunI": 1.8,
+          "hemiSky": "#f0d4e8",
+          "hemiGround": "#6a5a8a",
+          "hemiI": 0.95,
+          "elev": 0.4,
+          "exp": 0.88,
+          "lamps": 0.3,
+          "meteor": 1.15
+        },
+        {
+          "t": 1,
+          "sky": [
+            "#141a44",
+            "#2c3170",
+            "#5a4a8e",
+            "#8a6aa8"
+          ],
+          "fog": "#4a4a7a",
+          "fogNear": 42,
+          "fogFar": 105,
+          "sun": "#a8b8ff",
+          "sunI": 1.0,
+          "hemiSky": "#8a92e0",
+          "hemiGround": "#3a3456",
+          "hemiI": 0.85,
+          "elev": 0.22,
+          "exp": 1.0,
+          "lamps": 1,
+          "meteor": 1.3
+        }
+      ]
+    },
+    "snow": {
+      "flakes": 520,
+      "h": 14,
+      "fall": 1.1,
+      "size": 0.11,
+      "color": "#cdd0e8",
+      "alpha": 0.7
+    },
+    "look": {
+      "grade": {
+        "warmth": -0.012,
+        "saturation": 1.08
+      }
+    }
+  },
+  "ride": {
+    "swap": 0.7,
+    "sec": 1.9
   }
 }

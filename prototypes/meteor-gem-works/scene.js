@@ -11,10 +11,11 @@
 // This file only draws; logic.js owns the rules.
 /* global THREE */
 import * as M from './models.js';
-import { todBlend } from './logic.js';
+import { todBlend, travelOpen } from './logic.js';
 
 const { PAL } = M;
 const GEM_COLS = [0xd8279f, 0x1fb8e0, 0x7a3cf0, 0xf2a81e, 0x22c07a];
+const FROST_GEMS = [0x2fa8f0, 0x7a5cf0, 0x22c8c0, 0xe060b0, 0x5a8cff]; // chapter 2: icy blues, violet, a pink
 
 function canvasTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
@@ -66,6 +67,17 @@ export function drawIcon(g, icon, fg, bg) {
   } else if (icon === 'neon') {
     g.lineWidth = 9; g.strokeStyle = fg; g.beginPath(); for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI * 2 - Math.PI / 2, r = k % 2 ? 14 : 32; g.lineTo(Math.cos(a) * r - 6, Math.sin(a) * r - 6); } g.closePath(); g.stroke();
     g.lineWidth = 6; g.beginPath(); g.moveTo(-42, 34); g.quadraticCurveTo(-20, 22, 0, 34); g.quadraticCurveTo(20, 46, 42, 32); g.stroke();
+  } else if (icon === 'globe') {
+    rr(-30, 22, 60, 16, 6); g.beginPath(); g.arc(0, -6, 32, 0, 6.3); g.fill();
+    g.fillStyle = bg; g.beginPath(); g.moveTo(0, -28); g.lineTo(14, 8); g.lineTo(-14, 8); g.closePath(); g.fill();
+    for (const [x, y] of [[-18, -18], [16, -22], [20, 0], [-22, 2]]) { g.beginPath(); g.arc(x, y, 3.5, 0, 6.3); g.fill(); }
+  } else if (icon === 'cocoa') {
+    rr(-28, -10, 46, 46, 9); g.lineWidth = 9; g.strokeStyle = fg; g.beginPath(); g.arc(22, 12, 13, -1.4, 1.4); g.stroke();
+    g.lineWidth = 6; for (const x of [-16, -4, 8]) { g.beginPath(); g.moveTo(x, -18); g.bezierCurveTo(x - 8, -28, x + 8, -34, x, -44); g.stroke(); }
+    g.fillStyle = bg; g.beginPath(); g.moveTo(-5, 4); g.bezierCurveTo(-14, -6, -22, 8, -5, 20); g.bezierCurveTo(12, 8, 4, -6, -5, 4); g.fill();
+  } else if (icon === 'aurora') {
+    g.lineWidth = 9; g.strokeStyle = fg; for (const [y, a] of [[-24, 1], [-4, 0.8], [16, 0.6]]) { g.globalAlpha = a; g.beginPath(); g.moveTo(-44, y + 8); g.bezierCurveTo(-20, y - 14, 10, y + 18, 44, y - 6); g.stroke(); }
+    g.globalAlpha = 1; for (const [x, y] of [[-30, 34], [0, 30], [28, 36]]) { g.beginPath(); g.arc(x, y, 4, 0, 6.3); g.fill(); }
   } else if (icon === 'heart') {
     g.beginPath(); g.moveTo(0, 38); g.bezierCurveTo(-12, 26, -46, 6, -42, -16); g.bezierCurveTo(-38, -40, -8, -40, 0, -18); g.bezierCurveTo(8, -40, 38, -40, 42, -16); g.bezierCurveTo(46, 6, 12, 26, 0, 38); g.fill();
     g.fillStyle = bg; g.beginPath(); g.ellipse(-16, -16, 7, 11, -0.5, 0, 6.3); g.fill();
@@ -81,6 +93,9 @@ const back = (k) => { const c = 1.9; return 1 + (c + 1) * (k - 1) ** 3 + c * (k 
  */
 export function createScene(canvas, cfg, random) {
   const W = cfg.world, LK = cfg.look;
+  // chapter 2 (the Frost Comet valley) reuses this whole scene with a frost theme: snow, pines, a penguin, aurora
+  const FROST = cfg.theme === 'frost', GEMS = FROST ? FROST_GEMS : GEM_COLS, DUST = FROST ? 0xc4c8e4 : 0xe8c69a;
+  const fz = (g, snow = true) => (FROST ? M.frostify(g, snow) : g);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
@@ -91,11 +106,11 @@ export function createScene(canvas, cfg, random) {
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 9 / 16, 1, 160);
 
   // ---- sky dome: four-stop gradient from the zenith to the horizon, a soft sun glow; colours come from the tod keys
-  const skyU = { c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, c2: { value: new THREE.Color() }, c3: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 0.5, -1) }, sunC: { value: new THREE.Color() }, uStars: { value: 0 } };
+  const skyU = { c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, c2: { value: new THREE.Color() }, c3: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 0.5, -1) }, sunC: { value: new THREE.Color() }, uStars: { value: 0 }, uAur: { value: 0 }, uTime: { value: 0 } };
   const sky = new THREE.Mesh(K(new THREE.SphereGeometry(140, 32, 16)), K(new THREE.ShaderMaterial({
     uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3; uniform vec3 sunDir; uniform vec3 sunC; uniform float uStars; varying vec3 vD; void main(){ float y = clamp(vD.y, -0.2, 1.0); vec3 c = mix(c3, c2, smoothstep(-0.05, 0.08, y)); c = mix(c, c1, smoothstep(0.08, 0.3, y)); c = mix(c, c0, smoothstep(0.3, 0.8, y)); float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += sunC * (pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08); vec3 sc = floor(normalize(vD) * 260.0); float st = fract(sin(dot(sc, vec3(12.9898, 78.233, 37.719))) * 43758.5453); c += vec3(1.0, 0.95, 0.85) * step(0.9975, st) * smoothstep(0.12, 0.45, y) * uStars; gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
+    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3; uniform vec3 sunDir; uniform vec3 sunC; uniform float uStars; uniform float uAur; uniform float uTime; varying vec3 vD; void main(){ float y = clamp(vD.y, -0.2, 1.0); vec3 c = mix(c3, c2, smoothstep(-0.05, 0.08, y)); c = mix(c, c1, smoothstep(0.08, 0.3, y)); c = mix(c, c0, smoothstep(0.3, 0.8, y)); float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += sunC * (pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08); vec3 sc = floor(normalize(vD) * 260.0); float st = fract(sin(dot(sc, vec3(12.9898, 78.233, 37.719))) * 43758.5453); c += vec3(1.0, 0.95, 0.85) * step(0.9975, st) * smoothstep(0.12, 0.45, y) * uStars; if (uAur > 0.0) { float ax = atan(vD.x, -vD.z); float w = sin(ax * 3.0 + uTime * 0.12 + sin(ax * 7.0 - uTime * 0.25) * 0.7); float band = smoothstep(0.1, 0.95, w) * smoothstep(0.1, 0.26, y) * smoothstep(0.72, 0.34, y); float ray = 0.55 + 0.45 * sin(ax * 70.0 + uTime * 0.6 + w * 3.0); c += mix(vec3(0.12, 0.62, 0.48), vec3(0.42, 0.22, 0.7), smoothstep(0.2, 0.55, y)) * band * ray * uAur * 0.5; } gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
   })));
   sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
   scene.fog = new THREE.Fog(0xf0d9b8, 34, 90);
@@ -106,7 +121,7 @@ export function createScene(canvas, cfg, random) {
   Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 });
   const rim = new THREE.DirectionalLight(0xb9a8ff, 0.5); rim.position.set(-8, 6, -18);
   // a soft violet bounce from the crystals onto the front of the square (kept low: it washes out anything close to it)
-  const crystalLight = new THREE.PointLight(0xc070ff, 1.5, 14, 1.2); crystalLight.position.set(W.meteor.x, W.meteor.y + 0.5, W.meteor.z + W.meteor.r + 3.5);
+  const crystalLight = new THREE.PointLight(FROST ? 0x6aa8ff : 0xc070ff, 1.5, 14, 1.2); crystalLight.position.set(W.meteor.x, W.meteor.y + 0.5, W.meteor.z + W.meteor.r + 3.5);
   scene.add(hemi, sun, sun.target, rim, crystalLight);
 
   // ---- environment for reflections (gems, brass): a tiny warm studio, baked once with PMREM
@@ -138,9 +153,9 @@ export function createScene(canvas, cfg, random) {
   const ringMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.28, metalness: 0.7, envMapIntensity: 1.5, emissive: 0x3a2a10, emissiveIntensity: 0.4 }));
   const lanternMat = K(new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
   const beamMat = K(new THREE.MeshBasicMaterial({ color: 0xff6ad8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-  const mesh = (g, m = mat, shadow = true) => { const o = new THREE.Mesh(K(g), m); o.castShadow = shadow; o.receiveShadow = true; scene.add(o); return o; };
+  const mesh = (g, m = mat, shadow = true, snow = true) => { if (FROST && m.vertexColors && !m.isMeshBasicMaterial && g.attributes.color && !g.userData.frost) { M.frostify(g, snow); g.userData.frost = true; } const o = new THREE.Mesh(K(g), m); o.castShadow = shadow; o.receiveShadow = true; scene.add(o); return o; };
   // set dressing that never moves is baked into one mesh per material and shadow flag at the end (draw-call budget)
-  const statics = [], smesh = (g, m = mat, shadow = true) => { const o = mesh(g, m, shadow); statics.push(o); return o; };
+  const statics = [], smesh = (g, m = mat, shadow = true, snow = true) => { const o = mesh(g, m, shadow, snow); statics.push(o); return o; };
   function bakeStatics() {
     const groups = new Map();
     for (const o of statics) { o.updateMatrixWorld(true); const k = o.material.uuid + o.castShadow; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(o); }
@@ -153,7 +168,12 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---- ground: warm sand with ripples and pebbles, a big plane that fades into the fog
-  const sandTex = K(canvasTex(512, 512, (g, s) => {
+  const sandTex = K(canvasTex(512, 512, FROST ? (g, s) => {
+    // snow: lavender base, soft blue drifts and pink glints (the brightest stays near #cdd0e8, anti-glare)
+    g.fillStyle = '#bfc2e0'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 40; i++) { const y = random() * s; g.strokeStyle = `rgba(${random() < 0.5 ? '160,172,214' : '205,208,232'},0.4)`; g.lineWidth = 4 + random() * 8; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= s; x += 32) g.lineTo(x, y + Math.sin(x * 0.025 + i) * 10); g.stroke(); }
+    for (let i = 0; i < 700; i++) { g.fillStyle = ['rgba(150,160,205,0.35)', 'rgba(205,208,232,0.6)', 'rgba(214,190,214,0.5)'][i % 3]; g.beginPath(); g.arc(random() * s, random() * s, 0.8 + random() * 2, 0, 6.3); g.fill(); }
+  } : (g, s) => {
     g.fillStyle = '#e6bd88'; g.fillRect(0, 0, s, s);
     for (let i = 0; i < 46; i++) { const y = random() * s; g.strokeStyle = `rgba(${random() < 0.5 ? '201,152,99' : '247,220,176'},0.35)`; g.lineWidth = 3 + random() * 5; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= s; x += 32) g.lineTo(x, y + Math.sin(x * 0.03 + i) * 8); g.stroke(); }
     for (let i = 0; i < 900; i++) { g.fillStyle = ['rgba(150,100,70,0.35)', 'rgba(250,230,200,0.5)', 'rgba(190,120,80,0.3)'][i % 3]; g.beginPath(); g.arc(random() * s, random() * s, 0.8 + random() * 2.2, 0, 6.3); g.fill(); }
@@ -170,7 +190,8 @@ export function createScene(canvas, cfg, random) {
     for (let i = 0; i < n; i++) {
       v.fromBufferAttribute(p, i).normalize();
       const r = M.noise3(v.x * 2.2 + 5, v.y * 2.2, v.z * 2.2), q = M.noise3(v.x * 5 + 1, v.y * 5, v.z * 5);
-      c.set(0x241c2c).lerp(new THREE.Color(0x5a4658), Math.max(0, v.y) * 0.45 + q * 0.35).lerp(new THREE.Color(0x9a5038), Math.max(0, r - 0.55) * 1.8);
+      if (FROST) c.set(0x232a4a).lerp(new THREE.Color(0x4a5a88), Math.max(0, v.y) * 0.45 + q * 0.35).lerp(new THREE.Color(0x6a8cc0), Math.max(0, r - 0.55) * 1.8).lerp(new THREE.Color(M.FROSTPAL.snow), Math.max(0, Math.min(1, (v.y - 0.62 + q * 0.2) / 0.15)) * 0.85);
+      else c.set(0x241c2c).lerp(new THREE.Color(0x5a4658), Math.max(0, v.y) * 0.45 + q * 0.35).lerp(new THREE.Color(0x9a5038), Math.max(0, r - 0.55) * 1.8);
       colA[i * 3] = c.r; colA[i * 3 + 1] = c.g; colA[i * 3 + 2] = c.b;
       // crystal seams: blobs of a second noise where it peaks, with a soft edge (patches, not scribbles)
       const blob = M.noise3(v.x * 3.4 + 9, v.y * 3.4, v.z * 3.4) * 0.7 + M.noise3(v.x * 8 + 2, v.y * 8, v.z * 8) * 0.3;
@@ -187,7 +208,7 @@ export function createScene(canvas, cfg, random) {
     s.vertexShader = 'attribute float aVein; uniform sampler2D cutMap; uniform float maxD; varying float vCut; varying float vVein; varying vec3 vObj;\n' + s.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\nfloat cut = texture2D(cutMap, uv).r; transformed -= normalize(objectNormal) * cut * maxD; vCut = cut; vVein = aVein; vObj = position;');
     s.fragmentShader = 'uniform float uGlow; uniform float uPulse; uniform vec4 uFlash; varying float vCut; varying float vVein; varying vec3 vObj;\n' + s.fragmentShader
-      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat cr = max(smoothstep(0.04, 0.35, vCut), vVein * 0.85); float hue = sin(vObj.x * 1.7 + vObj.y * 2.3) * 0.5 + 0.5; vec3 crys = mix(vec3(0.82, 0.12, 0.62), vec3(0.12, 0.62, 0.95), hue); diffuseColor.rgb = mix(diffuseColor.rgb, crys * 0.35, cr);')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat cr = max(smoothstep(0.04, 0.35, vCut), vVein * 0.85); float hue = sin(vObj.x * 1.7 + vObj.y * 2.3) * 0.5 + 0.5; vec3 crys = mix(' + (FROST ? 'vec3(0.18, 0.62, 0.98), vec3(0.5, 0.3, 0.95)' : 'vec3(0.82, 0.12, 0.62), vec3(0.12, 0.62, 0.95)') + ', hue); diffuseColor.rgb = mix(diffuseColor.rgb, crys * 0.35, cr);')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fl = uFlash.w * exp(-dot(vObj - uFlash.xyz, vObj - uFlash.xyz) * 0.8); float facet = 0.55 + 0.45 * abs(sin(dot(floor(vObj * 2.6), vec3(12.9898, 78.233, 37.719))));\ntotalEmissiveRadiance = crys * (cr * (0.24 + 0.1 * uPulse) * facet + fl) * uGlow;');
   };
   const meteor = mesh(meteorGeo, meteorMat); meteor.position.set(W.meteor.x, W.meteor.y, W.meteor.z); meteor.rotation.y = 0;
@@ -217,23 +238,24 @@ export function createScene(canvas, cfg, random) {
     for (let i = 0; i < 22; i++) {
       if (i < 10) { const lon = -1.9 + random() * 3.8, lat = -0.1 + random() * 0.9; surf(lon, lat, 0.15, p); const nrm = p.clone().sub(meteor.position).normalize(); q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nrm); s.setScalar(1.1 + random() * 1.1); }
       else { const a = random() * Math.PI * 2, d = MR * 1.62 + random() * 1.4; p.set(W.meteor.x + Math.cos(a) * d, 0, W.meteor.z + Math.sin(a) * d * 0.9); if (p.z > -1.4) p.z = -1.4 - random(); q.setFromEuler(e.set(random() * 0.5, random() * 6, random() * 0.5)); s.setScalar(0.5 + random() * 0.6); }
-      rimShards.setMatrixAt(i, m4.compose(p, q, s)); rimShards.setColorAt(i, c.set(GEM_COLS[i % GEM_COLS.length]));
+      rimShards.setMatrixAt(i, m4.compose(p, q, s)); rimShards.setColorAt(i, c.set(GEMS[i % GEMS.length]));
     }
   }
   rimShards.castShadow = true; scene.add(rimShards);
 
   // ---- the deck (play area) and its rope fence, the crowd behind it
   const D = W.deck;
-  smesh(M.buildDeck(D), mat, false);
+  smesh(M.buildDeck(D), mat, false, false);
   // plank boards as a texture (vertex colours cannot draw thin seams): warm boards, dark gaps, nail heads, grain
   const plankTex = K(canvasTex(256, 256, (g, s) => {
     const n = 6, w = s / n;
     for (let i = 0; i < n; i++) {
-      const v = random(); g.fillStyle = `rgb(${200 + v * 22},${140 + v * 18},${88 + v * 12})`; g.fillRect(i * w, 0, w, s);
+      const v = random(); g.fillStyle = FROST ? `rgb(${150 + v * 20},${128 + v * 16},${124 + v * 14})` : `rgb(${200 + v * 22},${140 + v * 18},${88 + v * 12})`; g.fillRect(i * w, 0, w, s);
       for (let k = 0; k < 7; k++) { g.strokeStyle = `rgba(140,85,45,${0.12 + random() * 0.12})`; g.lineWidth = 1 + random() * 1.5; g.beginPath(); const x = i * w + 4 + random() * (w - 8); g.moveTo(x, 0); g.bezierCurveTo(x + 3, s * 0.3, x - 3, s * 0.6, x + 2, s); g.stroke(); }
       const cut = random() * s; g.fillStyle = 'rgba(90,50,25,0.85)'; g.fillRect(i * w, cut, w, 2.5);
       g.fillStyle = 'rgba(70,45,30,0.7)'; for (const y of [cut + 8, cut - 8]) for (const dx of [6, w - 6]) { g.beginPath(); g.arc(i * w + dx, (y + s) % s, 1.8, 0, 6.3); g.fill(); }
       g.fillStyle = 'rgba(90,50,25,0.9)'; g.fillRect(i * w, 0, 2.5, s);
+      if (FROST) for (let k = 0; k < 6; k++) { g.fillStyle = 'rgba(200,204,230,0.55)'; g.beginPath(); g.ellipse(i * w + 4 + random() * 6, random() * s, 2 + random() * 3, 6 + random() * 10, 0, 0, 6.3); g.fill(); }
     }
   }));
   plankTex.wrapS = plankTex.wrapT = THREE.RepeatWrapping;
@@ -253,11 +275,11 @@ export function createScene(canvas, cfg, random) {
   blades.position.set(10.4 + Math.sin(-0.5) * 0.95, 6.35, -4.6 + Math.cos(-0.5) * 0.95); blades.rotation.y = -0.5;
   for (const [x, z, w, h, d, ry] of [[-24, -30, 20, 10, 8, 0.2], [6, -38, 28, 14, 10, -0.05], [30, -28, 18, 9, 8, -0.3], [-40, -18, 16, 8, 8, 0.9], [42, -14, 16, 10, 8, -0.9], [-12, -46, 26, 18, 10, 0.1], [22, -52, 24, 20, 10, -0.15]]) { const m = smesh(M.buildMesa(w, h, d), mat, false); m.position.set(x, -0.4, z); m.rotation.y = ry; }
   const cactusPos = [[-9.2, 10.5], [9.4, 11.2], [-13.6, 4.6], [14.0, 3.6], [-8.4, -1.8], [-15, -7], [15.5, -9], [-4.5, -12.5], [3.2, -13.2], [-18, 12], [18, 13]];
-  cactusPos.forEach(([x, z], i) => { const c = smesh(M.buildCactus(i)); c.position.set(x, 0, z); c.rotation.y = i * 1.7; c.scale.setScalar(0.85 + (i % 3) * 0.15); });
+  cactusPos.forEach(([x, z], i) => { const c = smesh(FROST ? M.buildPine(i) : M.buildCactus(i)); c.position.set(x, 0, z); c.rotation.y = i * 1.7; c.scale.setScalar(0.85 + (i % 3) * 0.15); });
   for (const [x, z, ry] of [[-9.0, 4.4, 0.4], [9.1, 3.8, -0.6], [-8.8, -6.6, 1.2], [9.4, 9.4, 2.1]]) { const b = smesh(M.buildBarrels()); b.position.set(x, 0, z); b.rotation.y = ry; }
   // foreground: barrels and cacti beside the crowd (the ghost town fills the bottom of the frame)
   for (const [x, z, ry, k] of [[-7.4, 17.2, 0.3, 0], [8.6, 14.6, 0, 4], [-8.8, 14.8, 0, 5]]) {
-    const o = k < 2 ? smesh(M.buildBarrels()) : smesh(M.buildCactus(k)); o.position.set(x, 0, z); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
+    const o = k < 2 ? smesh(M.buildBarrels()) : smesh(FROST ? M.buildPine(k) : M.buildCactus(k)); o.position.set(x, 0, z); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
   }
   // lamp posts along both deck edges (instanced): bulbs glow at dusk
   const lampXZ = []; for (const sx of [-1, 1]) for (const z of [-0.4, 3.6, 7.6]) lampXZ.push([sx * (D.x1 + 0.75), z, sx < 0 ? 0 : Math.PI]);
@@ -287,13 +309,13 @@ export function createScene(canvas, cfg, random) {
   const pols = W.polishers.map((d, i) => {
     const g = new THREE.Group(); g.position.set(d.x, 0.16, d.z); scene.add(g);
     const ry = i === 0 ? Math.PI : 0; // polisher 2 turns its hopper to the conveyor on the left
-    const body = new THREE.Mesh(K(M.buildPolisher()), mat); body.castShadow = body.receiveShadow = true; body.rotation.y = ry; g.add(body);
+    const body = new THREE.Mesh(K(fz(M.buildPolisher())), mat); body.castShadow = body.receiveShadow = true; body.rotation.y = ry; g.add(body);
     const wheel = new THREE.Mesh(K(M.buildWheel()), mat); wheel.castShadow = true; wheel.position.set(Math.cos(ry) * -0.05, 1.45, 0); wheel.rotation.y = ry; g.add(wheel);
     if (d.pad) unlockObj(d.pad, g);
     return { d, g, wheel, ry, hop: new THREE.Vector3(d.x + Math.cos(ry) * 0.6, 1.6, d.z) };
   });
   const counter = mesh(M.buildCounter()); counter.position.set(W.counter.x, 0.16, W.counter.z);
-  const stG = M.buildStand(), standGeo = K(stG.body), standGlass = K(stG.glass);
+  const stG = M.buildStand(), standGeo = K(fz(stG.body)), standGlass = K(stG.glass);
   const stands = W.stands.map((d) => {
     const g = new THREE.Group(); g.position.set(d.x, 0.16, d.z); g.rotation.y = Math.PI; scene.add(g);
     const b = new THREE.Mesh(standGeo, mat); b.castShadow = b.receiveShadow = true; const gl = new THREE.Mesh(standGlass, glassMat); g.add(b, gl);
@@ -327,10 +349,10 @@ export function createScene(canvas, cfg, random) {
   const laserFx = { t: 0, p: new THREE.Vector3() };
   // canyon road with the bridge (planks come back when it is fixed) and the tour bus
   const RD = { z: 16.2, bx: -5.2, park: 1.6 };
-  const road = M.buildRoad(-60, 60, RD.z, RD.bx); smesh(road.road, mat, false);
+  const road = M.buildRoad(-60, 60, RD.z, RD.bx); smesh(road.road, mat, false, false);
   unlockObj('road', mesh(M.merge(road.planks)));
   const busB = M.buildBus(), bus = new THREE.Group(); scene.add(bus);
-  { const b = new THREE.Mesh(K(busB.body), mat), w = new THREE.Mesh(K(busB.windows), winMat); b.castShadow = true; bus.add(b, w); }
+  { const b = new THREE.Mesh(K(fz(busB.body)), mat), w = new THREE.Mesh(K(busB.windows), winMat); b.castShadow = true; bus.add(b, w); }
   const busWheelGeo = K(busB.wheel), busWheels = busB.wheels.map(([x, y, z]) => { const m = new THREE.Mesh(busWheelGeo, mat); m.position.set(x, y, z); bus.add(m); return m; });
   const busSt = { mode: 'off', t: 0, x: -50 }; bus.visible = false;
   // the order kid: a small tourist with a speech bubble (the bubble is HTML in game.js)
@@ -381,7 +403,7 @@ export function createScene(canvas, cfg, random) {
 
   // ---- the drill rig (hidden until bought) and its drill head
   const rig = unlockObj('rig', new THREE.Group()); rig.position.set(W.rigAt.x, 0, W.rigAt.z); rig.rotation.y = 0.35; scene.add(rig);
-  { const b = new THREE.Mesh(K(M.buildRig()), mat); b.castShadow = true; rig.add(b); }
+  { const b = new THREE.Mesh(K(fz(M.buildRig())), mat); b.castShadow = true; rig.add(b); }
   const drill = new THREE.Mesh(K(M.buildDrillHead()), brassMat); drill.castShadow = true; drill.position.set(0, 2.3, -2.15); drill.rotation.x = -0.32; rig.add(drill);
   const rigLon = Math.atan2(W.rigAt.x - W.meteor.x, W.rigAt.z - W.meteor.z) * 0.9, rigLat = 0.05;
   const laserLon = Math.atan2(LA.x - W.meteor.x, LA.z - W.meteor.z);
@@ -404,26 +426,26 @@ export function createScene(canvas, cfg, random) {
   const ghostFx = { k: [0, 0, 0], to: [0, 0, 0] };
   // the mine cart rail: from the cart stop east along the deck edge, down past the road, then west along the houses
   const CA = W.cart, railPts = [[CA.x, CA.z + 0.55], [CA.x, 10.95], [8.4, 10.95], [8.4, 18.0], [-4.6, 18.0]];
-  unlockObj('ghost', mesh(M.buildRail(railPts), mat, false));
+  unlockObj('ghost', mesh(M.buildRail(railPts), mat, false, false));
   const railPath = new THREE.CurvePath(); for (let i = 0; i < railPts.length - 1; i++) railPath.add(new THREE.LineCurve3(new THREE.Vector3(railPts[i][0], 0.16, railPts[i][1]), new THREE.Vector3(railPts[i + 1][0], 0.16, railPts[i + 1][1])));
   const railLen = railPath.getLength(), houseU = GH.map(([x]) => { let best = 0, bd = 1e9; for (let u = 0; u <= 1; u += 0.005) { const p = railPath.getPointAt(u); const d = Math.abs(p.x - x) + Math.abs(p.z - 18.0) * 3; if (d < bd) { bd = d; best = u; } } return best; });
   const cart = unlockObj('ghost', mesh(M.buildMineCart(), mat, true)); cart.position.set(CA.x, 0.16, CA.z + 0.55);
   const cartSt = { u: 0, back: 0 };
   // drill rig 2, on the left of the meteor (same build as rig 1)
   const rig2 = unlockObj('rig2', new THREE.Group()); rig2.position.set(W.rig2At.x, 0, W.rig2At.z); rig2.rotation.y = -0.4; scene.add(rig2);
-  { const b = new THREE.Mesh(K(M.buildRig()), mat); b.castShadow = true; rig2.add(b); }
+  { const b = new THREE.Mesh(K(fz(M.buildRig())), mat); b.castShadow = true; rig2.add(b); }
   const drill2 = new THREE.Mesh(drill.geometry, brassMat); drill2.castShadow = true; drill2.position.set(0, 2.3, -2.15); drill2.rotation.x = -0.32; rig2.add(drill2);
   const rig2Lon = Math.atan2(W.rig2At.x - W.meteor.x, W.rig2At.z - W.meteor.z) * 0.9;
   const rigs = [{ g: rig, drill, lon: rigLon, k: 0 }, { g: rig2, drill: drill2, lon: rig2Lon, k: 0 }];
   // the cable car across the back of town: two pylons, the cable and three gondolas (one instanced draw)
   const CB = M.buildCableLine([-12.5, -10.6, 6.6], [12.5, -11.4, 7.2]);
   unlockObj('cable', mesh(CB.line, mat, false));
-  const gondolas = unlockObj('cable', new THREE.InstancedMesh(K(M.buildGondola()), mat, 3)); gondolas.frustumCulled = false; scene.add(gondolas);
+  const gondolas = unlockObj('cable', new THREE.InstancedMesh(K(fz(M.buildGondola())), mat, 3)); gondolas.frustumCulled = false; scene.add(gondolas);
   const gondU = [0.1, 0.77, 1.43];
   /** Gondola i rides back and forth along the cable (hanging from the point it returns). */
   const gondAt = (i, out) => { const p = (gondU[i] + tAll * 0.025) % 2; return CB.curve.getPoint(0.04 + 0.92 * (p < 1 ? p : 2 - p), out); };
   // the stargazer deck on the right, beside the windmill
-  const stargazer = unlockObj('stargaze', mesh(M.buildStargazer(), mat, true)); stargazer.position.set(8.9, 0.16, -0.6); stargazer.rotation.y = -0.6;
+  const stargazer = unlockObj('stargaze', mesh(FROST ? M.buildCocoa() : M.buildStargazer(), mat, true)); stargazer.position.set(8.9, 0.16, -0.6); stargazer.rotation.y = -0.6;
   // the crown jeweler: turns rings into crowns that ride off on the cable car
   const JW = W.jeweler, jeweler = unlockObj('crown', mesh(M.buildJeweler(), mat, true)); jeweler.position.set(JW.x, 0.16, JW.z); jeweler.rotation.y = -0.5;
   // neon on main street: five signs that light one after another (one draw; uOn counts the lit signs)
@@ -435,19 +457,19 @@ export function createScene(canvas, cfg, random) {
     s.fragmentShader = 'uniform float uBoost; varying float vOn;\n' + s.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.16, uBoost, vOn);');
   };
   const neon = unlockObj('neon', mesh(M.buildNeon([
-    { shape: 'star', x: -6.2, y: 4.4, z: -2.6, ry: 0.25, s: 0.7, color: 0xffd35a },
+    FROST ? { shape: 'flake', x: -6.2, y: 4.4, z: -2.6, ry: 0.25, s: 0.75, color: 0x8ad8ff } : { shape: 'star', x: -6.2, y: 4.4, z: -2.6, ry: 0.25, s: 0.7, color: 0xffd35a },
     { shape: 'gem', x: 6.3, y: 4.3, z: -2.7, ry: -0.25, s: 0.75, color: 0x6fe0f0 },
     { shape: 'heart', x: -8.2, y: 3.4, z: 5.6, ry: 0.6, s: 0.75, color: 0xff6fa8 },
     { shape: 'wave', x: 8.3, y: 3.6, z: 5.4, ry: -0.6, s: 0.6, color: 0x8fe0a8 },
-    { shape: 'arch', x: 0.5, y: 6.2, z: -3.9, ry: 0, s: 1.6, color: 0xc890ff },
+    { shape: FROST ? 'flake' : 'arch', x: 0.5, y: 6.2, z: -3.9, ry: 0, s: FROST ? 1.0 : 1.6, color: FROST ? 0x9ae0d0 : 0xc890ff },
   ]), neonMat, false));
   const neonFx = { on: 0, to: 0 };
   // the heart of the meteor (rises in the finale) and the comet that points to chapter 2
-  const heartMat = K(shellMat.clone()); heartMat.color.set(0xff7ad0); heartMat.emissive.set(0xe0409a);
+  const heartMat = K(shellMat.clone()); if (FROST) { heartMat.color.set(0x7ac8ff); heartMat.emissive.set(0x3a8ae0); } else { heartMat.color.set(0xff7ad0); heartMat.emissive.set(0xe0409a); }
   const heart = new THREE.Mesh(K(M.heartGeo()), heartMat); heart.visible = false; scene.add(heart);
   const cg = M.cometGeo(), comet = new THREE.Group(); comet.visible = false; scene.add(comet);
-  const cometMat = K(new THREE.MeshBasicMaterial({ color: 0x9fd8f0, fog: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-  comet.add(new THREE.Mesh(K(cg.head), cometMat), new THREE.Mesh(K(cg.tail), K(new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))));
+  const cometMat = K(new THREE.MeshBasicMaterial({ color: FROST ? 0xffa060 : 0x9fd8f0, fog: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  comet.add(new THREE.Mesh(K(cg.head), cometMat), new THREE.Mesh(K(cg.tail), K(new THREE.MeshBasicMaterial({ vertexColors: true, color: FROST ? 0xffa070 : 0xffffff, fog: false, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))));
   comet.children.forEach((m) => { m.renderOrder = -5; });
   const COMET = { from: new THREE.Vector3(40, 30, -60), to: new THREE.Vector3(-4, 24, -54) }; // high over the mesas: the finale camera turns up to it
   const finFx = { st: null, t: 0 };
@@ -484,10 +506,10 @@ export function createScene(canvas, cfg, random) {
     const sm = K(shellMat.clone()); sm.color.set(d.shell); sm.emissive.set(d.shell).multiplyScalar(0.55);
     const c = M.makeCritter(charMat, sm, new THREE.Color(d.body).getHex()); c.root.visible = false; c.root.scale.setScalar(1.25 * (d.s || 1)); noCast(c.root); scene.add(c.root);
     c.sm = sm; c.hatchK = 0; c.s = 1.25 * (d.s || 1); critters[d.id] = c;
-    if (d.rarity === 'legendary') { const cr = new THREE.Mesh(hatGeos.crown || K(M.buildHat('crown')), mat); cr.scale.setScalar(0.8); cr.position.set(0, 0.02, -0.02); c.head.add(cr); }
+    if (d.rarity === 'legendary') { const hid = d.area === 'frost' ? 'icecrown' : 'crown', cr = new THREE.Mesh(hatGeos[hid] || K(M.buildHat(hid)), mat); cr.scale.setScalar(0.8); cr.position.set(0, 0.02, -0.02); c.head.add(cr); }
   }
   // the shopkeeper armadillo
-  const keeper = M.makeKeeper(charMat); keeper.root.scale.setScalar(1.25); noCast(keeper.root); scene.add(keeper.root); unlockObj('keeper', keeper.root);
+  const keeper = (FROST ? M.makePenguin : M.makeKeeper)(charMat); keeper.root.scale.setScalar(1.25); noCast(keeper.root); scene.add(keeper.root); unlockObj('keeper', keeper.root);
   keeper.root.position.set(W.keeperHome.x, 0.16, W.keeperHome.z);
   const eg = M.eggGeos(), egg = new THREE.Group(); scene.add(egg);
   const eggShell = new THREE.Mesh(K(eg.shell), mat), eggSpots = new THREE.Mesh(K(eg.spots), spotMat); eggShell.castShadow = true; egg.add(eggShell, eggSpots);
@@ -506,12 +528,39 @@ export function createScene(canvas, cfg, random) {
   guideRing.renderOrder = 3; scene.add(guideRing);
 
   // ---- tumbleweeds rolling across the sand now and then
-  const twGeo = K(M.buildTumbleweed()), weeds = [0, 1].map((i) => { const m = new THREE.Mesh(twGeo, mat); m.castShadow = true; scene.add(m); return { m, t: i * 9, z: i ? 12.5 : -2.6, dir: i ? -1 : 1 }; });
+  const twGeo = K(FROST ? M.buildSnowball() : M.buildTumbleweed()), weeds = [0, 1].map((i) => { const m = new THREE.Mesh(twGeo, mat); m.castShadow = true; scene.add(m); return { m, t: i * 9, z: i ? 12.5 : -2.6, dir: i ? -1 : 1 }; });
   // ---- soft clouds drifting in the sky (instanced, one draw)
   const cloudGeo = K(M.merge([0, 1, 2, 3, 4].map((k) => M.paint(M.at(new THREE.SphereGeometry(1, 12, 8), (k - 2) * 1.3, Math.sin(k * 2) * 0.3 + (k === 2 ? 0.5 : 0), 0, 0, 0, 0, [1.3 - Math.abs(k - 2) * 0.15, 0.85 - Math.abs(k - 2) * 0.12, 1]), 0xfff2e4))));
-  const cloudMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: 0xffe8d0, emissiveIntensity: 0.35, fog: false })), clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, 7);
-  const cloudList = []; for (let i = 0; i < 7; i++) cloudList.push({ x: -40 + i * 13 + random() * 6, y: 16 + random() * 9, z: -55 - random() * 25, s: 2.4 + random() * 2, v: 0.4 + random() * 0.5 });
+  const cloudMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: FROST ? 0xd8dcf4 : 0xffe8d0, emissiveIntensity: 0.35, fog: false })), clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, 7);
+  const cloudList = []; for (let i = 0; i < 7; i++) cloudList.push({ x: -40 + i * 13 + random() * 6, y: (FROST ? 9 : 16) + random() * (FROST ? 5 : 9), z: -55 - random() * 25, s: 2.4 + random() * 2, v: 0.4 + random() * 0.5 });
   clouds.frustumCulled = false; clouds.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(clouds);
+  // ---- frost: snowfall over the valley, one Points draw animated on the GPU (flakes tinted lavender, not white)
+  let snowfall = null;
+  if (FROST) {
+    const SF = cfg.ch2.snow, N = SF.flakes, pos = new Float32Array(N * 3), ph = new Float32Array(N), g = new THREE.BufferGeometry();
+    for (let i = 0; i < N; i++) { pos[i * 3] = random() * 44 - 22; pos[i * 3 + 1] = random() * SF.h; pos[i * 3 + 2] = random() * 38 - 18; ph[i] = random() * 6.28; }
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aPh', new THREE.BufferAttribute(ph, 1));
+    snowfall = new THREE.Points(K(g), K(new THREE.ShaderMaterial({
+      uniforms: { uT: { value: 0 }, scale: { value: 400 }, uH: { value: SF.h }, uFall: { value: SF.fall }, uSize: { value: SF.size }, uCol: { value: new THREE.Color(SF.color) }, uA: { value: SF.alpha } },
+      transparent: true, depthWrite: false,
+      vertexShader: 'attribute float aPh; uniform float uT; uniform float scale; uniform float uH; uniform float uFall; uniform float uSize; void main(){ vec3 p = position; p.y = mod(p.y - uT * uFall * (0.8 + fract(aPh) * 0.4), uH); p.x += sin(uT * 0.6 + aPh) * 0.5; p.z += cos(uT * 0.45 + aPh * 1.3) * 0.3; vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_PointSize = uSize * (0.7 + fract(aPh * 3.7) * 0.6) * scale / -mv.z; gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform vec3 uCol; uniform float uA; void main(){ float r = length(gl_PointCoord - 0.5); gl_FragColor = vec4(uCol, smoothstep(0.5, 0.15, r) * uA);\n#include <colorspace_fragment>\n}',
+    })));
+    snowfall.frustumCulled = false; snowfall.renderOrder = 5; scene.add(snowfall);
+  }
+  // ---- the travel pad (cable car ride between the desert and the Frost Comet valley): shown once travel is open
+  const TV = cfg.travel, travelPad = new THREE.Group(); travelPad.visible = false; scene.add(travelPad);
+  const travelFace = new THREE.Mesh(K(new THREE.PlaneGeometry(2.0, 2.0).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ transparent: true, map: K(canvasTex(256, 256, (g, s) => {
+    const bg = FROST ? '#a8583a' : '#3a5a9a';
+    g.fillStyle = bg; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 14, 0, 6.3); g.fill();
+    g.strokeStyle = '#f6d27a'; g.lineWidth = 10; g.stroke();
+    g.save(); g.translate(s / 2, s / 2); g.scale(1.25, 1.25); drawIcon(g, 'cable', '#ffe6a8', bg); g.restore();
+  })) })));
+  if (TV) {
+    travelPad.position.set(TV.x, 0.16, TV.z);
+    const b = new THREE.Mesh(pad.children[0].geometry, brassMat); b.receiveShadow = true; travelPad.add(b);
+    travelFace.position.y = 0.2; travelPad.add(travelFace);
+  }
 
   // ---- items: chunks, gems, coins, each one InstancedMesh filled per frame (+ flyers in the air)
   const coinGeo = K(M.coinGeo(0.2));
@@ -519,18 +568,18 @@ export function createScene(canvas, cfg, random) {
     chunk: new THREE.InstancedMesh(K(M.chunkGeo(0.25)), chunkMat, 220),
     gem: new THREE.InstancedMesh(K(M.gemGeo(0.24)), gemMat, 120),
     coin: new THREE.InstancedMesh(coinGeo, cashMat, 220),
-    ring: new THREE.InstancedMesh(K(M.ringGeo(0.24)), ringMat, 60),
+    ring: new THREE.InstancedMesh(K(FROST ? M.globeGeo(0.26) : M.ringGeo(0.24)), ringMat, 60),
     crown: new THREE.InstancedMesh(K(M.crownGeo(0.3)), ringMat, 16),
   };
   const KINDS = Object.keys(items), itemN = { chunk: 0, gem: 0, coin: 0, ring: 0, crown: 0 };
   for (const m of Object.values(items)) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); }
-  for (const k of ['chunk', 'gem']) { const m = items[k]; for (let i = 0; i < m.instanceMatrix.count; i++) m.setColorAt(i, new THREE.Color(GEM_COLS[(i * 7) % GEM_COLS.length])); }
+  for (const k of ['chunk', 'gem']) { const m = items[k]; for (let i = 0; i < m.instanceMatrix.count; i++) m.setColorAt(i, new THREE.Color(GEMS[(i * 7) % GEMS.length])); }
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
   /** Places the next instance of kind at (x, y, z), turned ry (and tipped rx), scale s, colour index ci. */
   function put(kind, x, y, z, ry = 0, s = 1, ci = -1, rx = 0) {
     const m = items[kind], i = itemN[kind]; if (i >= m.instanceMatrix.count) return;
     m.setMatrixAt(i, _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, 0)), _s.setScalar(s)));
-    if (ci >= 0 && m.instanceColor) m.setColorAt(i, _c.set(GEM_COLS[ci % GEM_COLS.length]));
+    if (ci >= 0 && m.instanceColor) m.setColorAt(i, _c.set(GEMS[ci % GEMS.length]));
     itemN[kind] = i + 1;
   }
   // in-flight items: counts shown at a stop leave out what is still flying to it (so nothing appears twice)
@@ -603,7 +652,7 @@ export function createScene(canvas, cfg, random) {
   }
   const glowPts = pointPool(420, true), dustPts = pointPool(220, false);
   const shards = new THREE.InstancedMesh(K(M.gemGeo(0.09)), gemMat, 90); shards.instanceMatrix.setUsage(THREE.DynamicDrawUsage); shards.frustumCulled = false; shards.count = 0; scene.add(shards);
-  for (let i = 0; i < 90; i++) shards.setColorAt(i, new THREE.Color(GEM_COLS[i % 5]));
+  for (let i = 0; i < 90; i++) shards.setColorAt(i, new THREE.Color(GEMS[i % 5]));
   const shardP = []; let shardNext = 0;
   const rings = [];
   for (let i = 0; i < 8; i++) { const m = new THREE.Mesh(K(new THREE.RingGeometry(0.82, 1, 48)), K(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }))); m.visible = false; m.renderOrder = 4; scene.add(m); rings.push({ m, t: 1, d: 0.5, s0: 0, s1: 1 }); }
@@ -618,7 +667,7 @@ export function createScene(canvas, cfg, random) {
   function burst(p, k = 1, n = 6) {
     for (let i = 0; i < 14 * k; i++) {
       const a = Math.random() * 6.28, u = Math.random() * 2 - 1, sp = (2 + Math.random() * 4) * k;
-      glowPts.spawn({ x: p.x, y: p.y, z: p.z, vx: Math.cos(a) * sp * Math.sqrt(1 - u * u), vy: Math.abs(u) * sp + 1, vz: Math.sin(a) * sp * Math.sqrt(1 - u * u) + 1.5, g: 6, drag: 2.2, max: 0.5 + Math.random() * 0.4, s0: 0.5 * k, s1: 0.1, ...hexToRGB(GEM_COLS[i % 5]) });
+      glowPts.spawn({ x: p.x, y: p.y, z: p.z, vx: Math.cos(a) * sp * Math.sqrt(1 - u * u), vy: Math.abs(u) * sp + 1, vz: Math.sin(a) * sp * Math.sqrt(1 - u * u) + 1.5, g: 6, drag: 2.2, max: 0.5 + Math.random() * 0.4, s0: 0.5 * k, s1: 0.1, ...hexToRGB(GEMS[i % 5]) });
     }
     for (let i = 0; i < n; i++) {
       const s = shardP[shardNext] || (shardP[shardNext] = {}); shardNext = (shardNext + 1) % 90;
@@ -628,7 +677,7 @@ export function createScene(canvas, cfg, random) {
     for (let i = 0; i < 6 * k; i++) dustPts.spawn({ x: p.x + (Math.random() - 0.5) * 0.6, y: p.y - 0.2, z: p.z + 0.3, vx: (Math.random() - 0.5) * 2, vy: 0.6 + Math.random(), vz: 0.8 + Math.random(), drag: 2.5, max: 0.9 + Math.random() * 0.5, s0: 0.6, s1: 1.8 * k, r: 0.55, gg: 0.42, b: 0.4, a: 0.55 });
   }
   /** Soft ground puff (footsteps, landings). */
-  function puff(x, z, n = 3, s = 0.6, col = 0xe8c69a) {
+  function puff(x, z, n = 3, s = 0.6, col = DUST) {
     const c = hexToRGB(col);
     for (let i = 0; i < n; i++) dustPts.spawn({ x: x + (Math.random() - 0.5) * 0.4, y: 0.3, z: z + (Math.random() - 0.5) * 0.4, vx: (Math.random() - 0.5) * 1.2, vy: 0.4 + Math.random() * 0.5, vz: (Math.random() - 0.5) * 1.2, drag: 3, max: 0.6 + Math.random() * 0.4, s0: s * 0.5, s1: s * 1.6, ...c, a: 0.45 });
   }
@@ -703,7 +752,7 @@ export function createScene(canvas, cfg, random) {
     postSync();
   }
   function setScale(s) { if (s === rs) return; rs = s; renderer.setPixelRatio(ratio()); postSync(); }
-  function resize(w, h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); glowPts.m.uniforms.scale.value = dustPts.m.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; postSync(); }
+  function resize(w, h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); glowPts.m.uniforms.scale.value = dustPts.m.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; if (snowfall) snowfall.material.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; postSync(); }
 
   // ---- glow (bloom) and grade on tiers >= look.postTier half-float scene target, bright
   // pass, blur at 1/4 and 1/8, then tone mapping + sRGB + warmth/saturation/contrast/vignette to the canvas
@@ -770,7 +819,7 @@ export function createScene(canvas, cfg, random) {
     const p = tmp3.set(W.meteor.x, 0.6, W.meteor.z + MR * 0.8);
     meteorU.uFlash.value.set(0, 0, MR, 4); burst(p, 3, 30); confetti(p, 60, 6);
     ring(tmp.set(W.meteor.x, 0.3, W.meteor.z + 1), 0xffe0b0, 1, 22, 1.0); ring(tmp.set(W.meteor.x, 0.32, W.meteor.z + 1), 0xff9ae8, 0.5, 14, 0.8);
-    for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; puff(W.meteor.x + Math.cos(a) * MR * 1.3, W.meteor.z + Math.sin(a) * MR * 1.1, 1, 1.8, 0xd8b088); }
+    for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; puff(W.meteor.x + Math.cos(a) * MR * 1.3, W.meteor.z + Math.sin(a) * MR * 1.1, 1, 1.8, FROST ? 0xb8bce0 : 0xd8b088); }
     if (!soft) cam.trauma = 1;
   }
   function introStep(dt) {
@@ -819,6 +868,11 @@ export function createScene(canvas, cfg, random) {
     if (gondolas.visible) { for (let i = 0; i < 3; i++) { gondAt(i, tmp); gondolas.setMatrixAt(i, _m.compose(tmp, _q.setFromEuler(_e.set(0, 0, Math.sin(tAll * 1.3 + i) * 0.05)), _s.setScalar(1))); } gondolas.instanceMatrix.needsUpdate = true; }
     // neon: signs light one by one, then hum
     neonFx.on = Math.min(neonFx.to, neonFx.on + dt * 2.2); neonU.uOn.value = neonFx.on;
+    // frost: the aurora fills the night sky once the aurora sign (the neon unlock) is lit; cocoa steam; snowfall
+    skyU.uTime.value = tAll; skyU.uAur.value = FROST ? Math.min(1, neonFx.on / 5) * Math.max(0, Math.min(1, (lampsK - 0.2) * 1.6)) : 0;
+    if (snowfall) snowfall.material.uniforms.uT.value = tAll;
+    if (FROST && stargazer.visible && Math.random() < dt * 5) { stargazer.localToWorld(tmp.set(-0.6 + (Math.random() - 0.5) * 0.4, 1.8, (Math.random() - 0.5) * 0.4)); dustPts.spawn({ x: tmp.x, y: tmp.y, z: tmp.z, vx: 0.1, vy: 0.55, vz: 0, drag: 0.8, max: 1.6, s0: 0.25, s1: 1.0, r: 0.78, gg: 0.76, b: 0.86, a: 0.3 }); }
+    if (TV) { const on = travelOpen(cfg, S); travelPad.visible = on; if (on) { const k = Math.max(0, S.travelT || 0) / TV.hold; travelFace.rotation.y = tAll * 0.6; travelPad.scale.setScalar(1 + Math.sin(tAll * 3) * 0.04 + k * 0.2); if (Math.random() < dt * 3) twinkle(tmp.set(TV.x, 0.4, TV.z), 1, FROST ? 0xffb070 : 0x8ac8ff, 0.3); } }
     neonU.uBoost.value = (0.9 + lampsK * 1.1) * (1 + Math.sin(tAll * 11) * 0.03) * (post ? LK.glow.lantern : 1);
     // the finale: the heart rises out of the meteor and spins, then bursts; the comet streaks to its place
     if (finFx.st) {
@@ -1171,7 +1225,7 @@ export function createScene(canvas, cfg, random) {
     /** A house of the ghost town lights up (i 0..2): colour floods in, the boards fall, sparkles and a ring. Returns its centre. */
     lightHouse(i) {
       ghostFx.to[i] = 1; const [x, z, , w, hh] = GH[i], p = new THREE.Vector3(x, hh * 0.5, z + 1.7);
-      confetti(p, 80, 3); burst(p, 1.4, 10); ring(new THREE.Vector3(x, 0.25, z + 1.2), 0xffd35a, 0.5, w * 1.6, 0.8); for (let k = 0; k < 8; k++) puff(x + (k - 3.5) * w / 8, z + 1.7, 1, 1.0, 0xc8b8a8);
+      confetti(p, 80, 3); burst(p, 1.4, 10); ring(new THREE.Vector3(x, 0.25, z + 1.2), 0xffd35a, 0.5, w * 1.6, 0.8); for (let k = 0; k < 8; k++) puff(x + (k - 3.5) * w / 8, z + 1.7, 1, 1.0, FROST ? 0xb8bce0 : 0xc8b8a8);
       return p;
     },
     get cartAt() { return cart.position.clone(); },

@@ -8,6 +8,8 @@
 // Then seven more unlocks (the ghost town and its mine cart, drill rig 2, the cable car, the stargazer
 // deck, the crown jeweler, neon signs, the heart of the meteor), rare eggs (12 critters), town stars, hats, the
 // sticker album, the finale with its comet, a share button at the big moments, and a goal on screen at all times.
+// Chapter 2 (behind drops.ch2): the cable car rides to the Frost Comet valley, a second town with its own pads, eggs
+// and finale; the critter parade, hats and wallet travel along. Each place keeps its own state; the save holds both.
 // Modules: logic.js (rules), models.js (geometry), scene.js (3D look, Three.js r187 loaded by index.html).
 /* global THREE */ // set on window by index.html before run() starts the game
 import * as L from './logic.js';
@@ -105,6 +107,7 @@ const HTML = `
   <button id="albumB" class="albumB" aria-label="album"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 8h24a4 4 0 0 1 4 4v28H14a4 4 0 0 1-4-4z"/><path class="pg" d="M14 40a4 4 0 0 1 0-8h24"/><path class="st" d="M24 13l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></svg><em class="out"></em></button>
   <button id="share" class="share out" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 30V8M15 16l9-9 9 9"/><path d="M12 24v14h24V24"/></svg><b></b></button>
   <div id="album" class="album" hidden><div class="card"><h2 class="out"></h2><div class="sec crit"></div><div class="sec hats"></div><div class="sec stars"></div><div class="sec chap"></div><button class="close out" aria-label="close">&#10005;</button></div></div>
+  <div id="ride" class="ride" hidden><canvas width="160" height="120" aria-hidden="true"></canvas><b class="out"></b><span class="out"></span></div>
   <div id="menu" class="menu" hidden><h1 class="out"></h1><button id="cont" class="go out"></button><button id="newg" class="new out"></button></div>
 </div>`;
 
@@ -118,19 +121,21 @@ export function run(mode = 'play') {
     window.__mg = wait;
     return wait;
   }
-  const cfg = JSON.parse(JSON.stringify(window.gameConfig || {}));
+  let cfg = JSON.parse(JSON.stringify(window.gameConfig || {})); // the active place's config (chapter 2 swaps it)
   loadFonts();
   const qs = new URLSearchParams(location.search);
   // dev:start
   if (qs.has('drops')) for (const k of qs.get('drops').split(',')) if (cfg.drops && k in cfg.drops) cfg.drops[k] = true;
   // dev:end
   L.applyDrops(cfg);
+  const C1 = cfg; let C2 = null; // the desert and, once visited, the Frost Comet valley
   const root = document.getElementById('app');
   root.innerHTML = HTML;
   const $ = (id) => root.querySelector('#' + id);
   const detect = () => { for (const l of navigator.languages || [navigator.language || 'en']) { const k = String(l).slice(0, 2).toLowerCase(); if (LANGS.includes(k)) return k; } return 'en'; };
   const lang = qs.get('lang') && LANGS.includes(qs.get('lang')) ? qs.get('lang') : detect();
-  const T = (k) => String((cfg.strings[lang] || cfg.strings.en)[k] || cfg.strings.en[k] || k);
+  const T0 = (k) => (cfg.strings[lang] || cfg.strings.en)[k] || cfg.strings.en[k];
+  const T = (k) => String((cfg.area === 'frost' && T0('f_' + k)) || T0(k) || k); // the valley names its places with f_ keys
   root.dir = lang === 'ar' ? 'rtl' : 'ltr';
   $('hint').querySelector('b').textContent = T('drag');
   if (qs.has('bot') || mode === 'edit') $('hint').classList.add('gone');
@@ -147,7 +152,8 @@ export function run(mode = 'play') {
   let qa = { tier, rs: 1, okT: 0, fails: [] };
   scene.setTod(qs.has('tod') ? Number(qs.get('tod')) : cfg.tod.start);
   const bot = qs.has('bot') || mode === 'edit';
-  let S = L.createState(cfg, cfg.seed);
+  let S = L.createState(cfg, cfg.seed), S1 = S, S2 = null, area = 'desert';
+  const leftAt = { desert: 0, frost: 0 };
 
   // ---- layout: --u is the design scale (1 at 720 x 1280)
   function layout() {
@@ -311,8 +317,10 @@ export function run(mode = 'play') {
       case 'finale': scene.rush(); Sound.rush(); banner(T('finale'), '', 2.6); scene.showcase(V(0, 4, cfg.world.meteor.z + 1), 0.8, 3.4, 0, true); break;
       case 'heartRise': scene.finale('rise'); Sound.boom(); scene.showcase(V(0, 6, cfg.world.meteor.z + 1), 0.72, 3.6, 0, true); break;
       case 'crownHatch': scene.finale('burst'); Sound.perfect(); Sound.fanfare(); banner(T('legendary'), `${critterName(e.who)}  ${perkText(e.who)}`, 3.0); offerShare(); break;
-      case 'comet': scene.finale('comet'); Sound.whoosh(); banner(T('chapter2'), T('comet'), 3.2); scene.showcase(scene.cometAt.add(V(2.5, 0, 0)), 0.55, 4.2, cfg.camera.cometPitch, true); break;
-      case 'finaleEnd': scene.finale('fireworks'); Sound.fanfare(); banner(T('chapter1'), '★', 2.6); offerShare(); saveNow(); break;
+      case 'comet': scene.finale('comet'); Sound.whoosh(); banner(area === 'frost' ? T0('chapter2') + ' ★' : T('chapter2'), T('comet'), 3.2); scene.showcase(scene.cometAt.add(V(2.5, 0, 0)), 0.55, 4.2, cfg.camera.cometPitch, true); break;
+      case 'finaleEnd': scene.finale('fireworks'); Sound.fanfare(); banner(T(area === 'frost' ? 'chapter2' : 'chapter1'), '★', 2.6); if (L.travelOpen(cfg, S) && area === 'desert') banner(T('toFrost'), T('ride'), 3.0); offerShare(); saveNow(); break;
+      case 'travel': if (phase === 'play') startRide(e.to); break;
+      case 'awayCoins': banner(T('awayCoins'), '+' + e.n, 2.6); pop('+' + e.n, cfg.world.cash.x, 1.8, cfg.world.cash.z, 'gold'); Sound.sale(); break;
       case 'star': Sound.heart(); banner(T('star'), '★'.repeat(e.n) + '☆'.repeat(Math.max(0, 3 - e.n)), 2.4); offerShare(); saveNow(); break;
       case 'gift': Sound.fanfare(); banner(T('gift'), `${T('giftSub')}  +${e.coins}`, 3.0); coinsTo(V(h.x, 3.5, h.z), e.coins); saveNow(); break;
       case 'hat': Sound.pop(); banner(T('hat'), '', 2.0); pop('✦', h.x, 3.0, h.z, 'big'); albumDot = true; saveNow(); break;
@@ -336,8 +344,10 @@ export function run(mode = 'play') {
   });
 
   // ---- the sticker album: critters (silhouettes until hatched), hats (tap to wear), town stars, the chapter map
-  const albumTotal = () => cfg.critters.length + cfg.hats.length + 3;
-  const albumHave = () => S.critters.length + S.hats.length + S.stars.length;
+  const ch2On = () => !!(C1.drops && C1.drops.ch2);
+  const albumTotal = () => cfg.critters.length + cfg.hats.length + (ch2On() ? 6 : 3);
+  const albumHave = () => S.critters.length + S.hats.length + S1.stars.length + (S2 ? S2.stars.length : 0);
+  const here = (x) => ((x && x.area) || 'desert') === area; // the album page shows the place you are in
   function tile(cls, draw, label, onTap) {
     const d = document.createElement(onTap ? 'button' : 'div'); d.className = 'tile ' + cls;
     const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'); g.translate(48, 50); draw(g); d.appendChild(c);
@@ -361,6 +371,9 @@ export function run(mode = 'play') {
     else if (id === 'lamp') { g.beginPath(); g.arc(0, 10, 32, Math.PI, 0); g.fill(); g.fillRect(-38, 8, 76, 8); g.fillStyle = have ? '#fff6c8' : bg; g.beginPath(); g.arc(0, -8, 10, 0, 6.3); g.fill(); }
     else if (id === 'antenna') { g.lineWidth = 5; g.beginPath(); g.arc(0, 26, 30, Math.PI, 0); g.stroke(); for (const x of [-1, 1]) { g.beginPath(); g.moveTo(x * 12, 0); g.lineTo(x * 22, -26); g.stroke(); g.fillStyle = have ? (x < 0 ? '#4fd8f0' : '#e04cc0') : fg; g.beginPath(); g.moveTo(x * 22, -40); g.lineTo(x * 22 + 10, -28); g.lineTo(x * 22, -16); g.lineTo(x * 22 - 10, -28); g.closePath(); g.fill(); } }
     else if (id === 'bandana') { g.fillStyle = have ? '#d9544a' : fg; g.beginPath(); g.moveTo(-36, -14); g.lineTo(36, -14); g.lineTo(0, 30); g.closePath(); g.fill(); g.fillRect(-40, -22, 80, 12); if (have) { g.fillStyle = '#f3e6cf'; for (const [x, y] of [[-14, -4], [14, -4], [0, 12], [0, -4]]) { g.beginPath(); g.arc(x, y, 4, 0, 6.3); g.fill(); } } }
+    else if (id === 'earmuffs') { g.lineWidth = 7; g.beginPath(); g.arc(0, 10, 30, Math.PI, 0); g.stroke(); g.fillStyle = have ? '#d2557a' : fg; for (const x of [-30, 30]) { g.beginPath(); g.ellipse(x, 14, 13, 17, 0, 0, 6.3); g.fill(); } }
+    else if (id === 'beanie') { g.fillStyle = have ? '#5a8ad8' : fg; g.beginPath(); g.arc(0, 14, 34, Math.PI, 0); g.fill(); g.fillStyle = have ? '#bccbe6' : fg; g.fillRect(-38, 10, 76, 14); g.beginPath(); g.arc(0, -26, 11, 0, 6.3); g.fill(); }
+    else if (id === 'icecrown') { g.fillStyle = have ? '#8cc6ee' : fg; g.beginPath(); g.moveTo(-36, 24); for (let k = 0; k <= 6; k++) { const x = -36 + k * 12; g.lineTo(x, k % 2 ? -4 : -34); } g.lineTo(36, 24); g.closePath(); g.fill(); g.fillStyle = have ? '#d2557a' : bg; g.beginPath(); g.arc(0, 12, 6, 0, 6.3); g.fill(); }
     else if (id === 'top') { g.fillRect(-36, 18, 72, 8); g.fillRect(-20, -30, 40, 50); g.fillStyle = bg; g.fillRect(-20, 8, 40, 8); }
     else drawIcon(g, 'crown', fg, bg);
   }
@@ -370,10 +383,10 @@ export function run(mode = 'play') {
     phase = 'album'; albumDot = false; stick.on = false; showStick();
     const a = $('album'), card = a.querySelector('.card');
     card.querySelector('h2').textContent = `${T('album')}  ${albumHave()}/${albumTotal()}`;
-    const crit = card.querySelector('.crit'); crit.innerHTML = ''; crit.classList.toggle('six', cfg.critters.length > 12);
-    for (const d of cfg.critters) { const have = S.critters.some((c) => c.id === d.id); const t = tile('r-' + (d.rarity || 'common') + (have ? '' : ' off'), (g) => drawCritter(g, d, have), have ? critterName(d.id) : ''); crit.appendChild(t); }
-    const hats = card.querySelector('.hats'); hats.innerHTML = ''; hats.classList.toggle('nine', cfg.hats.length > 6);
-    for (const hd of cfg.hats) {
+    const crit = card.querySelector('.crit'); crit.innerHTML = ''; crit.classList.toggle('six', cfg.critters.filter(here).length > 12);
+    for (const d of cfg.critters.filter(here)) { const have = S.critters.some((c) => c.id === d.id); const t = tile('r-' + (d.rarity || 'common') + (have ? '' : ' off'), (g) => drawCritter(g, d, have), have ? critterName(d.id) : ''); crit.appendChild(t); }
+    const hats = card.querySelector('.hats'); hats.innerHTML = ''; hats.classList.toggle('nine', cfg.hats.filter(here).length > 6);
+    for (const hd of cfg.hats.filter((x, i) => i === 0 || here(x))) {
       const have = S.hats.includes(hd.id);
       hats.appendChild(tile((have ? '' : 'off ') + (S.hat === hd.id ? 'on' : ''), (g) => drawHat(g, hd.id, have), have ? '' : hatNeed(hd), have ? () => { S.hat = hd.id; Sound.pop(); saveNow(); openAlbum.refresh(); } : null));
     }
@@ -383,9 +396,10 @@ export function run(mode = 'play') {
       st.appendChild(tile(have ? '' : 'off', (g) => { g.scale(1.1, 1.1); drawIcon(g, 'star', have ? '#ffd35a' : '#6e5e72', have ? '#c98a2a' : '#3a2a40'); }, need));
     }
     const ch = card.querySelector('.chap'); ch.innerHTML = '';
-    const done = S.pads.filter((p) => p.done).length;
-    ch.appendChild(tile('wide ch1', (g) => drawIcon(g, 'heart', '#ff8ad8', '#5a1f5e'), `1 · ${T('chapter1')}  ${S.done1 ? '✓' : done + '/' + S.pads.length}`));
-    ch.appendChild(tile('wide ch2 off', (g) => { g.fillStyle = '#9ae8ff'; g.beginPath(); g.arc(-18, 6, 16, 0, 6.3); g.fill(); g.beginPath(); g.moveTo(-10, -6); g.lineTo(40, -26); g.lineTo(-4, 18); g.closePath(); g.globalAlpha = 0.6; g.fill(); }, `2 · ${T('chapter2')}  ${T('soon')}`));
+    const prog = (X) => (X.done1 ? '✓' : X.pads.filter((p) => p.done).length + '/' + X.pads.length), cometIcon = (c) => (g) => { g.fillStyle = c; g.beginPath(); g.arc(-18, 6, 16, 0, 6.3); g.fill(); g.beginPath(); g.moveTo(-10, -6); g.lineTo(40, -26); g.lineTo(-4, 18); g.closePath(); g.globalAlpha = 0.6; g.fill(); };
+    ch.appendChild(tile('wide ch1', (g) => drawIcon(g, 'heart', '#ff8ad8', '#5a1f5e'), `1 · ${T0('chapter1')}  ${prog(S1)}`));
+    if (!ch2On()) ch.appendChild(tile('wide ch2 off', cometIcon('#9ae8ff'), `2 · ${T0('chapter2')}  ${T0('soon')}`));
+    else ch.appendChild(tile('wide ch2' + (S2 ? '' : ' off'), cometIcon('#9ae8ff'), `2 · ${T0('chapter2')}  ${S2 ? prog(S2) : T0('soon')}`));
     a.hidden = false;
   }
   openAlbum.refresh = () => { phase = 'play'; openAlbum(); };
@@ -400,7 +414,7 @@ export function run(mode = 'play') {
   let phase = 'play', loaded = false, lastWrite = Promise.resolve(), saveT = 0, alive = true;
   function saveNow() {
     if (!canSave || !loaded || (phase !== 'play' && phase !== 'album')) return;
-    const snap = L.serialize(cfg, S); snap.seen = Date.now();
+    const snap = L.serialize(C1, S1); if (S2) snap.ch2 = L.serialize(C2, S2); snap.area = area; snap.seen = Date.now();
     lastWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => { /* host refused: try again on the next tick */ });
   }
   function readSave(tries = 0) {
@@ -421,7 +435,10 @@ export function run(mode = 'play') {
     go.onclick = () => {
       Sound.unlock(); m.hidden = true;
       // shortcut: a save that arrives after this session already bought something replaces it; fine while reads take < 3 s
-      S = L.restore(cfg, st, cfg.seed + 7); scene.restoreBuilt(S); scene.snap(S); if (!qs.has('tod')) scene.setTod(L.todGoal(cfg, S)); phase = 'play'; saveT = 0; Sound.pop();
+      cfg = C1; S = S1 = L.restore(C1, st, C1.seed + 7); S2 = null; area = 'desert';
+      if (st.ch2 && ch2On()) { C2 = C2 || L.chapterConfig(C1, 'frost'); S2 = L.restore(C2, st.ch2, C2.seed + 57, { critters: S1.critters, hats: S1.hats }); }
+      if (st.area === 'frost' && S2) { cfg = C2; S = S2; area = 'frost'; buildScene(); } else { scene.restoreBuilt(S); scene.snap(S); if (!qs.has('tod')) scene.setTod(L.todGoal(cfg, S)); }
+      phase = 'play'; saveT = 0; Sound.pop();
       const gift = L.welcomeGift(cfg, st, Date.now()); if (gift) L.applyGift(cfg, S, gift);
     };
     nw.onclick = () => {
@@ -429,6 +446,41 @@ export function run(mode = 'play') {
       if (!nw.classList.contains('sure')) { nw.classList.add('sure'); nw.textContent = T('sure'); clearTimeout(sureT); sureT = setTimeout(() => { nw.classList.remove('sure'); nw.textContent = T('newGame'); }, 2500); return; }
       clearTimeout(sureT); m.hidden = true; phase = 'play'; saveNow(); // this session's fresh game becomes the save
     };
+  }
+  // ---- the cable car ride between the two places: a short cover card, the scene is rebuilt behind it
+  let rideT = 0, rideTo = null;
+  function startRide(to) {
+    phase = 'ride'; rideT = 0; rideTo = to; stick.on = false; showStick(); Sound.whoosh();
+    const r = $('ride'); r.querySelector('b').textContent = T(to === 'frost' ? 'toFrost' : 'toDesert'); r.querySelector('span').textContent = T('ride');
+    r.classList.toggle('frost', to === 'frost'); r.hidden = false; r.classList.remove('go'); void r.offsetWidth; r.classList.add('go');
+  }
+  /** A fresh scene (and canvas) for the active place, built from its state. */
+  function buildScene() {
+    const cv = document.createElement('canvas'), old = scene; cv.id = 'cv';
+    scene = createScene(cv, cfg, L.rng(cfg.seed + 101));
+    old.dispose(); $('cv').replaceWith(cv);
+    scene.setTier(qa.tier); if (qa.rs !== 1) scene.setScale(qa.rs); layout();
+    scene.restoreBuilt(S); scene.snap(S); scene.setTod(qs.has('tod') ? Number(qs.get('tod')) : L.todGoal(cfg, S)); scene.prewarm();
+    nextIcon = null; bubbleKind = null;
+  }
+  /** Moves the hero to the other place: wallet and hat come along, the parade follows; the town there kept earning. */
+  function travel(to) {
+    const now = Date.now(), from = S, TV = cfg.travel; leftAt[area] = now;
+    if (to === 'frost') {
+      if (!C2) C2 = L.chapterConfig(C1, 'frost');
+      if (!S2) { S2 = L.createState(C2, C2.seed + 50); S2.critters = S1.critters; S2.hats = S1.hats; }
+      cfg = C2; S = S2;
+    } else { cfg = C1; S = S1; }
+    area = to; S.hero.cash = from.hero.cash; S.hat = from.hat;
+    S.hero.x = TV.x; S.hero.z = TV.z; S.travelT = -1; for (const c of S.critters) { c.x = TV.x; c.z = TV.z + 1; }
+    buildScene();
+    if (leftAt[to]) L.awayIncome(cfg, S, (now - leftAt[to]) / 1000);
+    banner(T('title'), '', 2.4); saveT = 0;
+  }
+  function rideStep(dt) {
+    rideT += dt;
+    if (rideTo && rideT >= cfg.ride.swap) { const to = rideTo; rideTo = null; travel(to); last = performance.now(); }
+    if (!rideTo && rideT >= cfg.ride.sec) { $('ride').hidden = true; phase = 'play'; saveNow(); }
   }
   const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); else { last = performance.now(); perfT = 0; perfN = 0; perfMs = 0; } }; // time in the background is not a slow frame
   document.addEventListener('visibilitychange', onHide);
@@ -438,6 +490,7 @@ export function run(mode = 'play') {
   const DT = 1 / 60;
   function tick(dt) {
     if (phase === 'intro' && !scene.introOn) phase = 'play';
+    if (phase === 'ride') rideStep(dt);
     if (phase !== 'play') return;
     let input = bot ? L.botInput(cfg, S) : readInput();
     if (!bot && (input.x || input.z) && !touched) { touched = true; $('hint').classList.add('gone'); }
@@ -506,7 +559,8 @@ export function run(mode = 'play') {
   /** The item an order asks for, drawn flat on the bubble's canvas (gem: a faceted diamond; ring: the ring icon). */
   function paintItem(c, kind) {
     const g = c.getContext('2d'); g.clearRect(0, 0, 96, 96); g.save(); g.translate(48, 50);
-    if (kind === 'ring') { g.scale(0.85, 0.85); drawIcon(g, 'ring', '#d99a2e', '#fff3dc'); g.fillStyle = '#e04cc0'; g.beginPath(); g.moveTo(0, -40); g.lineTo(16, -24); g.lineTo(0, -10); g.lineTo(-16, -24); g.closePath(); g.fill(); }
+    if (kind === 'ring' && cfg.area === 'frost') { g.scale(0.9, 0.9); drawIcon(g, 'globe', '#8cc6ee', '#3a5a9a'); }
+    else if (kind === 'ring') { g.scale(0.85, 0.85); drawIcon(g, 'ring', '#d99a2e', '#fff3dc'); g.fillStyle = '#e04cc0'; g.beginPath(); g.moveTo(0, -40); g.lineTo(16, -24); g.lineTo(0, -10); g.lineTo(-16, -24); g.closePath(); g.fill(); }
     else { const pts = [[0, -34], [28, -10], [0, 36], [-28, -10]]; g.fillStyle = '#e04cc0'; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill(); g.fillStyle = '#ff9ae8'; g.beginPath(); g.moveTo(0, -34); g.lineTo(12, -10); g.lineTo(0, 10); g.lineTo(-12, -10); g.closePath(); g.fill(); g.strokeStyle = '#3a2418'; g.lineWidth = 5; g.lineJoin = 'round'; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.stroke(); }
     g.restore();
   }
@@ -530,6 +584,7 @@ export function run(mode = 'play') {
     scene.update(S, dt, g); scene.render(); hud(dt);
   }
   $('tap').querySelector('b').textContent = T('tapGlint');
+  { const g = $('ride').querySelector('canvas').getContext('2d'); g.translate(80, 64); g.scale(1.2, 1.2); drawIcon(g, 'cable', '#ffe6a8', '#3a5a9a'); }
   scene.snap(S);
   scene.prewarm();
   // a new game in play mode opens with the meteor landing (3 s, any tap skips); the save is read at the same time
@@ -540,7 +595,7 @@ export function run(mode = 'play') {
   const api = {
     destroy() { alive = false; saveNow(); document.removeEventListener('visibilitychange', onHide); cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
     debug: {
-      get S() { return S; }, cfg, scene, L, get phase() { return phase; }, saveNow, get lastEvents() { return lastEvents; },
+      get S() { return S; }, get cfg() { return cfg; }, get scene() { return scene; }, L, get phase() { return phase; }, saveNow, get lastEvents() { return lastEvents; },
       /** Stops the real-time loop; frame(dt) then advances by hand (step-by-step viewing). */
       pause(p = true) { paused = p; last = performance.now(); },
       /** Runs sec seconds of game time (bot input when bot is true), drawing only the last frame. */
@@ -556,6 +611,10 @@ export function run(mode = 'play') {
         }
         draw(DT); return false;
       },
+      /** Ends a cable car ride at once (checks): swaps the place and closes the cover card. */
+      finishRide() { if (phase !== 'ride') return false; rideT = 99; if (rideTo) { const to = rideTo; rideTo = null; travel(to); } rideStep(0); return true; },
+      ride: (to) => startRide(to),
+      get area() { return area; }, get S1() { return S1; }, get S2() { return S2; },
       tapGlint() { const p = this.glintScreen(); if (p) tapGlint = true; return !!p; },
       draw(dt = 0) { draw(dt); },
       setTod: (t) => scene.setTod(t), setTier: (t) => scene.setTier(t), snap: () => scene.snap(S),

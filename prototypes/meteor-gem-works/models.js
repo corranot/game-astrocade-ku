@@ -755,12 +755,13 @@ export function buildNeon(signs) {
     else if (shape === 'heart') for (let k = 0; k <= 40; k++) { const t = k / 40 * 6.283; p.push([0.06 * 16 * Math.sin(t) ** 3, 0.06 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]); }
     else if (shape === 'gem') for (const q of [[-1, 0.3], [-0.5, 0.8], [0.5, 0.8], [1, 0.3], [0, -0.9], [-1, 0.3], [1, 0.3]]) p.push(q);
     else if (shape === 'wave') for (let k = 0; k <= 30; k++) p.push([-1.6 + k / 30 * 3.2, Math.sin(k / 30 * 12.56) * 0.25]);
+    else if (shape === 'flake') for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283, c = Math.cos(a), sn = Math.sin(a), r = (u, v) => [c * u - sn * v, sn * u + c * v]; if (!k) p.push([0, 0]); p.push(r(0.55, 0), r(0.8, 0.28), r(0.55, 0), r(0.8, -0.28), r(0.55, 0), r(1, 0), [0, 0]); }
     else if (shape === 'arch') for (let k = 0; k <= 30; k++) { const a = Math.PI - k / 30 * Math.PI; p.push([Math.cos(a) * 1.6, Math.sin(a) * 0.7]); }
     return p;
   };
   signs.forEach((sg, i) => {
     const pts = path(sg.shape).map(([x, y]) => new THREE.Vector3(x * sg.s, y * sg.s, 0));
-    const curve = new THREE.CatmullRomCurve3(pts, sg.shape === 'heart', 'catmullrom', sg.shape === 'star' || sg.shape === 'gem' ? 0.05 : 0.5);
+    const curve = new THREE.CatmullRomCurve3(pts, sg.shape === 'heart', 'catmullrom', sg.shape === 'star' || sg.shape === 'gem' || sg.shape === 'flake' ? 0.05 : 0.5);
     const g = P(new THREE.TubeGeometry(curve, pts.length * 6, 0.055, 5, sg.shape === 'heart'), sg.color);
     g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(sg.x, sg.y, sg.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sg.ry, 0)), new THREE.Vector3(1, 1, 1)));
     tag(g, 'aIdx', i); parts.push(g);
@@ -834,9 +835,134 @@ export function buildHat(id) {
     ...[-1, 1].flatMap((s) => [P(at(cyl(0.015, 0.015, 0.34, 4), s * 0.16, 0.42, 0, 0, 0, s * -0.35), PAL.ink), P(at(new THREE.OctahedronGeometry(0.1, 0), s * 0.22, 0.6, 0), s < 0 ? PAL.cyan : PAL.magenta)])]);
   if (id === 'bandana') return merge([P(at(cyl(0.31, 0.32, 0.16, 20), 0, 0.12, 0, -0.1), (x, y, z) => (Math.sin(Math.atan2(x, z) * 9) > 0.6 ? col(PAL.cream) : col(PAL.red))),
     P(at(sphere(0.08, 8, 6), 0, 0.12, -0.33), PAL.red), ...[-1, 1].map((s) => P(at(new THREE.ConeGeometry(0.07, 0.3, 6), s * 0.08, 0.0, -0.4, -2.4, 0, s * 0.4), PAL.red))]);
+  if (id === 'earmuffs') return merge([P(at(new THREE.TorusGeometry(0.3, 0.03, 6, 20, Math.PI), 0, 0.02, 0, 0, Math.PI / 2, 0), PAL.steel), ...[-1, 1].map((s) => P(at(sphere(0.13, 12, 10), s * 0.3, -0.02, 0, 0, 0, 0, [0.6, 1, 1]), (x, y, z) => shade(FROSTPAL.berry, FROSTPAL.snowPink, Math.max(0, y * 4 + 0.3))))]);
+  if (id === 'beanie') return merge([P(at(new THREE.SphereGeometry(0.33, 18, 10, 0, 6.29, 0, 1.45), 0, 0.04, 0, -0.1), (x, y) => (Math.sin(y * 34) > 0.3 ? col(FROSTPAL.scarf) : col(0x7aa8e8))), P(at(cyl(0.33, 0.33, 0.09, 18), 0, 0.06, 0, -0.1), FROSTPAL.snowBlue), P(at(sphere(0.1, 10, 8), 0, 0.42, -0.05), FROSTPAL.snowPink)]);
+  if (id === 'icecrown') {
+    const parts = [P(at(cyl(0.25, 0.23, 0.12, 16), 0, 0.28, 0), FROSTPAL.ice)];
+    for (let k = 0; k < 7; k++) { const a = k / 7 * 6.28, h = k % 2 ? 0.22 : 0.36; parts.push(P(at(new THREE.OctahedronGeometry(0.07, 0), Math.cos(a) * 0.23, 0.34 + h * 0.5, Math.sin(a) * 0.23, 0, a, 0, [0.7, h * 4.5, 0.7]), (x, y) => shade(FROSTPAL.iceDark, FROSTPAL.ice, y * 3 - 1))); }
+    parts.push(P(at(new THREE.OctahedronGeometry(0.06, 0), 0, 0.3, 0.24), FROSTPAL.berry));
+    return merge(parts);
+  }
   if (id === 'top') return merge([P(at(cyl(0.44, 0.44, 0.04, 20), 0, 0.2, 0, -0.08), PAL.ink), P(at(cyl(0.22, 0.24, 0.46, 18), 0, 0.44, -0.02, -0.08), PAL.ink), P(at(cyl(0.245, 0.245, 0.08, 18), 0, 0.28, -0.01, -0.08), PAL.velvet)]);
   // crown
   const parts = [P(at(cyl(0.24, 0.22, 0.16, 16), 0, 0.3, 0), PAL.sun)];
   for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28 + 0.3; parts.push(P(at(new THREE.ConeGeometry(0.07, 0.2, 5), Math.cos(a) * 0.22, 0.46, Math.sin(a) * 0.22), PAL.sun), P(at(sphere(0.04, 6, 4), Math.cos(a) * 0.23, 0.3, Math.sin(a) * 0.23), [PAL.magenta, PAL.cyan, PAL.violet, PAL.mint, PAL.red][k])); }
   return merge(parts);
+}
+
+// ---------------------------------------------------------------- chapter 2: the Frost Comet valley
+/**
+ * Frost palette: snow is tinted lavender, pale blue and pink (never pure white, albedo kept near 0.8), ice blues,
+ * dark pine greens. The meteor up here is icy blue rock.
+ */
+export const FROSTPAL = {
+  snow: 0xc6c9e4, snowBlue: 0xbccbe6, snowPink: 0xd6c4da, snowShade: 0x9aa0cc, ice: 0x8cc6ee, iceDark: 0x4a78b0,
+  pine: 0x2e6a5c, pineDark: 0x1e4a46, cocoa: 0x6a3e2e, berry: 0xd2557a, scarf: 0x5a8ad8,
+};
+/**
+ * Snow on a painted geometry in place: faces that look up turn snow (a soft lavender / blue / pink mix by position),
+ * the rest takes a cool tint. snow false: tint only (the deck). Works on 'color' and the ghost town's 'aGhost'.
+ * up (0..1): how upward a normal must be to hold snow.
+ */
+export function frostify(g, snow = true, up = 0.55, tint = [0.82, 0.86, 1.0]) {
+  const p = g.attributes.position, n = g.attributes.normal; if (!n) return g;
+  const A = col(FROSTPAL.snow), B = col(FROSTPAL.snowBlue), C = col(FROSTPAL.snowPink), c = new THREE.Color(), s = new THREE.Color();
+  for (const name of ['color', 'aGhost']) {
+    const a = g.attributes[name]; if (!a) continue;
+    for (let i = 0; i < a.count; i++) {
+      c.setRGB(a.getX(i) * tint[0], a.getY(i) * tint[1], a.getZ(i) * tint[2]);
+      // a touch of blue lift in the shadows keeps tinted props from going muddy
+      c.r += 0.012; c.g += 0.016; c.b += 0.03;
+      if (snow) {
+        const ny = n.getY(i), k = Math.max(0, Math.min(1, (ny - up) / 0.25));
+        if (k > 0) {
+          const x = p.getX(i), z = p.getZ(i), h = noise3(x * 0.6, p.getY(i) * 0.6, z * 0.6), q = noise3(x * 1.7 + 3, 0, z * 1.7);
+          s.copy(A).lerp(B, h).lerp(C, Math.max(0, q - 0.55) * 1.6);
+          c.lerp(s, k);
+        }
+      }
+      a.setXYZ(i, c.r, c.g, c.b);
+    }
+    a.needsUpdate = true;
+  }
+  return g;
+}
+
+/** A snowy pine: stacked wavy cones, darker inside, snow on the tiers (frostify adds it), a little trunk. */
+export function buildPine(v = 0) {
+  const parts = [], H = 2.6 + (v % 3) * 0.6, tiers = 4;
+  parts.push(P(at(cyl(0.12, 0.16, 0.6, 7), 0, 0.3, 0), PAL.woodDark));
+  for (let k = 0; k < tiers; k++) {
+    const r = 1.05 - k * 0.2, y = 0.45 + k * H * 0.2, g = new THREE.ConeGeometry(r, H * 0.36, 9, 2), a = g.attributes.position;
+    for (let i = 0; i < a.count; i++) { const x = a.getX(i), z = a.getZ(i), ang = Math.atan2(z, x), w = 1 + Math.sin(ang * 9 + k) * 0.08; a.setX(i, x * w); a.setZ(i, z * w); }
+    g.computeVertexNormals();
+    // snow lies on the upper part of each tier, with a ragged lower edge
+    const t0 = y + H * 0.18, snowC = col(FROSTPAL.snow), snowB = col(FROSTPAL.snowBlue);
+    parts.push(P(at(g, 0, t0, 0, 0, k * 0.4), (x, yy, z) => { const f = (yy - t0) / (H * 0.36) + 0.5, edge = 0.5 + Math.sin(Math.atan2(z, x) * 7 + k * 2) * 0.1; return f > edge ? snowC.clone().lerp(snowB, noise3(x * 2, yy * 2, z * 2)) : shade(FROSTPAL.pineDark, FROSTPAL.pine, 0.2 + f); }));
+  }
+  const out = frostify(merge(parts), false); out.userData.frost = true; return out;
+}
+
+/** A snowball tumbling over the snow (the frost stand-in for the tumbleweed). */
+export function buildSnowball() {
+  const g = new THREE.IcosahedronGeometry(0.42, 2), a = g.attributes.position;
+  for (let i = 0; i < a.count; i++) { const x = a.getX(i), y = a.getY(i), z = a.getZ(i), k = 1 + noise3(x * 4, y * 4, z * 4) * 0.12; a.setXYZ(i, x * k, y * k, z * k); }
+  g.computeVertexNormals();
+  return P(g, (x, y, z) => shade(FROSTPAL.snowBlue, FROSTPAL.snowPink, noise3(x * 3, y * 3, z * 3)));
+}
+
+/**
+ * The penguin shopkeeper (the frost shopkeeper): same parts and animation interface as makeKeeper, with a scarf
+ * and a knitted hat. { root, body, head, armL, armR, legL, legR, prop, phase }.
+ */
+export function makePenguin(mat) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const add = (parent, geo, c) => { const m = new THREE.Mesh(P(geo, c), mat); m.castShadow = true; parent.add(m); return m; };
+  const ink = 0x232a44, belly = 0xd8d4e6, beak = 0xf0a040;
+  const legs = [-1, 1].map((s) => { const g = new THREE.Group(); g.position.set(s * 0.15, 0.2, 0.04); add(g, at(sphere(0.11, 8, 6), 0, -0.16, 0.06, 0, 0, 0, [1, 0.45, 1.5]), beak); root.add(g); return g; });
+  add(body, at(sphere(0.38, 18, 14), 0, 0.62, 0, 0, 0, 0, [1, 1.25, 0.95]), (x, y, z) => (z > 0.12 && Math.abs(x) < 0.26 - Math.max(0, y - 0.7) * 0.4 ? col(belly) : col(ink)));
+  // scarf with a hanging end
+  add(body, at(new THREE.TorusGeometry(0.26, 0.07, 8, 20), 0, 0.98, 0.02, Math.PI / 2), (x, y, z) => (Math.sin(Math.atan2(x, z) * 6) > 0.3 ? col(FROSTPAL.scarf) : col(0xe8c45a)));
+  add(body, at(rbox(0.13, 0.32, 0.05, 0.02), 0.14, 0.82, 0.26, 0.2, 0, 0.2), FROSTPAL.scarf);
+  const head = new THREE.Group(); head.position.set(0, 1.16, 0.02); body.add(head);
+  add(head, at(sphere(0.25, 16, 12), 0, 0, 0), (x, y, z) => (z > 0.1 && y < 0.08 && Math.abs(x) < 0.17 ? col(belly) : col(ink)));
+  add(head, at(new THREE.ConeGeometry(0.07, 0.2, 8), 0, -0.04, 0.27, Math.PI / 2), beak);
+  for (const s of [-1, 1]) {
+    add(head, at(sphere(0.045, 8, 6), s * 0.09, 0.06, 0.21, 0, 0, 0, [1, 1.2, 0.7]), 0x14182a);
+    add(head, at(sphere(0.016, 6, 4), s * 0.09 + 0.012, 0.08, 0.245), 0xe6e2f0);
+    add(head, at(sphere(0.045, 6, 5), s * 0.15, -0.05, 0.18, 0, 0, 0, [1, 0.6, 0.4]), 0xe890a8);
+  }
+  // knitted hat with a pom-pom
+  add(head, at(new THREE.SphereGeometry(0.255, 16, 8, 0, 6.29, 0, 1.4), 0, 0.04, -0.01, -0.1), (x, y) => (Math.sin(y * 40) > 0.4 ? col(FROSTPAL.berry) : col(0xe85a8a)));
+  add(head, at(cyl(0.255, 0.255, 0.06, 16), 0, 0.08, 0, -0.1), 0xd6c4da);
+  add(head, at(sphere(0.08, 8, 6), 0, 0.32, -0.04), 0xd6c4da);
+  const arms = [-1, 1].map((s) => { const g = new THREE.Group(); g.position.set(s * 0.36, 0.82, 0.02); body.add(g); add(g, at(sphere(0.09, 8, 6), 0, -0.2, 0, 0, 0, s * 0.2, [0.55, 1.8, 0.9]), ink); return g; });
+  collapse([body, head, ...legs, ...arms], mat);
+  return { root, body, head, armL: arms[0], armR: arms[1], legL: legs[0], legR: legs[1], prop: null, phase: 0 };
+}
+
+/** The cocoa stand (frost stand-in for the stargazer deck): a cabin booth, a steaming copper pot, mugs, a sign. */
+export function buildCocoa() {
+  const parts = [];
+  parts.push(P(at(rbox(2.6, 1.1, 1.3, 0.08), 0, 0.55, 0), (x, y) => shade(0x8a5a40, 0x6a3e2e, Math.abs(Math.sin(y * 18)) > 0.85 ? 0.7 : 0.1)));
+  parts.push(P(at(rbox(2.8, 0.12, 1.5, 0.04), 0, 1.16, 0), PAL.woodLight));
+  for (const x of [-1.2, 1.2]) parts.push(P(at(cyl(0.07, 0.08, 1.5, 6), x, 1.9, -0.5), PAL.woodDark));
+  const roof = new THREE.BoxGeometry(3.1, 0.14, 1.9); parts.push(P(at(roof, 0, 2.72, -0.1, 0.2), (x) => (Math.floor((x + 1.55) / 0.388) % 2 ? col(FROSTPAL.berry) : col(0xe8d0c8))));
+  parts.push(P(at(rbox(3.15, 0.18, 0.5, 0.08), 0, 2.86, -0.4, 0.2), FROSTPAL.snow));
+  parts.push(P(at(lathe([[0, 0], [0.34, 0], [0.38, 0.08], [0.4, 0.42], [0.36, 0.48], [0, 0.48]], 16), -0.6, 1.22, 0), 0xc87848));
+  parts.push(P(at(new THREE.TorusGeometry(0.39, 0.03, 4, 18), -0.6, 1.7, 0, Math.PI / 2), 0xe09a58));
+  parts.push(P(at(cyl(0.36, 0.36, 0.03, 16), -0.6, 1.68, 0), FROSTPAL.cocoa));
+  for (let k = 0; k < 4; k++) { const x = 0.15 + k * 0.32; parts.push(P(at(cyl(0.09, 0.08, 0.18, 10), x, 1.31, 0.3), [FROSTPAL.berry, FROSTPAL.scarf, 0xe8c45a, 0x7ac0a8][k]), P(at(cyl(0.075, 0.075, 0.02, 10), x, 1.4, 0.3), FROSTPAL.cocoa), P(at(new THREE.TorusGeometry(0.05, 0.015, 4, 10), x + 0.1, 1.31, 0.3), [FROSTPAL.berry, FROSTPAL.scarf, 0xe8c45a, 0x7ac0a8][k])); }
+  parts.push(P(at(rbox(1.2, 0.5, 0.08, 0.04), 0.5, 3.25, -0.6), FROSTPAL.cocoa), P(at(rbox(1.04, 0.36, 0.04, 0.03), 0.5, 3.25, -0.55), 0xe8c45a));
+  // a mug icon on the sign
+  parts.push(P(at(cyl(0.11, 0.1, 0.2, 10), 0.42, 3.24, -0.5, Math.PI / 2), FROSTPAL.berry), P(at(new THREE.TorusGeometry(0.07, 0.02, 4, 10), 0.56, 3.24, -0.5), FROSTPAL.berry));
+  const out = frostify(merge(parts), true, 0.7); out.userData.frost = true; return out;
+}
+/** A snow globe item (the frost workshop's product, in place of a ring): brass base, blue glass, a tiny pine. */
+export function globeGeo(s = 0.22) {
+  return merge([
+    P(at(cyl(s * 0.62, s * 0.72, s * 0.36, 14), 0, -s * 0.5, 0), PAL.brass),
+    P(at(sphere(s * 0.66, 14, 10), 0, s * 0.18, 0), (x, y) => shade(FROSTPAL.ice, FROSTPAL.snowBlue, Math.max(0, y / s + 0.3))),
+    P(at(new THREE.ConeGeometry(s * 0.22, s * 0.5, 6), 0, s * 0.08, 0), FROSTPAL.pine),
+  ]);
 }
