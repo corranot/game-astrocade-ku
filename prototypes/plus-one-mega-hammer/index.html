@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>+1 Mega Hammer: Smash and Grow</title>
+<!-- the rounded Baloo family: one look in Latin/Vietnamese, Devanagari, Bengali and Arabic -->
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-da-2@5.1.0/800.css">
+<link rel="stylesheet" data-font href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-bhaijaan-2@5.1.0/800.css">
+<style>
+html,body{margin:0;height:100%;background:#23263a;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Arial Rounded MT Bold","Nunito","Noto Sans",system-ui,sans-serif;font-weight:800}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none;--u:1;--ink:#23263a;--m:calc(var(--u)*22px);background:#2b2d5b;box-shadow:0 0 calc(var(--u)*60px) rgba(0,0,0,.45)}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;inset:0;pointer-events:none;color:#f4ede2}
+/* outlined game text for every script (stroke via shadows, not text-stroke) */
+.out{--o:calc(var(--u)*4px);text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
+/* the hammer size: a glossy vinyl pill, top centre */
+.counter{position:absolute;top:var(--m);left:50%;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*10px);height:calc(var(--u)*96px);padding:0 calc(var(--u)*30px) 0 calc(var(--u)*14px);border-radius:999px;direction:ltr;
+  background:linear-gradient(#3a3d75,#2b2d5b 55%,#22244a);border:calc(var(--u)*5px) solid var(--ink);box-shadow:inset 0 calc(var(--u)*5px) 0 rgba(244,237,226,.22),0 calc(var(--u)*7px) 0 var(--ink)}
+.counter b{font-size:calc(var(--u)*62px);line-height:1;min-width:calc(var(--u)*60px);text-align:center;color:#f2c96a}
+.counter.bump{animation:bump .28s ease-out}
+.ham{position:relative;width:calc(var(--u)*66px);height:calc(var(--u)*66px);border-radius:50%;background:radial-gradient(circle at 38% 30%,#f6d58e,#e5a93c 55%,#b67a20);border:calc(var(--u)*4px) solid var(--ink)}
+.ham::before{content:"";position:absolute;left:44%;top:30%;width:14%;height:58%;border-radius:calc(var(--u)*4px);background:#8e5a32;rotate:35deg;box-shadow:0 0 0 calc(var(--u)*2px) var(--ink)}
+.ham::after{content:"";position:absolute;left:20%;top:16%;width:56%;height:28%;border-radius:calc(var(--u)*7px);background:#5b5f73;rotate:35deg;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*3px) 0 rgba(244,237,226,.35)}
+.mult{font-style:normal;font-size:calc(var(--u)*34px);color:#e06356}
+/* zone progress under the counter */
+.prog{position:absolute;top:calc(var(--m) + var(--u)*118px);left:50%;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*10px);direction:ltr}
+.zone{font-size:calc(var(--u)*30px)}
+.prog i{display:block;width:calc(var(--u)*260px);height:calc(var(--u)*22px);border-radius:999px;background:rgba(35,38,58,.55);border:calc(var(--u)*4px) solid var(--ink);overflow:hidden}
+.prog i b{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(#5fd3a6,#1f9d74);transition:width .2s}
+.mute{position:absolute;top:var(--m);right:var(--m);width:calc(var(--u)*96px);height:calc(var(--u)*96px);border-radius:50%;pointer-events:auto;border:calc(var(--u)*5px) solid var(--ink);font-size:calc(var(--u)*40px);cursor:pointer;
+  background:radial-gradient(circle at 38% 30%,#4a4d8a,#2b2d5b 70%);box-shadow:0 calc(var(--u)*6px) 0 var(--ink);-webkit-tap-highlight-color:transparent;padding:0}
+[dir=rtl] .mute{right:auto;left:var(--m)}
+/* +N numbers: pop up at the break, then fly to the counter */
+.pop{position:absolute;translate:-50% -50%;font-size:calc(var(--u)*46px);color:#f2c96a;opacity:0;white-space:nowrap;direction:ltr}
+.pop.big{font-size:calc(var(--u)*64px);color:#7fe0b4}
+.pop.go{animation:fly .85s cubic-bezier(.3,0,.6,1) forwards}
+@keyframes fly{0%{opacity:0;transform:translate(0,0) scale(.4)}12%{opacity:1;transform:translate(0,calc(var(--u)*-50px)) scale(1.25)}35%{transform:translate(0,calc(var(--u)*-70px)) scale(1)}100%{opacity:.85;transform:translate(var(--dx),var(--dy)) scale(.45)}}
+.banner{position:absolute;top:30%;left:50%;translate:-50% -50%;font-size:calc(var(--u)*86px);white-space:nowrap;opacity:0;color:#f2c96a}
+.banner.jade{color:#7fe0b4}
+.banner.show{animation:ban 1.6s ease-out forwards}
+@keyframes ban{0%{opacity:0;transform:scale(.3) rotate(-6deg)}14%{opacity:1;transform:scale(1.15) rotate(2deg)}24%{transform:scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:scale(1.05) translateY(calc(var(--u)*-40px))}}
+.hint{position:absolute;bottom:18%;left:50%;translate:-50% 0;font-size:calc(var(--u)*58px);white-space:nowrap;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+@keyframes bump{40%{transform:scale(1.14)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.hint{animation:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" } }</script>
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>

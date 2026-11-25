@@ -1,0 +1,223 @@
+{
+ "seed": 7,
+ "hammer": {
+  "baseScale": 1,
+  "scaleK": 0.35,
+  "hitR": 0.34,
+  "repeat": 0.25,
+  "swing": 0.09,
+  "recover": 0.22,
+  "tiers": [
+   0,
+   12,
+   35,
+   90,
+   220,
+   520,
+   1200,
+   2800
+  ],
+  "model": 0.72,
+  "yaw": -0.75
+ },
+ "growth": {
+  "smallValue": 1,
+  "labelValue": 0.2,
+  "combo": 1.2
+ },
+ "zones": [
+  {
+   "id": "fruit",
+   "z": 0,
+   "w": 7,
+   "d": 7,
+   "clear": 0.8,
+   "items": [
+    {
+     "kind": "apple",
+     "n": 12,
+     "req": 1
+    },
+    {
+     "kind": "orange",
+     "n": 8,
+     "req": 1
+    },
+    {
+     "kind": "melon",
+     "n": 5,
+     "req": 4
+    },
+    {
+     "kind": "crate",
+     "n": 3,
+     "req": 8
+    }
+   ]
+  },
+  {
+   "id": "market",
+   "z": -12,
+   "w": 10.4,
+   "d": 9,
+   "clear": 0.8,
+   "items": [
+    {
+     "kind": "apple",
+     "n": 12,
+     "req": 1
+    },
+    {
+     "kind": "crate",
+     "n": 8,
+     "req": 30
+    },
+    {
+     "kind": "barrel",
+     "n": 6,
+     "req": 45
+    },
+    {
+     "kind": "cart",
+     "n": 4,
+     "req": 70
+    },
+    {
+     "kind": "stall",
+     "n": 2,
+     "req": 100
+    }
+   ]
+  }
+ ],
+ "kinds": {
+  "apple": {
+   "r": 0.32,
+   "mat": "fruit"
+  },
+  "orange": {
+   "r": 0.32,
+   "mat": "fruit"
+  },
+  "melon": {
+   "r": 0.5,
+   "mat": "fruit"
+  },
+  "crate": {
+   "r": 0.55,
+   "mat": "wood"
+  },
+  "barrel": {
+   "r": 0.55,
+   "mat": "wood"
+  },
+  "cart": {
+   "r": 0.95,
+   "mat": "wood"
+  },
+  "stall": {
+   "r": 1.35,
+   "mat": "cloth"
+  }
+ },
+ "camera": {
+  "fov": 46,
+  "height": 14,
+  "back": 9.5,
+  "growK": 0.42,
+  "follow": 3.5,
+  "look": 1.6
+ },
+ "fx": {
+  "debrisMax": 320,
+  "dustMax": 120,
+  "numbersMax": 40,
+  "shake": 0.22,
+  "hitstop": 0.05,
+  "hitstopBig": 0.08
+ },
+ "quality": {
+  "dpr": [
+   1,
+   1.25,
+   1.5,
+   2
+  ],
+  "shadow": [
+   0,
+   512,
+   1024,
+   1024
+  ],
+  "dropMs": 23.8,
+  "start": 2
+ },
+ "rebirth": {
+  "mult": 2
+ },
+ "langNames": {
+  "en": "English",
+  "ar": "العربية",
+  "es": "Español",
+  "vi": "Tiếng Việt",
+  "hi": "हिन्दी",
+  "bn": "বাংলা",
+  "id": "Indonesia"
+ },
+ "strings": {
+  "en": {
+   "tap": "TAP TO SMASH!",
+   "clear": "ZONE CLEAR!",
+   "evolve": "HAMMER UP!",
+   "again": "SMASH AGAIN x{m}",
+   "need": "BIGGER!"
+  },
+  "ar": {
+   "tap": "اضغط للتحطيم!",
+   "clear": "المنطقة نظيفة!",
+   "evolve": "مطرقة أقوى!",
+   "again": "حطّم مجددًا x{m}",
+   "need": "أكبر!"
+  },
+  "es": {
+   "tap": "¡TOCA Y APLASTA!",
+   "clear": "¡ZONA LIMPIA!",
+   "evolve": "¡MARTILLO SUBE!",
+   "again": "OTRA VEZ x{m}",
+   "need": "¡MÁS GRANDE!"
+  },
+  "vi": {
+   "tap": "CHẠM ĐỂ ĐẬP!",
+   "clear": "XONG KHU!",
+   "evolve": "BÚA LÊN CẤP!",
+   "again": "ĐẬP TIẾP x{m}",
+   "need": "TO HƠN!"
+  },
+  "hi": {
+   "tap": "टैप करो, तोड़ो!",
+   "clear": "ज़ोन साफ़!",
+   "evolve": "हथौड़ा बड़ा!",
+   "again": "फिर तोड़ो x{m}",
+   "need": "और बड़ा!"
+  },
+  "bn": {
+   "tap": "ট্যাপ করে ভাঙো!",
+   "clear": "এলাকা সাফ!",
+   "evolve": "হাতুড়ি বড়!",
+   "again": "আবার ভাঙো x{m}",
+   "need": "আরও বড়!"
+  },
+  "id": {
+   "tap": "TAP UNTUK HANTAM!",
+   "clear": "ZONA BERES!",
+   "evolve": "PALU NAIK!",
+   "again": "HANTAM LAGI x{m}",
+   "need": "LEBIH BESAR!"
+  }
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ }
+}
