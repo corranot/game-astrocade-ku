@@ -63,6 +63,15 @@ export function layoutZone(cfg, zi, random) {
   return out;
 }
 
+/**
+ * The zones of world wi: the base zones (cfg.zones) with the items of the zones the world replaces. Sizes,
+ * positions and clear shares stay, so the island and the pacing are the same in every world.
+ */
+export function worldZones(cfg, base, wi) {
+  const W = cfg.worlds && cfg.worlds[wi % cfg.worlds.length];
+  return base.map((Z, i) => (W && W.zones && W.zones[i] ? { ...Z, items: W.zones[i] } : Z));
+}
+
 /** A fresh run. mult multiplies every gain (1 on the first run, then x2 per rebirth). */
 export function createRun(cfg, random, mult = 1) {
   const objects = [];
@@ -163,4 +172,17 @@ export function bestSlam(cfg, R) {
     if (v > bestV) { bestV = v; best = { x: c.x, z: c.z }; }
   }
   return best;
+}
+
+/** Day number of a local date (days since 1970-01-01 in the player's own calendar), so the goal turns at midnight. */
+export function dayNumber(d) { return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); }
+
+/** The daily goal for day number day: one of cfg.daily.goals. Each day steps 1 to len-1 places on from the day
+ * before (the step comes from the seeded rng of that day), counted from a fixed anchor day, so the type never
+ * repeats two days running and every player gets the same goal on the same date. Returns { type, n }. */
+export function dailyGoal(cfg, day) {
+  const G = cfg.daily.goals, n = G.length, anchor = 20000; // 2024-10-04
+  let i = 0;
+  for (let d = anchor + 1; d <= day; d++) i = (i + 1 + Math.floor(rng(cfg.seed * 7919 + d)() * (n - 1))) % n;
+  return { type: G[i].type, n: G[i].n };
 }

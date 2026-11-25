@@ -26,11 +26,8 @@ export function createScene(canvas, cfg, random) {
   const K = (o) => { keep.push(o); return o; };
 
   // ---- sky: indigo overhead fading to a warm peach horizon, matching fog for depth
-  scene.background = K(canvasTex(4, 256, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, '#2b2d5b'); gr.addColorStop(0.45, '#7e6aa8'); gr.addColorStop(0.75, '#e9a98a'); gr.addColorStop(1, '#f4d6b8');
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-  }));
+  const skyStops = (g, w, h, c) => { const gr = g.createLinearGradient(0, 0, 0, h); [0, 0.45, 0.75, 1].forEach((t, i) => gr.addColorStop(t, c[i])); g.fillStyle = gr; g.fillRect(0, 0, w, h); };
+  scene.background = K(canvasTex(4, 256, (g, w, h) => skyStops(g, w, h, ['#2b2d5b', '#7e6aa8', '#e9a98a', '#f4d6b8'])));
   scene.fog = new THREE.Fog(0xe8b9a0, 26, 70);
 
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 9 / 16, 0.5, 120);
@@ -57,30 +54,90 @@ export function createScene(canvas, cfg, random) {
   shape.quadraticCurveTo(-hw, isl.z0, -hw, isl.z0 - r); shape.lineTo(-hw, isl.z1 + r); shape.quadraticCurveTo(-hw, isl.z1, -hw + r, isl.z1);
   const topGeo = K(new THREE.ShapeGeometry(shape, 12));
   topGeo.rotateX(Math.PI / 2);
+  // rotating the shape up the +z axis leaves its faces looking down: turn them to face the sky (winding and normals)
+  { const ix = topGeo.index.array, n = topGeo.attributes.normal; for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0); }
   { const uv = topGeo.attributes.uv, p = topGeo.attributes.position; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / isl.w + 0.5, p.getZ(i) / (isl.z0 - isl.z1)); }
+  // the other worlds' ground: candy floss mint with sprinkles, and snow with blue glints
+  const candyTex = K(canvasTex(256, 256, (g, s) => {
+    g.fillStyle = '#a8ecd0'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 260; i++) { g.fillStyle = ['#ff8fb8', '#fff4f8', '#ffd84a', '#4cb8ff', '#b98cff'][i % 5]; g.save(); g.translate(random() * s, random() * s); g.rotate(random() * 3.14); g.fillRect(-4, -1.5, 8, 3); g.restore(); }
+  }));
+  const snowTex = K(canvasTex(256, 256, (g, s) => {
+    g.fillStyle = '#eef4fb'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 500; i++) { g.fillStyle = random() < 0.6 ? 'rgba(170,195,225,0.35)' : 'rgba(255,255,255,0.9)'; g.beginPath(); g.arc(random() * s, random() * s, 1 + random() * 3, 0, 6.3); g.fill(); }
+  }));
+  for (const t of [candyTex, snowTex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 12); }
+  const groundTex = { grass: grassTex, candy: candyTex, snow: snowTex };
   const ground = new THREE.Mesh(topGeo, K(new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9 })));
   ground.receiveShadow = true; scene.add(ground);
   const cliffGeo = new THREE.ExtrudeGeometry(shape, { depth: 3.2, bevelEnabled: true, bevelThickness: 0.6, bevelSize: 0.5, bevelSegments: 3, curveSegments: 12 });
   cliffGeo.rotateX(Math.PI / 2); cliffGeo.translate(0, -0.66, 0); // the bevel rises 0.6 above the extrude face: keep it under the grass
   const cliff = new THREE.Mesh(K(paint(cliffGeo, (x, y) => new THREE.Color(Math.floor(-y * 2.2) % 2 ? PAL.earth : PAL.earthDark).lerp(new THREE.Color(PAL.grassDark), y > -1.0 ? 0.8 : 0))), mat);
   cliff.geometry.computeVertexNormals(); scene.add(cliff);
-  const cobble = K(canvasTex(256, 256, (g, s) => {
-    g.fillStyle = '#b9a58c'; g.fillRect(0, 0, s, s);
-    for (let y = 0; y < s; y += 22) for (let x = (y / 22) % 2 ? 11 : 0; x < s; x += 22) { g.fillStyle = ['#e6d3b3', '#d8c19c', '#cdb892'][Math.floor(random() * 3)]; g.beginPath(); g.ellipse(x + 11, y + 11, 9.5, 8.5, 0, 0, Math.PI * 2); g.fill(); }
-  }));
-  cobble.wrapS = cobble.wrapT = THREE.RepeatWrapping;
-  for (const Z of cfg.zones) {
-    const t = cobble.clone(); t.repeat.set(Z.w / 1.6, Z.d / 1.6); t.needsUpdate = true; K(t);
-    const g = K(new THREE.PlaneGeometry(Z.w + 1.4, Z.d + 1.4));
-    const plaza = new THREE.Mesh(g, K(new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, color: Z.tint ? new THREE.Color(Z.tint) : 0xffffff })));
-    plaza.rotation.x = -Math.PI / 2; plaza.position.set(0, 0.01, Z.z); plaza.receiveShadow = true; scene.add(plaza);
+  // ---- plaza grounds: one texture per look (tile size in world units), chosen per zone and per world
+  const speck = (g, s, n, cols, r0, r1) => { for (let i = 0; i < n; i++) { g.fillStyle = cols[i % cols.length]; g.beginPath(); g.arc(random() * s, random() * s, r0 + random() * (r1 - r0), 0, 6.3); g.fill(); } };
+  const PT = {
+    cobble: [1.6, (g, s) => {
+      g.fillStyle = '#b9a58c'; g.fillRect(0, 0, s, s);
+      for (let y = 0; y < s; y += 22) for (let x = (y / 22) % 2 ? 11 : 0; x < s; x += 22) { g.fillStyle = ['#e6d3b3', '#d8c19c', '#cdb892'][Math.floor(random() * 3)]; g.beginPath(); g.ellipse(x + 11, y + 11, 9.5, 8.5, 0, 0, Math.PI * 2); g.fill(); }
+    }],
+    boards: [2.2, (g, s) => {
+      for (let y = 0; y < s; y += 32) { g.fillStyle = ['#c98a52', '#b97a45', '#d89a60'][(y / 32) % 3]; g.fillRect(0, y, s, 32); g.fillStyle = 'rgba(110,70,40,.55)'; g.fillRect(0, y, s, 3); const cut = ((y / 32) * 97) % s; g.fillRect(cut, y, 3, 32); g.fillStyle = 'rgba(255,230,190,.18)'; for (let x = 0; x < s; x += 9) g.fillRect(x, y + 8 + (x % 3) * 6, 6, 1.5); g.fillStyle = '#7a5232'; g.fillRect(cut - 8, y + 8, 3, 3); g.fillRect(cut + 8, y + 20, 3, 3); }
+    }],
+    asphalt: [4.2, (g, s) => {
+      g.fillStyle = '#5d6275'; g.fillRect(0, 0, s, s); speck(g, s, 700, ['rgba(40,44,60,.35)', 'rgba(150,155,175,.3)'], 0.6, 1.8);
+      g.fillStyle = '#f4ede2'; for (let x = 8; x < s; x += 64) g.fillRect(x, s / 2 - 4, 36, 8);
+    }],
+    park: [3, (g, s) => {
+      g.fillStyle = '#7cc463'; g.fillRect(0, 0, s, s); speck(g, s, 400, ['rgba(80,150,70,.5)', 'rgba(160,215,120,.5)'], 1, 2.5);
+      for (let i = 0; i < 7; i++) { const x = (i * 71 + 20) % s, y = (i * 113 + 40) % s; g.fillStyle = '#d8cdb4'; g.beginPath(); g.ellipse(x, y, 16, 12, i, 0, 6.3); g.fill(); g.fillStyle = 'rgba(120,100,70,.25)'; g.beginPath(); g.ellipse(x + 2, y + 3, 14, 9, i, 0, 6.3); g.fill(); }
+      g.fillStyle = '#f4ede2'; speck(g, s, 30, ['#ffffff', '#ffd84a', '#ff8fb8'], 1.5, 2.5);
+    }],
+    slabs: [2.6, (g, s) => {
+      for (let y = 0; y < s; y += 64) for (let x = 0; x < s; x += 64) { g.fillStyle = ['#c9c6c0', '#bdbab3', '#d3d0c9'][Math.floor(random() * 3)]; g.fillRect(x, y, 64, 64); }
+      g.fillStyle = 'rgba(80,80,90,.45)'; for (let k = 0; k <= s; k += 64) { g.fillRect(k - 1.5, 0, 3, s); g.fillRect(0, k - 1.5, s, 3); } speck(g, s, 250, ['rgba(90,90,100,.25)'], 0.6, 1.4);
+    }],
+    icing: [3, (g, s) => {
+      g.fillStyle = '#ffd3e6'; g.fillRect(0, 0, s, s); speck(g, s, 120, ['rgba(255,255,255,.45)'], 6, 14);
+      for (let i = 0; i < 160; i++) { g.fillStyle = ['#ff6f9c', '#fff4f8', '#ffd84a', '#4cb8ff', '#5fd38a'][i % 5]; g.save(); g.translate(random() * s, random() * s); g.rotate(random() * 3.14); g.fillRect(-4, -1.5, 8, 3); g.restore(); }
+    }],
+    sand: [3, (g, s) => {
+      g.fillStyle = '#f3dba6'; g.fillRect(0, 0, s, s); g.strokeStyle = 'rgba(200,160,100,.35)'; g.lineWidth = 2;
+      for (let y = 10; y < s; y += 22) { g.beginPath(); for (let x = 0; x <= s; x += 8) g.lineTo(x, y + Math.sin(x / 20 + y) * 4); g.stroke(); }
+      speck(g, s, 40, ['#ffffff', '#ffb7a1', '#c9a66a'], 1.5, 3);
+    }],
+    snowpave: [2.6, (g, s) => {
+      g.fillStyle = '#e9f2fb'; g.fillRect(0, 0, s, s); g.fillStyle = 'rgba(150,180,215,.45)';
+      for (let k = 0; k <= s; k += 64) { g.fillRect(k - 1, 0, 2, s); g.fillRect(0, k - 1, s, 2); } speck(g, s, 300, ['rgba(255,255,255,.95)', 'rgba(170,200,235,.4)'], 0.8, 2.6);
+    }],
+  };
+  const ptex = {};
+  for (const [name, [tile, draw]] of Object.entries(PT)) { const t = K(canvasTex(256, 256, draw)); t.wrapS = t.wrapT = THREE.RepeatWrapping; ptex[name] = { t, tile }; }
+  const plazas = [];
+  /** The plaza of zone i with ground look name (a texture clone per zone, so each keeps its own repeat). */
+  function plazaLook(i, name) {
+    const P = plazas[i], Z = cfg.zones[i], L = ptex[name] || ptex.cobble;
+    if (P.userData.look === name) return; P.userData.look = name;
+    const t = P.userData.cache[name] || (P.userData.cache[name] = K(L.t.clone()));
+    t.repeat.set((Z.w + 1.4) / L.tile, (Z.d + 1.4) / L.tile); t.needsUpdate = true; P.material.map = t; P.material.needsUpdate = true;
   }
+  for (const Z of cfg.zones) {
+    const g = K(new THREE.PlaneGeometry(Z.w + 1.4, Z.d + 1.4));
+    const plaza = new THREE.Mesh(g, K(new THREE.MeshStandardMaterial({ roughness: 0.85 })));
+    plaza.rotation.x = -Math.PI / 2; plaza.position.set(0, 0.01, Z.z); plaza.receiveShadow = true; plaza.userData.cache = {}; scene.add(plaza); plazas.push(plaza);
+    plazaLook(plazas.length - 1, Z.tex);
+  }
+  // zebra crossings at both ends of the toy street (only where the street look is on)
+  const zebra = new THREE.Group(); scene.add(zebra);
+  { const si = cfg.zones.findIndex((Z) => Z.tex === 'asphalt'); if (si >= 0) { const Z = cfg.zones[si], zm = K(new THREE.MeshStandardMaterial({ color: 0xf4ede2, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -1 })), zg = K(new THREE.PlaneGeometry(0.42, 1.5).rotateX(-Math.PI / 2));
+    for (const sz of [-1, 1]) for (let k = -3; k <= 3; k++) { const m = new THREE.Mesh(zg, zm); m.position.set(k * 0.85, 0.015, Z.z + sz * (Z.d / 2 - 0.2)); m.receiveShadow = true; zebra.add(m); } zebra.userData.zone = si; } }
 
   // ---- decoration: trees, bushes and lamps around the plazas, one InstancedMesh per kind and band of the island, so
   // the bands out of view (and out of the sun's shadow box) are culled whole
   const inPlaza = (x, z, m) => cfg.zones.some((Z) => Math.abs(x) < Z.w / 2 + 0.7 + m && Math.abs(z - Z.z) < Z.d / 2 + 0.7 + m);
+  const decoMat = K(mat.clone()); // trees and bushes: tinted per world (frosted in snow, pink in candy land)
   function scatter(geo, n, margin, scaleMin, scaleMax, shadow, zA, zB) {
-    const im = new THREE.InstancedMesh(geo, mat, n), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
+    const im = new THREE.InstancedMesh(geo, decoMat, n), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
     let placed = 0;
     for (let tries = 0; tries < n * 30 && placed < n; tries++) {
       const x = (random() - 0.5) * (isl.w - 1.4), z = zB + random() * (zA - zB);
@@ -102,6 +159,22 @@ export function createScene(canvas, cfg, random) {
   const lamps = new THREE.InstancedMesh(K(buildLamp()), mat, cfg.zones.length * 4);
   { const m = new THREE.Matrix4(); let i = 0; for (const Z of cfg.zones) for (const sx of [-1, 1]) for (const sz of [-1, 1]) lamps.setMatrixAt(i++, m.makeTranslation(sx * (Z.w / 2 + 0.75), 0, Z.z + sz * (Z.d / 2 + 0.75))); }
   lamps.castShadow = true; scene.add(lamps);
+  // lamp glow: a warm bulb over each lamp head that lights up as the day turns to dusk (picked up by the glow pass)
+  const bulbMat = K(new THREE.MeshStandardMaterial({ color: 0xffd98a, emissive: 0xffc861, emissiveIntensity: 0, roughness: 0.3 }));
+  const bulbs = new THREE.InstancedMesh(K(new THREE.SphereGeometry(0.17, 12, 8)), bulbMat, cfg.zones.length * 4);
+  { const m = new THREE.Matrix4(); let i = 0; for (const Z of cfg.zones) for (const sx of [-1, 1]) for (const sz of [-1, 1]) bulbs.setMatrixAt(i++, m.makeTranslation(sx * (Z.w / 2 + 0.75), 2.36, Z.z + sz * (Z.d / 2 + 0.75))); }
+  scene.add(bulbs);
+  // birds that sit around the zone being played and scatter on a heavy hit
+  const birdGeo = K(merge([
+    paint(new THREE.SphereGeometry(0.1, 8, 6).scale(1, 0.85, 1.4), PAL.alabaster), paint(new THREE.SphereGeometry(0.07, 8, 6).translate(0, 0.07, 0.11), PAL.alabaster),
+    paint(new THREE.ConeGeometry(0.03, 0.07, 5).rotateX(Math.PI / 2).translate(0, 0.06, 0.2), PAL.gold),
+  ]));
+  const wingGeo = new THREE.BufferGeometry().setFromPoints([[0.05, 0.05], [0.32, -0.02], [0.05, -0.1], [-0.05, -0.1], [-0.32, -0.02], [-0.05, 0.05]].map(([x, z]) => new THREE.Vector3(x, 0.04, z)));
+  wingGeo.computeVertexNormals(); K(wingGeo);
+  const birdMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })), wingMat = K(new THREE.MeshStandardMaterial({ color: 0xdcd6e6, roughness: 0.7, side: THREE.DoubleSide }));
+  const NB = cfg.fx.birds, birds = new THREE.InstancedMesh(birdGeo, birdMat, NB), wings = new THREE.InstancedMesh(wingGeo, wingMat, NB);
+  for (const m of [birds, wings]) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; scene.add(m); }
+  const B = []; for (let i = 0; i < NB; i++) B.push({ p: new THREE.Vector3(0, -50, 0), v: new THREE.Vector3(), fly: 0, rest: 0, yaw: 0, hop: 0 });
   // bunting between the plaza lamps: triangle flags on a sagging string, swaying
   const bunting = [];
   for (const Z of cfg.zones) for (const sz of [-1]) {
@@ -131,7 +204,12 @@ export function createScene(canvas, cfg, random) {
   function labelTexture(text, ok) {
     const key = text + ok;
     if (labelTex.has(key)) return labelTex.get(key);
-    const t = canvasTex(160, 80, (g, w, h) => {
+    // far targets: a small padlock badge instead of a number, so the screen shows only the next goals
+    const t = ok === 'lock' ? canvasTex(80, 80, (g, w) => {
+      g.fillStyle = '#3a3d75'; g.strokeStyle = '#23263a'; g.lineWidth = 6; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 4, 0, 6.3); g.fill(); g.stroke();
+      g.strokeStyle = '#f4ede2'; g.lineWidth = 6; g.beginPath(); g.arc(w / 2, 34, 11, Math.PI, 0); g.stroke();
+      g.fillStyle = '#f2c96a'; g.beginPath(); g.roundRect(22, 34, 36, 26, 6); g.fill(); g.fillStyle = '#23263a'; g.fillRect(38, 42, 4, 10);
+    }) : canvasTex(160, 80, (g, w, h) => {
       g.fillStyle = ok ? '#1f9d74' : '#c8463d'; g.strokeStyle = '#23263a'; g.lineWidth = 7;
       g.beginPath(); g.roundRect(5, 5, w - 10, h - 10, 34); g.fill(); g.stroke();
       g.fillStyle = 'rgba(255,255,255,0.25)'; g.beginPath(); g.roundRect(14, 11, w - 28, 18, 9); g.fill();
@@ -162,15 +240,18 @@ export function createScene(canvas, cfg, random) {
       k.list.forEach((o, i) => { byId[o.id] = { o, k, i, rot: random() * 6.28, squash: 0, pop: 0, label: null, hidden: !o.alive, grow: 1 }; });
     }
     for (const e of byId) if (e && e.o.req > 1) {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(String(e.o.req), e.o.req <= L), depthTest: false, transparent: true }));
-      s.renderOrder = 10; const h = cfg.kinds[e.o.kind].r * (e.o.boss ? 1.75 : 2.1) + 0.35; s.position.set(e.o.x, h, e.o.z); s.scale.set(0.9, 0.45, 1); s.userData.h = h;
-      labels.add(s); e.label = s;
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(String(e.o.req), true), depthTest: false, transparent: true }));
+      s.renderOrder = 10; const h = cfg.kinds[e.o.kind].r * (cfg.kinds[e.o.kind].lh || (e.o.boss ? 1.75 : 2.1)) + 0.35; s.position.set(e.o.x, h, e.o.z); s.scale.set(0.9, 0.45, 1); s.userData.h = h;
+      labels.add(s); e.label = s; relabel(e.o.id, L);
     }
     updateObjects(0, 0);
   }
   /** The label shows the size needed; a boss within reach shows the hits it has left instead. */
   function relabel(id, L) {
     const e = byId[id]; if (!e || !e.label) return;
+    // breakable now: green; within cfg.labels.ahead x the size: red with the number; further: a padlock
+    e.lab = e.o.req <= L ? 'ok' : e.o.req <= L * cfg.labels.ahead || e.o.boss ? 'near' : 'lock';
+    if (e.lab === 'lock') { e.label.material.map = labelTexture('', 'lock'); e.label.material.needsUpdate = true; return; }
     const ok = e.o.req <= L, text = e.o.boss && ok ? '\u00d7' + e.o.hp : String(e.o.req);
     e.label.material.map = labelTexture(text, ok); e.label.material.needsUpdate = true;
   }
@@ -188,7 +269,7 @@ export function createScene(canvas, cfg, random) {
       tmpS.set((1 + sq + pop) * gr, (1 - sq + idle + pop) * gr, (1 + sq + pop) * gr);
       tmpM.compose(tmpV.set(e.o.x, 0, e.o.z), tmpQ.setFromEuler(tmpE.set(0, e.rot, 0)), tmpS); e.k.mesh.setMatrixAt(e.i, tmpM);
       const br = cfg.kinds[e.o.kind].r * cfg.look.contact * gr * (1 + sq); tmpM.makeScale(br, 1, br).setPosition(e.o.x, 0.025, e.o.z); blobs.setMatrixAt(e.o.id, tmpM);
-      if (e.label) { e.label.visible = live; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2) * labelK * (e.o.boss ? 1.8 : 1); e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
+      if (e.label) { e.label.visible = live; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2 + (e.lab === 'ok' && !e.o.boss ? Math.sin(clock * 6 + e.o.id) * 0.07 : 0)) * labelK * (e.o.boss ? 1.8 : 1); if (e.lab === 'lock') e.label.scale.set(0.38 * ls, 0.38 * ls, 1); else e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
     }
     // a kind with nothing left standing is not drawn at all (zones already played)
     for (const k of Object.values(kinds)) if (k.mesh) { k.mesh.visible = k.shown > 0; k.mesh.instanceMatrix.needsUpdate = true; }
@@ -196,7 +277,7 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---- the hammer
-  const H = buildHammer(); scene.add(H.root); keep.push(...H.mats);
+  const H = buildHammer(); scene.add(H.root); keep.push(...H.mats, H);
 
   // ---- pooled effects
   const chunkGeo = K(paint(rbox(0.16, 0.16, 0.16, 0.04, 1), 0xffffff));
@@ -365,10 +446,47 @@ export function createScene(canvas, cfg, random) {
     const sc = sun.shadow.camera; if (sc.right !== ext) { sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.far = 40; sc.updateProjectionMatrix(); }
   }
 
-  function updateWorld(dt) {
+  // per-zone light: the day moves from morning (first zone) to dusk (the finale), following the camera
+  const LT = cfg.look.light, sunC = new THREE.Color(), sunC2 = new THREE.Color();
+  let birdZone = -1;
+  /** Puts the birds down around zone zi (on the grass just outside its plaza). */
+  function seatBirds(zi) {
+    const Z = cfg.zones[zi]; birdZone = zi;
+    B.forEach((b, i) => { const side = i % 2 ? 1 : -1, a = random(); b.p.set(side * (Z.w / 2 + 0.5 + random() * 0.9), 0, Z.z + (a - 0.5) * Z.d); b.fly = 0; b.rest = random() * 3; b.yaw = random() * 6.28; b.v.set(0, 0, 0); });
+  }
+  /** A heavy hit at (x, z): birds within radius r take off away from it. */
+  function scare(x, z, r) {
+    for (const b of B) { if (b.fly) continue; const dx = b.p.x - x, dz = b.p.z - z, d = Math.hypot(dx, dz); if (d > r) continue; b.fly = 1; b.v.set(dx / (d || 1) * 3, 4 + random() * 2, dz / (d || 1) * 3 - 1); b.yaw = Math.atan2(b.v.x, b.v.z); }
+  }
+  function updateWorld(dt, zone = 0) {
     clock += dt;
+    // light: blend the two zone settings around the camera's focus
+    { let i = 0; while (i + 1 < cfg.zones.length && cam.focus.z < cfg.zones[i + 1].z) i++; const j = Math.min(cfg.zones.length - 1, i + 1);
+      const za = cfg.zones[i].z, zb = cfg.zones[j].z, t = j === i ? 0 : Math.max(0, Math.min(1, (za - cam.focus.z) / (za - zb))), A = LT[i], Bq = LT[j], f = (k) => A[k] + (Bq[k] - A[k]) * t;
+      sun.color.copy(sunC.set(A[0]).lerp(sunC2.set(Bq[0]), t)); sun.intensity = f(1); hemi.intensity = f(2); renderer.toneMappingExposure = f(3); bulbMat.emissiveIntensity = f(4); }
+    if (zone !== birdZone) seatBirds(zone);
+    const s = Math.sqrt(cam.k);
+    for (let i = 0; i < NB; i++) {
+      const b = B[i]; let flap = 1;
+      if (b.fly) { b.fly += dt; b.p.addScaledVector(b.v, dt); b.v.y += 1.5 * dt; flap = 0.35 + Math.abs(Math.sin(b.fly * 22)) * 0.65; if (b.fly > 5) { b.fly = 0; const Z = cfg.zones[zone], side = random() < 0.5 ? 1 : -1; b.p.set(side * (Z.w / 2 + 0.5 + random() * 0.9), 0, Z.z + (random() - 0.5) * Z.d); } }
+      else { b.rest -= dt; if (b.rest <= 0) { b.rest = 1 + random() * 3; b.hop = 1; b.yaw += (random() - 0.5) * 2; } b.hop = Math.max(0, b.hop - dt * 4); flap = 0.3; }
+      tmpV.set(b.p.x, b.p.y + Math.sin(b.hop * Math.PI) * 0.12, b.p.z); tmpQ.setFromEuler(tmpE.set(0, b.yaw, 0));
+      tmpM.compose(tmpV, tmpQ, tmpS.set(s, s, s)); birds.setMatrixAt(i, tmpM);
+      tmpM.compose(tmpV, tmpQ, tmpS.set(s * flap, s, s)); wings.setMatrixAt(i, tmpM);
+    }
+    birds.instanceMatrix.needsUpdate = true; wings.instanceMatrix.needsUpdate = true;
     for (const c of clouds) { c.m.position.z += c.v * dt; if (c.m.position.z > 14) c.m.position.z -= 40; }
     bunting.forEach((b, i) => { b.rotation.x = Math.sin(clock * 1.7 + i) * 0.015; });
+  }
+
+  /** Dresses the island for world W from the config: sky, fog, ground, the replaced zones' plazas, tree tint. */
+  function setWorld(W) {
+    const c = scene.background.image; skyStops(c.getContext('2d'), c.width, c.height, W.sky); scene.background.needsUpdate = true;
+    scene.fog.color.set(W.fog);
+    ground.material.map = groundTex[W.ground] || grassTex; ground.material.needsUpdate = true;
+    plazas.forEach((p, i) => plazaLook(i, (W.tex && W.tex[i]) || cfg.zones[i].tex));
+    zebra.visible = !(W.tex && W.tex[zebra.userData.zone]);
+    decoMat.color.set(W.deco);
   }
 
   // ---- quality tiers: pixel ratio and shadow map size
@@ -448,7 +566,7 @@ export function createScene(canvas, cfg, random) {
 
   return {
     renderer, scene, camera, hammer: H, cam,
-    setObjects, relabel, updateObjects, burst, impact, confetti, puff, updateFx, updateCamera, updateWorld, setTier, resize, toScreen, toGround,
+    setObjects, setWorld, scare, relabel, updateObjects, burst, impact, confetti, puff, updateFx, updateCamera, updateWorld, setTier, resize, toScreen, toGround,
     get tier() { return tier; },
     bonk(id) { const e = byId[id]; if (e) e.squash = 1; },
     /** A multi-hit object took a hit: squash, a spray of chunks and dust, its hits-left label. */
