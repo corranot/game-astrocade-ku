@@ -80,6 +80,9 @@ How it fits the existing rules:
 
 - **New games** follow it too: build them in 3D with Three.js to this bar from
   the start, not only when converting a 2D game.
+- **Prototypes too.** Throwaway engine and paper prototypes meet this standard
+  as well; the placeholder-art allowance in `.claude/rules/prototype-code.md` no
+  longer applies.
 - **Gameplay stays as it is.** Keep a game's mechanics, controls, progression and
   short, easy sessions; the upgrade is visual and feel, not added complexity.
 - **Offline still holds.** A one-shot vendors Three.js and its add-ons into

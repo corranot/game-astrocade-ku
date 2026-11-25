@@ -45,10 +45,11 @@ production quality.
 - Singletons and global state
 - Copy-pasted code (no need for abstraction)
 - Debug output left in place
-- Placeholder art and audio
 - Quick-and-dirty solutions
 
 ### What's Still Required
+- The Game Quality Standard in `CLAUDE.md` applies in full: no placeholder art or audio,
+  no primitive-looking models, even in a throwaway prototype (owner's decision, 2026-11-25)
 - Every engine or paper prototype has a `README.md` with:
   - What hypothesis is being tested
   - How to run the prototype
