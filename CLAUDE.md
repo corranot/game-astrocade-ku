@@ -67,6 +67,30 @@ See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
 @.claude/docs/coding-standards.md
 
+## Game Quality Standard (MANDATORY)
+
+The project owner set this as a permanent rule. **Every game in this repo must
+meet it**: each new game, and each existing 2D game being converted. It sits on
+top of the Coding Standards above and the rules in `.claude/rules/`; it removes
+none of them. The owner's words, verbatim:
+
+> Convert my existing 2D game into a fully realized 3D game using Three.js while preserving all existing gameplay mechanics, progression, controls, and artistic identity. Aim for AAA-quality visuals with polished indie game charm. Recreate characters, environments, and objects using detailed 3D geometry, cohesive materials, cinematic lighting, soft shadows, atmospheric depth, and beautiful color composition. Avoid generic primitive-looking models and empty environments. Create stunning, layered visual effects for gameplay interactions, including particles, impact effects, trails, debris, shockwaves, and environmental reactions where appropriate. Combine smooth animations, JavaScript tweens, dynamic lighting, subtle camera effects, and satisfying audio feedback to make every interaction feel impactful. Use tasteful post-processing, including selective bloom, ambient occlusion, tone mapping, and color grading without compromising gameplay visibility. Make the world feel alive through environmental movement and subtle animated details. Upgrade the UI to match the visual quality of the game without adding clutter or generic website-style elements. Prioritize mobile performance, targeting a stable 60 FPS through object pooling, instanced meshes, optimized lighting, shared materials, and adaptive rendering quality. The finished game should feel professionally developed, visually captivating, responsive, and ready for publication—not simply a 2D game converted into basic 3D geometry.
+
+How it fits the existing rules:
+
+- **New games** follow it too: build them in 3D with Three.js to this bar from
+  the start, not only when converting a 2D game.
+- **Gameplay stays as it is.** Keep a game's mechanics, controls, progression and
+  short, easy sessions; the upgrade is visual and feel, not added complexity.
+- **Offline still holds.** A one-shot vendors Three.js and its add-ons into
+  `vendor/` (`.claude/scripts/vendor-three.sh`) and makes no network requests
+  while it runs (`.claude/rules/prototype-code.md`).
+- **Tuning values stay in `config.js`.** Effect, post-processing and quality
+  levels are tuning values like any other.
+- **The look is evidence.** Retained screenshots in `production/qa/evidence/`
+  show the standard was met (see Coding Standards), and a 60 FPS check on a
+  mobile-sized viewport is part of done.
+
 ## Context Management
 
 Read `.claude/docs/context-management.md` on demand — it is a reference, not
