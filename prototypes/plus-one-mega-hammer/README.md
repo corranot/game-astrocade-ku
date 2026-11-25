@@ -5,28 +5,38 @@ Tap to slam a giant hammer. Every object it breaks adds to the hammer's size, so
 break the bigger, numbered things it bounced off before. Plan (hybrid, approved by the owner on 2026-11-25): Claude
 Doc "+1 Mega Hammer — Plan Game".
 
-## Milestone 1: core feel (this slice)
+## Milestone 1: core feel (merged)
 
-- Two zones: the fruit stand (apples, oranges, melons 4, crates 8) and the market (crates 30, barrels 45, carts 70,
-  stalls 100). A zone clears at 80% broken; clearing both starts again with every gain x2.
 - One input: tap slams where the finger is (snaps to the nearest object), holding keeps slamming. Space on desktop.
-- Growth `L += value x mult`, display scale `1 + 0.35 sqrt(L)`, reach grows with it; the camera pulls back and up.
 - 8 evolution looks for the hammer (wood, bronze, jade, gold, amethyst, magma, starlight, rainbow).
 - Effects: debris per material, dust puffs, shockwave ring, crack marks that fade, hit-stop, trauma shake, +N
   numbers that fly to the counter, zone-clear confetti, label pop when a numbered object opens.
 - Sound made in code: thud that deepens with hammer size (140 to 48 Hz), material hits, pentatonic combo dings,
   fanfares, a toy-funk loop.
 - Attract mode before the first touch (demo swing, counts nothing), 7 languages, save through `lib`, quality tiers.
-- Not yet (milestone 2 and 3): zones 3 to 6, the cake vault finale, the results card at 60 s or later, gem magnet,
-  post-processing (bloom, AO, grading), music from the Astrocade generator.
+
+## Milestone 2: the whole run (this slice)
+
+- Six zones: fruit stand, market, street (cones, mailboxes 380, cars 750), park (flowerpots, benches 1500, trees
+  2500, fountains 3500), city (houses 5000, water towers 8000, buildings 11000), and the cake vault finale (needs
+  19000, takes 6 hits, its label counts the hits left). A zone clears at 80% of its numbered objects broken (60% in
+  the vault zone, plus the vault itself).
+- Growth `L += value x mult`: small objects give their own value, a numbered one gives 8% of its number (at least 2).
+  Display scale `1 + 0.55 ln(1 + L)`, so a 30 000 hammer still fits the screen; reach grows with it.
+- Small objects grow back after 2.5 s in the zone being played, so a zone never runs dry.
+- The run ends with the vault. If the session is 60 s or longer, a results card shows the hammer size, the best, a
+  "Smash again x2" button and a share button (`lib.share`); a shorter session goes straight on into the x2 run.
+  The leaderboard gets the best size at the end of every run.
+- A run at two taps a second takes about 50 to 70 s.
+- Not yet (milestone 3): post-processing (bloom, AO, grading), gem magnet, music from the Astrocade generator.
 
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N
 steps per frame, `&mode=edit` the host's edit mode.
 
-- `node --test logic.test.mjs`: rules, layout, and the timeline at two taps a second (12 tests).
-- `node playtest.js <out folder>`: plays the slice with real clicks and saves screenshots. Where the CDN is blocked,
+- `node --test logic.test.mjs`: rules, layout, the vault, regrowth and the timeline at two taps a second (14 tests).
+- `node playtest.js <out folder>`: plays a whole run with real clicks (six zones, the vault, the results card) and saves screenshots. Where the CDN is blocked,
   set `THREE_DIR` to a local `three/build` folder (three@0.187.0 from npm).
 
 Tuning lives in `game_config.json`.

@@ -47,7 +47,8 @@ export function createScene(canvas, cfg, random) {
     for (let i = 0; i < 900; i++) { const x = random() * s, y = random() * s; g.strokeStyle = random() < 0.5 ? 'rgba(78,154,72,0.55)' : 'rgba(150,205,110,0.5)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (random() - 0.5) * 4, y - 6); g.stroke(); }
   }));
   grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping; grassTex.repeat.set(6, 12);
-  const isl = { w: 18, z0: 7, z1: -20 };
+  const first = cfg.zones[0], lastZ = cfg.zones[cfg.zones.length - 1];
+  const isl = { w: Math.max(...cfg.zones.map((Z) => Z.w)) + 9, z0: first.z + first.d / 2 + 5, z1: lastZ.z - lastZ.d / 2 - 6 };
   const shape = new THREE.Shape(), r = 4, hw = isl.w / 2;
   shape.moveTo(-hw + r, isl.z1); shape.lineTo(hw - r, isl.z1); shape.quadraticCurveTo(hw, isl.z1, hw, isl.z1 + r);
   shape.lineTo(hw, isl.z0 - r); shape.quadraticCurveTo(hw, isl.z0, hw - r, isl.z0); shape.lineTo(-hw + r, isl.z0);
@@ -69,26 +70,33 @@ export function createScene(canvas, cfg, random) {
   for (const Z of cfg.zones) {
     const t = cobble.clone(); t.repeat.set(Z.w / 1.6, Z.d / 1.6); t.needsUpdate = true; K(t);
     const g = K(new THREE.PlaneGeometry(Z.w + 1.4, Z.d + 1.4));
-    const plaza = new THREE.Mesh(g, K(new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 })));
+    const plaza = new THREE.Mesh(g, K(new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, color: Z.tint ? new THREE.Color(Z.tint) : 0xffffff })));
     plaza.rotation.x = -Math.PI / 2; plaza.position.set(0, 0.01, Z.z); plaza.receiveShadow = true; scene.add(plaza);
   }
 
-  // ---- decoration: trees, bushes and lamps around the plazas, one InstancedMesh per kind
+  // ---- decoration: trees, bushes and lamps around the plazas, one InstancedMesh per kind and band of the island, so
+  // the bands out of view (and out of the sun's shadow box) are culled whole
   const inPlaza = (x, z, m) => cfg.zones.some((Z) => Math.abs(x) < Z.w / 2 + 0.7 + m && Math.abs(z - Z.z) < Z.d / 2 + 0.7 + m);
-  function scatter(geo, n, margin, scaleMin, scaleMax, shadow) {
-    const im = new THREE.InstancedMesh(K(geo), mat, n), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
+  function scatter(geo, n, margin, scaleMin, scaleMax, shadow, zA, zB) {
+    const im = new THREE.InstancedMesh(geo, mat, n), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
     let placed = 0;
     for (let tries = 0; tries < n * 30 && placed < n; tries++) {
-      const x = (random() - 0.5) * (isl.w - 1.4), z = isl.z1 + 0.7 + random() * (isl.z0 - isl.z1 - 1.4);
+      const x = (random() - 0.5) * (isl.w - 1.4), z = zB + random() * (zA - zB);
       if (inPlaza(x, z, margin)) continue;
       if (shadow && z > cfg.zones[0].z + cfg.zones[0].d / 2 && Math.abs(x) < cfg.zones[0].w / 2 + 2) continue; // keep the view to the first plaza clear
       const k = scaleMin + random() * (scaleMax - scaleMin);
       m.compose(v.set(x, 0, z), q.setFromEuler(e.set(0, random() * 6.28, 0)), s.set(k, k, k)); im.setMatrixAt(placed++, m);
     }
-    im.count = placed; im.castShadow = shadow; im.receiveShadow = true; scene.add(im); return im;
+    im.count = placed; im.computeBoundingSphere(); im.castShadow = shadow; im.receiveShadow = true; scene.add(im); return im;
   }
-  const trees = [0, 1, 2].map((v) => scatter(buildTree(v), 9, 0.6, 0.8, 1.35, true));
-  scatter(buildBush(), 22, 0.1, 0.7, 1.2, true);
+  const area = isl.w * (isl.z0 - isl.z1) / 500; // decoration density stays the same as the island grows
+  const treeGeo = [0, 1, 2].map((v) => K(buildTree(v))), bushGeo = K(buildBush()), trees = [];
+  const bands = Math.max(1, Math.round((isl.z0 - isl.z1) / 12)), bandD = (isl.z0 - isl.z1 - 1.4) / bands;
+  for (let b = 0; b < bands; b++) {
+    const zA = isl.z0 - 0.7 - b * bandD, zB = zA - bandD;
+    for (const g of treeGeo) trees.push(scatter(g, Math.round(9 * area / bands), 0.6, 0.9, 1.6, true, zA, zB));
+    scatter(bushGeo, Math.round(22 * area / bands), 0.1, 0.7, 1.3, false, zA, zB); // low bushes: no shadow pass
+  }
   const lamps = new THREE.InstancedMesh(K(buildLamp()), mat, cfg.zones.length * 4);
   { const m = new THREE.Matrix4(); let i = 0; for (const Z of cfg.zones) for (const sx of [-1, 1]) for (const sz of [-1, 1]) lamps.setMatrixAt(i++, m.makeTranslation(sx * (Z.w / 2 + 0.75), 0, Z.z + sz * (Z.d / 2 + 0.75))); }
   lamps.castShadow = true; scene.add(lamps);
@@ -142,29 +150,38 @@ export function createScene(canvas, cfg, random) {
       if (!k.list.length) continue;
       k.mesh = new THREE.InstancedMesh(k.geo, mat, k.list.length); k.mesh.castShadow = true; k.mesh.receiveShadow = true;
       k.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(k.mesh);
-      k.list.forEach((o, i) => { byId[o.id] = { o, k, i, rot: random() * 6.28, squash: 0, pop: 0, label: null, hidden: !o.alive }; });
+      k.list.forEach((o, i) => { byId[o.id] = { o, k, i, rot: random() * 6.28, squash: 0, pop: 0, label: null, hidden: !o.alive, grow: 1 }; });
     }
     for (const e of byId) if (e && e.o.req > 1) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(String(e.o.req), e.o.req <= L), depthTest: false, transparent: true }));
-      s.renderOrder = 10; const h = cfg.kinds[e.o.kind].r * 2.1 + 0.35; s.position.set(e.o.x, h, e.o.z); s.scale.set(0.9, 0.45, 1); s.userData.h = h;
+      s.renderOrder = 10; const h = cfg.kinds[e.o.kind].r * (e.o.boss ? 1.75 : 2.1) + 0.35; s.position.set(e.o.x, h, e.o.z); s.scale.set(0.9, 0.45, 1); s.userData.h = h;
       labels.add(s); e.label = s;
     }
     updateObjects(0, 0);
   }
-  function relabel(id, L) { const e = byId[id]; if (e && e.label) { e.label.material.map = labelTexture(String(e.o.req), e.o.req <= L); e.label.material.needsUpdate = true; } }
-  let clock = 0;
+  /** The label shows the size needed; a boss within reach shows the hits it has left instead. */
+  function relabel(id, L) {
+    const e = byId[id]; if (!e || !e.label) return;
+    const ok = e.o.req <= L, text = e.o.boss && ok ? '\u00d7' + e.o.hp : String(e.o.req);
+    e.label.material.map = labelTexture(text, ok); e.label.material.needsUpdate = true;
+  }
+  let clock = 0, labelK = 1;
   function updateObjects(dt, zone) {
+    for (const k of Object.values(kinds)) k.shown = 0;
     for (const e of byId) {
       if (!e) continue;
+      if (!e.hidden) e.k.shown++;
       if (e.hidden) { tmpM.makeScale(0, 0, 0); e.k.mesh.setMatrixAt(e.i, tmpM); if (e.label) e.label.visible = false; continue; }
-      e.squash = Math.max(0, e.squash - dt * 4); e.pop = Math.max(0, e.pop - dt * 2.2);
+      e.squash = Math.max(0, e.squash - dt * 4); e.pop = Math.max(0, e.pop - dt * 2.2); e.grow = Math.min(1, e.grow + dt * 3);
       const live = e.o.zone === zone, sq = Math.sin(e.squash * 18) * e.squash * 0.25, idle = live ? Math.sin(clock * 3 + e.o.id) * 0.02 : 0;
       const pop = Math.sin(e.pop * Math.PI) * 0.2;
-      tmpS.set(1 + sq + pop, 1 - sq + idle + pop, 1 + sq + pop);
+      const gr = e.grow < 1 ? 1 - Math.pow(1 - e.grow, 3) * Math.cos(e.grow * 7) : 1; // pop-in with a little overshoot
+      tmpS.set((1 + sq + pop) * gr, (1 - sq + idle + pop) * gr, (1 + sq + pop) * gr);
       tmpM.compose(tmpV.set(e.o.x, 0, e.o.z), tmpQ.setFromEuler(tmpE.set(0, e.rot, 0)), tmpS); e.k.mesh.setMatrixAt(e.i, tmpM);
-      if (e.label) { e.label.visible = live; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = 1 + pop * 1.5 + Math.abs(sq) * 2; e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
+      if (e.label) { e.label.visible = live; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2) * labelK * (e.o.boss ? 1.8 : 1); e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
     }
-    for (const k of Object.values(kinds)) if (k.mesh) k.mesh.instanceMatrix.needsUpdate = true;
+    // a kind with nothing left standing is not drawn at all (zones already played)
+    for (const k of Object.values(kinds)) if (k.mesh) { k.mesh.visible = k.shown > 0; k.mesh.instanceMatrix.needsUpdate = true; }
   }
 
   // ---- the hammer
@@ -173,7 +190,7 @@ export function createScene(canvas, cfg, random) {
   // ---- pooled effects
   const chunkGeo = K(paint(rbox(0.16, 0.16, 0.16, 0.04, 1), 0xffffff));
   const debris = new THREE.InstancedMesh(chunkGeo, K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 })), cfg.fx.debrisMax);
-  debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage); debris.castShadow = true; debris.frustumCulled = false; scene.add(debris);
+  debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage); debris.castShadow = false; debris.frustumCulled = false; scene.add(debris);
   const D = []; for (let i = 0; i < cfg.fx.debrisMax; i++) { D.push({ life: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), r: new THREE.Euler(), w: new THREE.Vector3(), s: 1 }); debris.setColorAt(i, new THREE.Color(PAL.wood)); }
   let dNext = 0;
   const puffTex = K(canvasTex(64, 64, (g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 2, s / 2, s / 2, s / 2); gr.addColorStop(0, 'rgba(244,237,226,0.9)'); gr.addColorStop(0.6, 'rgba(230,215,195,0.45)'); gr.addColorStop(1, 'rgba(230,215,195,0)'); g.fillStyle = gr; g.fillRect(0, 0, s, s); }));
@@ -209,6 +226,17 @@ export function createScene(canvas, cfg, random) {
     debris.instanceColor.needsUpdate = true;
     puff(e.o.x, e.o.z, 3 + Math.round(r * 4), r);
   }
+  function chips(e, n) {
+    const r = cfg.kinds[e.o.kind].r, [c1, c2] = DEBRIS[e.o.kind];
+    for (let k = 0; k < n; k++) {
+      const d = D[dNext]; dNext = (dNext + 1) % D.length; const a = random() * 6.28, sp = 2 + random() * 4;
+      d.life = 1.4 + random() * 0.6; d.s = 0.8 + random() * 1.4;
+      d.p.set(e.o.x + Math.cos(a) * r * 0.7, r * (0.6 + random() * 0.8), e.o.z + Math.sin(a) * r * 0.7);
+      d.v.set(Math.cos(a) * sp, 4 + random() * 5, Math.sin(a) * sp); d.w.set(random() * 14 - 7, random() * 14 - 7, random() * 14 - 7);
+      debris.setColorAt(dNext, tmpC.set(k % 3 ? c1 : c2));
+    }
+    debris.instanceColor.needsUpdate = true;
+  }
   function puff(x, z, n, r) {
     for (let k = 0; k < n; k++) {
       const p = P[pNext]; pNext = (pNext + 1) % P.length; const a = random() * 6.28;
@@ -234,9 +262,11 @@ export function createScene(canvas, cfg, random) {
   }
   const camQ = new THREE.Quaternion();
   function updateFx(dt) {
+    let top = 0;
     for (let i = 0; i < D.length; i++) {
       const d = D[i];
       if (d.life <= 0) { tmpM.makeScale(0, 0, 0); debris.setMatrixAt(i, tmpM); continue; }
+      top = i + 1;
       d.life -= dt; d.v.y -= 18 * dt; d.p.addScaledVector(d.v, dt);
       const half = 0.08 * d.s;
       if (d.p.y < half) { d.p.y = half; if (d.v.y < 0) d.v.y *= -0.35; d.v.x *= 0.7; d.v.z *= 0.7; d.w.multiplyScalar(0.7); }
@@ -244,6 +274,7 @@ export function createScene(canvas, cfg, random) {
       const s = d.s * Math.min(1, d.life * 2.5);
       tmpM.compose(d.p, tmpQ.setFromEuler(d.r), tmpS.set(s, s, s)); debris.setMatrixAt(i, tmpM);
     }
+    debris.count = top; // dead chunks past the last live one are not drawn
     debris.instanceMatrix.needsUpdate = true;
     camQ.copy(camera.quaternion);
     for (let i = 0; i < P.length; i++) {
@@ -263,6 +294,7 @@ export function createScene(canvas, cfg, random) {
   function updateCamera(dt, focusZ, scale) {
     cam.focus.z += (focusZ - cam.focus.z) * Math.min(1, dt * cfg.camera.follow);
     const k = 1 + cfg.camera.growK * (scale - 1); cam.k += (k - cam.k) * Math.min(1, dt * 2.5);
+    scene.fog.near = 26 * cam.k; scene.fog.far = 70 * cam.k; labelK = 0.6 + cam.k * 0.4;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6); cam.t += dt;
     const sh = cam.trauma * cam.trauma * cfg.fx.shake;
     const ox = (Math.sin(cam.t * 41) + Math.sin(cam.t * 67) * 0.5) * sh, oy = (Math.sin(cam.t * 53) + Math.sin(cam.t * 29) * 0.5) * sh;
@@ -278,7 +310,6 @@ export function createScene(canvas, cfg, random) {
     clock += dt;
     for (const c of clouds) { c.m.position.z += c.v * dt; if (c.m.position.z > 14) c.m.position.z -= 40; }
     bunting.forEach((b, i) => { b.rotation.x = Math.sin(clock * 1.7 + i) * 0.015; });
-    trees.forEach((t, i) => { t.rotation.y = Math.sin(clock * 0.6 + i) * 0.004; });
   }
 
   // ---- quality tiers: pixel ratio and shadow map size
@@ -304,6 +335,10 @@ export function createScene(canvas, cfg, random) {
     setObjects, relabel, updateObjects, burst, impact, confetti, puff, updateFx, updateCamera, updateWorld, setTier, resize, toScreen, toGround,
     get tier() { return tier; },
     bonk(id) { const e = byId[id]; if (e) e.squash = 1; },
+    /** A multi-hit object took a hit: squash, a spray of chunks and dust, its hits-left label. */
+    hit(id, L) { const e = byId[id]; if (!e) return; e.squash = 1; relabel(id, L); chips(e, 18); puff(e.o.x, e.o.z, 8, cfg.kinds[e.o.kind].r * 0.5); },
+    /** A small object grows back with a pop. */
+    regrow(id) { const e = byId[id]; if (e) { e.hidden = false; e.grow = 0; } },
     open(id, L) { const e = byId[id]; if (e) { e.pop = 1; relabel(id, L); } },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
     render() { renderer.render(scene, camera); },

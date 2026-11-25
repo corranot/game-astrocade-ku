@@ -142,14 +142,124 @@ export function buildKind(kind, r) {
       const f = fruitBody(r * 0.13, [PAL.apple, PAL.orange, PAL.gold][k % 3], PAL.appleDark, 0.92);
       parts.push(at(f, -W * 0.38 + (k % 5) * W * 0.19, top + r * 0.07, (k < 5 ? -1 : 1) * D * 0.2));
     }
-  }
+  } else buildMore(kind, r, parts);
   return merge(parts);
+}
+
+/** Zones 3-6: toy street, park, toy city, cake vault. */
+function buildMore(kind, r, parts) {
+  if (kind === 'cone') {
+    const h = r * 2;
+    parts.push(paint(at(rbox(r * 1.6, r * 0.18, r * 1.6, r * 0.06, 1), 0, r * 0.09, 0), PAL.coral));
+    parts.push(paint(at(new THREE.ConeGeometry(r * 0.62, h, 14, 4), 0, h / 2 + r * 0.15, 0), (x, y) => col(Math.floor(y / (h / 4)) % 2 ? PAL.alabaster : PAL.coral)));
+  } else if (kind === 'car') {
+    const L = r * 1.9, W = r * 1.05;
+    parts.push(paint(at(rbox(L, r * 0.55, W, r * 0.22, 3), 0, r * 0.62, 0), (x, y) => shade(PAL.coral, 0xa83c33, 0.5 - (y - r * 0.6) * 1.2)));
+    parts.push(paint(at(rbox(L * 0.55, r * 0.5, W * 0.9, r * 0.2, 3), -L * 0.06, r * 1.08, 0), PAL.alabaster));
+    for (const sz of [-1, 1]) parts.push(paint(at(rbox(L * 0.42, r * 0.3, 0.02, r * 0.08, 1), -L * 0.06, r * 1.1, sz * W * 0.46), 0x7fb5d9));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      parts.push(paint(at(new THREE.CylinderGeometry(r * 0.3, r * 0.3, r * 0.22, 14), sx * L * 0.3, r * 0.3, sz * W * 0.48, Math.PI / 2), PAL.slate));
+      parts.push(paint(at(new THREE.CylinderGeometry(r * 0.14, r * 0.14, r * 0.24, 10), sx * L * 0.3, r * 0.3, sz * W * 0.48, Math.PI / 2), PAL.gold));
+    }
+    for (const sz of [-1, 1]) parts.push(paint(at(new THREE.SphereGeometry(r * 0.1, 8, 6), L / 2, r * 0.7, sz * W * 0.3), PAL.gold));
+  } else if (kind === 'mailbox') {
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.12, r * 0.14, r * 1.2, 8), 0, r * 0.6, 0), PAL.slate));
+    parts.push(paint(at(rbox(r * 1.1, r * 0.7, r * 0.75, r * 0.25, 3), 0, r * 1.45, 0), (x, y) => shade(0x3d6fb8, 0x253f73, 0.3 - (y - r * 1.45) * 0.8)));
+    parts.push(paint(at(rbox(r * 0.1, r * 0.5, r * 0.06, r * 0.02, 1), r * 0.3, r * 1.95, r * 0.3), PAL.coral));
+    parts.push(paint(at(rbox(r * 0.04, r * 0.1, r * 0.5, r * 0.02, 1), r * 0.56, r * 1.5, 0), PAL.gold));
+  } else if (kind === 'flowerpot') {
+    const pts = [[0.55, 0], [0.62, 0.1], [0.75, 0.75], [0.85, 0.8], [0.85, 0.92], [0.7, 0.92]].map(([a, b]) => new THREE.Vector2(a * r, b * r));
+    parts.push(paint(new THREE.LatheGeometry(pts, 14), (x, y) => shade(0xd9784a, 0x9c4f2a, 0.5 - y / r * 0.5)));
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.7, r * 0.7, r * 0.05, 14), 0, r * 0.88, 0), PAL.earthDark));
+    for (let k = 0; k < 5; k++) {
+      const a = k * 1.26, d = k ? r * 0.38 : 0, c = [PAL.coral, PAL.gold, PAL.amethyst, 0xf08bb0, PAL.alabaster][k];
+      parts.push(paint(at(new THREE.CylinderGeometry(r * 0.03, r * 0.03, r * 0.5, 5), Math.cos(a) * d, r * 1.1, Math.sin(a) * d), PAL.leaf));
+      parts.push(paint(at(new THREE.IcosahedronGeometry(r * 0.2, 1), Math.cos(a) * d, r * 1.4, Math.sin(a) * d), c));
+      parts.push(paint(at(new THREE.SphereGeometry(r * 0.08, 6, 4), Math.cos(a) * d, r * 1.5, Math.sin(a) * d), PAL.gold));
+    }
+  } else if (kind === 'bench') {
+    const L = r * 1.8, D = r * 0.6;
+    for (let k = 0; k < 3; k++) parts.push(paint(at(rbox(L, r * 0.08, D * 0.3, r * 0.03, 1), 0, r * 0.5, -D * 0.33 + k * D * 0.33), PAL.woodLight));
+    for (let k = 0; k < 2; k++) parts.push(paint(at(rbox(L, r * 0.16, r * 0.07, r * 0.03, 1), 0, r * 0.8 + k * r * 0.22, -D * 0.55, -0.2), PAL.woodLight));
+    for (const sx of [-1, 1]) {
+      parts.push(paint(at(rbox(r * 0.1, r * 0.5, D, r * 0.04, 1), sx * L * 0.42, r * 0.25, 0), PAL.slate));
+      parts.push(paint(at(rbox(r * 0.1, r * 0.75, r * 0.1, r * 0.04, 1), sx * L * 0.42, r * 0.85, -D * 0.5, -0.2), PAL.slate));
+      parts.push(paint(at(rbox(r * 0.1, r * 0.08, D * 0.9, r * 0.03, 1), sx * L * 0.42, r * 0.72, 0.02), PAL.slate));
+    }
+  } else if (kind === 'ptree') {
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.12, r * 0.2, r * 1.3, 8), 0, r * 0.65, 0), PAL.woodDark));
+    for (const [x, y, z, s] of [[0, 1.6, 0, 0.62], [0.35, 1.3, 0.2, 0.45], [-0.35, 1.35, -0.1, 0.48], [0.05, 1.95, 0.05, 0.4]]) {
+      parts.push(paint(at(new THREE.IcosahedronGeometry(s * r, 1), x * r, y * r, z * r), (px, py) => shade(0xf08bb0, 0xb85a86, 0.6 - (py - y * r) / (s * r) * 0.6)));
+    }
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.5, r * 0.55, r * 0.12, 14), 0, r * 0.06, 0), PAL.earthDark));
+  } else if (kind === 'fountain') {
+    const pts = [[0.95, 0], [1, 0.05], [1, 0.32], [0.88, 0.36], [0.85, 0.2], [0, 0.2]].map(([a, b]) => new THREE.Vector2(a * r, b * r));
+    parts.push(paint(new THREE.LatheGeometry(pts, 24), (x, y) => shade(PAL.alabaster, 0xb5a690, 0.4 - y / r)));
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.86, r * 0.86, r * 0.04, 24), 0, r * 0.28, 0), 0x6fb8d9));
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.12, r * 0.18, r * 0.7, 10), 0, r * 0.55, 0), PAL.alabaster));
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.45, r * 0.3, r * 0.12, 18), 0, r * 0.92, 0), PAL.alabaster));
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.4, r * 0.4, r * 0.03, 18), 0, r * 0.98, 0), 0x6fb8d9));
+    parts.push(paint(at(new THREE.SphereGeometry(r * 0.12, 10, 8), 0, r * 1.1, 0), PAL.gold));
+    for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; parts.push(paint(at(new THREE.SphereGeometry(r * 0.06, 6, 4), Math.cos(a) * r * 0.55, r * 0.33 + (k % 2) * r * 0.08, Math.sin(a) * r * 0.55), 0xa9dcf0)); }
+  } else if (kind === 'house') {
+    const W = r * 1.3, D = r * 1.1, H = r * 0.9;
+    parts.push(paint(at(rbox(W, H, D, r * 0.06, 2), 0, H / 2, 0), (x, y) => shade(0xf2d6a0, 0xc9a978, 0.3 - y / H * 0.3)));
+    const roof = new THREE.CylinderGeometry(D * 0.72, D * 0.72, W * 1.12, 3, 1);
+    parts.push(paint(at(roof, 0, H + D * 0.32, 0, 0, 0, Math.PI / 2), (x, y) => shade(PAL.coral, 0x9c3a33, Math.abs(Math.sin(y * 9)) * 0.3)));
+    parts.push(paint(at(rbox(r * 0.2, r * 0.5, r * 0.2, r * 0.03, 1), W * 0.25, H + D * 0.45, -D * 0.15), PAL.earthDark));
+    parts.push(paint(at(rbox(r * 0.3, r * 0.5, 0.04, r * 0.05, 1), 0, r * 0.25, D / 2 + 0.01), PAL.woodDark));
+    for (const sx of [-1, 1]) {
+      parts.push(paint(at(rbox(r * 0.3, r * 0.28, 0.04, r * 0.04, 1), sx * W * 0.3, H * 0.6, D / 2 + 0.01), 0x7fb5d9));
+      parts.push(paint(at(rbox(r * 0.36, r * 0.05, 0.06, r * 0.02, 1), sx * W * 0.3, H * 0.6 - r * 0.17, D / 2 + 0.02), PAL.alabaster));
+    }
+  } else if (kind === 'watertower') {
+    for (let k = 0; k < 4; k++) { const a = k / 4 * 6.28 + 0.78; parts.push(paint(at(new THREE.CylinderGeometry(r * 0.06, r * 0.08, r * 1.6, 6), Math.cos(a) * r * 0.5, r * 0.8, Math.sin(a) * r * 0.5), PAL.slate)); }
+    const pts = [[0, 0], [0.6, 0.05], [0.7, 0.2], [0.7, 0.75], [0.5, 0.95], [0, 1.05]].map(([a, b]) => new THREE.Vector2(a * r, b * r));
+    parts.push(paint(at(new THREE.LatheGeometry(pts, 18), 0, r * 1.55, 0), (x, y) => col(Math.floor((y - r * 1.55) / (r * 0.18)) % 2 ? PAL.coral : PAL.alabaster)));
+    parts.push(paint(at(new THREE.TorusGeometry(r * 0.72, r * 0.04, 4, 20), 0, r * 1.75, 0, Math.PI / 2), PAL.slate));
+    parts.push(paint(at(new THREE.SphereGeometry(r * 0.1, 8, 6), 0, r * 2.65, 0), PAL.gold));
+  } else if (kind === 'building') {
+    const W = r * 1.15, H = r * 2.4;
+    parts.push(paint(at(rbox(W, H, W, r * 0.08, 2), 0, H / 2, 0), (x, y) => shade(0x7e9ad1, 0x4a5f99, 0.2 + y / H * 0.2)));
+    for (let f = 0; f < 5; f++) for (let k = 0; k < 3; k++) for (const [sx, sz, ry] of [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, 0], [-1, 0, Math.PI / 2]]) {
+      const off = (k - 1) * W * 0.28, y = H * 0.18 + f * H * 0.16;
+      parts.push(paint(at(rbox(W * 0.18, H * 0.09, 0.04, r * 0.03, 1), sx ? sx * (W / 2 + 0.01) : off, y, sz ? sz * (W / 2 + 0.01) : off, 0, ry), (f + k) % 3 ? 0xf2c96a : 0xa9cbe8));
+    }
+    parts.push(paint(at(rbox(W * 1.06, r * 0.12, W * 1.06, r * 0.04, 1), 0, H, 0), PAL.slate));
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.03, r * 0.03, r * 0.6, 5), W * 0.25, H + r * 0.3, 0), PAL.slate));
+    parts.push(paint(at(new THREE.SphereGeometry(r * 0.06, 6, 4), W * 0.25, H + r * 0.62, 0), PAL.coral));
+  } else if (kind === 'candy') {
+    parts.push(paint(at(new THREE.SphereGeometry(r * 0.6, 14, 10), 0, r * 0.65, 0), (x, y, z) => col(Math.sin(Math.atan2(z, x) * 3 + y * 8) > 0 ? 0xf08bb0 : PAL.alabaster)));
+    for (const sx of [-1, 1]) parts.push(paint(at(new THREE.ConeGeometry(r * 0.32, r * 0.42, 8), sx * r * 0.72, r * 0.65, 0, 0, 0, sx * Math.PI / 2), 0xf08bb0));
+  } else if (kind === 'vault') {
+    // a three-tier cake fortress with a golden vault door, cream drips and candles
+    const tiers = [[1.0, 0.55, 0xc98a52], [0.74, 0.5, 0xf08bb0], [0.5, 0.45, 0xf2d6a0]];
+    let y = 0;
+    tiers.forEach(([rr, h, c], i) => {
+      parts.push(paint(at(new THREE.CylinderGeometry(rr * r, rr * r, h * r, 32, 2), 0, y + h * r / 2, 0), (px, py) => shade(c, 0x6e4a33, 0.15 - (py - y) / (h * r) * 0.15)));
+      parts.push(paint(at(new THREE.TorusGeometry(rr * r, r * 0.06, 6, 32), 0, y + h * r, 0, Math.PI / 2), PAL.alabaster));
+      for (let k = 0; k < 14; k++) { const a = k / 14 * 6.28 + i; parts.push(paint(at(new THREE.SphereGeometry(r * 0.07, 6, 4), Math.cos(a) * rr * r, y + h * r - r * 0.08 - (k % 3) * r * 0.05, Math.sin(a) * rr * r), PAL.alabaster)); }
+      y += h * r;
+    });
+    parts.push(paint(at(new THREE.CylinderGeometry(r * 0.32, r * 0.32, r * 0.06, 24), 0, r * 0.3, r * 0.99, Math.PI / 2), PAL.gold));
+    parts.push(paint(at(new THREE.TorusGeometry(r * 0.2, r * 0.035, 6, 20), 0, r * 0.3, r * 1.03), 0x9c6a1d));
+    for (let k = 0; k < 4; k++) parts.push(paint(at(rbox(r * 0.05, r * 0.24, r * 0.05, r * 0.02, 1), 0, r * 0.3, r * 1.03, 0, 0, k * Math.PI / 4), 0x9c6a1d));
+    for (let k = 0; k < 6; k++) {
+      const a = k / 6 * 6.28;
+      parts.push(paint(at(new THREE.CylinderGeometry(r * 0.03, r * 0.03, r * 0.3, 6), Math.cos(a) * r * 0.3, y + r * 0.15, Math.sin(a) * r * 0.3), [PAL.coral, PAL.jade, PAL.amethyst][k % 3]));
+      parts.push(paint(at(new THREE.SphereGeometry(r * 0.045, 6, 4), Math.cos(a) * r * 0.3, y + r * 0.34, Math.sin(a) * r * 0.3), PAL.gold));
+    }
+    parts.push(paint(at(new THREE.SphereGeometry(r * 0.16, 12, 8), 0, y + r * 0.12, 0), PAL.apple));
+  }
 }
 
 /** Colours a kind's debris uses: [main, accent]. */
 export const DEBRIS = {
   apple: [PAL.apple, 0xf2d6a0], orange: [PAL.orange, 0xf6c27a], melon: [PAL.melon, PAL.coral], crate: [PAL.wood, PAL.woodLight],
   barrel: [PAL.wood, PAL.iron], cart: [PAL.woodDark, PAL.apple], stall: [PAL.cloth, PAL.woodLight],
+  cone: [PAL.coral, PAL.alabaster], car: [PAL.coral, PAL.slate], mailbox: [0x3d6fb8, PAL.slate], flowerpot: [0xd9784a, PAL.gold],
+  bench: [PAL.woodLight, PAL.slate], ptree: [0xf08bb0, PAL.woodDark], fountain: [PAL.alabaster, 0x6fb8d9], house: [0xf2d6a0, PAL.coral],
+  watertower: [PAL.coral, PAL.alabaster], building: [0x7e9ad1, 0xf2c96a], candy: [0xf08bb0, PAL.alabaster], vault: [0xf08bb0, PAL.gold],
 };
 
 /** Tree: trunk and three rounded foliage blobs, shaded top-light. */
