@@ -234,3 +234,62 @@ test('welcome-back gift: only with the festival drop, after awayH, capped, one e
   assert.equal(S.cashPile, pile + g.coins); assert.ok(S.egg.at <= S.t + c.gift.eggIn); assert.equal(S.giftDay, g.day);
   assert.equal(L.restore(c, JSON.parse(JSON.stringify(L.serialize(c, S))), 2).giftDay, g.day);
 });
+
+/** Chapter 2 helpers: both places' configs with the ch2 switch on, and a desert game played to the cable car. */
+const ch2 = (on = {}) => { const b = cfg({ ch2: true, ...on }); return { b, c1: L.chapterConfig(b, 'desert'), c2: L.chapterConfig(b, 'frost') }; };
+function toFrost(c1, c2, seed) {
+  const S1 = L.createState(c1, seed); let tr = null;
+  for (let i = 0; i < 20 * 3600 && !tr; i++) { L.step(c1, S1, 1 / 60, L.botInput(c1, S1), S1.glint && S1.glint.t > 0.6 ? { glint: true } : null); tr = S1.events.find((e) => e.type === 'travel'); S1.events.length = 0; }
+  const S2 = L.createState(c2, seed + 50); Object.assign(S2, { critters: S1.critters, hats: S1.hats, hat: S1.hat }); S2.hero.cash = S1.hero.cash;
+  return { S1, S2, tr };
+}
+
+test('chapter 2 is off by default: no frost critters, hats or cable car to it', () => {
+  const c = cfg();
+  assert.ok(!c.critters.some((q) => q.area === 'frost')); assert.ok(!c.hats.some((h) => h.area === 'frost'));
+  const { S } = play(c, 680, 1);
+  assert.ok(S.done1); assert.equal(L.travelOpen(c, S), false);
+});
+
+test('chapter 2: the cable car opens after the finale, the bot rides it, frost has its 10 pads, names in every language', () => {
+  const { b, c1, c2 } = ch2(), { S1, tr } = toFrost(c1, c2, 1);
+  assert.ok(tr && tr.to === 'frost' && S1.done1 && S1.seen2, 'travel after the finale');
+  assert.equal(c2.pads.length, 10); assert.equal(c2.pads[0].after, 'now');
+  for (const [lang, t] of Object.entries(b.strings)) {
+    for (const p of c2.pads) assert.ok(t[p.label], `${lang}: ${p.label}`);
+    for (const q of b.critters.filter((x) => x.area === 'frost')) assert.ok(t[q.id], `${lang}: ${q.id}`);
+    for (const k of ['toFrost', 'toDesert', 'awayCoins', 'f_ghostGoal', 'f_ghostLit', 'f_districtDone', 'f_finale', 'f_comet', 'lava']) assert.ok(t[k], `${lang}: ${k}`);
+  }
+});
+
+test('chapter 2: the bot finishes it in 7-9 min with a reward at least every 45 s; frost eggs, stars and hats come', () => {
+  const { c1, c2 } = ch2();
+  for (const seed of [1, 2, 3]) {
+    const { S2 } = toFrost(c1, c2, seed); let last = S2.t, gap = 0; const hatched = [];
+    for (let i = 0; i < 12 * 3600 && !S2.done1; i++) {
+      L.step(c2, S2, 1 / 60, L.botInput(c2, S2), S2.glint && S2.glint.t > 0.6 ? { glint: true } : null);
+      for (const e of S2.events) { if (L.REWARDS.includes(e.type)) { gap = Math.max(gap, S2.t - last); last = S2.t; } if (e.type === 'hatch') hatched.push(e.who); }
+      S2.events.length = 0;
+    }
+    assert.ok(S2.done1, `seed ${seed}: chapter 2 done`);
+    assert.ok(S2.t >= 7 * 60 && S2.t <= 9 * 60, `seed ${seed}: ${(S2.t / 60).toFixed(1)} min`);
+    assert.ok(gap <= 45, `seed ${seed}: reward gap ${gap.toFixed(0)} s`);
+    assert.ok(hatched.every((id) => c2.critters.find((q) => q.id === id).area === 'frost'), 'only frost critters hatch up top');
+    assert.deepEqual([...S2.stars].sort(), ['critters', 'orders', 'town']);
+    for (const id of ['earmuffs', 'beanie', 'icecrown']) assert.ok(S2.hats.includes(id), id);
+    assert.ok(S2.critters.some((q) => q.id === 'polaris'));
+  }
+});
+
+test('chapter 2 save: both places round trip and share one parade and hat box; away coins are capped', () => {
+  const { c1, c2 } = ch2(), { S1, S2 } = toFrost(c1, c2, 2);
+  for (let i = 0; i < 200 * 60; i++) { L.step(c2, S2, 1 / 60, L.botInput(c2, S2)); S2.events.length = 0; }
+  const d = JSON.parse(JSON.stringify({ ...L.serialize(c1, S1), ch2: L.serialize(c2, S2) }));
+  const R1 = L.restore(c1, d, 3), R2 = L.restore(c2, d.ch2, 4, R1);
+  assert.equal(R2.critters, R1.critters); assert.equal(R2.hats, R1.hats);
+  assert.deepEqual(L.serialize(c2, R2).pads, L.serialize(c2, S2).pads);
+  assert.ok(R1.seen2 && R1.done1);
+  const pile = R1.cashPile, n = L.awayIncome(c1, R1, 3600);
+  assert.equal(n, c1.away.cap); assert.equal(R1.cashPile, pile + n);
+  assert.ok(L.awayIncome(c2, R2, 60) > 0 && L.awayIncome(c2, R2, 60) <= c2.away.cap);
+});

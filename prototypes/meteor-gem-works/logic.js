@@ -15,6 +15,9 @@ export function rng(seed) {
 const near = (a, x, z, r) => (a.x - x) ** 2 + (a.z - z) ** 2 < r * r;
 const pt = (p) => (Array.isArray(p) ? { x: p[0], z: p[1] } : { x: p.x, z: p.z });
 const ITEMS = ['gem', 'ring'];
+const areaOf = (x) => (x && x.area) || 'desert';
+/** The critters whose eggs come in this chapter's place (frost critters only up on the frost mesa). */
+const pool = (cfg) => cfg.critters.filter((c) => areaOf(c) === areaOf(cfg));
 
 /** A fresh game state from the config. */
 export function createState(cfg, seed = cfg.seed) {
@@ -29,14 +32,43 @@ export function createState(cfg, seed = cfg.seed) {
     keeper: null, conv: { t: 0 }, rig: null, laser: { t: 0 }, bus: { next: -1, wave: 0 },
     tourists: [], nextTourist: 0.5, tid: 0,
     glint: null, glintT: cfg.glint.every * 0.5,
-    egg: { st: 'lodged', t: 0, at: cfg.egg.dropAt, who: cfg.critters[0].id }, critters: [],
+    egg: { st: 'lodged', t: 0, at: cfg.egg.dropAt, who: (pool(cfg)[0] || cfg.critters[0]).id }, critters: [],
     order: null, orderT: cfg.order.first, hearts: 0,
     rush: { on: false, next: cfg.rush.first, left: 0, spawnT: 0 }, loose: [], lid: 0,
     pads: cfg.pads.map((p) => ({ id: p.id, price: p.price, paid: 0, shown: false, done: false, rate: cfg.coinFlow.payStart, payT: 0 })),
     rig2: { t: 0 }, jw: { t: 0 }, ghost: { n: 0, lit: 0, go: -1 }, eggs: 0, noRare: 0,
-    stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false, giftDay: -1,
+    stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false, giftDay: -1, seen2: false, travelT: 0,
     sold: 0, made: 0, earned: 0, progressT: 0, events: [],
   };
+}
+
+/** True when the cable car to the other place runs: always up on the frost mesa, after the finale in the desert. */
+export const travelOpen = (cfg, S) => !!cfg.travel && (areaOf(cfg) === 'frost' || (S.done1 && !!cfg.drops && !!cfg.drops.ch2));
+
+/**
+ * The config of a chapter's place. 'desert' is the base config; 'frost' (chapter 2) layers cfg.ch2 on a copy: its own
+ * ten pads (the same stations under frost names), prices and sales scaled by ch2.scale, its own sky, seed and finale
+ * critter. Critters and hats stay one shared roster (each critter's area says where its egg comes).
+ */
+export function chapterConfig(base, area) {
+  const c = JSON.parse(JSON.stringify(base));
+  if (area !== 'frost') { c.area = 'desert'; return c; }
+  const X = base.ch2, F = X.scale;
+  Object.assign(c, { area: 'frost', theme: 'frost', seed: X.seed, tod: X.tod, finale: { ...c.finale, ...X.finale }, stars: { ...c.stars, ...X.stars } });
+  c.pads = X.pads.map((p) => { const b = base.pads.find((q) => q.id === p.id) || {}; const o = { ...b, ...p }; delete o.after; return o; });
+  c.pads[0].after = 'now';
+  for (const k of Object.keys(c.sell.prices)) c.sell.prices[k] *= F;
+  c.order.tip *= F; c.cart.pay *= F; c.cart.tip *= F; c.stargaze.bonus *= F; c.world.crate.pay *= F; c.away.perPadMin *= F; c.away.cap *= F;
+  Object.assign(c.egg, X.egg || {}); Object.assign(c.rush, X.rush || {});
+  if (X.look) c.look.grade = { ...c.look.grade, ...X.look.grade };
+  return c;
+}
+
+/** Coins the town earned on its own while the hero was in the other place for sec seconds (capped). */
+export function awayIncome(cfg, S, sec) {
+  const n = Math.min(cfg.away.cap, Math.round(cfg.away.perPadMin * S.pads.filter((p) => p.done).length * sec / 60));
+  if (n > 0) { S.cashPile += n; S.earned += n; ev(S, 'awayCoins', { n }); }
+  return n;
 }
 
 /** True once the pad with this id is paid for. */
@@ -104,6 +136,7 @@ export function spot(cfg, what, S = null) {
 export function guide(cfg, S) {
   const h = S.hero, pad = S.pads.find((p) => p.shown && !p.done);
   const pick = (w) => (useful(cfg, S, w) ? { what: w, ...spot(cfg, w, S) } : null);
+  if (travelOpen(cfg, S) && areaOf(cfg) === 'desert' && !S.seen2 && !S.finale) return { what: 'travel', x: cfg.travel.x, z: cfg.travel.z };
   const nearest = (ids) => { let best = null, bd = 1e9; for (const id of ids) { if (!useful(cfg, S, id)) continue; const q = spot(cfg, id, S), d = (q.x - h.x) ** 2 + (q.z - h.z) ** 2; if (d < bd) { bd = d; best = { what: id, ...q }; } } return best; };
   if (pad && h.cash > 0 && h.cash >= pad.price - pad.paid) return pick(pad.id);
   const egg = pick('egg'); if (egg) return egg;
@@ -282,7 +315,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   }
   S.pads.forEach((p, i) => {
     const def = cfg.pads[i];
-    if (!p.shown && (def.after === 'firstSale' ? S.sold > 0 : i > 0 && S.pads[i - 1].done)) { p.shown = true; ev(S, 'padShow', { id: p.id }); }
+    if (!p.shown && (def.after === 'now' || (def.after === 'firstSale' ? S.sold > 0 : i > 0 && S.pads[i - 1].done))) { p.shown = true; ev(S, 'padShow', { id: p.id }); }
     if (!p.shown || p.done) return;
     if (near(h, def.x, def.z, 1.3) && h.cash > 0) {
       p.payT -= dt;
@@ -333,10 +366,17 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   }
   // ---- town stars and the hats they unlock (checked every step; each fires once)
   const SC = cfg.stars, earn = (id, ok) => { if (ok && !S.stars.includes(id)) { S.stars.push(id); ev(S, 'star', { id, n: S.stars.length }); S.progressT = 0; } };
-  earn('orders', S.hearts >= SC.orders); earn('critters', S.critters.length >= SC.critters); earn('town', S.ghost.lit >= cfg.cart.lights && has(S, 'neon'));
+  earn('orders', S.hearts >= SC.orders); earn('critters', S.critters.filter((c) => areaOf(cfg.critters.find((q) => q.id === c.id)) === areaOf(cfg)).length >= SC.critters); earn('town', S.ghost.lit >= cfg.cart.lights && has(S, 'neon'));
   for (const hd of cfg.hats) {
-    if (S.hats.includes(hd.id)) continue;
+    if (S.hats.includes(hd.id) || (hd.area && hd.area !== areaOf(cfg))) continue;
     if ((hd.stars && S.stars.length >= hd.stars) || (hd.hearts && S.hearts >= hd.hearts) || (hd.finale && S.done1) || (hd.critters && S.critters.length >= hd.critters) || (hd.sold && S.sold >= hd.sold)) { S.hats.push(hd.id); S.hat = hd.id; ev(S, 'hat', { id: hd.id }); }
+  }
+
+  // ---- the cable car to the other chapter's place: stand on its pad for travel.hold seconds (open once it is unlocked)
+  if (travelOpen(cfg, S)) {
+    const TV = cfg.travel;
+    if (near(h, TV.x, TV.z, TV.r)) { if (S.travelT >= 0 && (S.travelT += dt) >= TV.hold) { S.travelT = -1; if (areaOf(cfg) === 'desert') S.seen2 = true; ev(S, 'travel', { to: areaOf(cfg) === 'frost' ? 'desert' : 'frost' }); } }
+    else S.travelT = 0;
   }
 
   // ---- Crystal Rush: the meteor flares, chunks and coins rain onto the deck for a few seconds; scoop them up
@@ -367,7 +407,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
  * rare one is sure) and schedules its egg. The laser makes eggs come sooner. Legendary critters never come from eggs.
  */
 function nextEgg(cfg, S) {
-  let left = cfg.critters.filter((c) => c.rarity !== 'legendary' && !S.critters.some((o) => o.id === c.id));
+  let left = pool(cfg).filter((c) => c.rarity !== 'legendary' && !S.critters.some((o) => o.id === c.id));
   if (!left.length) { S.egg = { st: 'none', t: 0, at: Infinity, who: null }; return; }
   const rares = left.filter((c) => c.rarity === 'rare');
   if (rares.length && S.noRare >= cfg.egg.pity) left = rares;
@@ -502,12 +542,12 @@ export function serialize(cfg, S) {
     pols: S.pols.map((p) => p.polIn), stands: S.stands.map((s) => s.items.slice()), ws: { g: S.ws.gemsIn, r: S.ws.rings },
     pads: S.pads.map((p) => [p.paid, p.done ? 1 : 0]), critters: S.critters.map((c) => c.id), hearts: S.hearts, sold: S.sold, made: S.made, earned: S.earned,
     ghost: { n: S.ghost.go >= 0 ? 0 : S.ghost.n, lit: S.ghost.lit + (S.ghost.go >= 0 && S.ghost.lit < cfg.cart.lights ? 1 : 0) }, stars: ['orders', 'critters', 'town'].filter((id) => S.stars.includes(id)), hats: cfg.hats.map((x) => x.id).filter((id) => S.hats.includes(id)), hat: S.hat,
-    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare, giftDay: S.giftDay,
+    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare, giftDay: S.giftDay, seen2: S.seen2,
   };
 }
 
 /** A state rebuilt from serialize() output; anything missing or malformed falls back to a fresh value. */
-export function restore(cfg, d, seed = cfg.seed) {
+export function restore(cfg, d, seed = cfg.seed, shared = null) {
   const S = createState(cfg, seed);
   if (!d || d.v !== cfg.save.version) return S;
   const num = (v, lo, hi, def) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : def);
@@ -524,7 +564,8 @@ export function restore(cfg, d, seed = cfg.seed) {
   if (Array.isArray(d.stars)) S.stars = ['orders', 'critters', 'town'].filter((id) => d.stars.includes(id));
   if (Array.isArray(d.hats)) S.hats = cfg.hats.map((x) => x.id).filter((id, i) => i === 0 || d.hats.includes(id));
   if (S.hats.includes(d.hat)) S.hat = d.hat;
-  S.done1 = !!d.done1 && has(S, 'heart'); S.eggs = num(d.eggs, 0, 1e6, S.critters.length); S.noRare = num(d.noRare, 0, 1e6, 0); S.giftDay = num(d.giftDay, -1, 1e7, -1);
+  S.done1 = !!d.done1 && has(S, 'heart'); S.eggs = num(d.eggs, 0, 1e6, S.critters.length); S.noRare = num(d.noRare, 0, 1e6, 0); S.giftDay = num(d.giftDay, -1, 1e7, -1); S.seen2 = !!d.seen2;
+  if (shared) { S.critters = shared.critters; S.hats = shared.hats; if (S.hats.includes(d.hat)) S.hat = d.hat; } // chapter 2 shares the critter parade and hats
   if (has(S, 'heart') && !S.done1) S.done1 = true; // a save made mid-finale: the finale counts as seen
   if (S.done1 && !S.critters.some((c) => c.id === cfg.finale.critter)) S.critters.push({ id: cfg.finale.critter, x: S.hero.x, z: S.hero.z + 1, vx: 0, vz: 0, face: 0 });
   if (S.critters.length) { nextEgg(cfg, S); S.egg.at = S.t + Math.min(cfg.egg.every, 25); }

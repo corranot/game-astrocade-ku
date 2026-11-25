@@ -1,6 +1,6 @@
 # Meteor Gem Works — game plan (v2)
 
-**Status:** approved by the owner on 2026-11-25. M1–M3 merged; M4 saved as an Astrocade draft (not published). §16 plans chapter 2 (M5).
+**Status:** approved by the owner on 2026-11-25. M1–M3 merged; M4 saved as an Astrocade draft (not published). §16 plans chapter 2 (M5), approved on 2026-11-25 and built behind `drops.ch2` (off).
 **v1:** 2026-11-25, PR #198. **v2:** 2026-11-25, a full upgrade the owner asked for.
 
 The v2 brief, in the owner's words: target **kids**; a **median session of 10+ minutes**; a detailed objective loop

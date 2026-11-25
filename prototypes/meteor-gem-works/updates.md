@@ -37,7 +37,11 @@ and the album shows 18 critters in a 6-wide grid.
   finished save hatches a night critter within 40 s); `drops.js` (album 18 + 9 tiles fit, parade cap, budgets).
 - **Listing text (version history):** "Six night critters, three new hats and a bigger sticker album".
 
-## Update 2, day 6: Chapter 2 "The Frost Comet"
+## Update 2, day 6: Chapter 2 "The Frost Comet" (built, `drops.ch2`)
+
+**Built (M5):** as planned in `plan.md` §16, which replaced the sketch below: the cable car pad after the finale
+rides to the Frost Comet valley (10 frost pads, 8 frost critters, 3 hats, its own stars and finale). To ship it,
+flip `drops.ch2`, run `logic.test.mjs` and `ch2.js`, then save the draft.
 
 **What the player sees:** the comet at the end of chapter 1 lands; the "Chapter 2 · soon" tile in the album opens.
 

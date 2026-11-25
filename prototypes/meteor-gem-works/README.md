@@ -23,6 +23,25 @@ The day-3 and day-9 updates from `updates.md` are in the code behind `drops` in 
   gift, hatch, parade cap, fireworks, album fit, draw calls tier 0 151/160 and tier 2 204/260). Evidence in
   `production/qa/evidence/meteor-gem-works/drops/`. Locally, `?drops=night,festival` turns them on.
 
+## Milestone 5: chapter 2, the Frost Comet (built, switched off)
+
+Chapter 2 is in the code behind `drops.ch2` (`false`), so the shipped build stays chapter 1 plus whichever drops are on.
+Plan: `plan.md` §16.
+
+- **Travel:** after the chapter 1 finale a cable car pad opens on the deck (`travel` in the config). Standing on it
+  for a moment shows a short ride card and rebuilds the scene for the other place. Wallet, hat and the critter
+  parade come along; the place left behind keeps earning (`away`, capped) and pays out on the way back.
+- **The valley:** the same loop and station ids with frost names (`f_` strings), prices x3 (`ch2.scale`), its own
+  eggs (8 frost critters, Polaris the legendary), three hats (earmuffs, beanie, ice crown), three stars and a finale
+  whose comet glows red (chapter 3 teaser).
+- **Look (`theme: 'frost'`):** snow tinted lavender, pale blue and pink (never white; the brightest snow is about
+  `#cdd0e8`), snow caps on every painted prop (`M.frostify`), icy meteor and crystals, pines, snowballs, a penguin
+  shopkeeper, a cocoa stand, snow globes for rings, a snowflake neon and an aurora in the night sky, GPU snowfall in
+  one draw (`ch2.snow`), a cooler grade (`ch2.look`).
+- **Save:** one save holds both places (`ch2` and `area`); `save.version` is unchanged, so old saves load as before.
+- **Check:** `node --test logic.test.mjs` (24 tests) and `node ch2.js <outDir>` (screenshots 49-58 in
+  `production/qa/evidence/meteor-gem-works/m5/`). Locally, `?drops=night,festival,ch2` turns everything on.
+
 ## Milestone 3: chapter 1 complete
 
 - Unlocks 8-14, in order: ghost town + mine cart 190, drill rig 2 220, cable car 250, stargazer deck 265 (golden
