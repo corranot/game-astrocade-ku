@@ -78,6 +78,22 @@ body{display:flex;align-items:center;justify-content:center}
 .banner.jade{color:#7fe0b4}
 .banner.world{font-size:calc(var(--u)*68px);text-align:center}
 .banner small{display:block;font-size:.62em;line-height:1.1;color:#f4ede2}
+/* cutscenes: letterbox bars slide in, the HUD fades (banner and +N numbers stay), a skip hint sits in the lower bar */
+#app{--bars:.085}
+.lb{position:absolute;left:0;right:0;height:calc(var(--bars)*100%);background:#0d0e1c;transform:scaleY(0);transition:transform .35s cubic-bezier(.2,.8,.2,1);z-index:1}
+.lb.t{top:0;transform-origin:top}.lb.b{bottom:0;transform-origin:bottom}
+.cine .lb{transform:none}
+.hud>*:not(.lb):not(#pops):not(#banner):not(.logo):not(.skip){transition:opacity .25s}
+.cine .hud>*:not(.lb):not(#pops):not(#banner):not(.logo):not(.skip){opacity:0;pointer-events:none}
+.skip{position:absolute;right:var(--m);bottom:calc(var(--sb) + var(--bars)*50% - var(--u)*28px);width:calc(var(--u)*56px);height:calc(var(--u)*56px);fill:#f4ede2;opacity:0;transition:opacity .3s .4s;z-index:2}
+.cine .skip{opacity:.7}
+[dir=rtl] .skip{right:auto;left:var(--m);transform:scaleX(-1)}
+/* the game's name: lands with the hammer in the first-run intro */
+.logo{position:absolute;top:calc(var(--bars)*100% + var(--st) + var(--u)*40px);left:50%;translate:-50% 0;text-align:center;font-size:calc(var(--u)*84px);line-height:.92;color:#f2c96a;white-space:nowrap;direction:ltr;opacity:0;transform:scale(.4);z-index:2}
+.logo b{display:block;font-size:1.35em;color:#e06356}
+.intro.cine.landed .logo{animation:logo .55s cubic-bezier(.2,1.7,.4,1) forwards}
+@keyframes logo{0%{opacity:0;transform:scale(.4) rotate(-8deg)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.intro.cine .logo{animation-duration:.01s}}
 .banner.show{animation:ban 1.6s ease-out forwards}
 @keyframes ban{0%{opacity:0;transform:scale(.3) rotate(-6deg)}14%{opacity:1;transform:scale(1.15) rotate(2deg)}24%{transform:scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:scale(1.05) translateY(calc(var(--u)*-40px))}}
 .hint{position:absolute;bottom:calc(var(--sb) + 18%);left:50%;translate:-50% 0;font-size:calc(var(--u)*58px);white-space:nowrap;animation:pulse 1s ease-in-out infinite}

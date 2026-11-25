@@ -30,7 +30,14 @@ async function open(browser, opts = {}) {
   if (opts.init) await page.addInitScript(opts.init);
   await page.goto(`http://localhost:${server.address().port}/?local&tier=${opts.tier ?? 1}${opts.mode ? '&mode=' + opts.mode : ''}`);
   await page.waitForFunction(() => window.__game && window.__game.R, null, { timeout: 30000 });
+  if (!opts.keepIntro) await calm(page);
   return { page, errors };
+}
+/** Ends the opening cutscene (and any other) and waits until the camera is back at play. */
+async function calm(page) {
+  await page.waitForFunction(() => __game.introWait < 0, null, { timeout: 60000 });
+  await page.evaluate(() => __game.endCine && __game.endCine());
+  await page.waitForFunction(() => !__game.cine && __game.scene.cineCam.w === 0, null, { timeout: 60000 });
 }
 
 (async () => {
@@ -46,7 +53,7 @@ async function open(browser, opts = {}) {
   }
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   if (process.env.ONLY_FINALE) { await finale(); await browser.close(); server.close(); process.exit(fails.length ? 1 : 0); }
-  const { page, errors } = await open(browser);
+  const { page, errors } = await open(browser, { keepIntro: true });
   const g = (fn, arg) => page.evaluate(fn, arg);
   /** Clicks like a finger on the world point (x, y, z). */
   const tapWorld = async (x, y, z) => { const [cx, cy] = await g(([a, b, c]) => __game.client(a, b, c), [x, y, z]); await page.mouse.click(cx, cy); };
@@ -58,6 +65,19 @@ async function open(browser, opts = {}) {
   const moved = await g((a) => Math.abs(__game.scene.hammer.pivot.rotation.x - a) > 0.01 || __game.scene.cam.focus.z !== 0, a0);
   check(moved, 'the screen moves before any touch (hammer demo swing)');
   check(await g(() => __game.R.L === 1 && __game.R.slams === 0), 'attract mode breaks and counts nothing');
+
+  // the opening cutscene: a new player gets the long intro with letterbox bars; one tap skips it and slams nothing
+  {
+    const started = await page.waitForFunction(() => __game.cine && __game.cine.id === 'intro', null, { timeout: 60000 }).then(() => true, () => false);
+    check(started && (await g(() => __game.cine.d === __game.cfg.cine.intro.keys.at(-1).t && document.getElementById('app').classList.contains('cine'))), 'a new player sees the full intro, with the letterbox');
+    await page.waitForFunction(() => __game.cine && __game.cine.t > 1.0, null, { timeout: 60000 });
+    await page.screenshot({ path: path.join(out, '26-intro.jpg'), type: 'jpeg', quality: 82 });
+    await page.waitForFunction((a) => __game.cine && __game.cine.t > a, await g(() => __game.cfg.cine.skipAfter), { timeout: 60000 });
+    await page.mouse.click(200, 400);
+    check(await g(() => !__game.cine && __game.R.slams === 0 && !__game.touched && !document.getElementById('app').classList.contains('cine')), 'a tap skips the intro and slams nothing');
+    check(await g(() => __game.scene.hammer.root.position.y === 0), 'after a skip the hammer stands where the intro would have left it');
+    await page.waitForFunction(() => __game.scene.cineCam.w === 0, null, { timeout: 60000 });
+  }
   await page.screenshot({ path: path.join(out, '01-start.jpg'), type: 'jpeg', quality: 82 });
 
   // a tap on a small fruit breaks it and grows the hammer
@@ -102,6 +122,17 @@ async function open(browser, opts = {}) {
   await page.waitForFunction(() => __game.mult === 2, null, { timeout: 5000 }).catch(() => {});
   check(await g(() => __game.mult === 2 && __game.R.zone === 0 && __game.R.L === 1), 'finishing the vault starts the x2 run');
   check(await g(() => __game.R.objects.filter((o) => o.req > 1).every((o) => o.alive)), 'the new run restores every object');
+  // the new world's fly-over: the session clock stops while it plays, and a tap ends it without a slam
+  {
+    const on = await g(() => __game.cine && __game.cine.id === 'world');
+    const s1 = await g(() => __game.sessT); await page.waitForTimeout(700);
+    check(on && (await g((a) => __game.sessT === a && __game.cine, s1)), 'the next run opens on its world fly-over, and the session clock waits');
+    await page.screenshot({ path: path.join(out, '27-world-flyover.jpg'), type: 'jpeg', quality: 82 });
+    const n = await g(() => __game.R.slams); await page.mouse.click(200, 400);
+    check(await g((k) => !__game.cine && __game.R.slams === k, n), 'a tap ends the fly-over');
+    await page.waitForFunction(() => __game.scene.cineCam.w === 0, null, { timeout: 60000 });
+  }
+  check(await g(() => __game.cineUsed <= __game.cfg.cine.maxPerRun), 'cutscenes stay inside the per-run cap');
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(out, '04-rebirth-x2.jpg'), type: 'jpeg', quality: 82 });
   check(await g(() => __game.save.runs === 1 && __game.save.best > 10000 && (window.__writes || []).length > 0), 'the finished run is saved (runs, best size)');
@@ -121,6 +152,7 @@ async function open(browser, opts = {}) {
   { const b = await page.locator('#mute').boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); }
   await g(() => window.run('play'));
   await page.waitForFunction(() => window.__game && window.__game.R && window.__game.R.L === 1);
+  await calm(page);
   check(await g(() => document.querySelectorAll('canvas').length === 1), 'run() twice leaves one canvas');
   check(await g(() => __game.Sound.muted && document.getElementById('mute').textContent === '\u{1F507}'), 'after run() again the mute button still shows muted');
   check(errors.length === 0, 'no page errors in play: ' + errors.slice(0, 3).join(' | '));
