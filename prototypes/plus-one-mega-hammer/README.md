@@ -204,6 +204,40 @@ play. This container has no GPU, so WebGL runs on SwiftShader, a software render
 - **Reduce motion** (system setting). Besides the still cutscene camera, shake, punch-in and the FOV kick drop to
   `cfg.fx.calm` (30%).
 
+### M6: low-end profile tests and tuning
+
+**Profile.** Simulated low-end phone: 360x800 at DPR 2, CPU throttled 6x (Chrome DevTools), SwiftShader software
+GL. Main-thread time per frame (game update plus the renderer's CPU-side submit), medians over each scene:
+
+| Scene | CPU 1x | CPU 6x | Draw calls |
+|---|---|---|---|
+| Intro | 2.7 ms | 13.4 ms | 89 |
+| Play, zone 1 (holding) | 2.5 ms | 14.6 ms | 92 |
+| Play, city (heaviest zone) | 2.5 ms | 17.3 ms | 97 |
+| World fly-over | 2.1 ms | 15.8 ms | 82 |
+| Boss intro | 2.0 ms | 13.2 ms | 59 |
+| End of run | 1.9 ms | 16.4 ms | 70 |
+
+- The plan's goal was a median under 7 ms at 6x. That is **not met**: it is 13 to 17 ms, which is just inside a
+  60 FPS frame (16.7 ms) on the slowest setting.
+- Most of it is the renderer's own submit work for about 90 draw calls. Game logic is 2 to 5 ms at 6x.
+- SwiftShader draws on the CPU, so the GPU half of a real phone is not measured here. The FPS this profile shows
+  says nothing about a phone. **A real low-end phone still has to be checked.**
+- The p95 spikes (30 to 110 ms) come mostly from adaptive quality switching tiers, which recompiles shaders once
+  per switch.
+
+**Tuning done in M6**
+- Objects outside the played zone that have no animation left are skipped: no matrix rewrite and no instance
+  buffer upload for their kind.
+- The 12 clouds are one instanced mesh (was 12 draw calls), and the 14 zebra stripes are one merged mesh (was 14).
+- The end-of-run flight ends lower (`[0, 44, 8]`). Its widest view went from 132 draw calls and 275k triangles
+  (over a fresh island) to 102 draw calls and 181k triangles (over the island as a run leaves it).
+- New playtest checks: the world fly-over and end-of-run widest views hold the same render budget as the start
+  view (130 draw calls, 220k triangles).
+
+**What would bring 6x under 7 ms (not done):** merge each world's decoration bands into fewer meshes, and draw the
+shadow pass at a lower rate on tier 1. Both change how the world is built, so they were left for a follow-up.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N

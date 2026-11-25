@@ -130,7 +130,9 @@ export function createScene(canvas, cfg, random) {
   // zebra crossings at both ends of the toy street (only where the street look is on)
   const zebra = new THREE.Group(); scene.add(zebra);
   { const si = cfg.zones.findIndex((Z) => Z.tex === 'asphalt'); if (si >= 0) { const Z = cfg.zones[si], zm = K(new THREE.MeshStandardMaterial({ color: 0xf4ede2, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -1 })), zg = K(new THREE.PlaneGeometry(0.42, 1.5).rotateX(-Math.PI / 2));
-    for (const sz of [-1, 1]) for (let k = -3; k <= 3; k++) { const m = new THREE.Mesh(zg, zm); m.position.set(k * 0.85, 0.015, Z.z + sz * (Z.d / 2 - 0.2)); m.receiveShadow = true; zebra.add(m); } zebra.userData.zone = si; } }
+    // all fourteen stripes are one merged mesh: one draw call instead of fourteen
+    const parts = []; for (const sz of [-1, 1]) for (let k = -3; k <= 3; k++) parts.push(paint(zg.clone().translate(k * 0.85, 0.015, Z.z + sz * (Z.d / 2 - 0.2)), 0xffffff));
+    const m = new THREE.Mesh(K(merge(parts)), zm); zm.vertexColors = true; m.receiveShadow = true; zebra.add(m); zebra.userData.zone = si; } }
 
   // ---- decoration: trees, bushes and lamps around the plazas, one InstancedMesh per kind and band of the island, so
   // the bands out of view (and out of the sun's shadow box) are culled whole
@@ -189,11 +191,13 @@ export function createScene(canvas, cfg, random) {
     scene.add(mesh); bunting.push(mesh);
   }
   // clouds drifting below and around the island
-  const cloudGeo = K(buildCloud()), clouds = [];
+  // one instanced mesh for all twelve: one draw call
+  const cloudGeo = K(buildCloud()), clouds = [], cloudMesh = new THREE.InstancedMesh(cloudGeo, mat, 12);
+  cloudMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); cloudMesh.frustumCulled = false; scene.add(cloudMesh);
   for (let i = 0; i < 12; i++) {
-    const c = new THREE.Mesh(cloudGeo, mat), side = i % 2 ? 1 : -1;
-    c.position.set(side * (11 + random() * 10), -3 - random() * 6, 8 - random() * 36); const k = 1.2 + random() * 1.6; c.scale.set(k * 1.4, k, k);
-    scene.add(c); clouds.push({ m: c, v: 0.25 + random() * 0.35 });
+    const side = i % 2 ? 1 : -1, p = new THREE.Vector3(side * (11 + random() * 10), -3 - random() * 6, 8 - random() * 36), k = 1.2 + random() * 1.6;
+    clouds.push({ p, s: new THREE.Vector3(k * 1.4, k, k), v: 0.25 + random() * 0.35 });
+    cloudMesh.setMatrixAt(i, new THREE.Matrix4().compose(p, new THREE.Quaternion(), clouds[i].s));
   }
 
   // ---- breakables: one InstancedMesh per kind, an entry per logic object
@@ -259,10 +263,16 @@ export function createScene(canvas, cfg, random) {
   function setMap(m, t) { if (m.map === t) return; const had = !!m.map; m.map = t; if (!had) m.needsUpdate = true; }
   let clock = 0, labelK = 1, labelsOn = true;
   function updateObjects(dt, zone) {
-    for (const k of Object.values(kinds)) k.shown = 0;
+    for (const k of Object.values(kinds)) { k.shown = 0; k.dirty = false; }
+    let blobDirty = false;
     for (const e of byId) {
       if (!e) continue;
       if (!e.hidden) e.k.shown++;
+      // an object outside the played zone with no animation left keeps the matrix it already has: no rewrite and
+      // no buffer upload for its kind (most of the island is static at any moment)
+      const live0 = e.o.zone === zone;
+      if (!live0 && !e.wasLive && e.hidden === e.wasHidden && e.squash === 0 && e.pop === 0 && e.grow >= 1 && e.written) continue;
+      e.wasLive = live0; e.wasHidden = e.hidden; e.written = true; e.k.dirty = true; blobDirty = true;
       if (e.hidden) { tmpM.makeScale(0, 0, 0); e.k.mesh.setMatrixAt(e.i, tmpM); blobs.setMatrixAt(e.o.id, tmpM); if (e.label) e.label.visible = false; continue; }
       e.squash = Math.max(0, e.squash - dt * 4); e.pop = Math.max(0, e.pop - dt * 2.2); e.grow = Math.min(1, e.grow + dt * 3);
       const live = e.o.zone === zone, sq = Math.sin(e.squash * 18) * e.squash * 0.25, idle = live ? Math.sin(clock * 3 + e.o.id) * 0.02 : 0;
@@ -274,8 +284,8 @@ export function createScene(canvas, cfg, random) {
       if (e.label) { e.label.visible = live && labelsOn; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2 + (e.lab === 'ok' && !e.o.boss ? Math.sin(clock * 6 + e.o.id) * 0.07 : 0)) * labelK * (e.o.boss ? 1.8 : 1); if (e.lab === 'lock') e.label.scale.set(0.38 * ls, 0.38 * ls, 1); else e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
     }
     // a kind with nothing left standing is not drawn at all (zones already played)
-    for (const k of Object.values(kinds)) if (k.mesh) { k.mesh.visible = k.shown > 0; k.mesh.instanceMatrix.needsUpdate = true; }
-    blobs.instanceMatrix.needsUpdate = true;
+    for (const k of Object.values(kinds)) if (k.mesh) { k.mesh.visible = k.shown > 0; if (k.dirty) k.mesh.instanceMatrix.needsUpdate = true; }
+    if (blobDirty) blobs.instanceMatrix.needsUpdate = true;
   }
 
   // ---- the hammer
@@ -497,7 +507,7 @@ export function createScene(canvas, cfg, random) {
       tmpM.compose(tmpV, tmpQ, tmpS.set(s * flap, s, s)); wings.setMatrixAt(i, tmpM);
     }
     birds.instanceMatrix.needsUpdate = true; wings.instanceMatrix.needsUpdate = true;
-    for (const c of clouds) { c.m.position.z += c.v * dt; if (c.m.position.z > 14) c.m.position.z -= 40; }
+    clouds.forEach((c, i) => { c.p.z += c.v * dt; if (c.p.z > 14) c.p.z -= 40; tmpM.compose(c.p, tmpQ.identity(), c.s); cloudMesh.setMatrixAt(i, tmpM); }); cloudMesh.instanceMatrix.needsUpdate = true;
     bunting.forEach((b, i) => { b.rotation.x = Math.sin(clock * 1.7 + i) * 0.015; });
   }
 
