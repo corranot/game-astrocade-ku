@@ -18,13 +18,16 @@
       14000
     ],
     "model": 0.72,
-    "yaw": -0.75
+    "yaw": -0.75,
+    "windup": 0.05,
+    "visExp": 1.1
   },
   "growth": {
     "smallValue": 1,
     "labelValue": 0.08,
     "combo": 1.2,
-    "respawn": 2.5
+    "respawn": 2.5,
+    "splash": 1.7
   },
   "zones": [
     {
@@ -281,9 +284,11 @@
     "fov": 46,
     "height": 14,
     "back": 9.5,
-    "growK": 0.42,
+    "growK": 0.38,
     "follow": 3.5,
-    "look": 1.6
+    "look": 1.6,
+    "aimW": 0.62,
+    "aimX": 0.8
   },
   "fx": {
     "debrisMax": 320,
@@ -293,7 +298,15 @@
     "hitstop": 0.05,
     "hitstopBig": 0.08,
     "gemsMax": 96,
-    "gemHang": 0.7
+    "gemHang": 0.7,
+    "tierSlowMo": 0.75,
+    "tierSlowScale": 0.3,
+    "tierRing": 3,
+    "punch": 0.22,
+    "fovKick": 5,
+    "squash": 0.16,
+    "comboShow": 3,
+    "splashDelay": 0.09
   },
   "quality": {
     "dpr": [
@@ -333,7 +346,8 @@
       "size": "HAMMER SIZE",
       "best": "BEST {n}",
       "share": "SHOW OFF",
-      "brag": "My hammer grew to {n}! Can you beat it?"
+      "brag": "My hammer grew to {n}! Can you beat it?",
+      "combo": "COMBO"
     },
     "ar": {
       "tap": "اضغط للتحطيم!",
@@ -344,7 +358,8 @@
       "size": "حجم المطرقة",
       "best": "الأفضل {n}",
       "share": "تباهَ",
-      "brag": "كبرت مطرقتي إلى {n}! هل تتفوق عليّ؟"
+      "brag": "كبرت مطرقتي إلى {n}! هل تتفوق عليّ؟",
+      "combo": "كومبو"
     },
     "es": {
       "tap": "¡TOCA Y APLASTA!",
@@ -355,7 +370,8 @@
       "size": "TAMAÑO DEL MARTILLO",
       "best": "MEJOR {n}",
       "share": "PRESUMIR",
-      "brag": "¡Mi martillo llegó a {n}! ¿Me superas?"
+      "brag": "¡Mi martillo llegó a {n}! ¿Me superas?",
+      "combo": "COMBO"
     },
     "vi": {
       "tap": "CHẠM ĐỂ ĐẬP!",
@@ -366,7 +382,8 @@
       "size": "CỠ BÚA",
       "best": "CAO NHẤT {n}",
       "share": "KHOE",
-      "brag": "Búa của mình to tới {n}! Bạn vượt được không?"
+      "brag": "Búa của mình to tới {n}! Bạn vượt được không?",
+      "combo": "COMBO"
     },
     "hi": {
       "tap": "टैप करो, तोड़ो!",
@@ -377,7 +394,8 @@
       "size": "हथौड़े का आकार",
       "best": "सबसे अच्छा {n}",
       "share": "दिखाओ",
-      "brag": "मेरा हथौड़ा {n} तक बड़ा हुआ! क्या तुम हरा सकते हो?"
+      "brag": "मेरा हथौड़ा {n} तक बड़ा हुआ! क्या तुम हरा सकते हो?",
+      "combo": "कॉम्बो"
     },
     "bn": {
       "tap": "ট্যাপ করে ভাঙো!",
@@ -388,7 +406,8 @@
       "size": "হাতুড়ির মাপ",
       "best": "সেরা {n}",
       "share": "দেখাও",
-      "brag": "আমার হাতুড়ি {n} পর্যন্ত বড় হয়েছে! তুমি পারবে?"
+      "brag": "আমার হাতুড়ি {n} পর্যন্ত বড় হয়েছে! তুমি পারবে?",
+      "combo": "কম্বো"
     },
     "id": {
       "tap": "TAP UNTUK HANTAM!",
@@ -399,7 +418,8 @@
       "size": "UKURAN PALU",
       "best": "TERBAIK {n}",
       "share": "PAMERKAN",
-      "brag": "Paluku tumbuh sampai {n}! Bisa kalahkan?"
+      "brag": "Paluku tumbuh sampai {n}! Bisa kalahkan?",
+      "combo": "KOMBO"
     }
   },
   "persistent_storage_config": {
