@@ -33,6 +33,7 @@ for d in $GAMES; do
   node tools/no-three-import.mjs "$d" || note "FAIL three-at-import $d"
 done
 # game lint: mistakes that already happened twice (field shadows a method, dead button call, live host config)
+node tools/skill-scan.mjs --self-test >/dev/null || note "FAIL skill-scan self-test (node tools/skill-scan.mjs --self-test)"
 node tools/lint-game.mjs --self-test >/dev/null || note "FAIL lint self-test (node tools/lint-game.mjs --self-test)"
 for d in $GAMES; do
   [ -d "$d" ] || continue

@@ -104,10 +104,27 @@ jobs:
           done
           exit $fail
 
+  skills:
+    name: Skill sync adds nothing suspicious
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        if: startsWith(github.head_ref, 'auto-sync/')
+        with:
+          fetch-depth: 0 # the diff needs main's history
+      # only the daily sync's PRs: their skill text comes from other people's repos and merges unread.
+      # A match fails this job, so the PR stays open for the owner to read; the log names each line and why.
+      - if: startsWith(github.head_ref, 'auto-sync/')
+        env:
+          BASE: ${{ github.base_ref }}
+        run: node tools/skill-scan.mjs "origin/$BASE"
+
   automerge:
     name: Merge the owner's PR once checks pass
-    needs: [fast, bundle]
-    # auto-sync/* skill updates merge here too once checks pass (owner's choice, 2026-11-23); CI does not review skill text
+    needs: [fast, bundle, skills]
+    # auto-sync/* skill updates merge here too once checks pass (owner's choice, 2026-11-23); the skills job
+    # scans their added lines first and blocks the merge on anything suspicious (owner's choice, 2026-11-25)
     if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'corranot'
     runs-on: ubuntu-latest
     permissions:
