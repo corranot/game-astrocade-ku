@@ -3,12 +3,12 @@
 // meteor. The meteor carries a cut map (a lat-long DataTexture) that digs the rock in and reveals glowing crystal
 // where it is mined. Items (chunks, gems, coins) are three InstancedMeshes rebuilt each frame from the logic state;
 // effects are pooled (sparkle and dust points, shards, rings, flyers). A sky dome shader and the key lights blend
-// between time-of-day keys. High tiers add a glow (bloom) pass with a colour grade (copied from +1 Mega Hammer).
-// M2 adds the seven unlock buildings (rig, conveyor + polisher 2, stand 2 + lanterns, armadillo shopkeeper, canyon road
+// between time-of-day keys. High tiers add a glow (bloom) pass with a colour grade.
+// The town grows with the unlock buildings (rig, conveyor + polisher 2, stand 2 + lanterns, armadillo shopkeeper, canyon road
 // + tour bus, ring workshop, laser cutter), six critters in a parade, the order kid, Crystal Rush and a rim light on
-// the characters. M3 adds chapter 1's last seven unlocks (ghost town + mine cart, rig 2, cable car, stargazer deck, crown
+// the characters, then chapter 1's last seven unlocks (ghost town + mine cart, rig 2, cable car, stargazer deck, crown
 // jeweler, neon signs, the heart of the meteor with its finale and comet), six more critters and the hero's hats.
-// Plan: plan.md §5, §6, §9, §12. This file only draws; logic.js owns the rules.
+// This file only draws; logic.js owns the rules.
 /* global THREE */
 import * as M from './models.js';
 import { todBlend } from './logic.js';
@@ -132,7 +132,7 @@ export function createScene(canvas, cfg, random) {
   const glassMat = K(new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.05, metalness: 0.0, transparent: true, opacity: 0.18, envMapIntensity: 2, depthWrite: false }));
   const glowMat = K(new THREE.MeshBasicMaterial({ color: 0xffd49a, fog: false }));
   const winMat = K(new THREE.MeshStandardMaterial({ color: 0x5a6a80, roughness: 0.2, emissive: 0xffb860, emissiveIntensity: 0 }));
-  // characters get a warm fresnel rim so they read against the busy deck (art review, M2)
+  // characters get a warm fresnel rim so they read against the busy deck
   const charMat = K(mat.clone()), rimU = { rimK: { value: LK.rim } };
   charMat.onBeforeCompile = (s) => { Object.assign(s.uniforms, rimU); s.fragmentShader = 'uniform float rimK;\n' + s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.86, 0.66) * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * rimK;'); };
   const ringMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.28, metalness: 0.7, envMapIntensity: 1.5, emissive: 0x3a2a10, emissiveIntensity: 0.4 }));
@@ -354,7 +354,7 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---- the price pad: one brass pad that moves to whichever unlock is up next; its face is a canvas redrawn in
-  // place (one texture for the whole game: fix B), with the unlock's icon, a fill ring and the coins left
+  // place (one texture for the whole game), with the unlock's icon, a fill ring and the coins left
   const pad = new THREE.Group(); scene.add(pad);
   { const b = new THREE.Mesh(K(M.buildPadBase()), brassMat); b.receiveShadow = true; pad.add(b); }
   const padCanvas = document.createElement('canvas'); padCanvas.width = padCanvas.height = 256;
@@ -383,7 +383,7 @@ export function createScene(canvas, cfg, random) {
   const rigLon = Math.atan2(W.rigAt.x - W.meteor.x, W.rigAt.z - W.meteor.z) * 0.9, rigLat = 0.05;
   const laserLon = Math.atan2(LA.x - W.meteor.x, LA.z - W.meteor.z);
 
-  // ---- M3, chapter 1 unlocks 8-14 (plan.md §12): the ghost town and its mine cart, a second drill rig, the cable car,
+  // ---- chapter 1 unlocks 8-14: the ghost town and its mine cart, a second drill rig, the cable car,
   // the stargazer deck, the crown jeweler, the neon main street and the heart of the meteor (finale + comet)
   // the ghost town across the road: grey and boarded up until the cart lights each house (one draw: aIdx picks the
   // house, uLit[i] blends it from its ghost colour to its real one, swaps boards for bunting and lights the windows)
@@ -693,7 +693,7 @@ export function createScene(canvas, cfg, random) {
   function setScale(s) { if (s === rs) return; rs = s; renderer.setPixelRatio(ratio()); postSync(); }
   function resize(w, h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); glowPts.m.uniforms.scale.value = dustPts.m.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; postSync(); }
 
-  // ---- glow (bloom) and grade on tiers >= look.postTier (from +1 Mega Hammer): half-float scene target, bright
+  // ---- glow (bloom) and grade on tiers >= look.postTier half-float scene target, bright
   // pass, blur at 1/4 and 1/8, then tone mapping + sRGB + warmth/saturation/contrast/vignette to the canvas
   const BL = LK.bloom, GR = LK.grade;
   const glowList = [
@@ -787,7 +787,7 @@ export function createScene(canvas, cfg, random) {
     for (let i = 0; i < m; i++) { slot(key, i, tmp); const k = typeof kind === 'function' ? kind(i) : kind; put(k, tmp.x, tmp.y + Math.sin(tAll * 2 + i) * bob, tmp.z, tAll * 0.8 + i, s, i + 1); }
   }
 
-  /** M3 per-frame: hat, mine cart, ghost town lights, gondolas, neon, the finale's heart and comet, night fireflies. */
+  /** Per frame: hat, mine cart, ghost town lights, gondolas, neon, the finale's heart and comet, night fireflies. */
   function m3Update(S, dt) {
     if (S.hat !== hatOn && hatGeos[S.hat]) { hatOn = S.hat; hatMesh.geometry = hatGeos[S.hat]; }
     // mine cart: waits at its stop (gems ride in it), rolls along the rail to the next dark house, then comes back
@@ -1058,7 +1058,7 @@ export function createScene(canvas, cfg, random) {
     glowPts.update(dt); dustPts.update(dt);
     // camera
     // the frame stays on the town square and leans toward the hero (kids keep their bearings; nothing pops off screen);
-    // it eases a little closer while the hero mines and punches in on a Perfect Strike (camera review, M2)
+    // it eases a little closer while the hero mines and punches in on a Perfect Strike
     const lead = cfg.camera.lead, tx = h.x * 0.25 + h.vx * 0.04 * lead, tz = Math.max(cfg.camera.zMin, Math.min(6.0, lerp(cfg.camera.zMid, h.z, cfg.camera.lean) + h.vz * 0.08 * lead));
     const kf = Math.min(1, dt * cfg.camera.follow); cam.x += (tx - cam.x) * kf; cam.z += (tz - cam.z) * kf;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 3);
@@ -1179,9 +1179,9 @@ export function createScene(canvas, cfg, random) {
     showcase(p, zoom, sec, pitch = 0, lock = false) { if (cam.show && cam.show.lock && !lock) return; cam.show = { p: p.clone(), zoom, t: sec, pitch, lock }; cam.last = cam.show; }, // a locked one (finale) is not cut short
     cheer(id) { fx.crowdCheer = 1.2; const p = tourists.find((o) => o.id === id); if (p) p.cheer = 0.9; },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
-    /** Snaps the camera to its follow target (no easing): for the first frame and screenshots. */
+    /** Snaps the camera to its follow target (no easing): for the first frame and still views. */
     snap(S) { cam.x = S.hero.x * 0.25; cam.z = Math.max(cfg.camera.zMin, Math.min(6, lerp(cfg.camera.zMid, S.hero.z, cfg.camera.lean))); },
-    /** Live GPU textures (fix B check) and draw calls of the last frame. */
+    /** Live GPU textures and draw calls of the last frame. */
     stats() { return { textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }; },
     prewarm() { try { renderer.compile(scene, camera); } catch (e) { /* drivers without compile build shaders on first draw */ } },
     dispose() {

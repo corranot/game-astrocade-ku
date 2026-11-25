@@ -4,7 +4,7 @@
 // cart + ghost town, drill rig 2, cable car, stargazer deck, crown jeweler, neon main street, the heart of the meteor),
 // glints, orders, critter eggs with rarities and a pity counter, Crystal Rush, the ghost town goal, town stars, hats,
 // the finale, the guide (never points at a step that does nothing), save / restore, and adaptive quality.
-// game.js steps it and draws the result. Plan: plan.md (v2) §2, §4, §12 (milestones M2 and M3).
+// game.js steps it and draws the result.
 
 /** Seeded random in [0, 1) (mulberry32). */
 export function rng(seed) {
@@ -32,7 +32,7 @@ export function createState(cfg, seed = cfg.seed) {
     egg: { st: 'lodged', t: 0, at: cfg.egg.dropAt, who: cfg.critters[0].id }, critters: [],
     order: null, orderT: cfg.order.first, hearts: 0,
     rush: { on: false, next: cfg.rush.first, left: 0, spawnT: 0 }, loose: [], lid: 0,
-    pads: cfg.pads.map((p) => ({ id: p.id, price: p.price, paid: 0, shown: false, done: false, rate: cfg.cashFlow.payStart, payT: 0 })),
+    pads: cfg.pads.map((p) => ({ id: p.id, price: p.price, paid: 0, shown: false, done: false, rate: cfg.coinFlow.payStart, payT: 0 })),
     rig2: { t: 0 }, jw: { t: 0 }, ghost: { n: 0, lit: 0, go: -1 }, eggs: 0, noRare: 0,
     stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false,
     sold: 0, made: 0, earned: 0, progressT: 0, events: [],
@@ -100,7 +100,7 @@ export function spot(cfg, what, S = null) {
   return d ? pt(d) : null;
 }
 
-/** The next useful step for the hero: { what, x, z }. Never a station that would do nothing (fix A in the plan). */
+/** The next useful step for the hero: { what, x, z }. Never a station that would do nothing. */
 export function guide(cfg, S) {
   const h = S.hero, pad = S.pads.find((p) => p.shown && !p.done);
   const pick = (w) => (useful(cfg, S, w) ? { what: w, ...spot(cfg, w, S) } : null);
@@ -278,7 +278,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   // ---- cash: walk over the pile to collect, stand on a pad to pay into it
   h.cashT -= dt;
   if (S.cashPile > 0 && near(h, W.cash.x, W.cash.z, cashR(cfg, S)) && h.cashT <= 0) {
-    const n = Math.min(S.cashPile, 1 + Math.floor(S.cashPile / 12)); S.cashPile -= n; h.cash += n; h.cashT = cfg.cashFlow.collectEvery; ev(S, 'collect', { n });
+    const n = Math.min(S.cashPile, 1 + Math.floor(S.cashPile / 12)); S.cashPile -= n; h.cash += n; h.cashT = cfg.coinFlow.collectEvery; ev(S, 'collect', { n });
   }
   S.pads.forEach((p, i) => {
     const def = cfg.pads[i];
@@ -287,10 +287,10 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
     if (near(h, def.x, def.z, 1.3) && h.cash > 0) {
       p.payT -= dt;
       while (p.payT <= 0 && h.cash > 0 && p.paid < p.price) {
-        p.rate = Math.min(cfg.cashFlow.payMax, p.rate * cfg.cashFlow.payGrow); p.payT += 1 / p.rate; h.cash--; p.paid++; ev(S, 'pay', { id: p.id, paid: p.paid });
+        p.rate = Math.min(cfg.coinFlow.payMax, p.rate * cfg.coinFlow.payGrow); p.payT += 1 / p.rate; h.cash--; p.paid++; ev(S, 'pay', { id: p.id, paid: p.paid });
       }
       if (p.paid >= p.price) { p.done = true; S.progressT = 0; ev(S, 'unlock', { id: p.id }); pushOut(cfg, S, def); if (p.id === 'heart') S.finale = { t: 0, st: 0 }; }
-    } else { p.payT = 0; p.rate = cfg.cashFlow.payStart; }
+    } else { p.payT = 0; p.rate = cfg.coinFlow.payStart; }
   });
 
   // ---- critter eggs: one lodged in the meteor drops at its time, hatches when the hero walks onto it
@@ -441,7 +441,7 @@ function navStep(cfg, S, g) {
   return best;
 }
 
-/** Bot input: walk toward the guide's target (used by tests and ?bot). Returns { x, z } and the target. */
+/** Bot input: walk toward the guide's target (the demo in edit mode and ?bot). Returns { x, z } and the target. */
 export function botInput(cfg, S) {
   const g = guide(cfg, S); if (!g) return { x: 0, z: 0, g };
   const h = S.hero, dx = g.x - h.x, dz = g.z - h.z, L = Math.hypot(dx, dz);
@@ -466,7 +466,7 @@ export function botInput(cfg, S) {
 /** What gets saved: progress only (positions and in-flight things start fresh). */
 export function serialize(cfg, S) {
   return {
-    v: cfg.save.version, t: Math.round(S.t), cash: S.hero.cash, kind: S.hero.kind, n: S.hero.n, cashPile: S.cashPile, pile: S.pile, counter: S.counter,
+    v: cfg.save.version, t: Math.round(S.t), cash: S.hero.cash, kind: S.hero.kind, n: S.hero.n, cashPile: S.cashPile + (S.ghost.go >= 0 ? S.ghost.n * cfg.cart.pay + (S.ghost.lit < cfg.cart.lights ? cfg.cart.tip : 0) : 0), pile: S.pile, counter: S.counter,
     pols: S.pols.map((p) => p.polIn), stands: S.stands.map((s) => s.items.slice()), ws: { g: S.ws.gemsIn, r: S.ws.rings },
     pads: S.pads.map((p) => [p.paid, p.done ? 1 : 0]), critters: S.critters.map((c) => c.id), hearts: S.hearts, sold: S.sold, made: S.made, earned: S.earned,
     ghost: { n: S.ghost.go >= 0 ? 0 : S.ghost.n, lit: S.ghost.lit + (S.ghost.go >= 0 && S.ghost.lit < cfg.cart.lights ? 1 : 0) }, stars: ['orders', 'critters', 'town'].filter((id) => S.stars.includes(id)), hats: cfg.hats.map((x) => x.id).filter((id) => S.hats.includes(id)), hat: S.hat,

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Meteor Gem Works</title>
-<!-- HUD: warm wood and brass with crystal accents (plan.md §8); the rounded Baloo family loads from the asset map -->
+<!-- HUD: warm wood and brass with crystal accents; the rounded Baloo family loads from the asset map -->
 <style>
 html,body{margin:0;height:100%;background:#2a2233;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Arial Rounded MT Bold","Nunito","Noto Sans",system-ui,sans-serif;font-weight:800}
 body{display:flex;align-items:center;justify-content:center}
@@ -83,7 +83,7 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes shareIn{from{transform:translateY(calc(var(--u)*120px)) scale(.6);opacity:0}}
 /* the sticker album: a wooden book over a dim veil; game time stops while it is open */
 .album{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(42,34,51,.55);pointer-events:auto}
-.album .card{position:relative;width:calc(var(--u)*640px);max-height:calc(var(--u)*1120px);overflow:auto;box-sizing:border-box;padding:calc(var(--u)*26px);border-radius:calc(var(--u)*40px);
+.album .card{position:relative;width:calc(var(--u)*640px);max-height:calc(var(--u)*1120px);overflow:auto;touch-action:pan-y;overscroll-behavior:contain;box-sizing:border-box;padding:calc(var(--u)*26px);border-radius:calc(var(--u)*40px);
   background:linear-gradient(#f6e2bf,#e9c890);border:calc(var(--u)*8px) solid #a8693c;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),inset 0 0 0 calc(var(--u)*4px) #e5b75a,0 calc(var(--u)*16px) calc(var(--u)*40px) rgba(20,10,10,.5)}
 .album h2{margin:0 0 calc(var(--u)*14px);text-align:center;font-size:calc(var(--u)*56px);line-height:1;color:#ffe08a}
 .album .sec{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u)*10px);margin-bottom:calc(var(--u)*18px);padding:calc(var(--u)*12px);border-radius:calc(var(--u)*24px);background:rgba(126,79,46,.18)}

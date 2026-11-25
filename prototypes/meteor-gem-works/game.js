@@ -1,14 +1,13 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Meteor Gem Works, milestone M2 (core loop, unlocks 1-7): drag to walk a little miner around a crater town; swing at
+// Meteor Gem Works, chapter 1: drag to walk a little miner around a crater town; swing at
 // the crystal meteor for chunks, carry them to a polisher, bring the gems to a glass stand, tourists buy them, scoop
 // the coins and pay the price pads: drill rig, conveyor + polisher 2, stand 2, the armadillo shopkeeper, the canyon
 // road with its tour bus, the ring workshop and the laser cutter. Tap the sparkle for a Perfect Strike; eggs hatch six
 // critters that follow in a parade with a perk each; a kid asks for an item now and then (no timer); Crystal Rush
 // rains pickups. Progress saves through lib.saveUserGameState; a 3 s cold open greets a new game.
-// M3 finishes chapter 1: seven more unlocks (the ghost town and its mine cart, drill rig 2, the cable car, the stargazer
+// Then seven more unlocks (the ghost town and its mine cart, drill rig 2, the cable car, the stargazer
 // deck, the crown jeweler, neon signs, the heart of the meteor), rare eggs (12 critters), town stars, hats, the
 // sticker album, the finale with its comet, a share button at the big moments, and a goal on screen at all times.
-// Plan: plan.md (v2) §2-§4, §6-§8, §12, §15.
 // Modules: logic.js (rules), models.js (geometry), scene.js (3D look, Three.js r187 loaded by index.html).
 /* global THREE */ // set on window by index.html before run() starts the game
 import * as L from './logic.js';
@@ -180,7 +179,7 @@ export function run(mode = 'play') {
     return false;
   }
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
-  const onKey = (e) => { const k = e.key.toLowerCase(); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '].includes(k)) { e.preventDefault(); Sound.unlock(); if (e.type === 'keydown') { keys.add(k); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } else if (k === ' ' && scene.glint) tapGlint = true; } else keys.delete(k); } };
+  const onKey = (e) => { const k = e.key.toLowerCase(); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '].includes(k)) { e.preventDefault(); Sound.unlock(); if (e.type === 'keydown') { keys.add(k); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } else if (k === ' ' && scene.glint && phase === 'play') tapGlint = true; } else keys.delete(k); } };
   addEventListener('keydown', onKey); addEventListener('keyup', onKey);
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); });
   function readInput() {
@@ -193,7 +192,7 @@ export function run(mode = 'play') {
     return { x, z };
   }
 
-  // ---- HUD helpers: pops are pooled DOM nodes (no textures per event: fix B), banner, carry label, cash chip
+  // ---- HUD helpers: pops are pooled DOM nodes (no textures per event), banner, carry label, cash chip
   const popEls = []; for (let i = 0; i < 14; i++) { const d = document.createElement('div'); d.className = 'pop out'; d.hidden = true; $('pops').appendChild(d); popEls.push({ d, t: 0, x: 0, y: 0, z: 0, life: 1 }); }
   let popNext = 0;
   function pop(text, x, y, z, cls = '') { const p = popEls[popNext]; popNext = (popNext + 1) % popEls.length; p.d.textContent = text; p.d.className = 'pop out ' + cls; p.d.hidden = false; Object.assign(p, { t: 0, x, y, z, life: cls === 'big' ? 1.4 : 0.9 }); }
@@ -287,7 +286,7 @@ export function run(mode = 'play') {
       case 'eggDrop': scene.eggDrop(); Sound.whoosh(); scene.showcase(V(cfg.world.egg.x, 0, cfg.world.egg.z - 1.5), 0.8, 1.6); break;
       case 'hatchStart': scene.hatchStart(); hatchCracks = 0; break;
       case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); scene.showcase(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0); saveNow(); break;
-      // ---- M3
+      // ---- the ghost town, the crown jeweler, the finale, stars and hats
       case 'cartGo': Sound.whoosh(); pop('➜', scene.cartAt.x, 1.8, scene.cartAt.z, 'gold'); break;
       case 'ghostLight': {
         const p = scene.lightHouse(e.i); Sound.fanfare(); banner(T('ghostLit'), `${e.i + 1} / ${cfg.cart.lights}`, 2.4);
@@ -385,14 +384,14 @@ export function run(mode = 'play') {
   const closeAlbum = () => { $('album').hidden = true; if (phase === 'album') phase = 'play'; last = performance.now(); };
   $('albumB').addEventListener('click', () => { Sound.unlock(); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } openAlbum(); });
   $('album').querySelector('.close').addEventListener('click', () => { Sound.pop(); closeAlbum(); });
-  $('album').addEventListener('pointerdown', (e) => { if (e.target === $('album')) closeAlbum(); });
+  $('album').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (e.target === $('album')) closeAlbum(); });
   let hatchCracks = 0, glintsHit = 0;
 
   // ---- save / continue: read first, write only after the read came back (a failed read never overwrites a save)
   const canSave = mode === 'play' && !bot && typeof lib !== 'undefined' && !!lib.saveUserGameState;
   let phase = 'play', loaded = false, lastWrite = Promise.resolve(), saveT = 0, alive = true;
   function saveNow() {
-    if (!canSave || !loaded || phase !== 'play') return;
+    if (!canSave || !loaded || (phase !== 'play' && phase !== 'album')) return;
     const snap = L.serialize(cfg, S);
     lastWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => { /* host refused: try again on the next tick */ });
   }
@@ -407,7 +406,7 @@ export function run(mode = 'play') {
   }
   /** The CONTINUE / NEW GAME card. New game asks for a second tap so a stray tap never wipes progress. */
   function offer(st) {
-    phase = 'menu'; scene.skipIntro();
+    closeAlbum(); phase = 'menu'; scene.skipIntro();
     const m = $('menu'), go = $('cont'), nw = $('newg');
     m.querySelector('h1').textContent = T('title'); go.textContent = T('cont'); nw.textContent = T('newGame'); nw.classList.remove('sure'); m.hidden = false;
     let sureT = 0;
@@ -422,7 +421,7 @@ export function run(mode = 'play') {
       clearTimeout(sureT); m.hidden = true; phase = 'play'; saveNow(); // this session's fresh game becomes the save
     };
   }
-  const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); };
+  const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); else { last = performance.now(); perfT = 0; perfN = 0; perfMs = 0; } }; // time in the background is not a slow frame
   document.addEventListener('visibilitychange', onHide);
 
   // ---- loop
@@ -532,7 +531,7 @@ export function run(mode = 'play') {
     destroy() { alive = false; saveNow(); document.removeEventListener('visibilitychange', onHide); cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
     debug: {
       get S() { return S; }, cfg, scene, L, get phase() { return phase; }, saveNow, get lastEvents() { return lastEvents; },
-      /** Stops the real-time loop; frame(dt) then advances by hand (tests and screenshots). */
+      /** Stops the real-time loop; frame(dt) then advances by hand (step-by-step viewing). */
       pause(p = true) { paused = p; last = performance.now(); },
       /** Runs sec seconds of game time (bot input when bot is true), drawing only the last frame. */
       run(sec, useBot = true) { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { if (useBot) { const b = L.botInput(cfg, S); L.step(cfg, S, DT, b, S.glint && S.glint.t > 0.6 ? { glint: true } : null); for (const e of S.events) onEvent(e); S.events.length = 0; scene.update(S, DT, L.guide(cfg, S)); hud(DT); } else { tick(DT); hud(DT); } } draw(DT); },
@@ -572,7 +571,7 @@ window.run = run;
 // Outside Astrocade (?local): stand in for the host, read the config file and start.
 if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('local') && !window.lib) {
   const none = async () => ({});
-  const store = { state: window.__seedSave || null }; window.__store = store; // tests seed a save and read it back
+  const store = { state: window.__seedSave || null }; window.__store = store; // a save can be seeded before start
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => ({ state: store.state }), saveUserGameState: async (s) => { store.state = s; }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
     shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, share: async (o) => { (window.__shares = window.__shares || []).push(o); }, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
   fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });
