@@ -147,6 +147,13 @@ full plan unless they add a new game mode or rework the game.
 - **Always watch the threads.** The coordinator must actively monitor every
   project thread at all times: check the thread list on every wake, unblock or
   restart stalled threads, and never let a thread sit unnoticed.
+- **Coordinator is the orchestrator.** The coordinator orchestrates every
+  project thread. All communication between threads and the coordinator
+  (instructions, recommendations, decisions) must always rest on the best
+  recommendation from a discussion and collaboration of a full combined team of
+  top AAA game-studio experts, each speaking to their own expertise. Threads
+  communicate only with the coordinator, and Larisha communicates only with the
+  coordinator.
 
 ## Context Management
 
