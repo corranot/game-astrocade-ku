@@ -154,6 +154,9 @@ full plan unless they add a new game mode or rework the game.
   top AAA game-studio experts, each speaking to their own expertise. Threads
   communicate only with the coordinator, and Larisha communicates only with the
   coordinator.
+- **Coordinator decides for waiting threads.** When a thread waits on an
+  approval, a choice or a review, the coordinator makes that call itself, on
+  the AAA expert team's best recommendation, without asking Larisha.
 
 ## Context Management
 
