@@ -1,0 +1,15 @@
+{
+  "music_main": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Bouncy, playful toy-funk loop for a kids' smash game: marimba and toy piano melody, punchy slap bass, light claps and shakers, cheerful and energetic but not busy, about 120 bpm, bright major key, leaves room for loud smash sound effects",
+    "duration_secs": 35.990916666666664,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M88CR5FKBDHSF0R6CDXSPA99_14a55f4a-950c-4e98-9ddd-0e78f8a17d46_ee2b29e1-5361-48ee-b3da-cc1d044c3b1d.ogg",
+    "prompt": "Bouncy, playful toy-funk loop for a kids' smash game: marimba and toy piano melody, punchy slap bass, light claps and shakers, cheerful and energetic but not busy, about 120 bpm, bright major key, leaves room for loud smash sound effects",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M88CR5FKBDHSF0R6CDXSPA99_14a55f4a-950c-4e98-9ddd-0e78f8a17d46_ee2b29e1-5361-48ee-b3da-cc1d044c3b1d.mp3"
+  }
+}

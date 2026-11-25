@@ -438,5 +438,9 @@
       "saturation": 1.08,
       "warmth": 0.03
     }
+  },
+  "music": {
+    "id": "music_main",
+    "volume": 0.32
   }
 }

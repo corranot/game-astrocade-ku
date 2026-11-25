@@ -64,11 +64,29 @@ body{display:flex;align-items:center;justify-content:center}
 .cbtn:active{translate:0 calc(var(--u)*6px);box-shadow:inset 0 calc(var(--u)*6px) 0 rgba(255,255,255,.3),0 calc(var(--u)*2px) 0 var(--ink)}
 .cbtn.alt{min-height:calc(var(--u)*86px);font-size:calc(var(--u)*38px);background:linear-gradient(#6fdcb2,#1f9d74 60%,#167a5a)}
 .cbtn[hidden]{display:none}
+.retry{position:absolute;inset:0;margin:auto;width:40%;aspect-ratio:1;border-radius:50%;border:1.2vmin solid #f4ede2;background:#e06356;color:#f4ede2;font:inherit;font-size:14vmin;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.retry small{font-size:3.5vmin;opacity:.8}
 @media (prefers-reduced-motion:reduce){.hint,.ham.big{animation:none}}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<script>
+// never a dead end: no picture after a script error (4 s), after 12 s waiting for the 3D library (code LIB), or when
+// WebGL fails (code GL, from game.js), a retry button with the reason code takes the screen
+(function () {
+  var shown = false;
+  function fail(code) {
+    if (shown || (code !== 'GL' && document.querySelector('#app canvas'))) return; shown = true;
+    var app = document.getElementById('app');
+    app.innerHTML = '<button class="retry" aria-label="Retry">\u21bb<small>' + code + '</small></button>';
+    app.querySelector('button').onclick = function () { location.reload(); };
+  }
+  window.__load = { done: function () {}, fail: fail };
+  addEventListener('error', function () { setTimeout(function () { fail('ERR'); }, 4000); });
+  setTimeout(function () { fail('LIB'); }, 12000);
+})();
+</script>
 <script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" } }</script>
 <script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
 <script type="module" src="./game.js"></script>

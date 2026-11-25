@@ -29,7 +29,7 @@ Doc "+1 Mega Hammer — Plan Game".
   The leaderboard gets the best size at the end of every run.
 - A run at two taps a second takes about 50 to 70 s.
 
-## Milestone 3: polish (this slice)
+## Milestone 3: polish (merged)
 
 - Glow and grade pass on tier 2 and up (`look` in the config): the scene is drawn to a half-float target, what is
   brighter than the threshold (gems, shockwave rings, the glowing hammer tiers) is blurred at 1/4 and 1/8 size and
@@ -38,7 +38,16 @@ Doc "+1 Mega Hammer — Plan Game".
 - Contact shadows: a soft dark disc under every breakable (a cheap stand-in for ambient occlusion).
 - Magnet gems: each numbered object throws out 1 to 6 jewels (the vault 40); they hang a moment, then home in on the
   hammer head with a rising tick. The results card counts them.
-- Not yet (milestone 4): music from the Astrocade generator, which needs the Astrocade draft to exist first.
+
+## Milestone 4: Astrocade draft (this slice)
+
+- Music: a 36 s toy-funk loop from the Astrocade generator (`music_main` in `asset_map.json`, volume in `music`),
+  started on the first touch; the code-made loop plays until it arrives or if it never does.
+- Never a dead end: a retry button with a reason code (LIB: the 3D library did not arrive in 12 s, GL: no WebGL,
+  ERR: a script error) instead of a blank screen.
+- Fixes from the bug hunt: the mute icon keeps its state across `run()`, the song stops when the game is destroyed,
+  debris colours land on the right chunk, two `run()` calls before three.js arrives start one game.
+- Saved as an unpublished draft only; no thumbnail (the owner makes it), no publish.
 
 ## How to run
 

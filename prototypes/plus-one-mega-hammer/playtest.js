@@ -117,10 +117,12 @@ async function open(browser, opts = {}) {
     check(gone && back, 'a broken fruit grows back so the zone never runs dry');
   }
 
-  // run() again on the same page: no error, one canvas
+  // run() again on the same page: no error, one canvas, and a muted game stays muted with the right icon
+  { const b = await page.locator('#mute').boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); }
   await g(() => window.run('play'));
   await page.waitForFunction(() => window.__game && window.__game.R && window.__game.R.L === 1);
   check(await g(() => document.querySelectorAll('canvas').length === 1), 'run() twice leaves one canvas');
+  check(await g(() => __game.Sound.muted && document.getElementById('mute').textContent === '\u{1F507}'), 'after run() again the mute button still shows muted');
   check(errors.length === 0, 'no page errors in play: ' + errors.slice(0, 3).join(' | '));
   await page.close();
 
@@ -162,6 +164,25 @@ async function open(browser, opts = {}) {
     check(e6.length === 0, 'no page errors in the finale: ' + e6.slice(0, 3).join(' | '));
     await p6.close();
   }
+  }
+  // no WebGL: a retry button with the code GL, no thrown error
+  {
+    const { page: p7, errors: e7 } = await (async () => {
+      const page = await browser.newPage({ viewport: { width: 405, height: 720 } });
+      if (process.env.THREE_DIR) {
+        const dir = process.env.THREE_DIR;
+        await page.route(/three\.module/, (r) => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(dir, 'three.module.js')) }));
+        await page.route(/three\.core/, (r) => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(dir, 'three.core.js')) }));
+        await page.route(/jsdelivr/, (r) => r.abort());
+      }
+      const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+      await page.addInitScript(() => { HTMLCanvasElement.prototype.getContext = function () { return null; }; });
+      await page.goto(`http://localhost:${server.address().port}/?local`);
+      return { page, errors };
+    })();
+    const shown = await p7.waitForSelector('.retry', { timeout: 20000 }).then(() => true, () => false);
+    check(shown && /GL/.test(await p7.textContent('.retry')) && e7.length === 0, `without WebGL a retry button with code GL shows, no page error (${e7.slice(0, 2).join(' | ')})`);
+    await p7.close();
   }
   // a save read that fails never writes over the player's progress
   {
