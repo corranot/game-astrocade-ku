@@ -144,6 +144,9 @@ full plan unless they add a new game mode or rework the game.
   herself. Don't generate, render, propose or set a thumbnail (no
   `generate_thumbnail`, no `set_thumbnail`, no thumbnail candidate images), even
   when a plan or prompt in the repo lists one.
+- **Always watch the threads.** The coordinator must actively monitor every
+  project thread at all times: check the thread list on every wake, unblock or
+  restart stalled threads, and never let a thread sit unnoticed.
 
 ## Context Management
 
