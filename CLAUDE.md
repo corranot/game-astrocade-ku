@@ -170,6 +170,10 @@ full plan unless they add a new game mode or rework the game.
   each game gets recommended to large traffic. The playbook is
   `docs/astrocade-distribution-playbook.md`; read it before every concept,
   build, update and publish, and refresh it after each new backend dig.
+- **Modular meta-prompts between coordinator and threads.** Every message from
+  the coordinator to a thread is a modular meta-prompt with labeled sections:
+  ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
+  OUTPUT FORMAT, DONE-WHEN. The goal is answers that hit the target exactly.
 
 ## Context Management
 
