@@ -88,4 +88,13 @@ mining, polishing, selling, one pad, one egg and one critter. Its evidence is in
   critter parade, busy noon, golden hour, dusk, tier 0, Arabic HUD. Every shot is under 0.2% near-white pixels.
 - Budgets with everything built: tier 0 about 139 draw calls and 141k triangles (budget 160), tier 2 about 211 calls
   and 277k triangles (budget 260). Live textures stay at 15 after a long run.
+- M3: `production/qa/evidence/meteor-gem-works/m3/` (shots 29-43, from `playtest.js`): the ghost town goal card and
+  a house lighting up, unlocks 8-14, a crown riding to the cable car, neon at night, the share button, the finale
+  (heart, legendary hatch, comet, chapter 1 complete), the album, and tier 0 at night with chapter 1 complete.
+  `soak.json` holds the 16-minute soak, one row per game minute.
+- M3 budgets: with chapter 1 complete and twelve critters on screen, tier 0 is 141 draw calls (budget 160) and
+  tier 2 is 190 (budget 260). With unlocks 1-7 built, tier 0 is 118 and tier 2 is 134.
+- M3 soak, 16 game minutes on tier 1: textures hold at 10. Geometries rise as unlocks are built, then hold at 168
+  from minute 11. The JS heap holds at 47 MB. Forced 34 ms frames drop tier 2 to tier 0 within 20 s. All 104
+  playtest checks pass, and the bundle test passes.
 - Frame times come from swiftshader (CPU raster), so the 60 FPS check on a real phone is still open.
