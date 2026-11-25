@@ -365,16 +365,40 @@ export function run(mode = 'play') {
   return api;
 }
 
+/** The hammer icon for the HUD and the results card: a gold medallion with the game's mallet mid-swing (steel head,
+ * gold bands, wooden handle, red grip). k makes the gradient ids unique per copy on the page. */
+const hamIcon = (k) => `<svg viewBox="0 0 64 64" aria-hidden="true">
+  <defs>
+    <radialGradient id="hb${k}" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#ffe6a6"/><stop offset=".55" stop-color="#f0b847"/><stop offset="1" stop-color="#b67a20"/></radialGradient>
+    <linearGradient id="hs${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9b0c8"/><stop offset=".5" stop-color="#6e7491"/><stop offset="1" stop-color="#454a63"/></linearGradient>
+    <linearGradient id="hw${k}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d39a58"/><stop offset="1" stop-color="#9a6430"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="29.5" fill="url(#hb${k})" stroke="#23263a" stroke-width="3.5"/>
+  <circle cx="32" cy="32" r="24.5" fill="none" stroke="#fff3cf" stroke-opacity=".45" stroke-width="1.5"/>
+  <g transform="rotate(-38 32 33)" stroke="#23263a" stroke-linejoin="round">
+    <rect x="28.6" y="27" width="6.8" height="29" rx="3" fill="url(#hw${k})" stroke-width="2.6"/>
+    <rect x="28" y="44" width="8" height="11" rx="2.6" fill="#e06356" stroke-width="2.4"/>
+    <path d="M28.6 47.5h6.8M28.6 51h6.8" stroke="#a8392f" stroke-width="1.4"/>
+    <rect x="11" y="9" width="42" height="20" rx="6.5" fill="url(#hs${k})" stroke-width="3"/>
+    <rect x="19" y="9" width="5" height="20" fill="#f2c96a" stroke-width="2"/>
+    <rect x="40" y="9" width="5" height="20" fill="#f2c96a" stroke-width="2"/>
+    <rect x="8.5" y="11.5" width="6" height="15" rx="2.5" fill="#dfe3ee" stroke-width="2.4"/>
+    <rect x="49.5" y="11.5" width="6" height="15" rx="2.5" fill="#dfe3ee" stroke-width="2.4"/>
+    <rect x="15" y="12" width="34" height="3.4" rx="1.7" fill="#fff" fill-opacity=".5" stroke="none"/>
+    <rect x="27" y="27.5" width="10" height="4.5" rx="1.6" fill="#f2c96a" stroke-width="2"/>
+  </g>
+</svg>`;
+
 const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
-  <div id="counter" class="counter"><span class="ham" aria-hidden="true"></span><b id="size" class="out">1</b><i id="mult" class="mult out" hidden></i></div>
+  <div id="counter" class="counter"><span class="ham" aria-hidden="true">${hamIcon(1)}</span><b id="size" class="out">1</b><i id="mult" class="mult out" hidden></i></div>
   <div class="prog"><span id="zone" class="zone out">1/2</span><i><b id="bar"></b></i></div>
   <button id="mute" class="mute" aria-label="sound">🔊</button>
   <div id="pops"></div>
   <div id="banner" class="banner out"></div>
   <div id="hint" class="hint out">TAP!</div>
-  <div id="card" class="card" hidden><div class="cbox"><p id="cTitle" class="ctitle out"></p><span class="ham big" aria-hidden="true"></span><b id="cSize" class="csize out">1</b><span class="cgem"><i class="gemi" aria-hidden="true"></i><b id="cGems" class="out">0</b></span><p id="cBest" class="cbest out"></p>
+  <div id="card" class="card" hidden><div class="cbox"><p id="cTitle" class="ctitle out"></p><span class="ham big" aria-hidden="true">${hamIcon(2)}</span><b id="cSize" class="csize out">1</b><span class="cgem"><i class="gemi" aria-hidden="true"></i><b id="cGems" class="out">0</b></span><p id="cBest" class="cbest out"></p>
     <button id="cAgain" class="cbtn out"></button><button id="cShare" class="cbtn alt out"></button></div></div>
 </div>`;
 
