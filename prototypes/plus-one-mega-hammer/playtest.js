@@ -165,6 +165,44 @@ async function open(browser, opts = {}) {
     await p6.close();
   }
   }
+  // upgrade: the hammer collection, saved gems, worlds and the daily goal
+  {
+    const { page: p8, errors: e8 } = await open(browser, { init: () => { window.__preset = { best: 100, runs: 1, tier: 2, gems: 230, owned: ['classic'], skin: 'classic' }; } });
+    const g8 = (fn, arg) => p8.evaluate(fn, arg);
+    await p8.waitForFunction(() => __game.saveLoaded);
+    check(await g8(() => __game.world === 1 && __game.R.objects.some((o) => o.kind === 'sandcastle')), 'a returning player (1 run) starts in the next world, Sunny Beach');
+    check(await g8(() => !document.getElementById('hamBtn').hidden && !document.querySelector('#hamBtn .dot').hidden), 'the hammer button shows a dot when a new hammer is affordable');
+    await p8.click('#hamBtn'); await p8.waitForTimeout(400);
+    check(await g8(() => __game.collOpen && document.querySelectorAll('#grid .sk').length === __game.cfg.skins.length), 'the collection opens with every hammer');
+    await p8.screenshot({ path: path.join(out, '20-collection.jpg'), type: 'jpeg', quality: 82 });
+    await p8.click('#grid [data-id="dino"]'); // 450: too dear
+    check(await g8(() => __game.save.gems === 230 && !__game.save.owned.includes('dino')), 'a hammer the player cannot afford stays locked');
+    await p8.click('#grid [data-id="candy"]'); // 200
+    check(await g8(() => __game.save.gems === 30 && __game.save.owned.includes('candy') && __game.save.skin === 'candy' && /ff8fb8/.test(document.getElementById('hudHam').innerHTML)), 'buying a hammer spends gems and puts it on (HUD icon too)');
+    await p8.click('#collX');
+    const w = await g8(() => (window.__writes || []).slice(-1)[0]);
+    check(w && w.gems === 30 && w.skin === 'candy' && w.owned.includes('candy'), 'the purchase is saved');
+    const o = await g8(() => { const b = __game.R.objects.find((q) => q.zone === 0 && q.req === 1); return __game.client(b.x, 0.3, b.z); });
+    await p8.mouse.click(o[0], o[1]); await p8.waitForTimeout(500);
+    const g0 = await g8(() => __game.save.gems);
+    await g8(() => { __game.dailyFinish(); __game.dailyFinish(); });
+    check(await g8((x) => __game.save.daily.done && __game.save.gems === x + __game.cfg.daily.reward, g0), 'finishing the daily goal pays its gems once');
+    await p8.waitForTimeout(500);
+    await p8.screenshot({ path: path.join(out, '21-daily-done.jpg'), type: 'jpeg', quality: 82 });
+    check(e8.length === 0, 'no page errors in the upgrade checks: ' + e8.slice(0, 3).join(' | '));
+    await p8.close();
+    // reload with that save: gems, hammer and goal come back
+    const last = await (async () => w)();
+    const { page: p9 } = await open(browser, { init: `window.__preset = ${JSON.stringify({ ...last, gems: 30 })}` });
+    await p9.waitForFunction(() => __game.saveLoaded);
+    check(await p9.evaluate(() => __game.save.gems === 30 && __game.save.skin === 'candy'), 'gems and the hammer survive a reload');
+    for (const wi of [1, 2, 3]) {
+      await p9.evaluate((x) => { __game.setWorld(x); __game.skipTo(5, 30000); }, wi); await p9.waitForTimeout(1500);
+      await p9.screenshot({ path: path.join(out, `22-world-${wi}-boss.jpg`), type: 'jpeg', quality: 82 });
+      check(await p9.evaluate(() => __game.R.objects.some((q) => q.boss && q.zone === 5)), `world ${wi} has its finale boss`);
+    }
+    await p9.close();
+  }
   // no WebGL: a retry button with the code GL, no thrown error
   {
     const { page: p7, errors: e7 } = await (async () => {

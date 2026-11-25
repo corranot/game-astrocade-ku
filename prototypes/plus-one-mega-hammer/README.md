@@ -63,6 +63,42 @@ Doc "+1 Mega Hammer — Plan Game".
 - Swing: a wind-up (`hammer.windup`), a head squash on impact (`fx.squash`), an FOV kick on big hits, and a combo
   chip from `fx.comboShow` breaks in a row.
 
+### Stage 2: gems become a hammer collection
+
+- Gems are saved (`save.gems`) and shown in a chip under the mute button. The card shows the gems earned this run.
+- `skins` in the config holds six hammers: classic (free), candy 200, dino 450, ice cream 700, robot 1100 and
+  rainbow 1800. A run gives about 200 gems, so the first unlock comes after one run and the set takes about 20.
+  Each skin has head, band, handle and grip colours and a head pattern drawn into a canvas texture. The dino adds
+  spikes. Evolution tiers raise any skin's glow; the classic skin keeps the tier colours.
+- The collection opens from the hammer button (start screen) or the card. Tap a card to buy or wear a hammer; one
+  the player can't afford yet shakes. A dot on the buttons means a new hammer is affordable.
+
+### Stage 3: a new place every run
+
+- `worlds`: Toy Town, Sunny Beach, Candy Land and Snow Peak. Each world replaces the street, park and finale items
+  (26 new models, three new bosses: giant sandcastle, gingerbread house, ice palace) and sets its sky, fog, ground
+  and tree tint. Zone sizes and the req values stay the same, so the pacing holds (logic test per world).
+- Run n plays world n mod 4. A returning player starts in the world after their last one. The x2 banner names the
+  new world.
+
+### Stage 4: the look of every zone, clean labels, exact layout
+
+- Each zone has its own ground: boards, cobbles, asphalt with lane lines and zebra crossings, park grass with
+  stepping stones, concrete slabs and icing. Worlds swap in sand, icing or snow paving.
+- Fixed: the island's grass faced down and was never drawn (the cliff's flat green showed instead).
+- Light moves from morning to dusk across the zones (`look.light`). Lamp bulbs glow towards the finale, and birds
+  sit around the zone and scatter on heavy hits.
+- Labels: numbers show only for targets within `labels.ahead` x the size. Breakable ones pulse green; further ones
+  show a padlock.
+- Layout: safe-area insets beyond the letterbox (`--st`, `--sb`), one margin `--m`. The start screen has one
+  bottom row (hammer button and daily goal, equal heights). Checked in 7 languages for overlap and overflow.
+
+### Stage 5: daily goal
+
+- One goal a day (`daily.goals`: smash N numbered things, reach size S, collect G gems, break N bosses, make a
+  combo), stepped from the local date by the seeded rng so it never repeats two days running. It shows on the start
+  screen and the card, and pays `daily.reward` gems once.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N

@@ -57,7 +57,8 @@
           "n": 3,
           "req": 18
         }
-      ]
+      ],
+      "tex": "boards"
     },
     {
       "id": "market",
@@ -92,7 +93,8 @@
           "n": 2,
           "req": 160
         }
-      ]
+      ],
+      "tex": "cobble"
     },
     {
       "id": "street",
@@ -117,7 +119,8 @@
           "n": 7,
           "req": 750
         }
-      ]
+      ],
+      "tex": "asphalt"
     },
     {
       "id": "park",
@@ -147,7 +150,8 @@
           "n": 2,
           "req": 3500
         }
-      ]
+      ],
+      "tex": "park"
     },
     {
       "id": "city",
@@ -177,7 +181,8 @@
           "n": 4,
           "req": 11000
         }
-      ]
+      ],
+      "tex": "slabs"
     },
     {
       "id": "cake",
@@ -199,7 +204,8 @@
           "req": 1,
           "v": 150
         }
-      ]
+      ],
+      "tex": "icing"
     }
   ],
   "kinds": {
@@ -278,6 +284,118 @@
     "vault": {
       "r": 3.6,
       "mat": "cake"
+    },
+    "ball": {
+      "r": 0.32,
+      "mat": "toy"
+    },
+    "sandcastle": {
+      "r": 0.55,
+      "mat": "sand"
+    },
+    "parasol": {
+      "r": 0.85,
+      "mat": "cloth",
+      "lh": 2.6
+    },
+    "shell": {
+      "r": 0.4,
+      "mat": "toy"
+    },
+    "surfboard": {
+      "r": 1.0,
+      "mat": "toy"
+    },
+    "hut": {
+      "r": 1.15,
+      "mat": "wood"
+    },
+    "boat": {
+      "r": 1.6,
+      "mat": "wood"
+    },
+    "starfish": {
+      "r": 0.45,
+      "mat": "fruit"
+    },
+    "bigcastle": {
+      "r": 3.6,
+      "mat": "sand",
+      "lh": 2.7
+    },
+    "gumdrop": {
+      "r": 0.32,
+      "mat": "cake"
+    },
+    "lollipop": {
+      "r": 0.55,
+      "mat": "toy",
+      "lh": 2.8
+    },
+    "cupcake": {
+      "r": 0.85,
+      "mat": "cake"
+    },
+    "cane": {
+      "r": 0.4,
+      "mat": "toy"
+    },
+    "donut": {
+      "r": 1.0,
+      "mat": "cake"
+    },
+    "icecone": {
+      "r": 1.15,
+      "mat": "cake",
+      "lh": 2.9
+    },
+    "jelly": {
+      "r": 1.6,
+      "mat": "fruit"
+    },
+    "ginger": {
+      "r": 3.6,
+      "mat": "cake",
+      "lh": 2.2
+    },
+    "snowball": {
+      "r": 0.32,
+      "mat": "snow"
+    },
+    "snowman": {
+      "r": 0.55,
+      "mat": "snow",
+      "lh": 2.6
+    },
+    "sled": {
+      "r": 0.85,
+      "mat": "wood"
+    },
+    "crystal": {
+      "r": 0.4,
+      "mat": "ice"
+    },
+    "pine": {
+      "r": 1.0,
+      "mat": "wood",
+      "lh": 2.5
+    },
+    "igloo": {
+      "r": 1.15,
+      "mat": "snow"
+    },
+    "icerock": {
+      "r": 1.6,
+      "mat": "ice"
+    },
+    "present": {
+      "r": 0.45,
+      "mat": "cloth"
+    },
+    "palace": {
+      "r": 3.6,
+      "mat": "ice",
+      "lh": 2.9
     }
   },
   "camera": {
@@ -306,7 +424,9 @@
     "fovKick": 5,
     "squash": 0.16,
     "comboShow": 3,
-    "splashDelay": 0.09
+    "splashDelay": 0.09,
+    "birds": 10,
+    "scare": 4
   },
   "quality": {
     "dpr": [
@@ -347,7 +467,28 @@
       "best": "BEST {n}",
       "share": "SHOW OFF",
       "brag": "My hammer grew to {n}! Can you beat it?",
-      "combo": "COMBO"
+      "combo": "COMBO",
+      "hammers": "HAMMERS",
+      "equip": "USE",
+      "equipped": "IN USE",
+      "skin_classic": "Classic",
+      "skin_candy": "Candy",
+      "skin_dino": "Dino",
+      "skin_icecream": "Ice Cream",
+      "skin_robot": "Robot",
+      "skin_rainbow": "Rainbow",
+      "unlocked": "NEW HAMMER!",
+      "world_toy": "TOY TOWN",
+      "world_beach": "SUNNY BEACH",
+      "world_candy": "CANDY LAND",
+      "world_snow": "SNOW PEAK",
+      "daily": "TODAY",
+      "daily_smash": "Smash {n} numbered things",
+      "daily_size": "Grow the hammer to {n}",
+      "daily_gems": "Collect {n} gems",
+      "daily_boss": "Break {n} big bosses",
+      "daily_combo": "Make a ×{n} combo",
+      "daily_done": "GOAL DONE!"
     },
     "ar": {
       "tap": "اضغط للتحطيم!",
@@ -359,7 +500,28 @@
       "best": "الأفضل {n}",
       "share": "تباهَ",
       "brag": "كبرت مطرقتي إلى {n}! هل تتفوق عليّ؟",
-      "combo": "كومبو"
+      "combo": "كومبو",
+      "hammers": "المطارق",
+      "equip": "استخدم",
+      "equipped": "مستخدَم",
+      "skin_classic": "كلاسيكي",
+      "skin_candy": "حلوى",
+      "skin_dino": "ديناصور",
+      "skin_icecream": "آيس كريم",
+      "skin_robot": "روبوت",
+      "skin_rainbow": "قوس قزح",
+      "unlocked": "مطرقة جديدة!",
+      "world_toy": "مدينة الألعاب",
+      "world_beach": "الشاطئ المشمس",
+      "world_candy": "أرض الحلوى",
+      "world_snow": "قمة الثلج",
+      "daily": "اليوم",
+      "daily_smash": "حطّم {n} من الأشياء المرقّمة",
+      "daily_size": "كبّر المطرقة إلى {n}",
+      "daily_gems": "اجمع {n} جوهرة",
+      "daily_boss": "حطّم {n} من الزعماء الكبار",
+      "daily_combo": "اصنع كومبو ×{n}",
+      "daily_done": "تم الهدف!"
     },
     "es": {
       "tap": "¡TOCA Y APLASTA!",
@@ -371,7 +533,28 @@
       "best": "MEJOR {n}",
       "share": "PRESUMIR",
       "brag": "¡Mi martillo llegó a {n}! ¿Me superas?",
-      "combo": "COMBO"
+      "combo": "COMBO",
+      "hammers": "MARTILLOS",
+      "equip": "USAR",
+      "equipped": "EN USO",
+      "skin_classic": "Clásico",
+      "skin_candy": "Caramelo",
+      "skin_dino": "Dino",
+      "skin_icecream": "Helado",
+      "skin_robot": "Robot",
+      "skin_rainbow": "Arcoíris",
+      "unlocked": "¡NUEVO MARTILLO!",
+      "world_toy": "PUEBLO JUGUETE",
+      "world_beach": "PLAYA SOLEADA",
+      "world_candy": "TIERRA DULCE",
+      "world_snow": "PICO NEVADO",
+      "daily": "HOY",
+      "daily_smash": "Rompe {n} cosas con número",
+      "daily_size": "Haz crecer el martillo a {n}",
+      "daily_gems": "Junta {n} gemas",
+      "daily_boss": "Rompe {n} jefes grandes",
+      "daily_combo": "Haz un combo ×{n}",
+      "daily_done": "¡META LOGRADA!"
     },
     "vi": {
       "tap": "CHẠM ĐỂ ĐẬP!",
@@ -383,7 +566,28 @@
       "best": "CAO NHẤT {n}",
       "share": "KHOE",
       "brag": "Búa của mình to tới {n}! Bạn vượt được không?",
-      "combo": "COMBO"
+      "combo": "COMBO",
+      "hammers": "BÚA",
+      "equip": "DÙNG",
+      "equipped": "ĐANG DÙNG",
+      "skin_classic": "Cổ điển",
+      "skin_candy": "Kẹo",
+      "skin_dino": "Khủng long",
+      "skin_icecream": "Kem",
+      "skin_robot": "Rô-bốt",
+      "skin_rainbow": "Cầu vồng",
+      "unlocked": "BÚA MỚI!",
+      "world_toy": "PHỐ ĐỒ CHƠI",
+      "world_beach": "BÃI BIỂN NẮNG",
+      "world_candy": "XỨ KẸO",
+      "world_snow": "ĐỈNH TUYẾT",
+      "daily": "HÔM NAY",
+      "daily_smash": "Đập {n} món có số",
+      "daily_size": "Cho búa lớn tới {n}",
+      "daily_gems": "Nhặt {n} viên ngọc",
+      "daily_boss": "Phá {n} trùm lớn",
+      "daily_combo": "Đạt combo ×{n}",
+      "daily_done": "XONG MỤC TIÊU!"
     },
     "hi": {
       "tap": "टैप करो, तोड़ो!",
@@ -395,7 +599,28 @@
       "best": "सबसे अच्छा {n}",
       "share": "दिखाओ",
       "brag": "मेरा हथौड़ा {n} तक बड़ा हुआ! क्या तुम हरा सकते हो?",
-      "combo": "कॉम्बो"
+      "combo": "कॉम्बो",
+      "hammers": "हथौड़े",
+      "equip": "लगाओ",
+      "equipped": "लगा है",
+      "skin_classic": "क्लासिक",
+      "skin_candy": "कैंडी",
+      "skin_dino": "डायनो",
+      "skin_icecream": "आइसक्रीम",
+      "skin_robot": "रोबोट",
+      "skin_rainbow": "इंद्रधनुष",
+      "unlocked": "नया हथौड़ा!",
+      "world_toy": "खिलौना नगर",
+      "world_beach": "धूप वाला तट",
+      "world_candy": "कैंडी देश",
+      "world_snow": "बर्फ़ीली चोटी",
+      "daily": "आज",
+      "daily_smash": "{n} नंबर वाली चीज़ें तोड़ो",
+      "daily_size": "हथौड़ा {n} तक बढ़ाओ",
+      "daily_gems": "{n} रत्न जमा करो",
+      "daily_boss": "{n} बड़े बॉस तोड़ो",
+      "daily_combo": "×{n} कॉम्बो बनाओ",
+      "daily_done": "लक्ष्य पूरा!"
     },
     "bn": {
       "tap": "ট্যাপ করে ভাঙো!",
@@ -407,7 +632,28 @@
       "best": "সেরা {n}",
       "share": "দেখাও",
       "brag": "আমার হাতুড়ি {n} পর্যন্ত বড় হয়েছে! তুমি পারবে?",
-      "combo": "কম্বো"
+      "combo": "কম্বো",
+      "hammers": "হাতুড়ি",
+      "equip": "নাও",
+      "equipped": "চলছে",
+      "skin_classic": "ক্লাসিক",
+      "skin_candy": "ক্যান্ডি",
+      "skin_dino": "ডাইনো",
+      "skin_icecream": "আইসক্রিম",
+      "skin_robot": "রোবট",
+      "skin_rainbow": "রংধনু",
+      "unlocked": "নতুন হাতুড়ি!",
+      "world_toy": "খেলনা শহর",
+      "world_beach": "রোদেলা সৈকত",
+      "world_candy": "ক্যান্ডির দেশ",
+      "world_snow": "বরফের চূড়া",
+      "daily": "আজ",
+      "daily_smash": "{n}টি নম্বরওয়ালা জিনিস ভাঙো",
+      "daily_size": "হাতুড়ি {n} পর্যন্ত বড় করো",
+      "daily_gems": "{n}টি রত্ন জমাও",
+      "daily_boss": "{n}টি বড় বস ভাঙো",
+      "daily_combo": "×{n} কম্বো করো",
+      "daily_done": "লক্ষ্য পূরণ!"
     },
     "id": {
       "tap": "TAP UNTUK HANTAM!",
@@ -419,7 +665,28 @@
       "best": "TERBAIK {n}",
       "share": "PAMERKAN",
       "brag": "Paluku tumbuh sampai {n}! Bisa kalahkan?",
-      "combo": "KOMBO"
+      "combo": "KOMBO",
+      "hammers": "PALU",
+      "equip": "PAKAI",
+      "equipped": "DIPAKAI",
+      "skin_classic": "Klasik",
+      "skin_candy": "Permen",
+      "skin_dino": "Dino",
+      "skin_icecream": "Es Krim",
+      "skin_robot": "Robot",
+      "skin_rainbow": "Pelangi",
+      "unlocked": "PALU BARU!",
+      "world_toy": "KOTA MAINAN",
+      "world_beach": "PANTAI CERAH",
+      "world_candy": "NEGERI PERMEN",
+      "world_snow": "PUNCAK SALJU",
+      "daily": "HARI INI",
+      "daily_smash": "Hancurkan {n} benda berangka",
+      "daily_size": "Besarkan palu sampai {n}",
+      "daily_gems": "Kumpulkan {n} permata",
+      "daily_boss": "Hancurkan {n} bos besar",
+      "daily_combo": "Buat kombo ×{n}",
+      "daily_done": "TARGET BERES!"
     }
   },
   "persistent_storage_config": {
@@ -457,10 +724,383 @@
       "contrast": 1.05,
       "saturation": 1.08,
       "warmth": 0.03
-    }
+    },
+    "light": [
+      [
+        "#fff4e0",
+        2.2,
+        1.2,
+        0.95,
+        0
+      ],
+      [
+        "#fff0d0",
+        2.2,
+        1.2,
+        0.95,
+        0
+      ],
+      [
+        "#ffe6b8",
+        2.1,
+        1.15,
+        0.93,
+        0
+      ],
+      [
+        "#ffd49a",
+        2.0,
+        1.1,
+        0.92,
+        0.4
+      ],
+      [
+        "#ffb880",
+        1.8,
+        1.0,
+        0.9,
+        1.6
+      ],
+      [
+        "#ff9e78",
+        1.6,
+        0.95,
+        0.9,
+        2.6
+      ]
+    ]
   },
   "music": {
     "id": "music_main",
     "volume": 0.32
+  },
+  "skins": [
+    {
+      "id": "classic",
+      "cost": 0
+    },
+    {
+      "id": "candy",
+      "cost": 200,
+      "head": "#ff8fb8",
+      "p2": "#fff4f8",
+      "band": "#fff4f8",
+      "handle": "#fff0f4",
+      "grip": "#ff5d8f",
+      "pattern": "stripes",
+      "metal": 0.05
+    },
+    {
+      "id": "dino",
+      "cost": 450,
+      "head": "#5cbf6a",
+      "p2": "#3d8a4a",
+      "band": "#f2c96a",
+      "handle": "#a8743f",
+      "grip": "#3d8a4a",
+      "pattern": "scales",
+      "spikes": true,
+      "metal": 0.05
+    },
+    {
+      "id": "icecream",
+      "cost": 700,
+      "head": "#fbe3c1",
+      "p2": "#ff8fb8",
+      "band": "#8a5a32",
+      "handle": "#e8b77a",
+      "grip": "#ff8fb8",
+      "pattern": "drips",
+      "metal": 0.02
+    },
+    {
+      "id": "robot",
+      "cost": 1100,
+      "head": "#a9b3cf",
+      "p2": "#5fd3ff",
+      "band": "#ff6a3d",
+      "handle": "#5b6178",
+      "grip": "#2b2d5b",
+      "pattern": "bolts",
+      "metal": 0.3
+    },
+    {
+      "id": "rainbow",
+      "cost": 1800,
+      "head": "#ffffff",
+      "p2": "#f2c96a",
+      "band": "#f2c96a",
+      "handle": "#ffffff",
+      "grip": "#b98cff",
+      "pattern": "rainbow",
+      "metal": 0.1
+    }
+  ],
+  "worlds": [
+    {
+      "id": "toy",
+      "sky": [
+        "#2b2d5b",
+        "#7e6aa8",
+        "#e9a98a",
+        "#f4d6b8"
+      ],
+      "fog": "#e8b9a0",
+      "ground": "grass",
+      "deco": "#ffffff"
+    },
+    {
+      "id": "beach",
+      "sky": [
+        "#1f5fa8",
+        "#5aaee6",
+        "#bfe6f2",
+        "#fff1d6"
+      ],
+      "fog": "#cfe9f0",
+      "ground": "grass",
+      "deco": "#ffffff",
+      "zones": {
+        "2": [
+          {
+            "kind": "ball",
+            "n": 18,
+            "req": 1,
+            "v": 8
+          },
+          {
+            "kind": "sandcastle",
+            "n": 8,
+            "req": 380
+          },
+          {
+            "kind": "parasol",
+            "n": 7,
+            "req": 750
+          }
+        ],
+        "3": [
+          {
+            "kind": "shell",
+            "n": 18,
+            "req": 1,
+            "v": 20
+          },
+          {
+            "kind": "surfboard",
+            "n": 7,
+            "req": 1500
+          },
+          {
+            "kind": "hut",
+            "n": 6,
+            "req": 2500
+          },
+          {
+            "kind": "boat",
+            "n": 2,
+            "req": 3500
+          }
+        ],
+        "5": [
+          {
+            "kind": "bigcastle",
+            "n": 1,
+            "req": 19000,
+            "hp": 6,
+            "boss": true
+          },
+          {
+            "kind": "starfish",
+            "n": 22,
+            "req": 1,
+            "v": 150
+          }
+        ]
+      },
+      "tex": {
+        "2": "sand",
+        "3": "sand",
+        "5": "sand"
+      }
+    },
+    {
+      "id": "candy",
+      "sky": [
+        "#5a3a8a",
+        "#c27ad8",
+        "#ffb3d9",
+        "#ffe6f2"
+      ],
+      "fog": "#f5c6e0",
+      "ground": "candy",
+      "deco": "#ffc4e2",
+      "zones": {
+        "2": [
+          {
+            "kind": "gumdrop",
+            "n": 18,
+            "req": 1,
+            "v": 8
+          },
+          {
+            "kind": "lollipop",
+            "n": 8,
+            "req": 380
+          },
+          {
+            "kind": "cupcake",
+            "n": 7,
+            "req": 750
+          }
+        ],
+        "3": [
+          {
+            "kind": "cane",
+            "n": 18,
+            "req": 1,
+            "v": 20
+          },
+          {
+            "kind": "donut",
+            "n": 7,
+            "req": 1500
+          },
+          {
+            "kind": "icecone",
+            "n": 6,
+            "req": 2500
+          },
+          {
+            "kind": "jelly",
+            "n": 2,
+            "req": 3500
+          }
+        ],
+        "5": [
+          {
+            "kind": "ginger",
+            "n": 1,
+            "req": 19000,
+            "hp": 6,
+            "boss": true
+          },
+          {
+            "kind": "candy",
+            "n": 22,
+            "req": 1,
+            "v": 150
+          }
+        ]
+      },
+      "tex": {
+        "2": "icing",
+        "3": "icing",
+        "5": "icing"
+      }
+    },
+    {
+      "id": "snow",
+      "sky": [
+        "#22305e",
+        "#5a78b8",
+        "#b8d4f0",
+        "#eef6ff"
+      ],
+      "fog": "#d6e6f5",
+      "ground": "snow",
+      "deco": "#d8e8f4",
+      "zones": {
+        "2": [
+          {
+            "kind": "snowball",
+            "n": 18,
+            "req": 1,
+            "v": 8
+          },
+          {
+            "kind": "snowman",
+            "n": 8,
+            "req": 380
+          },
+          {
+            "kind": "sled",
+            "n": 7,
+            "req": 750
+          }
+        ],
+        "3": [
+          {
+            "kind": "crystal",
+            "n": 18,
+            "req": 1,
+            "v": 20
+          },
+          {
+            "kind": "pine",
+            "n": 7,
+            "req": 1500
+          },
+          {
+            "kind": "igloo",
+            "n": 6,
+            "req": 2500
+          },
+          {
+            "kind": "icerock",
+            "n": 2,
+            "req": 3500
+          }
+        ],
+        "5": [
+          {
+            "kind": "palace",
+            "n": 1,
+            "req": 19000,
+            "hp": 6,
+            "boss": true
+          },
+          {
+            "kind": "present",
+            "n": 22,
+            "req": 1,
+            "v": 150
+          }
+        ]
+      },
+      "tex": {
+        "2": "snowpave",
+        "3": "snowpave",
+        "5": "snowpave"
+      }
+    }
+  ],
+  "labels": {
+    "ahead": 10
+  },
+  "daily": {
+    "reward": 150,
+    "goals": [
+      {
+        "type": "smash",
+        "n": 40
+      },
+      {
+        "type": "size",
+        "n": 25000
+      },
+      {
+        "type": "gems",
+        "n": 250
+      },
+      {
+        "type": "boss",
+        "n": 2
+      },
+      {
+        "type": "combo",
+        "n": 20
+      }
+    ]
   }
 }

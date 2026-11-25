@@ -154,3 +154,27 @@ test('the shockwave breaks small objects just outside the direct reach, never nu
   assert.ok(ev.some((e) => e.type === 'break' && e.id === ring.id && e.splash), 'the small one in the ring breaks, marked splash');
   for (const o of big) assert.ok(o.alive, `${o.kind} outside the direct reach stays`);
 });
+
+test('every world finishes on the same timeline as Toy Town', () => {
+  for (let w = 0; w < cfg.worlds.length; w++) {
+    const wc = { ...cfg, zones: L.worldZones(cfg, cfg.zones, w) };
+    for (const Z of wc.zones) for (const it of Z.items) assert.ok(wc.kinds[it.kind], `world ${cfg.worlds[w].id}: kind ${it.kind} has a size`);
+    for (let s = 1; s <= 6; s++) {
+      const R = L.createRun(wc, L.rng(s));
+      while (!R.done && R.t < 300) { L.tick(wc, R, 0.5); const p = L.bestSlam(wc, R); if (p) L.slam(wc, R, p.x, p.z); }
+      assert.ok(R.done && R.t >= 40 && R.t <= 120, `world ${cfg.worlds[w].id} seed ${s}: ${R.t.toFixed(1)} s`);
+    }
+  }
+});
+
+test('the daily goal is fixed for a day, changes type every day, and follows the local calendar', () => {
+  const d0 = L.dayNumber(new Date(2026, 10, 25, 0, 5)), d1 = L.dayNumber(new Date(2026, 10, 25, 23, 55));
+  assert.equal(d0, d1, 'same local day');
+  assert.equal(L.dayNumber(new Date(2026, 10, 26, 0, 1)), d0 + 1, 'next day after midnight');
+  assert.deepEqual(L.dailyGoal(cfg, d0), L.dailyGoal(cfg, d0));
+  for (let d = d0; d < d0 + 60; d++) {
+    const g = L.dailyGoal(cfg, d);
+    assert.ok(cfg.daily.goals.some((x) => x.type === g.type && x.n === g.n));
+    assert.notEqual(g.type, L.dailyGoal(cfg, d + 1).type, `day ${d}`);
+  }
+});
