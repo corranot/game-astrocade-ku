@@ -1,0 +1,21 @@
+{
+ "poki_files": 62,
+ "path_match": 10,
+ "identical": 3,
+ "differ": 7,
+ "absent": 52,
+ "identical_examples": [
+  "assets/Loader/loading.png",
+  "assets/Loader/progress_pattern.webp",
+  "assets/Loader/sparkle.webp"
+ ],
+ "differ_examples": [
+  "assets/Loader/bgimg_high.webp",
+  "assets/Loader/bgimg_low.webp",
+  "assets/girl/[girl]{default2}_0.webp",
+  "assets/girl/[girl]_0.webp",
+  "assets/girl/[girl]_1.webp",
+  "assets/hand/[hand_tools].webp",
+  "assets/images/viphud-sheet0.webp"
+ ]
+}
