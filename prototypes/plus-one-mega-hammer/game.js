@@ -416,7 +416,8 @@ export function run(mode = 'play') {
   function frame(now) {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
-    let dt = Math.min(0.05, (now - last) / 1000); last = now;
+    // a rAF timestamp can sit just before the last one (first frame, a page clock reset): never step backwards
+    let dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
     frames.push(dt);
     if (hitstop > 0) { hitstop -= dt; dt = 0; }
     if (slowT > 0) { slowT -= dt; dt *= cfg.fx.tierSlowScale; } // the tier-up slow motion runs on real time

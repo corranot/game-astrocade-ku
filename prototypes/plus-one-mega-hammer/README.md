@@ -99,6 +99,39 @@ Doc "+1 Mega Hammer — Plan Game".
   combo), stepped from the local date by the seeded rng so it never repeats two days running. It shows on the start
   screen and the card, and pays `daily.reward` gems once.
 
+### Stage 6: thumbnail candidate and phone performance
+
+- **Thumbnail candidates.** Two staged renders of the rainbow hammer smashing the cake vault: A is the swing coming
+  down, B is the impact with debris and the score pop. They were rendered at 1215x2160 from a lower camera, with the
+  HUD hidden and the pops kept. They are saved for the owner (evidence `25-thumbnail-candidates.jpg`) and are not
+  set on Astrocade.
+- **Fix: pale skins under the evolution glow.** The glow used to add the head colour on top of the pattern, so the
+  rainbow hammer turned white at high tiers. The glow now lights the skin's own pattern.
+- **Fix: time never steps backwards.** A frame timestamp that is earlier than the last one now gives a step of 0
+  instead of a negative one.
+
+#### Performance (2026-11-25)
+
+The check ran in headless Chromium at 390x844 with the CPU slowed 4x through DevTools, holding the finger down to
+play. This container has no GPU, so WebGL runs on SwiftShader, a software renderer on the CPU.
+
+| Measure (per frame, main thread) | CPU 4x slower | CPU normal |
+|---|---|---|
+| Game update, median / p95 | 2.3 / 5.8 ms | 0.5 / 2.6 ms |
+| Render submit, median / p95 | 7.0 / 16.6 ms | 1.2 / 3.9 ms |
+| Draw calls, triangles (tier 0) | 66, 113k | 65, 113k |
+| Frames per second (software GPU) | 5.1 | 7.0 |
+
+- **Main thread.** At the 4x slowdown the median frame uses about 9 ms of the 16.7 ms a 60 FPS frame allows, so the
+  game logic and draw submission fit. The p95 frames (about 22 ms together) would show as an occasional dropped
+  frame.
+- **Adaptive tier.** It starts at tier 2 and settles on tier 0 here. That is because SwiftShader draws every pixel
+  on the CPU (5 to 7 FPS whatever the tier), not because of the game's own work.
+- **Budget.** The start view at tier 2 is 83 to 89 draw calls and 165k to 173k triangles, within 130 and 220k.
+- **Not measured: a real phone.** GPU fill rate, the glow pass and shadows at 3x pixel density decide the real
+  frame rate. They can only be checked on a phone (Astrocade draft link, Chrome remote debugging), and that is
+  still to do.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N
