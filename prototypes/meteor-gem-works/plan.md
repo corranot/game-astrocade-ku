@@ -1,274 +1,485 @@
-# Meteor Gem Works — game plan
+# Meteor Gem Works — game plan (v2)
 
-**Status:** waiting for the owner's approval. No code is written until she says yes (CLAUDE.md, Plan Before
-Building). **Date:** 2026-11-25. **Chosen:** option 1 of
-`production/market/2026-11-25-next-game/recommendation.md` (owner's pick, 2026-11-25).
+**Status:** waiting for the owner's approval. No code is written until she says yes (CLAUDE.md, Plan Before Building).
+**v1:** 2026-11-25, PR #198. **v2:** 2026-11-25, a full upgrade the owner asked for.
 
-**Evidence:** astrotopper snapshot `production/market/2026-11-25T1244/`. Daily plays are not exposed, so the proxy is
-7-day and 30-day gain. One creator's four 3D arcade idle tycoons total about 3.6M plays: Giant Salami Factory, Frozen
-Harbor, Harpoon Harbor and Giant Salami Saw. The teardown is
-`production/market/competitors/01M7B4YM0Q5XFDCXS4CXG8Y74X/analysis.md`. We share the genre and its mechanics. The
-theme, world, product chain, story and every asset are our own.
+The v2 brief, in the owner's words: target **kids**; a **median session of 10+ minutes**; a detailed objective loop
+that is **very addictive and very interactive**; visuals that feel **alive, special and luxurious, but not glaring**;
+every effect and transition **richly animated**; and "what I don't know that I don't know".
+
+**Evidence:**
+- Traffic: astrotopper snapshot `production/market/2026-11-25T1244/`. The proxy is 7- and 30-day gain, because
+  daily plays are not exposed. One creator's four 3D arcade idle tycoons total ≈3.6M plays.
+- Genre teardown: `production/market/competitors/01M7B4YM0Q5XFDCXS4CXG8Y74X/analysis.md`.
+- Platform facts: `ASTROCADE.md` §2–5.
+
+We share the genre and its mechanics. The theme, world, characters, story and every asset are ours.
+
+---
+
+## 0. Team review: what changed from v1 and why
+
+We ran one review per discipline over v1. Each lead names the biggest problem they found and the fix that went into
+this plan. Every item is tagged **P0** (must ship in the first upload), **P1** (ship if it fits, otherwise update 1)
+or **P2** (named update later). §13 lists all of them in one table.
+
+| Lead | Problem found in v1 | Fix in v2 |
+|---|---|---|
+| Creative director | v1 ends with an end card at ~10 min. An end card is an exit door, which works against a 10+ min median. | The finale hands straight into **Chapter 2**: a second meteor streaks across the sky during the celebration. No exit screen until much later (§4). |
+| Game designer (retention) | One loop (carry and pay) for 10 min gets samey for kids. A good design moves the player's job up the chain every ~2 min. | Five nested goal layers (§2.1), a **critter egg** every 60–90 s, **orders** with a face, a **Crystal Rush** event every ~2.5 min, and a **town star meter**. |
+| Child psychologist / kids UX | v1 has impatient red faces, text banners and a lot of walking. Kids 5–10 read little, dislike being "told off", and tire of long walks. | No angry faces (customers only wait happily). Icon-first banners with a voice-like jingle. Short walks (the deck is compact; helpers take over the long trips). Big pads. Nothing can be lost. |
+| Art director | "Luxurious" needs a material story, not more glow. | Gems are rendered as real cut jewels (env-mapped, faceted, coloured refraction look). Warm desert against cool crystal. A strict **glare budget** that is measured, not guessed (§5.6). |
+| VFX lead | v1 lists effects but does not layer them. | Every effect has three layers (anticipation, impact, afterglow) and a budget (§6). |
+| Animation / transitions | v1 has hops and a camera showcase, but no designed transitions. | A tween and spring kit, squash-and-stretch rules, a transitions table (§6.3), a living-world list (§5.7). |
+| Audio director | One loop for 10+ minutes fatigues kids and parents. | Adaptive music in 4 stems that join as the town grows; pitch-randomised SFX; quiet hours (no loud bursts in a row) (§7). |
+| UI lead | A web-style NEXT panel with text. | A diegetic, icon-first HUD on a carved wood and brass frame, a sticker album and a chapter map (§8). |
+| Tech / performance | More content means more risk on cheap Android phones (very common among kids). | Shared-asset kit, 4 quality tiers, a hard budget table, context-loss recovery, and a soak test (§9). |
+| Producer | v2 is much bigger than v1. | Scope is split into P0/P1/P2 with a clear first upload (§12, §13). |
 
 ---
 
 ## 1. Concept
 
-- **Pitch:** a giant glowing crystal meteor crashes into a sleepy desert canyon town. You cut it open, polish its
-  crystals into jewels, sell them to the tourists who flock in to see it, and rebuild the town around the crater.
-  At the end you reach the meteor's heart.
-- **Fantasy:** "I turned a disaster into the most famous town in the desert." Everything starts with one person, a
-  pickaxe and a rock the size of a house. You end up running a glowing, buzzing gem town at night.
-- **Audience:** casual mobile players of all ages, portrait phone, one finger, in 7 languages. No reading is needed
-  to play.
-- **Session:** about 10–12 minutes to the finale for a first-time player. After that, free play.
-- **Hook in one image:** a tiny worker next to a cracked meteor that glows from inside, with a crowd at the crater
-  rim.
+- **Pitch:** a giant glowing crystal meteor crashes into a sleepy desert canyon town. You mine it, polish its
+  crystals into jewels, sell them to the tourists who flock in, hatch the cute **crystal critters** hidden inside, and
+  rebuild the town. Then the next meteor lands.
+- **Fantasy for kids:** "I found a magic rock, I have pet crystal friends, and I made the whole town happy."
+  Ownership (my town, my critters, my hat), discovery (what's in the next egg?) and being the hero everyone cheers.
+- **Audience:** kids 5–11 and casual players. Portrait phone, one finger, 7 languages including Arabic (24% of the
+  platform's audience; the layout works right to left). Zero reading needed to play.
+- **Session target:** median 10+ minutes.
+  - The first chapter takes ~9–10 min.
+  - Chapter 2 starts at once and gives about 8 more minutes.
+  - Collecting critters and stars gives a reason to stay after that, and to come back.
+- **Hook in one image:** a tiny hero with a pickaxe next to a cracked meteor glowing from inside, a baby crystal
+  critter at their feet, and a cheering crowd on the crater rim.
 
 ## 2. Core loop
 
-**Every few seconds:**
-1. Stand in the mining circle and the hero swings a pickaxe. Crystal chunks break off the meteor and hop onto the
-   chunk pile.
-2. Walk over the pile to pick up a stack of chunks (up to 20, carried in front of the chest).
-3. Drop them at a polishing wheel. 3 chunks make 1 cut gem, which slides onto the display counter.
-4. Take the gems to the display stands. Tourists queue, buy, and leave cash.
-5. Walk over the cash to collect it. Stand on a price pad and the money flows into it. A full pad unlocks the upgrade.
+### 2.1 Five goal layers (always one visible at each layer)
 
-**Every minute:**
-- A new unlock appears about every 15–35 s. Each one adds a **new kind of thing**, not just a bigger number:
-  automation (a drill rig, a conveyor, a shopkeeper), a new product (rings, crowns), a new district (ghost town, sky
-  deck), or a story beat (the road is repaired, the tour bus arrives).
-- Every unlock does the same short sequence: a camera showcase move, a one-line banner saying what it does, and a
-  burst of light and sound. After that, control comes back to the player at once.
-- Helpers take over the earlier steps, so the player's job moves up the chain: from mining, to carrying, to selling,
-  to only collecting cash and building.
+| Layer | Time | What the kid does | What they get |
+|---|---|---|---|
+| **Micro** | 1–3 s | Hit the meteor, pick up, drop, collect | Sound, sparkle, a number pops, the stack grows (reward every 3–6 s) |
+| **Short** | 15–40 s | Fill the next price pad, or serve an **order** (a tourist kid's bubble shows the gem they want) | A new machine, character or place; a heart and a sticker for the order |
+| **Medium** | 1–3 min | A **district goal** from a town character (for example "light the ghost town": 3 deliveries) shown as a portrait and 3 icon slots; a **Crystal Rush** event; a **critter egg** hatch | Story beat, new district, a critter that follows you and helps |
+| **Long** | 8–10 min | Finish the chapter: the meteor's heart (finale) | A celebration, the chapter's crown critter, the next meteor arrives |
+| **Meta** | across sessions | Fill the **sticker album** (critters, hats, town stars), unlock chapters on the **chapter map** | Hats, a prettier town, bragging rights (`lib.share` card) |
 
-**Rules that keep it easy:** no fail state, no timer, no lives, no way to lose money. Prices are small and the
-unlock order is fixed. Stations never jam (see §11, fix A).
+### 2.2 The second-by-second loop (same as v1, tightened for kids)
+
+1. **Mine.** Stand in the circle and the hero swings automatically. **Glints** (sparkling spots) appear on the
+   meteor. Tapping one, or walking into it, gives a **Perfect Strike**: a big burst and 3× chunks. This keeps hands
+   busy and rewards attention. Glints are optional; missing one costs nothing. (P0)
+2. **Carry.** The stack of chunks grows on the hero's chest (up to 20, then 30 and 40 with upgrades or critters).
+3. **Polish.** Drop chunks at a polisher: 3 chunks make 1 gem.
+   - Optional: tap the wheel to "boost" it, with a sparkly ASMR spin and faster polishing. (P1)
+4. **Sell.** Put gems on the stands. Tourists buy them and the cash flies onto a pile.
+5. **Build.** Collect the cash and walk onto a pad. The money flows in and the thing unlocks with a show.
+6. **Orders.** A tourist kid with a big bubble asks for a specific gem shape or colour. Deliver it for a heart, a
+   tip and a sticker. There is one order at a time, every ~45 s, never with a timer. (P0)
+
+### 2.3 Recurring events (the "something just happened!" beats)
+
+- **Critter egg:** one every 60–90 s. It drops out of a fresh crack in the meteor and wobbles. Walk over it and it
+  hatches with a show: shake, crack, light burst, the critter's reveal pose, a name jingle, and it joins the album.
+  - Critters follow the hero in a little parade and each one has one light perk, for example: carries 5 more,
+    bigger magnet radius for cash, polishes faster, walks faster, attracts tourists.
+  - 12 critters in chapter 1, in 4 rarities (common, shiny, rare, legendary).
+  - The odds are generous and fixed. A pity counter guarantees a rare by the 6th egg. (P0)
+- **Crystal Rush:** about every 2.5 min the meteor flares. For 15 s, chunks rain on the deck and coins fizz out of
+  the ground, and the kid runs around scooping them up. It has its own music sting and a light golden tint. (P0)
+- **Tour bus arrival:** about every 2 min after the road is fixed, a bus honks in with a wave of tourists. The queue
+  surges and the stands empty fast. (P0)
+- **Small surprises** (P1): a lost puppy to return (a sticker), a hat blowing in the wind to chase, a tumbleweed
+  to kick for a coin.
+
+### 2.4 Rules that keep it kind
+
+- No fail state, no timer, no lives, no punishment, no money loss.
+- Every wait is under ~30 s, and there is always something active nearby: a glint, an order, a pile to scoop.
+- Stations never jam (fix A, §11).
+- Helpers take over the long walks, so the kid's job moves to fun choices.
 
 ## 3. Controls
 
 | Action | Touch | Keyboard / mouse |
 |---|---|---|
 | Move | Drag anywhere: a floating joystick appears under the finger | WASD or arrow keys |
-| Mine | Stand in the mining circle (automatic swing) | Same |
-| Pick up / drop / collect / pay | Walk onto the pile, station, cash or pad (automatic) | Same |
-| Music on/off | ♫ button | Same, or M |
+| Mine | Stand in the circle (automatic) | Same |
+| Perfect Strike | Tap a glint on the meteor, or walk into it | Click, or walk |
+| Pick up / drop / collect / pay / hatch | Walk onto it (automatic) | Same |
+| Boost polisher (P1) | Tap the wheel | Click |
+| Album, chapter map | Tap the book or map icon (bottom corners) | B / M |
+| Music on/off | ♫ button | Same |
 | New game | ↻ button, tap twice to confirm | Same |
-| Continue after the finale | "Keep playing" button | Same, or Enter |
 
-- There are no other buttons. Every interaction is "walk there".
-- The first touch hint is a drag ring with an animated dot and the label "DRAG TO MOVE". It disappears on the first
-  move.
-- Haptics: a short pulse on each unlock and on the finale crack, through `lib` haptics if the platform has them, or
-  `navigator.vibrate`. Both are optional.
+- Big touch targets (≥ 64 px at 720 px width), placed away from the joystick zone.
+- Taps that hit nothing still give a tiny sparkle and a sound, so the screen always answers a kid's finger.
+- Haptics are not used: the platform reports them as unsupported on the web.
 
 ## 4. Progression
 
-**Opening (0–5 s), cinematic and skippable on a returning save:** a streak in the sky becomes a fireball. It
-crosses the canyon, clips the old road bridge (planks fly) and slams into the town square. The crater blows a ring
-of dust, the camera shakes, and townsfolk run with "!" bubbles. Banner: "A GIANT METEOR!" Then: "STAND IN THE CIRCLE
-TO MINE IT!"
+### 4.1 First 30 seconds (decides "significant plays", see §14)
 
-**Unlocks** (fixed order; prices are first-draft values in `config.js`, to be tuned by the bot run):
+- **0.0–3.0 s:** the cold open plays **while it already looks like the game**.
+  - The meteor streaks across the sky, clips the bridge and lands in the square: a dust ring, a soft (not jarring)
+    shake, townsfolk with "!" bubbles.
+  - At 1.5 s a pulsing finger icon appears on screen. Any touch skips the rest at once.
+- **3 s:** control is handed to the player. The mining circle pulses, and a glint is already sparkling on the meteor.
+- **≤ 5 s:** the first hit gives sparkle, a chime and 3 chunks hopping out.
+- **≤ 12 s:** the first gem is polished.
+- **≤ 20 s:** the first sale, and coins fly to the kid.
+- **≤ 25 s:** the first pad (Drill Rig, $25) is full and unlocks with a show.
+- **≤ 40 s:** the first critter egg hatches. Its timing is fixed, so every kid sees one early.
+
+The opening is skipped for a returning save, which goes straight to the CONTINUE card.
+
+### 4.2 Chapter 1 — "The Crystal Meteor" (desert canyon, noon to night)
 
 | # | Unlock | Price | What is new | Target time |
 |---|---|---|---|---|
-| 1 | Drill Rig | $25 | A robot drill arm mines for you; a second wound opens in the meteor | 0:25 |
-| 2 | Chunk Conveyor + Polisher 2 | $80 | Chunks ride to the wheels by themselves | 0:55 |
-| 3 | Display Stand 2 + Lantern Rope | $100 | More buyers; the crater rim lights up | 1:20 |
-| 4 | Hire Shopkeeper | $130 | Gems go to the stands by themselves | 1:40 |
-| 5 | Repair the Canyon Road | $180 | Townsfolk you served rebuild the bridge; the first tour bus arrives | 2:10 |
-| 6 | Ring Workshop | $210 | New product: gem + silver = ring, sold at a kiosk to bus tourists | 2:45 |
-| 7 | Laser Cutter | $240 | The drill becomes a triple laser: wider cuts, more chunks | 3:20 |
-| 8 | Mine Cart Line + Ghost Town | $270 | A cart runs gems to the old ghost town; one building comes back to life per delivery | 4:00 |
-| 9 | Drill Rig 2 | $300 | Second arm on the far side; it feeds the ring workshop | 4:40 |
-| 10 | Canyon Cable Car | $320 | Grand upgrade of the road: twice the tourists | 5:30 |
-| 11 | Stargazer Deck | $360 | Observatory and loungers on the rim; tourists stay into the evening | 6:30 |
-| 12 | Crown Jeweler | $420 | New product: crowns, carried by the cable car to a museum | 7:30 |
-| 13 | Neon Main Street | $480 | Signs and street lamps light up one by one at dusk | 8:40 |
-| 14 | The Grand Unveiling | $560 | Finale | ~10:00 |
+| 1 | Drill Rig | $25 | A robot drill arm mines for you; a second wound opens | 0:25 |
+| 2 | Chunk Conveyor + Polisher 2 | $70 | Chunks ride to the wheels | 0:55 |
+| 3 | Display Stand 2 + Lantern Rope | $90 | More buyers; the crater rim lights up | 1:20 |
+| 4 | Hire Shopkeeper (a friendly armadillo) | $120 | Gems go to the stands by themselves | 1:45 |
+| 5 | Fix the Canyon Road | $160 | Townsfolk rebuild the bridge; the first tour bus | 2:15 |
+| 6 | Ring Workshop | $200 | New product: rings; orders can now ask for rings | 2:50 |
+| 7 | Laser Cutter | $230 | Triple laser: wider cuts, more eggs exposed | 3:25 |
+| 8 | Mine Cart + Ghost Town | $260 | District goal "Light the ghost town": each delivery brings one building back | 4:05 |
+| 9 | Drill Rig 2 | $290 | A second arm on the far side feeds the ring workshop | 4:45 |
+| 10 | Canyon Cable Car | $320 | Twice the tourists; a ride view of the canyon | 5:35 |
+| 11 | Stargazer Deck | $360 | Evening starts; fireflies; tourists stay | 6:30 |
+| 12 | Crown Jeweler | $420 | New product: crowns, sent by cable car to the museum | 7:30 |
+| 13 | Neon Main Street | $480 | Lamps and signs light up one by one at dusk | 8:30 |
+| 14 | The Heart of the Meteor | $540 | Finale (§4.3) | ~9:30 |
 
-**Day to night:** the sky moves from bright noon (unlock 1) through golden hour (8–11) to blue dusk (12–13). The
-finale happens at night. The meteor's glow, the lamps and the neon get stronger as the light falls, so the game
-looks better the further you get. This is the visual reward for progress.
+Prices are first-draft values in `config.js`, tuned by the bot run. Critters, orders and Rush add income, so prices
+are tuned with them switched on.
 
-**Difficulty curve:** there is no challenge curve; the pace is the curve. The next pad is always visible with its
-price and a fill bar. Income grows with each automation unlock, so the wait between unlocks stays at about 15–40 s.
-The bot run (§10) checks it.
+### 4.3 Finale → next chapter (no exit door)
 
-**Finale, The Grand Unveiling (~18 s):** all lasers fire at once. The meteor shell cracks along its wounds and
-falls open, revealing a giant heart gem that rises and glows. Gems rain on the stands. Fireworks go up over each
-district while the camera tours them with name banners. End card: "TOWN SAVED!" with gems cut, rings, crowns,
-tourists and bus trips, then KEEP PLAYING. Free play goes on afterwards: the heart gem keeps spinning and the stands
-keep selling.
+- **Finale (~15 s):**
+  - All lasers fire. Crack lines race over the shell, and the pieces fall away in slow motion with dust.
+  - The **heart gem** rises and glows. The chapter's **crown critter** (legendary) hatches out of it.
+  - Gems rain on the stands, and fireworks go up over each district while the camera tours them.
+- **Hand-off (~5 s):**
+  - The camera tilts up. A second meteor, an icy blue comet, streaks across the night sky toward the far mesa.
+  - Banner icon: a comet with a "!". A star burst appears on the chapter map icon.
+  - A pad appears: **"Follow the comet!"** at $0. One step and the cable car carries the hero to chapter 2.
+- **Celebration card (P0):** shown **only when the kid stops at the album or the map**, never on its own. It shows
+  stars earned, critters and gems, and a `lib.share` "show my town" button.
 
-**Save:** progress saves through `lib.saveUserGameState`. A returning player gets a CONTINUE / NEW GAME card with
-"N / 14 upgrades built".
+### 4.4 Chapter 2 — "The Frost Comet" (P1; first named update if it doesn't fit the first upload)
 
-## 5. Art and 3D direction (Game Quality Standard)
+- A snowy mesa top next to the canyon, with an aurora at night.
+- The kit is reused with new skins: ice crystals, a hot-cocoa stand, a sled line, an ice palace district.
+- 10 unlocks, about 8 min. 10 new critters.
+- The heart is a frozen star; its finale reveals the next meteor (lava, chapter 3, P2).
 
-- **Style:** polished, toy-like stylised 3D. Rounded chunky shapes, readable silhouettes, and soft materials with a
-  little roughness variation. No bare primitives: every prop gets bevels, trims and a second detail (for example, a
-  water tower has planks, bands, a ladder and a dripping tap).
-- **Palette:** three colour families, each with one meaning.
-  - **World:** warm desert. Terracotta cliffs, sand, sun-bleached wood, sage plants.
-  - **Meteor and gems:** cool magenta to cyan crystal, the only cool and glowing colour in the scene, so the eye
-    always finds it.
-  - **Machines:** mint-teal steel with brass details.
-  - **People:** the crowd wears bright sun hats and ponchos in a small set of accent colours.
-- **The meteor (hero object):** a charred, cratered rock shell over a faceted crystal interior.
-  - Cutting is persistent. A cut-field texture over the meteor's surface stores the depth of every cut. The vertex
-    shader pushes the shell inward by that depth, and the fragment shader blends from rock to an emissive, faceted
-    crystal with a pale rim.
-  - The more you cut, the more it glows.
-  - Instanced crystal shards also break off and fall into the crater.
-  - A low-poly proxy casts the shadow.
-- **Characters:** skinned, rigged low-poly people (CC0 or our own; the source and license are recorded) in several
-  outfits: the hero prospector with a hat and scarf, workers, a shopkeeper, tourists with cameras, a bus driver.
-  They have animation states for walk, run, carry, idle, cheer and mine. The crowd is instanced: up to 300 people as
-  body + head InstancedMeshes, vertex-coloured, with bobbing and cheering.
-- **Environments:** the crater square, a wooden boardwalk shop deck, the canyon road and bridge, the ghost town (6
-  buildings that come back to life), the cable car line, the stargazer deck and Main Street. There are canyon walls
-  and mesas in the background layers. Every district has small props: cacti, barrels, windmills, bunting, signs and
-  carts.
-- **Lighting:** one sun with soft shadows that follow the camera, hemisphere fill, and warm bounce. Its colour and
-  angle follow the day-to-night timeline. Dusk adds pooled lamp lights: fake point lights (additive ground decals
-  plus glow sprites) instead of real lights.
-- **Camera:** a fixed 3/4 view, portrait-framed, with the meteor on a diagonal at the top. It follows the hero
-  smoothly. Showcase moves are short (2–3 s) eased pans and zoom-outs. Camera shake on the crash, on unlocks and on
-  the finale. A slight zoom-out as the town grows.
-- **Atmosphere:** heat haze over the sand at noon (a subtle screen-space shimmer on tier 3 only), dust devils,
-  tumbleweeds, drifting sparkles near the meteor, and fireflies at dusk.
+### 4.5 Meta and returning players
 
-## 6. VFX (per interaction)
+- **Town stars:** up to 3 per chapter, earned from orders served, critters found and the town fully lit. They
+  unlock hats for the hero: cowboy, crown, astronaut, bunny ears, and more. (P0, 6 hats)
+- **Sticker album:** critters, hats, special orders. Empty slots show silhouettes, which pulls kids to find them.
+  (P0)
+- **Welcome-back gift:** a returning kid's helpers have filled a cash pile while they were away, capped at a small
+  amount. They walk over it for a big, satisfying collect. (P1)
+- **Free play after the last chapter:** the stands keep selling, eggs keep coming until the album is full, and Rush
+  keeps happening.
+
+### 4.6 Ethics guardrails (kids)
+
+- No real-money anything, no ads, no external links, no chat, no personal data.
+- No streak punishment.
+- Egg odds are generous and fixed, with a pity counter.
+- No "come back or lose it" messages.
+
+## 5. Art and 3D direction (Game Quality Standard, luxury without glare)
+
+### 5.1 Style
+- Polished, toy-like stylised 3D, in the spirit of a premium kids' animated film set: rounded chunky forms, soft
+  bevels everywhere, readable silhouettes.
+- No bare primitives. Every prop gets trim, a secondary shape and wear. For example, a water tower has planks,
+  bands, a ladder, a drip, a painted logo and a bird on top.
+
+### 5.2 Palette and lighting story
+- **World:** warm desert. Terracotta, apricot sand, bleached wood, sage plants, turquoise accents.
+- **Meteor and gems:** cool crystal. Magenta, violet and cyan. These are the only cool, glowing colours, so a kid's
+  eye always finds the treasure.
+- **Machines:** mint-teal with brass.
+- **People and critters:** candy accents.
+- **Time of day as progress:** noon (unlocks 1–4) → afternoon (5–8) → golden hour (9–10) → dusk (11–13) → night
+  (finale).
+  - The sun's colour, angle, shadow softness, fog colour and sky gradient follow a curve in `config.js`.
+  - The town gets prettier as you progress.
+
+### 5.3 The meteor (hero object)
+- A charred, cratered rock shell over a faceted crystal interior.
+- **Persistent cuts:** a cut-field texture stores the depth of each cut. The vertex shader pushes the shell inward
+  and the fragment shader blends rock to glowing crystal, with a cooling ember rim.
+- The more you mine, the brighter the crystal glow (it feeds the bloom mask).
+- Shards break off as instanced, faceted pieces. Eggs are visibly lodged in the cracks before they drop, which
+  builds anticipation.
+- A low-poly proxy casts the shadow.
+
+### 5.4 Gems that look expensive
+- Real cut shapes: brilliant, emerald cut, heart, star, pear. Each gem shape has its own colour, so kids who can't
+  tell colours apart can tell gems by shape.
+- Material:
+  - A small prefiltered environment map, baked once from a procedural gradient "jewellery studio" scene, for
+    sparkle.
+  - A facet-normal pattern plus a fake inner-refraction look: a dispersion tint by view angle.
+  - A tiny star twinkle sprite on the highest facet, drawn with a soft falloff (no hard white).
+- The same material is used on rings, crowns and the heart gem, so everything precious reads as one family.
+
+### 5.5 Characters and critters
+- **People:** rigged low-poly characters (CC0 or our own, with the source recorded) in several outfits.
+  - The hero prospector has 6 hats.
+  - Others: the armadillo shopkeeper, the mayor (a tortoise with a sash), the bus driver, tourist families.
+  - Animations: walk, run, carry, idle, mine, cheer, wave and a little dance.
+  - The crowd is instanced (≤ 300), with idle variety: waving, taking photos, kids on parents' shoulders.
+- **Crystal critters:** chunky, cute animals with a crystal body part. For example: a gem-backed armadillo pup, a
+  quartz bunny, a geode turtle, a crystal fox, an opal owl, a ruby lizard.
+  - Each has a blink, a bounce walk and a happy spin. Shiny and rare versions have an animated iridescent shader.
+  - They follow the hero in a parade with a slight lag and spring.
+
+### 5.6 Glare budget (luxury, not dazzling)
+- Bloom applies **only** to a selective mask: the meteor crystal, gems, lasers, neon and lamps. The threshold is
+  high, the radius is wide and soft, and the intensity is capped.
+- ACES tone mapping and a gentle warm grade. No pure white anywhere in the scene. Specular highlights are clamped.
+- **Measured:** the existing `glare()` / `contrast.js` checks from the repo's audit (ASTROCADE.md §5) run on every
+  evidence screenshot.
+  - Pass rule: under 2% of pixels near white, and no bloom halo over a pad or the HUD.
+  - The exact numbers are set in M1 and stored in `config.js`.
+
+### 5.7 A world that is alive (P0 unless marked)
+- **Always moving:** windmills, bunting and flags in the wind, cactus flowers swaying, cloud shadows sliding over
+  the canyon, birds that take off when the hero runs near (P1), dust devils, a tumbleweed now and then.
+- **Townsfolk vignettes:** kids playing ball, a dog chasing its tail, a photographer setting up, a band on the
+  stargazer deck at dusk (P1).
+- **Reactions:** people point and cheer at each unlock. Critters react to Rush (dance) and to eggs (gather round).
+- **Night:** a starry sky that turns slowly, fireflies, lit windows, a soft aurora from the meteor's heart.
+
+### 5.8 Camera
+- A fixed 3/4 view, portrait-framed, with the meteor on a diagonal at the top. It follows the hero smoothly with a
+  little look-ahead in the direction of movement.
+- **Showcase moves:** 1.5–2.5 s eased pans and zooms, with a subtle letterbox (6% bars), then control comes back.
+  Kids can skip any showcase with a tap.
+- **Shake:** short, decaying and small. The crash and the finale are the biggest. Never long or nauseating.
+
+## 6. VFX and animation
+
+### 6.1 Layering rule
+Every gameplay effect has three layers:
+- **Anticipation:** 50–150 ms, for example a squash before a hit or a glow build-up.
+- **Impact:** a burst, light, sound, a 40–80 ms hit-stop on big moments only.
+- **Afterglow:** sparkles drifting, a ring fading, a number floating.
+
+### 6.2 Per interaction
 
 | Interaction | Effect |
 |---|---|
-| Pickaxe hit | Crystal sparkle burst, rock dust puff, a small shard that hops to the pile, a tick sound |
-| Drill or laser cutting | Spinning bit or beam with a heat glow at the contact point, a continuous spark stream, shards arcing out, a cut line that glows and then cools |
-| Chunk lands on pile or stack | Squash-and-settle bounce, a faint glint |
-| Polishing wheel | Sparks in a fan, a gem pops out with a star glint and a rising chime |
-| Sale | Coin and bill arc to the cash pile; "+$" floats up; a happy bubble over the buyer |
-| Cash collect | A stream of bills flies to the hero's back stack, with a pitched tick that climbs |
-| Paying a pad | Bills arc into the pad, a green fill sweeps up, and the pad pulses on each payment |
-| Unlock | Shockwave ring on the ground, a column of light, confetti and sparkle, the new object rises with an overshoot tween, camera showcase, banner |
-| Customer waits too long | Their gem bubble turns to an impatient face after 9 s. It is only a hint: nothing is lost |
-| Crash (opening) | Fireball trail, ground shockwave, debris and planks, dust ring, panic bubbles, screen shake |
-| Finale | Crack lines spread over the meteor, shell pieces fall away with dust, the heart gem rises with god rays and bloom, gem rain, fireworks over each district |
-| World alive | Windmills turn, bunting flaps, cart wheels spin, crowd idles and cheers, dust devils pass, smoke curls from the bus, lamps flicker on in order |
+| Pickaxe hit | Squash on the hero, crystal sparkle, a rock dust puff, shards hopping to the pile, a tick |
+| Perfect Strike (glint) | A star-shaped flash, a ring shockwave, 3× shards, a rising chime, a tiny hit-stop |
+| Drill / laser | Spinning bit or beam, a heat glow at the contact point, a spark stream, glowing cut lines that cool |
+| Chunk lands on a stack | A squash-and-settle bounce, a glint |
+| Polishing | A spark fan; the gem pops out with a twinkle and a pitch-up chime |
+| Sale | A coin and bill arc to the pile, a "+$" float, a happy bubble, a heart |
+| Order served | A heart burst, a sticker flies into the album icon (the icon bounces), the tourist kid jumps |
+| Cash collect | A stream of bills flying to the hero's back, with a climbing tick |
+| Paying a pad | Bills arc in, a green fill sweeps up, the pad pulses on each payment |
+| Unlock | A ground shockwave, a soft light column, confetti, the new object rises with an overshoot, a showcase, an icon banner |
+| Egg hatch | The egg wobbles faster, cracks with light leaking out, bursts, the critter's reveal pose with a spotlight, a name jingle, a rarity aura |
+| Crystal Rush | The meteor flares, a golden tint eases in, chunks rain, coins fizz out of the ground, a sting and a faster music stem |
+| Finale | Cracks race over the shell, the shell falls in slow motion, god rays, the heart rises, a legendary hatch, gem rain, fireworks per district |
+| Hand-off | The comet streaks across with a shimmering tail, a star burst on the map icon |
+| Idle hint (no input for 6 s) | The goal arrow bounces bigger, and a critter runs to the target and waves |
 
-All particles come from pooled InstancedMeshes or one GPU point system. Nothing is allocated during play.
+### 6.3 Transitions and UI motion
+- **Tween and spring kit:** every number counts up like an odometer. Panels spring in with a slight overshoot.
+  Icons bounce when something reaches them.
+- **Chapter change:** an iris wipe in the shape of a gem, a ribbon title card with a hand-drawn chapter icon, and the
+  new place assembling with pieces dropping in.
+- **Showcases:** the letterbox eases in and out over 0.25 s, and the banner slides in with a bounce.
+- **Album and map:** a book-opening animation and page flips; stickers peel and stick.
+- **Pads:** they pop up out of the ground with dust, then breathe gently while waiting.
+- **Squash-and-stretch rules:** a scale budget of ±15% on hits, ±8% on idle breathing. Items always land with a
+  settle.
+
+### 6.4 Effect budgets
+- All particles come from pooled InstancedMeshes or one GPU point system, with a fixed count per tier. Nothing is
+  allocated in play.
+- At most 1 big effect (shockwave plus light column) at a time. Further ones queue for 0.3 s so the screen never
+  turns to white noise.
 
 ## 7. Audio
 
-- **Music:** one generated loop (Astrocade `generate_music`): a warm desert-western groove with guitar, light
-  percussion and glassy chimes, mid tempo, not busy. A dusk variant or a softer mix plays from unlock 12. It is
-  quiet under the SFX, and there is a ♫ toggle that mutes only the music.
-- **SFX:** made in code (WebAudio), plus a few generated ones:
-  - Pickaxe tink, drill whir and laser hum (pitched to speed), polishing wheel zing, gem chime on a pentatonic
-    ladder.
-  - Coin ticks that climb in pitch while collecting, a pad fill swell, an unlock fanfare (short, 3 sizes), a crowd
-    cheer, a bus horn, a cable car clank, the crash boom and rumble, the finale crack and choir pad, fireworks.
-- **Mix rules:** a limit of 1 tick per 35 ms so streams don't clip. Audio starts on the first gesture and pauses
-  when the page is hidden.
+- **Adaptive music (4 stems of one generated piece, made with Astrocade `generate_music` and cut into loops):**
+  - Base groove: guitar and light percussion.
+  - Chimes join after unlock 3.
+  - Strings and bass join after unlock 8.
+  - The dusk/night layer takes over from unlock 11.
+  - Crystal Rush raises the tempo-feel with an extra percussion stem.
+  - Stems cross-fade over 2 s. The ♫ toggle mutes only the music.
+- **SFX** (made in code with WebAudio, plus a few generated ones):
+  - Pickaxe tink, drill whir and laser hum (pitched to speed).
+  - Polisher zing, gem chime on a pentatonic ladder (never off-key).
+  - Coin ticks that climb while collecting; a pad fill swell.
+  - Unlock fanfares in 3 sizes; an egg wobble, crack and per-rarity jingle.
+  - Critter chirps, crowd cheer, bus horn, cable car clank, the crash rumble, the finale crack and choir pad,
+    fireworks.
+- **Voice-like barks (P1):** short gibberish "yay!" and "ooh!" from the mayor and critters, so meaning comes without
+  text.
+- **Kid and parent comfort:**
+  - ±8% pitch randomisation on repeats.
+  - At most 1 tick per 35 ms.
+  - Big sounds are limited to 1 every 2 s.
+  - The master level sits under the platform's usual loudness.
+  - Audio starts on the first gesture and pauses when the page is hidden.
+  - The feed preview is muted, so the opening must read without sound.
 
 ## 8. UI
 
-- **HUD:** a cash pill (top-left) with a 3D-styled bill icon that bumps on each collect. A NEXT card under it shows
-  the upgrade name, a fill bar and "$have / $price". The ♫ and ↻ buttons are small and translucent in the top-right
-  corners, away from the thumb.
-- **In world:** mining circle, pickup rings, price pads (icon, price, level tag, fill), a bouncing arrow over the
-  current goal, an animated chevron trail on the floor to an affordable pad, and a "MAX" tag over a full stack.
-- **Banners:** a one-line pill at about 15% from the top, at most 2 s, saying what the unlock does.
-- **Screens:** CONTINUE / NEW GAME card (returning players only), the end card, and a loading state that stays up
-  until the restored scene has drawn. There is no title screen and no settings page.
-- **Style:** rounded, chunky, warm cards with a soft inner shadow and a brass edge, matching the game's palette. No
-  plain web buttons and no clutter.
-- **7 languages:** banners, NEXT names and the end card all come from one string table.
+- **Style:** a diegetic premium kit. Carved wood with brass trim and crystal insets, warm cards with soft inner
+  shadows. No plain web buttons, no clutter.
+- **HUD:**
+  - Top-left: the cash counter with a coin icon (odometer count-up, bumps on collect).
+  - Under it: a NEXT card made only of icons (the upgrade's icon, a fill bar, the coin amount).
+  - The current district goal shows as a portrait plus 3 slots when one is active.
+  - Top-right: small ♫ and ↻ buttons.
+  - Bottom corners: the album book and the chapter map. Each gets a badge dot when there is something new.
+- **In world:** the mining circle, pickup rings, price pads (icon, price, fill), a bouncing goal arrow, a chevron
+  trail to an affordable pad, a "MAX" tag, glints, order bubbles, egg markers.
+- **Banners:** icon-first (a big icon plus at most 3 words), shown up to 2 s, in a fixed place that never covers the
+  hero.
+- **Screens:**
+  - The CONTINUE / NEW GAME card (stars, critters, chapter).
+  - The album, with silhouettes for unfound stickers.
+  - The chapter map (1 lit, 2 glowing "new", 3 locked with a "?").
+  - The celebration card.
+  - A loading state that stays until the restored scene has drawn.
+- **7 languages, including Arabic:** one string table, and layout mirroring where it matters (UI only, not the
+  world).
+- **Readability:** text has outlines and sits on dark plates. A contrast check runs on every evidence screenshot
+  (`contrast.js`).
 
-## 9. Performance plan (stable 60 FPS on mid-range phones)
+## 9. Performance plan (stable 60 FPS on mid-range phones, playable on cheap ones)
 
-- **Budgets (tier 2, a mid phone):** ≤ 120 draw calls, ≤ 350K triangles, ≤ 60 live textures, 1 shadow-casting light
-  at 1024², pixel ratio ≤ 1.5.
-- **Instancing and pooling:** crowd, bills, chunks, gems, rings, crowns, shards, sparks, dust and confetti all use
-  fixed-size InstancedMeshes with ring-buffer pools.
-- **Geometry:** static districts are merged into one mesh per material when they are built, and the meteor's shadow
-  comes from a proxy.
-- **Materials:** a shared material set (one per palette role) and a vertex-colour atlas for props.
-- **Lighting:** dusk lamps are glow sprites and ground decals, not real lights.
-- **Adaptive quality (4 tiers, tuning in `config.js`):** the tier is picked at start from the device and dropped live
-  when the average frame time stays above budget. Tier 0 is a safe floor that always holds 60.
-  - Tier 3: glow/bloom pass (bright things only: meteor crystal, gems, lasers, neon), ACES tone mapping and a
-    colour grade, soft shadows, heat haze.
-  - Tier 2: the same without heat haze, at a lower pixel ratio.
-  - Tier 1: no bloom pass (emissive colours do the job), shadow map updated every 2nd frame.
-  - Tier 0: pixel ratio 1.0, no shadows (contact-shadow discs remain), half the crowd.
-- **Ambient occlusion:** contact-shadow discs under props and people, plus baked vertex AO on merged districts. No
-  real-time SSAO on phones.
-- **Canvas textures:** a fixed pool. Floating texts use one shared atlas and pooled sprites, and price pads redraw
-  their own canvas in place. Nothing is created per event (see §11, fix B).
+- **Budgets per tier (tier 2 = mid phone):** ≤ 120 draw calls, ≤ 350K triangles, ≤ 60 live textures, ≤ 150 MB GPU
+  memory, 1 shadow-casting light at 1024², pixel ratio ≤ 1.5.
+- **Instancing and pooling:** the crowd (≤ 300), critters (≤ 24 on screen, skinned, with animation LOD: idle
+  critters update at half rate), bills, chunks, gems, rings, crowns, shards, sparks, dust, confetti and fireworks.
+- **Geometry:** static districts are merged per material when built. Districts that are off-screen during a chapter
+  are hidden. The meteor shadow comes from a proxy.
+- **Shared kit:** one material per palette role, a vertex-colour atlas for props, one gem material with instance
+  colour, one env map (128 px, baked once).
+- **Lighting:** a single sun with a shadow. Lamps are glow sprites plus ground decals, not real lights.
+- **Adaptive quality, 4 tiers (tuning in `config.js`):** picked at start and dropped live when the frame time stays
+  above budget. Tier 0 always holds 60.
+  - Tier 3: selective bloom, ACES and grade, soft shadows, heat haze, full crowd.
+  - Tier 2: no heat haze, lower pixel ratio.
+  - Tier 1: no bloom pass (emissive does the job), shadow every 2nd frame, 70% crowd.
+  - Tier 0: pixel ratio 1.0, no shadow map (contact discs remain), half crowd, fewer particles.
+- **Ambient occlusion:** contact-shadow discs plus baked vertex AO. No real-time SSAO on phones.
+- **Canvas textures:** a fixed pool; floating text on one atlas; pads redraw in place (fix B).
+- **Robustness:**
+  - WebGL context-loss recovery: rebuild from the current state.
+  - `run()` may be called more than once.
+  - Edit mode draws a live scene with no input and no save.
+  - `console.error` is reserved for real faults.
 
 ## 10. Test plan
 
-**Automated (Node tests, run in CI):**
-- `logic.js` is pure and has no three.js. It holds the economy, stacks, unlock order, prices, conversion rates,
-  helper behaviour and the guide's target choice. Unit tests (`logic.test.mjs`) cover:
-  - Prices and order.
-  - 3 chunks make 1 gem, and gem + silver make a ring.
-  - Stacks respect their capacity.
-  - The guide never returns a target that accepts nothing (fix A).
-  - Save → load round-trips to the same state.
-  - A full simulated run reaches the finale with no stall longer than 20 s (headless, no rendering).
-- A bot playthrough (Playwright, `?bot`, deterministic `__step`):
-  - Plays from crash to end card.
-  - Records the time of each unlock against the targets in §4.
-  - Fails on any page error, any stall, or more than 60 live textures (fix B).
-  - Saves one screenshot per unlock.
-- Repo checks: syntax, JSON, "THREE at import", upload set (`tools/ci-checks.sh`), plus the Astrocade bundle test.
+**Automated (in CI):**
+- `logic.js` is pure (no three.js): the economy, stacks, unlock order, prices, orders, egg rolls with the pity
+  counter, Rush timing, chapter flow and the guide's target choice. Unit tests (`logic.test.mjs`) check:
+  - The guide never points at a target that accepts nothing (fix A).
+  - Every egg roll stays within the fixed odds, and the pity counter works.
+  - Save → load round-trips through chapter boundaries.
+  - A full headless simulation of chapters 1 (and 2) finishes with no stall over 20 s, and with every wait under
+    30 s.
+  - A **session pacing check:** a "reward event" (unlock, hatch, order, Rush, bus) happens at least every 45 s
+    across the whole run.
+- **Bot playthrough** (Playwright, `?bot`, deterministic `__step`):
+  - Plays from the crash through the chapter 2 hand-off.
+  - Records the time of each unlock against §4.2.
+  - Fails on a page error, a stall, or more than 60 live textures (fix B).
+  - Saves one screenshot per unlock and per event.
+- **The repo's audit order** (ASTROCADE.md §5): `playtest.js` (full flow, random input, edit mode, `run()` twice,
+  late/failed/corrupt saves, second finger, 7 languages), `soak.js` (leaks), `ci-checks.sh`, the bundle test, and
+  one fresh bug hunter.
 
 **By play and screenshots (retained in `production/qa/evidence/meteor-gem-works/`):**
-- One screenshot per milestone screen: opening crash, first sale, each district, dusk Main Street, finale, end card,
-  CONTINUE card.
-- A 60 FPS check at a mobile viewport (390×844): frame time from a real GPU run (the owner's phone or the Astrocade
-  draft analytics showing "Optimal"). SwiftShader numbers from CI are not used as FPS evidence.
-- A feel check:
-  - Does the first unlock land within 30 s?
-  - Does every unlock read without text?
-  - Is the bloom tasteful, with gameplay still readable?
+- Every screen and event: opening, first strike, first hatch, order, Rush, each district, dusk, finale, hand-off,
+  album, map, CONTINUE card, Arabic layout.
+- Glare and contrast checks pass on all of them (§5.6).
+- A **no-text check:** play with the language set to one the tester can't read. Is every step still clear?
+- 60 FPS at a mobile viewport (390×844), from a real GPU: the owner's phone or the Astrocade draft analytics showing
+  "Optimal". SwiftShader numbers are not FPS evidence.
+- **A kid playtest if possible (recommended, the owner's choice):** watch one child play for 10 minutes without
+  helping, and note where they stop, look lost or smile.
 
 ## 11. Fixes for the two Giant Salami Saw flaws
 
-**A. The guide never dead-ends.** In the Saw, the guide sends a player who holds a stack that no station can take
-back to the pile, which is a step that does nothing (the bot was stuck for about 7 minutes).
-- Our guide only picks a target that can accept something now.
-- If nothing can, it points to the cash or to the next pad.
-- Stations never block: when the polishers are full, an "overflow crate" next to the pile takes raw chunks and pays a
-  small amount, so carrying is never wasted.
-- Tested by the unit test and the full-run stall check (§10).
+**A. The guide never dead-ends.**
+- The guide only picks a target that can accept something now. Otherwise it points to the cash, an order or the
+  next pad.
+- Stations never block: an overflow crate takes extra chunks for a small payment.
+- Tested by a unit test and the stall check.
 
-**B. No texture leak.** The Saw makes a new canvas texture for every floating text and keeps them (1,000 textures in
-memory at the end).
-- We use pooled sprites on one text atlas and redraw pads in place.
+**B. No texture leak.**
+- Pooled sprites on one text atlas, and pads redraw in place.
 - The bot run fails if live textures exceed 60.
-
-Other Saw lessons we keep: the 5 s cold open, the persistent carve shader, a new kind of unlock every 15–35 s with a
-showcase, a finale with an end card, a save that replays unlocks and never overwrites an unreadable save, and a bot
-driven by the same function as the player's guide.
 
 ## 12. Milestones
 
 | # | Milestone | Done means |
 |---|---|---|
-| M1 | **Visual sample** | Crater square, meteor with the carve shader and glow, the hero mining, the chunk pile, one polisher, one stand with tourists, the HUD, the look pass (tone map, grade, bloom on tier 3). Screenshots go to the owner for approval of the look **before** M2. Tier 0 runs at 60 on a mobile viewport. |
-| M2 | **Core loop + unlocks 1–7** | The whole mine → polish → sell → pay loop. Drill, conveyor, stands, shopkeeper, road repair with the bus, ring workshop, laser. Guide (fix A), save/continue, `logic.js` with tests. Bot reaches unlock 7 within about 3:30. |
-| M3 | **Whole game, unlocks 8–14** | Ghost town, rig 2, cable car, stargazer deck, crown jeweler, neon Main Street, the day-to-night timeline, the finale and end card, free play. Bot finishes in about 10–12 min with no stall. Texture budget holds (fix B). |
-| M4 | **Polish and ship** | All VFX and SFX from §6–7, the generated music, 7 languages, 4 quality tiers tuned, evidence screenshots retained, a 60 FPS check, then upload as an Astrocade draft with `/astrocade-ship`. It is not published, and the owner makes the thumbnail. |
+| M1 | **Visual sample** (look approval) | Crater square at noon and a dusk variant; the meteor with the carve shader and glow; the hero mining with a glint strike; 1 polisher and stand with tourists; one egg hatch with one critter; the gem material; the HUD frame; tone map and grade; selective bloom; glare and contrast checks passing. Screenshots go to the owner. **Her yes on the look is needed before M2.** Tier 0 holds 60 at a mobile viewport. |
+| M2 | **Core loop, unlocks 1–7** | Mine, polish, sell and pay; glints; orders; eggs with the first 6 critters; Rush; the bus; the guide (fix A); save/continue; `logic.js` and its tests. Bot reaches unlock 7 by ~3:30, with a reward event at least every 45 s. |
+| M3 | **Chapter 1 complete** | Unlocks 8–14, ghost town goal, the day-to-night curve, 12 critters, album, hats, town stars, finale and the hand-off into chapter 2 (at least the comet and the map). Adaptive music stems. Bot finishes chapter 1 in ~9–10 min with no stall and no texture leak (fix B). |
+| M4 | **Polish and first upload** | All VFX, transitions and SFX from §6–7, 7 languages with the Arabic layout, 4 tiers tuned, the full audit (§10), evidence retained, a 60 FPS check. Then upload as an Astrocade draft with `/astrocade-ship`. It is not published; the owner sets the thumbnail. |
+| M5 | **Chapter 2, "The Frost Comet"** (P1) | Ships in the first upload if M1–M4 land on time; otherwise as **named update 1**. A named update gives a second test on the platform (ASTROCADE.md §2). |
+| M6 | **Chapter 3 "Lava Meteor", more critters and hats** (P2) | Named update 2. |
 
 **Build rules:**
 - Code lives in `prototypes/meteor-gem-works/`.
-- Three.js and its add-ons are vendored (`.claude/scripts/vendor-three.sh`), and there are no network requests at
-  run time.
+- Three.js is vendored for local play. The Astrocade upload set follows the platform's multi-file rules
+  (ASTROCADE.md §4).
 - All tuning values are in `config.js`.
 - Commits reference this plan.
+
+## 13. Priority list (everything new in v2)
+
+| Priority | Item |
+|---|---|
+| **P0** | Interactive 3 s cold open with a skip on any tap · glints and Perfect Strike · orders (no timer) · critter eggs every 60–90 s with 12 critters, pity counter and parade perks · Crystal Rush · bus waves · day-to-night curve · finale → chapter 2 hand-off (no end-card exit) · album · chapter map · town stars · 6 hats · icon-first HUD and banners · no angry faces · adaptive music stems · glare and contrast budget · tween/spring kit and transitions · living-world loop (§5.7 P0 items) · 7 languages + Arabic layout · fixes A and B |
+| **P1** | Chapter 2 Frost Comet · polisher tap-boost · welcome-back gift · voice-like barks · birds and townsfolk vignettes · small surprises (puppy, hat, tumbleweed) · `lib.share` town card |
+| **P2** | Chapter 3 Lava Meteor · more critters and hats · seasonal decorations as named updates |
+
+## 14. What you might not know you don't know
+
+1. **The first 30 seconds decide whether the game lives.** Astrocade counts a "significant play" from 30 s, and our
+   own data shows the pass line is about 80% significant plus "Optimal" FPS. That is why the plan hands over control
+   by 3 s, makes the first hit by 5 s and the first unlock by 25 s, and keeps the cold open skippable.
+2. **The feed preview is silent and runs before any touch.** The opening must look like play and read without
+   sound. A tap anywhere in the preview starts play.
+3. **End screens cause exits.** A "you won" card in the middle of a session is the most common place a kid leaves.
+   v2 replaces it with a hand-off into the next chapter.
+4. **Kids replay for collection and surprise, not for numbers.** Critters, silhouettes in an album and eggs with a
+   reveal hold kids much longer than a bigger cash total.
+5. **Negative signals stick with kids.** Red angry faces, "you lost" moments and timers reduce play time for young
+   players. v2 removes all of them.
+6. **Glare is a measurable bug, not a taste question.** Bloom that looks fine on a laptop washes out on a cheap phone
+   screen. v2 measures it on every screenshot.
+7. **About a quarter of the audience reads Arabic.** Icon-first UI and a right-to-left layout matter more than
+   translating long text.
+8. **Cheap Android phones are common among kids.** The tier 0 floor and context-loss recovery are not optional.
+9. **Named updates are a second chance.** A game that stalls can get a new test on the platform after an update,
+   which is why chapter 2 is planned as an update if it doesn't fit the first upload.
+10. **Ethics are a design rule.** No pay-to-win, no fear of missing out, generous fixed odds: this keeps the game
+    safe for kids and keeps parents happy.
+11. **Haptics don't exist on the web version of the platform.** All "feel" must come from sight and sound.
+12. **Scope is the main risk.** The P0/P1/P2 split and the M1 look approval are there so the first upload ships with a
+    complete, polished chapter instead of two half-finished ones.
