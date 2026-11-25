@@ -135,3 +135,22 @@ test('small objects grow back in the current zone; numbered ones do not', () => 
 test('a rebirth (x2) run is faster', () => {
   assert.ok(sim(4, 2).R.slams <= sim(4, 1).R.slams);
 });
+
+test('the shockwave breaks small objects just outside the direct reach, never numbered ones', () => {
+  const R = L.createRun(cfg, L.rng(2));
+  R.L = 50;
+  const r = L.reach(cfg, R.L), rs = r * cfg.growth.splash;
+  const z0 = R.objects.filter((o) => o.zone === 0 && o.alive);
+  // a spot where some small object sits in the splash ring only
+  let spot = null, ring = null;
+  for (const c of z0) for (const o of z0) {
+    const d = Math.hypot(o.x - c.x, o.z - c.z);
+    if (L.isSmall(o) && d > r + o.r * 0.6 + 0.05 && d < rs + o.r * 0.6 - 0.05) { spot = c; ring = o; break; }
+    if (spot) break;
+  }
+  assert.ok(spot, 'a test spot exists');
+  const big = z0.filter((o) => !L.isSmall(o) && Math.hypot(o.x - spot.x, o.z - spot.z) > r + o.r * 0.6);
+  const ev = L.slam(cfg, R, spot.x, spot.z);
+  assert.ok(ev.some((e) => e.type === 'break' && e.id === ring.id && e.splash), 'the small one in the ring breaks, marked splash');
+  for (const o of big) assert.ok(o.alive, `${o.kind} outside the direct reach stays`);
+});

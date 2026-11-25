@@ -302,6 +302,8 @@ export function createScene(canvas, cfg, random) {
     const m = marks[mNext]; mNext = (mNext + 1) % marks.length; m.life = 4; m.m.position.set(x, 0.02, z); const ms = R * 2.2; m.m.scale.set(ms, ms, 1); m.m.rotation.z = random() * 6.28; m.m.visible = true;
     puff(x, z, big ? 10 : 6, R * 0.6);
   }
+  /** A lone shockwave ring of diameter size at (x, z), lasting life seconds (the tier-up ring). */
+  function ring(x, z, size, life) { const g = rings[rNext]; rNext = (rNext + 1) % rings.length; g.life = g.max = life; g.size = size; g.m.position.set(x, 0.05, z); g.m.visible = true; }
   /** Confetti-coloured debris rain over a zone when it clears. */
   function confetti(x, z) {
     for (let k = 0; k < 60; k++) {
@@ -342,15 +344,20 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---- camera: follows a focus point, pulls back and up as the hammer grows, trauma shake decays
-  const cam = { focus: new THREE.Vector3(0, 0, 0), k: 1, trauma: 0, t: 0 };
-  function updateCamera(dt, focusZ, scale) {
+  const cam = { focus: new THREE.Vector3(0, 0, 0), k: 1, trauma: 0, t: 0, punch: 0, kick: 0 };
+  function updateCamera(dt, focusZ, scale, focusX = 0) {
     cam.focus.z += (focusZ - cam.focus.z) * Math.min(1, dt * cfg.camera.follow);
+    cam.focus.x += (focusX - cam.focus.x) * Math.min(1, dt * cfg.camera.follow * 0.6);
     const k = 1 + cfg.camera.growK * (scale - 1); cam.k += (k - cam.k) * Math.min(1, dt * 2.5);
     scene.fog.near = 26 * cam.k; scene.fog.far = 70 * cam.k; labelK = 0.6 + cam.k * 0.4;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6); cam.t += dt;
+    // tier-up punch-in (pulls the camera in, then lets go) and the FOV kick of a big hit
+    cam.punch = Math.max(0, cam.punch - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 5);
+    const pk = cam.k * (1 - cfg.fx.punch * Math.sin(cam.punch * Math.PI));
+    const fov = cfg.camera.fov + cfg.fx.fovKick * cam.kick * cam.kick; if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
     const sh = cam.trauma * cam.trauma * cfg.fx.shake;
     const ox = (Math.sin(cam.t * 41) + Math.sin(cam.t * 67) * 0.5) * sh, oy = (Math.sin(cam.t * 53) + Math.sin(cam.t * 29) * 0.5) * sh;
-    camera.position.set(cam.focus.x + ox, cfg.camera.height * cam.k + oy, cam.focus.z + cfg.camera.back * cam.k);
+    camera.position.set(cam.focus.x + ox, cfg.camera.height * pk + oy, cam.focus.z + cfg.camera.back * pk);
     camera.lookAt(cam.focus.x, 0, cam.focus.z - cfg.camera.look);
     // the sun's shadow box follows the view and grows with it
     const ext = 7 * cam.k;
@@ -450,6 +457,11 @@ export function createScene(canvas, cfg, random) {
     regrow(id) { const e = byId[id]; if (e) { e.hidden = false; e.grow = 0; } },
     open(id, L) { const e = byId[id]; if (e) { e.pop = 1; relabel(id, L); } },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
+    /** Tier-up camera punch-in (a = 1 for the full move). */
+    punch(a) { cam.punch = a; },
+    /** FOV kick of a big hit. */
+    kick(a) { cam.kick = Math.max(cam.kick, a); },
+    ring,
     gems, updateGems,
     get post() { return !!post; },
     render: draw,

@@ -106,19 +106,23 @@ export function tick(cfg, R, dt) {
 
 /**
  * A slam landing at (x, z). Returns the events in order:
- * hit {id, hp} (a multi-hit object took a hit and holds), break {id, gain}, bonk {id} (in reach but too big), grow {L, from}, tier {tier}, open {id} (a labelled object is
+ * hit {id, hp} (a multi-hit object took a hit and holds), break {id, gain, d, splash} (splash: a small object
+ * broken by the shockwave, outside the direct reach), bonk {id} (in reach but too big), grow {L, from}, tier {tier}, open {id} (a labelled object is
  * now breakable), clear {zone}, done. Only the current zone's objects can be hit.
  */
 export function slam(cfg, R, x, z) {
   const ev = [];
   if (R.done) return ev;
   R.slams++;
-  const r = reach(cfg, R.L), from = R.L;
-  const hit = [], bonk = [];
+  const r = reach(cfg, R.L), from = R.L, rs = r * (cfg.growth.splash || 1);
+  const hit = [], bonk = [], dist = new Map();
   for (const o of R.objects) {
     if (!o.alive || o.zone !== R.zone) continue;
-    if (Math.hypot(o.x - x, o.z - z) > r + o.r * 0.6) continue;
-    (o.req <= R.L ? hit : bonk).push(o);
+    const d = Math.hypot(o.x - x, o.z - z);
+    if (d <= r + o.r * 0.6) (o.req <= R.L ? hit : bonk).push(o);
+    else if (isSmall(o) && d <= rs + o.r * 0.6) hit.push(o); // the shockwave: small things around the hit break too
+    else continue;
+    dist.set(o.id, d);
   }
   for (const o of bonk) ev.push({ type: 'bonk', id: o.id, req: o.req });
   if (!hit.length) return ev;
@@ -130,7 +134,7 @@ export function slam(cfg, R, x, z) {
     if (isSmall(o)) o.regrow = cfg.growth.respawn;
     const g = valueOf(cfg, o.req, o.v) * R.mult;
     gain += g;
-    ev.push({ type: 'break', id: o.id, gain: g });
+    ev.push({ type: 'break', id: o.id, gain: g, d: dist.get(o.id), splash: dist.get(o.id) > r + o.r * 0.6 });
   }
   if (!gain) return ev;
   const wasOpen = new Set(R.objects.filter((o) => o.alive && o.req <= R.L).map((o) => o.id));

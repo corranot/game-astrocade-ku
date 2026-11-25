@@ -49,6 +49,20 @@ Doc "+1 Mega Hammer — Plan Game".
   debris colours land on the right chunk, two `run()` calls before three.js arrives start one game.
 - Saved as an unpublished draft only; no thumbnail (the owner makes it), no publish.
 
+## Upgrade (owner-approved 2026-11-25, plan in `UPGRADE-PROMPT.md`)
+
+### Stage 1: giant hammer, heavy hits
+
+- The drawn hammer grows as `s ^ hammer.visExp` while its reach stays `hitR x s`. The camera pulls back more
+  slowly (`camera.growK` 0.38) and leans towards the hammer (`camera.aimW`, `camera.aimX`), so the head stays in
+  frame. The hammer's on-screen size grows about 2.7x over a run.
+- Shockwave: small objects within `growth.splash` x the reach break too, popping outward in a ripple with one "+N".
+  Numbered objects still need a direct hit.
+- Tier-up moment: slow motion (`fx.tierSlowMo` s at `fx.tierSlowScale`), a camera punch-in, a ring three reaches
+  wide, the overshoot and a "WHOOM".
+- Swing: a wind-up (`hammer.windup`), a head squash on impact (`fx.squash`), an FOV kick on big hits, and a combo
+  chip from `fx.comboShow` breaks in a row.
+
 ## How to run
 
 Serve this folder and open `index.html?local`. Options: `&tier=0..3` forces a quality tier, `&speed=N` runs N

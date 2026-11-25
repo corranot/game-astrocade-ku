@@ -51,6 +51,13 @@ const Sound = (() => {
     bonk() { if (!ctx) return; tone('square', 210, 150, 0.1, 0.08); tone('sine', 330, 240, 0.12, 0.1); },
     ding(combo) { if (!ctx) return; const n = PENTA[Math.min(PENTA.length - 1, combo - 1)]; tone('triangle', 660 * 2 ** (n / 12), 660 * 2 ** (n / 12), 0.22, 0.14); tone('sine', 1320 * 2 ** (n / 12), 1320 * 2 ** (n / 12), 0.12, 0.05); },
     grow() { if (!ctx) return; tone('sine', 90, 55, 0.35, 0.3); },
+    /** Tier-up "WHOOM": a noise sweep rising from 180 Hz to 2.6 kHz over a sub drop. */
+    whoom() {
+      if (!ctx) return; const t = ctx.currentTime, s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noise; fl.type = 'bandpass'; fl.Q.value = 1.4; fl.frequency.setValueAtTime(180, t); fl.frequency.exponentialRampToValueAtTime(2600, t + 0.55);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+      s.connect(fl).connect(g).connect(master); s.start(t); s.stop(t + 0.8); tone('sine', 120, 38, 0.7, 0.45);
+    },
     /** A gem lands in the hammer: a bright tick that climbs with each gem of the burst (k). */
     gem(k) { if (!ctx) return; const n = PENTA[k % PENTA.length]; tone('sine', 1760 * 2 ** (n / 12), 1760 * 2 ** (n / 12), 0.08, 0.05); },
     fanfare() { if (!ctx) return; [0, 4, 7, 12].forEach((n, i) => { tone('triangle', 523 * 2 ** (n / 12), 523 * 2 ** (n / 12), 0.3, 0.13, i * 0.09); tone('sine', 261 * 2 ** (n / 12), 261 * 2 ** (n / 12), 0.35, 0.08, i * 0.09); }); },
@@ -128,12 +135,14 @@ export function run(mode = 'play') {
   const persist = () => { if (mode === 'play' && saveLoaded) Promise.resolve().then(() => lib.saveUserGameState({ ...save })).catch(() => {}); };
 
   let mult = 1, R = null, touched = false, alive = true, raf = 0, last = 0, hitstop = 0, banner = 0, frames = [], tierCheckT = 0;
-  const swing = { phase: 'idle', t: 0, x: 0, z: 0, queued: null };
+  const swing = { phase: 'idle', t: 0, x: 0, z: 0, queued: null, ang: 1.35, from: 1.35 };
+  const TOP = 1.75; // the wind-up lifts the hammer past its rest angle (1.35 rad) before it comes down
   const aim = { x: 0, z: 0, tx: 0, tz: 0 };
   const hold = { on: false, sx: 0.5, sy: 0.6, t: 0 };
   let demoT = 0;
 
   function newRun() {
+    pend.length = 0; shownCombo = 0; comboT = 0; if ($('combo')) $('combo').hidden = true;
     R = L.createRun(cfg, random, mult);
     scene.setObjects(R.objects, R.L);
     scene.hammer.setTier(0);
@@ -179,36 +188,52 @@ export function run(mode = 'play') {
 
   // ---------------------------------------------------------------- slams
   function startSlam(x, z) {
-    if (swing.phase === 'down') { swing.queued = { x, z }; return; }
-    swing.phase = 'down'; swing.t = 0; swing.x = x; swing.z = z; aim.tx = x; aim.tz = z;
+    if (swing.phase === 'down' || swing.phase === 'wind') { swing.queued = { x, z }; return; }
+    swing.phase = 'wind'; swing.t = 0; swing.from = swing.ang; swing.x = x; swing.z = z; aim.tx = x; aim.tz = z;
   }
   function land() {
     const s = L.hammerScale(cfg, R.L), reach = L.reach(cfg, R.L);
     const ev = L.slam(cfg, R, swing.x, swing.z);
-    let broke = 0, bigHit = false, gainSum = 0;
+    let broke = 0, bigHit = false, gainSum = 0, splashSum = 0;
     Sound.thud(s);
     for (const e of ev) {
-      if (e.type === 'break') {
+      if (e.type === 'break' && e.splash) {
+        // the shockwave: small things around the hit pop outward in a ripple, one "+N" for all of them
+        const o = R.objects[e.id]; pend.push({ id: e.id, t: (e.d - reach) / reach * cfg.fx.splashDelay * 2 + 0.02, mat: cfg.kinds[o.kind].mat });
+        splashSum += e.gain; gainSum += e.gain; broke++;
+      } else if (e.type === 'break') {
         const o = R.objects[e.id]; scene.burst(e.id); Sound.breakMat(cfg.kinds[o.kind].mat, broke); broke++; gainSum += e.gain;
         if (o.req > 1) { bigHit = true; scene.gems(o.x, o.z, o.boss ? cfg.gems.vault : Math.min(cfg.gems.max, 1 + Math.floor(Math.log10(o.req))), cfg.kinds[o.kind].r * 1.4); }
         popNumber(o.x, cfg.kinds[o.kind].r * 2, o.z, e.gain, o.req > 1);
       } else if (e.type === 'bonk') { scene.bonk(e.id); Sound.bonk(); }
       else if (e.type === 'hit') { scene.hit(e.id, R.L); Sound.clang(e.hp); bigHit = true; buzz('heavy'); }
       else if (e.type === 'open') scene.open(e.id, R.L);
-      else if (e.type === 'tier') { scene.hammer.setTier(e.tier); evolveFx = 1; Sound.evolve(); showBanner(T('evolve'), 'gold'); buzz('heavy'); if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
+      else if (e.type === 'tier') {
+        // the tier-up moment: slow motion, a camera punch-in, a golden ring three reaches wide, the hammer overshoots
+        scene.hammer.setTier(e.tier); evolveFx = 1; slowT = cfg.fx.tierSlowMo; scene.punch(1); scene.ring(swing.x, swing.z, reach * cfg.fx.tierRing, 0.9);
+        Sound.evolve(); Sound.whoom(); showBanner(T('evolve'), 'gold'); buzz('heavy'); if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
       else if (e.type === 'clear') { const Z = cfg.zones[e.zone]; scene.confetti(0, Z.z); Sound.fanfare(); showBanner(T('clear'), 'jade'); }
       else if (e.type === 'done') doneT = cfg.results.delay;
     }
+    if (splashSum) popNumber(swing.x, 0.6, swing.z, splashSum, false);
     scene.impact(swing.x, swing.z, reach, bigHit);
+    squashT = 1; if (bigHit) scene.kick(1);
     scene.shake(broke || bigHit ? (bigHit ? 0.75 : 0.45) : 0.25);
     hitstop = broke || bigHit ? (bigHit ? cfg.fx.hitstopBig : cfg.fx.hitstop) : 0;
-    if (broke) { Sound.ding(R.combo); Sound.grow(); growFx = 1; buzz(bigHit ? 'medium' : 'light'); }
+    if (broke) { Sound.ding(R.combo); Sound.grow(); growFx = 1; buzz(bigHit ? 'medium' : 'light'); showCombo(); }
     // every label that is now within reach of the new size turns green
     for (const o of R.objects) if (o.alive && o.req > 1) scene.relabel(o.id, R.L);
     renderTop();
     if (touched && mode === 'play' && R.L > save.best) save.best = R.L;
   }
-  let evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0;
+  let evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0, slowT = 0, squashT = 0, comboT = 0, shownCombo = 0;
+  const pend = []; // splash breaks waiting for their ripple delay
+  /** The combo chip under the progress bar: shown from cfg.fx.comboShow breaks in a row, pops on every step. */
+  function showCombo() {
+    if (R.combo < cfg.fx.comboShow || R.combo === shownCombo) return;
+    shownCombo = R.combo; const c = $('combo'); c.textContent = '\u00d7' + R.combo + ' ' + T('combo');
+    c.hidden = false; c.classList.remove('pop2'); void c.offsetWidth; c.classList.add('pop2'); comboT = cfg.growth.combo;
+  }
 
   // ---------------------------------------------------------------- input: tap = slam there, hold = slam again
   const rect = () => root.getBoundingClientRect();
@@ -266,8 +291,11 @@ export function run(mode = 'play') {
     aim.x += (aim.tx - aim.x) * Math.min(1, dt * 14); aim.z += (aim.tz - aim.z) * Math.min(1, dt * 14);
     // swing curve: raised at 1.35 rad, down to 0 in cfg.hammer.swing, back up in cfg.hammer.recover
     let ang = 1.35 + Math.sin(R.t * 2.2) * 0.06;
-    if (swing.phase === 'down') {
-      swing.t += dt; const k = Math.min(1, swing.t / cfg.hammer.swing); ang = 1.35 * (1 - k * k);
+    if (swing.phase === 'wind') {
+      swing.t += dt; const k = Math.min(1, swing.t / cfg.hammer.windup); ang = swing.from + (TOP - swing.from) * (1 - (1 - k) * (1 - k));
+      if (k >= 1) { swing.phase = 'down'; swing.t = 0; }
+    } else if (swing.phase === 'down') {
+      swing.t += dt; const k = Math.min(1, swing.t / cfg.hammer.swing); ang = TOP * (1 - k * k);
       if (k >= 1) { land(); swing.phase = 'up'; swing.t = 0; }
     } else if (swing.phase === 'up') {
       swing.t += dt; const k = Math.min(1, swing.t / cfg.hammer.recover); ang = 1.35 * (1 - (1 - k) * (1 - k)) - Math.sin(k * Math.PI) * 0.1;
@@ -276,16 +304,24 @@ export function run(mode = 'play') {
       swing.t += dt; const k = Math.min(1, swing.t / 0.5); ang = 1.35 - Math.sin(k * Math.PI) * 1.0;
       if (k >= 1) swing.phase = 'idle';
     }
-    growFx = Math.max(0, growFx - dt * 3); evolveFx = Math.max(0, evolveFx - dt * 1.2);
+    swing.ang = ang;
+    growFx = Math.max(0, growFx - dt * 3); evolveFx = Math.max(0, evolveFx - dt * 1.2); squashT = Math.max(0, squashT - dt / cfg.fx.squash);
     const over = 1 + Math.sin(growFx * Math.PI) * 0.12 + Math.sin(evolveFx * Math.PI) * 0.35;
-    H.root.position.set(aim.x, 0, aim.z); H.root.rotation.y = cfg.hammer.yaw; H.root.scale.setScalar(s * over * cfg.hammer.model); H.pivot.rotation.x = ang;
+    // the drawn hammer grows a little faster than its reach (s ^ visExp), so it reads as giant as the camera pulls back
+    H.root.position.set(aim.x, 0, aim.z); H.root.rotation.y = cfg.hammer.yaw; H.root.scale.setScalar(Math.pow(s, cfg.hammer.visExp) * over * cfg.hammer.model); H.pivot.rotation.x = ang;
+    // the head squashes flat on impact and springs back
+    const q = Math.sin(squashT * Math.PI) * squashT; H.head.scale.set(1 + 0.22 * q, 1 - 0.3 * q, 1 + 0.22 * q);
+    for (let i = pend.length - 1; i >= 0; i--) { const p = pend[i]; p.t -= dt; if (p.t <= 0) { scene.burst(p.id); Sound.breakMat(p.mat, i % 4); pend.splice(i, 1); } }
+    if (comboT > 0) { comboT -= dt; if (comboT <= 0 || R.combo === 0) { comboT = 0; shownCombo = 0; $('combo').hidden = true; } }
     H.gem.rotation.y += dt * 2;
     scene.updateObjects(dt, R.zone);
     scene.updateFx(dt);
     const got = scene.updateGems(dt);
     if (got) { gemsGot += got; Sound.gem(gemTick++); }
     scene.updateWorld(dt);
-    scene.updateCamera(dt, (cfg.zones[R.zone].z + aim.z) / 2, s);
+    // the view leans towards the hammer (aimW in depth, aimX sideways, at most 0.3 of the zone width), so the head stays in frame
+    const Zc = cfg.zones[R.zone], fx = Math.max(-Zc.w * 0.3, Math.min(Zc.w * 0.3, aim.x * cfg.camera.aimX));
+    scene.updateCamera(dt, Zc.z * (1 - cfg.camera.aimW) + aim.z * cfg.camera.aimW, s, fx);
     if (banner > 0) { banner -= dt; if (banner <= 0) $('banner').classList.remove('show'); }
     if (doneT > 0) {
       doneT -= dt;
@@ -302,6 +338,7 @@ export function run(mode = 'play') {
     let dt = Math.min(0.05, (now - last) / 1000); last = now;
     frames.push(dt);
     if (hitstop > 0) { hitstop -= dt; dt = 0; }
+    if (slowT > 0) { slowT -= dt; dt *= cfg.fx.tierSlowScale; } // the tier-up slow motion runs on real time
     for (let i = 0; i < speed; i++) step(dt);
     if (touched) Sound.music();
     // adaptive quality: after 3 s, every 2 s, drop a tier when the median frame is slower than cfg.quality.dropMs
@@ -357,7 +394,7 @@ export function run(mode = 'play') {
       /** Client position of a world point, for tests that touch like a finger. */
       client(x, y, z) { const [sx, sy] = scene.toScreen(x, y, z), r = rect(); return [r.left + sx * r.width, r.top + sy * r.height]; },
       get card() { return card; }, get gemsGot() { return gemsGot; }, get sessT() { return sessT; },
-      get busy() { return swing.phase === 'down' || swing.phase === 'up'; },
+      get busy() { return swing.phase === 'wind' || swing.phase === 'down' || swing.phase === 'up'; },
     },
   };
   window.__mh = api;
@@ -394,6 +431,7 @@ const HTML = `
 <div class="hud">
   <div id="counter" class="counter"><span class="ham" aria-hidden="true">${hamIcon(1)}</span><b id="size" class="out">1</b><i id="mult" class="mult out" hidden></i></div>
   <div class="prog"><span id="zone" class="zone out">1/2</span><i><b id="bar"></b></i></div>
+  <div id="combo" class="combo out" hidden></div>
   <button id="mute" class="mute" aria-label="sound">🔊</button>
   <div id="pops"></div>
   <div id="banner" class="banner out"></div>
