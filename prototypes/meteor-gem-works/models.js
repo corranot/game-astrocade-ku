@@ -2,7 +2,6 @@
 // Geometry kit and models of Meteor Gem Works. Every prop is built in code from rounded, vertex-coloured parts merged
 // into one geometry (one draw call per prop kind, one shared material). Characters are small part hierarchies so they
 // can be animated. Nothing here touches THREE at import time: the Astrocade bundle runs modules before three.js loads.
-// Plan: plan.md §5 (art direction). Helpers paint/merge/rbox follow the +1 Mega Hammer kit.
 /* global THREE */
 
 /** Palette: warm desert world, cool crystal treasure, mint-teal machines, candy accents. No pure white (anti-glare). */
@@ -492,7 +491,7 @@ export function buildTumbleweed() {
   return merge(parts);
 }
 
-// ---------------------------------------------------------------- M2 unlocks
+// ---------------------------------------------------------------- unlocks 1-7
 
 /** Ring item: a brass band with a small gem on top (the gem part is drawn tinted by the instance colour). */
 export function ringGeo(s = 0.22) {
@@ -609,7 +608,7 @@ export function buildLaser() {
   return { base, head: merge(parts) };
 }
 
-// ---------------------------------------------------------------- chapter 1, unlocks 8-14 and the finale (M3)
+// ---------------------------------------------------------------- chapter 1, unlocks 8-14 and the finale
 
 /** Adds a constant float attribute (one value per vertex) to a painted geometry; returns it. */
 export function tag(g, name, v) { g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(v), 1)); return g; }

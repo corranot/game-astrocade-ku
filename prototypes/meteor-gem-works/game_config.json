@@ -222,7 +222,7 @@
       "ring": 10
     }
   },
-  "cashFlow": {
+  "coinFlow": {
     "collectEvery": 0.03,
     "payStart": 14,
     "payMax": 140,
