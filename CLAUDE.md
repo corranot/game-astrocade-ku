@@ -160,6 +160,16 @@ full plan unless they add a new game mode or rework the game.
 - **Always learn from everything.** Learn from every correction, failure,
   result and piece of feedback: write the lesson down (project memory, and the
   repo when it is a lasting rule) and apply it from then on.
+- **Astrocade sees only the game.** Everything uploaded to Astrocade (game
+  files, code comments, title, description, tags, wishes/prompts, comments,
+  replies) talks only about that game itself. Never mention or reveal our
+  workflow, repo, rules, agents, tools, skills or process there.
+- **Goal: unlimited, massive plays.** The main goal of every Astrocade game is
+  as many plays as possible, with no ceiling. Always understand and apply the
+  recommendation and distribution patterns from the Astrocade backend digs, so
+  each game gets recommended to large traffic. The playbook is
+  `docs/astrocade-distribution-playbook.md`; read it before every concept,
+  build, update and publish, and refresh it after each new backend dig.
 
 ## Context Management
 
