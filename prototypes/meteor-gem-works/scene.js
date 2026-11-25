@@ -4,7 +4,9 @@
 // where it is mined. Items (chunks, gems, coins) are three InstancedMeshes rebuilt each frame from the logic state;
 // effects are pooled (sparkle and dust points, shards, rings, flyers). A sky dome shader and the key lights blend
 // between time-of-day keys. High tiers add a glow (bloom) pass with a colour grade (copied from +1 Mega Hammer).
-// Plan: plan.md §5, §6, §9. This file only draws; logic.js owns the rules.
+// M2 adds the seven unlock buildings (rig, conveyor + polisher 2, stand 2 + lanterns, armadillo shopkeeper, canyon road
+// + tour bus, ring workshop, laser cutter), six critters in a parade, the order kid, Crystal Rush and a rim light on
+// the characters. Plan: plan.md §5, §6, §9, §12. This file only draws; logic.js owns the rules.
 /* global THREE */
 import * as M from './models.js';
 import { todBlend } from './logic.js';
@@ -15,6 +17,37 @@ const GEM_COLS = [0xd8279f, 0x1fb8e0, 0x7a3cf0, 0xf2a81e, 0x22c07a];
 function canvasTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+/**
+ * Draws an unlock's icon centred on the origin of g (about 90 px across): fg is the fill, bg the cut-out colour.
+ * Shared by the price pad face and the HUD's NEXT card (game.js draws the same icons from this function).
+ */
+export function drawIcon(g, icon, fg, bg) {
+  g.fillStyle = fg; g.strokeStyle = bg; g.lineWidth = 4; g.lineJoin = g.lineCap = 'round';
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fill(); };
+  if (icon === 'rig') {
+    rr(-14, -40, 28, 26, 4); g.beginPath(); g.moveTo(-16, -12); g.lineTo(16, -12); g.lineTo(0, 38); g.closePath(); g.fill();
+    for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(-12 + i * 3, -2 + i * 12); g.lineTo(12 - i * 3, 4 + i * 12); g.stroke(); }
+  } else if (icon === 'conveyor') {
+    rr(-44, 4, 88, 18, 9); g.fillStyle = bg; for (const x of [-32, -11, 11, 32]) { g.beginPath(); g.arc(x, 13, 5, 0, 6.3); g.fill(); }
+    g.fillStyle = fg; for (const [x, y, r] of [[-26, -10, 11], [0, -14, 13], [26, -10, 11]]) { g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r * 0.8); g.lineTo(x - r, y); g.closePath(); g.fill(); }
+  } else if (icon === 'stand') {
+    rr(-40, 4, 80, 30, 6); rr(-44, -38, 88, 14, 5); g.fillRect(-36, -24, 6, 28); g.fillRect(30, -24, 6, 28);
+    g.fillStyle = bg; g.beginPath(); g.moveTo(0, -18); g.lineTo(11, -6); g.lineTo(0, 4); g.lineTo(-11, -6); g.closePath(); g.fill();
+  } else if (icon === 'keeper') {
+    g.beginPath(); g.ellipse(0, 6, 30, 32, 0, 0, 6.3); g.fill(); g.beginPath(); g.ellipse(0, -34, 20, 9, 0, 0, 6.3); g.fill(); rr(-12, -50, 24, 18, 6);
+    g.fillStyle = bg; for (const x of [-11, 11]) { g.beginPath(); g.arc(x, 0, 5, 0, 6.3); g.fill(); } g.beginPath(); g.arc(0, 14, 9, 0.2, Math.PI - 0.2); g.stroke();
+  } else if (icon === 'road') {
+    rr(-46, -4, 92, 12, 4); for (const x of [-38, -14, 10, 34]) rr(x, -22, 6, 44, 3);
+    g.beginPath(); g.moveTo(-46, -16); g.quadraticCurveTo(0, -42, 46, -16); g.lineWidth = 6; g.strokeStyle = fg; g.stroke();
+  } else if (icon === 'ring') {
+    g.lineWidth = 11; g.strokeStyle = fg; g.beginPath(); g.arc(0, 10, 24, 0, 6.3); g.stroke();
+    g.beginPath(); g.moveTo(0, -40); g.lineTo(16, -24); g.lineTo(0, -10); g.lineTo(-16, -24); g.closePath(); g.fill();
+  } else if (icon === 'laser') {
+    rr(-26, 10, 52, 26, 8); rr(-20, -16, 40, 26, 8);
+    for (const dx of [-12, 0, 12]) { g.fillRect(dx - 3, -42, 6, 26); }
+    g.fillStyle = bg; g.beginPath(); g.arc(0, 22, 6, 0, 6.3); g.fill();
+  }
 }
 const lerp = (a, b, k) => a + (b - a) * k;
 const ease = (k) => 1 - (1 - k) ** 3;
@@ -77,6 +110,12 @@ export function createScene(canvas, cfg, random) {
   const glassMat = K(new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.05, metalness: 0.0, transparent: true, opacity: 0.18, envMapIntensity: 2, depthWrite: false }));
   const glowMat = K(new THREE.MeshBasicMaterial({ color: 0xffd49a, fog: false }));
   const winMat = K(new THREE.MeshStandardMaterial({ color: 0x5a6a80, roughness: 0.2, emissive: 0xffb860, emissiveIntensity: 0 }));
+  // characters get a warm fresnel rim so they read against the busy deck (art review, M2)
+  const charMat = K(mat.clone()), rimU = { rimK: { value: LK.rim } };
+  charMat.onBeforeCompile = (s) => { Object.assign(s.uniforms, rimU); s.fragmentShader = 'uniform float rimK;\n' + s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.86, 0.66) * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * rimK;'); };
+  const ringMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.28, metalness: 0.7, envMapIntensity: 1.5, emissive: 0x3a2a10, emissiveIntensity: 0.4 }));
+  const lanternMat = K(new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
+  const beamMat = K(new THREE.MeshBasicMaterial({ color: 0xff6ad8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   const mesh = (g, m = mat, shadow = true) => { const o = new THREE.Mesh(K(g), m); o.castShadow = shadow; o.receiveShadow = true; scene.add(o); return o; };
 
   // ---- ground: warm sand with ripples and pebbles, a big plane that fades into the fog
@@ -183,7 +222,7 @@ export function createScene(canvas, cfg, random) {
   cactusPos.forEach(([x, z], i) => { const c = mesh(M.buildCactus(i)); c.position.set(x, 0, z); c.rotation.y = i * 1.7; c.scale.setScalar(0.85 + (i % 3) * 0.15); });
   for (const [x, z, ry] of [[-9.0, 4.4, 0.4], [9.1, 3.8, -0.6], [-8.8, -6.6, 1.2], [9.4, 9.4, 2.1]]) { const b = mesh(M.buildBarrels()); b.position.set(x, 0, z); b.rotation.y = ry; }
   // foreground: a parked ore wagon, flower pots and cacti in front of the crowd so the bottom of the frame is never bare
-  for (const [x, z, ry, k] of [[-5.6, 15.4, 0.3, 0], [5.2, 15.8, -0.5, 1], [0.4, 16.6, 0.1, 2], [-2.6, 15.2, 0, 3], [7.8, 14.2, 0, 4], [-8.2, 14.6, 0, 5]]) {
+  for (const [x, z, ry, k] of [[-6.6, 18.4, 0.3, 0], [5.2, 18.6, -0.5, 1], [0.4, 18.9, 0.1, 2], [-2.6, 18.3, 0, 3], [8.6, 14.6, 0, 4], [-8.8, 14.8, 0, 5]]) {
     const o = k < 2 ? mesh(M.buildBarrels()) : mesh(M.buildCactus(k)); o.position.set(x, 0, z); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
   }
   // lamp posts along both deck edges (instanced): bulbs glow at dusk
@@ -201,46 +240,102 @@ export function createScene(canvas, cfg, random) {
 
   // ---- soft round blob shadows under everything that moves (the only shadows on tier 0)
   const blobTex = K(canvasTex(64, 64, (g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); gr.addColorStop(0, 'rgba(60,30,20,0.55)'); gr.addColorStop(0.6, 'rgba(60,30,20,0.25)'); gr.addColorStop(1, 'rgba(60,30,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, s, s); }));
-  const blobs = new THREE.InstancedMesh(K(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: LK.contact })), 16);
+  const blobs = new THREE.InstancedMesh(K(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: LK.contact })), 28);
+  const BLOBS = 28;
   blobs.renderOrder = 1; blobs.frustumCulled = false; scene.add(blobs);
 
-  // ---- stations
-  const pol = mesh(M.buildPolisher()); pol.position.set(W.polisher.x, 0.16, W.polisher.z); pol.rotation.y = Math.PI;
-  const wheel = mesh(M.buildWheel()); wheel.position.set(W.polisher.x + 0.05, 1.45 + 0.16, W.polisher.z); wheel.rotation.y = Math.PI;
+  // ---- stations: polishers and stands come from world arrays; the ones bought later start hidden (unlock pops them in)
+  const built = {}; // unlock id -> objects that appear when it is bought
+  const unlockObj = (id, o) => { (built[id] = built[id] || []).push(o); o.visible = false; return o; };
+  const pols = W.polishers.map((d, i) => {
+    const g = new THREE.Group(); g.position.set(d.x, 0.16, d.z); scene.add(g);
+    const ry = i === 0 ? Math.PI : 0; // polisher 2 turns its hopper to the conveyor on the left
+    const body = new THREE.Mesh(K(M.buildPolisher()), mat); body.castShadow = body.receiveShadow = true; body.rotation.y = ry; g.add(body);
+    const wheel = new THREE.Mesh(K(M.buildWheel()), mat); wheel.castShadow = true; wheel.position.set(Math.cos(ry) * -0.05, 1.45, 0); wheel.rotation.y = ry; g.add(wheel);
+    if (d.pad) unlockObj(d.pad, g);
+    return { d, g, wheel, ry, hop: new THREE.Vector3(d.x + Math.cos(ry) * 0.6, 1.6, d.z) };
+  });
   const counter = mesh(M.buildCounter()); counter.position.set(W.counter.x, 0.16, W.counter.z);
-  const st = M.buildStand(), stand = mesh(st.body), glass = mesh(st.glass, glassMat, false); stand.position.set(W.stand.x, 0.16, W.stand.z); glass.position.copy(stand.position); stand.rotation.y = glass.rotation.y = Math.PI;
+  const stG = M.buildStand(), standGeo = K(stG.body), standGlass = K(stG.glass);
+  const stands = W.stands.map((d) => {
+    const g = new THREE.Group(); g.position.set(d.x, 0.16, d.z); g.rotation.y = Math.PI; scene.add(g);
+    const b = new THREE.Mesh(standGeo, mat); b.castShadow = b.receiveShadow = true; const gl = new THREE.Mesh(standGlass, glassMat); g.add(b, gl);
+    if (d.pad) unlockObj(d.pad, g);
+    return { d, g };
+  });
+  // lantern rope from stand 1 to stand 2, and one along the crater rim (bought with stand 2: the rim lights up)
+  {
+    const s0 = W.stands[0], s1 = W.stands[1], g = new THREE.Group(), ropes = [], lans = []; scene.add(g);
+    for (const [ax, az, bx, bz, y, n] of [[s0.x + 1.2, s0.z - 0.9, s1.x + 1.2, s1.z - 0.9, 2.9, 5], [-6.8, -1.6, -2.6, -2.2, 3.4, 7], [2.6, -2.2, 7.2, -1.4, 3.4, 7]]) { const L = M.buildLanternRope(ax, az, bx, bz, y, n); ropes.push(L.rope); lans.push(L.lanterns); }
+    const r = new THREE.Mesh(K(M.merge(ropes)), mat), l = new THREE.Mesh(K(M.merge(lans)), lanternMat); r.castShadow = true; g.add(r, l);
+    unlockObj('stand2', g);
+  }
   const crate = mesh(M.buildCrate()); crate.position.set(W.crate.x, 0.16, W.crate.z); crate.rotation.y = 0.5;
   const cashMat = brassMat;
   const cashTray = mesh(M.merge([M.paint(M.at(M.rbox(2.0, 0.12, 1.6, 0.05), 0, 0.06, 0), PAL.woodDark), M.paint(M.at(M.rbox(1.8, 0.05, 1.4, 0.03), 0, 0.13, 0), PAL.velvet)]));
   cashTray.position.set(W.cash.x, 0.16, W.cash.z);
-  // station markers: a soft ring on the deck at each stop the hero walks into
+  // chunk conveyor: pile -> along the left edge -> polisher 2's hopper
+  const beltPts = [[W.pile.x - 1.0, W.pile.z + 0.4], [-7.2, W.pile.z + 1.0], [-7.2, W.polishers[1].z - 0.2], [W.polishers[1].x - 1.0, W.polishers[1].z]];
+  const BELT_Y = 1.0, belt = unlockObj('conveyor', mesh(M.buildConveyor(beltPts, BELT_Y)));
+  const beltPath = beltPts.map(([x, z]) => new THREE.Vector3(x, BELT_Y + 0.16 + 0.12, z));
+  void belt;
+  // ring workshop
+  const WS = W.workshop, workshop = unlockObj('workshop', mesh(M.buildWorkshop())); workshop.position.set(WS.x, 0.16, WS.z);
+  // laser cutter: base + swivel head + three beams (additive), aimed at the meteor
+  const LA = W.laserAt, LZ = M.buildLaser(), laser = unlockObj('laser', new THREE.Group()); laser.position.set(LA.x, 0.16, LA.z); scene.add(laser);
+  { const b = new THREE.Mesh(K(LZ.base), mat); b.castShadow = true; laser.add(b); }
+  const laserHead = new THREE.Mesh(K(LZ.head), brassMat); laserHead.castShadow = true; laserHead.position.y = 1.45; laser.add(laserHead);
+  const beamGeo = K(new THREE.CylinderGeometry(0.05, 0.05, 1, 8, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2));
+  const beams = [-0.2, 0, 0.2].map((dx) => { const m = new THREE.Mesh(beamGeo, beamMat); m.renderOrder = 7; m.visible = false; scene.add(m); return { m, dx }; });
+  const laserFx = { t: 0, p: new THREE.Vector3() };
+  // canyon road with the bridge (planks come back when it is fixed) and the tour bus
+  const RD = { z: 16.2, bx: -5.2, park: 1.6 };
+  const road = M.buildRoad(-60, 60, RD.z, RD.bx); mesh(road.road, mat, false);
+  unlockObj('road', mesh(M.merge(road.planks)));
+  const busB = M.buildBus(), bus = new THREE.Group(); scene.add(bus);
+  { const b = new THREE.Mesh(K(busB.body), mat), w = new THREE.Mesh(K(busB.windows), winMat); b.castShadow = true; bus.add(b, w); }
+  const busWheelGeo = K(busB.wheel), busWheels = busB.wheels.map(([x, y, z]) => { const m = new THREE.Mesh(busWheelGeo, mat); m.position.set(x, y, z); bus.add(m); return m; });
+  const busSt = { mode: 'off', t: 0, x: -50 }; bus.visible = false;
+  // the order kid: a small tourist with a speech bubble (the bubble is HTML in game.js)
+  const kid = M.makePerson(charMat, { pants: 0x5a6a8a, boots: PAL.ink, shirt: PAL.sun, shirt2: 0xd8a64a, skin: PAL.skin, hair: 0x8a4a2a, hat: 'cap', hatCol: PAL.pink, band: PAL.cream });
+  kid.root.scale.setScalar(1.0); kid.root.visible = false; kid.root.traverse((m) => { m.castShadow = false; }); scene.add(kid.root);
+  const kidSt = { k: 0, happy: 0, kind: null };
+  // station markers: a soft ring on the deck at each stop the hero walks into (keyed by the guide's target id)
   const markTex = K(canvasTex(128, 128, (g, s) => { g.strokeStyle = 'rgba(255,240,210,0.95)'; g.lineWidth = 7; g.setLineDash([14, 10]); g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 8, 0, 6.3); g.stroke(); }));
-  const marks = {};
-  const markAt = (key, x, z, r) => { const m = new THREE.Mesh(K(new THREE.PlaneGeometry(r * 2, r * 2).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ map: markTex, transparent: true, depthWrite: false, opacity: 0.35, color: 0xfff0d0 }))); m.position.set(x, 0.18, z); m.renderOrder = 2; scene.add(m); marks[key] = m; };
-  markAt('mine', W.mine.x, W.mine.z, W.mine.r); markAt('pile', W.pile.x, W.pile.z, W.pile.r); markAt('polisher', W.polisher.in[0], W.polisher.in[1], 0.9); markAt('counter', W.counter.x, W.counter.z + 1.15, 0.9);
-  markAt('stand', W.stand.in[0], W.stand.in[1], 0.9); markAt('cash', W.cash.x, W.cash.z, 1.1); markAt('crate', W.crate.x, W.crate.z + 0.9, 0.7);
-  marks.counter.position.z = W.counter.z - 1.15;
+  const markKeys = [], markXZR = [];
+  const markAt = (key, x, z, r, padId = null) => { markKeys.push(key); markXZR.push([x, z, r, padId]); };
+  markAt('mine', W.mine.x, W.mine.z, W.mine.r); markAt('pile', W.pile.x, W.pile.z, W.pile.r); markAt('counter', W.counter.x, W.counter.z - 1.15, 0.9);
+  for (const p of pols) markAt(p.d.id, p.d.in[0], p.d.in[1], 0.9, p.d.pad);
+  for (const st of stands) markAt(st.d.id + ':in', st.d.in[0], st.d.in[1], 0.9, st.d.pad);
+  markAt('cash', W.cash.x, W.cash.z, 1.1); markAt('crate', W.crate.x, W.crate.z + 0.9, 0.7); markAt('workshop', WS.in[0], WS.in[1], 0.9, 'workshop'); markAt('order', W.order.x, W.order.z, W.order.r, 'order');
+  const marks = new THREE.InstancedMesh(K(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ map: markTex, transparent: true, depthWrite: false, opacity: 0.28, color: 0xfff0d0 })), markKeys.length);
+  marks.renderOrder = 2; marks.frustumCulled = false; scene.add(marks);
+  /** Shows the station rings: built stations only, not the guide's current target (its own gold ring takes over). */
+  function drawMarks(S, g) {
+    markXZR.forEach(([x, z, r, padId], i) => {
+      const on = (padId === 'order' ? !!S.order : !padId || S.pads.some((p) => p.id === padId && p.done)) && !(g && (g.what === markKeys[i] || g.what + ':in' === markKeys[i]));
+      marks.setMatrixAt(i, _m.compose(_p.set(x, 0.18, z), _q.identity(), _s.setScalar(on ? r : 0)));
+    });
+    marks.instanceMatrix.needsUpdate = true;
+  }
 
-  // ---- the price pad (drill rig): brass base, a canvas face redrawn in place (one texture for its life: fix B)
-  const padDef = cfg.pads[0];
-  const pad = new THREE.Group(); pad.position.set(padDef.x, 0.16, padDef.z); scene.add(pad);
+  // ---- the price pad: one brass pad that moves to whichever unlock is up next; its face is a canvas redrawn in
+  // place (one texture for the whole game: fix B), with the unlock's icon, a fill ring and the coins left
+  const pad = new THREE.Group(); scene.add(pad);
   { const b = new THREE.Mesh(K(M.buildPadBase()), brassMat); b.receiveShadow = true; pad.add(b); }
   const padCanvas = document.createElement('canvas'); padCanvas.width = padCanvas.height = 256;
   const padTex = K(new THREE.CanvasTexture(padCanvas)); padTex.colorSpace = THREE.SRGBColorSpace; padTex.anisotropy = 4;
   const padFace = new THREE.Mesh(K(new THREE.PlaneGeometry(2.0, 2.0).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ map: padTex, transparent: true }))); padFace.position.y = 0.2; pad.add(padFace);
-  let padDrawn = -1;
-  function drawPad(left, price) {
-    if (left === padDrawn) return; padDrawn = left;
+  let padDrawn = '', padId = null;
+  function drawPad(icon, left, price) {
+    const key = icon + left; if (key === padDrawn) return; padDrawn = key;
     const g = padCanvas.getContext('2d'), s = 256, k = 1 - left / price;
     g.clearRect(0, 0, s, s);
     g.fillStyle = '#2f6f69'; g.beginPath(); g.roundRect(14, 14, s - 28, s - 28, 34); g.fill();
     g.strokeStyle = '#f6d27a'; g.lineWidth = 10; g.beginPath(); g.roundRect(14, 14, s - 28, s - 28, 34); g.stroke();
     g.strokeStyle = 'rgba(255,230,160,0.35)'; g.lineWidth = 16; g.beginPath(); g.arc(s / 2, s / 2 - 22, 62, 0, 6.3); g.stroke();
     g.strokeStyle = '#ffd35a'; g.beginPath(); g.arc(s / 2, s / 2 - 22, 62, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); g.stroke();
-    // drill icon
-    g.save(); g.translate(s / 2, s / 2 - 22); g.fillStyle = '#ffe6a8'; g.fillRect(-14, -40, 28, 26); g.beginPath(); g.moveTo(-16, -12); g.lineTo(16, -12); g.lineTo(0, 38); g.closePath(); g.fill();
-    g.strokeStyle = '#2f6f69'; g.lineWidth = 4; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(-12 + i * 3, -2 + i * 12); g.lineTo(12 - i * 3, 4 + i * 12); g.stroke(); } g.restore();
-    // coin and price
+    g.save(); g.translate(s / 2, s / 2 - 22); drawIcon(g, icon, '#ffe6a8', '#2f6f69'); g.restore();
     g.fillStyle = '#ffd35a'; g.beginPath(); g.arc(78, 200, 20, 0, 6.3); g.fill(); g.fillStyle = '#c98a2a'; g.beginPath(); g.arc(78, 200, 12, 0, 6.3); g.fill();
     g.fillStyle = '#fff6e0'; g.font = '900 54px system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(String(left), 108, 202);
     padTex.needsUpdate = true;
@@ -248,14 +343,14 @@ export function createScene(canvas, cfg, random) {
   pad.visible = false;
 
   // ---- the drill rig (hidden until bought) and its drill head
-  const rig = new THREE.Group(); rig.position.set(W.rigAt.x, 0, W.rigAt.z); rig.rotation.y = 0.35; scene.add(rig);
+  const rig = unlockObj('rig', new THREE.Group()); rig.position.set(W.rigAt.x, 0, W.rigAt.z); rig.rotation.y = 0.35; scene.add(rig);
   { const b = new THREE.Mesh(K(M.buildRig()), mat); b.castShadow = true; rig.add(b); }
   const drill = new THREE.Mesh(K(M.buildDrillHead()), brassMat); drill.castShadow = true; drill.position.set(0, 2.3, -2.15); drill.rotation.x = -0.32; rig.add(drill);
-  rig.visible = false;
   const rigLon = Math.atan2(W.rigAt.x - W.meteor.x, W.rigAt.z - W.meteor.z) * 0.9, rigLat = 0.05;
+  const laserLon = Math.atan2(LA.x - W.meteor.x, LA.z - W.meteor.z);
 
   // ---- characters: the hero (miner), tourists (pool), the crowd (instanced), the critter and its egg
-  const hero = M.makePerson(mat, { pants: PAL.navy, boots: PAL.woodDark, shirt: PAL.red, shirt2: 0xb8443c, vest: PAL.woodLight, scarf: PAL.teal, belt: PAL.brassDark, skin: PAL.skin, hair: PAL.woodDark, hat: 'cowboy', hatCol: 0xc98d58, band: PAL.teal, pickaxe: true, sleeve: 0xe7d4b4 });
+  const hero = M.makePerson(charMat, { pants: PAL.navy, boots: PAL.woodDark, shirt: PAL.red, shirt2: 0xb8443c, vest: PAL.woodLight, scarf: PAL.teal, belt: PAL.brassDark, skin: PAL.skin, hair: PAL.woodDark, hat: 'cowboy', hatCol: 0xc98d58, band: PAL.teal, pickaxe: true, sleeve: 0xe7d4b4 });
   hero.root.scale.setScalar(1.4); scene.add(hero.root);
   const outfits = [
     { pants: 0x5a6a8a, boots: PAL.ink, shirt: PAL.pink, shirt2: 0xd47898, skin: PAL.skin, hair: 0x4a2e22, hat: 'sun', hatCol: 0xf3d6a6, band: PAL.pink, camera: true },
@@ -265,7 +360,8 @@ export function createScene(canvas, cfg, random) {
     { pants: PAL.navy, boots: PAL.ink, shirt: 0xf09a6a, shirt2: 0xd8784a, skin: PAL.skinDark, skin2: 0xa8704e, hair: PAL.ink, hat: 'cap', hatCol: PAL.red, band: PAL.cream },
     { pants: 0x4a5a3a, boots: PAL.woodDark, shirt: PAL.violet, shirt2: 0x6a44c0, skin: PAL.skin, hair: 0x8a4a2a, hat: 'sun', hatCol: PAL.cream, band: PAL.teal, camera: true },
   ];
-  const tourists = outfits.map((o) => { const p = M.makePerson(mat, o); p.root.scale.setScalar(1.25); p.root.visible = false; p.id = -1; scene.add(p.root); return p; });
+  const noCast = (o) => o.traverse((m) => { m.castShadow = false; }); // blob shadows stand in (draw-call budget)
+  const tourists = outfits.map((o) => { const p = M.makePerson(charMat, o); noCast(p.root); p.root.scale.setScalar(1.25); p.root.visible = false; p.id = -1; scene.add(p.root); return p; });
   const crowdG = M.crowdGeos(), crowdTint = K(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
   const C = W.crowd, crowd = [];
   for (let i = 0; i < C.n; i++) {
@@ -276,7 +372,16 @@ export function createScene(canvas, cfg, random) {
   crowd.forEach((p, i) => crowdA.setColorAt(i, p.col));
   for (const m of [crowdA, crowdB]) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; scene.add(m); }
   let crowdN = C.n;
-  const critter = M.makeCritter(mat, shellMat); critter.root.visible = false; critter.root.scale.setScalar(1.25); scene.add(critter.root);
+  // the six critters (each its own fur colour and crystal shell), shown once hatched; they follow in a parade
+  const critters = {};
+  for (const d of cfg.critters) {
+    const sm = K(shellMat.clone()); sm.color.set(d.shell); sm.emissive.set(d.shell).multiplyScalar(0.55);
+    const c = M.makeCritter(charMat, sm, new THREE.Color(d.body).getHex()); c.root.visible = false; c.root.scale.setScalar(1.25); noCast(c.root); scene.add(c.root);
+    c.sm = sm; c.hatchK = 0; critters[d.id] = c;
+  }
+  // the shopkeeper armadillo
+  const keeper = M.makeKeeper(charMat); keeper.root.scale.setScalar(1.25); noCast(keeper.root); scene.add(keeper.root); unlockObj('keeper', keeper.root);
+  keeper.root.position.set(W.keeperHome.x, 0.16, W.keeperHome.z);
   const eg = M.eggGeos(), egg = new THREE.Group(); scene.add(egg);
   const eggShell = new THREE.Mesh(K(eg.shell), mat), eggSpots = new THREE.Mesh(K(eg.spots), spotMat); eggShell.castShadow = true; egg.add(eggShell, eggSpots);
   egg.scale.setScalar(1.7);
@@ -307,8 +412,9 @@ export function createScene(canvas, cfg, random) {
     chunk: new THREE.InstancedMesh(K(M.chunkGeo(0.25)), chunkMat, 220),
     gem: new THREE.InstancedMesh(K(M.gemGeo(0.24)), gemMat, 120),
     coin: new THREE.InstancedMesh(coinGeo, cashMat, 220),
+    ring: new THREE.InstancedMesh(K(M.ringGeo(0.24)), ringMat, 60),
   };
-  const itemN = { chunk: 0, gem: 0, coin: 0 };
+  const KINDS = Object.keys(items), itemN = { chunk: 0, gem: 0, coin: 0, ring: 0 };
   for (const m of Object.values(items)) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.castShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); }
   for (const k of ['chunk', 'gem']) { const m = items[k]; for (let i = 0; i < m.instanceMatrix.count; i++) m.setColorAt(i, new THREE.Color(GEM_COLS[(i * 7) % GEM_COLS.length])); }
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
@@ -320,26 +426,37 @@ export function createScene(canvas, cfg, random) {
     itemN[kind] = i + 1;
   }
   // in-flight items: counts shown at a stop leave out what is still flying to it (so nothing appears twice)
-  const pend = { pile: 0, pol: 0, counter: 0, stand: 0, cash: 0, stack: 0 };
+  const pend = {}, pendOf = (k) => pend[k] || 0;
   const flyers = [];
-  /** Slot positions of each stop (index i of n), in world space. */
+  const polIdx = (id) => Math.max(0, W.polishers.findIndex((p) => p.id === id)), standIdx = (id) => Math.max(0, W.stands.findIndex((p) => p.id === id));
+  /** Slot positions of each stop (index i), in world space. Keys: pile, stack, pol:<id>, counter, stand:<id>, cash, hero, pad, crate, wheel:<id>, ws, wsR, keeper, kid. */
   function slot(key, i, out) {
-    if (key === 'pile') { const a = i * 2.39996, r = 0.18 + Math.sqrt(i) * 0.16, y = Math.max(0, 0.55 - r * 0.45) + Math.floor(i / 22) * 0.1; return out.set(W.pile.x + Math.cos(a) * Math.min(r, 1.0), 0.2 + y, W.pile.z + Math.sin(a) * Math.min(r, 1.0)); }
-    if (key === 'stack') { const f = hero.root.rotation.y; return out.set(heroPos.x + Math.sin(f) * 0.62, 1.25 + i * 0.19 + heroBob, heroPos.z + Math.cos(f) * 0.62); }
-    if (key === 'pol') { const k = Math.min(i, 11), a = k * 2.4; return out.set(W.polisher.x + 0.6 + Math.cos(a) * 0.12, 1.42 + Math.floor(k / 4) * 0.06 + 0.16, W.polisher.z - 0.05 + Math.sin(a) * 0.12); }
-    if (key === 'counter') { const c = i % 4, r = Math.floor(i / 4) % 3; return out.set(W.counter.x - 0.6 + c * 0.4, 1.2, W.counter.z - 0.25 + r * 0.25); }
-    if (key === 'stand') { const c = i % 4, r = Math.floor(i / 4) % 2; return out.set(W.stand.x - 0.6 + c * 0.4, 1.25, W.stand.z - 0.2 + r * 0.4); }
-    if (key === 'cash') { const col = i % 6, h = Math.floor(i / 6); return out.set(W.cash.x - 0.55 + (col % 3) * 0.55, 0.36 + h * 0.07, W.cash.z - 0.28 + Math.floor(col / 3) * 0.56); }
-    if (key === 'hero') return out.set(heroPos.x, 1.4, heroPos.z);
-    if (key === 'pad') return out.set(padDef.x, 0.5, padDef.z);
-    if (key === 'crate') return out.set(W.crate.x, 0.7, W.crate.z);
-    if (key === 'wheel') return out.set(W.polisher.x, 1.6, W.polisher.z + 0.3);
+    const [k0, id] = key.split(':');
+    if (k0 === 'pile') { const a = i * 2.39996, r = 0.18 + Math.sqrt(i) * 0.16, y = Math.max(0, 0.55 - r * 0.45) + Math.floor(i / 22) * 0.1; return out.set(W.pile.x + Math.cos(a) * Math.min(r, 1.0), 0.2 + y, W.pile.z + Math.sin(a) * Math.min(r, 1.0)); }
+    if (k0 === 'stack') { const f = hero.root.rotation.y; return out.set(heroPos.x + Math.sin(f) * 0.62, 1.25 + i * 0.19 + heroBob, heroPos.z + Math.cos(f) * 0.62); }
+    if (k0 === 'pol') { const P = pols[polIdx(id)], k = Math.min(i, 11), a = k * 2.4; return out.set(P.hop.x + Math.cos(a) * 0.12, 1.42 + Math.floor(k / 4) * 0.06 + 0.16, P.d.z - 0.05 + Math.sin(a) * 0.12); }
+    if (k0 === 'wheel') { const P = pols[polIdx(id)]; return out.set(P.d.x, 1.6, P.d.z + 0.3); }
+    if (k0 === 'counter') { const c = i % 4, r = Math.floor(i / 4) % 4; return out.set(W.counter.x - 0.6 + c * 0.4, 1.2 + Math.floor(i / 16) * 0.1, W.counter.z - 0.3 + r * 0.2); }
+    if (k0 === 'stand') { const d = W.stands[standIdx(id)], c = i % 4, r = Math.floor(i / 4) % 2; return out.set(d.x - 0.6 + c * 0.4, 1.25, d.z - 0.2 + r * 0.4); }
+    if (k0 === 'cash') { const col = i % 6, h = Math.floor(i / 6); return out.set(W.cash.x - 0.55 + (col % 3) * 0.55, 0.36 + h * 0.07, W.cash.z - 0.28 + Math.floor(col / 3) * 0.56); }
+    if (k0 === 'ws') { const c = i % 4, r = Math.floor(i / 4) % 3; return out.set(WS.x - 0.95 + c * 0.22, 1.18 + Math.floor(i / 12) * 0.1, WS.z + 0.25 + r * 0.16); }
+    if (k0 === 'wsR') { const c = i % 4, r = Math.floor(i / 4) % 2; return out.set(WS.x + 0.2 + c * 0.2, 1.22, WS.z + 0.25 + r * 0.2); }
+    if (k0 === 'keeper') { const f = keeper.root.rotation.y; return out.set(keeper.root.position.x + Math.sin(f) * 0.5, 1.15 + i * 0.19, keeper.root.position.z + Math.cos(f) * 0.5); }
+    if (k0 === 'kid') return out.set(W.order.x, 1.2, W.order.z);
+    if (k0 === 'hero') return out.set(heroPos.x, 1.4, heroPos.z);
+    if (k0 === 'pad') return out.set(pad.position.x, 0.5, pad.position.z);
+    if (k0 === 'crate') return out.set(W.crate.x, 0.7, W.crate.z);
     return out.set(0, 0, 0);
   }
-  /** Sends one item of kind flying from (a) to stop key's slot (index from count(n)), after a delay; arc height h. */
-  function fly(kind, from, key, idx, delay = 0, h = 1.6, onLand = null) {
-    if (pend[key] !== undefined) pend[key]++;
-    flyers.push({ kind, from: from.clone(), key, idx, t: -delay, d: 0.32 + Math.random() * 0.06, h, ci: Math.floor(Math.random() * 5), spin: (Math.random() - 0.5) * 12, onLand });
+  /**
+   * Sends one item of kind flying from (a) to stop key's slot (index from idx()), after a delay; arc height h.
+   * path (optional): world points it rides through first (the conveyor), at speed m/s, before its last hop.
+   */
+  function fly(kind, from, key, idx, delay = 0, h = 1.6, onLand = null, path = null) {
+    pend[key] = pendOf(key) + 1;
+    let d = 0.32 + Math.random() * 0.06, pts = null;
+    if (path) { pts = [from.clone(), ...path]; let L = 0; for (let i = 1; i < pts.length; i++) L += pts[i].distanceTo(pts[i - 1]); d = L / 2.6 + 0.35; }
+    flyers.push({ kind, from: from.clone(), key, idx, t: -delay, d, h, ci: Math.floor(Math.random() * 5), spin: (Math.random() - 0.5) * 12, onLand, pts });
   }
 
   // ---- pooled effects: glow points (additive sparkles), dust points (soft puffs), shards, rings
@@ -427,7 +544,7 @@ export function createScene(canvas, cfg, random) {
   const glintPos = new THREE.Vector3();
 
   // ---- camera rig: follows the hero, with shake (trauma), FOV kick, and a showcase move for big moments
-  const cam = { x: 0, z: W.mine.z + 3, trauma: 0, kick: 0, show: null, showK: 0 };
+  const cam = { x: 0, z: W.mine.z + 3, trauma: 0, kick: 0, show: null, showK: 0, mineK: 0, punch: 0 };
   const camBase = new THREE.Vector3(), camLook = new THREE.Vector3();
   function camDist() { const hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(cfg.camera.fov) / 2) * camera.aspect); return (cfg.camera.width / 2) / Math.tan(hf); }
 
@@ -471,7 +588,7 @@ export function createScene(canvas, cfg, random) {
   // pass, blur at 1/4 and 1/8, then tone mapping + sRGB + warmth/saturation/contrast/vignette to the canvas
   const BL = LK.bloom, GR = LK.grade;
   const glowList = [
-    { set: (on) => { for (const m of [gemMat, chunkMat]) m.emissiveIntensity = on ? 0.3 * LK.glow.gem : 0.3; for (const m of [shellMat, spotMat]) m.emissiveIntensity = on ? 0.35 * LK.glow.gem : 0.35; } },
+    { set: (on) => { for (const m of [gemMat, chunkMat]) m.emissiveIntensity = on ? 0.3 * LK.glow.gem : 0.3; for (const m of [shellMat, spotMat, ...Object.values(critters).map((c) => c.sm)]) m.emissiveIntensity = on ? 0.35 * LK.glow.gem : 0.35; lanternMat.color.setScalar(on ? LK.glow.lantern : 1); beamMat.color.setRGB(1, 0.42, 0.85).multiplyScalar(on ? LK.glow.fx : 1); } },
     { set: (on) => { meteorU.uGlow.value = (on ? LK.glow.meteor : 1) * meteorK; } },
     { set: (on) => { glowPts.m.uniforms.boost.value = on ? LK.glow.fx : 1; glintMat.uniforms.a.value = glintState.out * (on ? LK.glow.fx : 1); } },
     { set: (on) => { const k = on ? LK.glow.lamp : 1; glowMat.color.setRGB((0.35 + lampsK * 1.6) * (lampsK > 0.05 ? k : 1), (0.27 + lampsK * 1.15) * (lampsK > 0.05 ? k : 1), (0.18 + lampsK * 0.6) * (lampsK > 0.05 ? k : 1)); } },
@@ -517,16 +634,54 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---------------------------------------------------------------- per-frame sync with the logic state
-  const fx = { rigUp: -1, rigPlunge: 0, padPop: -1, padPulse: 0, hatchK: 0, stationBump: {}, flash: 0, crowdCheer: 0 };
+  const fx = { rigPlunge: 0, padPop: -1, padPulse: 0, stationBump: {}, flash: 0, crowdCheer: 0, rush: 0 };
+  const pops = []; // unlock build-up bounces: { o, t, d }
   const bump = (k) => { fx.stationBump[k] = 1; };
   const bumpS = (o, k, base = 1) => { const b = fx.stationBump[k] || 0; o.scale.set(base * (1 + b * 0.08), base * (1 - b * 0.1), base * (1 + b * 0.08)); };
   let tAll = 0, stepT = 0;
-  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
+  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
+  const looseT = new Map(); // Rush pickup id -> time it started falling
+  // cold open (3 s, skippable): the meteor streaks in from the sky, slams into the crater, the camera swoops to town
+  const INTRO = { fall: 1.4, len: 3.0 }, intro = { t: -1, hit: false };
+  const meteorRest = new THREE.Vector3(W.meteor.x, W.meteor.y, W.meteor.z), meteorSky = new THREE.Vector3(W.meteor.x + 16, 46, W.meteor.z - 34);
+  function introImpact(soft) {
+    intro.hit = true; meteor.position.copy(meteorRest); meteor.scale.setScalar(1); rimShards.visible = true;
+    const p = tmp3.set(W.meteor.x, 0.6, W.meteor.z + MR * 0.8);
+    meteorU.uFlash.value.set(0, 0, MR, 4); burst(p, 3, 30); confetti(p, 60, 6);
+    ring(tmp.set(W.meteor.x, 0.3, W.meteor.z + 1), 0xffe0b0, 1, 22, 1.0); ring(tmp.set(W.meteor.x, 0.32, W.meteor.z + 1), 0xff9ae8, 0.5, 14, 0.8);
+    for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; puff(W.meteor.x + Math.cos(a) * MR * 1.3, W.meteor.z + Math.sin(a) * MR * 1.1, 1, 1.8, 0xd8b088); }
+    if (!soft) cam.trauma = 1;
+  }
+  function introStep(dt) {
+    if (intro.t < 0) return 0;
+    intro.t += dt;
+    if (!intro.hit) {
+      const k = Math.min(1, intro.t / INTRO.fall); meteor.position.lerpVectors(meteorSky, meteorRest, k * k); meteor.rotation.x = (1 - k) * 2.2; meteor.scale.setScalar(0.7 + 0.3 * k);
+      for (let i = 0; i < 6; i++) glowPts.spawn({ x: meteor.position.x + (Math.random() - 0.5) * 3, y: meteor.position.y + (Math.random() - 0.5) * 3, z: meteor.position.z + (Math.random() - 0.5) * 3, vx: 3, vy: 8, vz: -6, drag: 2, max: 0.8, s0: 1.6, s1: 0.2, ...hexToRGB([0xffb060, 0xff8ad8, 0xfff0c0][i % 3]) });
+      dustPts.spawn({ x: meteor.position.x, y: meteor.position.y, z: meteor.position.z, vx: 2, vy: 5, vz: -4, drag: 1, max: 1.4, s0: 3, s1: 6, r: 0.4, gg: 0.32, b: 0.36, a: 0.5 });
+      if (k >= 1) introImpact(false);
+    } else meteor.rotation.x = 0;
+    if (intro.t >= INTRO.len) intro.t = -1;
+    return intro.t < 0 ? 0 : 1 - ease(Math.max(0, (intro.t - INTRO.fall) / (INTRO.len - INTRO.fall)));
+  }
+  const hasB = (S, id) => S.pads.some((p) => p.id === id && p.done);
+  /** Where the guide arrow hovers for a target: over the station mesh (not its walk-in point), and how high. */
+  function anchor(g) {
+    const w = g.what, P = pols.find((p) => p.d.id === w), St = stands.find((q) => q.d.id === w);
+    if (P) return [P.d.x, P.d.z, 2.6]; if (St) return [St.d.x, St.d.z, 3.4];
+    if (w === 'counter') return [W.counter.x, W.counter.z, 2.2]; if (w === 'workshop') return [WS.x, WS.z, 3.5]; if (w === 'order') return [W.order.x, W.order.z, 2.4];
+    return [g.x, g.z, { pile: 2.0, crate: 1.7, cash: 1.6, mine: 2.6, egg: 1.9 }[w] || 1.8];
+  }
+  /** Puts the items of a stop: n of them at slot key, kind per index (fn) or one kind. */
+  function fill(key, n, kind, s = 1, bob = 0.02, max = 99) {
+    const m = Math.min(max, Math.max(0, n - pendOf(key)));
+    for (let i = 0; i < m; i++) { slot(key, i, tmp); const k = typeof kind === 'function' ? kind(i) : kind; put(k, tmp.x, tmp.y + Math.sin(tAll * 2 + i) * bob, tmp.z, tAll * 0.8 + i, s, i + 1); }
+  }
 
   /** Draws the state S (logic.js) for this frame; dt in seconds; g is the guide target ({ x, z } or null). */
   function update(S, dt, g) {
     tAll += dt;
-    for (const k of ['chunk', 'gem', 'coin']) itemN[k] = 0;
+    for (const k of KINDS) itemN[k] = 0;
     const h = S.hero, sp = Math.hypot(h.vx, h.vz);
     // hero
     heroPos.set(h.x, 0.16, h.z); hero.root.position.copy(heroPos);
@@ -537,48 +692,82 @@ export function createScene(canvas, cfg, random) {
     heroBob = hero.body.position.y * 1.15;
     if (sp > 1 && (stepT += dt) > 0.28) { stepT = 0; puff(h.x, h.z, 1, 0.45); }
     // the carried stack: a wobbling column in the hero's arms
-    const stackN = Math.max(0, h.n - pend.stack), lean = Math.min(0.25, sp * 0.03);
+    const stackN = Math.max(0, h.n - pendOf('stack')), lean = Math.min(0.25, sp * 0.03), hk = h.kind === 'chunk' ? 'chunk' : h.kind || 'chunk';
     for (let i = 0; i < stackN; i++) {
       slot('stack', i, tmp); const sway = Math.sin(tAll * 6 + i * 0.4) * 0.02 * i * lean * 4;
       tmp.x += Math.sin(hero.root.rotation.y) * -lean * i * 0.06 + sway; tmp.z += Math.cos(hero.root.rotation.y) * -lean * i * 0.06;
-      put(h.kind === 'gem' ? 'gem' : 'chunk', tmp.x, tmp.y, tmp.z, hero.root.rotation.y + i * 0.7, 0.9, i * 3);
+      put(hk, tmp.x, tmp.y, tmp.z, hero.root.rotation.y + i * 0.7, 0.9, i * 3);
     }
     // stops
-    const pileN = Math.max(0, S.pile - pend.pile); for (let i = 0; i < pileN; i++) { slot('pile', i, tmp); put('chunk', tmp.x, tmp.y, tmp.z, i * 1.3, 1.0, i, (i % 3) * 0.3); }
-    const polN = Math.min(12, Math.max(0, S.polIn - pend.pol)); for (let i = 0; i < polN; i++) { slot('pol', i, tmp); put('chunk', tmp.x, tmp.y, tmp.z, i * 1.9, 0.6, i + 2); }
-    const cN = Math.max(0, S.counter - pend.counter); for (let i = 0; i < cN; i++) { slot('counter', i, tmp); put('gem', tmp.x, tmp.y + Math.sin(tAll * 2 + i) * 0.02, tmp.z, tAll * 0.6 + i, 1.0, i); }
-    const sN = Math.max(0, S.stand - pend.stand); for (let i = 0; i < sN; i++) { slot('stand', i, tmp); put('gem', tmp.x, tmp.y + 0.05 + Math.sin(tAll * 2 + i) * 0.03, tmp.z, tAll * 1.1 + i, 1.15, i + 1); }
-    const kN = Math.min(150, Math.max(0, S.cashPile - pend.cash)); for (let i = 0; i < kN; i++) { slot('cash', i, tmp); put('coin', tmp.x, tmp.y, tmp.z, i * 0.9, 1.0); }
-    // polisher: the wheel spins and throws sparks while it works
-    const working = S.polIn >= cfg.polish.per && S.counter < W.counter.cap;
-    wheel.userData.v = lerp(wheel.userData.v || 0, working ? 18 : 0, Math.min(1, dt * 4)); wheel.rotation.x -= wheel.userData.v * dt;
-    if (working && Math.random() < dt * 30) glowPts.spawn({ x: W.polisher.x + 0.05, y: 1.2 + 0.16, z: W.polisher.z + 0.45, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: 2 + Math.random() * 2, g: 9, drag: 1, max: 0.35 + Math.random() * 0.25, s0: 0.22, s1: 0.04, r: 1, gg: 0.75, b: 0.4 });
-    bumpS(pol, 'pol'); bumpS(counter, 'counter'); bumpS(stand, 'stand'); bumpS(crate, 'crate'); bumpS(cashTray, 'cash');
+    const pileN = Math.max(0, S.pile - pendOf('pile')); for (let i = 0; i < pileN; i++) { slot('pile', i, tmp); put('chunk', tmp.x, tmp.y, tmp.z, i * 1.3, 1.0, i, (i % 3) * 0.3); }
+    S.pols.forEach((p) => fill('pol:' + p.id, p.polIn, 'chunk', 0.6, 0, 12));
+    fill('counter', S.counter, 'gem', 1.0);
+    S.stands.forEach((st) => fill('stand:' + st.id, st.items.length, (i) => st.items[i] || 'gem', 1.15, 0.03));
+    fill('cash', S.cashPile, 'coin', 1.0, 0, 150);
+    if (hasB(S, 'workshop')) { fill('ws', S.ws.gemsIn, 'gem', 0.75, 0); fill('wsR', S.ws.rings, 'ring', 0.9, 0.02); }
+    // polishers: each wheel spins and throws sparks while it works
+    for (const P of pols) {
+      const st = S.pols.find((q) => q.id === P.d.id), on = P.g.visible && st && st.polIn >= cfg.polish.per && S.counter < W.counter.cap;
+      P.wheel.userData.v = lerp(P.wheel.userData.v || 0, on ? 18 : 0, Math.min(1, dt * 4)); P.wheel.rotation.x -= P.wheel.userData.v * dt;
+      if (on && Math.random() < dt * 30) glowPts.spawn({ x: P.d.x - Math.cos(P.ry) * 0.05, y: 1.2 + 0.16, z: P.d.z + 0.45, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: 2 + Math.random() * 2, g: 9, drag: 1, max: 0.35 + Math.random() * 0.25, s0: 0.22, s1: 0.04, r: 1, gg: 0.75, b: 0.4 });
+      if (!P.popping) bumpS(P.g, P.d.id);
+    }
+    bumpS(counter, 'counter'); for (const St of stands) if (!St.popping) bumpS(St.g, St.d.id); bumpS(crate, 'crate'); bumpS(cashTray, 'cash'); if (workshop.visible && !workshop.popping) bumpS(workshop, 'workshop');
     for (const k in fx.stationBump) fx.stationBump[k] = Math.max(0, fx.stationBump[k] - dt * 5);
-    // flyers
+    // the shopkeeper: walks counter <-> stands with up to keeper.carry gems on a little tray
+    if (S.keeper && keeper.root.visible) {
+      const k = S.keeper; keeper.root.position.set(k.x, 0.16, k.z);
+      let d = (k.face || 0) - keeper.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); keeper.root.rotation.y += d * Math.min(1, dt * 10);
+      M.animPerson(keeper, dt, k.moving ? cfg.keeper.speed : 0, k.n > 0 ? 'carry' : null, tAll);
+      fill('keeper', k.n, 'gem', 0.85, 0);
+    }
+    // Rush pickups: fall from the sky, then bob and twinkle on the deck until scooped
+    for (const l of S.loose) {
+      if (!looseT.has(l.id)) looseT.set(l.id, tAll);
+      const k = Math.min(1, (tAll - looseT.get(l.id)) / 0.7), y = k < 1 ? lerp(9, 0.42, k * k) : 0.42 + Math.abs(Math.sin(tAll * 4 + l.id)) * 0.08;
+      if (k >= 1 && !l.landed) { l.landed = true; puff(l.x, l.z, 2, 0.5, 0xffe0a0); }
+      put(l.kind, l.x, y, l.z, tAll * 3 + l.id, l.kind === 'coin' ? 1.3 : 1.1, l.id, l.kind === 'coin' ? Math.PI / 2 : 0);
+      if (Math.random() < dt * 1.5) twinkle(tmp.set(l.x, 0.7, l.z), 1, 0xfff0b0, 0.25);
+    }
+    if (!S.loose.length && looseT.size) looseT.clear();
+    // flyers (a conveyor rider first follows its belt points, then hops into the hopper)
     for (let i = flyers.length - 1; i >= 0; i--) {
       const f = flyers[i]; f.t += dt;
       if (f.t < 0) continue;
-      const k = Math.min(1, f.t / f.d);
-      const idx = f.idx(), to = slot(f.key, idx, tmp2);
-      const x = lerp(f.from.x, to.x, k), z = lerp(f.from.z, to.z, k), y = lerp(f.from.y, to.y, k) + Math.sin(k * Math.PI) * f.h;
+      const k = Math.min(1, f.t / f.d), to = slot(f.key, f.idx(), tmp2);
+      let x, y, z;
+      if (f.pts) {
+        const ride = (f.d - 0.35) / f.d;
+        if (k < ride) { const u = (k / ride) * (f.pts.length - 1), j = Math.min(f.pts.length - 2, Math.floor(u)), a = f.pts[j], b = f.pts[j + 1], w = u - j; x = lerp(a.x, b.x, w); y = lerp(a.y, b.y, w) + (j === 0 ? Math.sin(w * Math.PI) * 0.6 : 0); z = lerp(a.z, b.z, w); }
+        else { const w = (k - ride) / (1 - ride), a = f.pts[f.pts.length - 1]; x = lerp(a.x, to.x, w); y = lerp(a.y, to.y, w) + Math.sin(w * Math.PI) * 0.5; z = lerp(a.z, to.z, w); }
+      } else { x = lerp(f.from.x, to.x, k); z = lerp(f.from.z, to.z, k); y = lerp(f.from.y, to.y, k) + Math.sin(k * Math.PI) * f.h; }
       put(f.kind, x, y, z, f.t * f.spin, f.kind === 'coin' ? 1 : 0.95, f.kind === 'coin' ? -1 : f.ci, f.kind === 'coin' ? f.t * 9 : 0);
-      if (k >= 1) { if (pend[f.key] !== undefined) pend[f.key] = Math.max(0, pend[f.key] - 1); flyers.splice(i, 1); if (f.onLand) f.onLand(to); }
+      if (k >= 1) { pend[f.key] = Math.max(0, pendOf(f.key) - 1); flyers.splice(i, 1); if (f.onLand) f.onLand(to); }
     }
-    for (const k of ['chunk', 'gem', 'coin']) { items[k].count = itemN[k]; items[k].instanceMatrix.needsUpdate = true; if (items[k].instanceColor) items[k].instanceColor.needsUpdate = true; }
     // tourists
     const live = new Set(S.tourists.map((q) => q.id));
     for (const p of tourists) if (p.id >= 0 && !live.has(p.id)) { p.id = -1; p.root.visible = false; }
     for (const q of S.tourists) {
       let p = tourists.find((o) => o.id === q.id);
       if (!p) { p = tourists.find((o) => o.id < 0); if (!p) continue; p.id = q.id; p.root.visible = true; p.cheer = 0; }
-      p.root.position.set(q.x, 0.16 * Math.min(1, Math.max(0, (W.crowd.z0 + 0.2 - q.z) * 2)) , q.z);
+      p.root.position.set(q.x, 0.16 * Math.min(1, Math.max(0, (W.crowd.z0 + 0.2 - q.z) * 2)), q.z);
       let d = (q.face || 0) - p.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); p.root.rotation.y += d * Math.min(1, dt * 10);
       p.cheer = Math.max(0, (p.cheer || 0) - dt);
       M.animPerson(p, dt, q.moving ? cfg.sell.walk : 0, p.cheer > 0 ? 'cheer' : q.st === 'buy' ? 'carry' : null, tAll);
-      if (q.st === 'buy' || (q.st === 'leave' && q.z < W.crowd.z0)) { tmp.set(q.x + Math.sin(p.root.rotation.y) * 0.4, 1.25, q.z + Math.cos(p.root.rotation.y) * 0.4); put('gem', tmp.x, tmp.y, tmp.z, tAll * 3, 1.0, q.id); }
+      if (q.item && (q.st === 'buy' || (q.st === 'leave' && q.z < W.crowd.z0))) { tmp.set(q.x + Math.sin(p.root.rotation.y) * 0.4, 1.25, q.z + Math.cos(p.root.rotation.y) * 0.4); put(q.item, tmp.x, tmp.y, tmp.z, tAll * 3, 1.0, q.id); }
     }
-    items.gem.count = itemN.gem; items.gem.instanceMatrix.needsUpdate = true; items.gem.instanceColor.needsUpdate = true;
+    // the order kid: hops in when an order is up, waves, cheers on delivery and walks off
+    if (S.order) { kidSt.kind = S.order.kind; kidSt.k = Math.min(1, kidSt.k + dt * 2.5); } else if (kidSt.happy <= 0) kidSt.k = Math.max(0, kidSt.k - dt * 2);
+    kidSt.happy = Math.max(0, kidSt.happy - dt);
+    kid.root.visible = kidSt.k > 0.01;
+    if (kid.root.visible) {
+      kid.root.position.set(W.order.x, 0.16 + (kidSt.k < 1 ? Math.sin(kidSt.k * Math.PI) * 0.6 : 0), W.order.z + (1 - kidSt.k) * 2.5);
+      kid.root.rotation.y = Math.PI + Math.sin(tAll * 0.8) * 0.2; kid.root.scale.setScalar(Math.max(0.05, kidSt.k));
+      M.animPerson(kid, dt, kidSt.k < 1 ? 2 : 0, kidSt.happy > 0 ? 'cheer' : null, tAll);
+      if (!kidSt.happy) kid.armR.rotation.x = -2.6 + Math.sin(tAll * 7) * 0.35; // waving
+      if (kidSt.happy > 0) { slot('kid', 0, tmp); put(kidSt.kind || 'gem', tmp.x, tmp.y + 0.3, tmp.z + 0.3, tAll * 4, 1.1, 2); }
+    }
+    for (const k of KINDS) { items[k].count = itemN[k]; items[k].instanceMatrix.needsUpdate = true; if (items[k].instanceColor) items[k].instanceColor.needsUpdate = true; }
     // crowd: idle sway, a cheering wave after a sale
     fx.crowdCheer = Math.max(0, fx.crowdCheer - dt);
     for (let i = 0; i < crowdN; i++) {
@@ -589,31 +778,63 @@ export function createScene(canvas, cfg, random) {
       crowdA.setMatrixAt(i, _m); crowdB.setMatrixAt(i, _m);
     }
     crowdA.instanceMatrix.needsUpdate = crowdB.instanceMatrix.needsUpdate = true;
-    // pad
-    const P = S.pads[0];
-    if (P.shown && !P.done) {
-      if (!pad.visible) { pad.visible = true; fx.padPop = 0; }
-      drawPad(P.price - P.paid, P.price);
+    // pad: the one unlock that is up next
+    const P = S.pads.find((q) => q.shown && !q.done), Pd = P && cfg.pads.find((q) => q.id === P.id);
+    if (P) {
+      if (padId !== P.id) { padId = P.id; pad.position.set(Pd.x, 0.16, Pd.z); pad.visible = true; fx.padPop = 0; }
+      drawPad(Pd.icon, P.price - P.paid, P.price);
       if (fx.padPop >= 0) { fx.padPop += dt; const k = Math.min(1, fx.padPop / 0.5); pad.scale.setScalar(Math.max(0.01, back(k))); if (k >= 1) fx.padPop = -1; }
       else pad.scale.setScalar(1 + Math.sin(tAll * 4) * 0.02 + fx.padPulse * 0.06);
       fx.padPulse = Math.max(0, fx.padPulse - dt * 6);
-    } else if (P.done && pad.visible) { pad.scale.multiplyScalar(Math.max(0, 1 - dt * 8)); if (pad.scale.x < 0.05) pad.visible = false; }
-    // rig: build-up bounce, then the drill turns and plunges on each rig hit
-    if (fx.rigUp >= 0) { fx.rigUp += dt; const k = Math.min(1, fx.rigUp / 0.7); rig.scale.set(back(k), Math.max(0.01, back(Math.min(1, k * 1.15))), back(k)); if (k >= 1) fx.rigUp = -1; }
+    } else if (pad.visible) { padId = null; pad.scale.multiplyScalar(Math.max(0, 1 - dt * 8)); if (pad.scale.x < 0.05) pad.visible = false; }
+    // unlock build-up bounces
+    for (let i = pops.length - 1; i >= 0; i--) {
+      const q = pops[i]; q.t += dt; const k = Math.max(0, Math.min(1, q.t / q.d)); if (q.t < 0) continue;
+      q.o.visible = true; q.o.scale.set(q.s * Math.max(0.01, back(k)), q.s * Math.max(0.01, back(Math.min(1, k * 1.15))), q.s * Math.max(0.01, back(k)));
+      if (q.o.userData.fall) q.o.position.y = lerp(q.o.userData.fall, q.o.userData.y0, ease(k));
+      if (k >= 1) { pops.splice(i, 1); q.o.popping = false; for (const x of [...pols, ...stands]) if (x.g === q.o) x.popping = false; }
+    }
+    // rig: the drill turns and plunges on each rig hit
     if (rig.visible) {
       drill.rotation.y += dt * (8 + fx.rigPlunge * 30);
       fx.rigPlunge = Math.max(0, fx.rigPlunge - dt * 2.5);
       const pl = Math.sin(Math.min(1, fx.rigPlunge) * Math.PI);
       drill.position.set(0, 2.3 - pl * 0.35, -2.15 - pl * 0.5);
     }
-    // egg
+    // laser: the head tracks its target, beams flash on each cut
+    if (laser.visible) {
+      const tg = laserFx.p.lengthSq() ? laserFx.p : surf(laserLon, 0.25, 0, tmp3);
+      laserHead.rotation.y = lerp(laserHead.rotation.y, Math.atan2(-(tg.x - LA.x), -(tg.z - LA.z)), Math.min(1, dt * 6));
+      laserFx.t = Math.max(0, laserFx.t - dt);
+      const on = laserFx.t > 0, a = on ? Math.min(1, laserFx.t / 0.12) : 0;
+      beamMat.opacity = 0.85 * a;
+      for (const B of beams) {
+        B.m.visible = on; if (!on) continue;
+        tmp.set(B.dx, B.dx === 0 ? 0.06 : -0.08, -0.95).applyEuler(laserHead.rotation).add(laserHead.getWorldPosition(tmp2));
+        B.m.position.copy(tmp); B.m.lookAt(laserFx.p); B.m.scale.set(1 + Math.sin(tAll * 60) * 0.3, 1 + Math.sin(tAll * 60) * 0.3, tmp.distanceTo(laserFx.p));
+      }
+      if (on && Math.random() < dt * 40) glowPts.spawn({ x: laserFx.p.x, y: laserFx.p.y, z: laserFx.p.z, vx: (Math.random() - 0.5) * 4, vy: 1 + Math.random() * 3, vz: 1 + Math.random() * 3, g: 9, drag: 1, max: 0.3 + Math.random() * 0.2, s0: 0.25, s1: 0.04, r: 1, gg: 0.55, b: 0.9 });
+    }
+    // tour bus: drives in on the canyon road, waits while the wave walks over, U-turns and leaves
+    if (busSt.mode !== 'off') {
+      busSt.t += dt; bus.visible = true;
+      if (busSt.mode === 'in') { const k = Math.min(1, busSt.t / 3.2); busSt.x = lerp(-48, RD.park, ease(k)); if (k >= 1) { busSt.mode = 'wait'; busSt.t = 0; puff(RD.park + 2.2, RD.z, 6, 0.9); } }
+      else if (busSt.mode === 'wait') { if (busSt.t > 7) { busSt.mode = 'out'; busSt.t = 0; } }
+      else { const k = Math.min(1, busSt.t / 3.4); busSt.x = lerp(RD.park, 52, k * k); if (k >= 1) { busSt.mode = 'off'; bus.visible = false; } }
+      bus.position.set(busSt.x, 0.03 + (busSt.mode === 'wait' ? Math.abs(Math.sin(busSt.t * 9)) * 0.015 : 0), RD.z); bus.rotation.y = 0;
+      const v = busSt.mode === 'wait' ? 0 : 9; for (const w of busWheels) w.rotation.z -= v * dt;
+      if (busSt.mode !== 'wait' && Math.random() < dt * 14) puff(bus.position.x - 2.2, RD.z + (Math.random() - 0.5) * 1.6, 1, 0.8);
+    }
+    // egg (the next one lodges in the meteor again after a hatch)
+    if (eggState.mode === 'done' && S.egg.st === 'lodged') { eggState.mode = 'lodged'; egg.visible = true; egg.position.copy(eggLodge); egg.rotation.set(0.6, 0, -0.3); egg.scale.setScalar(1.7); }
+    egg.visible = eggState.mode !== 'done' && S.egg.st !== 'none';
     eggState.t += dt;
     if (eggState.mode === 'lodged') { egg.rotation.z = -0.3 + Math.sin(tAll * 3) * 0.04; if (Math.random() < dt * 2) twinkle(egg.position, 1, 0xffc8f0, 0.3); }
     else if (eggState.mode === 'fall') {
       const k = Math.min(1, eggState.t / 1.1), to = tmp.set(W.egg.x, 0.16, W.egg.z);
       egg.position.set(lerp(eggState.from.x, to.x, k), lerp(eggState.from.y, to.y, k) + Math.sin(k * Math.PI) * 3, lerp(eggState.from.z, to.z, k));
       egg.rotation.set(lerp(0.6, 0, k), k * 6, lerp(-0.3, 0, k));
-      if (k >= 1) { eggState.mode = eggState.queued ? 'hatch' : 'wait'; eggState.t = 0; eggState.queued = false; puff(W.egg.x, W.egg.z, 8, 0.9); ring(tmp.set(W.egg.x, 0.22, W.egg.z), 0xffc8f0, 0.3, 2.4, 0.5); fx.shake = 0.25; cam.trauma = Math.min(1, cam.trauma + 0.25); }
+      if (k >= 1) { eggState.mode = eggState.queued ? 'hatch' : 'wait'; eggState.t = 0; eggState.queued = false; puff(W.egg.x, W.egg.z, 8, 0.9); ring(tmp.set(W.egg.x, 0.22, W.egg.z), 0xffc8f0, 0.3, 2.4, 0.5); cam.trauma = Math.min(1, cam.trauma + 0.25); }
     } else if (eggState.mode === 'wait') {
       const b = Math.abs(Math.sin(eggState.t * 3)) * Math.max(0, 1 - eggState.t * 0.6); egg.position.y = 0.16 + b * 0.3; egg.rotation.z = Math.sin(tAll * 4) * 0.12;
       eggBeacon.material.opacity = 0.35 + Math.sin(tAll * 5) * 0.25; eggBeacon.scale.setScalar(1 + Math.sin(tAll * 5) * 0.08);
@@ -623,34 +844,34 @@ export function createScene(canvas, cfg, random) {
       egg.rotation.set(0, 0, wob); egg.scale.set(1.7 * (1 + k * 0.12), 1.7 * (1 - k * 0.08 + Math.abs(wob) * 0.2), 1.7 * (1 + k * 0.12));
       eggBeacon.material.opacity = 0.4 + k * 0.5; eggBeacon.scale.setScalar(1 + k * 0.6);
       if (Math.random() < dt * (6 + k * 30)) twinkle(tmp.set(W.egg.x, 0.6 + Math.random() * 0.6, W.egg.z), 1, 0xffe0f8, 0.35 + k * 0.3);
-    } else if (eggState.mode === 'done') { eggBeacon.material.opacity = Math.max(0, eggBeacon.material.opacity - dt * 2); egg.visible = false; }
-    // critter
-    if (S.critter) {
-      const c = S.critter;
-      if (!critter.root.visible) { critter.root.visible = true; fx.hatchK = 0; }
-      fx.hatchK = Math.min(1, fx.hatchK + dt / 0.6);
-      critter.root.position.set(c.x, 0.16 + (fx.hatchK < 1 ? Math.sin(fx.hatchK * Math.PI) * 1.6 : 0), c.z);
-      critter.root.scale.setScalar(1.25 * Math.max(0.05, back(fx.hatchK)));
-      let d = c.face - critter.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); critter.root.rotation.y += d * Math.min(1, dt * 8);
-      M.animCritter(critter, dt, Math.hypot(c.vx, c.vz), tAll, fx.hatchK < 1 ? 0.3 : 0);
+    } else if (eggState.mode === 'done') eggBeacon.material.opacity = Math.max(0, eggBeacon.material.opacity - dt * 2);
+    if (eggState.mode === 'lodged') eggBeacon.material.opacity = Math.max(0, eggBeacon.material.opacity - dt * 2);
+    // critters: the parade behind the hero; a fresh one pops out of its egg with a hop
+    for (const c of S.critters) {
+      const m = critters[c.id]; if (!m) continue;
+      if (!m.root.visible) { m.root.visible = true; m.hatchK = 0; }
+      m.hatchK = Math.min(1, m.hatchK + dt / 0.6);
+      m.root.position.set(c.x, 0.16 + (m.hatchK < 1 ? Math.sin(m.hatchK * Math.PI) * 1.6 : 0), c.z);
+      m.root.scale.setScalar(1.25 * Math.max(0.05, back(m.hatchK)));
+      let d = c.face - m.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.root.rotation.y += d * Math.min(1, dt * 8);
+      M.animCritter(m, dt, Math.hypot(c.vx, c.vz), tAll, m.hatchK < 1 ? 0.3 : 0);
     }
-    // blob shadows (hero, critter, tourists, egg)
-    let bn = 0; const blob = (x, z, s) => { blobs.setMatrixAt(bn++, _m.compose(_p.set(x, 0.19, z), _q.identity(), _s.set(s, 1, s))); };
-    blob(h.x, h.z, 1.3); if (S.critter) blob(S.critter.x, S.critter.z, 0.9);
+    // blob shadows (hero, critters, keeper, kid, tourists, egg)
+    let bn = 0; const blob = (x, z, s) => { if (bn < BLOBS) blobs.setMatrixAt(bn++, _m.compose(_p.set(x, 0.19, z), _q.identity(), _s.set(s, 1, s))); };
+    blob(h.x, h.z, 1.3); for (const c of S.critters) blob(c.x, c.z, 0.9);
+    if (keeper.root.visible) blob(keeper.root.position.x, keeper.root.position.z, 1.1); if (kid.root.visible) blob(kid.root.position.x, kid.root.position.z, 0.9 * kidSt.k);
     if (eggState.mode !== 'lodged' && eggState.mode !== 'done') blob(egg.position.x, egg.position.z, 1.0);
     for (const p of tourists) if (p.root.visible) blob(p.root.position.x, p.root.position.z, 1.1);
     blobs.count = bn; blobs.instanceMatrix.needsUpdate = true;
     // guide arrow and ring
     if (g) {
-      const tx = g.x, tz = g.z, b = Math.abs(Math.sin(tAll * 3.2));
-      const top = { polisher: 2.6, stand: 3.4, counter: 2.2, pile: 2.0, crate: 1.7, cash: 1.6, mine: 2.6, egg: 1.9 }[g.what] || 1.8;
-      const ax = g.what === 'counter' ? W.counter.x : g.what === 'polisher' ? W.polisher.x : g.what === 'stand' ? W.stand.x : tx, az = g.what === 'counter' ? W.counter.z : g.what === 'polisher' ? W.polisher.z : g.what === 'stand' ? W.stand.z : tz;
+      const tx = g.x, tz = g.z, b = Math.abs(Math.sin(tAll * 3.2)), [ax, az, top] = anchor(g);
       arrow.visible = guideRing.visible = true;
       arrow.position.set(lerp(arrow.position.x, ax, Math.min(1, dt * 10)), top + 0.5 + b * 0.45, lerp(arrow.position.z, az, Math.min(1, dt * 10)));
       arrow.rotation.set(0, tAll * 2.2, 0); arrow.scale.set(1 + (1 - b) * 0.1, 0.9 + b * 0.15, 1);
       guideRing.position.set(tx, 0.2, tz); guideRing.scale.setScalar(1 + Math.sin(tAll * 5) * 0.12); guideRing.material.opacity = g.wait ? 0.25 : 0.55;
     } else arrow.visible = guideRing.visible = false;
-    for (const k in marks) marks[k].material.opacity = g && g.what === k ? 0.0 : 0.28;
+    drawMarks(S, g);
     // glint
     if (glintState.on || glintState.out > 0) {
       glintState.t += dt; glintState.out = glintState.on ? Math.min(1, glintState.out + dt * 4) : Math.max(0, glintState.out - dt * 5);
@@ -661,10 +882,12 @@ export function createScene(canvas, cfg, random) {
       glintMat.uniforms.t.value = glintState.t; glintMat.uniforms.a.value = glintState.out;
       if (glintState.on && Math.random() < dt * 8) twinkle(glintPos, 1, 0xfff0c0, 0.3);
     } else glint.visible = false;
-    // meteor: crystal pulse, the flash after a hit fades
-    meteorU.uPulse.value = Math.sin(tAll * 1.6) * 0.5 + 0.5; meteorU.uFlash.value.w = Math.max(0, meteorU.uFlash.value.w - dt * 3);
+    // meteor: crystal pulse, the flash after a hit fades; Crystal Rush makes it flare and rain sparkles
+    fx.rush = lerp(fx.rush, S.rush.on ? 1 : 0, Math.min(1, dt * 3));
+    meteorU.uPulse.value = Math.sin(tAll * (1.6 + fx.rush * 6)) * 0.5 + 0.5 + fx.rush * 0.8; meteorU.uFlash.value.w = Math.max(0, meteorU.uFlash.value.w - dt * 3);
     meteorU.uGlow.value = meteorK;
-    crystalLight.intensity = (0.8 + meteorK * 1.2) * (1 + meteorU.uFlash.value.w * 0.8);
+    crystalLight.intensity = (0.8 + meteorK * 1.2) * (1 + meteorU.uFlash.value.w * 0.8 + fx.rush * 0.6);
+    if (fx.rush > 0.05 && Math.random() < dt * 40 * fx.rush) { const D = W.deck; glowPts.spawn({ x: D.x0 + Math.random() * (D.x1 - D.x0), y: 7 + Math.random() * 3, z: D.z0 + Math.random() * (D.z1 - D.z0), vx: 0, vy: -6, vz: 0, drag: 0.2, max: 1.2, s0: 0.3, s1: 0.15, ...hexToRGB([0xffd35a, 0xff9ae8, 0x9ae8ff][Math.floor(Math.random() * 3)]) }); }
     // world: windmill, bunting sway, tumbleweeds, clouds, ambient motes by the meteor
     blades.rotation.z += dt * 1.4;
     bunting.forEach((b, i) => { b.rotation.x = Math.sin(tAll * 1.3 + i) * 0.015; });
@@ -691,23 +914,45 @@ export function createScene(canvas, cfg, random) {
     }
     glowPts.update(dt); dustPts.update(dt);
     // camera
-    // the frame stays on the town square and leans toward the hero (kids keep their bearings; nothing pops off screen)
+    // the frame stays on the town square and leans toward the hero (kids keep their bearings; nothing pops off screen);
+    // it eases a little closer while the hero mines and punches in on a Perfect Strike (camera review, M2)
     const lead = cfg.camera.lead, tx = h.x * 0.25 + h.vx * 0.04 * lead, tz = Math.max(cfg.camera.zMin, Math.min(6.0, lerp(cfg.camera.zMid, h.z, cfg.camera.lean) + h.vz * 0.08 * lead));
     const kf = Math.min(1, dt * cfg.camera.follow); cam.x += (tx - cam.x) * kf; cam.z += (tz - cam.z) * kf;
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 3);
-    const dist = camDist(), pitch = cfg.camera.pitch, yaw = cfg.camera.yaw;
-    camLook.set(cam.x, 0, cam.z);
+    cam.mineK = lerp(cam.mineK, h.mining ? 1 : 0, Math.min(1, dt * (h.mining ? 1.5 : 0.8))); cam.punch = Math.max(0, cam.punch - dt * 2.2);
+    const zoom = lerp(1, cfg.camera.mineZoom, ease(cam.mineK)) * lerp(1, cfg.camera.punch, Math.sin(Math.min(1, cam.punch) * Math.PI / 2));
+    const dist = camDist() * zoom, pitch = cfg.camera.pitch, yaw = cfg.camera.yaw;
+    camLook.set(lerp(cam.x, h.x * 0.5, cam.mineK * 0.5), 0, lerp(cam.z, cfg.camera.zMin, cam.mineK * 0.6));
     let dd = dist, look = camLook;
+    const ik = introStep(dt);
+    if (ik > 0) { look = tmp3.copy(camLook).lerp(tmp2.set(W.meteor.x, 2, W.meteor.z + 2), ik); dd = dist * (1 + ik * 0.9); }
     if (cam.show) {
       cam.showK = Math.min(1, cam.showK + dt / 0.6); cam.show.t -= dt; if (cam.show.t <= 0) cam.show = null;
     } else cam.showK = Math.max(0, cam.showK - dt / 0.7);
-    if (cam.showK > 0 && (cam.show || cam.last)) { const sh = cam.show || cam.last; cam.last = sh; const k = ease(cam.showK); look = tmp.copy(camLook).lerp(sh.p, k); dd = lerp(dist, dist * sh.zoom, k); }
+    if (cam.showK > 0 && (cam.show || cam.last)) { const sh = cam.show || cam.last; cam.last = sh; const k = ease(cam.showK); look = tmp.copy(camLook).lerp(sh.p, k); dd = lerp(dist, camDist() * sh.zoom, k); }
     camBase.set(look.x + Math.sin(yaw) * Math.cos(pitch) * dd, look.y + Math.sin(pitch) * dd, look.z + Math.cos(yaw) * Math.cos(pitch) * dd);
     const sh = cam.trauma * cam.trauma * 0.35;
     camera.position.set(camBase.x + (Math.random() - 0.5) * sh, camBase.y + (Math.random() - 0.5) * sh, camBase.z + (Math.random() - 0.5) * sh);
     camera.lookAt(look);
     const fov = cfg.camera.fov * (1 - cam.kick * 0.04); if (Math.abs(camera.fov - fov) > 1e-3) { camera.fov = fov; camera.updateProjectionMatrix(); }
     sky.position.copy(camera.position);
+  }
+
+  /** Pops in everything an unlock adds (staggered), with confetti, a ground ring, dust and a shake. Returns its centre. */
+  function unlock(id, instant = false) {
+    const list = built[id] || [], c = new THREE.Vector3(); let n = 0;
+    list.forEach((o, i) => {
+      if (o.visible && !instant) return;
+      o.visible = true; o.getWorldPosition(tmp); c.add(tmp); n++;
+      if (instant) return;
+      const s = o === keeper.root ? 1.25 : 1; o.popping = true; o.scale.setScalar(0.01); o.visible = false;
+      if (id === 'road') { o.userData.y0 = o.userData.y0 ?? o.position.y; o.userData.fall = o.userData.y0 + 5; }
+      pops.push({ o, t: -i * (id === 'road' ? 0.12 : 0.08), d: 0.7, s });
+      for (const x of [...pols, ...stands]) if (x.g === o) x.popping = true;
+    });
+    if (n) c.divideScalar(n);
+    if (!instant) { c.y = 1.4; confetti(c, 90, 4); ring(tmp.set(c.x, 0.25, c.z), 0xffd35a, 0.5, 6, 0.7); puff(c.x, c.z, 14, 1.2); cam.trauma = Math.min(1, cam.trauma + 0.4); }
+    return c;
   }
 
   const proj = new THREE.Vector3();
@@ -725,7 +970,7 @@ export function createScene(canvas, cfg, random) {
       burst(p, big ? 2.2 : 1, big ? 18 : 5);
       const n = p.clone().sub(meteor.position).normalize();
       ring(p.clone().addScaledVector(n, 0.1), big ? 0xffd6f6 : 0xffe0b0, 0.2, big ? 3.0 : 1.4, big ? 0.55 : 0.35, n);
-      if (big) { ring(p.clone().addScaledVector(n, 0.12), 0x9ae8ff, 0.1, 2.2, 0.75, n); cam.trauma = Math.min(1, cam.trauma + 0.55); cam.kick = 1; }
+      if (big) { ring(p.clone().addScaledVector(n, 0.12), 0x9ae8ff, 0.1, 2.2, 0.75, n); cam.trauma = Math.min(1, cam.trauma + 0.55); cam.kick = 1; cam.punch = 1; }
       else cam.trauma = Math.min(1, cam.trauma + 0.12);
       return p;
     },
@@ -737,10 +982,30 @@ export function createScene(canvas, cfg, random) {
     get glint() { return glintState.on ? glintPos : null; },
     bump,
     padPay() { fx.padPulse = 1; },
-    unlockRig() { rig.visible = true; rig.scale.setScalar(0.01); fx.rigUp = 0; const p = new THREE.Vector3(W.rigAt.x, 1.5, W.rigAt.z); confetti(p, 90, 4); ring(new THREE.Vector3(W.rigAt.x, 0.25, W.rigAt.z), 0xffd35a, 0.5, 6, 0.7); puff(W.rigAt.x, W.rigAt.z, 14, 1.2); cam.trauma = Math.min(1, cam.trauma + 0.4); },
+    unlock,
+    /** Starts the cold open (the meteor lands); skipIntro() jumps to its end (any tap). */
+    startIntro() { intro.t = 0; intro.hit = false; rimShards.visible = false; meteor.position.copy(meteorSky); },
+    skipIntro() { if (intro.t < 0) return; if (!intro.hit) introImpact(true); intro.t = Math.max(intro.t, INTRO.len - 0.6); },
+    get introOn() { return intro.t >= 0; },
+    /** Shows every building already bought (a continued game), without the bounce or confetti. */
+    restoreBuilt(S) { for (const p of S.pads) if (p.done) unlock(p.id, true); },
+    /** The laser fires: three beams to a point near its lon, a wide carve, sparks. Returns the hit point. */
+    laserHit() {
+      const lon = laserLon + (Math.random() - 0.5) * 0.7, lat = 0.1 + Math.random() * 0.4; carve(lon, lat, cfg.laser.carveR, cfg.laser.carveD);
+      const p = surf(lon, lat, cutAt(lon, lat) * cfg.mining.maxD * 0.8, new THREE.Vector3()); laserFx.p.copy(p); laserFx.t = 0.35;
+      meteorU.uFlash.value.set(p.x - meteor.position.x, p.y - meteor.position.y, p.z - meteor.position.z, 0.9); burst(p, 0.9, 4); return p;
+    },
+    /** The tour bus honks in on the canyon road. */
+    busIn() { if (busSt.mode === 'off') { busSt.mode = 'in'; busSt.t = 0; } },
+    get busAt() { return new THREE.Vector3(RD.park, 0.5, RD.z - 1.5); },
+    /** The order kid cheers: delivered. */
+    kidHappy() { kidSt.happy = 1.3; confetti(tmp.set(W.order.x, 1.6, W.order.z), 40, 2.5); },
     eggDrop() { eggState.mode = 'fall'; eggState.t = 0; eggState.from.copy(egg.position); burst(egg.position, 1.2, 8); },
     hatchStart() { if (eggState.mode === 'fall') eggState.queued = true; else { eggState.mode = 'hatch'; eggState.t = 0; } }, // the hero can reach the spot before the egg lands
     hatch() { eggState.mode = 'done'; const p = new THREE.Vector3(W.egg.x, 0.8, W.egg.z); confetti(p, 110, 3.5); burst(p, 1.8, 14); ring(new THREE.Vector3(W.egg.x, 0.25, W.egg.z), 0xffc8f0, 0.4, 5, 0.7); cam.trauma = Math.min(1, cam.trauma + 0.3); },
+    /** Crystal Rush starts: a big flare and ring on the meteor. */
+    rush() { const p = surf(0, 0.3, 0, new THREE.Vector3()); meteorU.uFlash.value.set(p.x - meteor.position.x, p.y - meteor.position.y, p.z - meteor.position.z, 3); burst(p, 2.4, 20); ring(p, 0xffd35a, 0.5, 9, 0.9, p.clone().sub(meteor.position).normalize()); cam.trauma = Math.min(1, cam.trauma + 0.5); },
+    beltPath: (to) => { const P = pols[polIdx(to)]; return P === pols[1] ? beltPath : [beltPath[0]]; },
     /** Camera showcase: ease toward world point p and zoom (fraction of the normal distance) for sec seconds. */
     showcase(p, zoom, sec) { cam.show = { p: p.clone(), zoom, t: sec }; cam.last = cam.show; },
     cheer(id) { fx.crowdCheer = 1.2; const p = tourists.find((o) => o.id === id); if (p) p.cheer = 0.9; },

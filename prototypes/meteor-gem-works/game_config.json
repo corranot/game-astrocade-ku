@@ -428,14 +428,15 @@
       "threshold": 1.25,
       "knee": 0.55,
       "strength": 0.26,
-      "max": 3,
+      "max": 2.2,
       "samples": 4
     },
     "glow": {
       "meteor": 1.5,
       "gem": 1.8,
       "fx": 1.6,
-      "lamp": 2
+      "lamp": 2,
+      "lantern": 1.8
     },
     "grade": {
       "vignette": 0.2,
@@ -443,7 +444,8 @@
       "saturation": 1.06,
       "warmth": 0.025
     },
-    "glareMax": 0.02
+    "glareMax": 0.02,
+    "rim": 0.32
   },
   "strings": {
     "en": {
@@ -478,7 +480,8 @@
       "cont": "CONTINUE",
       "newGame": "NEW GAME",
       "sure": "TAP AGAIN",
-      "next": "NEXT"
+      "next": "NEXT",
+      "title": "METEOR GEM WORKS"
     },
     "ar": {
       "drag": "اسحب للتحرك",
@@ -512,7 +515,8 @@
       "cont": "متابعة",
       "newGame": "لعبة جديدة",
       "sure": "المس مرة أخرى",
-      "next": "التالي"
+      "next": "التالي",
+      "title": "METEOR GEM WORKS"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
@@ -546,7 +550,8 @@
       "cont": "CONTINUAR",
       "newGame": "NUEVO JUEGO",
       "sure": "TOCA OTRA VEZ",
-      "next": "SIGUIENTE"
+      "next": "SIGUIENTE",
+      "title": "METEOR GEM WORKS"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
@@ -580,7 +585,8 @@
       "cont": "TIẾP TỤC",
       "newGame": "CHƠI MỚI",
       "sure": "CHẠM LẦN NỮA",
-      "next": "TIẾP"
+      "next": "TIẾP",
+      "title": "METEOR GEM WORKS"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
@@ -614,7 +620,8 @@
       "cont": "जारी रखें",
       "newGame": "नया खेल",
       "sure": "फिर छुएँ",
-      "next": "अगला"
+      "next": "अगला",
+      "title": "METEOR GEM WORKS"
     },
     "bn": {
       "drag": "চলতে টানো",
@@ -648,7 +655,8 @@
       "cont": "চালিয়ে যাও",
       "newGame": "নতুন খেলা",
       "sure": "আবার ছোঁও",
-      "next": "পরের"
+      "next": "পরের",
+      "title": "METEOR GEM WORKS"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
@@ -682,7 +690,8 @@
       "cont": "LANJUTKAN",
       "newGame": "MAIN BARU",
       "sure": "KETUK LAGI",
-      "next": "BERIKUTNYA"
+      "next": "BERIKUTNYA",
+      "title": "METEOR GEM WORKS"
     }
   },
   "start": {

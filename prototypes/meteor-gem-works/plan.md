@@ -1,6 +1,6 @@
 # Meteor Gem Works — game plan (v2)
 
-**Status:** waiting for the owner's approval. No code is written until she says yes (CLAUDE.md, Plan Before Building).
+**Status:** approved by the owner on 2026-11-25. M1 merged; M2 in this build.
 **v1:** 2026-11-25, PR #198. **v2:** 2026-11-25, a full upgrade the owner asked for.
 
 The v2 brief, in the owner's words: target **kids**; a **median session of 10+ minutes**; a detailed objective loop
@@ -483,3 +483,56 @@ Every gameplay effect has three layers:
 11. **Haptics don't exist on the web version of the platform.** All "feel" must come from sight and sound.
 12. **Scope is the main risk.** The P0/P1/P2 split and the M1 look approval are there so the first upload ships with a
     complete, polished chapter instead of two half-finished ones.
+
+## 15. Distribution fit (added 2026-11-25, from `docs/astrocade-distribution-playbook.md`)
+
+The ranker scores a game on day-0 strangers: share of sessions over 90 s, second plays and returns, with session
+length weighted five times more than click rate. Theme rows need p50 ≥ 40 s and p75 ≥ 75 s. These changes fold
+that into M2–M4 without adding complexity to play.
+
+### 15.1 Hook-dense first 40 s (timeline test, playbook §9)
+
+- **Act within 1 s.** Any touch or key during the cold open skips it and hands over control at once; the drag that
+  skipped it already walks the hero. No start menu for a new player; the CONTINUE card shows only with a save.
+- **First tap in the muted preview does something visible:** the skip snaps the camera in with a dust puff.
+- **Reward beats at about 10, 20, 30 and 40 s**, checked by the bot test: first hit and chunks (≤ 5 s), first gem
+  (≤ 12 s), first sale with flying coins (≤ 20 s), Drill Rig unlock (≤ 25 s), first egg hatch (≤ 40 s).
+- No result card, menu or loss before second 60, ever.
+
+### 15.2 Replay and return hooks
+
+- **Second play:** save/continue (M2) puts a returning kid back in their own town in one tap.
+- **Return reasons:** eggs on a timer with silhouettes in the album (M3), town stars and hats (M3), the
+  welcome-back gift (P1 → M3 stretch).
+- **Share at the peak:** `lib.share` with a canvas image of the town at a new critter, the laser unlock and the
+  chapter finale. Moved from P1 to M3 P0. Optional capability; nothing breaks when it is missing.
+
+### 15.3 Target theme row: **incremental** (secondary: simulation)
+
+- The game is "number goes up": coins, price pads, helpers that work on their own. No fail state, no timer, no
+  leaderboard.
+- Not Toys: it has currency and upgrades, which the Toys definition excludes. We don't fight that.
+- Title, description and mechanics must all say "build up and earn". No combat words, no score to beat.
+
+### 15.4 Post-launch updates (the update boost halves every 3 days, only in the first 30 days)
+
+Have all three ready before first publish:
+
+1. **Day 3:** 6 more critters and 3 hats (album fills further).
+2. **Day 6:** Chapter 2 "The Frost Comet" (M5).
+3. **Day 9:** a seasonal decoration set and the welcome-back gift tuned from real session data.
+
+### 15.5 Listing text (English, game-only, no workflow or brand words)
+
+- **Title:** "Meteor Gems" (11 characters). The in-game title card keeps "METEOR GEM WORKS". Check the title against
+  the live feed for echoes before upload.
+- **Description (124 characters):** "Mine, polish, sell & build! Dig glowing gems from a fallen meteor, hatch cute crystal
+  pets and grow a sparkling desert town."
+- The upload set is built with `tools/astrocade-upload-set.sh`, which strips repo and workflow mentions from code
+  comments and fails on workflow words.
+
+### 15.6 Milestone changes
+
+- **M2:** adds the "act within 1 s" skip rule and the 10/20/30/40 s reward checks to the bot test.
+- **M3:** adds `lib.share` at peak moments (P0) and the day-3 critter/hat drop content.
+- **M4:** adds the playbook's pre-publish checklist (§10) as part of done.
