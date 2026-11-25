@@ -32,7 +32,7 @@ KEEP (do not change)
 
 CHANGE
 1. Share the date photo: on the result card and in the photo album, add a "Share" button that shares the couple photo with the date theme and stars, using the game's built-in share feature. One tap; never blocks continuing.
-2. Daily Look: each day one style trend is "Today's Look" (for example Pastel Picnic, Neon Night, Garden Party); dates that match it pay bonus hearts once per day. Shown as a small chip on the title screen. Optional.
+2. Daily Look: each day one style theme is "Today's Look" (for example Pastel Picnic, Neon Night, Garden Party); dates that match it pay bonus hearts once per day. Shown as a small chip on the title screen. Optional.
 3. Instant start: a new player is choosing the first outfit piece within 2 seconds, with no text to read first.
 
 VISUAL / VFX
