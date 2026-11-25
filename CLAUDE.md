@@ -138,6 +138,8 @@ full plan unless they add a new game mode or rework the game.
   plays divided by age). Use genres and mechanics, never a recreation.
 - **Every new rule goes in the repo.** When the owner gives a new standing rule,
   add it to this CLAUDE.md as well, so it never has to be repeated.
+- **Save all research to the repo.** Every research result, market snapshot and
+  report is committed to the repo (via PR, auto-merge OK) without asking first.
 - **Thumbnails are the owner's job.** Larisha makes and sets every game thumbnail
   herself. Don't generate, render, propose or set a thumbnail (no
   `generate_thumbnail`, no `set_thumbnail`, no thumbnail candidate images), even
