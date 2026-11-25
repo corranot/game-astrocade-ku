@@ -55,7 +55,7 @@ async function open(browser, opts = {}) {
   const moved = await g((a) => Math.abs(__game.scene.hammer.pivot.rotation.x - a) > 0.01 || __game.scene.cam.focus.z !== 0, a0);
   check(moved, 'the screen moves before any touch (hammer demo swing)');
   check(await g(() => __game.R.L === 1 && __game.R.slams === 0), 'attract mode breaks and counts nothing');
-  await page.screenshot({ path: path.join(out, '01-start.png') });
+  await page.screenshot({ path: path.join(out, '01-start.jpg'), type: 'jpeg', quality: 82 });
 
   // a tap on a small fruit breaks it and grows the hammer
   const first = await g(() => { const o = __game.R.objects.find((p) => p.zone === 0 && p.req === 1); return [o.x, o.z, o.id]; });
@@ -83,14 +83,14 @@ async function open(browser, opts = {}) {
     const p = await g(() => { const b = __game.L.bestSlam(__game.cfg, __game.R); return b && [b.x, b.z]; });
     if (!p) { await page.waitForTimeout(200); continue; }
     await tapWorld(p[0], 0.3, p[1]); await waitIdle();
-    if (!zone2Shot && (await g(() => __game.R.zone)) === 1) { await page.waitForTimeout(900); await page.screenshot({ path: path.join(out, '02-zone2.png') }); zone2Shot = true; }
-    if ((await g(() => __game.R.zone === 1 && __game.R.L > 60)) && !fs.existsSync(path.join(out, '03-big-hammer.png'))) await page.screenshot({ path: path.join(out, '03-big-hammer.png') });
+    if (!zone2Shot && (await g(() => __game.R.zone)) === 1) { await page.waitForTimeout(900); await page.screenshot({ path: path.join(out, '02-zone2.jpg'), type: 'jpeg', quality: 82 }); zone2Shot = true; }
+    if ((await g(() => __game.R.zone === 1 && __game.R.L > 60)) && !fs.existsSync(path.join(out, '03-big-hammer.jpg'))) await page.screenshot({ path: path.join(out, '03-big-hammer.jpg'), type: 'jpeg', quality: 82 });
   }
   check(zone2Shot, 'clearing zone 1 moves play to zone 2');
   check(await g(() => __game.mult === 2 && __game.R.zone === 0 && __game.R.L === 1), `clearing zone 2 starts the x2 run (${guard} taps)`);
   check(await g(() => __game.R.objects.filter((o) => o.req > 1).every((o) => o.alive)), 'the new run restores every object');
   await page.waitForTimeout(600);
-  await page.screenshot({ path: path.join(out, '04-rebirth-x2.png') });
+  await page.screenshot({ path: path.join(out, '04-rebirth-x2.jpg'), type: 'jpeg', quality: 82 });
   check(await g(() => __game.save.runs === 1 && __game.save.best > 100 && (window.__writes || []).length > 0), 'the finished run is saved (runs, best size)');
   check(await g(() => __game.R.tier === 0 && __game.save.tier >= 3), 'evolution tiers were reached and the new run starts at tier 0');
 
@@ -123,7 +123,7 @@ async function open(browser, opts = {}) {
     const { page: p4 } = await open(browser, { locale: l });
     check(await p4.evaluate((x) => __game.lang === x && document.getElementById('hint').textContent.length > 3, l), `language ${l} picked from the device`);
     await p4.waitForTimeout(600);
-    await p4.screenshot({ path: path.join(out, `05-lang-${l}.png`) });
+    await p4.screenshot({ path: path.join(out, `05-lang-${l}.jpg`), type: 'jpeg', quality: 82 });
     await p4.close();
   }
   // frame time at tier 2 on this machine's software GPU: reported, not judged (a phone GPU is not swiftshader)
