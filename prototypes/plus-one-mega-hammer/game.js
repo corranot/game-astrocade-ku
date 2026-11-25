@@ -14,7 +14,7 @@ const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
 
 // ---------------------------------------------------------------- sound: all made in code, no files to load
 const Sound = (() => {
-  let ctx = null, master = null, music = null, noise = null, muted = false, step = 0, nextT = 0;
+  let ctx = null, master = null, music = null, noise = null, muted = false, step = 0, nextT = 0, song = null, songBuf = null, songLoading = false, songVol = 0.3;
   const ensure = () => {
     if (ctx) return ctx;
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination); music = ctx.createGain(); music.gain.value = 0.13; music.connect(master); } catch (e) { ctx = null; }
@@ -33,6 +33,11 @@ const Sound = (() => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(fl).connect(g).connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   }
+  function playSong() {
+    if (!ctx || ctx.state === 'closed' || !songBuf || song) return;
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = songBuf; src.loop = true; g.gain.value = 0.0001;
+    g.gain.exponentialRampToValueAtTime(songVol, ctx.currentTime + 1.2); src.connect(g).connect(master); src.start(); song = src;
+  }
   const MAT = { fruit: [900, 2, 0.12], wood: [420, 4, 0.16], cloth: [1300, 1.5, 0.12], toy: [1700, 3, 0.1], stone: [260, 1.2, 0.3], cake: [650, 0.8, 0.2] };
   return {
     unlock() { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
@@ -50,9 +55,25 @@ const Sound = (() => {
     gem(k) { if (!ctx) return; const n = PENTA[k % PENTA.length]; tone('sine', 1760 * 2 ** (n / 12), 1760 * 2 ** (n / 12), 0.08, 0.05); },
     fanfare() { if (!ctx) return; [0, 4, 7, 12].forEach((n, i) => { tone('triangle', 523 * 2 ** (n / 12), 523 * 2 ** (n / 12), 0.3, 0.13, i * 0.09); tone('sine', 261 * 2 ** (n / 12), 261 * 2 ** (n / 12), 0.35, 0.08, i * 0.09); }); },
     evolve() { if (!ctx) return; [0, 7, 12, 16, 19, 24].forEach((n, i) => tone('triangle', 392 * 2 ** (n / 12), 392 * 2 ** (n / 12), 0.25, 0.12, i * 0.06)); hiss(3000, 0.7, 0.6, 0.08, 0.1); },
-    /** Toy-funk loop at 120 bpm: bass and marimba, scheduled ahead. */
+    /**
+     * Loads the generated music track (asset id from the config) and loops it; until it arrives, or if it never
+     * does (no asset map, offline), the code-made loop below plays instead.
+     */
+    loadSong(id, vol) {
+      songVol = vol;
+      if (songBuf && !song) { playSong(); return; }
+      if (songLoading || !ctx || !id) return; songLoading = true;
+      let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map */ }
+      if (!a || !a.url) return;
+      fetch(a.url).then((r) => r.arrayBuffer()).then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej))).then((b) => {
+        songBuf = b; playSong();
+      }).catch(() => { /* keep the code-made loop */ });
+    },
+    /** Stops the recorded song (the run ended); the next touch in a new run starts it again from the kept buffer. */
+    stopSong() { if (song) { try { song.stop(); } catch (e) { /* already stopped */ } song = null; } },
+    /** Toy-funk loop at 120 bpm: bass and marimba, scheduled ahead (only while no recorded song plays). */
     music() {
-      if (!ctx || muted) return;
+      if (!ctx || muted || song) return;
       const beat = 0.25, BASS = [0, 0, 7, 0, 5, 5, 7, 4], MEL = [12, 16, 19, 16, 14, 12, 9, 12];
       if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05;
       while (nextT < ctx.currentTime + 0.3) {
@@ -72,15 +93,19 @@ const fmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3)
 export function run(mode = 'play') {
   if (window.__mh) { try { window.__mh.destroy(); } catch (e) { console.warn('previous run', e); } }
   if (typeof THREE === 'undefined') {
+    // a second run() while waiting replaces this wait (the destroy above), so only the last mode starts
     const again = () => { removeEventListener('three-ready', again); window.__mh = run(mode); };
     addEventListener('three-ready', again);
-    return { destroy() { removeEventListener('three-ready', again); } };
+    const wait = { destroy() { removeEventListener('three-ready', again); if (window.__mh === wait) window.__mh = null; } };
+    window.__mh = wait;
+    return wait;
   }
   const cfg = JSON.parse(JSON.stringify(window.gameConfig || {}));
   const qs = new URLSearchParams(location.search);
   const root = document.getElementById('app');
   root.innerHTML = HTML;
   const $ = (id) => root.querySelector('#' + id);
+  $('mute').textContent = Sound.muted ? '🔇' : '🔊'; // the sound module outlives a run: show its state
   const detect = () => { for (const l of navigator.languages || [navigator.language || 'en']) { const k = String(l).slice(0, 2).toLowerCase(); if (LANGS.includes(k)) return k; } return 'en'; };
   let lang = detect();
   const T = (k, v = {}) => String((cfg.strings[lang] || cfg.strings.en)[k] || cfg.strings.en[k] || k).replace(/\{(\w+)\}/g, (_, n) => v[n]);
@@ -88,7 +113,12 @@ export function run(mode = 'play') {
   setDir();
 
   const random = L.rng(cfg.seed);
-  const scene = createScene($('cv'), cfg, L.rng(cfg.seed + 101));
+  let scene;
+  try { scene = createScene($('cv'), cfg, L.rng(cfg.seed + 101)); } catch (e) {
+    // no WebGL2 (or the context was refused): a retry button with a reason code, never a blank screen or a thrown error
+    console.warn('webgl', e); root.innerHTML = '';
+    if (window.__load) window.__load.fail('GL'); return { destroy() {} };
+  }
   let tier = qs.has('tier') ? Number(qs.get('tier')) : cfg.quality.start;
   scene.setTier(tier);
   const speed = Math.max(1, Number(qs.get('speed')) || 1);
@@ -197,7 +227,7 @@ export function run(mode = 'play') {
     if (mode !== 'play' || card || e.target.closest('button')) return;
     if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
     const r = rect(), sx = (e.clientX - r.left) / r.width, sy = (e.clientY - r.top) / r.height;
-    Sound.unlock();
+    Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume);
     if (!touched) { touched = true; $('hint').hidden = true; }
     hold.on = true; hold.sx = sx; hold.sy = sy; hold.t = cfg.hammer.repeat; hold.id = e.pointerId;
     const p = target(sx, sy); if (p) startSlam(p.x, p.z);
@@ -207,7 +237,7 @@ export function run(mode = 'play') {
   function onKey(e) {
     if (mode !== 'play' || e.code !== 'Space' || e.repeat) return;
     e.preventDefault();
-    if (card) { again(); return; } Sound.unlock(); touched = true; $('hint').hidden = true;
+    if (card) { again(); return; } Sound.unlock(); Sound.loadSong(cfg.music.id, cfg.music.volume); touched = true; $('hint').hidden = true;
     const p = L.bestSlam(cfg, R) || target(hold.sx, hold.sy); if (p) startSlam(p.x, p.z);
   }
   const noMenu = (e) => e.preventDefault();
@@ -308,12 +338,13 @@ export function run(mode = 'play') {
       alive = false; cancelAnimationFrame(raf);
       root.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
       root.removeEventListener('contextmenu', noMenu); window.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize); document.removeEventListener('visibilitychange', onVis);
-      scene.dispose(); root.innerHTML = ''; if (window.__mh === api) window.__mh = null;
+      Sound.stopSong(); scene.dispose(); root.innerHTML = ''; if (window.__mh === api) window.__mh = null;
     },
     debug: {
       get R() { return R; }, get touched() { return touched; }, get mult() { return mult; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; },
       get tier() { return tier; }, scene, cfg, L, Sound,
       setLang(l) { lang = l; setDir(); },
+      // dev:start
       /** Test shortcut: earlier zones gone, play at zone z with hammer size size (the finale test uses it). */
       skipTo(z, size) {
         for (const o of R.objects) if (o.zone < z && o.alive) { o.alive = false; o.regrow = 0; scene.burst(o.id); }
@@ -322,6 +353,7 @@ export function run(mode = 'play') {
         const b = L.bestSlam(cfg, R) || { x: 0, z: cfg.zones[z].z }; aim.x = aim.tx = b.x; aim.z = aim.tz = b.z;
         renderTop(true);
       },
+      // dev:end
       /** Client position of a world point, for tests that touch like a finger. */
       client(x, y, z) { const [sx, sy] = scene.toScreen(x, y, z), r = rect(); return [r.left + sx * r.width, r.top + sy * r.height]; },
       get card() { return card; }, get gemsGot() { return gemsGot; }, get sessT() { return sessT; },

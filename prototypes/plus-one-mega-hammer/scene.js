@@ -268,12 +268,12 @@ export function createScene(canvas, cfg, random) {
     e.hidden = true;
     const r = cfg.kinds[e.o.kind].r, n = Math.round(6 + r * 10), [c1, c2] = DEBRIS[e.o.kind];
     for (let k = 0; k < n; k++) {
-      const d = D[dNext]; dNext = (dNext + 1) % D.length;
+      const di = dNext, d = D[di]; dNext = (dNext + 1) % D.length;
       const a = random() * 6.28, sp = 2.2 + random() * 3.2 * (0.6 + r);
       d.life = 1.6 + random() * 0.8; d.s = (0.6 + random() * 1.1) * (0.7 + r * 0.8);
       d.p.set(e.o.x + Math.cos(a) * r * 0.5, r * (0.4 + random()), e.o.z + Math.sin(a) * r * 0.5);
       d.v.set(Math.cos(a) * sp, 3.5 + random() * 4.5, Math.sin(a) * sp); d.r.set(random() * 6, random() * 6, 0); d.w.set(random() * 14 - 7, random() * 14 - 7, random() * 14 - 7);
-      debris.setColorAt(dNext, tmpC.set(k % 3 ? c1 : c2));
+      debris.setColorAt(di, tmpC.set(k % 3 ? c1 : c2));
     }
     debris.instanceColor.needsUpdate = true;
     puff(e.o.x, e.o.z, 3 + Math.round(r * 4), r);
@@ -281,11 +281,11 @@ export function createScene(canvas, cfg, random) {
   function chips(e, n) {
     const r = cfg.kinds[e.o.kind].r, [c1, c2] = DEBRIS[e.o.kind];
     for (let k = 0; k < n; k++) {
-      const d = D[dNext]; dNext = (dNext + 1) % D.length; const a = random() * 6.28, sp = 2 + random() * 4;
+      const di = dNext, d = D[di]; dNext = (dNext + 1) % D.length; const a = random() * 6.28, sp = 2 + random() * 4;
       d.life = 1.4 + random() * 0.6; d.s = 0.8 + random() * 1.4;
       d.p.set(e.o.x + Math.cos(a) * r * 0.7, r * (0.6 + random() * 0.8), e.o.z + Math.sin(a) * r * 0.7);
       d.v.set(Math.cos(a) * sp, 4 + random() * 5, Math.sin(a) * sp); d.w.set(random() * 14 - 7, random() * 14 - 7, random() * 14 - 7);
-      debris.setColorAt(dNext, tmpC.set(k % 3 ? c1 : c2));
+      debris.setColorAt(di, tmpC.set(k % 3 ? c1 : c2));
     }
     debris.instanceColor.needsUpdate = true;
   }
@@ -305,10 +305,10 @@ export function createScene(canvas, cfg, random) {
   /** Confetti-coloured debris rain over a zone when it clears. */
   function confetti(x, z) {
     for (let k = 0; k < 60; k++) {
-      const d = D[dNext]; dNext = (dNext + 1) % D.length; const a = random() * 6.28, sp = 1 + random() * 3;
+      const di = dNext, d = D[di]; dNext = (dNext + 1) % D.length; const a = random() * 6.28, sp = 1 + random() * 3;
       d.life = 2 + random(); d.s = 0.5 + random() * 0.4; d.p.set(x + (random() - 0.5) * 4, 4 + random() * 3, z + (random() - 0.5) * 4);
       d.v.set(Math.cos(a) * sp, 2 + random() * 4, Math.sin(a) * sp); d.w.set(random() * 20 - 10, random() * 20 - 10, random() * 20 - 10);
-      debris.setColorAt(dNext, tmpC.set([PAL.coral, PAL.gold, PAL.jade, PAL.amethyst][k % 4]));
+      debris.setColorAt(di, tmpC.set([PAL.coral, PAL.gold, PAL.jade, PAL.amethyst][k % 4]));
     }
     debris.instanceColor.needsUpdate = true;
   }
