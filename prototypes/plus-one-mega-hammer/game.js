@@ -1,8 +1,9 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Genre: "+1" smash-and-grow for kids. +1 Mega Hammer: tap to slam a giant hammer; every object it breaks adds to
 // the hammer's size, so it grows on screen and can break the bigger, numbered things it bounced off before.
-// Milestone 1 slice: two zones (fruit stand, market), growth, 8 evolution looks, camera pull-back, basic hit
-// effects and sound. Clearing both zones starts again with every gain doubled (x2, x4, ...).
+// Milestone 2: six zones (fruit stand, market, street, park, city, cake vault finale), growth, 8 evolution looks,
+// camera pull-back, hit effects and sound. Finishing the vault starts again with every gain doubled (x2, x4, ...);
+// once the session is 60 s or longer, a results card shows the size first.
 // Modules: logic.js (rules), models.js (geometry), scene.js (3D look, Three.js r187 loaded by index.html).
 /* global THREE */ // set on window by index.html before run() starts the game
 import * as L from './logic.js';
@@ -32,14 +33,16 @@ const Sound = (() => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(fl).connect(g).connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   }
-  const MAT = { fruit: [900, 2, 0.12], wood: [420, 4, 0.16], cloth: [1300, 1.5, 0.12] };
+  const MAT = { fruit: [900, 2, 0.12], wood: [420, 4, 0.16], cloth: [1300, 1.5, 0.12], toy: [1700, 3, 0.1], stone: [260, 1.2, 0.3], cake: [650, 0.8, 0.2] };
   return {
     unlock() { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
     get muted() { return muted; },
     setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.8; },
     /** Slam thud: deeper as the hammer grows (scale s): 140 Hz down to 48 Hz. */
     thud(s) { if (!ctx) return; const f = Math.max(48, 140 - (s - 1) * 30); tone('sine', f * 1.6, f * 0.6, 0.28, 0.55); hiss(180, 1, 0.18, 0.25); },
-    breakMat(m, i) { if (!ctx) return; const [f, q, d] = MAT[m] || MAT.wood; hiss(f * (0.9 + (i % 3) * 0.08), q, d, 0.35, i * 0.012); if (m === 'fruit') tone('sine', 520, 180, 0.09, 0.12, i * 0.012); },
+    breakMat(m, i) { if (!ctx) return; const [f, q, d] = MAT[m] || MAT.wood; hiss(f * (0.9 + (i % 3) * 0.08), q, d, 0.35, i * 0.012); if (m === 'fruit') tone('sine', 520, 180, 0.09, 0.12, i * 0.012); else if (m === 'toy') tone('square', 880, 520, 0.06, 0.05, i * 0.012); else if (m === 'stone') tone('sine', 110, 50, 0.3, 0.2, i * 0.012); else if (m === 'cake') tone('sine', 300, 120, 0.2, 0.15, i * 0.012); },
+    /** A vault hit that does not break it yet: heavy clang, higher as the vault weakens (hp left). */
+    clang(hp) { if (!ctx) return; const f = 180 + (6 - hp) * 40; tone('triangle', f * 2, f, 0.4, 0.22); tone('sine', f * 3.01, f * 2.9, 0.5, 0.06); hiss(2400, 2, 0.25, 0.12); },
     bonk() { if (!ctx) return; tone('square', 210, 150, 0.1, 0.08); tone('sine', 330, 240, 0.12, 0.1); },
     ding(combo) { if (!ctx) return; const n = PENTA[Math.min(PENTA.length - 1, combo - 1)]; tone('triangle', 660 * 2 ** (n / 12), 660 * 2 ** (n / 12), 0.22, 0.14); tone('sine', 1320 * 2 ** (n / 12), 1320 * 2 ** (n / 12), 0.12, 0.05); },
     grow() { if (!ctx) return; tone('sine', 90, 55, 0.35, 0.3); },
@@ -126,6 +129,20 @@ export function run(mode = 'play') {
     if (force || p !== shownP) { $('bar').style.width = Math.min(100, p / cfg.zones[R.zone].clear * 100) + '%'; shownP = p; }
     $('zone').textContent = (R.zone + 1) + '/' + cfg.zones.length; $('mult').textContent = mult > 1 ? 'x' + mult : ''; $('mult').hidden = mult <= 1;
   }
+  /** Results card: final hammer size, best, the next multiplier on the again button, and share when the host has it. */
+  function showCard() {
+    card = true; hold.on = false;
+    $('cSize').textContent = fmt(R.L); $('cBest').textContent = T('best', { n: fmt(Math.max(save.best, R.L)) });
+    $('cAgain').textContent = T('again', { m: mult * cfg.rebirth.mult }); $('cShare').textContent = T('share');
+    $('cShare').hidden = !(window.lib && typeof lib.share === 'function');
+    $('cTitle').textContent = T('size');
+    $('card').hidden = false; void $('card').offsetWidth; $('card').classList.add('show');
+    Sound.fanfare(); buzz('success');
+  }
+  function again() {
+    if (card) { card = false; $('card').classList.remove('show'); $('card').hidden = true; }
+    mult *= cfg.rebirth.mult; newRun(); showBanner('x' + mult + '!', 'gold'); Sound.fanfare();
+  }
   function showBanner(text, cls) { const b = $('banner'); b.textContent = text; b.className = 'banner out ' + (cls || ''); void b.offsetWidth; b.classList.add('show'); banner = 1.6; }
 
   // ---------------------------------------------------------------- slams
@@ -144,21 +161,22 @@ export function run(mode = 'play') {
         if (o.req > 1) bigHit = true;
         popNumber(o.x, cfg.kinds[o.kind].r * 2, o.z, e.gain, o.req > 1);
       } else if (e.type === 'bonk') { scene.bonk(e.id); Sound.bonk(); }
+      else if (e.type === 'hit') { scene.hit(e.id, R.L); Sound.clang(e.hp); bigHit = true; buzz('heavy'); }
       else if (e.type === 'open') scene.open(e.id, R.L);
       else if (e.type === 'tier') { scene.hammer.setTier(e.tier); evolveFx = 1; Sound.evolve(); showBanner(T('evolve'), 'gold'); buzz('heavy'); if (touched && mode === 'play') { save.tier = Math.max(save.tier, e.tier); persist(); } }
       else if (e.type === 'clear') { const Z = cfg.zones[e.zone]; scene.confetti(0, Z.z); Sound.fanfare(); showBanner(T('clear'), 'jade'); }
-      else if (e.type === 'done') doneT = 1.4;
+      else if (e.type === 'done') doneT = cfg.results.delay;
     }
     scene.impact(swing.x, swing.z, reach, bigHit);
-    scene.shake(broke ? (bigHit ? 0.75 : 0.45) : 0.25);
-    hitstop = broke ? (bigHit ? cfg.fx.hitstopBig : cfg.fx.hitstop) : 0;
+    scene.shake(broke || bigHit ? (bigHit ? 0.75 : 0.45) : 0.25);
+    hitstop = broke || bigHit ? (bigHit ? cfg.fx.hitstopBig : cfg.fx.hitstop) : 0;
     if (broke) { Sound.ding(R.combo); Sound.grow(); growFx = 1; buzz(bigHit ? 'medium' : 'light'); }
     // every label that is now within reach of the new size turns green
     for (const o of R.objects) if (o.alive && o.req > 1) scene.relabel(o.id, R.L);
     renderTop();
     if (touched && mode === 'play' && R.L > save.best) save.best = R.L;
   }
-  let evolveFx = 0, growFx = 0, doneT = 0;
+  let evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false;
 
   // ---------------------------------------------------------------- input: tap = slam there, hold = slam again
   const rect = () => root.getBoundingClientRect();
@@ -174,7 +192,7 @@ export function run(mode = 'play') {
     return scene.toGround(sx, sy);
   }
   function onDown(e) {
-    if (mode !== 'play' || e.target.closest('button')) return;
+    if (mode !== 'play' || card || e.target.closest('button')) return;
     if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
     const r = rect(), sx = (e.clientX - r.left) / r.width, sy = (e.clientY - r.top) / r.height;
     Sound.unlock();
@@ -186,12 +204,15 @@ export function run(mode = 'play') {
   function onUp(e) { if (e.pointerId === hold.id) hold.on = false; }
   function onKey(e) {
     if (mode !== 'play' || e.code !== 'Space' || e.repeat) return;
-    e.preventDefault(); Sound.unlock(); touched = true; $('hint').hidden = true;
+    e.preventDefault();
+    if (card) { again(); return; } Sound.unlock(); touched = true; $('hint').hidden = true;
     const p = L.bestSlam(cfg, R) || target(hold.sx, hold.sy); if (p) startSlam(p.x, p.z);
   }
   const noMenu = (e) => e.preventDefault();
   root.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
   root.addEventListener('contextmenu', noMenu); window.addEventListener('keydown', onKey);
+  $('cAgain').addEventListener('click', () => { Sound.unlock(); again(); });
+  $('cShare').addEventListener('click', () => { Promise.resolve().then(() => lib.share({ text: T('brag', { n: fmt(Math.max(save.best, R ? R.L : 0)) }) })).catch(() => {}); });
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); $('mute').textContent = Sound.muted ? '🔇' : '🔊'; });
   function fit() { const r = rect(); root.style.setProperty('--u', String(r.width / 720)); root.style.containerType = 'size'; scene.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height))); }
   const onResize = () => fit();
@@ -201,7 +222,8 @@ export function run(mode = 'play') {
 
   // ---------------------------------------------------------------- frame
   function step(dt) {
-    L.tick(cfg, R, dt);
+    for (const id of L.tick(cfg, R, dt)) scene.regrow(id);
+    if (touched) sessT += dt;
     // attract mode before the first touch: the hammer taps the ground next to the first apple, breaking nothing
     if (!touched) {
       demoT += dt;
@@ -234,9 +256,9 @@ export function run(mode = 'play') {
     if (doneT > 0) {
       doneT -= dt;
       if (doneT <= 0) {
-        mult *= cfg.rebirth.mult;
         if (touched && mode === 'play') { save.runs++; persist(); Promise.resolve().then(() => lib.addPlayerScoreToLeaderboard(Math.floor(save.best))).catch(() => {}); }
-        newRun(); showBanner('x' + mult + '!', 'gold'); Sound.fanfare();
+        // no end screen before cfg.results.minSession: a short session goes straight on into the x2 run
+        if (touched && mode === 'play' && sessT >= cfg.results.minSession) showCard(); else again();
       }
     }
   }
@@ -288,8 +310,17 @@ export function run(mode = 'play') {
       get R() { return R; }, get touched() { return touched; }, get mult() { return mult; }, get save() { return save; }, get saveLoaded() { return saveLoaded; }, get lang() { return lang; },
       get tier() { return tier; }, scene, cfg, L, Sound,
       setLang(l) { lang = l; setDir(); },
+      /** Test shortcut: earlier zones gone, play at zone z with hammer size size (the finale test uses it). */
+      skipTo(z, size) {
+        for (const o of R.objects) if (o.zone < z && o.alive) { o.alive = false; o.regrow = 0; scene.burst(o.id); }
+        R.zone = z; R.L = size; R.tier = L.tierOf(cfg, size); scene.hammer.setTier(R.tier);
+        for (const o of R.objects) if (o.alive && o.req > 1) scene.relabel(o.id, R.L);
+        const b = L.bestSlam(cfg, R) || { x: 0, z: cfg.zones[z].z }; aim.x = aim.tx = b.x; aim.z = aim.tz = b.z;
+        renderTop(true);
+      },
       /** Client position of a world point, for tests that touch like a finger. */
       client(x, y, z) { const [sx, sy] = scene.toScreen(x, y, z), r = rect(); return [r.left + sx * r.width, r.top + sy * r.height]; },
+      get card() { return card; }, get sessT() { return sessT; },
       get busy() { return swing.phase === 'down' || swing.phase === 'up'; },
     },
   };
@@ -307,6 +338,8 @@ const HTML = `
   <div id="pops"></div>
   <div id="banner" class="banner out"></div>
   <div id="hint" class="hint out">TAP!</div>
+  <div id="card" class="card" hidden><div class="cbox"><p id="cTitle" class="ctitle out"></p><span class="ham big" aria-hidden="true"></span><b id="cSize" class="csize out">1</b><p id="cBest" class="cbest out"></p>
+    <button id="cAgain" class="cbtn out"></button><button id="cShare" class="cbtn alt out"></button></div></div>
 </div>`;
 
 window.run = run;
@@ -316,7 +349,7 @@ if (typeof location !== 'undefined' && new URLSearchParams(location.search).has(
   const none = async () => ({});
   const store = { state: window.__preset || null };
   window.lib = { showGameParameters() {}, log() {}, getUserGameState: async () => (window.__saveFails ? Promise.reject(new Error('offline')) : { state: store.state }),
-    saveUserGameState: async (s) => { store.state = s; (window.__writes = window.__writes || []).push(s); }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none,
+    saveUserGameState: async (s) => { store.state = s; (window.__writes = window.__writes || []).push(s); }, addPlayerScoreToLeaderboard: none, getTopNEntriesFromLeaderboard: none, share: async () => { window.__shares = (window.__shares || 0) + 1; },
     shouldUseTouchControls: () => matchMedia('(pointer: coarse)').matches, haptics: { play() {}, start() {}, stop() {} }, getAsset: () => undefined };
   fetch('./game_config.json').then((r) => r.json()).then((c) => { window.gameConfig = c; run(new URLSearchParams(location.search).get('mode') || 'play'); });
 }

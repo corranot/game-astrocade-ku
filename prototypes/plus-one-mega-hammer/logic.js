@@ -16,9 +16,10 @@ export function rng(seed) {
   };
 }
 
-/** Display scale of the hammer at size L: s = base + k * sqrt(L), so growth feels fast early and stays on screen late. */
+/** Display scale of the hammer at size L: s = base + k * ln(1 + L), so growth feels fast early and the hammer
+ * stays on screen when L reaches tens of thousands. */
 export function hammerScale(cfg, L) {
-  return cfg.hammer.baseScale + cfg.hammer.scaleK * Math.sqrt(Math.max(0, L));
+  return cfg.hammer.baseScale + cfg.hammer.scaleK * Math.log(1 + Math.max(0, L));
 }
 
 /** Reach of a slam in world units at size L. */
@@ -34,18 +35,21 @@ export function tierOf(cfg, L) {
   return i;
 }
 
-/** Growth an object gives when broken, before the run multiplier. Labelled objects give part of their req. */
-export function valueOf(cfg, req) {
-  return req <= 1 ? cfg.growth.smallValue : Math.max(1, Math.round(req * cfg.growth.labelValue));
+/** Growth an object gives when broken, before the run multiplier: its own v when the zone sets one, else small
+ * objects give cfg.growth.smallValue and labelled ones part of their req. */
+export function valueOf(cfg, req, v = 0) {
+  if (v > 0) return v;
+  return req <= 1 ? cfg.growth.smallValue : Math.max(2, Math.round(req * cfg.growth.labelValue));
 }
 
 /** Places a zone's objects on a jittered grid inside its w x d area, biggest first, never overlapping. */
 export function layoutZone(cfg, zi, random) {
   const Z = cfg.zones[zi], out = [];
   const list = [];
-  for (const it of Z.items) for (let k = 0; k < it.n; k++) list.push({ kind: it.kind, req: it.req, r: cfg.kinds[it.kind].r });
+  for (const it of Z.items) for (let k = 0; k < it.n; k++) list.push({ kind: it.kind, req: it.req, r: cfg.kinds[it.kind].r, hp: it.hp || 1, boss: !!it.boss, v: it.v || 0 });
   list.sort((a, b) => b.r - a.r);
   for (const o of list) {
+    if (o.boss) { out.push({ ...o, x: 0, z: Z.z - Z.d * 0.12 }); continue; } // the finale sits in the middle
     let best = null, bestGap = -Infinity;
     for (let tries = 0; tries < 400; tries++) {
       const x = (random() - 0.5) * (Z.w - 2 * o.r), z = Z.z + (random() - 0.5) * (Z.d - 2 * o.r);
@@ -63,7 +67,7 @@ export function layoutZone(cfg, zi, random) {
 export function createRun(cfg, random, mult = 1) {
   const objects = [];
   cfg.zones.forEach((Z, zi) => {
-    for (const o of layoutZone(cfg, zi, random)) objects.push({ id: objects.length, zone: zi, alive: true, ...o });
+    for (const o of layoutZone(cfg, zi, random)) objects.push({ id: objects.length, zone: zi, alive: true, maxHp: o.hp, ...o });
   });
   return { L: 1, mult, zone: 0, objects, broken: 0, combo: 0, comboT: 0, t: 0, done: false, tier: 0, slams: 0 };
 }
@@ -71,21 +75,38 @@ export function createRun(cfg, random, mult = 1) {
 /** Objects of zone zi. */
 export const zoneObjects = (R, zi) => R.objects.filter((o) => o.zone === zi);
 
-/** Share (0..1) of the current zone that is broken. */
+/** Small objects (req 1) grow back, so a zone never runs out of things to hit. */
+export const isSmall = (o) => o.req <= 1 && !o.boss;
+
+/** Share (0..1) of the current zone's numbered objects that are broken (small ones grow back, so they don't count). */
 export function zoneProgress(R) {
-  const list = zoneObjects(R, R.zone);
+  const list = zoneObjects(R, R.zone).filter((o) => !isSmall(o));
   return list.length ? list.filter((o) => !o.alive).length / list.length : 1;
 }
 
-/** Advances the run clock: the combo lapses after cfg.growth.combo seconds without a break. */
+/** True when the current zone is cleared: enough broken, and its boss (if any) broken. */
+export function zoneCleared(cfg, R) {
+  const list = zoneObjects(R, R.zone);
+  return zoneProgress(R) >= cfg.zones[R.zone].clear && !list.some((o) => o.boss && o.alive);
+}
+
+/** Advances the run clock: the combo lapses after cfg.growth.combo seconds without a break, and broken small
+ * objects of the current zone grow back after cfg.growth.respawn seconds. Returns the ids that grew back. */
 export function tick(cfg, R, dt) {
   R.t += dt;
   if (R.comboT > 0) { R.comboT -= dt; if (R.comboT <= 0) R.combo = 0; }
+  const back = [];
+  for (const o of R.objects) {
+    if (o.alive || !(o.regrow > 0)) continue;
+    o.regrow -= dt;
+    if (o.regrow <= 0) { if (o.zone === R.zone && !R.done) { o.alive = true; o.hp = o.maxHp; back.push(o.id); } else o.regrow = 0; }
+  }
+  return back;
 }
 
 /**
  * A slam landing at (x, z). Returns the events in order:
- * break {id, gain}, bonk {id} (in reach but too big), grow {L, from}, tier {tier}, open {id} (a labelled object is
+ * hit {id, hp} (a multi-hit object took a hit and holds), break {id, gain}, bonk {id} (in reach but too big), grow {L, from}, tier {tier}, open {id} (a labelled object is
  * now breakable), clear {zone}, done. Only the current zone's objects can be hit.
  */
 export function slam(cfg, R, x, z) {
@@ -104,18 +125,21 @@ export function slam(cfg, R, x, z) {
   R.combo++; R.comboT = cfg.growth.combo;
   let gain = 0;
   for (const o of hit) {
+    if (--o.hp > 0) { ev.push({ type: 'hit', id: o.id, hp: o.hp }); continue; }
     o.alive = false; R.broken++;
-    const g = valueOf(cfg, o.req) * R.mult;
+    if (isSmall(o)) o.regrow = cfg.growth.respawn;
+    const g = valueOf(cfg, o.req, o.v) * R.mult;
     gain += g;
     ev.push({ type: 'break', id: o.id, gain: g });
   }
+  if (!gain) return ev;
   const wasOpen = new Set(R.objects.filter((o) => o.alive && o.req <= R.L).map((o) => o.id));
   R.L += gain;
   ev.push({ type: 'grow', L: R.L, from });
   const t = tierOf(cfg, R.L);
   if (t > R.tier) { R.tier = t; ev.push({ type: 'tier', tier: t }); }
   for (const o of R.objects) if (o.alive && o.req > 1 && o.req <= R.L && !wasOpen.has(o.id)) ev.push({ type: 'open', id: o.id });
-  if (zoneProgress(R) >= cfg.zones[R.zone].clear) {
+  if (zoneCleared(cfg, R)) {
     ev.push({ type: 'clear', zone: R.zone });
     if (R.zone + 1 < cfg.zones.length) R.zone++;
     else { R.done = true; ev.push({ type: 'done' }); }
@@ -123,14 +147,15 @@ export function slam(cfg, R, x, z) {
   return ev;
 }
 
-/** The best spot to slam right now for an autopilot: the point that breaks the most growth, or null. */
+/** The best spot to slam right now for an autopilot: the point that breaks the most growth, numbered objects
+ * first (they move the zone on, as a player would go for them), or null. */
 export function bestSlam(cfg, R) {
   const r = reach(cfg, R.L);
   let best = null, bestV = 0;
   const live = R.objects.filter((o) => o.alive && o.zone === R.zone && o.req <= R.L);
   for (const c of live) {
     let v = 0;
-    for (const o of live) if (Math.hypot(o.x - c.x, o.z - c.z) <= r + o.r * 0.6) v += valueOf(cfg, o.req);
+    for (const o of live) if (Math.hypot(o.x - c.x, o.z - c.z) <= r + o.r * 0.6) v += (valueOf(cfg, o.req, o.v) + (isSmall(o) ? 0 : 1000)) / o.hp;
     if (v > bestV) { bestV = v; best = { x: c.x, z: c.z }; }
   }
   return best;

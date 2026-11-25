@@ -14,9 +14,10 @@ test('rng is seeded and repeatable', () => {
   for (let i = 0; i < 5; i++) assert.equal(a(), b());
 });
 
-test('hammer scale follows 1 + k * sqrt(L)', () => {
+test('hammer scale follows 1 + k * ln(1 + L) and stays within 8x at the end of a run', () => {
   assert.equal(L.hammerScale(cfg, 0), 1);
-  assert.equal(L.hammerScale(cfg, 100), 1 + cfg.hammer.scaleK * 10);
+  assert.equal(L.hammerScale(cfg, Math.E - 1), 1 + cfg.hammer.scaleK);
+  assert.ok(L.hammerScale(cfg, 50000) < 8);
 });
 
 test('tiers follow the thresholds and stop at the last one', () => {
@@ -66,8 +67,8 @@ test('only the current zone can be hit', () => {
 
 test('an object opens once when the hammer reaches its req', () => {
   const R = L.createRun(cfg, L.rng(1));
-  const target = R.objects.find((o) => o.zone === 0 && o.req === 4);
-  R.L = 3.5;
+  const target = R.objects.find((o) => o.zone === 0 && o.req === 8);
+  R.L = 7.5;
   const small = R.objects.find((o) => o.zone === 0 && o.req === 1 && Math.hypot(o.x - target.x, o.z - target.z) > 3);
   const ev = L.slam(cfg, R, small.x, small.z);
   assert.ok(ev.some((e) => e.type === 'open' && e.id === target.id));
@@ -91,7 +92,7 @@ function sim(seed, mult = 1) {
   while (!R.done && R.t < 300) {
     L.tick(cfg, R, dt);
     const p = L.bestSlam(cfg, R);
-    if (!p) break;
+    if (!p) continue; // everything breakable is growing back: wait
     for (const e of L.slam(cfg, R, p.x, p.z)) if (e.type === 'clear') cleared.push(R.t);
   }
   return { cleared, R };
@@ -101,12 +102,34 @@ test('the autopilot always finishes, never stuck behind a too-big object', () =>
   for (let s = 1; s <= 20; s++) { const { R } = sim(s); assert.ok(R.done, `seed ${s} finishes (L ${R.L})`); }
 });
 
-test('timeline: zone 1 clears in 3-15 s, zone 2 by 40 s, at two taps a second', () => {
+test('timeline at two taps a second: a zone every 3-18 s, the whole run in 40-120 s', () => {
   for (let s = 1; s <= 20; s++) {
-    const { cleared } = sim(s);
-    assert.ok(cleared[0] >= 3 && cleared[0] <= 15, `seed ${s}: zone 1 at ${cleared[0].toFixed(1)} s`);
-    assert.ok(cleared[1] <= 40, `seed ${s}: zone 2 at ${cleared[1].toFixed(1)} s`);
+    const { cleared, R } = sim(s);
+    assert.equal(cleared.length, cfg.zones.length, `seed ${s}: every zone clears`);
+    cleared.forEach((t, i) => { const d = t - (cleared[i - 1] || 0); assert.ok(d >= 3 && d <= 18, `seed ${s}: zone ${i + 1} took ${d.toFixed(1)} s`); });
+    assert.ok(R.t >= 40 && R.t <= 120, `seed ${s}: run took ${R.t.toFixed(1)} s`);
   }
+});
+
+test('the cake vault takes several hits, and its zone only clears when it breaks', () => {
+  const R = L.createRun(cfg, L.rng(5));
+  R.zone = cfg.zones.length - 1; R.L = 1e7;
+  const vault = R.objects.find((o) => o.boss);
+  const hits = [];
+  for (let k = 0; k < vault.maxHp; k++) hits.push(...L.slam(cfg, R, vault.x, vault.z));
+  assert.equal(hits.filter((e) => e.type === 'hit' && e.id === vault.id).length, vault.maxHp - 1, 'holds until the last hit');
+  assert.ok(hits.some((e) => e.type === 'break' && e.id === vault.id) && hits.some((e) => e.type === 'done'));
+});
+
+test('small objects grow back in the current zone; numbered ones do not', () => {
+  const R = L.createRun(cfg, L.rng(6));
+  R.L = 20;
+  const small = R.objects.find((o) => o.zone === 0 && o.req === 1), big = R.objects.find((o) => o.zone === 0 && o.req > 1);
+  L.slam(cfg, R, small.x, small.z); L.slam(cfg, R, big.x, big.z);
+  assert.ok(!small.alive && !big.alive);
+  const back = L.tick(cfg, R, cfg.growth.respawn + 0.01);
+  assert.ok(small.alive && back.includes(small.id), 'small grows back');
+  assert.ok(!big.alive, 'numbered stays broken');
 });
 
 test('a rebirth (x2) run is faster', () => {

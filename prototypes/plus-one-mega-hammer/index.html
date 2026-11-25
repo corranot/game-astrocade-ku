@@ -46,7 +46,23 @@ body{display:flex;align-items:center;justify-content:center}
 .hint{position:absolute;bottom:18%;left:50%;translate:-50% 0;font-size:calc(var(--u)*58px);white-space:nowrap;animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{transform:scale(1.08)}}
 @keyframes bump{40%{transform:scale(1.14)}100%{transform:none}}
-@media (prefers-reduced-motion:reduce){.hint{animation:none}}
+/* results card: shown at the end of a run once the session is 60 s or longer */
+.card{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:auto;background:radial-gradient(circle at 50% 45%,rgba(43,45,91,.35),rgba(20,21,40,.78));opacity:0;transition:opacity .35s}
+.card.show{opacity:1}
+.card[hidden]{display:none}
+.cbox{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*14px);width:calc(var(--u)*560px);padding:calc(var(--u)*40px) calc(var(--u)*30px);border-radius:calc(var(--u)*56px);
+  background:linear-gradient(#3a3d75,#2b2d5b 60%,#22244a);border:calc(var(--u)*6px) solid var(--ink);box-shadow:inset 0 calc(var(--u)*6px) 0 rgba(244,237,226,.2),0 calc(var(--u)*12px) 0 var(--ink);transform:scale(.6) rotate(-4deg);transition:transform .45s cubic-bezier(.2,1.6,.4,1)}
+.card.show .cbox{transform:none}
+.ctitle{margin:0;font-size:calc(var(--u)*44px);color:#f4ede2;text-align:center}
+.ham.big{width:calc(var(--u)*130px);height:calc(var(--u)*130px);animation:pulse 1.2s ease-in-out infinite}
+.csize{font-size:calc(var(--u)*130px);line-height:1;color:#f2c96a;direction:ltr}
+.cbest{margin:0;font-size:calc(var(--u)*34px);color:#7fe0b4}
+.cbtn{width:100%;min-height:calc(var(--u)*110px);border-radius:999px;border:calc(var(--u)*6px) solid var(--ink);font:inherit;font-size:calc(var(--u)*48px);color:#f4ede2;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  background:linear-gradient(#f07a6c,#e06356 55%,#b8463b);box-shadow:inset 0 calc(var(--u)*6px) 0 rgba(255,255,255,.3),0 calc(var(--u)*8px) 0 var(--ink)}
+.cbtn:active{translate:0 calc(var(--u)*6px);box-shadow:inset 0 calc(var(--u)*6px) 0 rgba(255,255,255,.3),0 calc(var(--u)*2px) 0 var(--ink)}
+.cbtn.alt{min-height:calc(var(--u)*86px);font-size:calc(var(--u)*38px);background:linear-gradient(#6fdcb2,#1f9d74 60%,#167a5a)}
+.cbtn[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.hint,.ham.big{animation:none}}
 </style>
 </head>
 <body>

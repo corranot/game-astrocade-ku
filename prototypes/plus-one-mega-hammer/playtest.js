@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Playtest: serves this folder, plays the milestone-1 slice with real mouse clicks (both zones, then the x2 run),
-// checks the rules that matter, and saves screenshots.
+// Playtest: serves this folder, plays a whole run with real mouse clicks (six zones and the cake vault, then the
+// x2 run), checks the finale and the results card, checks the rules that matter, and saves screenshots.
 // Usage: node playtest.js <out folder>   (needs Playwright; swiftshader GPU, so FPS here is not a phone's)
 // THREE_DIR=<three/build folder> serves three.js locally when the CDN is not reachable from this machine.
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -8,7 +8,9 @@ const { chromium } = require('playwright');
 const out = process.argv[2] || fs.mkdtempSync(path.join(require('os').tmpdir(), 'mh-playtest-'));
 fs.mkdirSync(out, { recursive: true });
 const types = { '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json' };
+let cfgPatch = null; // set by a test to serve game_config.json with some values changed
 const server = http.createServer((q, s) => {
+  if (cfgPatch && q.url.startsWith('/game_config.json')) { const c = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'))); cfgPatch(c); s.writeHead(200, { 'content-type': 'application/json' }); return s.end(JSON.stringify(c)); }
   const f = path.join(__dirname, q.url.split('?')[0] === '/' ? 'index.html' : q.url.split('?')[0]);
   fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'content-type': types[path.extname(f)] || 'text/plain' }); s.end(d); });
 }).listen(0);
@@ -43,6 +45,7 @@ async function open(browser, opts = {}) {
     check(bad.length === 0, `no module touches THREE when imported (${bad.join('; ') || 'all 4 load'})`);
   }
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  if (process.env.ONLY_FINALE) { await finale(); await browser.close(); server.close(); process.exit(fails.length ? 1 : 0); }
   const { page, errors } = await open(browser);
   const g = (fn, arg) => page.evaluate(fn, arg);
   /** Clicks like a finger on the world point (x, y, z). */
@@ -77,22 +80,42 @@ async function open(browser, opts = {}) {
   await page.mouse.up();
   check(held, 'holding the finger down keeps slamming');
 
-  // play both zones with real clicks on the best spot
-  let zone2Shot = false, guard = 0;
-  while (guard++ < 200 && (await g(() => __game.mult)) === 1) {
+  // play the whole run with real clicks on the best spot: six zones, the vault, then x2 (straight on, or via the card)
+  const shots = { 1: '02-zone2-market', 2: '06-zone3-street', 3: '07-zone4-park', 4: '08-zone5-city', 5: '09-zone6-cake-vault' };
+  let seen = 0, guard = 0, cardSeen = false, cardAt = -1;
+  while (guard++ < 900 && (await g(() => __game.mult)) === 1) {
+    if (await g(() => __game.card)) { cardSeen = true; cardAt = await g(() => __game.sessT); break; }
     const p = await g(() => { const b = __game.L.bestSlam(__game.cfg, __game.R); return b && [b.x, b.z]; });
     if (!p) { await page.waitForTimeout(200); continue; }
     await tapWorld(p[0], 0.3, p[1]); await waitIdle();
-    if (!zone2Shot && (await g(() => __game.R.zone)) === 1) { await page.waitForTimeout(900); await page.screenshot({ path: path.join(out, '02-zone2.jpg'), type: 'jpeg', quality: 82 }); zone2Shot = true; }
-    if ((await g(() => __game.R.zone === 1 && __game.R.L > 60)) && !fs.existsSync(path.join(out, '03-big-hammer.jpg'))) await page.screenshot({ path: path.join(out, '03-big-hammer.jpg'), type: 'jpeg', quality: 82 });
+    const z = await g(() => __game.R.zone);
+    if (z > seen) { seen = z; await page.waitForTimeout(900); if (shots[z]) await page.screenshot({ path: path.join(out, shots[z] + '.jpg'), type: 'jpeg', quality: 82 }); }
+    if (z === 1 && (await g(() => __game.R.L > 60)) && !fs.existsSync(path.join(out, '03-big-hammer.jpg'))) await page.screenshot({ path: path.join(out, '03-big-hammer.jpg'), type: 'jpeg', quality: 82 });
   }
-  check(zone2Shot, 'clearing zone 1 moves play to zone 2');
-  check(await g(() => __game.mult === 2 && __game.R.zone === 0 && __game.R.L === 1), `clearing zone 2 starts the x2 run (${guard} taps)`);
+  check(seen === 5, `play moves through all six zones (${seen + 1} reached, ${guard} taps)`);
+  if (!cardSeen) await page.waitForFunction(() => __game.mult === 2 || __game.card, null, { timeout: 15000 }).catch(() => {});
+  if (await g(() => __game.card)) { cardSeen = true; cardAt = await g(() => __game.sessT); }
+  const sess = await g(() => __game.sessT);
+  console.log(`info session at the end of run 1: ${sess.toFixed(1)} game s`);
+  check(cardSeen ? cardAt >= 60 : (await g(() => __game.mult === 2)), cardSeen ? `results card only after 60 s (at ${cardAt.toFixed(1)} s)` : `a run under 60 s goes straight on to x2, no end screen (${sess.toFixed(1)} s)`);
+  if (cardSeen) { const b = await page.locator('#cAgain').boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); }
+  await page.waitForFunction(() => __game.mult === 2, null, { timeout: 5000 }).catch(() => {});
+  check(await g(() => __game.mult === 2 && __game.R.zone === 0 && __game.R.L === 1), 'finishing the vault starts the x2 run');
   check(await g(() => __game.R.objects.filter((o) => o.req > 1).every((o) => o.alive)), 'the new run restores every object');
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(out, '04-rebirth-x2.jpg'), type: 'jpeg', quality: 82 });
-  check(await g(() => __game.save.runs === 1 && __game.save.best > 100 && (window.__writes || []).length > 0), 'the finished run is saved (runs, best size)');
-  check(await g(() => __game.R.tier === 0 && __game.save.tier >= 3), 'evolution tiers were reached and the new run starts at tier 0');
+  check(await g(() => __game.save.runs === 1 && __game.save.best > 10000 && (window.__writes || []).length > 0), 'the finished run is saved (runs, best size)');
+  check(await g(() => __game.R.tier === 0 && __game.save.tier >= 6), 'evolution tiers were reached and the new run starts at tier 0');
+
+  // small objects grow back after a while in the zone being played
+  {
+    const id = await g(() => { const o = __game.R.objects.find((q) => q.zone === 0 && q.req === 1 && q.alive); return o.id; });
+    const [x, z] = await g((i) => [__game.R.objects[i].x, __game.R.objects[i].z], id);
+    await tapWorld(x, 0.3, z); await waitIdle();
+    const gone = await g((i) => !__game.R.objects[i].alive, id);
+    const back = await page.waitForFunction((i) => __game.R.objects[i].alive, id, { timeout: 30000 }).then(() => true, () => false);
+    check(gone && back, 'a broken fruit grows back so the zone never runs dry');
+  }
 
   // run() again on the same page: no error, one canvas
   await g(() => window.run('play'));
@@ -101,6 +124,44 @@ async function open(browser, opts = {}) {
   check(errors.length === 0, 'no page errors in play: ' + errors.slice(0, 3).join(' | '));
   await page.close();
 
+  await finale();
+  async function finale() {
+  // the finale with a short results gate: the vault takes several hits, then the results card, then Again x2
+  {
+    cfgPatch = (c) => { c.results.minSession = 3; };
+    const { page: p6, errors: e6 } = await open(browser);
+    cfgPatch = null;
+    const g6 = (fn, arg) => p6.evaluate(fn, arg);
+    const o0 = await g6(() => { const o = __game.R.objects.find((q) => q.zone === 0 && q.req === 1); return __game.client(o.x, 0.3, o.z); });
+    await p6.mouse.click(o0[0], o0[1]); // first touch starts the session clock
+    await p6.waitForFunction(() => __game.sessT > 3.2, null, { timeout: 30000 });
+    await g6(() => __game.skipTo(5, 30000));
+    await p6.waitForTimeout(3000);
+    const v = await g6(() => { const o = __game.R.objects.find((q) => q.boss); return { id: o.id, x: o.x, z: o.z, hp: o.hp }; });
+    const hps = [];
+    for (let i = 0; i < v.hp && (await g6((id) => __game.R.objects[id].alive, v.id)); i++) {
+      const [cx, cy] = await g6(([x, z]) => __game.client(x, 0.3, z), [v.x, v.z]);
+      await p6.mouse.click(cx, cy); await p6.waitForFunction(() => !__game.busy, null, { timeout: 5000 });
+      hps.push(await g6((id) => __game.R.objects[id].hp, v.id));
+      if (i === 2) { await p6.waitForTimeout(300); await p6.screenshot({ path: path.join(out, '10-vault-hit.jpg'), type: 'jpeg', quality: 82 }); }
+    }
+    check(hps.length === v.hp && hps.slice(0, -1).every((h, i) => h === v.hp - 1 - i) && !(await g6((id) => __game.R.objects[id].alive, v.id)), `the vault takes ${v.hp} hits (hp ${hps.join(', ')})`);
+    const shown = await p6.waitForFunction(() => __game.card, null, { timeout: 15000 }).then(() => true, () => false);
+    check(shown, 'the results card shows after the vault once the session is long enough');
+    await p6.waitForTimeout(700);
+    await p6.screenshot({ path: path.join(out, '11-results-card.jpg'), type: 'jpeg', quality: 82 });
+    check(await g6(() => parseFloat(document.getElementById("cSize").textContent) >= 30 && /x2/.test(document.getElementById('cAgain').textContent) && !document.getElementById('cShare').hidden), 'the card shows the size, Again x2 and a share button');
+    const s0 = await g6(() => __game.R.slams);
+    await p6.mouse.click(60, 640); // a tap on the card backdrop does not slam
+    await p6.waitForTimeout(300);
+    check(await g6((s) => __game.R.slams === s && __game.card, s0), 'a tap beside the buttons does not slam behind the card');
+    const b = await p6.locator('#cAgain').boundingBox(); await p6.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await p6.waitForTimeout(300);
+    check(await g6(() => !__game.card && __game.mult === 2 && __game.R.L === 1), 'Again on the card starts the x2 run');
+    check(e6.length === 0, 'no page errors in the finale: ' + e6.slice(0, 3).join(' | '));
+    await p6.close();
+  }
+  }
   // a save read that fails never writes over the player's progress
   {
     const { page: p2 } = await open(browser, { init: () => { window.__saveFails = true; } });
@@ -132,7 +193,8 @@ async function open(browser, opts = {}) {
     const fps = await p5.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(f); else res(n / 3); }; requestAnimationFrame(f); }));
     const info = await p5.evaluate(() => { const r = __game.scene.renderer.info.render; return [r.calls, r.triangles]; });
     console.log(`info FPS at tier 2 on swiftshader: ${fps.toFixed(1)}; draw calls ${info[0]}, triangles ${info[1]}`);
-    check(info[0] <= 100 && info[1] <= 150000, `render budget: ${info[0]} draw calls (<= 100), ${info[1]} triangles (<= 150k)`);
+    // renderer.info counts the shadow pass too; six zones are in view from the start, so the bar is 220k
+    check(info[0] <= 120 && info[1] <= 220000, `render budget at the start view: ${info[0]} draw calls (<= 120), ${info[1]} triangles with shadows (<= 220k)`);
     await p5.close();
   }
   await browser.close(); server.close();
