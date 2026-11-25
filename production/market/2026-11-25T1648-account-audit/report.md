@@ -49,7 +49,7 @@ Age = days since first publish. Share = shares per 1,000 plays (platform median 
 
 | Game | Plays | Age | /day | Share | Verdict | Why, and the risk |
 |---|---|---|---|---|---|---|
-| Rub It Away | 62,991 | 10.3 | 9,531 / 15,755 | 20.1 | **Update/boost** | Our engine right now. 19.7 days of update boost left. A named content update (new level pack) every 3 days until ~15 Dec. Risk: the 22 Nov version dropped auto-next, streak and leaderboard by Larisha's choice; do not reverse that without asking. |
+| Rub It Away | 62,991 | 10.3 | 9,531 / 15,755 | 20.1 | **Update/boost** | Our engine right now. 19.7 days of update boost left. A named content update (new level pack) every 3 days until ~15 Dec. Risk: the 22 Nov version dropped auto-next and streak by Larisha's choice; do not reverse that without asking. |
 | Draw It Alive | 4,655 | 5.4 | 1,311 / 2,196 | 0.4 | **Update/boost** | Rising fast, but shares are 0.4 per 1,000 (Rub It Away 20). No leaderboard (SEEN `hasLeaderboard:false`). Add a share card of the player's drawing and new scenes. |
 | Pin & Bloom | 2,446 | 8.4 | 837 / 1,901 | 31.1 | **Update/boost** | Rising, shares strong. New levels every 3 days. |
 | Reel & Hatch | 36,518 | 17.2 | 1,454 / 1,961 | 27.5 | **Update/boost** | Second wave. 12.8 days of window left. Update now. |
