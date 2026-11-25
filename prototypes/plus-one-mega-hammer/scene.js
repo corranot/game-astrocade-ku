@@ -257,7 +257,7 @@ export function createScene(canvas, cfg, random) {
   }
   /** Swaps a label's texture; only a material that had no map yet needs its shader rebuilt (every slam relabels all). */
   function setMap(m, t) { if (m.map === t) return; const had = !!m.map; m.map = t; if (!had) m.needsUpdate = true; }
-  let clock = 0, labelK = 1;
+  let clock = 0, labelK = 1, labelsOn = true;
   function updateObjects(dt, zone) {
     for (const k of Object.values(kinds)) k.shown = 0;
     for (const e of byId) {
@@ -271,7 +271,7 @@ export function createScene(canvas, cfg, random) {
       tmpS.set((1 + sq + pop) * gr, (1 - sq + idle + pop) * gr, (1 + sq + pop) * gr);
       tmpM.compose(tmpV.set(e.o.x, 0, e.o.z), tmpQ.setFromEuler(tmpE.set(0, e.rot, 0)), tmpS); e.k.mesh.setMatrixAt(e.i, tmpM);
       const br = cfg.kinds[e.o.kind].r * cfg.look.contact * gr * (1 + sq); tmpM.makeScale(br, 1, br).setPosition(e.o.x, 0.025, e.o.z); blobs.setMatrixAt(e.o.id, tmpM);
-      if (e.label) { e.label.visible = live; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2 + (e.lab === 'ok' && !e.o.boss ? Math.sin(clock * 6 + e.o.id) * 0.07 : 0)) * labelK * (e.o.boss ? 1.8 : 1); if (e.lab === 'lock') e.label.scale.set(0.38 * ls, 0.38 * ls, 1); else e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
+      if (e.label) { e.label.visible = live && labelsOn; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2 + (e.lab === 'ok' && !e.o.boss ? Math.sin(clock * 6 + e.o.id) * 0.07 : 0)) * labelK * (e.o.boss ? 1.8 : 1); if (e.lab === 'lock') e.label.scale.set(0.38 * ls, 0.38 * ls, 1); else e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
     }
     // a kind with nothing left standing is not drawn at all (zones already played)
     for (const k of Object.values(kinds)) if (k.mesh) { k.mesh.visible = k.shown > 0; k.mesh.instanceMatrix.needsUpdate = true; }
@@ -384,6 +384,11 @@ export function createScene(canvas, cfg, random) {
     const g = rings[rNext]; rNext = (rNext + 1) % rings.length; g.life = g.max = big ? 0.6 : 0.4; g.size = R * (big ? 5 : 3.4); g.m.position.set(x, 0.04, z); g.m.visible = true;
     const m = marks[mNext]; mNext = (mNext + 1) % marks.length; m.life = 4; m.m.position.set(x, 0.02, z); const ms = R * 2.2; m.m.scale.set(ms, ms, 1); m.m.rotation.z = random() * 6.28; m.m.visible = true;
     puff(x, z, big ? 10 : 6, R * 0.6);
+  }
+  /** A boss wakes up (its cutscene): a big squash wobble and a pop, a dust ring and a shake. */
+  function wake(id) {
+    const e = byId[id]; if (!e) return; const r = cfg.kinds[e.o.kind].r;
+    e.squash = 1; e.pop = 1; puff(e.o.x, e.o.z, 12, r); ring(e.o.x, e.o.z, r * 5, 0.7); cam.trauma = Math.min(1, cam.trauma + 0.55);
   }
   /** A lone shockwave ring of diameter size at (x, z), lasting life seconds (the tier-up ring). */
   function ring(x, z, size, life) { const g = rings[rNext]; rNext = (rNext + 1) % rings.length; g.life = g.max = life; g.size = size; g.m.position.set(x, 0.05, z); g.m.visible = true; }
@@ -584,11 +589,13 @@ export function createScene(canvas, cfg, random) {
 
   return {
     renderer, scene, camera, hammer: H, cam,
-    setObjects, setWorld, scare, setScale, cineCam,
+    setObjects, setWorld, scare, setScale, cineCam, wake,
     /** Compiles every shader the current world needs now, so no material compiles in the middle of a cutscene. */
     prewarm() { try { renderer.compile(scene, camera); } catch (e) { /* a driver without compile: shaders build on first draw */ } },
     get scale() { return rs; }, relabel, updateObjects, burst, impact, confetti, puff, updateFx, updateCamera, updateWorld, setTier, resize, toScreen, toGround,
     get tier() { return tier; },
+    /** Shows or hides the number labels (a boss cutscene hides them, so the titles read clean). */
+    labels(on) { labelsOn = on; },
     bonk(id) { const e = byId[id]; if (e) e.squash = 1; },
     /** A multi-hit object took a hit: squash, a spray of chunks and dust, its hits-left label. */
     hit(id, L) { const e = byId[id]; if (!e) return; e.squash = 1; relabel(id, L); chips(e, 18); puff(e.o.x, e.o.z, 8, cfg.kinds[e.o.kind].r * 0.5); },
