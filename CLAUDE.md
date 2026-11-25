@@ -157,6 +157,9 @@ full plan unless they add a new game mode or rework the game.
 - **Coordinator decides for waiting threads.** When a thread waits on an
   approval, a choice or a review, the coordinator makes that call itself, on
   the AAA expert team's best recommendation, without asking Larisha.
+- **Always learn from everything.** Learn from every correction, failure,
+  result and piece of feedback: write the lesson down (project memory, and the
+  repo when it is a lasting rule) and apply it from then on.
 
 ## Context Management
 
