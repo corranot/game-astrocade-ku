@@ -24,9 +24,9 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'))
 const BUDGET = { 0: 160, 2: 260 }; // draw calls per tier (see README: mobile budget)
 /** A save of a bot game played (logic only, no rendering) to second sec: late-game shots start from it. */
 async function saveAt(sec) {
-  const L = await import(require('url').pathToFileURL(path.join(__dirname, 'logic.js')).href), S = L.createState(cfg, 1);
-  for (let i = 0; i < sec * 60; i++) { L.step(cfg, S, 1 / 60, L.botInput(cfg, S), S.glint && S.glint.t > 0.6 ? { glint: true } : null); S.events.length = 0; }
-  return L.serialize(cfg, S);
+  const L = await import(require('url').pathToFileURL(path.join(__dirname, 'logic.js')).href), c = L.applyDrops(JSON.parse(JSON.stringify(cfg))), S = L.createState(c, 1);
+  for (let i = 0; i < sec * 60; i++) { L.step(c, S, 1 / 60, L.botInput(c, S), S.glint && S.glint.t > 0.6 ? { glint: true } : null); S.events.length = 0; }
+  return L.serialize(c, S);
 }
 
 async function open(browser, q = '', seed = null) {

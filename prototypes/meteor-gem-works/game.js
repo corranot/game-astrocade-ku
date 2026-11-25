@@ -121,6 +121,10 @@ export function run(mode = 'play') {
   const cfg = JSON.parse(JSON.stringify(window.gameConfig || {}));
   loadFonts();
   const qs = new URLSearchParams(location.search);
+  // dev:start
+  if (qs.has('drops')) for (const k of qs.get('drops').split(',')) if (cfg.drops && k in cfg.drops) cfg.drops[k] = true;
+  // dev:end
+  L.applyDrops(cfg);
   const root = document.getElementById('app');
   root.innerHTML = HTML;
   const $ = (id) => root.querySelector('#' + id);
@@ -310,6 +314,7 @@ export function run(mode = 'play') {
       case 'comet': scene.finale('comet'); Sound.whoosh(); banner(T('chapter2'), T('comet'), 3.2); scene.showcase(scene.cometAt.add(V(2.5, 0, 0)), 0.55, 4.2, cfg.camera.cometPitch, true); break;
       case 'finaleEnd': scene.finale('fireworks'); Sound.fanfare(); banner(T('chapter1'), '★', 2.6); offerShare(); saveNow(); break;
       case 'star': Sound.heart(); banner(T('star'), '★'.repeat(e.n) + '☆'.repeat(Math.max(0, 3 - e.n)), 2.4); offerShare(); saveNow(); break;
+      case 'gift': Sound.fanfare(); banner(T('gift'), `${T('giftSub')}  +${e.coins}`, 3.0); coinsTo(V(h.x, 3.5, h.z), e.coins); saveNow(); break;
       case 'hat': Sound.pop(); banner(T('hat'), '', 2.0); pop('✦', h.x, 3.0, h.z, 'big'); albumDot = true; saveNow(); break;
       default: break;
     }
@@ -353,18 +358,21 @@ export function run(mode = 'play') {
     else if (id === 'flower') { for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28; g.fillStyle = have ? ['#f27aa0', '#ffd35a', '#ff8ad8', '#b08cff'][k % 4] : fg; g.beginPath(); g.arc(Math.cos(a) * 26, Math.sin(a) * 12, 10, 0, 6.3); g.fill(); } }
     else if (id === 'bunny') { for (const x of [-14, 14]) { g.beginPath(); g.ellipse(x, -8, 9, 30, x * 0.01, 0, 6.3); g.fill(); } g.fillRect(-28, 20, 56, 8); }
     else if (id === 'astro') { g.beginPath(); g.arc(0, 2, 34, 0, 6.3); g.fill(); g.fillStyle = bg; g.beginPath(); g.roundRect(-22, -10, 44, 22, 10); g.fill(); }
+    else if (id === 'lamp') { g.beginPath(); g.arc(0, 10, 32, Math.PI, 0); g.fill(); g.fillRect(-38, 8, 76, 8); g.fillStyle = have ? '#fff6c8' : bg; g.beginPath(); g.arc(0, -8, 10, 0, 6.3); g.fill(); }
+    else if (id === 'antenna') { g.lineWidth = 5; g.beginPath(); g.arc(0, 26, 30, Math.PI, 0); g.stroke(); for (const x of [-1, 1]) { g.beginPath(); g.moveTo(x * 12, 0); g.lineTo(x * 22, -26); g.stroke(); g.fillStyle = have ? (x < 0 ? '#4fd8f0' : '#e04cc0') : fg; g.beginPath(); g.moveTo(x * 22, -40); g.lineTo(x * 22 + 10, -28); g.lineTo(x * 22, -16); g.lineTo(x * 22 - 10, -28); g.closePath(); g.fill(); } }
+    else if (id === 'bandana') { g.fillStyle = have ? '#d9544a' : fg; g.beginPath(); g.moveTo(-36, -14); g.lineTo(36, -14); g.lineTo(0, 30); g.closePath(); g.fill(); g.fillRect(-40, -22, 80, 12); if (have) { g.fillStyle = '#f3e6cf'; for (const [x, y] of [[-14, -4], [14, -4], [0, 12], [0, -4]]) { g.beginPath(); g.arc(x, y, 4, 0, 6.3); g.fill(); } } }
     else if (id === 'top') { g.fillRect(-36, 18, 72, 8); g.fillRect(-20, -30, 40, 50); g.fillStyle = bg; g.fillRect(-20, 8, 40, 8); }
     else drawIcon(g, 'crown', fg, bg);
   }
-  const hatNeed = (hd) => (hd.stars ? '★' + hd.stars : hd.hearts ? '♥' + hd.hearts : hd.finale ? '♛' : '');
+  const hatNeed = (hd) => (hd.stars ? '★' + hd.stars : hd.hearts ? '♥' + hd.hearts : hd.critters ? '✿' + hd.critters : hd.sold ? '◆' + hd.sold : hd.finale ? '♛' : '');
   function openAlbum() {
     if (phase !== 'play') return;
     phase = 'album'; albumDot = false; stick.on = false; showStick();
     const a = $('album'), card = a.querySelector('.card');
     card.querySelector('h2').textContent = `${T('album')}  ${albumHave()}/${albumTotal()}`;
-    const crit = card.querySelector('.crit'); crit.innerHTML = '';
+    const crit = card.querySelector('.crit'); crit.innerHTML = ''; crit.classList.toggle('six', cfg.critters.length > 12);
     for (const d of cfg.critters) { const have = S.critters.some((c) => c.id === d.id); const t = tile('r-' + (d.rarity || 'common') + (have ? '' : ' off'), (g) => drawCritter(g, d, have), have ? critterName(d.id) : ''); crit.appendChild(t); }
-    const hats = card.querySelector('.hats'); hats.innerHTML = '';
+    const hats = card.querySelector('.hats'); hats.innerHTML = ''; hats.classList.toggle('nine', cfg.hats.length > 6);
     for (const hd of cfg.hats) {
       const have = S.hats.includes(hd.id);
       hats.appendChild(tile((have ? '' : 'off ') + (S.hat === hd.id ? 'on' : ''), (g) => drawHat(g, hd.id, have), have ? '' : hatNeed(hd), have ? () => { S.hat = hd.id; Sound.pop(); saveNow(); openAlbum.refresh(); } : null));
@@ -385,14 +393,14 @@ export function run(mode = 'play') {
   $('albumB').addEventListener('click', () => { Sound.unlock(); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } openAlbum(); });
   $('album').querySelector('.close').addEventListener('click', () => { Sound.pop(); closeAlbum(); });
   $('album').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (e.target === $('album')) closeAlbum(); });
-  let hatchCracks = 0, glintsHit = 0;
+  let hatchCracks = 0, glintsHit = 0, fwT = 2;
 
   // ---- save / continue: read first, write only after the read came back (a failed read never overwrites a save)
   const canSave = mode === 'play' && !bot && typeof lib !== 'undefined' && !!lib.saveUserGameState;
   let phase = 'play', loaded = false, lastWrite = Promise.resolve(), saveT = 0, alive = true;
   function saveNow() {
     if (!canSave || !loaded || (phase !== 'play' && phase !== 'album')) return;
-    const snap = L.serialize(cfg, S);
+    const snap = L.serialize(cfg, S); snap.seen = Date.now();
     lastWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => { /* host refused: try again on the next tick */ });
   }
   function readSave(tries = 0) {
@@ -414,6 +422,7 @@ export function run(mode = 'play') {
       Sound.unlock(); m.hidden = true;
       // shortcut: a save that arrives after this session already bought something replaces it; fine while reads take < 3 s
       S = L.restore(cfg, st, cfg.seed + 7); scene.restoreBuilt(S); scene.snap(S); if (!qs.has('tod')) scene.setTod(L.todGoal(cfg, S)); phase = 'play'; saveT = 0; Sound.pop();
+      const gift = L.welcomeGift(cfg, st, Date.now()); if (gift) L.applyGift(cfg, S, gift);
     };
     nw.onclick = () => {
       Sound.unlock();
@@ -479,6 +488,7 @@ export function run(mode = 'play') {
     if (gOpen) { if (go.querySelector('b').textContent !== T('ghostGoal')) go.querySelector('b').textContent = T('ghostGoal'); go.querySelectorAll('i').forEach((el, i) => el.classList.toggle('lit', i < S.ghost.lit)); }
     // share button timer, album badge, the sky easing toward the time of day the town has reached
     if (shareT > 0 && (shareT -= dt) <= 0) $('share').hidden = true;
+    if (cfg.drops.festival && scene.lamps > cfg.festival.lampsMin && (fwT -= dt) <= 0) { fwT = cfg.festival.fireworks * (0.7 + Math.random() * 0.6); scene.firework(); Sound.pop(); }
     $('albumB').classList.toggle('dot', albumDot);
     if (!qs.has('tod')) { const want = L.todGoal(cfg, S), now = scene.tod; if (Math.abs(want - now) > 1e-3) scene.setTod(now + Math.sign(want - now) * Math.min(Math.abs(want - now), dt * cfg.tod.ease)); }
     // the order kid's bubble

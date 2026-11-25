@@ -7,29 +7,34 @@ minute after Continue. Day 0 is the first publish; the dates below move with it.
 Chapter 1 already ships 12 critters (5 common, 4 shiny, 2 rare, 1 legendary) and 6 hats, so plan §15.4's
 "day 3: 6 more critters and 3 hats" adds to those: 18 critters and 9 hats after day 3.
 
-Every update keeps the save version (`save.version`) unless the save shape changes; new fields restore to a fresh
-value when missing (`restore()` already does this), so old saves load.
+Every update keeps the save version (`save.version`); new fields restore to a fresh value when missing, so old saves
+load. Bumping the version would start every player over, so it is never done.
 
-## Update 1, day 3: "Night Critters"
+**Built and switched off (2026-11-25).** Updates 1 and 3 are in the code now, behind `drops` in `game_config.json`
+(`night`, `festival`, both `false`). The live game behaves exactly like chapter 1 until a switch is flipped.
+Shipping an update = set its switch to `true`, run the checks, build the upload set, save the draft, and publish on
+the owner's word. Locally, `?drops=night,festival` turns them on for a look (that switch is stripped from the upload
+set). `node drops.js <outDir>` is the browser check for both.
 
-**What the player sees:** a "NEW" sticker on the album button; eggs can now hatch six night critters; three new hats.
+## Update 1, day 3: "Night Critters" (built, `drops.night`)
 
-- **6 critters** (config `critters`, same 3-draw body as the others, new colours and one shape detail each):
-  - 3 common: Ember (orange glow tail), Pebblet (tiny grey), Dune (sand-striped).
-  - 2 shiny: Lumen (glows at night only), Frosty (ice tips, a teaser for chapter 2).
-  - 1 rare: Comet Pup (a small comet trail).
-  - Each has one perk from the existing perk list (carry +1, walk speed, coin magnet, polish speed, stand
-    restock); no new perk code.
-- **3 hats** (config `hats`): miner lamp (unlocks at 15 critters), star antenna (25 kid orders), desert scarf
-  (open the album 5 days in a row). The first two use the existing star counters; the third needs a day counter
-  in the save (`days`, `lastDay`).
-- **Album:** the critter grid grows from 12 to 18 tiles (3 more rows fit; check that the card still fits at
-  1120u, and with the touch scroll it is reachable either way).
-- **Egg rule:** a save with all 12 chapter 1 critters gets a free egg on the first Continue after the update, so
-  players who finished still see a new critter in the first minute.
-- **Size:** config plus models.js colour variants, the day counter and the free egg; no new systems.
-- **Tests:** logic tests for the free egg, the new hat conditions and the day counter; the album screenshot in 7
-  languages; playtest bot reaches 18 critters.
+**What the player sees:** eggs start again (also for kids who found all 12), six new critters hatch, three new hats,
+and the album shows 18 critters in a 6-wide grid.
+
+- **6 critters** (`critters` with `drop: "night"`, the same 3-draw body as the others, new fur and crystal colours):
+  - 3 common: Ember (tip +2), Pebblet (smaller, carry +3), Dune (coin magnet +0.4).
+  - 2 shiny: Lumen (polish ×0.9), Frosty (tourists ×0.9, a chapter 2 teaser).
+  - 1 rare: Comet Pup (bigger, swing ×0.9).
+  - Perks are the existing ones at mild values, so the economy does not run away.
+- **3 hats** (`hats` with `drop: "night"`): miner lamp (15 critters), star antenna (25 kid orders), desert bandana
+  (1,000 gems sold). By the bot's pace they come at about 14, 17 and 21 minutes of play: reasons to keep going.
+- **Parade cap:** at most `critter.show` (12) walk behind the miner: the newest ones, with Nova always in it. The
+  rest stay home and keep their perks. This holds the draw budget and keeps the parade on the deck.
+- **Finished saves:** a save with all 12 critters gets its next egg within about 25 s of Continue (restore already
+  schedules one), so returning players see a new critter in the first minute.
+- **Names** in all 7 languages.
+- **Tests:** `logic.test.mjs` (drop on/off counts and names; the bot hatches all 18 and earns the 3 hats; an old
+  finished save hatches a night critter within 40 s); `drops.js` (album 18 + 9 tiles fit, parade cap, budgets).
 - **Listing text (version history):** "Six night critters, three new hats and a bigger sticker album".
 
 ## Update 2, day 6: Chapter 2 "The Frost Comet"
@@ -41,31 +46,32 @@ value when missing (`restore()` already does this), so old saves load.
   frost heart finale).
 - The chapter 1 town keeps running and earning while the player is in chapter 2, as the town already does.
 - This is new content on the same loop, not a new mode, but it is the size of a milestone (M5). It gets its own
-  section in `plan.md` (pads, costs, reward gaps ≤ 45 s, draw-call budget for the second area) before code.
+  section in `plan.md` (§16: pads, costs, reward gaps ≤ 45 s, draw-call budget for the second area) before code.
 - **Tests:** the same playtest moments as chapter 1 for the new pads, soak 15 minutes across both areas,
   tier 0 draw calls ≤ 160 in the crater view.
 - **Listing text:** "Chapter 2: the Frost Comet has landed! A new ice crater to mine and build".
 
-## Update 3, day 9: "Desert Festival" and the welcome-back gift
+## Update 3, day 9: "Desert Festival" and the welcome-back gift (built, `drops.festival`)
 
-**What the player sees:** lanterns, bunting and a small fireworks show over the town; a gift box on return.
+**What the player sees:** a flower arch over the front of the deck with strings of paper lanterns to both corners,
+fireworks over the meteor once the town reaches dusk, and a "WELCOME BACK!" gift of coins on return.
 
-- **Decoration set:** strings of paper lanterns between the stands, bunting on the bus stop, a festival arch,
-  fireworks over the mesa at dusk. Built into the existing baked statics and the neon shader (no new draw calls
-  beyond 4).
-- **Welcome-back gift:** on Continue after at least 8 hours away, a gift box drops next to the miner: coins
-  equal to a few minutes of the town's own earnings (capped), plus an egg once per day. Tune the amount from the
-  first week of session data (median session length and return rate).
-- **Size:** decoration props in models.js and scene.js, one gift event in logic.js and game.js, two save fields
-  (`lastSeen`, `giftDay`).
-- **Tests:** logic tests for the gift amount, cap and the once-per-day egg; screenshots at day and dusk; draw-call
-  budget unchanged.
+- **Decoration set:** `buildFestival` in `models.js`: a terracotta arch with a flower garland and two strings of
+  ribbed paper lanterns with tassels. Baked with the other statics: +1 draw call (the glowing lanterns).
+- **Fireworks:** every `festival.fireworks` s (±30 %) while the lamps are on (`festival.lampsMin`), a round burst of
+  sparks and a ring over the meteor, with a soft pop. Pooled particles, no new draws.
+- **Welcome-back gift:** on Continue after `gift.awayH` (8) hours away: `gift.base` + `gift.perPad` × pads built
+  coins, capped at `gift.cap` (30 + 12 per pad, max 240), flown to the cash pile with a banner; and once per
+  calendar day the next egg comes within `gift.eggIn` s. Tune from the first week of session data.
+- **Save fields:** `seen` (time of the last save, written by the page) and `giftDay`.
+- **Tests:** `logic.test.mjs` (no gift without the drop or under 8 h, the cap, one egg a day, `giftDay` round trip);
+  `drops.js` (gift on Continue after 10 h, its egg hatches, night fireworks and day shots, budgets).
 - **Listing text:** "Desert Festival: lanterns and fireworks over the town, plus a gift when you come back".
 
 ## Order of work
 
-1. Update 1 and Update 3 are small and can be built and saved as drafts before first publish, then published on
-   day 3 and day 9.
+1. Updates 1 and 3 are built and switched off. On day 3 and day 9: flip the switch, run the checks, save the draft,
+   publish on the owner's word.
 2. Chapter 2 is a milestone of its own (M5): its plan section first, then the build, aimed at day 6. If it is
    not ready on day 6, swap the order (festival on day 6, chapter 2 on day 9) so the 3-day rhythm holds.
 3. Each update goes through the same ship steps as chapter 1: checks, bug hunt, bundle test, clean upload set,

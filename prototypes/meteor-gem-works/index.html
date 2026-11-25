@@ -90,6 +90,14 @@ body{display:flex;align-items:center;justify-content:center}
 .album .hats,.album .stars{grid-template-columns:repeat(6,1fr)}
 .album .stars{grid-template-columns:repeat(3,1fr)}
 .album .chap{grid-template-columns:1fr}
+.album .hats.nine{grid-template-columns:repeat(9,1fr);gap:calc(var(--u)*6px)}
+.album .hats.nine .tile{min-height:calc(var(--u)*70px);padding:calc(var(--u)*2px)}
+.album .hats.nine .tile canvas{width:calc(var(--u)*50px);height:calc(var(--u)*50px)}
+.album .hats.nine .tile b{font-size:calc(var(--u)*16px)}
+.album .crit.six{grid-template-columns:repeat(6,1fr);gap:calc(var(--u)*8px)}
+.album .crit.six .tile{min-height:calc(var(--u)*92px);padding:calc(var(--u)*4px)}
+.album .crit.six .tile canvas{width:calc(var(--u)*58px);height:calc(var(--u)*58px)}
+.album .crit.six .tile b{font-size:calc(var(--u)*17px);white-space:normal;text-align:center}
 .album .tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*2px);min-height:calc(var(--u)*110px);padding:calc(var(--u)*6px);border-radius:calc(var(--u)*20px);background:#2a7f78;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,255,255,.2);font:inherit;color:#fff3dc;border:0}
 .album button.tile{cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
 .album .tile canvas{width:calc(var(--u)*76px);height:calc(var(--u)*76px)}

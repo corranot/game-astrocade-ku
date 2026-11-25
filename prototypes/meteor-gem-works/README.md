@@ -8,7 +8,22 @@ Perfect Strike when tapped. An egg falls out of the meteor and hatches a crystal
 
 Plan: [plan.md](plan.md) (v2, approved by the owner on 2026-11-25).
 
-## Milestone 3: chapter 1 complete (this build)
+## Post-launch drops (built, switched off)
+
+The day-3 and day-9 updates from `updates.md` are in the code behind `drops` in `game_config.json` (`night`,
+`festival`, both `false`), so the game plays exactly as chapter 1 until a switch is flipped.
+
+- **Night Critters (`drops.night`):** 6 more critters (18 in all), 3 hats (miner lamp at 15 critters, star antenna
+  at 25 orders, bandana at 1,000 gems sold), the album in a 6-wide grid, and a parade capped at `critter.show` (12,
+  the newest plus Nova).
+- **Desert Festival (`drops.festival`):** a flower arch and paper lantern strings over the front of the deck,
+  fireworks at dusk and night, and the welcome-back gift (after 8 h away: 30 + 12 coins per pad, max 240, and a
+  sooner egg once a day).
+- **Check:** `node --test logic.test.mjs` (20 tests) and `node drops.js <outDir>` (both drops on, from a late save:
+  gift, hatch, parade cap, fireworks, album fit, draw calls tier 0 151/160 and tier 2 204/260). Evidence in
+  `production/qa/evidence/meteor-gem-works/drops/`. Locally, `?drops=night,festival` turns them on.
+
+## Milestone 3: chapter 1 complete
 
 - Unlocks 8-14, in order: ghost town + mine cart 190, drill rig 2 220, cable car 250, stargazer deck 265 (golden
   hour), crown jeweler 300, neon signs 350 (night), the heart of the meteor 420 (the finale). The laser is now 170.

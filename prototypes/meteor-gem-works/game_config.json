@@ -385,7 +385,8 @@
   },
   "critter": {
     "follow": 1.4,
-    "spring": 7
+    "spring": 7,
+    "show": 12
   },
   "guide": {
     "cashMin": 6
@@ -598,7 +599,15 @@
       "chapter2": "FROST COMET",
       "rare": "RARE!",
       "shiny": "SHINY!",
-      "legendary": "LEGENDARY!"
+      "legendary": "LEGENDARY!",
+      "ember": "Ember",
+      "pebblet": "Pebblet",
+      "dune": "Dune",
+      "lumen": "Lumen",
+      "frosty": "Frosty",
+      "cometpup": "Comet Pup",
+      "gift": "WELCOME BACK!",
+      "giftSub": "A gift from the town"
     },
     "ar": {
       "drag": "اسحب للتحرك",
@@ -665,7 +674,15 @@
       "chapter2": "مذنّب الجليد",
       "rare": "نادر!",
       "shiny": "لامع!",
-      "legendary": "أسطوري!"
+      "legendary": "أسطوري!",
+      "ember": "جمرة",
+      "pebblet": "حصيّة",
+      "dune": "كثيب",
+      "lumen": "لومن",
+      "frosty": "فروستي",
+      "cometpup": "جرو المذنّب",
+      "gift": "أهلًا بعودتك!",
+      "giftSub": "هدية من البلدة"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
@@ -732,7 +749,15 @@
       "chapter2": "COMETA DE HIELO",
       "rare": "¡RARO!",
       "shiny": "¡BRILLANTE!",
-      "legendary": "¡LEGENDARIO!"
+      "legendary": "¡LEGENDARIO!",
+      "ember": "Brasa",
+      "pebblet": "Piedrita",
+      "dune": "Duna",
+      "lumen": "Lumen",
+      "frosty": "Escarcha",
+      "cometpup": "Cometín",
+      "gift": "¡HOLA DE NUEVO!",
+      "giftSub": "Un regalo del pueblo"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
@@ -799,7 +824,15 @@
       "chapter2": "SAO CHỔI BĂNG",
       "rare": "HIẾM!",
       "shiny": "LẤP LÁNH!",
-      "legendary": "HUYỀN THOẠI!"
+      "legendary": "HUYỀN THOẠI!",
+      "ember": "Than Hồng",
+      "pebblet": "Sỏi Nhỏ",
+      "dune": "Đụn Cát",
+      "lumen": "Lumen",
+      "frosty": "Sương Giá",
+      "cometpup": "Sao Chổi Con",
+      "gift": "CHÀO MỪNG TRỞ LẠI!",
+      "giftSub": "Quà từ thị trấn"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
@@ -866,7 +899,15 @@
       "chapter2": "बर्फ़ीला धूमकेतु",
       "rare": "दुर्लभ!",
       "shiny": "चमकीला!",
-      "legendary": "दिग्गज!"
+      "legendary": "दिग्गज!",
+      "ember": "अंगारा",
+      "pebblet": "कंकड़ू",
+      "dune": "टीला",
+      "lumen": "ल्यूमेन",
+      "frosty": "फ्रॉस्टी",
+      "cometpup": "धूमकेतु पिल्ला",
+      "gift": "फिर से स्वागत है!",
+      "giftSub": "शहर की ओर से तोहफ़ा"
     },
     "bn": {
       "drag": "চলতে টানো",
@@ -933,7 +974,15 @@
       "chapter2": "বরফের ধূমকেতু",
       "rare": "বিরল!",
       "shiny": "ঝকঝকে!",
-      "legendary": "কিংবদন্তি!"
+      "legendary": "কিংবদন্তি!",
+      "ember": "অঙ্গার",
+      "pebblet": "নুড়িকুচি",
+      "dune": "বালিয়াড়ি",
+      "lumen": "লুমেন",
+      "frosty": "ফ্রস্টি",
+      "cometpup": "ধূমকেতু ছানা",
+      "gift": "আবার স্বাগতম!",
+      "giftSub": "শহরের পক্ষ থেকে উপহার"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
@@ -1000,7 +1049,15 @@
       "chapter2": "KOMET ES",
       "rare": "LANGKA!",
       "shiny": "BERKILAU!",
-      "legendary": "LEGENDA!"
+      "legendary": "LEGENDA!",
+      "ember": "Bara",
+      "pebblet": "Kerikil",
+      "dune": "Bukit Pasir",
+      "lumen": "Lumen",
+      "frosty": "Beku",
+      "cometpup": "Anak Komet",
+      "gift": "SELAMAT DATANG LAGI!",
+      "giftSub": "Hadiah dari kota"
     }
   },
   "start": {
@@ -1141,6 +1198,62 @@
       "rarity": "rare"
     },
     {
+      "id": "ember",
+      "perk": "tip",
+      "v": 2,
+      "body": "#eca070",
+      "shell": "#ff7a3a",
+      "rarity": "common",
+      "drop": "night"
+    },
+    {
+      "id": "pebblet",
+      "perk": "carry",
+      "v": 3,
+      "body": "#c8c0b8",
+      "shell": "#9ac8ff",
+      "rarity": "common",
+      "drop": "night",
+      "s": 0.85
+    },
+    {
+      "id": "dune",
+      "perk": "magnet",
+      "v": 0.4,
+      "body": "#e8c890",
+      "shell": "#f0a050",
+      "rarity": "common",
+      "drop": "night"
+    },
+    {
+      "id": "lumen",
+      "perk": "polish",
+      "v": 0.9,
+      "body": "#e0e8ff",
+      "shell": "#7af0ff",
+      "rarity": "shiny",
+      "drop": "night"
+    },
+    {
+      "id": "frosty",
+      "perk": "tourists",
+      "v": 0.9,
+      "body": "#f4faff",
+      "shell": "#a8e8ff",
+      "rarity": "shiny",
+      "drop": "night"
+    },
+    {
+      "id": "cometpup",
+      "perk": "swing",
+      "v": 0.9,
+      "body": "#c8b8e8",
+      "shell": "#ff8ad8",
+      "rarity": "rare",
+      "drop": "night",
+      "s": 1.1
+    },
+    {
       "id": "nova",
       "perk": "bonus",
       "v": 1,
@@ -1208,9 +1321,39 @@
     {
       "id": "crown",
       "finale": true
+    },
+    {
+      "id": "lamp",
+      "critters": 15,
+      "drop": "night"
+    },
+    {
+      "id": "antenna",
+      "hearts": 25,
+      "drop": "night"
+    },
+    {
+      "id": "bandana",
+      "sold": 1000,
+      "drop": "night"
     }
   ],
   "share": {
     "show": 7
+  },
+  "drops": {
+    "night": false,
+    "festival": false
+  },
+  "festival": {
+    "fireworks": 7,
+    "lampsMin": 0.45
+  },
+  "gift": {
+    "awayH": 8,
+    "base": 30,
+    "perPad": 12,
+    "cap": 240,
+    "eggIn": 3
   }
 }

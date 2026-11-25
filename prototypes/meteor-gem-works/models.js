@@ -775,6 +775,37 @@ export function heartGeo() {
   g.translate(0, 0, -0.15); return P(g, 0xffffff);
 }
 
+/**
+ * The festival set: an arch over the front of the deck with a flower garland, and strings of ribbed paper lanterns
+ * with tassels from the arch to both corners. Returns the wood/cloth parts and the lanterns (drawn glowing) apart.
+ */
+export function buildFestival(z = 11, w = 2.6, h = 3.4, cx = 0) {
+  const body = [], lan = [], cols = [0xe8455f, 0xf08a2a, 0xe8b830, 0x2fb88e, 0x9a6ae0];
+  for (const s of [-1, 1]) {
+    body.push(P(at(cyl(0.16, 0.2, h, 10), cx + s * w, h / 2, z), PAL.terra), P(at(cyl(0.26, 0.26, 0.2, 10), cx + s * w, 0.1, z), PAL.terraDark), P(at(sphere(0.22, 10, 8), cx + s * w, h + 0.05, z), PAL.brass));
+  }
+  const arc = new THREE.QuadraticBezierCurve3(new THREE.Vector3(cx - w, h, z), new THREE.Vector3(cx, h + 1.5, z), new THREE.Vector3(cx + w, h, z));
+  body.push(P(new THREE.TubeGeometry(arc, 24, 0.14, 8), PAL.terraLight));
+  for (let i = 0; i <= 16; i++) {
+    const p = arc.getPoint(i / 16);
+    for (let k = 0; k < 3; k++) { const a = k / 3 * 6.28 + i; body.push(P(at(sphere(0.09, 6, 4), p.x + Math.cos(a) * 0.12, p.y - 0.12 + Math.sin(a) * 0.08, p.z + 0.12), [PAL.flower, PAL.sun, 0xffffff, PAL.pink][(i + k) % 4])); }
+    if (i % 2) body.push(P(at(sphere(0.07, 6, 4), p.x, p.y - 0.2, p.z + 0.1, 0, 0, 0, [1.3, 0.6, 0.6]), PAL.sageDark));
+  }
+  const rib = lathe([[0, -0.3], [0.16, -0.24], [0.26, -0.08], [0.27, 0.04], [0.22, 0.2], [0.12, 0.28], [0, 0.3]], 10);
+  const strings = [[cx - w, h - 0.4, -7.2, 2.8], [cx + w, h - 0.4, 7.2, 2.8]];
+  for (const [ax, ay, bx, by] of strings) {
+    body.push(P(at(cyl(0.06, 0.08, by + 0.2, 8), bx, (by + 0.2) / 2, z - 0.2), PAL.woodDark));
+    const c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(ax, ay, z), new THREE.Vector3((ax + bx) / 2, Math.min(ay, by) - 0.6, z - 0.1), new THREE.Vector3(bx, by, z - 0.2));
+    body.push(P(new THREE.TubeGeometry(c, 16, 0.025, 4), PAL.ink));
+    for (let i = 1; i <= 5; i++) {
+      const p = c.getPoint(i / 6), cc = cols[(i + (ax < cx ? 0 : 2)) % cols.length];
+      lan.push(P(at(rib.clone(), p.x, p.y - 0.42, p.z), (x, y, zz) => shade(cc, 0x5a1f3e, 0.12 + Math.cos(Math.atan2(x - p.x, zz - p.z) * 10) * 0.1)));
+      body.push(P(at(cyl(0.13, 0.13, 0.06, 10), p.x, p.y - 0.12, p.z), PAL.ink), P(at(cyl(0.11, 0.11, 0.05, 10), p.x, p.y - 0.73, p.z), PAL.ink), P(at(new THREE.ConeGeometry(0.06, 0.22, 6), p.x, p.y - 0.88, p.z, Math.PI), cc));
+    }
+  }
+  return { body: merge(body), lanterns: merge(lan) };
+}
+
 /** The comet: a bright head and a long soft tail cone (pointing +x behind the head), both drawn additive. */
 export function cometGeo() {
   const tail = new THREE.ConeGeometry(0.9, 9, 16, 1, true).rotateZ(Math.PI / 2).translate(4.6, 0, 0);
@@ -797,6 +828,12 @@ export function buildHat(id) {
   }
   if (id === 'bunny') return merge([P(at(new THREE.TorusGeometry(0.29, 0.03, 4, 18, Math.PI), 0, 0.05, 0, 0, Math.PI / 2, 0), PAL.pink), ...[-1, 1].flatMap((s) => [P(at(sphere(0.09, 10, 8), s * 0.13, 0.48, -0.02, 0, 0, s * -0.2, [0.75, 2.4, 0.5]), PAL.cream), P(at(sphere(0.06, 8, 6), s * 0.13, 0.48, 0.02, 0, 0, s * -0.2, [0.6, 2.0, 0.3]), PAL.pink)])]);
   if (id === 'astro') return merge([P(at(new THREE.SphereGeometry(0.42, 18, 12, 0, 6.29, 0, 2.2), 0, 0, 0), (x, y, z) => (z > 0.18 && y > -0.18 && y < 0.2 ? col(0x3a5a8a) : col(0xf3f0ea))), P(at(new THREE.TorusGeometry(0.34, 0.06, 6, 22), 0, -0.28, 0, Math.PI / 2), PAL.steel), P(at(cyl(0.02, 0.02, 0.22, 5), 0.2, 0.48, -0.05), PAL.iron), P(at(sphere(0.05, 6, 4), 0.2, 0.6, -0.05), PAL.red)]);
+  if (id === 'lamp') return merge([P(at(new THREE.SphereGeometry(0.34, 18, 10, 0, 6.29, 0, 1.62), 0, 0.02, 0, -0.08), (x, y) => shade(PAL.sun, 0xffffff, Math.max(0, y) * 0.5)), P(at(new THREE.TorusGeometry(0.34, 0.04, 6, 22), 0, 0.03, 0, Math.PI / 2 - 0.08), PAL.brassDark),
+    P(at(cyl(0.09, 0.1, 0.12, 12), 0, 0.2, 0.3, Math.PI / 2 - 0.25), PAL.iron), P(at(sphere(0.075, 10, 8), 0, 0.22, 0.36, 0, 0, 0, [1, 1, 0.5]), 0xfff6c8)]);
+  if (id === 'antenna') return merge([P(at(new THREE.TorusGeometry(0.3, 0.035, 6, 20, Math.PI), 0, 0.06, 0, 0, Math.PI / 2, 0), PAL.violet),
+    ...[-1, 1].flatMap((s) => [P(at(cyl(0.015, 0.015, 0.34, 4), s * 0.16, 0.42, 0, 0, 0, s * -0.35), PAL.ink), P(at(new THREE.OctahedronGeometry(0.1, 0), s * 0.22, 0.6, 0), s < 0 ? PAL.cyan : PAL.magenta)])]);
+  if (id === 'bandana') return merge([P(at(cyl(0.31, 0.32, 0.16, 20), 0, 0.12, 0, -0.1), (x, y, z) => (Math.sin(Math.atan2(x, z) * 9) > 0.6 ? col(PAL.cream) : col(PAL.red))),
+    P(at(sphere(0.08, 8, 6), 0, 0.12, -0.33), PAL.red), ...[-1, 1].map((s) => P(at(new THREE.ConeGeometry(0.07, 0.3, 6), s * 0.08, 0.0, -0.4, -2.4, 0, s * 0.4), PAL.red))]);
   if (id === 'top') return merge([P(at(cyl(0.44, 0.44, 0.04, 20), 0, 0.2, 0, -0.08), PAL.ink), P(at(cyl(0.22, 0.24, 0.46, 18), 0, 0.44, -0.02, -0.08), PAL.ink), P(at(cyl(0.245, 0.245, 0.08, 18), 0, 0.28, -0.01, -0.08), PAL.velvet)]);
   // crown
   const parts = [P(at(cyl(0.24, 0.22, 0.16, 16), 0, 0.3, 0), PAL.sun)];

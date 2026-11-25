@@ -34,7 +34,7 @@ export function createState(cfg, seed = cfg.seed) {
     rush: { on: false, next: cfg.rush.first, left: 0, spawnT: 0 }, loose: [], lid: 0,
     pads: cfg.pads.map((p) => ({ id: p.id, price: p.price, paid: 0, shown: false, done: false, rate: cfg.coinFlow.payStart, payT: 0 })),
     rig2: { t: 0 }, jw: { t: 0 }, ghost: { n: 0, lit: 0, go: -1 }, eggs: 0, noRare: 0,
-    stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false,
+    stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false, giftDay: -1,
     sold: 0, made: 0, earned: 0, progressT: 0, events: [],
   };
 }
@@ -305,8 +305,13 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
     nextEgg(cfg, S);
   }
   // critters walk in a parade: each one follows the one in front (the first follows the hero)
+  // only the newest critter.show walk in the parade (the legendary one always does); the rest wait at home, perks on
+  const legend = S.critters.filter((c) => (cfg.critters.find((q) => q.id === c.id) || {}).rarity === 'legendary').length;
+  let slots = cfg.critter.show - legend;
+  for (let i = S.critters.length - 1; i >= 0; i--) { const c = S.critters[i], leg = (cfg.critters.find((q) => q.id === c.id) || {}).rarity === 'legendary'; c.hide = !leg && slots <= 0; if (!leg && slots > 0) slots--; }
   let lead = h;
   for (const c of S.critters) {
+    if (c.hide) { c.x = h.x; c.z = h.z; c.vx = c.vz = 0; continue; }
     const f = cfg.critter.follow, tx = lead.x - Math.sin(lead.face) * f, tz = lead.z - Math.cos(lead.face) * f, kk = cfg.critter.spring;
     c.vx += ((tx - c.x) * kk - c.vx * 2 * Math.sqrt(kk)) * dt; c.vz += ((tz - c.z) * kk - c.vz * 2 * Math.sqrt(kk)) * dt;
     c.x += c.vx * dt; c.z += c.vz * dt;
@@ -331,7 +336,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   earn('orders', S.hearts >= SC.orders); earn('critters', S.critters.length >= SC.critters); earn('town', S.ghost.lit >= cfg.cart.lights && has(S, 'neon'));
   for (const hd of cfg.hats) {
     if (S.hats.includes(hd.id)) continue;
-    if ((hd.stars && S.stars.length >= hd.stars) || (hd.hearts && S.hearts >= hd.hearts) || (hd.finale && S.done1)) { S.hats.push(hd.id); S.hat = hd.id; ev(S, 'hat', { id: hd.id }); }
+    if ((hd.stars && S.stars.length >= hd.stars) || (hd.hearts && S.hearts >= hd.hearts) || (hd.finale && S.done1) || (hd.critters && S.critters.length >= hd.critters) || (hd.sold && S.sold >= hd.sold)) { S.hats.push(hd.id); S.hat = hd.id; ev(S, 'hat', { id: hd.id }); }
   }
 
   // ---- Crystal Rush: the meteor flares, chunks and coins rain onto the deck for a few seconds; scoop them up
@@ -463,6 +468,33 @@ export function botInput(cfg, S) {
   return { x, z, g };
 }
 
+/**
+ * Content drops (post-launch updates) ship in the config switched off; this keeps only the critters and hats whose
+ * drop is on. Call once on a fresh copy of the config, before createState.
+ */
+export function applyDrops(cfg) {
+  const on = (x) => !x.drop || !!(cfg.drops && cfg.drops[x.drop]);
+  cfg.critters = cfg.critters.filter(on); cfg.hats = cfg.hats.filter(on);
+  return cfg;
+}
+
+/**
+ * The welcome-back gift (festival drop): after gift.awayH hours away, coins that grow with the town (capped), and an
+ * egg that comes sooner once per calendar day. seen and now are epoch milliseconds; null when there is no gift.
+ */
+export function welcomeGift(cfg, d, now) {
+  if (!cfg.drops || !cfg.drops.festival || !d || !Number.isFinite(d.seen) || now - d.seen < cfg.gift.awayH * 3600e3) return null;
+  const pads = Array.isArray(d.pads) ? d.pads.filter((p) => Array.isArray(p) && p[1]).length : 0, day = Math.floor(now / 864e5);
+  return { coins: Math.min(cfg.gift.cap, cfg.gift.base + pads * cfg.gift.perPad), egg: day !== d.giftDay, day };
+}
+
+/** Hands the gift over: coins on the cash pile, the egg sooner. */
+export function applyGift(cfg, S, g) {
+  S.cashPile += g.coins;
+  if (g.egg) { S.giftDay = g.day; if (S.egg.st === 'lodged') S.egg.at = Math.min(S.egg.at, S.t + cfg.gift.eggIn); }
+  ev(S, 'gift', { coins: g.coins, egg: g.egg && S.egg.st === 'lodged' });
+}
+
 /** What gets saved: progress only (positions and in-flight things start fresh). */
 export function serialize(cfg, S) {
   return {
@@ -470,7 +502,7 @@ export function serialize(cfg, S) {
     pols: S.pols.map((p) => p.polIn), stands: S.stands.map((s) => s.items.slice()), ws: { g: S.ws.gemsIn, r: S.ws.rings },
     pads: S.pads.map((p) => [p.paid, p.done ? 1 : 0]), critters: S.critters.map((c) => c.id), hearts: S.hearts, sold: S.sold, made: S.made, earned: S.earned,
     ghost: { n: S.ghost.go >= 0 ? 0 : S.ghost.n, lit: S.ghost.lit + (S.ghost.go >= 0 && S.ghost.lit < cfg.cart.lights ? 1 : 0) }, stars: ['orders', 'critters', 'town'].filter((id) => S.stars.includes(id)), hats: cfg.hats.map((x) => x.id).filter((id) => S.hats.includes(id)), hat: S.hat,
-    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare,
+    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare, giftDay: S.giftDay,
   };
 }
 
@@ -492,7 +524,7 @@ export function restore(cfg, d, seed = cfg.seed) {
   if (Array.isArray(d.stars)) S.stars = ['orders', 'critters', 'town'].filter((id) => d.stars.includes(id));
   if (Array.isArray(d.hats)) S.hats = cfg.hats.map((x) => x.id).filter((id, i) => i === 0 || d.hats.includes(id));
   if (S.hats.includes(d.hat)) S.hat = d.hat;
-  S.done1 = !!d.done1 && has(S, 'heart'); S.eggs = num(d.eggs, 0, 1e6, S.critters.length); S.noRare = num(d.noRare, 0, 1e6, 0);
+  S.done1 = !!d.done1 && has(S, 'heart'); S.eggs = num(d.eggs, 0, 1e6, S.critters.length); S.noRare = num(d.noRare, 0, 1e6, 0); S.giftDay = num(d.giftDay, -1, 1e7, -1);
   if (has(S, 'heart') && !S.done1) S.done1 = true; // a save made mid-finale: the finale counts as seen
   if (S.done1 && !S.critters.some((c) => c.id === cfg.finale.critter)) S.critters.push({ id: cfg.finale.critter, x: S.hero.x, z: S.hero.z + 1, vx: 0, vz: 0, face: 0 });
   if (S.critters.length) { nextEgg(cfg, S); S.egg.at = S.t + Math.min(cfg.egg.every, 25); }
