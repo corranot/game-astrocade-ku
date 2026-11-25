@@ -1,7 +1,8 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // The 3D look of +1 Mega Hammer (Three.js r187, global THREE): a floating toy-market island over a cloud sea,
 // breakables drawn as one InstancedMesh per kind, number labels, the hammer, and pooled effects (debris, dust,
-// shockwave rings, ground marks). Logic state comes from logic.js; this file only draws it.
+// shockwave rings, ground marks, magnet gems), contact shadows under each object, and on the high tiers a glow
+// (bloom) pass with a warm colour grade. Logic state comes from logic.js; this file only draws it.
 /* global THREE */
 import { PAL, buildKind, buildTree, buildBush, buildLamp, buildCloud, buildHammer, DEBRIS, rbox, paint, merge } from './models.js';
 
@@ -19,6 +20,7 @@ export function createScene(canvas, cfg, random) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.92;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.info.autoReset = false; // draw() resets once per frame, so the counts include every pass
   const scene = new THREE.Scene();
   const keep = [];
   const K = (o) => { keep.push(o); return o; };
@@ -139,6 +141,11 @@ export function createScene(canvas, cfg, random) {
     labelTex.set(key, K(t)); return t;
   }
   const labels = new THREE.Group(); scene.add(labels);
+  // contact shadows: a soft dark disc under every breakable, so objects sit on the plaza (cheap stand-in for AO)
+  const blobTex = K(canvasTex(64, 64, (g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); gr.addColorStop(0, 'rgba(40,28,40,0.55)'); gr.addColorStop(0.55, 'rgba(40,28,40,0.3)'); gr.addColorStop(1, 'rgba(40,28,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, s, s); }));
+  const blobGeo = K(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2));
+  const blobMat = K(new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }));
+  let blobs = null;
 
   /** Places the run's objects; L is the current hammer size (for label colours). */
   function setObjects(objects, L) {
@@ -146,6 +153,8 @@ export function createScene(canvas, cfg, random) {
     for (const l of [...labels.children]) { labels.remove(l); l.material.dispose(); }
     byId.length = 0;
     for (const o of objects) kinds[o.kind].list.push(o);
+    if (blobs) { scene.remove(blobs); blobs.dispose(); }
+    blobs = new THREE.InstancedMesh(blobGeo, blobMat, objects.length); blobs.renderOrder = 1; blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(blobs);
     for (const k of Object.values(kinds)) {
       if (!k.list.length) continue;
       k.mesh = new THREE.InstancedMesh(k.geo, mat, k.list.length); k.mesh.castShadow = true; k.mesh.receiveShadow = true;
@@ -171,17 +180,19 @@ export function createScene(canvas, cfg, random) {
     for (const e of byId) {
       if (!e) continue;
       if (!e.hidden) e.k.shown++;
-      if (e.hidden) { tmpM.makeScale(0, 0, 0); e.k.mesh.setMatrixAt(e.i, tmpM); if (e.label) e.label.visible = false; continue; }
+      if (e.hidden) { tmpM.makeScale(0, 0, 0); e.k.mesh.setMatrixAt(e.i, tmpM); blobs.setMatrixAt(e.o.id, tmpM); if (e.label) e.label.visible = false; continue; }
       e.squash = Math.max(0, e.squash - dt * 4); e.pop = Math.max(0, e.pop - dt * 2.2); e.grow = Math.min(1, e.grow + dt * 3);
       const live = e.o.zone === zone, sq = Math.sin(e.squash * 18) * e.squash * 0.25, idle = live ? Math.sin(clock * 3 + e.o.id) * 0.02 : 0;
       const pop = Math.sin(e.pop * Math.PI) * 0.2;
       const gr = e.grow < 1 ? 1 - Math.pow(1 - e.grow, 3) * Math.cos(e.grow * 7) : 1; // pop-in with a little overshoot
       tmpS.set((1 + sq + pop) * gr, (1 - sq + idle + pop) * gr, (1 + sq + pop) * gr);
       tmpM.compose(tmpV.set(e.o.x, 0, e.o.z), tmpQ.setFromEuler(tmpE.set(0, e.rot, 0)), tmpS); e.k.mesh.setMatrixAt(e.i, tmpM);
+      const br = cfg.kinds[e.o.kind].r * cfg.look.contact * gr * (1 + sq); tmpM.makeScale(br, 1, br).setPosition(e.o.x, 0.025, e.o.z); blobs.setMatrixAt(e.o.id, tmpM);
       if (e.label) { e.label.visible = live; e.label.position.y = e.label.userData.h + Math.sin(clock * 2.5 + e.o.id) * 0.06; const ls = (1 + pop * 1.5 + Math.abs(sq) * 2) * labelK * (e.o.boss ? 1.8 : 1); e.label.scale.set(0.9 * ls, 0.45 * ls, 1); }
     }
     // a kind with nothing left standing is not drawn at all (zones already played)
     for (const k of Object.values(kinds)) if (k.mesh) { k.mesh.visible = k.shown > 0; k.mesh.instanceMatrix.needsUpdate = true; }
+    blobs.instanceMatrix.needsUpdate = true;
   }
 
   // ---- the hammer
@@ -209,6 +220,47 @@ export function createScene(canvas, cfg, random) {
   const marks = []; for (let i = 0; i < 8; i++) { const m = new THREE.Mesh(K(new THREE.PlaneGeometry(1, 1)), K(new THREE.MeshBasicMaterial({ map: markTex, transparent: true, depthWrite: false, opacity: 0, polygonOffset: true, polygonOffsetFactor: -2 }))); m.rotation.x = -Math.PI / 2; m.visible = false; m.renderOrder = 2; scene.add(m); marks.push({ m, life: 0 }); }
   let mNext = 0;
   const tmpC = new THREE.Color();
+  // magnet gems: faceted jewels that pop out of a broken numbered object, hang a moment, then fly into the hammer
+  const GEMC = [0xff5d8f, 0x5fd3ff, 0x7fe0b4, 0xf2c96a, 0xb98cff];
+  const gemMat = K(new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: cfg.look.gemGlow, roughness: 0.15, metalness: 0.3 }));
+  // the glow takes each gem's own colour (instance colour), not white
+  gemMat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = emissive * vColor.rgb;'); };
+  const gemMesh = new THREE.InstancedMesh(K(new THREE.OctahedronGeometry(0.16, 0)), gemMat, cfg.fx.gemsMax);
+  gemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); gemMesh.frustumCulled = false; gemMesh.count = 0; scene.add(gemMesh);
+  const G = []; for (let i = 0; i < cfg.fx.gemsMax; i++) { G.push({ life: 0, t: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), s: 1, spin: 0 }); gemMesh.setColorAt(i, tmpC.set(GEMC[i % GEMC.length])); }
+  let gNext = 0;
+  const headP = new THREE.Vector3();
+  /** n gems burst out at (x, z) from height h; they home in on the hammer head after a short hang. */
+  function gems(x, z, n, h = 1) {
+    for (let k = 0; k < n; k++) {
+      const g = G[gNext]; gNext = (gNext + 1) % G.length;
+      // size and spread follow the camera's pull-back, so gems read the same at any hammer size
+      const k = cam.k, a = random() * 6.28, sp = (3 + random() * 3.5 + Math.min(3, n * 0.06)) * Math.sqrt(k);
+      g.life = 1; g.t = 0; g.p.set(x, h, z); g.v.set(Math.cos(a) * sp, (4 + random() * 3) * Math.sqrt(k), Math.sin(a) * sp); g.s = (1.2 + random() * 0.5) * k; g.spin = random() * 6;
+    }
+  }
+  /** Moves the gems; returns how many reached the hammer this frame. */
+  function updateGems(dt) {
+    H.head.getWorldPosition(headP);
+    let got = 0, top = 0;
+    const hang = cfg.fx.gemHang;
+    for (let i = 0; i < G.length; i++) {
+      const g = G[i];
+      if (g.life <= 0) { tmpM.makeScale(0, 0, 0); gemMesh.setMatrixAt(i, tmpM); continue; }
+      top = i + 1; g.t += dt; g.spin += dt * 9;
+      if (g.t < hang) { g.v.y -= 9 * dt; g.v.multiplyScalar(1 - 1.8 * dt); g.p.addScaledVector(g.v, dt); if (g.p.y < 0.2 * g.s) { g.p.y = 0.2 * g.s; g.v.y = Math.abs(g.v.y) * 0.5; } }
+      else {
+        // magnet: steer towards the head, faster every moment
+        const pull = (10 + (g.t - hang) * 60) * Math.sqrt(cam.k); tmpV.subVectors(headP, g.p); const d = tmpV.length();
+        if (d < 0.5 + H.root.scale.x * 0.3) { g.life = 0; got++; tmpM.makeScale(0, 0, 0); gemMesh.setMatrixAt(i, tmpM); continue; }
+        g.v.lerp(tmpV.multiplyScalar(pull / d), Math.min(1, dt * 8)); g.p.addScaledVector(g.v, dt);
+      }
+      const s = g.s * Math.min(1, g.t * 6);
+      tmpM.compose(g.p, tmpQ.setFromEuler(tmpE.set(g.spin * 0.5, g.spin, 0)), tmpS.set(s, s * 1.3, s)); gemMesh.setMatrixAt(i, tmpM);
+    }
+    gemMesh.count = top; gemMesh.instanceMatrix.needsUpdate = true; if (gemMesh.instanceColor) gemMesh.instanceColor.needsUpdate = true;
+    return got;
+  }
 
   /** Breaks object id into debris and dust; big = bigger burst. */
   function burst(id) {
@@ -321,8 +373,65 @@ export function createScene(canvas, cfg, random) {
     renderer.shadowMap.enabled = sm > 0; sun.castShadow = sm > 0;
     if (sm > 0) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+    postSync();
   }
-  function resize(w, h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  function resize(w, h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); postSync(); }
+  // ---- glow (bloom) and grade, tiers >= cfg.look.postTier only. The scene is drawn to a half-float target without
+  // tone mapping; what is brighter than the threshold (emissive gems, rings, glowing hammer tiers, boosted during
+  // this pass by cfg.look.glow) is blurred at a quarter and an eighth of the size and added back; the last pass draws
+  // to the canvas with the renderer's tone mapping and sRGB, then grades (warmth, saturation, contrast, vignette).
+  const LK = cfg.look, BL = LK.bloom, GR = LK.grade;
+  const glowList = [];
+  const glows = (m, k, prop) => glowList.push({ m, k, prop, v: 0 });
+  for (const g of rings) glows(g.m.material, 'ring', 'color');
+  glows(gemMat, 'gem', 'emissiveIntensity'); glows(H.mats[0], 'hammer', 'emissiveIntensity'); glows(H.mats[1], 'hammer', 'emissiveIntensity'); glows(H.mats[3], 'gem', 'emissiveIntensity');
+  function glowSet(on) {
+    for (const x of glowList) {
+      if (x.prop === 'color') { if (on) x.m.color.setScalar(LK.glow[x.k]); else x.m.color.setScalar(1); }
+      else if (on) { x.v = x.m[x.prop]; x.m[x.prop] *= LK.glow[x.k]; } else x.m[x.prop] = x.v;
+    }
+  }
+  const fsCam = new THREE.Camera(), fsGeo = K(new THREE.BufferGeometry()); fsGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+  const fsMesh = new THREE.Mesh(fsGeo, null); fsMesh.frustumCulled = false;
+  const fsVert = 'varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const fsMat = (uniforms, fragmentShader) => K(new THREE.ShaderMaterial({ uniforms, vertexShader: fsVert, fragmentShader, depthTest: false, depthWrite: false }));
+  const brightMat = fsMat({ t: { value: null }, px: { value: new THREE.Vector2() }, thr: { value: 1 }, knee: { value: 1 }, lim: { value: 1 } },
+    'uniform sampler2D t; uniform vec2 px; uniform float thr; uniform float knee; uniform float lim; varying vec2 vUv; void main(){ vec3 c = (texture2D(t, vUv - px).rgb + texture2D(t, vUv + vec2(px.x, -px.y)).rgb + texture2D(t, vUv + vec2(-px.x, px.y)).rgb + texture2D(t, vUv + px).rgb) * 0.25; float b = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(min(c * smoothstep(thr, thr + knee, b), vec3(lim)), 1.0); }');
+  const blurMat = fsMat({ t: { value: null }, d: { value: new THREE.Vector2() } },
+    'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227027; c += (texture2D(t, vUv + d * 1.384615).rgb + texture2D(t, vUv - d * 1.384615).rgb) * 0.316216; c += (texture2D(t, vUv + d * 3.230769).rgb + texture2D(t, vUv - d * 3.230769).rgb) * 0.070270; gl_FragColor = vec4(c, 1.0); }');
+  const finalMat = fsMat({ t: { value: null }, b1: { value: null }, b2: { value: null }, strength: { value: 0 }, vig: { value: 0 }, con: { value: 1 }, sat: { value: 1 }, warm: { value: 0 } },
+    'uniform sampler2D t; uniform sampler2D b1; uniform sampler2D b2; uniform float strength; uniform float vig; uniform float con; uniform float sat; uniform float warm; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb + (texture2D(b1, vUv).rgb + texture2D(b2, vUv).rgb) * strength, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\nvec3 g = gl_FragColor.rgb; g += vec3(warm, warm * 0.35, -warm) * (1.0 - g); g = mix(vec3(dot(g, vec3(0.2126, 0.7152, 0.0722))), g, sat); g = (g - 0.5) * con + 0.5; g *= 1.0 - vig * smoothstep(0.4, 1.0, length((vUv - 0.5) * vec2(1.0, 1.25)) * 1.4142); gl_FragColor.rgb = clamp(g, 0.0, 1.0); }');
+  let post = null;
+  const postSize = new THREE.Vector2();
+  function hdrOk() { try { const gl = renderer.getContext(); return typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext && !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float')); } catch (e) { return false; } }
+  function postFree() { if (post) for (const t of post.rt) t.dispose(); post = null; }
+  /** Makes, resizes or frees the glow targets for the tier and the drawing size. */
+  function postSync() {
+    if (!BL.on || tier < LK.postTier || !hdrOk()) { postFree(); return; }
+    renderer.getDrawingBufferSize(postSize); const w = Math.max(1, postSize.x), h = Math.max(1, postSize.y), q = (d) => [Math.max(1, Math.round(w / d)), Math.max(1, Math.round(h / d))];
+    if (!post) {
+      const small = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small() };
+      post.rt = [post.scene, post.q1, post.q2, post.e1, post.e2];
+    }
+    post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8));
+  }
+  const fsPass = (m, target) => { fsMesh.material = m; renderer.setRenderTarget(target); renderer.render(fsMesh, fsCam); };
+  /** Draws the frame: direct on the low tiers, through the glow pass on the high ones. */
+  function draw() {
+    renderer.info.reset();
+    if (!post) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
+    glowSet(true); renderer.setRenderTarget(post.scene); renderer.render(scene, camera); glowSet(false);
+    const Pp = post, u = brightMat.uniforms, d = blurMat.uniforms.d.value, f = finalMat.uniforms;
+    u.t.value = Pp.scene.texture; u.px.value.set(1 / Pp.scene.width, 1 / Pp.scene.height); u.thr.value = BL.threshold; u.knee.value = BL.knee; u.lim.value = BL.max; fsPass(brightMat, Pp.q1);
+    blurMat.uniforms.t.value = Pp.q1.texture; d.set(1 / Pp.q1.width, 0); fsPass(blurMat, Pp.q2);
+    blurMat.uniforms.t.value = Pp.q2.texture; d.set(0, 1 / Pp.q1.height); fsPass(blurMat, Pp.q1);
+    blurMat.uniforms.t.value = Pp.q1.texture; d.set(1 / Pp.e1.width, 0); fsPass(blurMat, Pp.e2);
+    blurMat.uniforms.t.value = Pp.e2.texture; d.set(0, 1 / Pp.e1.height); fsPass(blurMat, Pp.e1);
+    f.t.value = Pp.scene.texture; f.b1.value = Pp.q1.texture; f.b2.value = Pp.e1.texture; f.strength.value = BL.strength; f.vig.value = GR.vignette; f.con.value = GR.contrast; f.sat.value = GR.saturation; f.warm.value = GR.warmth;
+    fsPass(finalMat, null);
+  }
+
   const proj = new THREE.Vector3();
   /** Screen position (0..1) of a world point. */
   function toScreen(x, y, z) { proj.set(x, y, z).project(camera); return [(proj.x + 1) / 2, (1 - proj.y) / 2, proj.z]; }
@@ -341,11 +450,14 @@ export function createScene(canvas, cfg, random) {
     regrow(id) { const e = byId[id]; if (e) { e.hidden = false; e.grow = 0; } },
     open(id, L) { const e = byId[id]; if (e) { e.pop = 1; relabel(id, L); } },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
-    render() { renderer.render(scene, camera); },
+    gems, updateGems,
+    get post() { return !!post; },
+    render: draw,
     dispose() {
       for (const k of Object.values(kinds)) if (k.mesh) k.mesh.dispose();
       for (const l of labels.children) l.material.dispose();
       for (const o of keep) if (o && o.dispose) o.dispose();
+      postFree(); if (blobs) blobs.dispose(); gemMesh.dispose();
       debris.dispose(); dust.dispose(); lamps.dispose();
       scene.traverse((o) => { if (o.isInstancedMesh) o.dispose(); });
       renderer.dispose(); renderer.forceContextLoss();

@@ -148,6 +148,7 @@ async function open(browser, opts = {}) {
     check(hps.length === v.hp && hps.slice(0, -1).every((h, i) => h === v.hp - 1 - i) && !(await g6((id) => __game.R.objects[id].alive, v.id)), `the vault takes ${v.hp} hits (hp ${hps.join(', ')})`);
     const shown = await p6.waitForFunction(() => __game.card, null, { timeout: 15000 }).then(() => true, () => false);
     check(shown, 'the results card shows after the vault once the session is long enough');
+    check(await g6(() => __game.gemsGot >= __game.cfg.gems.vault && Number(document.getElementById('cGems').textContent) === __game.gemsGot), 'the vault gems fly into the hammer and the card counts them');
     await p6.waitForTimeout(700);
     await p6.screenshot({ path: path.join(out, '11-results-card.jpg'), type: 'jpeg', quality: 82 });
     check(await g6(() => parseFloat(document.getElementById("cSize").textContent) >= 30 && /x2/.test(document.getElementById('cAgain').textContent) && !document.getElementById('cShare').hidden), 'the card shows the size, Again x2 and a share button');
@@ -168,6 +169,7 @@ async function open(browser, opts = {}) {
     const o = await p2.evaluate(() => { const b = __game.R.objects.find((q) => q.zone === 0); return __game.client(b.x, 0.3, b.z); });
     await p2.mouse.click(o[0], o[1]); await p2.waitForTimeout(800);
     check(await p2.evaluate(() => !(window.__writes || []).length && !__game.saveLoaded), 'no save is written while the read keeps failing');
+    check(await p2.evaluate(() => !__game.scene.post), 'tier 1 draws direct, without the glow pass');
     await p2.close();
   }
   // edit mode: a live picture, taps do nothing
@@ -192,9 +194,10 @@ async function open(browser, opts = {}) {
     const { page: p5 } = await open(browser, { tier: 2 });
     const fps = await p5.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(f); else res(n / 3); }; requestAnimationFrame(f); }));
     const info = await p5.evaluate(() => { const r = __game.scene.renderer.info.render; return [r.calls, r.triangles]; });
+    check(await p5.evaluate(() => __game.scene.post), 'tier 2 draws through the glow and grade pass');
     console.log(`info FPS at tier 2 on swiftshader: ${fps.toFixed(1)}; draw calls ${info[0]}, triangles ${info[1]}`);
-    // renderer.info counts the shadow pass too; six zones are in view from the start, so the bar is 220k
-    check(info[0] <= 120 && info[1] <= 220000, `render budget at the start view: ${info[0]} draw calls (<= 120), ${info[1]} triangles with shadows (<= 220k)`);
+    // renderer.info counts every pass of a frame (shadow, scene, glow); six zones are in view from the start
+    check(info[0] <= 130 && info[1] <= 220000, `render budget at the start view: ${info[0]} draw calls (<= 130), ${info[1]} triangles with shadows (<= 220k)`);
     await p5.close();
   }
   await browser.close(); server.close();

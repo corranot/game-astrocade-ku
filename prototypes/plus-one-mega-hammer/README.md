@@ -15,7 +15,7 @@ Doc "+1 Mega Hammer — Plan Game".
   fanfares, a toy-funk loop.
 - Attract mode before the first touch (demo swing, counts nothing), 7 languages, save through `lib`, quality tiers.
 
-## Milestone 2: the whole run (this slice)
+## Milestone 2: the whole run (merged)
 
 - Six zones: fruit stand, market, street (cones, mailboxes 380, cars 750), park (flowerpots, benches 1500, trees
   2500, fountains 3500), city (houses 5000, water towers 8000, buildings 11000), and the cake vault finale (needs
@@ -28,7 +28,17 @@ Doc "+1 Mega Hammer — Plan Game".
   "Smash again x2" button and a share button (`lib.share`); a shorter session goes straight on into the x2 run.
   The leaderboard gets the best size at the end of every run.
 - A run at two taps a second takes about 50 to 70 s.
-- Not yet (milestone 3): post-processing (bloom, AO, grading), gem magnet, music from the Astrocade generator.
+
+## Milestone 3: polish (this slice)
+
+- Glow and grade pass on tier 2 and up (`look` in the config): the scene is drawn to a half-float target, what is
+  brighter than the threshold (gems, shockwave rings, the glowing hammer tiers) is blurred at 1/4 and 1/8 size and
+  added back, then ACES tone mapping, a warm lift, saturation, contrast and a vignette. Tiers 0 and 1 draw direct,
+  so the adaptive quality drop removes the pass first.
+- Contact shadows: a soft dark disc under every breakable (a cheap stand-in for ambient occlusion).
+- Magnet gems: each numbered object throws out 1 to 6 jewels (the vault 40); they hang a moment, then home in on the
+  hammer head with a rising tick. The results card counts them.
+- Not yet (milestone 4): music from the Astrocade generator, which needs the Astrocade draft to exist first.
 
 ## How to run
 

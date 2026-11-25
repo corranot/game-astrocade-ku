@@ -46,6 +46,8 @@ const Sound = (() => {
     bonk() { if (!ctx) return; tone('square', 210, 150, 0.1, 0.08); tone('sine', 330, 240, 0.12, 0.1); },
     ding(combo) { if (!ctx) return; const n = PENTA[Math.min(PENTA.length - 1, combo - 1)]; tone('triangle', 660 * 2 ** (n / 12), 660 * 2 ** (n / 12), 0.22, 0.14); tone('sine', 1320 * 2 ** (n / 12), 1320 * 2 ** (n / 12), 0.12, 0.05); },
     grow() { if (!ctx) return; tone('sine', 90, 55, 0.35, 0.3); },
+    /** A gem lands in the hammer: a bright tick that climbs with each gem of the burst (k). */
+    gem(k) { if (!ctx) return; const n = PENTA[k % PENTA.length]; tone('sine', 1760 * 2 ** (n / 12), 1760 * 2 ** (n / 12), 0.08, 0.05); },
     fanfare() { if (!ctx) return; [0, 4, 7, 12].forEach((n, i) => { tone('triangle', 523 * 2 ** (n / 12), 523 * 2 ** (n / 12), 0.3, 0.13, i * 0.09); tone('sine', 261 * 2 ** (n / 12), 261 * 2 ** (n / 12), 0.35, 0.08, i * 0.09); }); },
     evolve() { if (!ctx) return; [0, 7, 12, 16, 19, 24].forEach((n, i) => tone('triangle', 392 * 2 ** (n / 12), 392 * 2 ** (n / 12), 0.25, 0.12, i * 0.06)); hiss(3000, 0.7, 0.6, 0.08, 0.1); },
     /** Toy-funk loop at 120 bpm: bass and marimba, scheduled ahead. */
@@ -132,7 +134,7 @@ export function run(mode = 'play') {
   /** Results card: final hammer size, best, the next multiplier on the again button, and share when the host has it. */
   function showCard() {
     card = true; hold.on = false;
-    $('cSize').textContent = fmt(R.L); $('cBest').textContent = T('best', { n: fmt(Math.max(save.best, R.L)) });
+    $('cSize').textContent = fmt(R.L); $('cGems').textContent = fmt(gemsGot); $('cBest').textContent = T('best', { n: fmt(Math.max(save.best, R.L)) });
     $('cAgain').textContent = T('again', { m: mult * cfg.rebirth.mult }); $('cShare').textContent = T('share');
     $('cShare').hidden = !(window.lib && typeof lib.share === 'function');
     $('cTitle').textContent = T('size');
@@ -141,7 +143,7 @@ export function run(mode = 'play') {
   }
   function again() {
     if (card) { card = false; $('card').classList.remove('show'); $('card').hidden = true; }
-    mult *= cfg.rebirth.mult; newRun(); showBanner('x' + mult + '!', 'gold'); Sound.fanfare();
+    mult *= cfg.rebirth.mult; gemsGot = 0; newRun(); showBanner('x' + mult + '!', 'gold'); Sound.fanfare();
   }
   function showBanner(text, cls) { const b = $('banner'); b.textContent = text; b.className = 'banner out ' + (cls || ''); void b.offsetWidth; b.classList.add('show'); banner = 1.6; }
 
@@ -158,7 +160,7 @@ export function run(mode = 'play') {
     for (const e of ev) {
       if (e.type === 'break') {
         const o = R.objects[e.id]; scene.burst(e.id); Sound.breakMat(cfg.kinds[o.kind].mat, broke); broke++; gainSum += e.gain;
-        if (o.req > 1) bigHit = true;
+        if (o.req > 1) { bigHit = true; scene.gems(o.x, o.z, o.boss ? cfg.gems.vault : Math.min(cfg.gems.max, 1 + Math.floor(Math.log10(o.req))), cfg.kinds[o.kind].r * 1.4); }
         popNumber(o.x, cfg.kinds[o.kind].r * 2, o.z, e.gain, o.req > 1);
       } else if (e.type === 'bonk') { scene.bonk(e.id); Sound.bonk(); }
       else if (e.type === 'hit') { scene.hit(e.id, R.L); Sound.clang(e.hp); bigHit = true; buzz('heavy'); }
@@ -176,7 +178,7 @@ export function run(mode = 'play') {
     renderTop();
     if (touched && mode === 'play' && R.L > save.best) save.best = R.L;
   }
-  let evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false;
+  let evolveFx = 0, growFx = 0, doneT = 0, sessT = 0, card = false, gemsGot = 0, gemTick = 0;
 
   // ---------------------------------------------------------------- input: tap = slam there, hold = slam again
   const rect = () => root.getBoundingClientRect();
@@ -250,6 +252,8 @@ export function run(mode = 'play') {
     H.gem.rotation.y += dt * 2;
     scene.updateObjects(dt, R.zone);
     scene.updateFx(dt);
+    const got = scene.updateGems(dt);
+    if (got) { gemsGot += got; Sound.gem(gemTick++); }
     scene.updateWorld(dt);
     scene.updateCamera(dt, (cfg.zones[R.zone].z + aim.z) / 2, s);
     if (banner > 0) { banner -= dt; if (banner <= 0) $('banner').classList.remove('show'); }
@@ -320,7 +324,7 @@ export function run(mode = 'play') {
       },
       /** Client position of a world point, for tests that touch like a finger. */
       client(x, y, z) { const [sx, sy] = scene.toScreen(x, y, z), r = rect(); return [r.left + sx * r.width, r.top + sy * r.height]; },
-      get card() { return card; }, get sessT() { return sessT; },
+      get card() { return card; }, get gemsGot() { return gemsGot; }, get sessT() { return sessT; },
       get busy() { return swing.phase === 'down' || swing.phase === 'up'; },
     },
   };
@@ -338,7 +342,7 @@ const HTML = `
   <div id="pops"></div>
   <div id="banner" class="banner out"></div>
   <div id="hint" class="hint out">TAP!</div>
-  <div id="card" class="card" hidden><div class="cbox"><p id="cTitle" class="ctitle out"></p><span class="ham big" aria-hidden="true"></span><b id="cSize" class="csize out">1</b><p id="cBest" class="cbest out"></p>
+  <div id="card" class="card" hidden><div class="cbox"><p id="cTitle" class="ctitle out"></p><span class="ham big" aria-hidden="true"></span><b id="cSize" class="csize out">1</b><span class="cgem"><i class="gemi" aria-hidden="true"></i><b id="cGems" class="out">0</b></span><p id="cBest" class="cbest out"></p>
     <button id="cAgain" class="cbtn out"></button><button id="cShare" class="cbtn alt out"></button></div></div>
 </div>`;
 
