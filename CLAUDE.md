@@ -212,6 +212,13 @@ full plan unless they add a new game mode or rework the game.
   and safe area, and never blocks the player. Steps the player already did are
   skipped, a finished tutorial is saved and never repeats, and it has a skip
   button. It covers the game's core loop.
+- **Every key moment is cinematic.** Each key moment (first result, first sale,
+  a build or upgrade, a hatch or new friend, a perfect hit, a rare drop, a zone or
+  chapter unlock, a milestone, a surprise event) gets a short camera beat: the
+  camera eases to the moment and frames it, with a brief slow-motion or hit-stop,
+  letterbox bars or a vignette, VFX and an audio sting, then eases back. Beats are
+  0.6 to 2 s, never block input, and run through a priority queue with a cooldown
+  so they never pile up or get annoying in the core loop.
 - **Modular meta-prompts between coordinator and threads.** Every message from
   the coordinator to a thread is a modular meta-prompt with labeled sections:
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,

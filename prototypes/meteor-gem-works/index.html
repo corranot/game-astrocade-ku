@@ -48,6 +48,11 @@ body{display:flex;align-items:center;justify-content:center}
 .banner.go{animation:ban .5s cubic-bezier(.2,1.5,.4,1)}
 .banner .bt{font-size:calc(var(--u)*64px);line-height:1;color:#ffe08a}
 .banner .bs{font-size:calc(var(--u)*36px);line-height:1.1;color:#fff3dc}
+/* cinematic beats: letterbox bars slide in from the top and bottom edges with a soft vignette, under the HUD */
+.cine{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .45s;background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(20,8,30,.45) 100%)}
+.cine i{position:absolute;left:0;right:0;height:calc(var(--u)*72px);background:#120a18;transition:transform .45s cubic-bezier(.3,.7,.3,1)}
+.cine i:first-child{top:0;transform:translateY(-100%)}.cine i:last-child{bottom:0;transform:translateY(100%)}
+#app.cinema .cine{opacity:1}#app.cinema .cine i{transform:none}
 /* first-time tutorial: the world dims except a soft circle on the next stop; a pulsing gold ring marks it, and a hint
    pill under it shows the stop's icon and a few words. Nothing here takes a touch except the skip button. */
 .spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;--x:50%;--y:50%;--r:100px;
