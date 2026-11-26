@@ -12,7 +12,7 @@ above 50 FPS (p99 at or under 20 ms), no frame over 50 ms after load, on a throt
   point (tier 2, the highest tier a phone reaches).
 - `node prototypes/meteor-gem-works/tierstep.js <gameDir>` (env `T0=1 SEQ=2,1,0,1,2`): times the first frame after
   each adaptive-quality step, from the game's real start tier.
-- "Before" is origin/main at c09bfc5 (the build in the current draft). Raw logs sit next to this file.
+- "Before" is origin/main at c09bfc5 (the build in the current draft). Raw logs sit next to this file (`frames-*.txt`).
 
 ## Frame times at tier 2 (ms, 360 frames per point)
 
