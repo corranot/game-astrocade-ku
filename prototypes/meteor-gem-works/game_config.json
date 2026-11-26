@@ -411,7 +411,7 @@
     "punch": 0.9,
     "cometPitch": 0.18,
     "followX": 0.7,
-    "zMax": 9.5,
+    "zMax": -3.8,
     "ahead": 10.0
   },
   "tod": {
@@ -552,7 +552,9 @@
     },
     "glareMax": 0.02,
     "rim": 0.32,
-    "cloudShadow": 0.16
+    "cloudShadow": 0.16,
+    "guideNear": 0.2,
+    "guideSide": 1.8
   },
   "strings": {
     "en": {

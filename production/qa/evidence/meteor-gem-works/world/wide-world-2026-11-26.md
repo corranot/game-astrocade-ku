@@ -81,3 +81,16 @@ Screenshots 01 to 06 replaced with this round's.
 
 Still visible: when the hero walks to the front fence the camera follows, and the ghost-town roofs fill the bottom
 of the frame.
+
+## Final polish and HUD grid (same day)
+
+- The big goal badge and its arrow slide aside (`look.guideSide`) when, on screen, they would cover the hero.
+- Camera follow is clamped (`camera.zMax` -3.8), so the old-town roofs stay off the bottom when the hero walks to
+  the front fence (`08-front-fence-no-roofs.jpg`).
+- HUD on one grid (720-wide design units): 24 margin plus the safe area, 88 height for the coin plaque, the NEXT
+  card and both buttons, 16 gaps, 56 icons, 48 numbers. The coin plaque and the NEXT card share one row (the NEXT
+  card no longer centres itself into the coin plaque). The edge arrow and the order bubble stay below the button
+  column. Measured at 360x640, 390x844, 412x915 and 768x1024: equal centres, margins equal left, right and top,
+  row gap = column gap (`hud-*.jpg`).
+- Checks this round: logic tests, CI checks, feed bundle test, screenshots. The full playtest was not re-run (no
+  pacing change).
