@@ -881,6 +881,7 @@ export function createScene(canvas, cfg, random) {
   const cam = { x: 0, z: W.mine.z + 3, trauma: 0, kick: 0, show: null, showK: 0, mineK: 0, punch: 0 };
   const camBase = new THREE.Vector3(), camLook = new THREE.Vector3();
   // the look point sits camera.ahead toward the meteor, so the hero stands low in the frame with the town and horizon above
+  // the look point sits `ahead` past the hero (lean 1 keeps the hero at one screen height); zMin/zMax are only a safety rail
   const camX = (x) => x * cfg.camera.followX, camZ = (z) => Math.max(cfg.camera.zMin, Math.min(cfg.camera.zMax, lerp(cfg.camera.zMid, z, cfg.camera.lean) - cfg.camera.ahead));
   function camDist() { const hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(cfg.camera.fov) / 2) * camera.aspect); return (cfg.camera.width / 2) / Math.tan(hf); }
 
