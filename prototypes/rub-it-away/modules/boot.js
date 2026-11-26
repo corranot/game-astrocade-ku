@@ -81,19 +81,21 @@ export function start(mode = 'play') {
       if (n >= 3 && took < 600) { if (r.fast && took < r.fast) lv.record = { k: 'rec_fast', v: { s: took.toFixed(1) } }; if (!r.fast || took < r.fast) r.fast = took; }
       if (r.dayN > r.dayBest) { if (r.dayBest >= 3 && r.dayN === r.dayBest + 1 && !lv.record) lv.record = { k: 'rec_day', v: { n: r.dayN } }; r.dayBest = r.dayN; }
     }
+    // every hint reward adds what fits under HINT_MAX and returns what was really added, so a label never promises hints that were not granted
+    const addHints = (k) => { const h0 = S.hints; S.hints = Math.min(HINT_MAX, S.hints + k); return S.hints - h0; };
     const gp = giftPlan(gifts, solvedHere, (performance.now() - sessionT0) / 1000); gifts = gp.plan;
     if (lv && gp.due) lv.gift = { open: false, t: 0, n: TUNE.giftHints };
     if (lv && lv.golden) {
       // a golden picture pays one hint, once per level per day (replaying it is still golden, but free)
       const key = dayKey(), got = S.goldDay.slice(0, 10) === key ? S.goldDay.slice(11).split(',').filter(Boolean) : [];
       lv.goldPaid = !got.includes(String(n));
-      if (lv.goldPaid) { got.push(String(n)); S.goldDay = key + ':' + got.join(','); S.hints = Math.min(HINT_MAX, S.hints + 1); }
+      if (lv.goldPaid) { got.push(String(n)); S.goldDay = key + ':' + got.join(','); addHints(1); }
     }
     if (lv && lv.daily) {
       // today's picture adds to the album count and a hint; it never changes campaign progress or stars
       const key = dayKey();
       lv.dailyGot = S.dailyDay !== key;
-      if (lv.dailyGot) { S.dailyDay = key; S.dailyN++; S.hints = Math.min(HINT_MAX, S.hints + TUNE.dailyHints); }
+      if (lv.dailyGot) { S.dailyDay = key; S.dailyN++; addHints(TUNE.dailyHints); }
       commit(); return;
     }
     const worldStart = Math.floor((n - 1) / 6) * 6;
@@ -102,7 +104,7 @@ export function start(mode = 'play') {
     S.stars[n - 1] = Math.max(S.stars[n - 1], stars);
     const worldNowDone = S.stars.slice(worldStart, worldStart + 6).every((v) => v > 0);
     if (lv) { lv.worldDone = !worldWasDone && worldNowDone; lv.firstFix = first && n === 1; }
-    if (lv && lv.worldDone) S.hints = Math.min(HINT_MAX, S.hints + 1);
+    if (lv && lv.worldDone) lv.worldHint = addHints(1);
     S.reached = Math.max(S.reached, Math.min(LEVEL_COUNT + 1, n + 1));
     commit();
   }
@@ -122,7 +124,7 @@ export function start(mode = 'play') {
     daily: () => { if (busy) return; const d = daily(); if (!d.done) openLevel(d.n, 'daily'); },
     gift: () => {
       if (!lv || !lv.gift || lv.gift.open) return;
-      lv.gift.open = true; lv.gift.t = lv.s; S.hints = Math.min(HINT_MAX, S.hints + lv.gift.n); commit();
+      lv.gift.open = true; lv.gift.t = lv.s; lv.gift.n = Math.min(HINT_MAX, S.hints + lv.gift.n) - S.hints; S.hints += lv.gift.n; commit();
       lv.fx.confetti(isRtlNow() ? 110 : 610, 760, 50); lv.fx.spark(isRtlNow() ? 110 : 610, 780, 14); AU.sfx('arp'); AU.sfx('star', 1.2);
     },
     skipFtue: () => { S.ftue = true; if (lv) lv.ftue = false; commit(); },
