@@ -401,7 +401,7 @@
   "camera": {
     "fov": 44,
     "yaw": 0,
-    "pitch": 0.32,
+    "pitch": 0.66,
     "width": 17,
     "lead": 0.9,
     "follow": 3,
@@ -414,7 +414,7 @@
     "cometPitch": 0.18,
     "followX": 0.7,
     "zMax": -3.8,
-    "ahead": 10.0
+    "ahead": 5.5
   },
   "tod": {
     "start": 0,

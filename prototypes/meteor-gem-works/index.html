@@ -44,17 +44,21 @@ body{display:flex;align-items:center;justify-content:center}
 .pop.gold{color:#ffd35a}
 .pop.big{font-size:calc(var(--u)*78px);color:#ffe3f6;--ink:#5a1f5e;animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
 /* banner for unlocks and the hatch: a ribbon with a brass rim, slides in, holds, fades */
-.banner{position:absolute;top:calc(var(--st) + var(--h) * 2 + var(--g) * 2 + var(--u)*16px);left:50%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*4px);padding:calc(var(--u)*18px) calc(var(--u)*56px) calc(var(--u)*22px);border-radius:calc(var(--u)*40px);text-align:center;
+/* banners sit one gap under the button column (three buttons now), so they never cover a button; long titles wrap */
+.banner{position:absolute;top:calc(var(--st) + (var(--h) + var(--g)) * 3);left:0;right:0;margin-inline:auto;width:max-content;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*4px);padding:calc(var(--u)*18px) calc(var(--u)*56px) calc(var(--u)*22px);border-radius:calc(var(--u)*40px);text-align:center;
   background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*6px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*5px) 0 rgba(255,255,255,.25),0 calc(var(--u)*12px) calc(var(--u)*30px) rgba(58,36,24,.45);white-space:nowrap;max-width:calc(var(--u)*640px);box-sizing:border-box}
-.banner .bs{white-space:normal}
+.banner .bs,.banner .bt{white-space:normal;text-wrap:balance}
 .banner.go{animation:ban .5s cubic-bezier(.2,1.5,.4,1)}
-.banner .bt{font-size:calc(var(--u)*64px);line-height:1;color:#ffe08a}
+.banner .bt{font-size:calc(var(--u)*60px);line-height:1.02;color:#ffe08a}
 .banner .bs{font-size:calc(var(--u)*36px);line-height:1.1;color:#fff3dc}
 /* cinematic beats: letterbox bars slide in from the top and bottom edges with a soft vignette, under the HUD */
 .cine{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .45s;background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(20,8,30,.45) 100%)}
 .cine i{position:absolute;left:0;right:0;height:calc(var(--u)*72px);background:#120a18;transition:transform .45s cubic-bezier(.3,.7,.3,1)}
 .cine i:first-child{top:0;transform:translateY(-100%)}.cine i:last-child{bottom:0;transform:translateY(100%)}
 #app.cinema .cine{opacity:1}#app.cinema .cine i{transform:none}
+/* during a beat the HUD and world bubbles fade so only the subject, the banner and the pops read; taps still work */
+.top,.bubble,.edge,.tap,.mute,.carry,.goal,.albumB,.toy,.share{transition:opacity .3s}
+#app.cinema :is(.top,.bubble,.edge,.tap,.mute,.carry,.hint,.goal,.albumB,.toy,.share){opacity:0}
 /* first-time tutorial: the world dims except a soft circle on the next stop; a pulsing gold ring marks it, and a hint
    pill under it shows the stop's icon and a few words. Nothing here takes a touch except the skip button. */
 .spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;--x:50%;--y:50%;--r:100px;

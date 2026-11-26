@@ -249,14 +249,6 @@ export function run(mode = 'play') {
     if (o.sting !== false) Sound.whoosh();
     return true;
   }
-  // during a beat the HUD and world bubbles fade so only the subject, the banner and the pops read; input stays live
-  const CINE_HIDE = '.top,#bubble,#edge,#tap,#mute,#carry,#hint,#goal,#albumB,#toy,#share';
-  let cineOn = false, cineAnims = [];
-  function cineHud(on) {
-    if (on === cineOn) return; cineOn = on;
-    if (on) cineAnims = [...root.querySelectorAll(CINE_HIDE)].filter((e) => e.animate).map((e) => e.animate([{ opacity: getComputedStyle(e).opacity }, { opacity: 0 }], { duration: 300, fill: 'forwards', easing: 'ease-out' }));
-    else for (const a of cineAnims) { a.onfinish = () => a.cancel(); a.reverse(); }
-  }
   /** Real seconds -> game seconds while a beat slows or stops time. */
   function timeK(real) {
     if (cine.stop > 0) { cine.stop -= real; return 0; }
@@ -320,6 +312,7 @@ export function run(mode = 'play') {
       case 'padShow': { const d = padDef(e.id); Sound.pop(); if (d) moment(V(d.x, 0, d.z), 0.82, 1.2, 0, { sting: false }); break; }
       case 'pay': { if (e.paid % 2 === 0) scene.fly('coin', V(h.x, 1.4, h.z), 'pad', () => 0, 0, 1.0); scene.padPay(); Sound.pay(e.paid); break; }
       case 'unlock': {
+        { const d = padDef(e.id); if (d) { scene.ring(V(d.x, 0.3, d.z), 0xffd35a, 0.5, 4.5, 0.6); scene.confetti(V(d.x, 0.8, d.z), 40, 2.2); } } // the full bar pops
         const c = scene.unlock(e.id); Sound.fanfare(); banner(T(e.id), e.id === 'rig' ? T('rigDone') : '', 2.6);
         if (e.id === 'heart') moment(V(0, 3, cfg.world.meteor.z + 2), 0.85, 2.0, 2);
         else moment(V(c.x, 1.0, c.z - 0.5), e.id === 'road' || e.id === 'cable' ? 0.8 : 0.7, 2.2, 2, { stop: cfg.cine.stop });
@@ -640,7 +633,7 @@ export function run(mode = 'play') {
   function draw(dt) {
     const g = lastGuide = L.guide(cfg, S);
     scene.update(S, dt, g); scene.render(); hud(dt); edgePointer(); coach();
-    if (cine.bars > 0) cine.bars -= dt; root.classList.toggle('cinema', cine.bars > 0); cineHud(cine.bars > 0);
+    if (cine.bars > 0) cine.bars -= dt; root.classList.toggle('cinema', cine.bars > 0);
   }
   // ---- first-time tutorial: a soft spotlight on the next stop with its icon and a few words. It moves on when the
   // player does the action there (never on a tap), skips what they already did, is saved, and can be skipped.
