@@ -35,6 +35,11 @@ function run(mode) {
     import('./modules/rules.js'),
     import('./modules/editor.js'),
     import('./modules/boot.js'),
-  ]).then((modules) => modules[13].start(mode));
+  ]).then((modules) => {
+    // the HTML first-paint card (index.html) fades out once the canvas takes over, in Play and in Edit
+    const card = document.getElementById('boot');
+    if (card) { requestAnimationFrame(() => { card.style.opacity = '0'; setTimeout(() => card.remove(), 300); }); }
+    return modules[13].start(mode);
+  });
 }
 window.run = run;

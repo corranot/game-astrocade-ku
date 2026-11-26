@@ -33,7 +33,7 @@ for (const [language, table] of Object.entries(TABLES)) {
   const snowTab = fitLines(textMetrics, table.world_snow, 34, 140, true);
   assert.ok(snowTab.lines.length <= 2 && snowTab.size >= 20, `${language} Snow World map label should fit the shared tab at a readable size`);
   for (const key of ['settings', 'music', 'effects', 'haptics', 'reduce_motion', 'on', 'off', 'back', 'move', 'resize', 'reset', 'world_snow', 'new_badge', 'share', 'world_share',
-    'daily_short', 'daily_got', 'daily_tomorrow', 'tomorrow', 'gift', 'gift_got', 'world_done', 'skip', 'golden', 'perfect']) {
+    'daily_short', 'daily_got', 'daily_tomorrow', 'tomorrow', 'gift', 'gift_got', 'world_done', 'skip', 'golden', 'perfect', 'record', 'rec_fast', 'rec_day']) {
     assert.ok(typeof table[key] === 'string' && table[key].length > 0, `${language} should translate ${key}`);
   }
   for (const level of LEVELS) {

@@ -392,11 +392,11 @@ function drawGift(g, lv, y0, time, go) {
 }
 
 // share the finished world: title and text only, so the host card shows the game's live thumbnail
-export function shareWorld(lv) {
+export function shareWorld(lv, rec) {
   const worldName = t('world_' + WORLDS[Math.floor((lv.n - 1) / PER)]);
   const api = window.lib && window.lib.share;
   if (typeof api !== 'function') return Promise.resolve();
-  const text = t('world_share', { world: worldName });
+  const text = t('world_share', { world: worldName }) + (rec && rec.fast ? ' ' + t('rec_fast', { s: rec.fast.toFixed(1) }) : '');
   try { return Promise.resolve(api({ title: worldName, description: text, text })); }
   catch (e) { return Promise.reject(e); }
 }
