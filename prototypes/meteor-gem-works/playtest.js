@@ -23,9 +23,11 @@ const server = http.createServer((q, s) => {
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json')));
 const BUDGET = { 0: 160, 2: 260 }; // draw calls per tier (see README: mobile budget)
 /** A save of a bot game played (logic only, no rendering) to second sec: late-game shots start from it. */
-async function saveAt(sec) {
+async function saveAt(sec, afterUnlock = null) {
   const L = await import(require('url').pathToFileURL(path.join(__dirname, 'logic.js')).href), c = L.applyDrops(JSON.parse(JSON.stringify(cfg))), S = L.createState(c, 1);
-  for (let i = 0; i < sec * 60; i++) { L.step(c, S, 1 / 60, L.botInput(c, S), S.glint && S.glint.t > 0.6 ? { glint: true } : null); S.events.length = 0; }
+  // afterUnlock: count sec from that unlock instead of from the start (keeps the fixture's moment when pacing moves)
+  let t0 = afterUnlock ? Infinity : 0;
+  for (let i = 0; S.t < t0 + sec && i < 3600 * 60; i++) { L.step(c, S, 1 / 60, L.botInput(c, S), S.glint && S.glint.t > 0.6 ? { glint: true } : null); if (t0 === Infinity && S.events.some((e) => e.type === 'unlock' && e.id === afterUnlock)) t0 = S.t; S.events.length = 0; }
   return L.serialize(c, S);
 }
 
@@ -194,7 +196,7 @@ async function open(browser, q = '', seed = null) {
 
   // ---- M3: chapter 1's second half from a save taken right after the laser (seed 1)
   {
-    const { page, errors } = await open(browser, '&tier=2&nointro', await saveAt(300));
+    const { page, errors } = await open(browser, '&tier=2&nointro', await saveAt(76, 'laser'));
     await page.waitForFunction(() => !document.getElementById('menu').hidden, null, { timeout: 8000 });
     await ev(page, () => { document.getElementById('cont').click(); __game.pause(); document.getElementById('hint').classList.add('gone'); }); // a returning player has already touched
     const until = (t, id = null, max = 300) => ev(page, ([t, i, m]) => { for (let k = 0; k < m; k++) { if (!__game.until(t, 1)) continue; if (!i || __game.lastEvents.some((x) => x.type === t && x.id === i)) return true; } return false; }, [t, id, max]);

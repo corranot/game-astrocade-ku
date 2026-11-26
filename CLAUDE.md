@@ -178,6 +178,12 @@ full plan unless they add a new game mode or rework the game.
   until after the first frame, and avoid long blocking shader compiles
   before the first picture. Measure load time on a throttled phone profile
   and report it with every build.
+- **The coordinator reviews every thread's work visually.** Before a thread's
+  result goes to the owner, the coordinator looks at the screenshots itself, with
+  the full AAA expert team, to catch the problems nobody asked about. Each thread
+  saves key phone-portrait screenshots (JPG) of its work to the shared project
+  files and to the repo, names them in its report, and waits for the
+  coordinator's visual review and fixes.
 - **Modular meta-prompts between coordinator and threads.** Every message from
   the coordinator to a thread is a modular meta-prompt with labeled sections:
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
