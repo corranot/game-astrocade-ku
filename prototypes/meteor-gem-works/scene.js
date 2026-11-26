@@ -482,11 +482,15 @@ export function createScene(canvas, cfg, random) {
     g.clearRect(0, 0, s, s);
     g.fillStyle = '#2f6f69'; g.beginPath(); g.roundRect(14, 14, s - 28, s - 28, 34); g.fill();
     g.strokeStyle = '#f6d27a'; g.lineWidth = 10; g.beginPath(); g.roundRect(14, 14, s - 28, s - 28, 34); g.stroke();
-    g.strokeStyle = 'rgba(255,230,160,0.35)'; g.lineWidth = 16; g.beginPath(); g.arc(s / 2, s / 2 - 22, 62, 0, 6.3); g.stroke();
-    g.strokeStyle = '#ffd35a'; g.beginPath(); g.arc(s / 2, s / 2 - 22, 62, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); g.stroke();
-    g.save(); g.translate(s / 2, s / 2 - 22); drawIcon(g, icon, '#ffe6a8', '#2f6f69'); g.restore();
-    g.fillStyle = '#ffd35a'; g.beginPath(); g.arc(78, 200, 20, 0, 6.3); g.fill(); g.fillStyle = '#c98a2a'; g.beginPath(); g.arc(78, 200, 12, 0, 6.3); g.fill();
-    g.fillStyle = '#fff6e0'; g.font = '900 54px system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(String(left), 108, 202);
+    // icon on top, then a fat progress bar that fills as coins drain in, then the coins still to pay
+    g.save(); g.translate(s / 2, 84); g.scale(0.78, 0.78); drawIcon(g, icon, '#ffe6a8', '#2f6f69'); g.restore();
+    const bx = 38, by = 150, bw = s - 76, bh = 30;
+    g.fillStyle = '#163b38'; g.beginPath(); g.roundRect(bx, by, bw, bh, bh / 2); g.fill();
+    if (k > 0) { g.fillStyle = '#ffd35a'; g.beginPath(); g.roundRect(bx, by, Math.max(bh, bw * k), bh, bh / 2); g.fill(); g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.roundRect(bx + 6, by + 4, Math.max(bh - 12, bw * k - 12), 8, 4); g.fill(); }
+    g.strokeStyle = '#f6d27a'; g.lineWidth = 4; g.beginPath(); g.roundRect(bx, by, bw, bh, bh / 2); g.stroke();
+    g.font = '900 50px system-ui, sans-serif'; g.textBaseline = 'middle'; const tw = g.measureText(String(left)).width, cx = s / 2 - (tw + 46) / 2;
+    g.fillStyle = '#ffd35a'; g.beginPath(); g.arc(cx + 18, 210, 18, 0, 6.3); g.fill(); g.fillStyle = '#c98a2a'; g.beginPath(); g.arc(cx + 18, 210, 11, 0, 6.3); g.fill();
+    g.fillStyle = '#fff6e0'; g.textAlign = 'left'; g.fillText(String(left), cx + 46, 212);
     padTex.needsUpdate = true;
   }
   pad.visible = false;
@@ -1270,6 +1274,8 @@ export function createScene(canvas, cfg, random) {
     } else { guideRing.visible = false; drawBadges(S, null, null); }
     drawMarks(S, g);
     // glint
+    // a Perfect Strike (or a load) clears the logic's glint without a glintGone event: hide the star at once, no fade
+    if (glintState.on && !S.glint) { glintState.on = false; glintState.out = 0; }
     if (glintState.on || glintState.out > 0) {
       glintState.t += dt; glintState.out = glintState.on ? Math.min(1, glintState.out + dt * 4) : Math.max(0, glintState.out - dt * 5);
       surf(glintState.lon, glintState.lat, cutAt(glintState.lon, glintState.lat) * cfg.mining.maxD - 0.25, glintPos);
