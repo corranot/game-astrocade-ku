@@ -342,3 +342,16 @@ test('hatch: a fresh critter poses on its egg spot for critter.stay, then joins 
   for (let t = 0; t < 1; t += 1 / 60) L.step(c, S, 1 / 60, { x: 0, z: 0 });
   assert.notDeepEqual([k.x, k.z], at, 'then follows');
 });
+
+test('records: a first session stays quiet; the next one calls out each stat it beats, once, and the best is saved', () => {
+  const c = cfg(), S = L.createState(c, 5);
+  for (let t = 0; t < 240; t += 1 / 30) L.step(c, S, 1 / 30, L.botInput(c, S), S.glint && S.glint.t > 0.6 ? { glint: true } : null);
+  assert.ok(!S.events.some((e) => e.type === 'record'), 'no record in a first session');
+  assert.ok(S.rec.best.gems >= c.records.min.gems && S.rec.best.cpm > 0, `bests kept: ${JSON.stringify(S.rec.best)}`);
+  const S2 = L.restore(c, JSON.parse(JSON.stringify(L.serialize(c, S))), 6), got = [];
+  assert.deepEqual(S2.rec.prev, S.rec.best, 'bests restored as the bar to beat');
+  S2.rec.run.gems = S2.rec.prev.gems + 1; S2.events.length = 0;
+  L.step(c, S2, 1 / 30, { x: 0, z: 0 }); L.step(c, S2, 1 / 30, { x: 0, z: 0 });
+  got.push(...S2.events.filter((e) => e.type === 'record'));
+  assert.equal(got.length, 1); assert.equal(got[0].k, 'gems'); assert.equal(got[0].v, S2.rec.prev.gems + 1);
+});
