@@ -896,14 +896,14 @@ export function createScene(canvas, cfg, random) {
   }
   function introStep(dt) {
     if (intro.t < 0) return 0;
-    intro.t += dt;
+    intro.t += Math.max(0, dt);
     if (!intro.hit) {
       const k = Math.min(1, intro.t / INTRO.fall); meteor.position.lerpVectors(meteorSky, meteorRest, k * k); meteor.rotation.x = (1 - k) * 2.2; meteor.scale.setScalar(0.7 + 0.3 * k);
       for (let i = 0; i < 6; i++) glowPts.spawn({ x: meteor.position.x + (Math.random() - 0.5) * 3, y: meteor.position.y + (Math.random() - 0.5) * 3, z: meteor.position.z + (Math.random() - 0.5) * 3, vx: 3, vy: 8, vz: -6, drag: 2, max: 0.8, s0: 1.6, s1: 0.2, ...hexToRGB([0xffb060, 0xff8ad8, 0xfff0c0][i % 3]) });
       dustPts.spawn({ x: meteor.position.x, y: meteor.position.y, z: meteor.position.z, vx: 2, vy: 5, vz: -4, drag: 1, max: 1.4, s0: 3, s1: 6, r: 0.4, gg: 0.32, b: 0.36, a: 0.5 });
       if (k >= 1) introImpact(false);
     } else meteor.rotation.x = 0;
-    if (intro.t >= INTRO.len) intro.t = -1;
+    if (intro.t >= INTRO.len) { if (!intro.hit) introImpact(true); intro.t = -1; } // the meteor always ends up in its crater
     return intro.t < 0 ? 0 : 1 - ease(Math.max(0, (intro.t - INTRO.fall) / (INTRO.len - INTRO.fall)));
   }
   const hasB = (S, id) => S.pads.some((p) => p.id === id && p.done);
@@ -960,6 +960,7 @@ export function createScene(canvas, cfg, random) {
 
   /** Draws the state S (logic.js) for this frame; dt in seconds; g is the guide target ({ x, z } or null). */
   function update(S, dt, g) {
+    dt = Math.max(0, dt); // never backwards: a negative step once stranded the meteor in the sky
     tAll += dt;
     // A GPU that rejects the carved-rock shader still gets a visible meteor.
     if (shaderFail && !meteor.userData.safe) { meteor.material = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 })); meteor.userData.safe = true; }

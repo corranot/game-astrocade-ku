@@ -32,6 +32,9 @@ After the owner's first play of the draft (confusing flow, not smooth):
 - **Tall phones fill the screen** (up to 9:20, no dark bars); the HUD scales by the tighter side (`--u`).
 - **Lighter start:** `quality.start` 1 (no glow pass), climbs to `quality.max` 2 only after 8 s of fast frames;
   drops sooner (`dropMs` 19); a pixel budget per tier (`quality.maxPx`) caps the resolution on big screens.
+- **Meteor always lands**: when the feed preview hands over to play, the first frame could step time backwards and
+  strand the meteor in the sky; the loop never steps backwards now and the intro always ends with the meteor in its
+  crater (`production/qa/evidence/meteor-gem-works/clarity/meteor-missing-2026-11-26.md`).
 - **Meteor on phone GPUs**: the rock's carve depth now comes from a per-vertex attribute filled on the CPU
   instead of a texture read in the vertex shader (not available on every phone GPU, which left the crater empty).
   If a shader still fails to build, the meteor switches to a plain lit material so it is never missing.
