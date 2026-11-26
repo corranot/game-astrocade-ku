@@ -482,7 +482,9 @@ export function run(mode = 'play') {
   function offer(st) {
     closeAlbum(); phase = 'menu'; scene.skipIntro();
     const m = $('menu'), go = $('cont'), nw = $('newg');
-    m.querySelector('h1').textContent = T('title'); go.textContent = T('cont'); nw.textContent = T('newGame'); nw.classList.remove('sure'); m.hidden = false;
+    m.querySelector('h1').textContent = T('title'); go.textContent = T('cont');
+    // the coin plaque behind the card shows the saved wallet, not the fresh session's 0
+    if (st.area !== 'frost') { const c0 = Math.max(0, Math.floor(Number(st.cash) || 0)); shownCash = c0; cashEl.textContent = c0; } nw.textContent = T('newGame'); nw.classList.remove('sure'); m.hidden = false;
     let sureT = 0;
     go.onclick = () => {
       Sound.unlock(); m.hidden = true;
@@ -548,6 +550,8 @@ export function run(mode = 'play') {
     if (phase !== 'play') return;
     let input = bot ? L.botInput(cfg, S) : readInput();
     if (!bot && (input.x || input.z) && !touched) { touched = true; $('hint').classList.add('gone'); }
+    // a sparkle only comes while the meteor is on screen, so a player across town never misses one they cannot see
+    if (!bot) { const Wm = cfg.world.meteor, [mx, my, mz] = scene.toScreen(Wm.x, Wm.y + 1, Wm.z); S.noGlint = !(mz < 1 && mx > 0.05 && mx < 0.95 && my > hudB && my < 0.95); }
     let tap = null;
     if (tapGlint) { tap = { glint: true }; tapGlint = false; }
     if (bot && S.glint && S.glint.t > 0.6 && (glintAuto += dt) > 0.1) { tap = { glint: true }; glintAuto = 0; }
@@ -562,11 +566,11 @@ export function run(mode = 'play') {
   function hud(dt) {
     const h = S.hero;
     // cash: counts up toward the real value
-    if (shownCash !== h.cash) { shownCash += Math.sign(h.cash - shownCash) * Math.max(1, Math.ceil(Math.abs(h.cash - shownCash) * dt * 8)); if ((h.cash - shownCash) * Math.sign(h.cash - shownCash) < 0) shownCash = h.cash; cashEl.textContent = shownCash; }
+    if (phase !== 'menu' && shownCash !== h.cash) { shownCash += Math.sign(h.cash - shownCash) * Math.max(1, Math.ceil(Math.abs(h.cash - shownCash) * dt * 8)); if ((h.cash - shownCash) * Math.sign(h.cash - shownCash) < 0) shownCash = h.cash; cashEl.textContent = shownCash; }
     if (cashBump > 0) { bumpEl($('cash')); cashBump = 0; }
     // carry label over the stack
     const c = $('carry'), cap = L.carryCap(cfg, S);
-    if (h.n > 0) { const [x, y] = proj(h.x, 1.7 + h.n * 0.16, h.z); c.hidden = false; c.style.setProperty('--k', cfg.kindColor[h.kind] || cfg.kindColor.chunk); c.style.left = x + '%'; c.style.top = y + '%'; const t = h.n >= cap ? T('full') : `${h.n}/${cap}`; if (c.textContent !== t) c.textContent = t; c.classList.toggle('max', h.n >= cap); }
+    if (h.n > 0) { c.hidden = false; c.style.setProperty('--k', cfg.kindColor[h.kind] || cfg.kindColor.chunk); const t = h.n >= cap ? T('full') : `${h.n}/${cap}`; if (c.textContent !== t) c.textContent = t; c.classList.toggle('max', h.n >= cap); }
     else c.hidden = true;
     for (const p of popEls) {
       if (p.d.hidden) continue; p.t += dt; const k = p.t / p.life;
@@ -609,6 +613,23 @@ export function run(mode = 'play') {
     const tp = $('tap'), gl = scene.glint;
     if (gl && !glintsHit && !bot && phase === 'play' && touched) { const [x, y] = proj(gl.x, gl.y, gl.z); tp.hidden = false; tp.style.left = x + '%'; tp.style.top = y + '%'; }
     else tp.hidden = true;
+    if (h.n > 0) placeCarry(c, h);
+  }
+  /** The carry count sits over the stack; when that spot would cover a badge, the order bubble or the sparkle tip it
+   * moves beside the hero (or under their feet), keeping the last free spot so it does not flicker. */
+  let carrySlot = 0;
+  function placeCarry(c, h) {
+    const rw = root.clientWidth || 1, rh = root.clientHeight || 1, lw = c.offsetWidth / rw * 100, lh = c.offsetHeight / rh * 100, pad = 1;
+    const [ux, uy] = proj(h.x, 1.7 + h.n * 0.16, h.z), [mx, my] = proj(h.x, 1.1, h.z), [fx, fy] = proj(h.x, 0, h.z);
+    // anchor = bottom centre of the label (it is drawn translated -50% -100%)
+    const slots = [[ux, uy], [mx + lw / 2 + 7, my + lh / 2], [mx - lw / 2 - 7, my + lh / 2], [fx, fy + lh + 2]];
+    const boxes = [];
+    for (const [x, y, z, sz] of scene.badgeSpots) { const [bx, by] = proj(x, y, z), [ex] = proj(x + sz / 2, y, z), r = Math.abs(ex - bx), ry = r * rw / rh; boxes.push([bx - r, by - ry, bx + r, by + ry]); }
+    const rr = root.getBoundingClientRect();
+    for (const id of ['tap', 'bubble']) { const el = $(id); if (el.hidden) continue; const b = el.getBoundingClientRect(); boxes.push([(b.left - rr.left) / rw * 100, (b.top - rr.top) / rh * 100, (b.right - rr.left) / rw * 100, (b.bottom - rr.top) / rh * 100]); }
+    const free = ([x, y]) => { const a = [x - lw / 2 - pad, y - lh - pad, x + lw / 2 + pad, y + pad]; return boxes.every((b) => a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]); };
+    if (!free(slots[carrySlot])) { const k = slots.findIndex(free); carrySlot = k < 0 ? 0 : k; } else if (carrySlot && free(slots[0])) carrySlot = 0;
+    const [x, y] = slots[carrySlot]; c.style.left = x + '%'; c.style.top = y + '%';
   }
   let nextIcon = null, bubbleKind = null, lastEvents = [];
   /** The item an order asks for, drawn flat on the bubble's canvas (gem: a faceted diamond; ring: the ring icon). */

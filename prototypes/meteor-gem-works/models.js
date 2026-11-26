@@ -146,6 +146,15 @@ export function buildShop(w, h, wall, trim, roofCol) {
   parts.push(P(at(rbox(w * 1.04, h * 0.32, 0.22, 0.05), 0, h + h * 0.13, d / 2 - 0.12), wall));
   parts.push(P(at(rbox(w * 1.1, 0.16, 0.34, 0.05), 0, h + h * 0.3, d / 2 - 0.12), trim));
   parts.push(P(at(rbox(w + 0.3, 0.18, d + 0.3, 0.06), 0, h + 0.05, 0), roofCol));
+  // a pitched shingle roof behind the false front (seen from the high camera it reads as a roof, not a flat slab):
+  // overlapping shingle rows in two tones down each slope, a ridge beam and a chimney
+  const ra = 0.42, half = w / 2 + 0.22, rise = half * Math.tan(ra), ry0 = h + 0.14 + rise, rows = 5, dark = shade(roofCol, PAL.ink, 0.22).getHex();
+  for (const sg of [-1, 1]) for (let i = 0; i < rows; i++) {
+    const t = (i + 0.5) / rows, len = half / Math.cos(ra) / rows + 0.08;
+    parts.push(P(at(rbox(len, 0.09, d + 0.36, 0.03), sg * t * half, ry0 - t * rise + 0.05 + i * 0.012, -0.02, 0, 0, -sg * ra), i % 2 ? dark : roofCol));
+  }
+  parts.push(P(at(rbox(0.2, 0.16, d + 0.44, 0.05), 0, ry0 + 0.07, -0.02), PAL.woodDark));
+  parts.push(P(at(rbox(0.42, 0.9, 0.42, 0.05), w * 0.24, ry0 - rise * 0.4 + 0.3, -d * 0.22), 0x8a5a48), P(at(rbox(0.52, 0.1, 0.52, 0.03), w * 0.24, ry0 - rise * 0.4 + 0.78, -d * 0.22), PAL.ink));
   // porch: deck, roof on posts
   parts.push(P(at(rbox(w + 0.2, 0.16, 1.5, 0.05), 0, 0.08, d / 2 + 0.72), (x, y, z) => shade(PAL.plank, PAL.plankDark, Math.abs(Math.sin(x * 9)) > 0.93 ? 0.6 : 0.1)));
   parts.push(P(at(rbox(w + 0.36, 0.12, 1.7, 0.05), 0, h * 0.62, d / 2 + 0.78, 0.12), roofCol));

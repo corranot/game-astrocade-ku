@@ -102,7 +102,7 @@ export function createScene(canvas, cfg, random) {
   // chapter 2 (the Frost Comet valley) reuses this whole scene with a frost theme: snow, pines, a penguin, aurora
   const FROST = cfg.theme === 'frost', GEMS = FROST ? FROST_GEMS : GEM_COLS, DUST = FROST ? 0xc4c8e4 : 0xe8c69a;
   const fz = (g, snow = true) => (FROST ? M.frostify(g, snow) : g);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false; // refreshed in draw(): every frame on high tiers, every other frame below
@@ -570,11 +570,18 @@ export function createScene(canvas, cfg, random) {
   const finFx = { st: null, t: 0 };
 
   // ---- characters: the hero (miner), tourists (pool), the crowd (instanced), the critter and its egg
-  const hero = M.makePerson(charMat, { pants: PAL.navy, boots: PAL.woodDark, shirt: PAL.red, shirt2: 0xb8443c, vest: PAL.woodLight, scarf: PAL.teal, belt: PAL.brassDark, skin: PAL.skin, hair: PAL.woodDark, hat: null, pickaxe: true, sleeve: 0xe7d4b4 });
+  // the hero marks the stencil where it is seen; a soft silhouette then shows it wherever a station or a crowd hides it
+  const heroMat = K(charMat.clone()); heroMat.onBeforeCompile = charMat.onBeforeCompile;
+  Object.assign(heroMat, { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp });
+  const silMat = K(new THREE.MeshBasicMaterial({ color: LK.silhouette || 0xffe6a8, transparent: true, opacity: LK.silhouetteAlpha ?? 0.62, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false,
+    stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.KeepStencilOp }));
+  const hero = M.makePerson(heroMat, { pants: PAL.navy, boots: PAL.woodDark, shirt: PAL.red, shirt2: 0xb8443c, vest: PAL.woodLight, scarf: PAL.teal, belt: PAL.brassDark, skin: PAL.skin, hair: PAL.woodDark, hat: null, pickaxe: true, sleeve: 0xe7d4b4 });
   hero.root.scale.setScalar(1.4); scene.add(hero.root);
+  const heroSil = [];
   // the hat slot: one mesh on the head, its geometry swapped for the hat that is worn (album)
   const hatGeos = {}; for (const hd of cfg.hats) hatGeos[hd.id] = K(M.buildHat(hd.id));
-  const hatMesh = new THREE.Mesh(hatGeos[cfg.hats[0].id], mat); hatMesh.castShadow = true; hero.head.add(hatMesh); let hatOn = cfg.hats[0].id;
+  const hatMesh = new THREE.Mesh(hatGeos[cfg.hats[0].id], heroMat); hatMesh.castShadow = true; hero.head.add(hatMesh); let hatOn = cfg.hats[0].id;
+  { const ms = []; hero.root.traverse((m) => { if (m.isMesh) ms.push(m); }); for (const m of ms) { const o = new THREE.Mesh(m.geometry, silMat); o.renderOrder = 9; o.castShadow = false; m.add(o); heroSil.push([m, o]); } }
   const outfits = [
     { pants: 0x5a6a8a, boots: PAL.ink, shirt: PAL.pink, shirt2: 0xd47898, skin: PAL.skin, hair: 0x4a2e22, hat: 'sun', hatCol: 0xf3d6a6, band: PAL.pink, camera: true },
     { pants: 0x3e5a4a, boots: PAL.woodDark, shirt: PAL.sun, shirt2: 0xd8a64a, skin: PAL.skinDark, skin2: 0xa8704e, hair: PAL.ink, hat: 'cap', hatCol: PAL.teal, band: PAL.tealDark },
@@ -659,14 +666,20 @@ export function createScene(canvas, cfg, random) {
   const TRAIL = 16, trail = new THREE.InstancedMesh(K(new THREE.ShapeGeometry(trailShape).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.95, depthWrite: false })), TRAIL); // deep orange reads on pale planks and sand
   trail.renderOrder = 3; trail.frustumCulled = false; trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trail.count = 0; scene.add(trail);
   /** Station badges (built stops, small) and the target's big bouncing badge, plus the floor trail from the hero to it. */
+  const badgeSpots = []; // [x, y, z, size] of every badge drawn this frame (the HUD keeps its labels off them)
   function drawBadges(S, g, top) {
     const tgt = g && !g.wait ? g.what : null, hk = 1 - cam.showK; // badges fade out during a camera beat so only the subject reads; the target's badge (alpha 1) is clamped inside the screen edge in the shader
-    badgeStops.forEach(([key, x, z, h, padId], i) => {
-      const on = (!padId || S.pads.some((p) => p.id === padId && p.done)) && key !== tgt;
+    badgeSpots.length = 0;
+    // late game has many stops: only the few nearest the hero keep their small badge (the target always has its big one)
+    const near = (LK.badgeNear || 8) ** 2, keep = new Set(badgeStops.map(([key, x, z, , padId], i) => [i, (x - S.hero.x) ** 2 + (z - S.hero.z) ** 2, (!padId || S.pads.some((p) => p.id === padId && p.done)) && key !== tgt])
+      .filter(([, d2, ok]) => ok && d2 < near).sort((a, b) => a[1] - b[1]).slice(0, LK.badgeMax || 4).map(([i]) => i));
+    badgeStops.forEach(([key, x, z, h], i) => {
+      const on = keep.has(i);
       badges.setMatrixAt(i, _m.makeTranslation(x, h + 0.75, z)); bK.setXY(i, on ? 1.35 * hk : 0, 0.85);
+      if (on && hk > 0.5) badgeSpots.push([x, h + 0.75, z, 1.35]);
     });
     const ti = NB - 1, cell = tgt ? iconOf(tgt) : -1;
-    if (cell >= 0 && top) { const b = Math.abs(Math.sin(tAll * 3.2)); bCell.setX(ti, cell); bCell.needsUpdate = true; badges.setMatrixAt(ti, _m.makeTranslation(top[0], top[2] + 2.3 + b * 0.35, top[1])); bK.setXY(ti, (2.5 + Math.sin(tAll * 6) * 0.08) * hk, 1); }
+    if (cell >= 0 && top) { const b = Math.abs(Math.sin(tAll * 3.2)); bCell.setX(ti, cell); bCell.needsUpdate = true; badges.setMatrixAt(ti, _m.makeTranslation(top[0], top[2] + 2.3 + b * 0.35, top[1])); bK.setXY(ti, (2.5 + Math.sin(tAll * 6) * 0.08) * hk, 1); badgeSpots.push([top[0], top[2] + 2.3 + b * 0.35, top[1], 2.5]); }
     else bK.setXY(ti, 0, 0);
     badges.instanceMatrix.needsUpdate = true; bK.needsUpdate = true;
     // the trail: chevrons flowing from the hero to the target spot (hidden when close)
@@ -954,7 +967,7 @@ export function createScene(canvas, cfg, random) {
     renderer.getDrawingBufferSize(postSize); const w = Math.max(1, postSize.x), h = Math.max(1, postSize.y), q = (d) => [Math.max(1, Math.round(w / d)), Math.max(1, Math.round(h / d))];
     if (!post) {
       const small = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
-      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small(), d1: small(), d2: small() };
+      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small(), d1: small(), d2: small() };
       post.rt = [post.scene, post.q1, post.q2, post.e1, post.e2, post.d1, post.d2];
     }
     post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8)); post.d1.setSize(...q(4)); post.d2.setSize(...q(4));
@@ -1035,7 +1048,7 @@ export function createScene(canvas, cfg, random) {
 
   /** Per frame: hat, mine cart, ghost town lights, gondolas, neon, the finale's heart and comet, night fireflies. */
   function m3Update(S, dt) {
-    if (S.hat !== hatOn && hatGeos[S.hat]) { hatOn = S.hat; hatMesh.geometry = hatGeos[S.hat]; }
+    if (S.hat !== hatOn && hatGeos[S.hat]) { hatOn = S.hat; hatMesh.geometry = hatGeos[S.hat]; for (const [m, o] of heroSil) o.geometry = m.geometry; }
     // mine cart: waits at its stop (gems ride in it), rolls along the rail to the next dark house, then comes back
     if (cart.visible && !cart.popping) {
       const tgt = houseU[Math.min(GH.length - 1, S.ghost.go >= 0 ? S.ghost.lit : Math.max(0, S.ghost.lit - 1))];
@@ -1422,6 +1435,7 @@ export function createScene(canvas, cfg, random) {
     /** The tour bus honks in on the canyon road. */
     busIn() { if (busSt.mode === 'off') { busSt.mode = 'in'; busSt.t = 0; } },
     /** Mid-arc of the egg's fall from the meteor to its spot, where the egg-drop beat looks. */
+    get badgeSpots() { return badgeSpots; },
     get eggAt() { return new THREE.Vector3((eggLodge.x + W.egg.x) / 2, 1.6, (eggLodge.z + W.egg.z) / 2); },
     get busAt() { return new THREE.Vector3(RD.park, 0.5, RD.z - 1.5); },
     /** The order kid cheers: delivered. */
@@ -1471,15 +1485,17 @@ export function createScene(canvas, cfg, random) {
       // drawing to the glow target and drawing straight to the screen use different shaders (tone mapping), so both
       // sets are built: the one in use now first, the other a moment later, so a quality step never builds them mid-game
       const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
-      const build = (target) => {
-        const hidden = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      const build = (target, all = true) => {
+        const hidden = []; if (all) scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
         const was = renderer.getRenderTarget(); renderer.setRenderTarget(target);
         let p; try { p = renderer.compileAsync(scene, camera).catch(() => {}); } catch (e) { p = Promise.resolve(); /* drivers without compile build shaders on first draw */ }
         renderer.setRenderTarget(was); for (const o of hidden) o.visible = false;
         return p;
       };
-      const p = build(post ? rt : null);
-      p.then(() => setTimeout(() => build(post ? null : rt).then(() => rt.dispose()), cfg.quality.warmLaterMs));
+      // the first picture waits only for what is on screen; later unlocks and effects compile right after it, long
+      // before the first of them appears
+      const p = build(post ? rt : null, false);
+      p.then(() => setTimeout(() => build(post ? rt : null).then(() => build(post ? null : rt)).then(() => rt.dispose()), cfg.quality.warmLaterMs));
       return p;
     },
     dispose() {
