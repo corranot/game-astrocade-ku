@@ -8,7 +8,8 @@ import { isRtl as isRtlNow } from './strings.js';
 import * as AU from './audio.js';
 import { S, LEVEL_COUNT, HINT_MAX, totalStars, startRead, commit } from './save.js';
 import { startEditor } from './editor.js';
-import { TUNE, dayKey, nextDayKey, dailyLevel, giftDue, goldenLevel } from './rules.js';
+import { TUNE, dayKey, nextDayKey, dailyLevel, giftPlan, qualityStep, goldenLevel } from './rules.js';
+import { setFxQuality } from './fx.js';
 
 export function start(mode = 'play') {
   if (typeof window.__RUB_CLEANUP === 'function') { try { window.__RUB_CLEANUP(); } catch (e) { /* stale run cleanup is best-effort */ } }
@@ -28,7 +29,8 @@ export function start(mode = 'play') {
   const show = (name) => { scr = name; fade = 0.24; shownAt = performance.now(); };
   const firstBelow = () => { const i = S.stars.findIndex((v) => v < 3); return i < 0 ? 0 : i + 1; };
   const playN = () => (S.reached > LEVEL_COUNT ? firstBelow() || 1 : Math.min(S.reached, LEVEL_COUNT));
-  let solvedHere = 0;   // levels solved in this session: drives the surprise gift
+  let solvedHere = 0, gifts = null;   // levels solved in this session and the gift plan (rules.giftPlan): the first gift lands just past minute 5
+  const sessionT0 = performance.now();
   // today's picture, worked out once per day (info() runs every frame); dayKey only changes at midnight, checked once a second
   let dayC = null, dayAt = -1;
   const daily = () => {
@@ -36,7 +38,7 @@ export function start(mode = 'play') {
     if (!dayC || now !== dayAt) { dayAt = now; const key = dayKey(); if (!dayC || dayC.key !== key) dayC = { key, n: dailyLevel(key, LEVEL_COUNT), tomorrowN: dailyLevel(nextDayKey(key), LEVEL_COUNT) }; }
     return { key: dayC.key, n: dayC.n, tomorrowN: dayC.tomorrowN, done: S.dailyDay === dayC.key, count: S.dailyN };
   };
-  const info = () => ({ rec: S.rec, reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, candyWorldSeen: S.candyWorldSeen, daily: daily(), ftue: S.ftue, pullAfter: TUNE.pullAfter });
+  const info = () => ({ rec: S.rec, reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, candyWorldSeen: S.candyWorldSeen, daily: daily(), ftue: S.ftue, giftLeft: gifts ? gifts.at - solvedHere : TUNE.giftFirstMax - solvedHere, pullAfter: TUNE.pullAfter });
 
   function applyPrefs() {
     AU.configureAudio(S.prefs);
@@ -79,18 +81,21 @@ export function start(mode = 'play') {
       if (n >= 3 && took < 600) { if (r.fast && took < r.fast) lv.record = { k: 'rec_fast', v: { s: took.toFixed(1) } }; if (!r.fast || took < r.fast) r.fast = took; }
       if (r.dayN > r.dayBest) { if (r.dayBest >= 3 && r.dayN === r.dayBest + 1 && !lv.record) lv.record = { k: 'rec_day', v: { n: r.dayN } }; r.dayBest = r.dayN; }
     }
-    if (lv && giftDue(solvedHere)) lv.gift = { open: false, t: 0, n: TUNE.giftHints };
+    // every hint reward adds what fits under HINT_MAX and returns what was really added, so a label never promises hints that were not granted
+    const addHints = (k) => { const h0 = S.hints; S.hints = Math.min(HINT_MAX, S.hints + k); return S.hints - h0; };
+    const gp = giftPlan(gifts, solvedHere, (performance.now() - sessionT0) / 1000); gifts = gp.plan;
+    if (lv && gp.due) lv.gift = { open: false, t: 0, n: TUNE.giftHints };
     if (lv && lv.golden) {
       // a golden picture pays one hint, once per level per day (replaying it is still golden, but free)
       const key = dayKey(), got = S.goldDay.slice(0, 10) === key ? S.goldDay.slice(11).split(',').filter(Boolean) : [];
       lv.goldPaid = !got.includes(String(n));
-      if (lv.goldPaid) { got.push(String(n)); S.goldDay = key + ':' + got.join(','); S.hints = Math.min(HINT_MAX, S.hints + 1); }
+      if (lv.goldPaid) { got.push(String(n)); S.goldDay = key + ':' + got.join(','); addHints(1); }
     }
     if (lv && lv.daily) {
       // today's picture adds to the album count and a hint; it never changes campaign progress or stars
       const key = dayKey();
       lv.dailyGot = S.dailyDay !== key;
-      if (lv.dailyGot) { S.dailyDay = key; S.dailyN++; S.hints = Math.min(HINT_MAX, S.hints + TUNE.dailyHints); }
+      if (lv.dailyGot) { S.dailyDay = key; S.dailyN++; addHints(TUNE.dailyHints); }
       commit(); return;
     }
     const worldStart = Math.floor((n - 1) / 6) * 6;
@@ -99,7 +104,7 @@ export function start(mode = 'play') {
     S.stars[n - 1] = Math.max(S.stars[n - 1], stars);
     const worldNowDone = S.stars.slice(worldStart, worldStart + 6).every((v) => v > 0);
     if (lv) { lv.worldDone = !worldWasDone && worldNowDone; lv.firstFix = first && n === 1; }
-    if (lv && lv.worldDone) S.hints = Math.min(HINT_MAX, S.hints + 1);
+    if (lv && lv.worldDone) lv.worldHint = addHints(1);
     S.reached = Math.max(S.reached, Math.min(LEVEL_COUNT + 1, n + 1));
     commit();
   }
@@ -119,7 +124,7 @@ export function start(mode = 'play') {
     daily: () => { if (busy) return; const d = daily(); if (!d.done) openLevel(d.n, 'daily'); },
     gift: () => {
       if (!lv || !lv.gift || lv.gift.open) return;
-      lv.gift.open = true; lv.gift.t = lv.s; S.hints = Math.min(HINT_MAX, S.hints + lv.gift.n); commit();
+      lv.gift.open = true; lv.gift.t = lv.s; lv.gift.n = Math.min(HINT_MAX, S.hints + lv.gift.n) - S.hints; S.hints += lv.gift.n; commit();
       lv.fx.confetti(isRtlNow() ? 110 : 610, 760, 50); lv.fx.spark(isRtlNow() ? 110 : 610, 780, 14); AU.sfx('arp'); AU.sfx('star', 1.2);
     },
     skipFtue: () => { S.ftue = true; if (lv) lv.ftue = false; commit(); },
@@ -156,11 +161,23 @@ export function start(mode = 'play') {
   cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove);
   cv.addEventListener('pointerup', release); cv.addEventListener('pointercancel', release);
 
-  let prev = performance.now();
+  let prev = performance.now(), slowSec = 0, quality = 2, resScale = 1;
+  function applyQuality() {
+    setFxQuality(quality >= 2 ? 1 : 0.5);
+    resScale = quality >= 1 ? 1 : 0.75;
+    if (cv.width !== Math.round(W * resScale)) { cv.width = Math.round(W * resScale); cv.height = Math.round(H * resScale); }
+  }
   function frame(now) {
     if (!active) return;
-    const dt = Math.max(0, Math.min(0.11, (now - prev) / 1000));   // a first frame stamped before prev must not run time backwards
+    const raw = (now - prev) / 1000, dt = Math.max(0, Math.min(0.11, raw));   // a first frame stamped before prev must not run time backwards
     prev = now; time += dt;
+    // ADAPTIVE QUALITY: frames slower than TUNE.fpsLow for TUNE.fpsWindow s of play drop one step (fewer particles, then 0.75 resolution); a long gap (tab hidden, loading) is ignored
+    if ((scr === 'play' || scr === 'menu') && raw > 0 && raw < 0.5) {
+      slowSec = raw > 1 / TUNE.fpsLow ? slowSec + raw : Math.max(0, slowSec - raw * 0.5);
+      const q = qualityStep(quality, slowSec);
+      if (q !== quality) { quality = q; slowSec = 0; applyQuality(); }
+    }
+    g.setTransform(resScale, 0, 0, resScale, 0, 0);
     UI.hits.length = 0;
     const uiTime = S.prefs.reduceMotion ? (scr === 'menu' ? 3.5 : 0) : time;
     g.fillStyle = scr === 'loading' ? INK : COL.bg; g.fillRect(0, 0, W, H);
@@ -188,7 +205,7 @@ export function start(mode = 'play') {
 
   if (window.__RUB_DEV) {
     window.__rub = () => ({ scr, n: lv ? lv.n : 0, fixed: lv ? lv.fixed : false, result: lv ? lv.resultReady() : false, errors: lv ? lv.errors : 0, stars: lv ? lv.stars : 0, progress: lv ? lv.progress() : 0, reached: S.reached, prefs: { ...S.prefs } });
-    window.__rubS = S; window.__rubGo = (n, mode) => { if (mode !== 'daily') S.reached = Math.max(S.reached, n); openLevel(n, mode); }; window.__rubGoFn = go;
+    window.__rubS = S; window.__rubGift = (p) => { gifts = p; }; window.__rubQ = (q) => { if (q != null) { quality = q; applyQuality(); } return { quality, resScale, slowSec, gifts, solvedHere }; }; window.__rubGo = (n, mode) => { if (mode !== 'daily') S.reached = Math.max(S.reached, n); openLevel(n, mode); }; window.__rubGoFn = go;
   }
 
   startRead().then(() => { if (active) applyPrefs(); });

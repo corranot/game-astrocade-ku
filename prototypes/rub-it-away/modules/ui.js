@@ -6,6 +6,7 @@ import { t, isJoined, isRtl } from './strings.js';
 import { Fx } from './fx.js';
 import { LEVEL_COUNT } from './save.js';
 import { LEVELS } from './levels.js';
+import { TUNE } from './rules.js';
 
 export const hits = [];
 export const tap = (x, y, w, h, fn) => hits.push({ x, y, w, h, fn });
@@ -288,16 +289,31 @@ export function drawHud(g, lv, time, info, go) {
   pill(g, 540, 40, 156, 84);
   const now = lv.fixed ? lv.stars : lv.starsNow();
   for (let i = 0; i < 3; i++) drawStar(g, 580 + i * 40, 82, 17, i < now);
-  // sticker counter of this level under the star pill (levels with wrong-rub gags): found / all, it pops when a new one is found
+  // sticker counter of this level (levels with wrong-rub gags): found / all, it pops when a new one is found.
+  // It sits in the free bottom HUD row beside the hint bulb: same 156x84 pill as the star pill, on the same right margin, centred on the bulb's line.
   const gl = GAGS[lv.n - 1];
   if (gl.length && !lv.fixed) {
     const gp = clamp((lv.t - lv.gagT) / 0.5), fnd = bits(info.gags[lv.n - 1]), sc = lv.reducedMotion ? 1 : 1 + (gp < 1 ? Math.sin(gp * Math.PI) * 0.35 : fnd === gl.length - 1 ? 0.08 + 0.08 * Math.sin(time * 7) : 0);
-    g.save(); g.translate(628, 158); g.scale(sc, sc); pill(g, -62, -24, 124, 48); sticker(g, -34, 0, 16, gl[0], fnd > 0); label(g, '\u202A' + fnd + ' / ' + gl.length + '\u202C', 18, 2, 28, INK, { stroke: 0 }); g.restore();
+    g.save(); g.translate(618, 1212); g.scale(sc, sc); pill(g, -78, -42, 156, 84); sticker(g, -38, 0, 24, gl[0], fnd > 0); label(g, '\u202A' + fnd + ' / ' + gl.length + '\u202C', 24, 2, 38, INK, { stroke: 0 }); g.restore();
   }
   const prompt = t(lv.def.prompt), fit = fitLines(g, prompt, 34, 560), ph = fit.lines.length > 1 ? 100 : 66;
   g.font = '900 ' + fit.size + 'px ' + FONT;
   const pw = Math.min(600, Math.max(...fit.lines.map((l) => g.measureText(l).width)) + 80), pb = lv.reducedMotion || lv.fixed ? 1 : 1 + Math.sin(time * 3) * 0.015;
-  g.save(); g.translate(360, 207 + (ph - 66) / 2); g.scale(pb, pb); rr(g, -pw / 2, -ph / 2, pw, ph, ph / 2 > 40 ? 40 : ph / 2); fillStroke(g, '#fbefd0', 6); labelLines(g, fit, 0, 2, INK, { stroke: 0 }); g.restore();
+  // a moment of praise takes over the prompt bubble's slot (HUD space, never the scene's art): the prompt fades out as the praise pill pops in
+  const pr = lv.praiseNow ? lv.praiseNow() : null;
+  g.save(); if (pr) g.globalAlpha = 1 - pr.a;
+  g.translate(360, 207 + (ph - 66) / 2); g.scale(pb, pb); rr(g, -pw / 2, -ph / 2, pw, ph, ph / 2 > 40 ? 40 : ph / 2); fillStroke(g, '#fbefd0', 6); labelLines(g, fit, 0, 2, INK, { stroke: 0 }); g.restore();
+  if (pr) {
+    const qh = pr.sub ? 100 : 76, ws = fitSize(g, pr.word, pr.sub ? 46 : 54, 520), ss = pr.sub ? fitSize(g, pr.sub, 28, 520) : 0;
+    g.font = '900 ' + ws + 'px ' + FONT; let qw = g.measureText(pr.word).width;
+    if (pr.sub) { g.font = '900 ' + ss + 'px ' + FONT; qw = Math.max(qw, g.measureText(pr.sub).width); }
+    qw = Math.min(600, qw + 96);
+    g.save(); g.globalAlpha = pr.a; g.translate(360, 174 + qh / 2); g.scale(pr.sc, pr.sc);
+    rr(g, -qw / 2, -qh / 2 + 6, qw, qh, 38); fillStroke(g, INK, 0); rr(g, -qw / 2, -qh / 2, qw, qh, 38); fillStroke(g, '#fbefd0', 6);
+    label(g, pr.word, 0, pr.sub ? -16 : 2, ws, pr.col, { lw: 10 });
+    if (pr.sub) label(g, pr.sub, 0, 30, ss, INK, { stroke: 0 });
+    g.restore();
+  }
   if (!lv.fixed) {
     const on = info.hints > 0, k = stalled(lv) && on ? (lv.reducedMotion ? 0.35 : 0.5 + 0.5 * Math.sin(time * 6)) : 0;
     tap(300, 1156, 120, 112, go.hint);
@@ -315,9 +331,18 @@ export function drawResult(g, lv, time, go, info) {
   if (lv.rain && lv.fixed) { lv.rain.drawHigh(g); }
   if (lv.worldDone && rawS > 0.9) drawWorldBanner(g, lv, rawS, time);
   if (s <= 1.1) return;
-  const u = lv.reducedMotion ? 1 : ease.back(clamp((s - 1.1) / 0.5)), y0 = 1300 - u * 434, rtl = isRtl();
-  rr(g, 40, y0 + 12, 640, 380, 44); fillStroke(g, INK, 0);
-  rr(g, 40, y0, 640, 380, 44); fillStroke(g, '#fbefd0', 8);
+  // the gift countdown ("3 more to the gift!") gets its own 56 px row between the poster and the buttons once the session gift is close
+  const gLeft = !lv.daily && !lv.gift && info && info.giftLeft >= 1 && info.giftLeft <= TUNE.giftShowWithin ? info.giftLeft : 0, ex = gLeft ? 56 : 0;
+  const u = lv.reducedMotion ? 1 : ease.back(clamp((s - 1.1) / 0.5)), y0 = 1300 - u * (434 + ex), rtl = isRtl();
+  rr(g, 40, y0 + 12, 640, 380 + ex, 44); fillStroke(g, INK, 0);
+  rr(g, 40, y0, 640, 380 + ex, 44); fillStroke(g, '#fbefd0', 8);
+  if (gLeft) {
+    const msg = gLeft === 1 ? t('gift_next') : t('gift_more', { n: gLeft }), fs = fitSize(g, msg, 36, 470), gy = y0 + 272;
+    g.font = '900 ' + fs + 'px ' + FONT;
+    const mw = g.measureText(msg).width, bx = 360 - (52 + 12 + mw) / 2, ix = rtl ? bx + mw + 12 + 26 : bx + 26, pu = lv.reducedMotion ? 1 : 1 + (gLeft === 1 ? 0.08 * Math.sin(time * 6) : 0);
+    g.save(); g.translate(ix, gy); g.scale(0.5 * pu, 0.5 * pu); giftBox(g); g.restore();
+    label(g, msg, rtl ? bx + mw / 2 : bx + 64 + mw / 2, gy + 2, fs, COL.red, { stroke: 0 });
+  }
   const tf = fitLines(g, t(lv.def.win), 56, 560);
   labelLines(g, tf, 360, y0 + (tf.lines.length > 1 ? 50 : 56), COL.orange, { lw: 11 });
   const sy = y0 + 140, sr = 42, starX = [250, 360, 470];
@@ -352,7 +377,7 @@ export function drawResult(g, lv, time, go, info) {
       g.restore();
     }
     if (full && !lv.reducedMotion) { const sw = ((time * 0.6) % 1.6) - 0.3; g.save(); g.globalAlpha = 0.5; g.fillStyle = '#fff'; g.fillRect(fx0 + sw * (PER * (fw + fg)), ry - fw / 2, 10, fw); g.restore(); }
-    if (lv.worldDone && !lv.worldEnd) { const q = ease.back(clamp((s - 2.1) / 0.4)); if (q > 0) { g.save(); g.translate(rtl ? 92 : 628, ry); g.scale(0.32 * q, 0.32 * q); drawBulb(g, 0, 0, 0.9, true); label(g, '+1', 78, 4, 56, COL.orange, { lw: 12 }); g.restore(); } }
+    if (lv.worldDone && !lv.worldEnd && lv.worldHint > 0) { const q = ease.back(clamp((s - 2.1) / 0.4)); if (q > 0) { g.save(); g.translate(rtl ? 92 : 628, ry); g.scale(0.32 * q, 0.32 * q); drawBulb(g, 0, 0, 0.9, true); label(g, '+1', 78, 4, 56, COL.orange, { lw: 12 }); g.restore(); } }
   }
   // NEXT carries a peek at the next scene; once the card has settled it pulses a little stronger (a soft pull, never an automatic move)
   const pull = s > 1.6 + (info && info.pullAfter || 2.4) && !lv.reducedMotion ? 0.055 : 0.025;
@@ -363,17 +388,17 @@ export function drawResult(g, lv, time, go, info) {
     // one label size for the pair; a long SHARE word (es, vi...) turns SHARE into an icon-only 120 px button so neither label gets tiny
     const lead = deco ? 80 : 0, fs = Math.min(fitSize(g, t('next'), 48, 272 - lead), fitSize(g, t('share'), 48, 128));
     if (fs >= 38) {
-      button(g, rtl ? 492 : 228, y0 + 306, 328, 100, t('next'), go.next, time, fs, pull, 'green', deco, lead);
-      button(g, rtl ? 188 : 532, y0 + 306, 248, 100, t('share'), go.share, time, fs, 0, 'blue', shareDeco, 64);
+      button(g, rtl ? 492 : 228, y0 + 306 + ex, 328, 100, t('next'), go.next, time, fs, pull, 'green', deco, lead);
+      button(g, rtl ? 188 : 532, y0 + 306 + ex, 248, 100, t('share'), go.share, time, fs, 0, 'blue', shareDeco, 64);
     } else {
-      button(g, rtl ? 424 : 296, y0 + 306, 464, 100, t('next'), go.next, time, 48, pull, 'green', deco, lead);
-      button(g, rtl ? 124 : 596, y0 + 306, 120, 100, '', go.share, time, 40, 0, 'blue', (gg) => shareIcon(gg, 0, 2, 44, EDGE.blue));
+      button(g, rtl ? 424 : 296, y0 + 306 + ex, 464, 100, t('next'), go.next, time, 48, pull, 'green', deco, lead);
+      button(g, rtl ? 124 : 596, y0 + 306 + ex, 120, 100, '', go.share, time, 40, 0, 'blue', (gg) => shareIcon(gg, 0, 2, 44, EDGE.blue));
     }
-  } else if (lv.stars >= 3) button(g, 360, y0 + 306, 560, 100, t('next'), go.next, time, 54, pull, 'green', deco, deco ? 80 : 0);
+  } else if (lv.stars >= 3) button(g, 360, y0 + 306 + ex, 560, 100, t('next'), go.next, time, 54, pull, 'green', deco, deco ? 80 : 0);
   else {
     // 1-2 stars: REPLAY beside NEXT in one row (NEXT is the big green primary on the forward side, mirrored in ar and ur)
-    button(g, rtl ? 240 : 480, y0 + 306, 320, 100, t('next'), go.next, time, 54, pull);
-    button(g, rtl ? 540 : 180, y0 + 306, 240, 100, t('replay'), go.replay, time, 44, 0, 'blue');
+    button(g, rtl ? 240 : 480, y0 + 306 + ex, 320, 100, t('next'), go.next, time, 54, pull);
+    button(g, rtl ? 540 : 180, y0 + 306 + ex, 240, 100, t('replay'), go.replay, time, 44, 0, 'blue');
   }
   if (lv.gift) drawGift(g, lv, y0, time, go);
 }
@@ -397,6 +422,15 @@ function drawWorldBanner(g, lv, s, time) {
   g.restore();
 }
 
+// the wrapped gift box (about 104 x 112 around 0, 0): the surprise gift itself and the icon of the gift countdown
+function giftBox(g) {
+  rr(g, -44, -30, 88, 72, 12); fillStroke(g, COL.red, 6);
+  rr(g, -52, -44, 104, 24, 10); fillStroke(g, '#e86a6a', 6);
+  g.fillStyle = COL.gold; g.fillRect(-9, -44, 18, 86); g.lineWidth = 5; g.strokeStyle = INK; g.strokeRect(-9, -44, 18, 86);
+  g.beginPath(); g.ellipse(-18, -52, 18, 11, -0.5, 0, 7); fillStroke(g, COL.gold, 5);
+  g.beginPath(); g.ellipse(18, -52, 18, 11, 0.5, 0, 7); fillStroke(g, COL.gold, 5);
+}
+
 // the surprise gift on the result card (every few levels in one session): a wrapped box bobs beside the card; a tap opens it for free hints
 function drawGift(g, lv, y0, time, go) {
   const gf = lv.gift, rtl = isRtl(), x = rtl ? 110 : 610, y = y0 - 64;
@@ -409,20 +443,15 @@ function drawGift(g, lv, y0, time, go) {
     const pw = g.measureText(msg).width + 32, lx = clamp(x, 24 + pw / 2, W - 24 - pw / 2), ly = y - 98 + b;
     rr(g, lx - pw / 2, ly - 22, pw, 44, 22); fillStroke(g, '#fbefd0', 5);
     label(g, msg, lx, ly + 1, fs, COL.red, { stroke: 0 });
-    g.save(); g.translate(x, y + b); g.rotate(wob);
-    rr(g, -44, -30, 88, 72, 12); fillStroke(g, COL.red, 6);
-    rr(g, -52, -44, 104, 24, 10); fillStroke(g, '#e86a6a', 6);
-    g.fillStyle = COL.gold; g.fillRect(-9, -44, 18, 86); g.lineWidth = 5; g.strokeStyle = INK; g.strokeRect(-9, -44, 18, 86);
-    g.beginPath(); g.ellipse(-18, -52, 18, 11, -0.5, 0, 7); fillStroke(g, COL.gold, 5);
-    g.beginPath(); g.ellipse(18, -52, 18, 11, 0.5, 0, 7); fillStroke(g, COL.gold, 5);
-    g.restore();
+    g.save(); g.translate(x, y + b); g.rotate(wob); giftBox(g); g.restore();
     return;
   }
   const k = clamp((lv.s - gf.t) / 1.6);
   if (k >= 1) return;
   g.save(); g.globalAlpha = 1 - k * k;
-  const msg = t('gift_got', { n: gf.n });
-  label(g, msg, clamp(x, 140, 580), y - 20 - k * 60, fitSize(g, msg, 40, 260), COL.orange, { lw: 10 });
+  // the label names what was really added: '+2 hints', '+1 hint', or 'Hints full!' when the bulb was already at its cap
+  const msg = gf.n >= 2 ? t('gift_got', { n: gf.n }) : gf.n === 1 ? t('gift_got1') : t('hints_full');
+  label(g, msg, clamp(x, 164, 556), y - 20 - k * 60, fitSize(g, msg, 40, 256), COL.orange, { lw: 10 });
   g.restore();
 }
 
