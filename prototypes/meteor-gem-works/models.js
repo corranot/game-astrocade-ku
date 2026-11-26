@@ -644,7 +644,8 @@ export function mergeX(parts) {
  */
 export function buildGhostTown(houses) {
   const parts = [];
-  const grey = (c) => { const k = col(c); const l = k.r * 0.3 + k.g * 0.55 + k.b * 0.15; return col(0x6a6470).lerp(new THREE.Color(l, l, l), 0.45); };
+  // ghost colour: sun-bleached weathered wood, warm rather than cold grey
+  const grey = (c) => { const k = col(c); const l = k.r * 0.3 + k.g * 0.55 + k.b * 0.15; return col(0x8a6a52).lerp(new THREE.Color(l, l, l), 0.35); };
   houses.forEach(([x, z, ry, w, h, wall, trim, roof], i) => {
     const s = buildShop(w, h, wall, trim, roof), m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)), new THREE.Vector3(1, 1, 1));
     const d = 3.2, local = [];

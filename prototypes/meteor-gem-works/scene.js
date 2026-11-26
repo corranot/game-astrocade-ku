@@ -508,14 +508,17 @@ export function createScene(canvas, cfg, random) {
   // house, uLit[i] blends it from its ghost colour to its real one, swaps boards for bunting and lights the windows)
   const GH = [[-4.6, 19.7, 0.08, 3.8, 3.6, 0xe8a27a, PAL.cream, PAL.terraDark], [0.2, 20.1, 0, 4.2, 4.4, 0x7ab8b0, PAL.cream, PAL.woodDark], [4.9, 19.7, -0.08, 3.8, 3.8, 0xe6c56a, PAL.woodDark, PAL.red]];
   for (const g of GH) { g[0] = sx(g[0]); g[1] = sz(g[1]); }
-  const ghostU = { uLit: { value: [0, 0, 0] }, uWin: { value: 0 } };
+  const ghostU = { uLit: { value: [0, 0, 0] }, uWin: { value: 0 }, uFade: { value: LK.nearFade ?? 0.22 } };
   const ghostMat = K(mat.clone());
   ghostMat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, ghostU);
-    s.vertexShader = 'attribute vec3 aGhost; attribute float aIdx; attribute float aKind; attribute float aWin; uniform float uLit[3]; varying float vK; varying float vWin;\n' + s.vertexShader
+    s.vertexShader = 'attribute vec3 aGhost; attribute float aIdx; attribute float aKind; attribute float aWin; uniform float uLit[3]; varying float vK; varying float vWin; varying vec4 vClip;\n' + s.vertexShader
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvClip = gl_Position;')
       .replace('#include <color_vertex>', '#include <color_vertex>\nint gi = int(aIdx + 0.5); vK = gi == 0 ? uLit[0] : gi == 1 ? uLit[1] : uLit[2]; vColor.xyz = mix(aGhost, vColor.xyz, vK); vWin = aWin;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat gk = int(aIdx + 0.5) == 0 ? uLit[0] : int(aIdx + 0.5) == 1 ? uLit[1] : uLit[2]; float hide = aKind > 1.5 ? step(gk, 0.5) : aKind > 0.5 ? step(0.5, gk) : 0.0; transformed.y -= hide * 60.0;');
-    s.fragmentShader = 'uniform float uWin; varying float vK; varying float vWin;\n' + s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.72, 0.38) * vWin * vK * uWin;');
+    // near the camera the houses would fill the joystick band at the bottom of the frame: there they dissolve with a
+    // 4x4 ordered dither (no transparency sort, same draw), a short dissolved edge, nothing below it
+    s.fragmentShader = 'uniform float uWin; uniform float uFade; varying float vK; varying float vWin; varying vec4 vClip;\n' + s.fragmentShader.replace('void main() {', 'void main() {\nif (uFade > 0.0) { float sy = vClip.y / vClip.w * 0.5 + 0.5; float f = clamp((uFade - sy) / 0.05, 0.0, 1.0); ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0)); const float bm[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.); if (f > (bm[q.x + q.y * 4] + 0.5) / 16.0) discard; }').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.72, 0.38) * vWin * vK * uWin;');
   };
   const ghostTown = mesh(M.buildGhostTown(GH), ghostMat, false);
   const ghostFx = { k: [0, 0, 0], to: [0, 0, 0] };
@@ -581,7 +584,7 @@ export function createScene(canvas, cfg, random) {
   // the hat slot: one mesh on the head, its geometry swapped for the hat that is worn (album)
   const hatGeos = {}; for (const hd of cfg.hats) hatGeos[hd.id] = K(M.buildHat(hd.id));
   const hatMesh = new THREE.Mesh(hatGeos[cfg.hats[0].id], heroMat); hatMesh.castShadow = true; hero.head.add(hatMesh); let hatOn = cfg.hats[0].id;
-  { const ms = []; hero.root.traverse((m) => { if (m.isMesh) ms.push(m); }); for (const m of ms) { const o = new THREE.Mesh(m.geometry, silMat); o.renderOrder = 9; o.castShadow = false; m.add(o); heroSil.push([m, o]); } }
+  { const ms = []; hero.root.traverse((m) => { if (m.isMesh) ms.push(m); }); for (const m of ms) { const o = new THREE.Mesh(m.geometry, silMat); o.scale.setScalar(LK.silhouetteGrow ?? 1.12); o.renderOrder = 9; o.castShadow = false; m.add(o); heroSil.push([m, o]); } }
   const outfits = [
     { pants: 0x5a6a8a, boots: PAL.ink, shirt: PAL.pink, shirt2: 0xd47898, skin: PAL.skin, hair: 0x4a2e22, hat: 'sun', hatCol: 0xf3d6a6, band: PAL.pink, camera: true },
     { pants: 0x3e5a4a, boots: PAL.woodDark, shirt: PAL.sun, shirt2: 0xd8a64a, skin: PAL.skinDark, skin2: 0xa8704e, hair: PAL.ink, hat: 'cap', hatCol: PAL.teal, band: PAL.tealDark },
@@ -1048,6 +1051,7 @@ export function createScene(canvas, cfg, random) {
 
   /** Per frame: hat, mine cart, ghost town lights, gondolas, neon, the finale's heart and comet, night fireflies. */
   function m3Update(S, dt) {
+    silMat.opacity = (LK.silhouetteAlpha ?? 0.62) * (0.8 + 0.2 * Math.sin(tAll * 5)); // a slow pulse draws the eye to the hidden hero
     if (S.hat !== hatOn && hatGeos[S.hat]) { hatOn = S.hat; hatMesh.geometry = hatGeos[S.hat]; for (const [m, o] of heroSil) o.geometry = m.geometry; }
     // mine cart: waits at its stop (gems ride in it), rolls along the rail to the next dark house, then comes back
     if (cart.visible && !cart.popping) {
@@ -1484,6 +1488,9 @@ export function createScene(canvas, cfg, random) {
       // hidden things (later unlocks, effects) are shown for the compile so their shaders never build mid-game
       // drawing to the glow target and drawing straight to the screen use different shaders (tone mapping), so both
       // sets are built: the one in use now first, the other a moment later, so a quality step never builds them mid-game
+      // the glow target is made on the first resize, which comes after this; make it now so the first picture's shaders
+      // are built for the target it really draws to (otherwise the first draw builds the whole set a second time)
+      postSync();
       const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
       const build = (target, all = true) => {
         const hidden = []; if (all) scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
