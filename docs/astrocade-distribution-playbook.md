@@ -12,6 +12,9 @@ ASO, art, engineering, QA), from these sources:
 - `production/market/2026-11-22-platform/bedah.md`: the full runtime, web app and Statsig dig.
 - `production/market/2026-11-24T1035/bedah-backend.md`: the config diff, creator pay and feed fields.
 - `production/market/2026-11-25T1244/`: animated covers, the top-24 covers, flags and traffic.
+- `production/market/2026-11-26T1700-deep-dig/`: the deep dig of 26 Nov. Every home row read in full
+  (1,800 games), the Players' Choice pool sampled 10 times, today's ranking configs and the $100K contest
+  rules. Its findings are in §11, and they update §1.1, §3.1 and §10.
 - `production/market/2026-11-25T1630-distribution/`: a fresh guest capture for this playbook. It holds
   63 feed games with full fields and the theme taxonomy config.
 
@@ -46,7 +49,9 @@ people get to those 40 seconds.
 | Cold-start insert in the gallery | 5% of slots (25% in theme rows), not in the top 3, for games with at least 75 plays and p50 ≥ 40 s | SEEN |
 | Theme rows (Action, Puzzle, Toys, Zen and more) | The game's theme comes from an LLM taxonomy run; the row needs p50 ≥ 40 s and p75 ≥ 75 s | SEEN `theme-taxonomy.json`, rows config |
 | "New" and "Community Playtests" rows | At most 150 plays and at most 75 plays | SEEN |
-| Players' Choice (top picks) | At least 50,000 plays; retention ×15, sessions over 300 s ×10, p50 ×0.033; near-duplicate descriptions are removed (`neighbor_model dedup-description`) | SEEN |
+| Players' Choice (top picks) | At least 50,000 plays; score = retention ×15 + share of sessions over 300 s ×10 + p50 ×0.033 + p75 ×0.01; a pool of up to 60, re-drawn often; each visitor gets 21 to 23 of it; near-duplicate descriptions are removed (`neighbor_model dedup-description`). Full detail in §11.2 | SEEN 26 Nov |
+| "Start Here" (`fue_picks`) and the first-visit tag picker | New visitors can pick interest tags (Simulation, Sports, Creative, Arcade, Zen, Cooking...), stored in a cookie and sent as `fueTags`; up to 30 starter games | SEEN 26 Nov (experiment) |
+| Shorts row (`shorts_jam_2026`) | A curated jam row in weighted mode: 144 game ids, each with a weight from 0.08 to 3.82 (`v3-score-2026-11-20a`); placed 5th ("gentle") or 3rd ("stepped up") for viewers with a short-form taste | SEEN 26 Nov |
 | Search | Games under 500 plays never appear; name match 0.5, quality 0.7, plays 0.8 | SEEN |
 | Jam rows ("Multiple Players", `shorts_jam_2026`) | Curated or contest entries | SEEN rows |
 | Paid ads | Meta ad sets point at a few community games, which then get cold traffic | SEEN `adsets` |
@@ -176,6 +181,15 @@ description and the code (INFERRED).
 
 Pick the target theme in the plan (CLAUDE.md "Plan Before Building"), then make the title, description
 and mechanics all say it. A game that sits between themes gets a weaker or wrong row.
+
+**Since 26 Nov the taxonomy job fills 14 fields, not only themes** (SEEN config `2545188187`): themes,
+genre, art_style, setting, tone, difficulty, main_activity, progression, loop_length, learning_curve,
+primary_control, secondary_control, perspective and **polish_level**. polish_level is `low`, `standard`,
+`high` or `exceptional`; the definition gives `high` only for "clear extra touches: tutorials, particle
+effects, satisfying audio feedback, smooth animations". How the ranker uses these fields is UNKNOWN; the
+dedup reason `concept_tag` and the theme rows show some of it is used (INFERRED). Our Game Quality
+Standard plus an FTUE is exactly what earns `high`. `learning_curve: instant` ("self-evident in seconds,
+no instruction needed") matches the day-0 stranger cohort the gallery is scored on.
 
 ### 3.2 Description
 
@@ -394,3 +408,141 @@ Run it before every publish or republish. Every line must be a yes.
 13. Has Larisha's thumbnail been set by her (we never make or set it), and do the preview's first 2 s
     match it?
 14. After publish: report "sent, waiting for review", and confirm live only by `servedVersionId`.
+15. Does the game give a reason to come back tomorrow and a path to a 5-minute session (§11.2)? Without
+    both it can pass the gate but will not reach Players' Choice.
+16. Is the target theme row one we can lead (§11.3), and does the polish match `polish_level: high`?
+
+---
+
+## 11. Deep dig, 26 Nov: rows, Players' Choice, the contest
+
+Source: `production/market/2026-11-26T1700-deep-dig/` (guest, read-only, about one request per second).
+Every home row was read to its end with `tools/row-crawl.js`: 24 rows, 1,800 unique games.
+
+### 11.1 The home page, row by row (SEEN)
+
+| Order | Row | Size | How it is filled |
+|---|---|---|---|
+| 1 | Recommended For You (`recommended_for_you`, large cards) | 30 | `stochastic_v0_quality` pool; median 4.3K plays/day |
+| 2 | Discover More (`trending`) | 30 | Same pool type; median 5.2K plays/day |
+| 3 | Players' Choice (`top_picks`) | 21 to 23 per visitor | `top_picks_score`, §11.2; median 15K plays/day |
+| 4+ | Theme rows, repeating while the visitor scrolls | up to about 100 each | GBDT ranker, Gumbel 0.05, 25% cold-game insert after the first card |
+
+- The guest home sends `user-country`, `user-day-n`, device language and connection type with every feed
+  call. Changing the country from US to ID changed nothing for guests: 100% the same games in rows 1 to 3.
+  Personalisation comes from history and the first-visit tags, not from country (INFERRED).
+- Row ids that answer empty today: `featured`, `beta`, `new`, `local_multiplayer`, `because_you_played`,
+  `chess`, `minecraft`. They need a logged-in history or are switched off.
+- The row title "Players' Choice" is itself an experiment (`players-choice-label-web`: "Most Played" or
+  "Popular").
+
+### 11.2 Players' Choice, exactly (SEEN config, our sampling)
+
+Config (`3478718458`, today): `min_plays 50000`, `pool_size 60`, `min_pool_size 20`,
+`selection_temperature 0.25`, `deep_spr_threshold_sec 300`, and
+
+`score = 15 × retention + 10 × (share of sessions over 300 s) + 0.033 × p50 seconds + 0.01 × p75 seconds`
+
+then near-duplicate descriptions are removed and `manually_added` / `manually_removed` lists apply
+(both empty today, so no hand-picking now).
+
+What that means in numbers (INFERRED arithmetic): +30 s of median session (+1.0) is worth the same as
++6.7 points of retention or +10 points of 5-minute sessions. A game with p50 90 s, p75 200 s, 25%
+returning and 20% past 5 minutes scores 3.0 + 2.0 + 3.75 + 2.0 = 10.75. All four terms matter about
+equally, so a fast, shallow game cannot buy its way in with p50 alone.
+
+What we observed (10 samples from fresh guests, 16:59 to 17:11 UTC):
+
+- 34 different games in total. 23 appeared in 9 or 10 samples. The first sample had 11 games that never
+  came back, and the next 9 had 13 new ones: **the pool was re-drawn between 17:00 and 17:09**. Past
+  snapshots (18, 20, 24, 25 Nov) show the same churn. A game moves in and out of the pool many times a
+  day; it does not "win a slot" once (SEEN churn, cadence UNKNOWN beyond "at least within 10 minutes").
+- **Plays per day do not decide it.** "Slap and steal a car" (49K/day) and "Natural Disaster Survival"
+  (27K/day) dropped out in the re-draw while "Mega Fun Obby" (5K/day) and "Tame a Dragon" (6.6K/day)
+  came in. Age does not decide it either: "Era.io" is 175 days old.
+- Pool members against the 1,779 other games in rows (medians): likes 18.5 vs 15.3 per 1,000 plays;
+  shares 7.3 vs 4.8 per 1,000; remixes 14% vs 45%; creator-uploaded cover 43% vs 9%; leaderboard 67% vs
+  55%; owner's lifetime plays 3.2M vs 0.6M; age 18 days.
+- Genres in the pool: steal / heist / "+1" growth (Steal an Egg, Steal a Lucky Block, Mecha Arm +1,
+  +1 rail for millions), tycoon and factory sims (Frost Harbor, Frozen Fish Grill, Meat Masters),
+  physics destruction (Demolition Derpy, Smash Everything!), transformation and hero power fantasies
+  (Titan Transformer, Ben 10, Astro Boy), animal care (Zoo Zen, Throw Food for Animals, Tame a Dragon).
+  Almost all have an upgrade or collection loop that pays off after 5 minutes and a reason to come back.
+- The diversity config gives top creators their own route: `top_creator_min_p50 60`,
+  `max_top_creator_candidates 20` (SEEN; meaning INFERRED: a proven creator with p50 ≥ 60 s gets
+  candidates considered more readily).
+
+### 11.3 Theme rows: where we can lead (SEEN sizes, INFERRED strategy)
+
+Rows hold about 100 games when the theme is crowded. Smaller rows mean each game gets a bigger share of
+the row's impressions:
+
+| Row | Games | Median plays/day in row | Note |
+|---|---|---|---|
+| Rhythm | 17 | 1,838 | Least crowded, highest median. The tag id is `tempo` |
+| Educational | 46 | 786 | |
+| Chat | 55 | 749 | LLM characters |
+| Meme | 56 | 388 | |
+| Farm | 59 | 332 | Includes "farming reskinned as other themes" |
+| Toys | 63 | 320 | No score, levels, fail state or shop (§3.1) |
+| Merge | 70 | 270 | |
+| Simulation, Incremental, Creative, Puzzle, Action, Arcade... | 93 to 99 | 77 to 1,078 | Crowded |
+
+**Each game shows in exactly one theme row** (SEEN: of 1,800 games, 1,719 sit in one theme row and 81
+only in rows 1 to 3; none in two). The taxonomy may give a game several themes, but the gallery files it
+under one. A game that fits a small row cleanly (title, description and mechanics all say it) competes
+with 17 to 60 others instead of 100.
+
+### 11.4 Our games in rows today (26 Nov, guest view)
+
+| Game | Plays | Plays/day | Rows | Next step |
+|---|---|---|---|---|
+| Rub It Away | 73,924 | 6.5K | Recommended For You #11 | Past the 50K floor but not in the pool: add a daily return reason and a 5-minute goal now, while the update boost lasts |
+| Tiptoe & Hatch | 86,567 | 1.5K | Adventure | Past the floor; past 30 days, so no update boost: retention only |
+| Reel & Hatch | 37,173 | 2.0K | Farm #14 | About 6 days to 50K at this pace |
+| Martabak Master | 44,783 | 0.7K | Zen | Close to 50K; retention work decides it |
+| Draw It Alive | 19,487 | 3.1K | Puzzle | Weak likes (7.7/1K) and shares (1.2/1K) against the pool's 18.5 and 7.3 |
+| Soap Carving | 13,037 | 3.0K | Creative | Strong shares (32/1K); low likes |
+| Ice Cream Roll Art | 1,031 | 0.3K | Cooking | Too early |
+
+### 11.5 The $100K Creator Contest (SEEN pages, 26 Nov)
+
+- Pages: `astrocade.com/contests/100k-creator-contest-2026`, its `/rules` (updated 25 Nov) and the blog
+  post `astrocade.com/blog/100k-creator-competition` (updated 21 Nov).
+- Format: about 25 creators, chosen by Astrocade. Applications 5 to 20 Nov; selected creators announced
+  25 Nov; contest 30 Nov to 20 Dec; plays and views keep counting until 27 Dec. Prizes $50K, $20K, $15K,
+  $7.5K, $7.5K.
+- Score: one point per validated play of a new, original game made during the contest, plus one point
+  per qualified view of the creator's contest videos on TikTok, Instagram, YouTube or X. At least 3
+  videos a week. Plays from Astrocade's own featuring and recommendation count. Remixes do not.
+- Selection (rules §7.1 and the blog): sole discretion; may use automated screening, ranking, the
+  pitch, the public social media presence, a live video interview and a background check. Factors:
+  creativity, audience, content style, communication, reliability, availability and the mix of
+  contestants. Astrocade may also invite people directly. "Your pitch matters most."
+- **The list of the 25 is not public in any source we can read.** It is on no Astrocade page, API or
+  config, and no press article names them. The announcement was most likely made on X or Discord, which
+  this environment cannot read. Contestants must keep their selection confidential until Astrocade
+  announces it (rules §7.7). From 30 Nov, contest games must be "identified as a Contest playable", so
+  they should become visible in the feed and can be listed then.
+- What it tells us about the platform (INFERRED): Astrocade wants "playable content" that travels on
+  short-form video: jokes, trends, hot takes, quizzes, things to send a friend. It pays for off-platform
+  reach that brings new players, which is the same day-0 cohort the gallery is scored on. A share-led
+  game with a clip-worthy moment fits both the contest's goal and the ranker.
+
+### 11.6 Strategy, ranked (whole team)
+
+1. **Pass the 40 s gate and win day-0 strangers** (§1.2, §1.3). PROVEN by config. Without it nothing else
+   is reached.
+2. **Design for the Players' Choice formula from the plan stage**: a reason to return tomorrow (daily
+   reward, growing collection, saved progress) and a loop that still pays at minute 5 (upgrades, a tycoon
+   layer, a new area). PROVEN formula; pool behaviour SEEN.
+3. **Reach 50K plays inside the first 30 days**, while the play boost (peak at 5K) and the update boost
+   (half-life 3 days) still apply. Ship an update every 3 days in that window. PROVEN boosts; the link
+   to Players' Choice is INFERRED.
+4. **Target a small theme row on purpose** (Rhythm, Educational, Chat, Meme, Farm, Toys) and make the
+   title, description and mechanics match its definition. SEEN row sizes; benefit INFERRED.
+5. **Make sharing part of the peak moment**. Pool members are shared 1.5 times as often per play. Shares
+   bring new players, the cohort that is scored. Correlation SEEN; cause INFERRED.
+6. **Compound as a creator**: a series in one family, a high polish level, a hand-made cover (Larisha's
+   job). Pool owners have a median 3.2M lifetime plays and the config has a top-creator route. SEEN
+   correlation and config; effect INFERRED.
