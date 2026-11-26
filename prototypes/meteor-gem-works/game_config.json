@@ -545,9 +545,9 @@
     "tilt": {
       "on": true,
       "tier": 2,
-      "amount": 0.8,
-      "band": 0.1,
-      "soft": 0.32
+      "amount": 0.6,
+      "band": 0.34,
+      "soft": 0.3
     },
     "contact": 1,
     "bloom": {
@@ -2009,7 +2009,10 @@
     "slowK": 0.35,
     "stop": 0.08,
     "push": 0.72,
-    "light": 3.0
+    "light": 1.6,
+    "tilt": 0.7,
+    "con": 0.1,
+    "vig": 0.12
   },
   "tomorrow": {
     "after": 240

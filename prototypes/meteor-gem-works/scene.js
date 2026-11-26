@@ -651,7 +651,7 @@ export function createScene(canvas, cfg, random) {
   badgeStops.forEach((b, i) => { bCell.setX(i, iconOf(b[0])); });
   const badges = new THREE.InstancedMesh(badgeGeo, K(new THREE.ShaderMaterial({
     uniforms: { map: { value: badgeTex }, uN: { value: IC } }, transparent: true, depthTest: false, depthWrite: false,
-    vertexShader: 'attribute float aCell; attribute vec2 aK; uniform float uN; varying vec2 vUv; varying float vA; void main(){ vec4 c = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); c.xy += position.xy * aK.x; gl_Position = projectionMatrix * c; float col = mod(aCell, uN), row = floor(aCell / uN); vUv = vec2((col + uv.x) / uN, 1.0 - (row + 1.0 - uv.y) / uN); vA = aK.y; }',
+    vertexShader: 'attribute float aCell; attribute vec2 aK; uniform float uN; varying vec2 vUv; varying float vA; void main(){ vec4 c = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); float hw = -c.z / projectionMatrix[0][0], r = 0.5 * aK.x; if (aK.y > 0.95 && abs(c.x) < hw + r) c.x = clamp(c.x, -hw * 0.95 + r, hw * 0.95 - r); c.xy += position.xy * aK.x; gl_Position = projectionMatrix * c; float col = mod(aCell, uN), row = floor(aCell / uN); vUv = vec2((col + uv.x) / uN, 1.0 - (row + 1.0 - uv.y) / uN); vA = aK.y; }',
     fragmentShader: 'uniform sampler2D map; varying vec2 vUv; varying float vA; void main(){ vec4 t = texture2D(map, vUv); if (t.a * vA < 0.02) discard; gl_FragColor = vec4(t.rgb, t.a * vA);\n#include <colorspace_fragment>\n}',
   })), NB);
   badges.frustumCulled = false; badges.renderOrder = 9; badges.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(badges);
@@ -660,7 +660,7 @@ export function createScene(canvas, cfg, random) {
   trail.renderOrder = 3; trail.frustumCulled = false; trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trail.count = 0; scene.add(trail);
   /** Station badges (built stops, small) and the target's big bouncing badge, plus the floor trail from the hero to it. */
   function drawBadges(S, g, top) {
-    const tgt = g && !g.wait ? g.what : null, hk = 1 - cam.showK; // badges fade out during a camera beat so only the subject reads
+    const tgt = g && !g.wait ? g.what : null, hk = 1 - cam.showK; // badges fade out during a camera beat so only the subject reads; the target's badge (alpha 1) is clamped inside the screen edge in the shader
     badgeStops.forEach(([key, x, z, h, padId], i) => {
       const on = (!padId || S.pads.some((p) => p.id === padId && p.done)) && key !== tgt;
       badges.setMatrixAt(i, _m.makeTranslation(x, h + 0.75, z)); bK.setXY(i, on ? 1.35 * hk : 0, 0.85);
@@ -979,8 +979,10 @@ export function createScene(canvas, cfg, random) {
       const sh = cam.last, k = sh ? ease(cam.showK) : 0, fy = toScreen(lerp(heroPos.x, sh ? sh.p.x : 0, k), lerp(1, sh ? sh.p.y : 0, k), lerp(heroPos.z, sh ? sh.p.z : 0, k))[1];
       f.tf.value = 1 - Math.max(0.15, Math.min(0.85, fy)); f.tw.value = TS.band; f.ts.value = TS.soft;
     }
-    f.tb.value = Pp.d1.texture; f.ta.value = tOn ? TS.amount : 0;
-    f.t.value = Pp.scene.texture; f.b1.value = Pp.q1.texture; f.b2.value = Pp.e1.texture; f.strength.value = BL.strength; f.vig.value = GR.vignette; f.con.value = GR.contrast; f.sat.value = GR.saturation; f.warm.value = GR.warmth;
+    // during a camera beat keep the frame crisp: less tilt blur, a touch more contrast and vignette (no washed-out look)
+    const CB = cfg.cine || {}, bk = cam.last ? ease(cam.showK) : 0;
+    f.tb.value = Pp.d1.texture; f.ta.value = tOn ? TS.amount * (1 - (CB.tilt || 0) * bk) : 0;
+    f.t.value = Pp.scene.texture; f.b1.value = Pp.q1.texture; f.b2.value = Pp.e1.texture; f.strength.value = BL.strength; f.vig.value = GR.vignette + (CB.vig || 0) * bk; f.con.value = GR.contrast + (CB.con || 0) * bk; f.sat.value = GR.saturation; f.warm.value = GR.warmth;
     fsPass(finalMat, null);
   }
 
