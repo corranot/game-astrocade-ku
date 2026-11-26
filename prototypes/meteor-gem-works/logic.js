@@ -250,8 +250,9 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   } else h.swing = Math.min(h.swing, sw * 0.6);
 
   // ---- the glint: a sparkle on the meteor; a tap on it is a Perfect Strike (3 chunks and a big burst)
+  // (S.noGlint: the caller says the meteor is off screen, so a new one waits)
   if (S.glint) { S.glint.t += dt; if (S.glint.t > cfg.glint.life) { ev(S, 'glintGone', {}); S.rec.chain = 0; S.glint = null; S.glintT = 0; } }
-  else if ((S.glintT += dt) >= cfg.glint.every * perk(cfg, S, 'luck')) { S.glint = { t: 0, lon: (rand() - 0.5) * 1.5, lat: 0.15 + rand() * 0.55 }; ev(S, 'glint', { ...S.glint }); }
+  else if ((S.glintT += dt) >= cfg.glint.every * perk(cfg, S, 'luck') && !S.noGlint) { S.glint = { t: 0, lon: (rand() - 0.5) * 1.5, lat: 0.15 + rand() * 0.55 }; ev(S, 'glint', { ...S.glint }); }
   if (tap && tap.glint && S.glint) {
     ev(S, 'perfect', { n: addPile(cfg.glint.chunks), lon: S.glint.lon, lat: S.glint.lat }); S.rec.run.chain = Math.max(S.rec.run.chain, ++S.rec.chain); S.glint = null; S.glintT = 0; S.progressT = 0;
   }
