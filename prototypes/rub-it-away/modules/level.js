@@ -379,9 +379,6 @@ export class Level {
     rr(g, S.x, S.y, S.w, S.h, S.r); g.lineWidth = 9; g.strokeStyle = INK; g.stroke();
     if (this.golden && !this.fixed) this.drawGolden(g);
     this.drawHint(g);
-    // one word of praise in the same slot: the first fix ever, a golden picture (+1 hint), or a clean solve (no wrong rub, no hint). The World Complete ribbon owns the slot on a world's last level.
-    const praise = this.firstFix ? ['coachNice', COL.orange] : this.record && !this.worldDone ? ['record', COL.red] : this.golden && !this.worldDone ? ['golden', COL.gold] : this.perfect && !this.worldDone ? ['perfect', COL.green] : null;
-    if (praise && this.fixed && this.s > 0.5 && this.s < 2.4) { const a = clamp((this.s - 0.5) / 0.3) * clamp((2.4 - this.s) / 0.3), sc = this.reducedMotion ? 1 : 0.8 + 0.2 * ease.back(clamp((this.s - 0.5) / 0.35)), w = t(praise[0]); g.save(); g.globalAlpha = a; g.translate(360, 310); g.scale(sc, sc); label(g, w, 0, 0, fitSize(g, w, 64, 560), praise[1], { lw: 12 }); if (praise[0] === 'record') { const sub = t(this.record.k, this.record.v); label(g, sub, 0, 58, fitSize(g, sub, 36, 520), INK, { stroke: '#fff', lw: 8 }); } g.restore(); }
     this.drawProgress(g);
     if (this.cur && !this.fixed) this.drawEraser(g);
     this.fx.drawHigh(g);
@@ -531,6 +528,14 @@ export class Level {
     if (!key) return;
     const s = t(key), p = this.reducedMotion ? 1 : 1 + Math.sin(this.t * 6) * 0.05, x = clamp(c.x, STAGE.x + 130, STAGE.x + STAGE.w - 130), y = Math.max(300, c.y - this.target.h * 0.5 - 48);
     g.save(); g.translate(x, y); g.scale(p, p); label(g, s, 0, 0, fitSize(g, s, 60, 240), COL.orange, { lw: 12 }); g.restore();
+  }
+
+  // one word of praise (the first fix ever, a new record, a golden picture (+1 hint) or a clean solve). The HUD shows it in the prompt bubble's slot, so it never covers the scene's art; the World Complete ribbon owns the moment on a world's last level.
+  praiseNow() {
+    const praise = this.firstFix ? ['coachNice', COL.orange] : this.record && !this.worldDone ? ['record', COL.red] : this.golden && !this.worldDone ? ['golden', COL.gold] : this.perfect && !this.worldDone ? ['perfect', COL.green] : null;
+    if (!praise || !this.fixed || this.s <= 0.5 || this.s >= 2.4) return null;
+    const a = clamp((this.s - 0.5) / 0.3) * clamp((2.4 - this.s) / 0.3), sc = this.reducedMotion ? 1 : 0.8 + 0.2 * ease.back(clamp((this.s - 0.5) / 0.35));
+    return { word: t(praise[0]), col: praise[1], sub: praise[0] === 'record' ? t(this.record.k, this.record.v) : '', a, sc };
   }
 
   drawProgress(g) {
