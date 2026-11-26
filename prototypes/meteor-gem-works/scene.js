@@ -101,6 +101,9 @@ export function createScene(canvas, cfg, random) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.info.autoReset = false;
+  // a shader that fails to build on some phone must not take the meteor with it: log it and fall back (see update)
+  let shaderFail = 0;
+  renderer.debug.onShaderError = (gl, prog, vs, fs) => { shaderFail++; console.warn('shader build failed', gl.getProgramInfoLog(prog), gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs)); };
   const scene = new THREE.Scene(), keep = [];
   const K = (o) => { keep.push(o); return o; };
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 9 / 16, 1, 160);
@@ -200,18 +203,24 @@ export function createScene(canvas, cfg, random) {
     meteorGeo.setAttribute('color', new THREE.BufferAttribute(colA, 3)); meteorGeo.setAttribute('aVein', new THREE.BufferAttribute(vein, 1));
   }
   const cutData = new Uint8Array(CUT_W * CUT_H * 4);
-  const cutTex = K(new THREE.DataTexture(cutData, CUT_W, CUT_H, THREE.RGBAFormat)); cutTex.wrapS = THREE.RepeatWrapping; cutTex.magFilter = cutTex.minFilter = THREE.LinearFilter; cutTex.needsUpdate = true;
-  const meteorU = { cutMap: { value: cutTex }, maxD: { value: cfg.mining.maxD }, uGlow: { value: 1 }, uPulse: { value: 0 }, uFlash: { value: new THREE.Vector4(0, 0, 0, 0) } };
+  // the cut depth rides on a vertex attribute filled on the CPU (no texture reads in the vertex shader: some phone
+  // GPUs drop the whole meteor when a vertex shader samples a texture)
+  const muv = meteorGeo.attributes.uv, NV = muv.count, aCut = new Float32Array(NV);
+  meteorGeo.setAttribute('aCut', new THREE.BufferAttribute(aCut, 1).setUsage(THREE.DynamicDrawUsage));
+  const cutTexel = (x, y) => cutData[(Math.min(CUT_H - 1, Math.max(0, y)) * CUT_W + ((x % CUT_W) + CUT_W) % CUT_W) * 4];
+  /** Bilinear cut depth (0..1) at uv, wrapping around the meteor in u. */
+  const cutSample = (u, v) => { const x = u * CUT_W - 0.5, y = v * CUT_H - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0; return ((cutTexel(x0, y0) * (1 - fx) + cutTexel(x0 + 1, y0) * fx) * (1 - fy) + (cutTexel(x0, y0 + 1) * (1 - fx) + cutTexel(x0 + 1, y0 + 1) * fx) * fy) / 255; };
+  const meteorU = { maxD: { value: cfg.mining.maxD }, uGlow: { value: 1 }, uPulse: { value: 0 }, uFlash: { value: new THREE.Vector4(0, 0, 0, 0) } };
   const meteorMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.05, emissive: 0xffffff }));
   meteorMat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, meteorU);
-    s.vertexShader = 'attribute float aVein; uniform sampler2D cutMap; uniform float maxD; varying float vCut; varying float vVein; varying vec3 vObj;\n' + s.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\nfloat cut = texture2D(cutMap, uv).r; transformed -= normalize(objectNormal) * cut * maxD; vCut = cut; vVein = aVein; vObj = position;');
+    s.vertexShader = 'attribute float aVein; attribute float aCut; uniform float maxD; varying float vCut; varying float vVein; varying vec3 vObj;\n' + s.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\nfloat cut = aCut; transformed -= normalize(objectNormal) * cut * maxD; vCut = cut; vVein = aVein; vObj = position;');
     s.fragmentShader = 'uniform float uGlow; uniform float uPulse; uniform vec4 uFlash; varying float vCut; varying float vVein; varying vec3 vObj;\n' + s.fragmentShader
-      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat cr = max(smoothstep(0.04, 0.35, vCut), vVein * 0.85); float hue = sin(vObj.x * 1.7 + vObj.y * 2.3) * 0.5 + 0.5; vec3 crys = mix(' + (FROST ? 'vec3(0.18, 0.62, 0.98), vec3(0.5, 0.3, 0.95)' : 'vec3(0.82, 0.12, 0.62), vec3(0.12, 0.62, 0.95)') + ', hue); diffuseColor.rgb = mix(diffuseColor.rgb, crys * 0.35, cr);')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fl = uFlash.w * exp(-dot(vObj - uFlash.xyz, vObj - uFlash.xyz) * 0.8); float facet = 0.55 + 0.45 * abs(sin(dot(floor(vObj * 2.6), vec3(12.9898, 78.233, 37.719))));\ntotalEmissiveRadiance = crys * (cr * (0.24 + 0.1 * uPulse) * facet + fl) * uGlow;');
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat cr = clamp(max(smoothstep(0.04, 0.35, vCut), vVein * 0.85), 0.0, 1.0); float hue = sin(vObj.x * 1.7 + vObj.y * 2.3) * 0.5 + 0.5; vec3 crys = mix(' + (FROST ? 'vec3(0.18, 0.62, 0.98), vec3(0.5, 0.3, 0.95)' : 'vec3(0.82, 0.12, 0.62), vec3(0.12, 0.62, 0.95)') + ', hue); diffuseColor.rgb = mix(diffuseColor.rgb, crys * 0.35, cr);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fl = uFlash.w * exp(-dot(vObj - uFlash.xyz, vObj - uFlash.xyz) * 0.8); float facet = 0.55 + 0.45 * abs(sin(dot(floor(vObj * 2.6), vec3(12.9898, 78.233, 37.719))));\ntotalEmissiveRadiance = min(crys * (cr * (0.24 + 0.1 * uPulse) * facet + fl) * uGlow, vec3(8.0));');
   };
-  const meteor = mesh(meteorGeo, meteorMat); meteor.position.set(W.meteor.x, W.meteor.y, W.meteor.z); meteor.rotation.y = 0;
+  const meteor = mesh(meteorGeo, meteorMat); meteor.position.set(W.meteor.x, W.meteor.y, W.meteor.z); meteor.rotation.y = 0; meteor.frustumCulled = false; // the star of the screen: never culled by a stale bound
   const crater = smesh(M.buildCrater(MR), mat, false); crater.position.set(W.meteor.x, 0, W.meteor.z); crater.scale.set(1, 1, 0.72); // flattened toward the deck so its rim stops at the boards
   /** World point (and outward normal) on the meteor's surface at lon/lat (lon 0 faces the deck), cut depth d in m. */
   const surf = (lon, lat, d = 0, out = new THREE.Vector3()) => {
@@ -228,7 +237,9 @@ export function createScene(canvas, cfg, random) {
         const i = (y * CUT_W + x) * 4; cutData[i] = Math.min(255, cutData[i] + f * k * 255); cutData[i + 1] = cutData[i]; cutData[i + 2] = cutData[i];
       }
     }
-    cutTex.needsUpdate = true;
+    const vlo = v0 - rv * 1.6 - 1 / CUT_H, vhi = v0 + rv * 1.6 + 1 / CUT_H, uw = ru * 1.6 + 1 / CUT_W;
+    for (let i = 0; i < NV; i++) { const v = muv.getY(i); if (v < vlo || v > vhi) continue; const u = muv.getX(i); let du = u - u0; du -= Math.round(du); if (Math.abs(du) <= uw) aCut[i] = cutSample(u, v); }
+    meteorGeo.attributes.aCut.needsUpdate = true;
   }
   const cutAt = (lon, lat) => { const x = Math.floor((((0.25 + lon / (Math.PI * 2)) % 1 + 1) % 1) * CUT_W), y = Math.max(0, Math.min(CUT_H - 1, Math.floor((0.5 + lat / Math.PI) * CUT_H))); return cutData[(y * CUT_W + x) * 4] / 255; };
   // a few crystal clusters stuck in the meteor and around the rim (gem material, instanced)
@@ -526,6 +537,66 @@ export function createScene(canvas, cfg, random) {
   arrow.castShadow = true; scene.add(arrow);
   const guideRing = new THREE.Mesh(K(new THREE.RingGeometry(0.55, 0.72, 40).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.6, depthWrite: false })));
   guideRing.renderOrder = 3; scene.add(guideRing);
+  // ---- station badges: a round icon over every working stop says what it is for (pickaxe = mine here, rock = pick
+  // up chunks, rock to gem = polish, gem = pick up gems, stand = sell, coins = collect); the guide's target gets a big
+  // bouncing one. One atlas texture, one instanced draw, always on top. A trail of chevrons on the floor leads there.
+  const ICONS = ['pick', 'rock', 'polish', 'gem', 'stand', 'cash', 'crate', 'egg', FROST ? 'globe' : 'ring', 'cart', 'heart', 'cable'], IC = 4;
+  const iconOf = (w) => { if (w === 'mine') return 0; if (w === 'pile') return 1; if (pols.some((p) => p.d.id === w)) return 2; if (w === 'counter') return 3; if (stands.some((q) => q.d.id === w)) return 4; return { cash: 5, crate: 6, egg: 7, workshop: 8, cart: 9, order: 10, travel: 11 }[w] ?? -1; };
+  const badgeTex = K(canvasTex(512, 512, (g, s) => {
+    const c = s / IC, gem = (x, y, r, a = '#d8279f', b = '#ff9ae8') => { g.fillStyle = a; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r * 0.85, y - r * 0.25); g.lineTo(x, y + r); g.lineTo(x - r * 0.85, y - r * 0.25); g.closePath(); g.fill(); g.fillStyle = b; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r * 0.35, y - r * 0.25); g.lineTo(x, y + r * 0.3); g.lineTo(x - r * 0.35, y - r * 0.25); g.closePath(); g.fill(); };
+    const rock = (x, y, r) => { g.fillStyle = '#6a5060'; g.beginPath(); for (let k = 0; k < 7; k++) { const a = k / 7 * 6.28, rr = r * (0.8 + (k % 2) * 0.2); g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.85); } g.closePath(); g.fill(); gem(x + r * 0.15, y - r * 0.1, r * 0.45, '#1fb8e0', '#9ae8ff'); };
+    const coin = (x, y, r) => { g.fillStyle = '#e8a82a'; g.beginPath(); g.arc(x, y, r, 0, 6.3); g.fill(); g.fillStyle = '#ffd35a'; g.beginPath(); g.arc(x, y, r * 0.72, 0, 6.3); g.fill(); g.fillStyle = '#c98a2a'; g.font = `900 ${r}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', x, y + r * 0.06); };
+    ICONS.forEach((id, i) => {
+      const x = (i % IC) * c + c / 2, y = Math.floor(i / IC) * c + c / 2;
+      g.fillStyle = '#3a2418'; g.beginPath(); g.arc(x, y, c * 0.47, 0, 6.3); g.fill();
+      g.fillStyle = '#efe2c8'; g.beginPath(); g.arc(x, y, c * 0.41, 0, 6.3); g.fill();
+      g.save(); g.translate(x, y); g.lineCap = g.lineJoin = 'round';
+      if (id === 'pick') { g.rotate(-0.6); g.fillStyle = '#8a5a34'; g.fillRect(-5, -6, 10, 46); g.strokeStyle = '#5a6070'; g.lineWidth = 11; g.beginPath(); g.moveTo(-34, -6); g.quadraticCurveTo(0, -30, 34, -6); g.stroke(); }
+      else if (id === 'rock') { rock(-12, 8, 22); rock(16, 12, 17); rock(2, -14, 18); }
+      else if (id === 'polish') { rock(-22, 4, 18); g.fillStyle = '#3a2418'; g.beginPath(); g.moveTo(-4, -6); g.lineTo(6, 4); g.lineTo(-4, 14); g.closePath(); g.fill(); gem(24, 4, 20); }
+      else if (id === 'gem') { gem(0, 0, 34); }
+      else if (id === 'stand') { gem(-14, -4, 22); coin(18, 14, 16); }
+      else if (id === 'cash' || id === 'crate') { coin(-12, 10, 20); coin(12, 4, 20); coin(0, -14, 20); }
+      else if (id === 'egg') { g.fillStyle = '#ffd0ea'; g.beginPath(); g.ellipse(0, 4, 26, 34, 0, 0, 6.3); g.fill(); g.fillStyle = '#e04cc0'; for (const [a, b] of [[-8, -8], [10, 6], [-6, 18]]) { g.beginPath(); g.arc(a, b, 6, 0, 6.3); g.fill(); } }
+      else if (id === 'heart') { g.scale(0.62, 0.62); drawIcon(g, 'heart', '#e8457f', '#efe2c8'); }
+      else { g.scale(0.62, 0.62); drawIcon(g, id, '#2a7f78', '#efe2c8'); }
+      g.restore();
+    });
+  }));
+  const badgeStops = [['mine', W.mine.x, W.mine.z, 2.6], ['pile', W.pile.x, W.pile.z, 2.0], ...pols.map((p) => [p.d.id, p.d.x, p.d.z, 2.6, p.d.pad]), ['counter', W.counter.x, W.counter.z, 2.2],
+    ...stands.map((q) => [q.d.id, q.d.x, q.d.z, 3.4, q.d.pad]), ['cash', W.cash.x, W.cash.z, 1.6], ['workshop', WS.x, WS.z, 3.5, 'workshop']];
+  const NB = badgeStops.length + 1, badgeGeo = K(new THREE.PlaneGeometry(1, 1));
+  const bCell = new THREE.InstancedBufferAttribute(new Float32Array(NB), 1), bK = new THREE.InstancedBufferAttribute(new Float32Array(NB * 2), 2).setUsage(THREE.DynamicDrawUsage);
+  badgeGeo.setAttribute('aCell', bCell); badgeGeo.setAttribute('aK', bK);
+  badgeStops.forEach((b, i) => { bCell.setX(i, iconOf(b[0])); });
+  const badges = new THREE.InstancedMesh(badgeGeo, K(new THREE.ShaderMaterial({
+    uniforms: { map: { value: badgeTex }, uN: { value: IC } }, transparent: true, depthTest: false, depthWrite: false,
+    vertexShader: 'attribute float aCell; attribute vec2 aK; uniform float uN; varying vec2 vUv; varying float vA; void main(){ vec4 c = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); c.xy += position.xy * aK.x; gl_Position = projectionMatrix * c; float col = mod(aCell, uN), row = floor(aCell / uN); vUv = vec2((col + uv.x) / uN, 1.0 - (row + 1.0 - uv.y) / uN); vA = aK.y; }',
+    fragmentShader: 'uniform sampler2D map; varying vec2 vUv; varying float vA; void main(){ vec4 t = texture2D(map, vUv); if (t.a * vA < 0.02) discard; gl_FragColor = vec4(t.rgb, t.a * vA);\n#include <colorspace_fragment>\n}',
+  })), NB);
+  badges.frustumCulled = false; badges.renderOrder = 9; badges.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(badges);
+  const trailShape = new THREE.Shape(); trailShape.moveTo(-0.22, -0.12); trailShape.lineTo(0, 0.14); trailShape.lineTo(0.22, -0.12); trailShape.lineTo(0.22, 0.02); trailShape.lineTo(0, 0.28); trailShape.lineTo(-0.22, 0.02); trailShape.closePath();
+  const TRAIL = 16, trail = new THREE.InstancedMesh(K(new THREE.ShapeGeometry(trailShape).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xffc94a, transparent: true, opacity: 0.85, depthWrite: false })), TRAIL);
+  trail.renderOrder = 3; trail.frustumCulled = false; trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trail.count = 0; scene.add(trail);
+  /** Station badges (built stops, small) and the target's big bouncing badge, plus the floor trail from the hero to it. */
+  function drawBadges(S, g, top) {
+    const tgt = g && !g.wait ? g.what : null;
+    badgeStops.forEach(([key, x, z, h, padId], i) => {
+      const on = (!padId || S.pads.some((p) => p.id === padId && p.done)) && key !== tgt;
+      badges.setMatrixAt(i, _m.makeTranslation(x, h + 0.75, z)); bK.setXY(i, on ? 1.35 : 0, 0.85);
+    });
+    const ti = NB - 1, cell = tgt ? iconOf(tgt) : -1;
+    if (cell >= 0 && top) { const b = Math.abs(Math.sin(tAll * 3.2)); bCell.setX(ti, cell); bCell.needsUpdate = true; badges.setMatrixAt(ti, _m.makeTranslation(top[0], top[2] + 2.3 + b * 0.35, top[1])); bK.setXY(ti, 2.5 + Math.sin(tAll * 6) * 0.08, 1); }
+    else bK.setXY(ti, 0, 0);
+    badges.instanceMatrix.needsUpdate = true; bK.needsUpdate = true;
+    // the trail: chevrons flowing from the hero to the target spot (hidden when close)
+    let n = 0;
+    if (g && !g.wait) {
+      const dx = g.x - heroPos.x, dz = g.z - heroPos.z, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz), step = 0.75, off = (tAll * 1.6) % step;
+      for (let d = 0.9 + off; d < L - 0.8 && n < TRAIL; d += step) { const k = Math.min(1, (d - 0.9) / 0.6, (L - 0.8 - d) / 0.6); trail.setMatrixAt(n++, _m.compose(_p.set(heroPos.x + dx / L * d, 0.2, heroPos.z + dz / L * d), _q.setFromEuler(_e.set(0, ry, 0)), _s.setScalar(Math.max(0.05, k)))); }
+    }
+    trail.count = n; trail.instanceMatrix.needsUpdate = true;
+  }
 
   // ---- tumbleweeds rolling across the sand now and then
   const twGeo = K(FROST ? M.buildSnowball() : M.buildTumbleweed()), weeds = [0, 1].map((i) => { const m = new THREE.Mesh(twGeo, mat); m.castShadow = true; scene.add(m); return { m, t: i * 9, z: i ? 12.5 : -2.6, dir: i ? -1 : 1 }; });
@@ -739,8 +810,9 @@ export function createScene(canvas, cfg, random) {
   }
 
   // ---- quality tiers
-  let tier = -1, rs = 1;
-  const ratio = () => Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[tier]) * rs;
+  let tier = -1, rs = 1, cssW = 360, cssH = 640;
+  // pixel ratio: device, tier cap, and a pixel budget per tier (a big tablet or desktop window must not shade 4M pixels)
+  const ratio = () => Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[tier], Math.sqrt(cfg.quality.maxPx[tier] / Math.max(1, cssW * cssH))) * rs;
   function setTier(t) {
     t = Math.max(0, Math.min(cfg.quality.dpr.length - 1, t)); if (t === tier) return; tier = t;
     renderer.setPixelRatio(ratio());
@@ -752,7 +824,7 @@ export function createScene(canvas, cfg, random) {
     postSync();
   }
   function setScale(s) { if (s === rs) return; rs = s; renderer.setPixelRatio(ratio()); postSync(); }
-  function resize(w, h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); glowPts.m.uniforms.scale.value = dustPts.m.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; if (snowfall) snowfall.material.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; postSync(); }
+  function resize(w, h) { cssW = w; cssH = h; if (tier >= 0) renderer.setPixelRatio(ratio()); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); glowPts.m.uniforms.scale.value = dustPts.m.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; if (snowfall) snowfall.material.uniforms.scale.value = h * renderer.getPixelRatio() * 0.9; postSync(); }
 
   // ---- glow (bloom) and grade on tiers >= look.postTier half-float scene target, bright
   // pass, blur at 1/4 and 1/8, then tone mapping + sRGB + warmth/saturation/contrast/vignette to the canvas
@@ -889,6 +961,8 @@ export function createScene(canvas, cfg, random) {
   /** Draws the state S (logic.js) for this frame; dt in seconds; g is the guide target ({ x, z } or null). */
   function update(S, dt, g) {
     tAll += dt;
+    // A GPU that rejects the carved-rock shader still gets a visible meteor.
+    if (shaderFail && !meteor.userData.safe) { meteor.material = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 })); meteor.userData.safe = true; }
     for (const k of KINDS) itemN[k] = 0;
     const h = S.hero, sp = Math.hypot(h.vx, h.vz);
     // hero
@@ -1080,7 +1154,8 @@ export function createScene(canvas, cfg, random) {
       arrow.position.set(lerp(arrow.position.x, ax, Math.min(1, dt * 10)), top + 0.5 + b * 0.45, lerp(arrow.position.z, az, Math.min(1, dt * 10)));
       arrow.rotation.set(0, tAll * 2.2, 0); arrow.scale.set(1 + (1 - b) * 0.1, 0.9 + b * 0.15, 1);
       guideRing.position.set(tx, 0.2, tz); guideRing.scale.setScalar(1 + Math.sin(tAll * 5) * 0.12); guideRing.material.opacity = g.wait ? 0.25 : 0.55;
-    } else arrow.visible = guideRing.visible = false;
+      drawBadges(S, g, [ax, az, top]);
+    } else { arrow.visible = guideRing.visible = false; drawBadges(S, null, null); }
     drawMarks(S, g);
     // glint
     if (glintState.on || glintState.out > 0) {
@@ -1250,7 +1325,8 @@ export function createScene(canvas, cfg, random) {
     snap(S) { cam.x = S.hero.x * 0.25; cam.z = Math.max(cfg.camera.zMin, Math.min(6, lerp(cfg.camera.zMid, S.hero.z, cfg.camera.lean))); },
     /** Live GPU textures and draw calls of the last frame. */
     stats() { return { textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }; },
-    prewarm() { try { renderer.compile(scene, camera); } catch (e) { /* drivers without compile build shaders on first draw */ } },
+    /** Builds every shader before the first draw; resolves when the GPU has them (in parallel where the driver can). */
+    prewarm() { try { return renderer.compileAsync(scene, camera).catch(() => {}); } catch (e) { return Promise.resolve(); /* drivers without compile build shaders on first draw */ } },
     dispose() {
       for (const o of keep) if (o && o.dispose) o.dispose();
       postFree(); scene.traverse((o) => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh && o.geometry) o.geometry.dispose(); });

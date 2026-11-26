@@ -386,7 +386,7 @@
   "critter": {
     "follow": 1.4,
     "spring": 7,
-    "show": 12
+    "show": 6
   },
   "guide": {
     "cashMin": 6
@@ -492,19 +492,22 @@
       1024,
       2048
     ],
-    "crowd": [
-      18,
-      27,
-      36,
-      36
-    ],
-    "dropMs": 23.8,
-    "start": 2,
+    "crowd": [10, 16, 24, 30],
+    "dropMs": 19,
+    "warmMs": 2500,
+    "start": 1,
     "resMin": 0.7,
     "resStep": 0.1,
     "upMs": 15,
     "upAfter": 8,
-    "window": 2
+    "window": 2,
+    "max": 2,
+    "maxPx": [
+      450000,
+      700000,
+      950000,
+      1300000
+    ]
   },
   "look": {
     "postTier": 2,

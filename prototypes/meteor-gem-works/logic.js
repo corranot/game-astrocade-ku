@@ -589,7 +589,7 @@ export function adaptQuality(q, s, ms, win) {
     if (n.okT >= q.upAfter) {
       n.okT = 0;
       if (n.rs < 1) n.rs = Math.min(1, stepv(n.rs, q.resStep));
-      else if (n.tier < q.start && (n.fails[n.tier + 1] || 0) < 2) { n.tier++; n.rs = q.resMin; }
+      else if (n.tier < (q.max ?? q.start) && (n.fails[n.tier + 1] || 0) < 2) { n.tier++; n.rs = q.resMin; }
     }
   } else n.okT = 0;
   return n;

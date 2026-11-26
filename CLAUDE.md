@@ -170,6 +170,14 @@ full plan unless they add a new game mode or rework the game.
   each game gets recommended to large traffic. The playbook is
   `docs/astrocade-distribution-playbook.md`; read it before every concept,
   build, update and publish, and refresh it after each new backend dig.
+- **Very fast first load (every game).** A game's initial load must be very
+  fast: aim for a playable first frame within about 2 seconds on a mid-range
+  phone over 4G. Load only what the first frame needs (minified libraries,
+  no unminified builds pulled in by a module's own imports, module preloads
+  to flatten import waterfalls), defer non-critical models, audio and effects
+  until after the first frame, and avoid long blocking shader compiles
+  before the first picture. Measure load time on a throttled phone profile
+  and report it with every build.
 - **Modular meta-prompts between coordinator and threads.** Every message from
   the coordinator to a thread is a modular meta-prompt with labeled sections:
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
