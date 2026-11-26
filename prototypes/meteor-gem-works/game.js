@@ -95,8 +95,8 @@ function loadFonts() {
 const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
-  <div id="cash" class="chip cash"><i class="coin" aria-hidden="true"></i><b id="cashN" class="out">0</b></div>
-  <div id="next" class="next" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><span class="bar"><i></i></span><b class="out"></b></div>
+  <div class="top"><div id="cash" class="chip cash"><i class="coin" aria-hidden="true"></i><b id="cashN" class="out">0</b></div>
+  <div id="next" class="next" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><span class="bar"><i></i></span><b class="out"></b></div></div>
   <div id="bubble" class="bubble" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><em>&#9829;</em></div>
   <div id="edge" class="edge" hidden><i aria-hidden="true"></i></div>
   <div id="tap" class="tap" hidden><i aria-hidden="true"></i><b class="out"></b></div>
@@ -159,9 +159,12 @@ export function run(mode = 'play') {
   const leftAt = { desert: 0, frost: 0 };
 
   // ---- layout: --u is the design scale (1 at 720 x 1280)
+  let hudB = 0.17, uH = 1 / 1280; // bottom of the HUD's button column (screen fraction), and one design unit as a height fraction
   function layout() {
     const r = root.getBoundingClientRect(); root.style.setProperty('--u', Math.min(r.height / 1280, r.width / 720).toFixed(4)); // tall phones fill the screen; the HUD keeps its 720-wide design
     scene.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height)));
+    const ab = $('albumB').getBoundingClientRect(), u = Math.min(r.height / 1280, r.width / 720);
+    hudB = r.height > 0 && ab.height > 0 ? (ab.bottom - r.top + 16 * u) / r.height : 0.17; uH = r.height > 0 ? u / r.height : 1 / 1280;
   }
   layout();
   const ro = new ResizeObserver(layout); ro.observe(root);
@@ -555,7 +558,7 @@ export function run(mode = 'play') {
     const bu = $('bubble');
     if (S.order) {
       if (bubbleKind !== S.order.kind) { bubbleKind = S.order.kind; paintItem(bu.querySelector('canvas'), bubbleKind); bu.hidden = true; }
-      const [x, y] = proj(cfg.world.order.x, 2.9, cfg.world.order.z); bu.hidden = false; bu.style.left = x + '%'; bu.style.top = y + '%';
+      const [x, y] = proj(cfg.world.order.x, 2.9, cfg.world.order.z); bu.hidden = false; bu.style.left = x + '%'; bu.style.top = Math.max(y, (hudB + 96 * uH) * 100) + '%'; // never under the HUD
     } else { bu.hidden = true; bubbleKind = null; }
     // first glint: a tapping finger over the sparkle until the first Perfect Strike
     const tp = $('tap'), gl = scene.glint;
@@ -596,7 +599,7 @@ export function run(mode = 'play') {
   function edgePointer() {
     const el = $('edge'), g = lastGuide;
     if (!g || g.wait || phase !== 'play') { el.hidden = true; return; }
-    const [x, y, z] = scene.toScreen(g.x, 0.5, g.z), M = 0.09, T = 0.15, B = 0.86;
+    const [x, y, z] = scene.toScreen(g.x, 0.5, g.z), M = 0.09, T = Math.max(0.15, hudB + 42 * uH), B = 0.86; // the arrow (84 high) stays below the HUD
     if (z < 1 && x > M && x < 1 - M && y > T && y < B) { el.hidden = true; return; }
     // from the screen centre toward the target (flipped when it is behind the camera), stopped at the safe frame
     let dx = (x - 0.5) * (z < 1 ? 1 : -1), dy = (y - 0.5) * (z < 1 ? 1 : -1); const k = Math.min(Math.abs((0.5 - M) / (dx || 1e-6)), Math.abs(((dy > 0 ? B : T) - 0.5) / (dy || 1e-6)));

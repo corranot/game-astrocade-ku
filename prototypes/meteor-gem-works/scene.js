@@ -614,7 +614,7 @@ export function createScene(canvas, cfg, random) {
   const arrow = new THREE.Mesh(K(new THREE.ExtrudeGeometry(arrowShape, { depth: 0.16, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 }).translate(0, 0, -0.08)), arrowMat);
   arrow.castShadow = true; scene.add(arrow);
   const guideRing = new THREE.Mesh(K(new THREE.RingGeometry(0.55, 0.72, 40).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.6, depthWrite: false })));
-  guideRing.renderOrder = 3; scene.add(guideRing);
+  guideRing.renderOrder = 3; scene.add(guideRing); let guideSide = 0;
   // ---- station badges: a round icon over every working stop says what it is for (pickaxe = mine here, rock = pick
   // up chunks, rock to gem = polish, gem = pick up gems, stand = sell, coins = collect); the guide's target gets a big
   // bouncing one. One atlas texture, one instanced draw, always on top. A trail of chevrons on the floor leads there.
@@ -1248,7 +1248,13 @@ export function createScene(canvas, cfg, random) {
     blobs.count = bn; blobs.instanceMatrix.needsUpdate = true;
     // guide arrow and ring
     if (g) {
-      const tx = g.x, tz = g.z, b = Math.abs(Math.sin(tAll * 3.2)), [ax, az, top] = anchor(g);
+      const tx = g.x, tz = g.z, b = Math.abs(Math.sin(tAll * 3.2)), [ax0, az, top] = anchor(g);
+      // with the hero close to the stop the badge and arrow would cover them, so they slide to the side away from the hero
+      // (measured on screen at the unmoved spot, so the slide never feeds back into itself)
+      const [hx, hy] = toScreen(S.hero.x, 1, S.hero.z), [bx, by] = toScreen(ax0, top + 2.3, az), side = hx > bx ? -1 : 1;
+      const cover = hy > by - 0.04 && hy < by + LK.guideNear ? Math.max(0, 1 - Math.abs(hx - bx) / 0.14) : 0;
+      guideSide = lerp(guideSide, Math.min(1, cover * 2) * LK.guideSide * side, Math.min(1, dt * 6));
+      const ax = ax0 + guideSide;
       arrow.visible = guideRing.visible = true;
       arrow.position.set(lerp(arrow.position.x, ax, Math.min(1, dt * 10)), top + 0.5 + b * 0.45, lerp(arrow.position.z, az, Math.min(1, dt * 10)));
       arrow.rotation.set(0, tAll * 2.2, 0); arrow.scale.set(1 + (1 - b) * 0.1, 0.9 + b * 0.15, 1);

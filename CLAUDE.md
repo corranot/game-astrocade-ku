@@ -184,6 +184,17 @@ full plan unless they add a new game mode or rework the game.
   saves key phone-portrait screenshots (JPG) of its work to the shared project
   files and to the repo, names them in its report, and waits for the
   coordinator's visual review and fixes.
+- **HUD laid out on a precise grid.** Every game's HUD UI/UX is neatly structured,
+  with precise positions relative to each other: one spacing grid (8 px), equal
+  safe-area margins, one shared height for pills and buttons, aligned centres,
+  equal gaps, consistent icon and number sizes, button columns on the same
+  margin, and world bubbles or pointers never under the HUD. Check it on small,
+  mid and large phones and a tablet.
+- **Work effectively and efficiently.** Give all review feedback for a round in one
+  batch. Each round runs only the quick checks (unit tests, CI checks, the feed
+  bundle test, a short smoke run and screenshots). Run the full playtest only
+  before a publish or when a change touches gameplay pacing. Run independent
+  steps in parallel.
 - **Modular meta-prompts between coordinator and threads.** Every message from
   the coordinator to a thread is a modular meta-prompt with labeled sections:
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
