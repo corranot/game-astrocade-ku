@@ -11,3 +11,6 @@ Sweep of every screen at 360x640, 390x844, 412x915 and 768x1024 (en) plus 390x84
 - Menu bottom row on the 8 px grid: 32 px margins, 16 px gaps, one 88 px height.
 - Settings ON/OFF text fits inside the switch in every language.
 - Today's picture result: shows today's collected scene with a gold frame and a tick instead of a dark "?" square; icon and text centred as one group.
+
+## Follow-up: sticker counter pill (in-level HUD)
+The "1/2" sticker pill sat on the card's top-right border under the star pill. It now lives in the free bottom HUD row beside the hint bulb: same 156x84 pill as the star pill, same right edge (x 540-696), centred on the bulb's line. See `hud-sticker-pill/` (top row before, bottom row after).

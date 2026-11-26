@@ -288,11 +288,12 @@ export function drawHud(g, lv, time, info, go) {
   pill(g, 540, 40, 156, 84);
   const now = lv.fixed ? lv.stars : lv.starsNow();
   for (let i = 0; i < 3; i++) drawStar(g, 580 + i * 40, 82, 17, i < now);
-  // sticker counter of this level under the star pill (levels with wrong-rub gags): found / all, it pops when a new one is found
+  // sticker counter of this level (levels with wrong-rub gags): found / all, it pops when a new one is found.
+  // It sits in the free bottom HUD row beside the hint bulb: same 156x84 pill as the star pill, on the same right margin, centred on the bulb's line.
   const gl = GAGS[lv.n - 1];
   if (gl.length && !lv.fixed) {
     const gp = clamp((lv.t - lv.gagT) / 0.5), fnd = bits(info.gags[lv.n - 1]), sc = lv.reducedMotion ? 1 : 1 + (gp < 1 ? Math.sin(gp * Math.PI) * 0.35 : fnd === gl.length - 1 ? 0.08 + 0.08 * Math.sin(time * 7) : 0);
-    g.save(); g.translate(628, 158); g.scale(sc, sc); pill(g, -62, -24, 124, 48); sticker(g, -34, 0, 16, gl[0], fnd > 0); label(g, '\u202A' + fnd + ' / ' + gl.length + '\u202C', 18, 2, 28, INK, { stroke: 0 }); g.restore();
+    g.save(); g.translate(618, 1212); g.scale(sc, sc); pill(g, -78, -42, 156, 84); sticker(g, -38, 0, 24, gl[0], fnd > 0); label(g, '\u202A' + fnd + ' / ' + gl.length + '\u202C', 24, 2, 38, INK, { stroke: 0 }); g.restore();
   }
   const prompt = t(lv.def.prompt), fit = fitLines(g, prompt, 34, 560), ph = fit.lines.length > 1 ? 100 : 66;
   g.font = '900 ' + fit.size + 'px ' + FONT;
