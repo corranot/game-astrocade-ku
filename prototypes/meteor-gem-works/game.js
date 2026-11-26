@@ -95,6 +95,7 @@ function loadFonts() {
 const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
+  <div id="spot" class="spot"><i></i></div>
   <div class="top"><div id="cash" class="chip cash"><i class="coin" aria-hidden="true"></i><b id="cashN" class="out">0</b></div>
   <div id="next" class="next" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><span class="bar"><i></i></span><b class="out"></b></div></div>
   <div id="bubble" class="bubble" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><em>&#9829;</em></div>
@@ -104,6 +105,7 @@ const HTML = `
   <div id="carry" class="carry out" hidden></div>
   <div id="pops"></div>
   <div id="banner" class="banner" hidden><b class="bt out"></b><span class="bs out"></span></div>
+  <div id="coach" class="coach" hidden><canvas width="64" height="64" aria-hidden="true"></canvas><b class="out"></b><button id="ftSkip" class="skip" aria-label="skip"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 14l20 20M34 14L14 34"/></svg></button></div>
   <div id="hint" class="hint"><i class="hand" aria-hidden="true"></i><b class="out"></b></div>
   <div id="stick" class="stick" hidden><i></i></div>
   <div id="goal" class="goal" hidden><b class="gt out"></b><span class="gh"><i></i><i></i><i></i></span></div>
@@ -229,6 +231,7 @@ export function run(mode = 'play') {
   const polN = (id) => (S.pols.find((p) => p.id === id) || { polIn: 0 }).polIn, standN = (id) => (S.stands.find((p) => p.id === id) || { items: [] }).items.length;
   let coinK = 0;
   function onEvent(e) {
+    if (area === 'desert') ftDone |= L.ftueBit(cfg, e);
     const h = S.hero;
     switch (e.type) {
       case 'hit': {
@@ -339,15 +342,15 @@ export function run(mode = 'play') {
   function coinsTo(p, n) { for (let i = 0; i < Math.min(12, n); i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), 0.1 + i * 0.06, 2.4, () => Sound.coin(coinK++)); }
   let albumDot = false;
 
-  // ---- share at the big moments: a button shows for a few seconds; it sends a picture of the town and a brag line
+  // ---- share at the big moments: a button shows for a few seconds; it sends a brag line. No picture is passed,
+  // so the host's share card shows the game's current cover, and a new cover shows up there with no game update.
   const canShare = mode === 'play' && typeof lib !== 'undefined' && typeof lib.share === 'function';
   let shareT = 0;
   $('share').querySelector('b').textContent = T('share');
   function offerShare() { if (!canShare) return; shareT = cfg.share.show; const b = $('share'); b.hidden = false; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
   $('share').addEventListener('click', () => {
-    Sound.unlock(); let image;
-    try { draw(0); image = $('cv').toDataURL('image/jpeg', 0.85); } catch (e) { image = undefined; } // read right after drawing: the buffer is still there
-    Promise.resolve().then(() => lib.share({ image, title: T('title'), text: T('brag') })).catch(() => { /* host has no sheet: nothing to do */ });
+    Sound.unlock();
+    Promise.resolve().then(() => lib.share({ title: T('title'), text: T('brag') })).catch(() => { /* host has no sheet: nothing to do */ });
     shareT = 0; $('share').hidden = true;
   });
 
@@ -422,7 +425,7 @@ export function run(mode = 'play') {
   let phase = 'play', loaded = false, lastWrite = Promise.resolve(), saveT = 0, alive = true;
   function saveNow() {
     if (!canSave || !loaded || (phase !== 'play' && phase !== 'album')) return;
-    const snap = L.serialize(C1, S1); if (S2) snap.ch2 = L.serialize(C2, S2); snap.area = area; snap.seen = Date.now();
+    const snap = L.serialize(C1, S1); if (S2) snap.ch2 = L.serialize(C2, S2); snap.area = area; snap.seen = Date.now(); snap.ft = ftDone;
     lastWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => { /* host refused: try again on the next tick */ });
   }
   function readSave(tries = 0) {
@@ -431,6 +434,7 @@ export function run(mode = 'play') {
       if (!alive) return;
       loaded = true;
       const st = r && r.state;
+      ftDone |= L.ftueFromSave(st);
       if (st && typeof st === 'object' && st.v === cfg.save.version && (st.sold > 0 || (Array.isArray(st.pads) && st.pads.some((p) => p && p[1])))) offer(st);
     }).catch(() => { if (alive) setTimeout(() => readSave(tries + 1), Math.min(8000, 600 * (tries + 1))); });
   }
@@ -590,10 +594,39 @@ export function run(mode = 'play') {
       perfT = 0; perfN = 0; perfMs = 0;
     }
   }
-  let lastGuide = null;
+  let lastGuide = null, ftDone = 0, ftShown = null, ftW = 0, ftH = 0;
+  const FT_ALL = (1 << L.FTUE.length) - 1;
+  $('ftSkip').addEventListener('click', () => { Sound.unlock(); ftDone = FT_ALL; coach(); saveNow(); });
   function draw(dt) {
     const g = lastGuide = L.guide(cfg, S);
-    scene.update(S, dt, g); scene.render(); hud(dt); edgePointer();
+    scene.update(S, dt, g); scene.render(); hud(dt); edgePointer(); coach();
+  }
+  // ---- first-time tutorial: a soft spotlight on the next stop with its icon and a few words. It moves on when the
+  // player does the action there (never on a tap), skips what they already did, is saved, and can be skipped.
+  function coach() {
+    const sp = $('spot'), ch = $('coach'), g = lastGuide;
+    const st = mode === 'play' && !bot && phase === 'play' && area === 'desert' && ftDone !== FT_ALL ? L.ftueStep(cfg, S, g, ftDone) : null;
+    let on = false;
+    if (st) {
+      const [x, y, z] = scene.toScreen(g.x, 0.5, g.z), [x2, y2] = scene.toScreen(g.x + cfg.ftue.r, 0.5, g.z);
+      if (z < 1 && x > 0.04 && x < 0.96 && y > hudB && y < 0.9) {
+        on = true;
+        const W = root.clientWidth, H = root.clientHeight, u = H * uH, r = Math.max(cfg.ftue.rMin * u, Math.hypot((x2 - x) * W, (y2 - y) * H));
+        sp.style.setProperty('--x', x * W + 'px'); sp.style.setProperty('--y', y * H + 'px'); sp.style.setProperty('--r', r + 'px');
+        if (st !== ftShown) {
+          ftShown = st; ch.querySelector('b').textContent = T('ft_' + st);
+          const c = ch.querySelector('canvas').getContext('2d'), ic = scene.icon(g.what), pd = cfg.pads.find((q) => q.id === g.what); c.clearRect(0, 0, 64, 64);
+          if (ic) c.drawImage(ic[0], ic[1], ic[2], ic[3], ic[3], 0, 0, 64, 64); else if (pd) { c.save(); c.translate(32, 32); c.scale(0.5, 0.5); drawIcon(c, pd.icon, '#ffe6a8', '#2f6f69'); c.restore(); } // an unlock shows its own icon
+          ch.hidden = false; ftW = ch.offsetWidth; ftH = ch.offsetHeight;
+        }
+        // the hint sits under the spotlight, or over it near the bottom, never under the HUD
+        let top = y * H + r + 16 * u; if (top + ftH > 0.88 * H) top = y * H - r - 16 * u - ftH;
+        top = Math.max(top, hudB * H + 16 * u); const left = Math.min(W - ftW / 2 - 24 * u, Math.max(ftW / 2 + 24 * u, x * W));
+        ch.style.left = left + 'px'; ch.style.top = top + 'px';
+      }
+    }
+    if (!on) ftShown = null;
+    sp.classList.toggle('on', on); ch.hidden = !on;
   }
   /** In the wide town the next stop can be off screen: a gold arrow on the screen's edge points the way to it. */
   function edgePointer() {
@@ -601,9 +634,10 @@ export function run(mode = 'play') {
     if (!g || g.wait || phase !== 'play') { el.hidden = true; return; }
     const [x, y, z] = scene.toScreen(g.x, 0.5, g.z), M = 0.09, T = Math.max(0.15, hudB + 42 * uH), B = 0.86; // the arrow (84 high) stays below the HUD
     if (z < 1 && x > M && x < 1 - M && y > T && y < B) { el.hidden = true; return; }
-    // from the screen centre toward the target (flipped when it is behind the camera), stopped at the safe frame
-    let dx = (x - 0.5) * (z < 1 ? 1 : -1), dy = (y - 0.5) * (z < 1 ? 1 : -1); const k = Math.min(Math.abs((0.5 - M) / (dx || 1e-6)), Math.abs(((dy > 0 ? B : T) - 0.5) / (dy || 1e-6)));
-    el.hidden = false; el.style.left = (0.5 + dx * k) * 100 + '%'; el.style.top = (0.5 + dy * k) * 100 + '%'; el.style.setProperty('--a', Math.atan2(dy * 16, dx * 9) + 'rad');
+    // from the hero toward the target (flipped when it is behind the camera), stopped at the safe frame
+    const [hx, hy] = scene.toScreen(S.hero.x, 0.5, S.hero.z), f = z < 1 ? 1 : -1, ox = Math.min(1 - M, Math.max(M, hx)), oy = Math.min(B, Math.max(T, hy));
+    const dx = (x - hx) * f, dy = (y - hy) * f, k = Math.min(Math.abs(((dx > 0 ? 1 - M : M) - ox) / (dx || 1e-6)), Math.abs(((dy > 0 ? B : T) - oy) / (dy || 1e-6)));
+    el.hidden = false; el.style.left = (ox + dx * k) * 100 + '%'; el.style.top = (oy + dy * k) * 100 + '%'; el.style.setProperty('--a', Math.atan2(dy * 16, dx * 9) + 'rad');
   }
   $('tap').querySelector('b').textContent = T('tapGlint');
   { const g = $('ride').querySelector('canvas').getContext('2d'); g.translate(80, 64); g.scale(1.2, 1.2); drawIcon(g, 'cable', '#ffe6a8', '#3a5a9a'); }
@@ -619,7 +653,7 @@ export function run(mode = 'play') {
   const api = {
     destroy() { alive = false; saveNow(); document.removeEventListener('visibilitychange', onHide); cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
     debug: {
-      get S() { return S; }, get cfg() { return cfg; }, get scene() { return scene; }, L, get phase() { return phase; }, saveNow, get lastEvents() { return lastEvents; },
+      get S() { return S; }, get cfg() { return cfg; }, get scene() { return scene; }, L, get phase() { return phase; }, get ftDone() { return ftDone; }, get ftStep() { return ftShown; }, saveNow, get lastEvents() { return lastEvents; },
       /** Stops the real-time loop; frame(dt) then advances by hand (step-by-step viewing). */
       pause(p = true) { paused = p; last = performance.now(); },
       /** Runs sec seconds of game time (bot input when bot is true), drawing only the last frame. */

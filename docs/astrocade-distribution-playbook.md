@@ -234,7 +234,9 @@ duplicate.
 
 - `lib.share({image, title, description, text})` opens the host share sheet with our own image (SEEN,
   undocumented). The image can be a canvas; text is cut to 60/120/140 characters. At most 10 per minute,
-  only in play mode. Indonesia's share order is WhatsApp, Instagram, Telegram, Messenger, Twitter.
+  only in play mode. Without `image` (or when the host cannot upload it) the share card shows the game's
+  current `thumbnailUrl` at size "large" (SEEN in the `ShareDrawer` chunk, 2026-11-26). House rule: pass no
+  image, so the card always follows the owner's latest thumbnail. Indonesia's share order is WhatsApp, Instagram, Telegram, Messenger, Twitter.
 - Put a share button at the peak moment: a finished creation, a new best, a rare unlock. Share rates
   of top games: 24 to 39 per 1,000 plays. The feed median today is about 5 per 1,000.
 - Leaderboard modal: "Challenge your friends to beat your score!" with the score drawn into the

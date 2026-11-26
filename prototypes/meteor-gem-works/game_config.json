@@ -659,7 +659,14 @@
       "f_ghostLit": "A CHALET WAKES UP!",
       "f_districtDone": "THE VILLAGE IS AWAKE!",
       "f_finale": "THE FROST HEART!",
-      "f_comet": "A RED GLOW! CHAPTER 3 SOON"
+      "f_comet": "A RED GLOW! CHAPTER 3 SOON",
+      "ft_mine": "MINE HERE",
+      "ft_carry": "PICK UP",
+      "ft_polish": "POLISH",
+      "ft_sell": "SELL HERE",
+      "ft_cash": "GRAB COINS",
+      "ft_buy": "BUILD IT",
+      "ft_hatch": "HATCH IT"
     },
     "ar": {
       "drag": "اسحب للتحرك",
@@ -763,7 +770,14 @@
       "f_ghostLit": "كوخ يستيقظ!",
       "f_districtDone": "القرية استيقظت!",
       "f_finale": "قلب الصقيع!",
-      "f_comet": "وهج أحمر! الفصل 3 قريبًا"
+      "f_comet": "وهج أحمر! الفصل 3 قريبًا",
+      "ft_mine": "احفر هنا",
+      "ft_carry": "التقط",
+      "ft_polish": "لمّع",
+      "ft_sell": "بِع هنا",
+      "ft_cash": "اجمع العملات",
+      "ft_buy": "ابنِ هنا",
+      "ft_hatch": "افقس البيضة"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
@@ -867,7 +881,14 @@
       "f_ghostLit": "¡UNA CABAÑA DESPIERTA!",
       "f_districtDone": "¡EL PUEBLO DESPERTÓ!",
       "f_finale": "¡EL CORAZÓN DE HIELO!",
-      "f_comet": "¡UN BRILLO ROJO! CAPÍTULO 3 PRONTO"
+      "f_comet": "¡UN BRILLO ROJO! CAPÍTULO 3 PRONTO",
+      "ft_mine": "PICA AQUÍ",
+      "ft_carry": "RECOGE",
+      "ft_polish": "PULE",
+      "ft_sell": "VENDE AQUÍ",
+      "ft_cash": "TOMA MONEDAS",
+      "ft_buy": "CONSTRUYE",
+      "ft_hatch": "ABRE EL HUEVO"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
@@ -971,7 +992,14 @@
       "f_ghostLit": "MỘT NHÀ GỖ THỨC GIẤC!",
       "f_districtDone": "LÀNG ĐÃ THỨC DẬY!",
       "f_finale": "TRÁI TIM BĂNG!",
-      "f_comet": "ÁNH ĐỎ! CHƯƠNG 3 SẮP TỚI"
+      "f_comet": "ÁNH ĐỎ! CHƯƠNG 3 SẮP TỚI",
+      "ft_mine": "ĐÀO Ở ĐÂY",
+      "ft_carry": "NHẶT LÊN",
+      "ft_polish": "ĐÁNH BÓNG",
+      "ft_sell": "BÁN Ở ĐÂY",
+      "ft_cash": "NHẶT XU",
+      "ft_buy": "XÂY NÀO",
+      "ft_hatch": "ẤP TRỨNG"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
@@ -1075,7 +1103,14 @@
       "f_ghostLit": "एक कॉटेज जागा!",
       "f_districtDone": "गाँव जाग गया!",
       "f_finale": "बर्फ़ का दिल!",
-      "f_comet": "लाल चमक! अध्याय 3 जल्द"
+      "f_comet": "लाल चमक! अध्याय 3 जल्द",
+      "ft_mine": "यहाँ खोदो",
+      "ft_carry": "उठाओ",
+      "ft_polish": "चमकाओ",
+      "ft_sell": "यहाँ बेचो",
+      "ft_cash": "सिक्के लो",
+      "ft_buy": "बनाओ",
+      "ft_hatch": "अंडा फोड़ो"
     },
     "bn": {
       "drag": "চলতে টানো",
@@ -1179,7 +1214,14 @@
       "f_ghostLit": "একটা কুটির জেগেছে!",
       "f_districtDone": "গ্রাম জেগে উঠেছে!",
       "f_finale": "বরফের হৃদয়!",
-      "f_comet": "লাল আভা! অধ্যায় ৩ শিগগির"
+      "f_comet": "লাল আভা! অধ্যায় ৩ শিগগির",
+      "ft_mine": "এখানে খোঁড়ো",
+      "ft_carry": "তোলো",
+      "ft_polish": "ঝকঝকে করো",
+      "ft_sell": "এখানে বেচো",
+      "ft_cash": "কয়েন নাও",
+      "ft_buy": "বানাও",
+      "ft_hatch": "ডিম ফোটাও"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
@@ -1283,7 +1325,14 @@
       "f_ghostLit": "SEBUAH PONDOK BANGUN!",
       "f_districtDone": "DESA SUDAH BANGUN!",
       "f_finale": "JANTUNG ES!",
-      "f_comet": "CAHAYA MERAH! BAB 3 SEGERA"
+      "f_comet": "CAHAYA MERAH! BAB 3 SEGERA",
+      "ft_mine": "GALI DI SINI",
+      "ft_carry": "AMBIL",
+      "ft_polish": "GOSOK",
+      "ft_sell": "JUAL DI SINI",
+      "ft_cash": "AMBIL KOIN",
+      "ft_buy": "BANGUN",
+      "ft_hatch": "TETASKAN"
     }
   },
   "start": {
@@ -1856,5 +1905,9 @@
   "ride": {
     "swap": 0.7,
     "sec": 1.9
+  },
+  "ftue": {
+    "r": 1.9,
+    "rMin": 110
   }
 }
