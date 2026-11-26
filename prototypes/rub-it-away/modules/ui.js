@@ -377,7 +377,7 @@ export function drawResult(g, lv, time, go, info) {
       g.restore();
     }
     if (full && !lv.reducedMotion) { const sw = ((time * 0.6) % 1.6) - 0.3; g.save(); g.globalAlpha = 0.5; g.fillStyle = '#fff'; g.fillRect(fx0 + sw * (PER * (fw + fg)), ry - fw / 2, 10, fw); g.restore(); }
-    if (lv.worldDone && !lv.worldEnd) { const q = ease.back(clamp((s - 2.1) / 0.4)); if (q > 0) { g.save(); g.translate(rtl ? 92 : 628, ry); g.scale(0.32 * q, 0.32 * q); drawBulb(g, 0, 0, 0.9, true); label(g, '+1', 78, 4, 56, COL.orange, { lw: 12 }); g.restore(); } }
+    if (lv.worldDone && !lv.worldEnd && lv.worldHint > 0) { const q = ease.back(clamp((s - 2.1) / 0.4)); if (q > 0) { g.save(); g.translate(rtl ? 92 : 628, ry); g.scale(0.32 * q, 0.32 * q); drawBulb(g, 0, 0, 0.9, true); label(g, '+1', 78, 4, 56, COL.orange, { lw: 12 }); g.restore(); } }
   }
   // NEXT carries a peek at the next scene; once the card has settled it pulses a little stronger (a soft pull, never an automatic move)
   const pull = s > 1.6 + (info && info.pullAfter || 2.4) && !lv.reducedMotion ? 0.055 : 0.025;
@@ -449,8 +449,9 @@ function drawGift(g, lv, y0, time, go) {
   const k = clamp((lv.s - gf.t) / 1.6);
   if (k >= 1) return;
   g.save(); g.globalAlpha = 1 - k * k;
-  const msg = t('gift_got', { n: gf.n });
-  label(g, msg, clamp(x, 140, 580), y - 20 - k * 60, fitSize(g, msg, 40, 260), COL.orange, { lw: 10 });
+  // the label names what was really added: '+2 hints', '+1 hint', or 'Hints full!' when the bulb was already at its cap
+  const msg = gf.n >= 2 ? t('gift_got', { n: gf.n }) : gf.n === 1 ? t('gift_got1') : t('hints_full');
+  label(g, msg, clamp(x, 164, 556), y - 20 - k * 60, fitSize(g, msg, 40, 256), COL.orange, { lw: 10 });
   g.restore();
 }
 
