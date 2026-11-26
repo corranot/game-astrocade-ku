@@ -15,7 +15,8 @@ export function pick(p) {
 }
 
 const EDGE = { green: COL.greenDk, blue: '#1f5f9c' };
-export function button(g, cx, cy, w, h, text, fn, time, size, pulse = 0.03, kind = 'green', deco = null) {
+// lead: room kept for an icon or picture on the reading-start side; the label centres in the space that is left
+export function button(g, cx, cy, w, h, text, fn, time, size, pulse = 0.03, kind = 'green', deco = null, lead = 0) {
   const edge = EDGE[kind];
   const p = 1 + Math.sin(time * 5) * pulse;
   tap(cx - w / 2, cy - h / 2, w, h, fn);
@@ -25,10 +26,20 @@ export function button(g, cx, cy, w, h, text, fn, time, size, pulse = 0.03, kind
   const gr = g.createLinearGradient(0, -h / 2, 0, h / 2); gr.addColorStop(0, '#4ad45c'); gr.addColorStop(1, '#27a53c');
   const gb = g.createLinearGradient(0, -h / 2, 0, h / 2); gb.addColorStop(0, '#4a9ee0'); gb.addColorStop(1, '#2f7fc4');
   fillStroke(g, kind === 'blue' ? gb : gr, 7);
-  label(g, text, 0, 2, fitSize(g, text, size || h * 0.48, w - 56), '#fff', { stroke: edge, lw: 9 });
+  label(g, text, (isRtl() ? -lead : lead) / 2, 2, fitSize(g, text, size || h * 0.48, w - 56 - lead), '#fff', { stroke: edge, lw: 9 });
   if (deco) deco(g, w, h);
   g.restore();
 }
+
+// share glyph: an arrow rising out of an open tray, white with the button's dark edge
+function shareIcon(g, x, y, s, edge) {
+  g.save(); g.translate(x, y); g.lineCap = 'round'; g.lineJoin = 'round';
+  const path = () => { g.beginPath(); g.moveTo(-s * 0.5, -s * 0.05); g.lineTo(-s * 0.5, s * 0.5); g.lineTo(s * 0.5, s * 0.5); g.lineTo(s * 0.5, -s * 0.05); g.moveTo(0, s * 0.18); g.lineTo(0, -s * 0.55); g.moveTo(-s * 0.3, -s * 0.28); g.lineTo(0, -s * 0.58); g.lineTo(s * 0.3, -s * 0.28); };
+  path(); g.lineWidth = s * 0.34; g.strokeStyle = edge; g.stroke();
+  path(); g.lineWidth = s * 0.16; g.strokeStyle = '#fff'; g.stroke();
+  g.restore();
+}
+export const shareDeco = (gg, w) => shareIcon(gg, isRtl() ? w / 2 - 44 : -w / 2 + 44, 2, 40, EDGE.blue);
 
 const worldOf = (bg) => ['kitchen', 'pond', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow', 'candy'].find((w) => bg.indexOf(w) >= 0) || 'garden';
 /** A small framed picture of level n's scene (cover-cropped background); a scene not loaded yet shows a plain card, never a text placeholder. */
@@ -116,9 +127,11 @@ export function drawMenu(g, time, info, go) {
   if (info.returning && info.daily) drawDailyButton(g, time, info.daily, go);
   const pt = info.returning ? t('level', { n: info.playN }) : t('play');
   button(g, 360, 1060, 440, 130, pt, go.play, time, 76, 0.04);
-  button(g, 130, 1205, 190, 96, t('map'), go.map, time, 44, 0);
-  pill(g, 250, 1165, 220, 80); label(g, t('levels_count', { n: LEVEL_COUNT }), 360, 1206, fitSize(g, t('levels_count', { n: LEVEL_COUNT }), 30, 190), INK, { stroke: 0 });
-  pill(g, 500, 1165, 190, 80); drawStar(g, 548, 1205, 26, true); label(g, t('total_stars', { n: info.total }), 622, 1207, 36, INK, { stroke: 0 });
+  // bottom row on the 8 px grid: 32 px side margins, 16 px gaps, one 88 px height (MAP 200 | levels 224 | stars 200)
+  button(g, 132, 1200, 200, 88, t('map'), go.map, time, 44, 0);
+  const lc = t('levels_count', { n: LEVEL_COUNT });
+  pill(g, 248, 1156, 224, 88); label(g, lc, 360, 1201, fitSize(g, lc, 32, 184), INK, { stroke: 0 });
+  pill(g, 488, 1156, 200, 88); drawStar(g, 536, 1200, 26, true); label(g, t('total_stars', { n: info.total }), 612, 1202, fitSize(g, t('total_stars', { n: info.total }), 38, 120), INK, { stroke: 0 });
 }
 
 // Today's picture: top corner opposite Settings, same 96 px height as every HUD button. Open = the picture pulses; collected = tomorrow's scene waits behind a lock.
@@ -151,7 +164,9 @@ function sticker(g, x, y, r, gag, found, ring, pulse) {
   // Optional orange ring draws attention to the final unrevealed funny reaction in this world.
   if (ring) { g.save(); g.beginPath(); g.arc(x, y, r + 3 + (pulse || 0) * 3, 0, 7); g.lineWidth = 4; g.strokeStyle = COL.orange; g.stroke(); g.restore(); }
   if (!found) { label(g, '?', x, y + 1, r * 1.3, '#8f8496', { stroke: 0 }); return; }
-  const sp = stickSp[gag.id] || (stickSp[gag.id] = sprite(gag.id, 64, gag.ar)), k = (r * 1.5) / Math.max(sp.w, sp.h);
+  let sp = stickSp[gag.id];
+  if (!sp) { sp = sprite(gag.id, 64, gag.ar); if (sp.real) stickSp[gag.id] = sp; }   // a placeholder is never kept: the real picture replaces it once it loads
+  const k = (r * 1.5) / Math.max(sp.w, sp.h);
   g.save(); g.beginPath(); g.arc(x, y, r - 2, 0, 7); g.clip(); g.drawImage(sp.src, x - sp.w * k / 2, y - sp.h * k / 2, sp.w * k, sp.h * k); g.restore();
 }
 export function mapFocus(n) { mapWorld = clamp(Math.floor((n - 1) / PER), 0, WORLDS.length - 1); }
@@ -247,7 +262,8 @@ export function drawSettings(g, time, prefs, go) {
     rr(g, switchX, cy - 42, 144, 84, 42); fillStroke(g, on ? COL.greenDk : '#8f8496', 5);
     g.beginPath(); g.arc(on ? onKnob : offKnob, cy, 30, 0, 7); fillStroke(g, '#fff', 4);
     const stateX = on ? (rtl ? switchX + 100 : switchX + 42) : (rtl ? switchX + 42 : switchX + 100);
-    label(g, on ? t('on') : t('off'), stateX, cy, 24, '#fff', { stroke: INK, lw: 5 });
+    const st = on ? t('on') : t('off');
+    label(g, st, stateX, cy, fitSize(g, st, 24, 58), '#fff', { stroke: INK, lw: 5 });
     tap(48, cy - 58, 624, 116, () => go.toggle(pref));
   });
 }
@@ -304,21 +320,24 @@ export function drawResult(g, lv, time, go, info) {
   rr(g, 40, y0, 640, 380, 44); fillStroke(g, '#fbefd0', 8);
   const tf = fitLines(g, t(lv.def.win), 56, 560);
   labelLines(g, tf, 360, y0 + (tf.lines.length > 1 ? 50 : 56), COL.orange, { lw: 11 });
-  const sy = y0 + 140, sr = 42, starX = lv.worldEnd ? (rtl ? [330, 430, 530] : [190, 290, 390]) : [250, 360, 470];
+  const sy = y0 + 140, sr = 42, starX = [250, 360, 470];
   for (let i = 0; i < 3; i++) {
     const on = i < lv.stars, q = on ? (lv.reducedMotion ? 1 : ease.back(clamp((s - 1.5 - i * 0.22) / 0.35))) : 1;
     if (q <= 0) continue;
     drawStar(g, starX[i], sy, sr * q, on, (i - 1) * 0.12 + (1 - q) * 2);
   }
-  if (lv.worldEnd && !lv.daily) {
-    button(g, rtl ? 165 : 555, sy + 6, 170, 84, t('share'), go.share, time, 27, 0.06, 'blue');
-  }
   const ry = y0 + 214;
   if (lv.daily) {
     // today's picture: collected, and tomorrow's scene waits behind a question mark (no countdown, no streak)
-    const msg = lv.dailyGot ? t('daily_got') : t('daily_tomorrow'), tx = rtl ? 556 : 108;
-    thumb(g, info.daily.tomorrowN, tx, ry - 30, 60, 60, 14, { dim: 0.55, mark: '?' });
-    label(g, msg, rtl ? 320 : 400, ry, fitSize(g, msg, 30, 400), lv.dailyGot ? COL.greenDk : INK, { stroke: 0 });
+    // collected: today's own scene in a gold frame with a green tick; otherwise tomorrow's scene waits behind a question mark
+    const msg = lv.dailyGot ? t('daily_got') : t('daily_tomorrow'), fw = 64, tw = fitSize(g, msg, 32, 448);
+    g.font = '900 ' + tw + 'px ' + FONT;
+    const mw = Math.min(448, g.measureText(msg).width), bx = 360 - (fw + 16 + mw) / 2, tx = rtl ? bx + mw + 16 : bx;
+    if (lv.dailyGot) {
+      thumb(g, lv.n, tx, ry - fw / 2, fw, fw, 14, { edge: COL.gold, lw: 6 });
+      g.save(); g.translate(tx + fw - 4, ry - fw / 2 + 4); g.beginPath(); g.arc(0, 0, 15, 0, 7); fillStroke(g, COL.green, 4); g.beginPath(); g.moveTo(-7, 0); g.lineTo(-2, 6); g.lineTo(8, -6); g.lineWidth = 5; g.strokeStyle = '#fff'; g.lineCap = 'round'; g.stroke(); g.restore();
+    } else thumb(g, info.daily.tomorrowN, tx, ry - fw / 2, fw, fw, 14, { dim: 0.55, mark: '?' });
+    label(g, msg, rtl ? bx + mw / 2 : bx + fw + 16 + mw / 2, ry, tw, lv.dailyGot ? COL.greenDk : INK, { stroke: 0 });
   } else if (info) {
     // the world poster: one framed picture per level of this world; a solved level shows its scene, the one just solved pops in, the last missing one pulses
     const w0 = Math.floor((lv.n - 1) / PER) * PER, fw = 56, fg = 10, fx0 = 360 - (PER * fw + (PER - 1) * fg) / 2, pop = lv.reducedMotion ? 1 : ease.back(clamp((s - 1.7) / 0.4));
@@ -339,7 +358,18 @@ export function drawResult(g, lv, time, go, info) {
   const pull = s > 1.6 + (info && info.pullAfter || 2.4) && !lv.reducedMotion ? 0.055 : 0.025;
   const nextN = lv.daily ? info && info.playN : lv.n < LEVEL_COUNT ? lv.n + 1 : 0;
   const deco = nextN ? (gg, w, h) => thumb(gg, nextN, (rtl ? w / 2 - 18 - 72 : -w / 2 + 18), -36, 72, 72, 16, { edge: '#fff', lw: 5 }) : null;
-  if (lv.stars >= 3) button(g, 360, y0 + 306, 560, 100, t('next'), go.next, time, 54, pull, 'green', deco);
+  if (lv.worldEnd && !lv.daily) {
+    // finished world: NEXT and SHARE share the bottom row (24 px card margins, 16 px gap, one 100 px height); NEXT stays on the reading-start side
+    // one label size for the pair; a long SHARE word (es, vi...) turns SHARE into an icon-only 120 px button so neither label gets tiny
+    const lead = deco ? 80 : 0, fs = Math.min(fitSize(g, t('next'), 48, 272 - lead), fitSize(g, t('share'), 48, 128));
+    if (fs >= 38) {
+      button(g, rtl ? 492 : 228, y0 + 306, 328, 100, t('next'), go.next, time, fs, pull, 'green', deco, lead);
+      button(g, rtl ? 188 : 532, y0 + 306, 248, 100, t('share'), go.share, time, fs, 0, 'blue', shareDeco, 64);
+    } else {
+      button(g, rtl ? 424 : 296, y0 + 306, 464, 100, t('next'), go.next, time, 48, pull, 'green', deco, lead);
+      button(g, rtl ? 124 : 596, y0 + 306, 120, 100, '', go.share, time, 40, 0, 'blue', (gg) => shareIcon(gg, 0, 2, 44, EDGE.blue));
+    }
+  } else if (lv.stars >= 3) button(g, 360, y0 + 306, 560, 100, t('next'), go.next, time, 54, pull, 'green', deco, deco ? 80 : 0);
   else {
     // 1-2 stars: REPLAY beside NEXT in one row (NEXT is the big green primary on the forward side, mirrored in ar and ur)
     button(g, rtl ? 240 : 480, y0 + 306, 320, 100, t('next'), go.next, time, 54, pull);
@@ -372,9 +402,13 @@ function drawGift(g, lv, y0, time, go) {
   const gf = lv.gift, rtl = isRtl(), x = rtl ? 110 : 610, y = y0 - 64;
   if (!gf.open) {
     const b = lv.reducedMotion ? 0 : Math.sin(time * 5) * 8, wob = lv.reducedMotion ? 0 : Math.sin(time * 9) * 0.08;
-    tap(x - 70, y - 80, 140, 140, go.gift);
+    tap(x - 80, y - 124, 160, 184, go.gift);
     const msg = t('gift');
-    label(g, msg, clamp(x, 120, 600), y - 70 + b, fitSize(g, msg, 30, 220), COL.red, { stroke: '#fff', lw: 8 });
+    // the label sits in its own cream pill so it reads over any scene object behind it
+    const fs = fitSize(g, msg, 28, 200); g.font = '900 ' + fs + 'px ' + FONT;
+    const pw = g.measureText(msg).width + 32, lx = clamp(x, 24 + pw / 2, W - 24 - pw / 2), ly = y - 98 + b;
+    rr(g, lx - pw / 2, ly - 22, pw, 44, 22); fillStroke(g, '#fbefd0', 5);
+    label(g, msg, lx, ly + 1, fs, COL.red, { stroke: 0 });
     g.save(); g.translate(x, y + b); g.rotate(wob);
     rr(g, -44, -30, 88, 72, 12); fillStroke(g, COL.red, 6);
     rr(g, -52, -44, 104, 24, 10); fillStroke(g, '#e86a6a', 6);
@@ -399,6 +433,15 @@ export function shareWorld(lv, rec) {
   if (typeof api !== 'function') return Promise.resolve();
   const text = t('world_share', { world: worldName }) + (rec && rec.fast ? ' ' + t('rec_fast', { s: rec.fast.toFixed(1) }) : '');
   try { return Promise.resolve(api({ title: worldName, description: text, text })); }
+  catch (e) { return Promise.reject(e); }
+}
+
+// share the whole journey from the end screen: the game's name and how many levels were rubbed
+export function shareAll() {
+  const api = window.lib && window.lib.share;
+  if (typeof api !== 'function') return Promise.resolve();
+  const title = t('title1') + ' ' + t('title2'), text = t('world_share', { world: t('levels_count', { n: LEVEL_COUNT }) });
+  try { return Promise.resolve(api({ title, description: text, text })); }
   catch (e) { return Promise.reject(e); }
 }
 
@@ -445,9 +488,9 @@ export function drawEnd(g, time, dt, info, go) {
   if (perfect) drawTrophy(g, 360, 788 + Math.sin(time * 3) * 8, 1.9);
   else button(g, 360, 810, 540, 120, t('end_more', { n: info.below }), go.more, time, 50, 0.04);
   const rtl = isRtl();
-  button(g, rtl ? 505 : 215, 950, 270, 96, t('map'), go.map, time, 46, 0, 'blue');
-  button(g, rtl ? 215 : 505, 950, 270, 96, t('menu'), go.menu, time, 46, 0, 'blue');
-  button(g, 360, 1084, 560, 96, t('settings'), go.settings, time, 46, 0, 'blue');
+  button(g, rtl ? 506 : 214, 950, 270, 96, t('map'), go.map, time, 46, 0, 'blue');
+  button(g, rtl ? 214 : 506, 950, 270, 96, t('menu'), go.menu, time, 46, 0, 'blue');
+  button(g, 360, 1084, 556, 96, t('share'), go.shareAll, time, 46, 0, 'blue', shareDeco, 64);
   endFx.drawLow(g); endFx.drawHigh(g);
 }
 

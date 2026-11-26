@@ -129,6 +129,10 @@ export function start(mode = 'play') {
       const report = (e) => { try { window.lib.log('world share failed: ' + String(e)); } catch (ignored) { /* optional log */ } };
       try { Promise.resolve(UI.shareWorld(lv, S.rec)).catch(report); } catch (e) { report(e); }
     },
+    shareAll: () => {
+      const report = (e) => { try { window.lib.log('share failed: ' + String(e)); } catch (ignored) { /* optional log */ } };
+      try { Promise.resolve(UI.shareAll()).catch(report); } catch (e) { report(e); }
+    },
     more: () => { const n = firstBelow(); if (!busy && n) { UI.mapFocus(n); show('map'); } },
     hint: () => { if (lv && !lv.fixed && S.hints > 0) { S.hints--; lv.hint(); commit(); } },
   };
