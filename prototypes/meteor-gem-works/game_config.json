@@ -405,15 +405,15 @@
     "width": 17,
     "lead": 0.9,
     "follow": 3,
-    "zMin": -6.0,
+    "zMin": -7.0,
     "mineZ": -1.5,
     "zMid": 4.5,
-    "lean": 0.7,
+    "lean": 1,
     "mineZoom": 0.88,
     "punch": 0.9,
     "cometPitch": 0.18,
-    "followX": 0.7,
-    "zMax": -3.8,
+    "followX": 0.85,
+    "zMax": 12,
     "ahead": 5.5
   },
   "tod": {
@@ -545,9 +545,9 @@
     "tilt": {
       "on": true,
       "tier": 2,
-      "amount": 0.8,
-      "band": 0.1,
-      "soft": 0.32
+      "amount": 0.6,
+      "band": 0.34,
+      "soft": 0.3
     },
     "contact": 1,
     "bloom": {
@@ -2009,7 +2009,10 @@
     "slowK": 0.35,
     "stop": 0.08,
     "push": 0.72,
-    "light": 3.0
+    "light": 1.6,
+    "tilt": 0.7,
+    "con": 0.1,
+    "vig": 0.12
   },
   "tomorrow": {
     "after": 240
