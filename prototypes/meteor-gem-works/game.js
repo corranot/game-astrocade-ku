@@ -567,7 +567,8 @@ export function run(mode = 'play') {
   function frame(now) {
     raf = requestAnimationFrame(frame);
     if (paused) return;
-    const raw = (now - last) / 1000, real = Math.min(0.1, raw); last = now; acc += real;
+    // a frame's timestamp can be older than the moment this run started its loop: never step backwards
+    const raw = Math.max(0, (now - last) / 1000), real = Math.min(0.1, raw); last = now; acc += real;
     let n = 0; while (acc >= DT && n < 6) { tick(DT); acc -= DT; n++; }
     if (n === 6) acc = 0;
     draw(real);
