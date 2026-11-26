@@ -1,0 +1,2411 @@
+{
+ "288433364": {
+  "rule": "default",
+  "value": {
+   "plays_threshold": 200,
+   "min_p50_secs": 40
+  }
+ },
+ "338691910": {
+  "rule": "71z20QzdzkZt1ba2zHvNh5:100.00:25-71z20OUb72PYHLC6YzA9Y3",
+  "value": {
+   "score_p50_weight": 1,
+   "score_spr_weight": 1,
+   "score_feed_ctr_weight": 0.2,
+   "gumbel_temperature": 0.05,
+   "shuffle_percentage": 0.1,
+   "min_plays": 150,
+   "min_games_for_language_filter": 50,
+   "fallback_language": "en",
+   "variant_name": "gallery-v0-hybrid",
+   "include_retired_games": false,
+   "gbdt_enabled": true,
+   "gbdt_model_name": "production_fixed",
+   "gbdt_retriever_max_candidates": 300,
+   "gbdt_retriever_gumbel_temperature": 0.1,
+   "gbdt_rank_gumbel_temperature": 0.3,
+   "gbdt_replay_reduce_enabled": true,
+   "gbdt_replay_reduce_top_clear": 3,
+   "gbdt_replay_reduce_min_gap": 3,
+   "gbdt_creator_reduce_min_gap": 3,
+   "gbdt_remix_family_dedup_enabled": true,
+   "gbdt_serving": {
+    "mode": "remote",
+    "endpoint_name": "gbdt-ranker",
+    "timeout_ms": 150
+   },
+   "cold_game_insert_enabled": true,
+   "cold_game_insert_fraction": 0.075,
+   "cold_game_insert_protected_head": 3,
+   "cold_game_insert_min_separation": 0,
+   "cold_game_lower_play_threshold": 75,
+   "cold_game_min_p50": 40
+  }
+ },
+ "1000848714": {
+  "rule": "default",
+  "value": {
+   "current_game_jams": "yay",
+   "link_to_jam": "link"
+  }
+ },
+ "1005514169": {
+  "rule": "319aa9bXmCA9bE2NjX3Edt:100.00:3-319aa7wUUkqESeuRIP80Ur",
+  "value": {
+   "ranking": {
+    "name_match_weight": 0.5,
+    "game_quality_weight": 0.7,
+    "game_plays_weight": 0.8,
+    "min_game_plays": 500
+   }
+  }
+ },
+ "1533132705": {
+  "rule": "2WIeF2ZKeVtOIvIrFhql9D:100.00:25-2WEbTXZ7K69G6bgCbkNXrX",
+  "value": {
+   "enabled": true,
+   "shadow_mode": true,
+   "review_on_demand_enabled": true,
+   "trigger_24h_ratio": 0.05,
+   "trigger_48h_ratio": 0.05,
+   "trigger_min_plays": 1000
+  }
+ },
+ "1881526868": {
+  "rule": "1kzxY6p3zok7fHsuSoloVz:100.00:7-1kzxY4K176aCWhUzhgpLCx",
+  "value": {
+   "model_name": "production_fixed",
+   "feed_enabled": true,
+   "feed_default": {
+    "retriever_max_candidates": 2500,
+    "retriever_gumbel_temperature": 0.1,
+    "rank_gumbel_temperature": 0.3,
+    "replay_reduce_enabled": true,
+    "replay_reduce_top_clear": 3,
+    "replay_reduce_min_gap": 3,
+    "creator_reduce_min_gap": 3,
+    "remix_family_dedup_enabled": true
+   },
+   "serving": {
+    "mode": "remote",
+    "endpoint_name": "gbdt-ranker",
+    "retriever_max_candidates": 300,
+    "timeout_ms": 150
+   }
+  }
+ },
+ "2308516397": {
+  "rule": "30dl9BGbmlB5ogZzrhItSp:100.00:3-307ll2sqY155riJXAkAK2t",
+  "value": {
+   "premium_rows_gumbel_temperature": 0.25,
+   "theme_rows_gumbel_temperature": 0.25,
+   "diversity_total_candidates": 30,
+   "featured_min_p50": 50,
+   "play_boost": {
+    "rise_start_plays": 0,
+    "peak_plays": 5000,
+    "fall_end_plays": 10000,
+    "max_multiplier": 1.2,
+    "max_age_days": 30
+   },
+   "update_recency_boost": {
+    "enabled": true,
+    "alpha": 0.12,
+    "half_life_days": 3,
+    "max_age_days": 30
+   }
+  }
+ },
+ "2545188187": {
+  "rule": "default",
+  "value": {
+   "themes": {
+    "definition": "Mood, aesthetic, and gameplay themes that describe the game's feel and content. Multiple themes can apply.",
+    "valid_values": {
+     "action": "Challenging high-octane gameplay — fighting, shooting, racing, explosions",
+     "adventure": "Exploration, main character, rpg elements. Adventure games are about the emotion of being in an expansive environment and being a hero. Less intense gameplay than action",
+     "arcade": "Classic challenging gameplay, such as shoot-em-up, themepark and festival classics, often single-mechanic gameplay that repeats in high frequency.",
+     "cooking": "Cooking games are about cooking, serving, and managing a restaurant or kitchen",
+     "farm": "Focused on farming or farming-adjacent. Plant, collect, sell. Manage resources. Includes games that are farming gameplay reskinned as other themes",
+     "horror": "Scary, dark, violent, creepy, haunted. Can sometimes be funny, but usually contains jump scares. Horror games are about the theme, can have a variety of gameplay mechanics",
+     "meme": "Gimmicky or uses popular meme elements. Quirky games that don't fit anywhere else",
+     "platformer": "The core mechanic is running and jumping onto platforms with a main character",
+     "puzzle": "Mentally challenging. Often spatial challenges, sometimes with math, other times sorting, sequencing or merging challenges, question-based, etc.",
+     "rhythm": "Games requiring timing to the beat",
+     "simulation": "Gameplay simulates a real-world concept, such as tycoon, god-sim, city building. Resource management and systems-thinking, sometimes sandbox",
+     "sports": "Related to classical sports, such as soccer, basketball, but also gymnastics, pool, etc.",
+     "survival": "Centered around a main character or troop of characters. Limited resources, crafting, death and defeat, rpg elements",
+     "tactics": "Strategy and tactical gameplay. Auto-battler, card battler, tower defense, turn-based combat, etc.",
+     "zen": "Relaxing gameplay, without competition, combat or time pressure. Often sandbox, decoration or exploration",
+     "incremental": "Clicker and similar gameplay. The core theme is 'number goes up'. Spend resource to buy upgrades, click to get resource, or get resource passively",
+     "creative": "Self-expressive artistic experience. Drawing, painting, pixel-art, collage, scrapbook, etc. Can have specific challenges, but sometimes not",
+     "chess": "Chess or chess-derived strategy — pieces, boards, and positional tactics",
+     "educational": "Math, word and trivia games that center around question and answer. Sometimes with multiple choice and other times with a field to type answers.",
+     "merge": "Games where the central mechanic is merging: Combine smaller objects to make bigger ones (or low tier combine to make high tier)."
+    }
+   },
+   "genre": {
+    "definition": "The primary genre classification of the game. Choose the most specific genre that best describes the core gameplay experience.",
+    "valid_values": {
+     "Action RPG": "Real-time combat with RPG character progression",
+     "Adventure": "Exploration and narrative-driven gameplay with a main character",
+     "Arcade": "Classic score-chasing reflex gameplay, often single-mechanic",
+     "Auto Battler": "Units fight automatically; player manages composition and strategy",
+     "Base Building": "Construct and expand a base or settlement",
+     "Beat 'em up": "Melee combat against waves of enemies, side-scrolling",
+     "Board Game": "Digital adaptation of a tabletop board game",
+     "Breakout": "Bounce a ball to destroy blocks (Breakout/Arkanoid style)",
+     "Bullet Hell": "Dodge dense patterns of projectiles",
+     "Card Game": "Card-based gameplay — hand management, deck play",
+     "City Builder": "Plan and grow a city or civilization",
+     "Clicker": "Tap or click repeatedly; number goes up",
+     "Cooking": "Cook, serve, and manage a kitchen or restaurant",
+     "Creative": "Open-ended self-expression: drawing, building, decorating",
+     "Deckbuilder": "Construct a card deck through play and use it in combat",
+     "Dungeon Crawler": "Explore procedural dungeons, fight monsters, collect loot",
+     "Educational": "Math, word, trivia, or quiz-based learning",
+     "Endless Runner": "Run indefinitely, dodge obstacles, score goes up",
+     "Escape Room": "Solve interconnected puzzles to escape a space",
+     "Farming Sim": "Plant, tend, harvest, and sell crops",
+     "Fighting": "1v1 or team combat with dedicated move sets",
+     "Hack and Slash": "Fast melee combat against many enemies simultaneously",
+     "Hidden Object": "Find specific items within a detailed scene",
+     "Incremental": "Passive or active resource accumulation with upgrades",
+     "Mahjong": "Tile-matching in the Mahjong style",
+     "Match 3": "Swap and match three or more identical tiles",
+     "Memory": "Flip cards or recall sequences",
+     "Merge": "Combine identical objects to create higher-tier ones",
+     "Metroidvania": "Exploration with ability gating and backtracking",
+     "Pinball": "Keep a ball in play with flippers, hit targets for score",
+     "Platformer": "Run and jump across platforms with a main character",
+     "Point & Click": "Navigate scenes and solve puzzles by clicking objects",
+     "Puzzle": "Logic and spatial problem-solving as the core loop",
+     "Puzzle Platformer": "Platforming combined with environmental puzzles",
+     "Racing": "Compete for speed against opponents or the clock",
+     "Rhythm": "Hit inputs in time to music beats",
+     "Roguelike": "Procedural runs, permadeath, build variety",
+     "RPG": "Character stats, leveling, and narrative progression",
+     "Run 'n' Gun": "Run and shoot simultaneously in action levels",
+     "Sandbox": "Open freeform play with no fixed objectives",
+     "Shoot 'em up": "Shoot waves of enemies from a scrolling perspective",
+     "Shooter": "Aim and shoot from a fixed or free-roaming perspective (not a shmup)",
+     "Simulation": "Simulate a real-world system — tycoon, god-game, city-building",
+     "Sokoban": "Push boxes onto targets in confined grid spaces",
+     "Sports": "Soccer, basketball, or other classical sports",
+     "Stealth": "Avoid detection; sneaking is the core mechanic",
+     "Strategy": "Plan and outmaneuver — resource management, map control",
+     "Survival": "Gather resources, craft, and survive against threats",
+     "Survival Horror": "Survive in a terrifying environment with limited resources",
+     "Tactics": "Turn-based or positional strategic combat",
+     "Tower Defense": "Place units or towers to stop waves of enemies",
+     "Trivia": "Answer knowledge-based questions",
+     "Twin Stick Shooter": "Move with one joystick, aim/shoot with the other",
+     "Tycoon": "Build and manage a business for profit",
+     "Typing Game": "Type words or letters as the core mechanic",
+     "Visual Novel": "Story-driven with dialogue choices and branching paths",
+     "Walking Sim": "Narrative exploration with minimal mechanics",
+     "Word Game": "Form, guess, or arrange words",
+     "Zen": "Relaxing, low-pressure, often no lose state"
+    }
+   },
+   "art_style": {
+    "definition": "The visual aesthetic style of the game.",
+    "valid_values": {
+     "cartoon": "Bold outlines, bright flat colors, exaggerated proportions",
+     "minimalist": "Simple geometric shapes, clean sparse design",
+     "neon": "Glowing neon colors on dark backgrounds",
+     "pixel-art": "Retro pixelated aesthetic with visible pixel grid",
+     "realistic": "Photorealistic or highly detailed illustration",
+     "voxel": "3D block-based aesthetic (Minecraft style)",
+     "none": "No distinct or consistent art style"
+    }
+   },
+   "setting": {
+    "definition": "The world or aesthetic identity the game takes place in. Use 'none' if no clear setting applies.",
+    "valid_values": {
+     "anime": "Japanese animation setting and culture — manga visuals, anime tropes, Japanese world-building",
+     "contemporary": "Modern real-world setting",
+     "fantasy": "Magic, medieval, swords and sorcery",
+     "historical": "Past eras — ancient, classical, or early modern periods",
+     "horror": "Dark, eerie, threatening atmosphere",
+     "mythology": "Gods, legends, ancient myths",
+     "sci-fi": "Space, robots, futuristic technology",
+     "steampunk": "Victorian-era industrial machinery and aesthetics",
+     "post-apocalyptic": "Ruined world after civilization's collapse",
+     "none": "No distinct world setting or aesthetic"
+    }
+   },
+   "tone": {
+    "definition": "The emotional register of the game — how it feels to play.",
+    "valid_values": {
+     "chill": "Relaxed, low-pressure, meditative",
+     "dark": "Grim, heavy, or oppressive atmosphere",
+     "wholesome": "Warm, uplifting, feel-good",
+     "funny": "Comedic, absurd, lighthearted humor",
+     "intense": "High-stakes, fast-paced, adrenaline",
+     "neutral": "No strong emotional tone, matter-of-fact"
+    }
+   },
+   "difficulty": {
+    "definition": "The skill and attention demand placed on the player.",
+    "valid_values": {
+     "casual": "Anyone can play, low skill demand, very forgiving",
+     "moderate": "Some challenge, requires attention and practice",
+     "challenging": "Demands real skill, regular failures expected",
+     "hardcore": "High skill ceiling, punishing mistakes, mastery required"
+    }
+   },
+   "main_activity": {
+    "definition": "What the player does moment-to-moment as the core gameplay loop.",
+    "valid_values": {
+     "combat": "Defeat enemies or survive threats",
+     "puzzle": "Solve spatial or logic problems",
+     "management": "Allocate resources or direct units",
+     "collection": "Gather items, resources, or characters",
+     "exploration": "Move through and discover an environment",
+     "creative": "Build, paint, or express freely",
+     "reflex": "React quickly to on-screen events"
+    }
+   },
+   "progression": {
+    "definition": "How the game rewards or advances the player over time. Use 'none' if there is no meaningful progression system. This vocabulary applies to both primary and secondary progression.",
+    "valid_values": {
+     "none": "No meaningful progression system",
+     "score-based": "Points accumulate, leaderboard focus",
+     "levels": "Unlock or complete sequential stages",
+     "upgrades": "Buy or earn permanent improvements",
+     "prestige": "Reset progress for compounding bonuses",
+     "narrative": "Story unlocks and character development"
+    }
+   },
+   "loop_length": {
+    "definition": "The typical duration of a single play session or meaningful game loop.",
+    "valid_values": {
+     "under 1 min": "Very quick sessions, instant restart",
+     "1-5 min": "Short focused sessions",
+     "5-15 min": "Medium sessions with some depth",
+     "15+ min": "Long form, sustained engagement",
+     "open-ended": "No defined end, player decides when to stop"
+    }
+   },
+   "learning_curve": {
+    "definition": "How long it takes for a new player to understand and meaningfully engage with the core mechanic.",
+    "valid_values": {
+     "instant": "Self-evident in seconds, no instruction needed",
+     "easy": "Understood within the first session",
+     "moderate": "Takes several sessions to fully grasp",
+     "steep": "Significant time investment before competence"
+    }
+   },
+   "primary_control": {
+    "definition": "The main way the player interacts with the game on mobile.",
+    "valid_values": {
+     "tap": "Single tap interactions",
+     "swipe": "Directional swipe gestures",
+     "drag": "Pick up and place items by dragging",
+     "ui": "Button or menu-driven controls",
+     "single joystick": "Virtual joystick for movement",
+     "dual joystick": "Two virtual joysticks for movement and aim"
+    }
+   },
+   "secondary_control": {
+    "definition": "A meaningful secondary control scheme if the game uses two distinct input methods. Use 'none' if there is only one control scheme.",
+    "valid_values": {
+     "tap": "Single tap interactions",
+     "swipe": "Directional swipe gestures",
+     "drag": "Pick up and place items by dragging",
+     "ui": "Button or menu-driven controls",
+     "single joystick": "Virtual joystick for movement",
+     "none": "No secondary control scheme"
+    }
+   },
+   "perspective": {
+    "definition": "The visual perspective from which the game is presented.",
+    "valid_values": {
+     "ui_based": "No world perspective — purely UI/menu-driven (e.g. card games, clickers)",
+     "2d_side_view": "Classic side-scrolling 2D view",
+     "2d_top_down": "Top-down or bird's-eye 2D view",
+     "2d_isometric": "Isometric or diagonal 2D view",
+     "3d_first_person": "Three-dimensional first-person perspective",
+     "3d_third_person": "Three-dimensional third-person perspective"
+    }
+   },
+   "polish_level": {
+    "definition": "How much attention to detail the game has beyond its basic implementation. Most games are 'standard'. Only assign 'high' or 'exceptional' when there are clear extra touches — tutorials, particle effects, satisfying audio feedback, smooth animations, or other signs of deliberate craft.",
+    "valid_values": {
+     "low": "Minimal effort beyond making the game functional. May have basic sound or visuals, but little craft or attention to feel. Often true.",
+     "standard": "The default. The game is complete and plays well with VFX, SFX, and all other standard aspects of polished games, but does not go above and beyond. Applies to the majority of games.",
+     "high": "Noticeable extra craft - well thought out 'juicy' feedback for interactions, optimized loading times, leaderboard support, etc. Somewhat rare.",
+     "exceptional": "A high level of polish akin to a professionally released mobile game — multiple layered polish systems working together. The code is clearly very thoght out to make sure each aspect of gameplay shines. Very rare."
+    }
+   }
+  }
+ },
+ "2788923615": {
+  "rule": "default",
+  "value": {
+   "tags": [
+    {
+     "id": "simulation",
+     "label": "Simulation",
+     "emoji": "🌱",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/simulation.webp"
+    },
+    {
+     "id": "sports",
+     "label": "Sports",
+     "emoji": "⚽",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/sports.webp"
+    },
+    {
+     "id": "creative",
+     "label": "Creative",
+     "emoji": "🎨",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/creative.webp"
+    },
+    {
+     "id": "arcade",
+     "label": "Arcade",
+     "emoji": "🕹️ ",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/arcade.webp"
+    },
+    {
+     "id": "zen",
+     "label": "Zen",
+     "emoji": "☯",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/zen.webp"
+    },
+    {
+     "id": "cooking",
+     "label": "Cooking",
+     "emoji": "🍝",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/cooking.webp"
+    },
+    {
+     "id": "action",
+     "label": "Action",
+     "emoji": "💥",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/action.webp"
+    },
+    {
+     "id": "puzzle",
+     "label": "Puzzle",
+     "emoji": "🧩",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/puzzle.webp"
+    },
+    {
+     "id": "survival",
+     "label": "Survival",
+     "emoji": "🏕️ ",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/survival.webp"
+    },
+    {
+     "id": "rhythm",
+     "label": "Rhythm",
+     "emoji": "🎶",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/rhythm.webp"
+    },
+    {
+     "id": "adventure",
+     "label": "Adventure",
+     "emoji": "🗺️ ",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/adventure.webp"
+    },
+    {
+     "id": "horror",
+     "label": "Horror",
+     "emoji": "👻",
+     "image_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/fue-tags/horror.webp"
+    }
+   ]
+  }
+ },
+ "3360961326": {
+  "rule": "default",
+  "value": {
+   "taste_stepup": true,
+   "taste_stepup_app": true
+  }
+ },
+ "3478718458": {
+  "rule": "3tXjA3v6a2tE8QqLXK9ngv:100.00:65-3tXjA1Q3HKk9PqSQmCdJXt",
+  "value": {
+   "max_plays_for_new": 150,
+   "max_plays_for_beta": 75,
+   "max_top_picks": 60,
+   "max_featured": 30,
+   "max_trending": 30,
+   "score_p50_weight": 1,
+   "score_spr_weight": 1,
+   "score_gallery_ctr_weight": 0,
+   "gumbel_temperature": 0.1,
+   "premium_rows_gumbel_temperature": 0.25,
+   "theme_retriever_max_candidates": 8000,
+   "theme_rows_gumbel_temperature": 0.05,
+   "theme_row_affinity_gumbel_temperature": 0.1,
+   "diversity_total_candidates": 30,
+   "play_boost": {
+    "rise_start_plays": 0,
+    "peak_plays": 5000,
+    "fall_end_plays": 10000,
+    "max_multiplier": 1.2,
+    "max_age_days": 30
+   },
+   "update_recency_boost": {
+    "enabled": true,
+    "alpha": 0.12,
+    "half_life_days": 3,
+    "max_age_days": 30
+   },
+   "theme": {
+    "min_p50": 40,
+    "min_p75": 75
+   },
+   "min_games_for_language_filter": 5000,
+   "fallback_language": "en",
+   "row_configs": [
+    {
+     "category": "top_picks",
+     "label": "Players' Choice",
+     "size": "netflix_large"
+    },
+    {
+     "category": "featured",
+     "label": "Recommended For You",
+     "size": "netflix_small"
+    },
+    {
+     "category": "trending",
+     "label": "Trending",
+     "size": "netflix_small"
+    },
+    {
+     "category": "new",
+     "label": "New",
+     "size": "netflix_small"
+    },
+    {
+     "category": "beta",
+     "label": "Community Playtests",
+     "size": "netflix_large",
+     "description": "Be the first to play and leave feedback!",
+     "border_color": "#AD00FF",
+     "background_color": "#AD00FF1C"
+    },
+    {
+     "category": "fue_picks",
+     "label": "Start Here",
+     "size": "netflix_large"
+    },
+    {
+     "category": "because_you_played",
+     "label": "Because You Played",
+     "size": "netflix_small"
+    }
+   ],
+   "row_order": [
+    "top_picks",
+    "featured",
+    "trending",
+    "because_you_played",
+    "beta",
+    "halloween_2026"
+   ],
+   "because_you_played_enabled": true,
+   "include_retired_games": false,
+   "game_jam_tooltip": "Community competition - you be the judge!",
+   "diversity": {
+    "num_score_candidates": 20,
+    "num_score_pool": 200,
+    "spr_groups": [
+     {
+      "threshold_sec": 120,
+      "num_candidates": 20
+     },
+     {
+      "threshold_sec": 300,
+      "num_candidates": 20
+     }
+    ],
+    "min_p50": 50,
+    "top_creator_min_p50": 60,
+    "max_top_creator_candidates": 20
+   },
+   "featured_min_p50": 50,
+   "premium_row_dedup_themes": [
+    "chess",
+    "merge",
+    "creative",
+    "minecraft"
+   ],
+   "hidden_theme_rows": [
+    "minecraft",
+    "chess"
+   ],
+   "beta_min_day_n": 1,
+   "game_jam_min_day_n": 2,
+   "beta_quality_ranking_enabled": true,
+   "beta_rows_gumbel_temperature": 1,
+   "beta_remix_penalty": 0.9,
+   "beta_same_creator_penalty": 0.25,
+   "top_picks": {
+    "min_plays": 50000,
+    "pool_size": 60,
+    "min_pool_size": 20,
+    "deep_spr_threshold_sec": 300,
+    "p50_weight": 0.033,
+    "p75_weight": 0.01,
+    "deep_spr_weight": 10,
+    "retention_weight": 15,
+    "selection_temperature": 0.25,
+    "knn_dedup_enabled": true,
+    "neighbor_model": "dedup-description",
+    "manually_added": [],
+    "manually_removed": []
+   },
+   "gbdt_model_name": "production_fixed",
+   "gbdt_retriever_max_candidates": 2500,
+   "gbdt_rank_gumbel_temperature": 1,
+   "gbdt_replay_reduce_top_clear": 3,
+   "gbdt_replay_reduce_min_gap": 3,
+   "gbdt_creator_reduce_min_gap": 3,
+   "gbdt_serving": {
+    "mode": "remote",
+    "endpoint_name": "gbdt-ranker",
+    "timeout_ms": 150,
+    "retriever_max_candidates": 300
+   },
+   "theme_row_cold_game_insert_enabled": true,
+   "theme_row_cold_game_insert_fraction": 0.25,
+   "theme_row_cold_game_insert_protected_head": 1,
+   "theme_row_cold_game_insert_min_separation": 0
+  }
+ },
+ "3762169615": {
+  "rule": "default",
+  "value": {
+   "version": "v3-score-2026-11-20a",
+   "row": {
+    "enabled": true,
+    "mode": "weighted",
+    "game_ids": [
+     "01KJ8HNMFTN9124E1EAMDM5FFX",
+     "01KKVJYMEVWJ6G3A64CK2ZQHC2",
+     "01KTJV84VMH8D3TQVAW4CW1ETS",
+     "01KVXW3E7KHYM2N4AHXTKBK4V3",
+     "01KZ71F6E37246GYSB2PCS1PVX",
+     "01M1SCDGCYAG83SBNCXYW5AR58",
+     "01M35K7KR3658DJR5BRJ2KFJT9",
+     "01M3YZCXM66PBNPT12DBSQ12DY",
+     "01M44AGWHK5657CF68BF14BK92",
+     "01M44CA27HH396X7EKX465FKAY",
+     "01M48H6MK5H08Y1B2T6NXM0NTG",
+     "01M5P18GG683XNQJ1PN7THGE7Z",
+     "01M60C7HNZ585C3DN71ZEKE17A",
+     "01M60F7TWX764J6ETA45W0ZBCJ",
+     "01M64MJR71EDV0C2670TFS3XEB",
+     "01M64MK3P26MQPNRPTEP05JBN6",
+     "01M64MKA8DAVY2K87C4WEN7M1G",
+     "01M64MKMVWV0M9A81Y1VEWB7JD",
+     "01M64MNNAY2ERG8V94EQGCHTC7",
+     "01M64MNRY31GWD9A5DJ9BXH6CF",
+     "01M64MNSEXTW9YJ8A70YPWWFGK",
+     "01M64MPZM3444F2MBPH52N3YRV",
+     "01M64MQ3M9JDDVRSGV9S8VDHPR",
+     "01M64MRM5T6KZN8RQ23QFVTNSR",
+     "01M64MSX5ASP6K2MSN7ZGZWT85",
+     "01M64MWEWBYJ3QJ9VZ9D0DRVBA",
+     "01M64MZ55VEQ9VM85NA919NWM2",
+     "01M64N0EYAP59ZH05VRRMWJJ1E",
+     "01M64N2A92GPX7NM1E34B8HBFV",
+     "01M64N4BP9SKGM76JZPQJMME5Q",
+     "01M64N68S75PCYNXEMK4A0VWFG",
+     "01M64N7H3QP0VSX29YQV80BPC4",
+     "01M64N842PKDCD08A8TQG3DM30",
+     "01M64NAMX4R8E1SYTVV2M574M5",
+     "01M64NDVKFF1YSRT5CY3DCWBF0",
+     "01M64NF5SS4CM0YMM7SZBZ1EJR",
+     "01M64NFYBDBCSZS1N0HJX1ZTVZ",
+     "01M64NGFTPGT4GBHAKZTH9RDJ7",
+     "01M64NH7ASZGQ4AHNGMSKR6DMK",
+     "01M64NKS3NR9WZGQCP2D28VG12",
+     "01M64NMBHN0Y3B6ST38K72P4AH",
+     "01M64NP7D879YFJZW3NJ4CMDCV",
+     "01M64NRFA1P1ZXVJE8N4RXHY7Y",
+     "01M64NS8VX68KXMW5VHDDQ67QQ",
+     "01M64NT8ZNJZN2EKAFNGN07WEJ",
+     "01M64NTQ5EXAN1FCFDVX3FM11K",
+     "01M68C721FJZNDJWXQ28NB4HTT",
+     "01M6E2HDAW9WGQD7WZAF42G4AR",
+     "01M6FARTDNVRJYJ692ADZMJ5E4",
+     "01M6FB24JWX8ZTBEV4ET38TQH0",
+     "01M6FB28JBDQCH4C6W4FB5V4PH",
+     "01M6FB2AJ3TDC7RFTQ6JV5FJG9",
+     "01M6FB2AYM3M1ABMRNT7TY46SX",
+     "01M6FB2BWK8ZVX95SS4R6B8XRW",
+     "01M6FB3N92B0P3EKZBQKBK91D3",
+     "01M6FB4QAE9P4YX0YAY3KSY35R",
+     "01M6FB8EXTBG96VJ8WCWFPGW3H",
+     "01M6FD5S6RTTDKEV7D9NT5SJYQ",
+     "01M6FE6ZVD2FJ9G1K4DVZ7DWCC",
+     "01M6FZG8YXYVP5E85TYR6QWJW5",
+     "01M6G3PPVM0ZGGRPZJMW1VHX8R",
+     "01M6GH2E11BT2R38S6J7NS2BQJ",
+     "01M6GPNWN64Y9TED21NX2XXHVC",
+     "01M6GRN0JZFP7VKCV5J9RPHAXP",
+     "01M6HGS3PPW5BBW888HF1A2VK3",
+     "01M6HGS5QNBBVKDX2PYQW0X00S",
+     "01M6HGXBQDSPN3FCCVRCYMG8B5",
+     "01M6HGZAJBGTW7ZYKN08XQEV9N",
+     "01M6HGZXPVPE2SC6EBMCX7TDW8",
+     "01M6HH1D810HV8G89P12E183EX",
+     "01M6HH1XAVTNB31QPY6BN7YBAT",
+     "01M6HH1YHXTP1VW51SME1N5ME7",
+     "01M6HH22N0P2SFK7FHXCKK5QWV",
+     "01M6HH72882QYN06QBGQS3CPT9",
+     "01M6HHAYNRFJ5Z3DSRVN8GZKE6",
+     "01M6HHBX0895D5FZTXSB5HSXHJ",
+     "01M6HHBY2PNM2Y8J6QC19NJWGS",
+     "01M6HHC0KZQ9PGR1TRZTK7SS3W",
+     "01M6HHC55HQACECZGVYMR43JGW",
+     "01M6HHCQYWPJ1X9BPZQ8KWRKFY",
+     "01M6HHEM0188KAMGEQ80SBS2Q9",
+     "01M6HHJMEG8MBP4QNFTN08MBBP",
+     "01M6HHKF86QN6DH5JT6PDK95XC",
+     "01M6HHKP5YPETA0BD8CQA28N14",
+     "01M6HHKQ6KQSYZ9H0PVXF1TQAZ",
+     "01M6HHKRY1G2GPWFRTFRW3GJWR",
+     "01M6HHMZ1J5W9N16CW4E9DS573",
+     "01M6HHQ1WK68R5SJVEM7VE82ZX",
+     "01M6HHSB7P2J8DE357XA5YRDPM",
+     "01M6HHTYC001CZQVJQ4627NEQG",
+     "01M6HHX88BBAFZ9QQ2WC4S3NKJ",
+     "01M6HJ2PY9V8QQ5XHFDMDT3MT4",
+     "01M6HJ2Y5TPD5R2QPE1DQ5GPYP",
+     "01M6HJ4FCMTPQQB72MABG7Z7B7",
+     "01M6HJ6GP4VFVYQ3NM8ZYT6HXN",
+     "01M6HJ8Y80RRS78T6RBZW9CG46",
+     "01M6HJBF169GCN4DT589VS9PMD",
+     "01M6HJZG31F74WTPWFQB0WMZNP",
+     "01M6J5VSTE7Y4BPCNBTWKYK7ZV",
+     "01M6J6JHX8376R9G9TPQNMMT5E",
+     "01M6JBNVS68T02GMHRZ1M22C2H",
+     "01M6JXZ9W9SKVG2A8V77SN82VS",
+     "01M6K0GBENNBHRP4RZVN0BY52W",
+     "01M6K0MF2PFEGD88RVXAQ7TGQV",
+     "01M6K0PFRNJ8PYHZ5QTC0NGWRW",
+     "01M6K0RGEDG9VRFK4BEJDNTJTD",
+     "01M6K0X6K397XCF6YGYVREFGFF",
+     "01M6KK0KR6JBKN06FVS0HC2MBB",
+     "01M6KNYJH1X5V61RPSXXQXTFEF",
+     "01M6KXT407511MQ50CE2Z9PSX9",
+     "01M6R57P0ATR84AG4S0A47C94R",
+     "01M6YPE0H2D5W1RV2SB0VVCSJR",
+     "01M6YPE1J26K0BAM5NQKZ75SRD",
+     "01M6YPE2KSPMHRA53WR42G1Q7C",
+     "01M6YPE4F6VSNTHPMTJVAEX5FT",
+     "01M6YPE82962Z7KQEZEJQSMBHP",
+     "01M6YPE94PPDEC5MZQAJJWXMZE",
+     "01M6YPEAAPCM7NPC19VGY98P1J",
+     "01M6YPECQH7DRQJ8H6JMBE11GQ",
+     "01M6YPEDT3JDRFPTAWAA956R0E",
+     "01M6YQ4TPT3SDGSR77V7P6JYE8",
+     "01M6Z1KDTJCSZXEC1PBWSYRJWH",
+     "01M6ZAV5WCMQ5ADK2D6J2FJ4BY",
+     "01M6ZB455QPG9CS4H9PCAHG1HH",
+     "01M70DZM9S0HPX8FDQZ1RFXTTJ",
+     "01M70KQZX6SSTTW2G7N9YQNXDV",
+     "01M70KR15BJZACC9MQEVSAVEG2",
+     "01M70KR2WSX2J186MRYBRC4249",
+     "01M70KR5K2MF6VBK5N49587HGY",
+     "01M70KR6QAZ1NRA2Z4NGDX08TD",
+     "01M70KR8M3AAE109J89XGMKBXV",
+     "01M7BFA6AERAC9GHJ2VGXPN27F",
+     "01M7JR4P10CVQ2F13H9GJR90E4",
+     "01M7JR9P8QFF2W5G3HS1XD4Y68",
+     "01M7JRDGGEG420M41V2VKHW1Q6",
+     "01M7JRHFK74SKF1P89NGCD4DEV",
+     "01M7JRNTXHJTARTB5MV9W4KSD6",
+     "01M7JRSTKXTBAPKZSYEF34068X",
+     "01M7JRXT6RHYBQ46PP2ABB0HGJ",
+     "01M7JS1E8RZG520KY152ANFGM0",
+     "01M7JS65N3HF71F4AGYP29N46V",
+     "01M7JS9SFYV2G58DQ9NF8AD85E",
+     "01M7JSD4P339GQJCPFSM024WD7",
+     "01M7JSH96D1ZC7HWWXCA0X31YA"
+    ],
+    "weights": {
+     "01KJ8HNMFTN9124E1EAMDM5FFX": 1.08,
+     "01KKVJYMEVWJ6G3A64CK2ZQHC2": 1.08,
+     "01KZ71F6E37246GYSB2PCS1PVX": 1.08,
+     "01M35K7KR3658DJR5BRJ2KFJT9": 1.08,
+     "01M44CA27HH396X7EKX465FKAY": 1.08,
+     "01M5P18GG683XNQJ1PN7THGE7Z": 1.07,
+     "01M64MJR71EDV0C2670TFS3XEB": 0.98,
+     "01M64MK3P26MQPNRPTEP05JBN6": 1.21,
+     "01M64MKA8DAVY2K87C4WEN7M1G": 2.67,
+     "01M64MKMVWV0M9A81Y1VEWB7JD": 1.37,
+     "01M64MNNAY2ERG8V94EQGCHTC7": 1.26,
+     "01M64MNRY31GWD9A5DJ9BXH6CF": 1.26,
+     "01M64MNSEXTW9YJ8A70YPWWFGK": 0.76,
+     "01M64MPZM3444F2MBPH52N3YRV": 1.25,
+     "01M64MQ3M9JDDVRSGV9S8VDHPR": 0.16,
+     "01M64MRM5T6KZN8RQ23QFVTNSR": 1.66,
+     "01M64MSX5ASP6K2MSN7ZGZWT85": 0.79,
+     "01M64MWEWBYJ3QJ9VZ9D0DRVBA": 0.27,
+     "01M64MZ55VEQ9VM85NA919NWM2": 0.68,
+     "01M64N0EYAP59ZH05VRRMWJJ1E": 0.96,
+     "01M64N2A92GPX7NM1E34B8HBFV": 0.75,
+     "01M64N4BP9SKGM76JZPQJMME5Q": 1.54,
+     "01M64N68S75PCYNXEMK4A0VWFG": 3.69,
+     "01M64N7H3QP0VSX29YQV80BPC4": 3.28,
+     "01M64N842PKDCD08A8TQG3DM30": 2.16,
+     "01M64NAMX4R8E1SYTVV2M574M5": 2.82,
+     "01M64NDVKFF1YSRT5CY3DCWBF0": 1.61,
+     "01M64NF5SS4CM0YMM7SZBZ1EJR": 1.85,
+     "01M64NFYBDBCSZS1N0HJX1ZTVZ": 1.61,
+     "01M64NGFTPGT4GBHAKZTH9RDJ7": 1.49,
+     "01M64NH7ASZGQ4AHNGMSKR6DMK": 3.52,
+     "01M64NKS3NR9WZGQCP2D28VG12": 0.14,
+     "01M64NMBHN0Y3B6ST38K72P4AH": 0.51,
+     "01M64NP7D879YFJZW3NJ4CMDCV": 1.73,
+     "01M64NRFA1P1ZXVJE8N4RXHY7Y": 0.79,
+     "01M64NS8VX68KXMW5VHDDQ67QQ": 0.78,
+     "01M64NT8ZNJZN2EKAFNGN07WEJ": 0.35,
+     "01M64NTQ5EXAN1FCFDVX3FM11K": 0.67,
+     "01M6FARTDNVRJYJ692ADZMJ5E4": 1.59,
+     "01M6FB24JWX8ZTBEV4ET38TQH0": 3.82,
+     "01M6FB28JBDQCH4C6W4FB5V4PH": 0.54,
+     "01M6FB2AJ3TDC7RFTQ6JV5FJG9": 0.44,
+     "01M6FB2AYM3M1ABMRNT7TY46SX": 0.14,
+     "01M6FB2BWK8ZVX95SS4R6B8XRW": 0.56,
+     "01M6FB3N92B0P3EKZBQKBK91D3": 1.5,
+     "01M6FB4QAE9P4YX0YAY3KSY35R": 0.18,
+     "01M6FB8EXTBG96VJ8WCWFPGW3H": 2.25,
+     "01M6FD5S6RTTDKEV7D9NT5SJYQ": 0.67,
+     "01M6FE6ZVD2FJ9G1K4DVZ7DWCC": 0.54,
+     "01M6FZG8YXYVP5E85TYR6QWJW5": 1.08,
+     "01M6G3PPVM0ZGGRPZJMW1VHX8R": 0.49,
+     "01M6GRN0JZFP7VKCV5J9RPHAXP": 0.5,
+     "01M6HGS3PPW5BBW888HF1A2VK3": 0.27,
+     "01M6HGS5QNBBVKDX2PYQW0X00S": 0.25,
+     "01M6HGXBQDSPN3FCCVRCYMG8B5": 0.08,
+     "01M6HGZAJBGTW7ZYKN08XQEV9N": 0.99,
+     "01M6HGZXPVPE2SC6EBMCX7TDW8": 0.59,
+     "01M6HH1D810HV8G89P12E183EX": 0.13,
+     "01M6HH1XAVTNB31QPY6BN7YBAT": 0.49,
+     "01M6HH1YHXTP1VW51SME1N5ME7": 0.08,
+     "01M6HH22N0P2SFK7FHXCKK5QWV": 1.07,
+     "01M6HH72882QYN06QBGQS3CPT9": 0.6,
+     "01M6HHAYNRFJ5Z3DSRVN8GZKE6": 0.65,
+     "01M6HHBX0895D5FZTXSB5HSXHJ": 1.94,
+     "01M6HHBY2PNM2Y8J6QC19NJWGS": 0.36,
+     "01M6HHC0KZQ9PGR1TRZTK7SS3W": 0.34,
+     "01M6HHC55HQACECZGVYMR43JGW": 0.11,
+     "01M6HHCQYWPJ1X9BPZQ8KWRKFY": 1.34,
+     "01M6HHEM0188KAMGEQ80SBS2Q9": 0.57,
+     "01M6HHJMEG8MBP4QNFTN08MBBP": 1,
+     "01M6HHKF86QN6DH5JT6PDK95XC": 3.75,
+     "01M6HHKP5YPETA0BD8CQA28N14": 0.21,
+     "01M6HHKQ6KQSYZ9H0PVXF1TQAZ": 0.86,
+     "01M6HHKRY1G2GPWFRTFRW3GJWR": 0.41,
+     "01M6HHMZ1J5W9N16CW4E9DS573": 1.53,
+     "01M6HHQ1WK68R5SJVEM7VE82ZX": 0.28,
+     "01M6HHSB7P2J8DE357XA5YRDPM": 0.14,
+     "01M6HHTYC001CZQVJQ4627NEQG": 0.13,
+     "01M6HHX88BBAFZ9QQ2WC4S3NKJ": 1.42,
+     "01M6HJ2PY9V8QQ5XHFDMDT3MT4": 0.73,
+     "01M6HJ2Y5TPD5R2QPE1DQ5GPYP": 0.14,
+     "01M6HJ4FCMTPQQB72MABG7Z7B7": 2.8,
+     "01M6HJ6GP4VFVYQ3NM8ZYT6HXN": 0.76,
+     "01M6HJ8Y80RRS78T6RBZW9CG46": 0.54,
+     "01M6HJBF169GCN4DT589VS9PMD": 0.98,
+     "01M6HJZG31F74WTPWFQB0WMZNP": 0.5,
+     "01M6J5VSTE7Y4BPCNBTWKYK7ZV": 0.96,
+     "01M6J6JHX8376R9G9TPQNMMT5E": 1.03,
+     "01M6JXZ9W9SKVG2A8V77SN82VS": 0.19,
+     "01M6K0GBENNBHRP4RZVN0BY52W": 0.23,
+     "01M6K0MF2PFEGD88RVXAQ7TGQV": 1.1,
+     "01M6K0PFRNJ8PYHZ5QTC0NGWRW": 0.93,
+     "01M6K0RGEDG9VRFK4BEJDNTJTD": 1.67,
+     "01M6K0X6K397XCF6YGYVREFGFF": 2.02,
+     "01M6KNYJH1X5V61RPSXXQXTFEF": 1.08,
+     "01M6KXT407511MQ50CE2Z9PSX9": 0.73,
+     "01M6R57P0ATR84AG4S0A47C94R": 0.5,
+     "01M6YPE0H2D5W1RV2SB0VVCSJR": 0.86,
+     "01M6YPE1J26K0BAM5NQKZ75SRD": 1,
+     "01M6YPE2KSPMHRA53WR42G1Q7C": 0.54,
+     "01M6YPE4F6VSNTHPMTJVAEX5FT": 1.64,
+     "01M6YPE82962Z7KQEZEJQSMBHP": 1.02,
+     "01M6YPE94PPDEC5MZQAJJWXMZE": 0.98,
+     "01M6YPEAAPCM7NPC19VGY98P1J": 2.72,
+     "01M6YPECQH7DRQJ8H6JMBE11GQ": 2.34,
+     "01M6YPEDT3JDRFPTAWAA956R0E": 1.84,
+     "01M6YQ4TPT3SDGSR77V7P6JYE8": 0.95,
+     "01M6Z1KDTJCSZXEC1PBWSYRJWH": 5.44,
+     "01M6ZAV5WCMQ5ADK2D6J2FJ4BY": 1.16,
+     "01M6ZB455QPG9CS4H9PCAHG1HH": 1.73,
+     "01M70KQZX6SSTTW2G7N9YQNXDV": 2.42,
+     "01M70KR15BJZACC9MQEVSAVEG2": 4.61,
+     "01M70KR2WSX2J186MRYBRC4249": 4.28,
+     "01M70KR5K2MF6VBK5N49587HGY": 2.9,
+     "01M70KR6QAZ1NRA2Z4NGDX08TD": 4.75,
+     "01M70KR8M3AAE109J89XGMKBXV": 2.67,
+     "01M7JRDGGEG420M41V2VKHW1Q6": 1,
+     "01M7JRXT6RHYBQ46PP2ABB0HGJ": 1,
+     "01M7JS65N3HF71F4AGYP29N46V": 1,
+     "01M7JSD4P339GQJCPFSM024WD7": 1.25,
+     "01M7JSH96D1ZC7HWWXCA0X31YA": 1.25
+    },
+    "default_weight": 1,
+    "noise": 1,
+    "demote_played": 0.2,
+    "position_by_arm": {
+     "mixed-v3": 5,
+     "selector-v3": 5
+    },
+    "score_version": "row-pull-v2",
+    "score": "row: row-card taps per impression x finishing x Share, / pool median; unscored and explore at 1.0; x0.5 for the bottom quarter of length-adjusted reach (log-odds vs the house survival curve), x1.25 for length-adjusted reach hits; community Shorts keep their 19b row weights (capped at 1.08)"
+   },
+   "feed": {
+    "score_version": "feed-reach-logodds-v1-cc",
+    "score": "feed: 0.25 + 2.75 x percentile of feed-card taps x finishing x Share (17c); bottom 15 at 0.1; x0.3 guardrail (floor 0.1); then, by length-adjusted reach (log-odds of feed starts that play the Short's own length minus log-odds of the share of house feed starts still playing at that second, same arm x play-number cell, 15 pseudo-starts, Nov 11-18, 150+ starts): bottom quarter x0.5, hits x1.25, heavy Shorts with a length-adjusted CI below the median at 1.0, hits under the median weight raised to it; explore Shorts with 150+ starts measured the same way from 1.62; openers: top 20 house Shorts by length-adjusted reach with 800+ feed starts, at most 45 s long, at most 6 per style; added Shorts at the median 1.62, new ones in explore; dropped: never drawn; community Shorts (no ending event, so no length adjustment) keep their 19b weights (capped at the median house weight 1.62), no community openers; openers: top 20 house Shorts on the length-adjusted measure among Shorts with 600+ feed starts, at most 7 per style, 45 s or shorter, art checked by eye (toast-it swapped for as-tall-as-you-dare)",
+    "weights": {
+     "01M64NQ64KBNK2G9A60KWPGAX1": 0.05,
+     "01M64N842PKDCD08A8TQG3DM30": 3.11,
+     "01M6HHGG4ZQ8QYZ4MXN97Q2XBE": 1.62,
+     "01M6HJ6GP4VFVYQ3NM8ZYT6HXN": 1.36,
+     "01M6HJ2Y5TPD5R2QPE1DQ5GPYP": 0.45,
+     "01M64N68S75PCYNXEMK4A0VWFG": 3.62,
+     "01M6HGVWW5QAW79H9A44JPFP92": 1.46,
+     "01M6HHMZ1J5W9N16CW4E9DS573": 2.99,
+     "01M6HH202MQ5VQF97W8744XX1Z": 1.62,
+     "01M6FB2BFJRYJAD8T77G26PN1N": 0.81,
+     "01M64MKA8DAVY2K87C4WEN7M1G": 3.24,
+     "01M6HHVKPK245F2SWEK8R07QNV": 3.56,
+     "01M6FAQPBT5KD9Y732QNTGPHFR": 0.1,
+     "01M6HGZAJBGTW7ZYKN08XQEV9N": 1.36,
+     "01M6HJBF169GCN4DT589VS9PMD": 2.68,
+     "01M6YPEAAPCM7NPC19VGY98P1J": 3.31,
+     "01M6HHQ34AKHN80Z08BT9S272M": 1.62,
+     "01M35K7KR3658DJR5BRJ2KFJT9": 1,
+     "01M64MPZM3444F2MBPH52N3YRV": 2.3,
+     "01M6K0MF2PFEGD88RVXAQ7TGQV": 2.14,
+     "01M6HJ4CT6TS9QYN6B5GKR4BF8": 0.05,
+     "01M64MKMVWV0M9A81Y1VEWB7JD": 1.81,
+     "01M64N8HY015QGYY49SXG9W5A8": 1.62,
+     "01M6HH23V3SEAKKC0GVFYHBP4T": 1.62,
+     "01M6HHJMEG8MBP4QNFTN08MBBP": 1.68,
+     "01M6K0TS1Z98F0FK998CK3BXXF": 1.62,
+     "01M64N7G84S5F6TBGCSJXQ6AQP": 2.03,
+     "01M64NF5SS4CM0YMM7SZBZ1EJR": 1.62,
+     "01M6HGS3PPW5BBW888HF1A2VK3": 0.5,
+     "01M6HHKKZCH61PN05ZMQMERKC3": 1.62,
+     "01M6FD5S6RTTDKEV7D9NT5SJYQ": 1,
+     "01M6JZ4ZBFAA8H00P3HSNK43X7": 1.62,
+     "01M6HHBZ3RVWPDHTW3A60H5T64": 0.55,
+     "01M5P18GG683XNQJ1PN7THGE7Z": 1,
+     "01M70KR2WSX2J186MRYBRC4249": 3.47,
+     "01M6J5VSTE7Y4BPCNBTWKYK7ZV": 1.51,
+     "01M6YPE82962Z7KQEZEJQSMBHP": 2.25,
+     "01M6HJ4FCMTPQQB72MABG7Z7B7": 3.38,
+     "01M6HJ2PY9V8QQ5XHFDMDT3MT4": 0.3,
+     "01M6FB28JBDQCH4C6W4FB5V4PH": 2.04,
+     "01M7JS9SFYV2G58DQ9NF8AD85E": 1.62,
+     "01M6HJZG31F74WTPWFQB0WMZNP": 1,
+     "01M6HH1XAVTNB31QPY6BN7YBAT": 0.3,
+     "01M6GRN0JZFP7VKCV5J9RPHAXP": 1,
+     "01KZ71F6E37246GYSB2PCS1PVX": 1.62,
+     "01M6HHC55HQACECZGVYMR43JGW": 0.25,
+     "01M6K0Z491Y5X40FG4GPDWRCYM": 0.81,
+     "01M64N9GRJHC8R8KDD0KTPE1RP": 0.05,
+     "01M64MK3P26MQPNRPTEP05JBN6": 0.98,
+     "01M6HG4ABNA6SQDHZ5M1F6S0QY": 1.62,
+     "01M6HGZXPVPE2SC6EBMCX7TDW8": 1.13,
+     "01M6FB88REYTNE9W16AAP9RM90": 1.62,
+     "01M64N6KHH6VM6Z6WCN2TZ0S3Y": 0.17,
+     "01M6K0GBENNBHRP4RZVN0BY52W": 0.1,
+     "01M64MJR71EDV0C2670TFS3XEB": 1.99,
+     "01M6YPEDT3JDRFPTAWAA956R0E": 2.78,
+     "01M6FB2AYM3M1ABMRNT7TY46SX": 0.4,
+     "01M6ZAV5WCMQ5ADK2D6J2FJ4BY": 2.45,
+     "01M6FB51S6YNY47JRN60CN9665": 0.05,
+     "01M6HH967YPZ69E0EE7X0KWQXR": 1.62,
+     "01M6HGS5DY8NA7YQEX7BXX9W3S": 1.62,
+     "01M64MGTMAVKSJSD7J4CPJH11W": 0.81,
+     "01M6HHKF86QN6DH5JT6PDK95XC": 3.71,
+     "01M6FZG8YXYVP5E85TYR6QWJW5": 1,
+     "01M6K0X6K397XCF6YGYVREFGFF": 3.3,
+     "01M7JSH96D1ZC7HWWXCA0X31YA": 2.03,
+     "01M70KR5K2MF6VBK5N49587HGY": 0.3,
+     "01M6FB2D62XEBQV70B6GVFB5E0": 0.05,
+     "01M64MTCHXGJKYZ66FY0CCTA87": 0.05,
+     "01M6K0PFRNJ8PYHZ5QTC0NGWRW": 2.2,
+     "01M6FB2K2GNCNHZHJZFYWKRVYZ": 1.62,
+     "01M6FB6N1VKZSCJSTQNKXCRGF8": 1.66,
+     "01M7JS1E8RZG520KY152ANFGM0": 1.62,
+     "01M6HH22N0P2SFK7FHXCKK5QWV": 1.74,
+     "01M70KR6QAZ1NRA2Z4NGDX08TD": 3.69,
+     "01M6K1130DAKTEWRKTDFAH2JR1": 1.62,
+     "01M6HHKP5YPETA0BD8CQA28N14": 0.42,
+     "01M64MNRY31GWD9A5DJ9BXH6CF": 1.23,
+     "01M7JSD4P339GQJCPFSM024WD7": 2.03,
+     "01M64MT8S7FF2JYRTPE866W634": 0.1,
+     "01M64NDVKFF1YSRT5CY3DCWBF0": 0.3,
+     "01M6YPE3JERV6D0R3P3Z1B08TY": 0.05,
+     "01M70KR15BJZACC9MQEVSAVEG2": 3.65,
+     "01M64NB4Z6E2YPP13BP2E5JWVD": 0.86,
+     "01M64NH7ASZGQ4AHNGMSKR6DMK": 3.52,
+     "01M64NKS3NR9WZGQCP2D28VG12": 0.4,
+     "01M6HHEM0188KAMGEQ80SBS2Q9": 2.09,
+     "01M7JRDGGEG420M41V2VKHW1Q6": 1.62,
+     "01M7JRHFK74SKF1P89NGCD4DEV": 1.62,
+     "01M64N8DR7PV6A9176GDHQV7VD": 0.75,
+     "01M64MWEWBYJ3QJ9VZ9D0DRVBA": 1.62,
+     "01M64NT8ZNJZN2EKAFNGN07WEJ": 0.44,
+     "01M6JXZ9W9SKVG2A8V77SN82VS": 0.8,
+     "01KKVJYMEVWJ6G3A64CK2ZQHC2": 1,
+     "01M6HHYEXCG5YCXYDEK1K40497": 1.62,
+     "01M7JRNTXHJTARTB5MV9W4KSD6": 1.62,
+     "01M6ZB455QPG9CS4H9PCAHG1HH": 2.07,
+     "01M6HHTYC001CZQVJQ4627NEQG": 0.49,
+     "01M6HHQ1WK68R5SJVEM7VE82ZX": 0.73,
+     "01M64NGFTPGT4GBHAKZTH9RDJ7": 3.4,
+     "01M6K0RGEDG9VRFK4BEJDNTJTD": 3.21,
+     "01M64MM7HVH39JE0XSSC3EJAQP": 1.82,
+     "01KJ8HNMFTN9124E1EAMDM5FFX": 1.62,
+     "01M6HHBX0895D5FZTXSB5HSXHJ": 3.6,
+     "01M6HHKB8JQNFMBZZ499G4QRQ1": 1.62,
+     "01M64NYA1WX36XSFAVGPZD185W": 1.67,
+     "01M64MRYN5GV2S7GFCVHXRNGHT": 0.05,
+     "01M6FB8DZA40WTKTXE914JSHQD": 0.1,
+     "01M44CA27HH396X7EKX465FKAY": 1.58,
+     "01M6HH7HJM5VZMNC1W1167DS2M": 1.62,
+     "01M64NG2T4CVFYWH0376GC4C3C": 1.79,
+     "01M64NS8VX68KXMW5VHDDQ67QQ": 0.3,
+     "01M64N4BP9SKGM76JZPQJMME5Q": 2.86,
+     "01M7JRSTKXTBAPKZSYEF34068X": 1.62,
+     "01M6HHX88BBAFZ9QQ2WC4S3NKJ": 2.74,
+     "01M6YPE2KSPMHRA53WR42G1Q7C": 0.3,
+     "01M6HHKN3QFB2A9M391SHRMWE2": 1.29,
+     "01M6FB29MYSKM3GBT0RMJ75N4R": 0.05,
+     "01M64NHFVVZ5768W5Z517W116V": 0.56,
+     "01M6HH210P7G299TGWZ522Z5E0": 1.62,
+     "01M6FARTDNVRJYJ692ADZMJ5E4": 0.3,
+     "01M64MGXHHEFQSD2NWVEE4JZM9": 1.38,
+     "01M64NTQ5EXAN1FCFDVX3FM11K": 1.89,
+     "01M64MJPZPY5KA2FFZJ7VFX7P6": 0.19,
+     "01M64MNNAY2ERG8V94EQGCHTC7": 1.03,
+     "01M6HHC0KZQ9PGR1TRZTK7SS3W": 0.1,
+     "01M64NFYBDBCSZS1N0HJX1ZTVZ": 1.72,
+     "01M7JS65N3HF71F4AGYP29N46V": 1.62,
+     "01M6HGS5QNBBVKDX2PYQW0X00S": 1.62,
+     "01M6Z1KDTJCSZXEC1PBWSYRJWH": 3.5,
+     "01M6FB4R788S7Q8EP16YKFV10V": 0.6,
+     "01M6FB24JWX8ZTBEV4ET38TQH0": 3.19,
+     "01M6FB8EXTBG96VJ8WCWFPGW3H": 3.05,
+     "01M6HH482KV0AXY87Y19AAM1W9": 1.62,
+     "01M6HH5A59Z2XE8NT0NN4WCE0N": 1.62,
+     "01M6FB2BWK8ZVX95SS4R6B8XRW": 1.16,
+     "01M6HHW92BGFDFGAR8TD0WRVKE": 0.05,
+     "01M6YQ4TPT3SDGSR77V7P6JYE8": 2.75,
+     "01M6HGS7VF6968NQ2M8T9DF9BE": 0.05,
+     "01M6YPECQH7DRQJ8H6JMBE11GQ": 3.06,
+     "01M6HHBY2PNM2Y8J6QC19NJWGS": 0.26,
+     "01M7JRXT6RHYBQ46PP2ABB0HGJ": 1.62,
+     "01M64NP7D879YFJZW3NJ4CMDCV": 3.12,
+     "01M6J6JHX8376R9G9TPQNMMT5E": 1.62,
+     "01M6HHN5K09GHA0EWGMNYCCXMN": 0.05,
+     "01M64MD9NC0P6TYXP323P68CGK": 1.62,
+     "01M6HH9CE4J6H313575QKH6HD3": 1.62,
+     "01M6YPE1J26K0BAM5NQKZ75SRD": 1.62,
+     "01M6FBCXCT1XCNQ79BG7EKD1NB": 0.05,
+     "01KZFW924HN8180Q622VCYGD4N": 1.62,
+     "01M7JR9P8QFF2W5G3HS1XD4Y68": 1.62,
+     "01M6K424A0TFH79AXJMG7G7RW3": 0.78,
+     "01M6G3PPVM0ZGGRPZJMW1VHX8R": 1.41,
+     "01M6KXT407511MQ50CE2Z9PSX9": 1.15,
+     "01M6HHC24GM0NGRSRG0WSF6KA3": 1.62,
+     "01M6HHCQYWPJ1X9BPZQ8KWRKFY": 3.15,
+     "01M6HHDX4TC7KGQ6X67EM3QD4M": 1.62,
+     "01M6HHKQ6KQSYZ9H0PVXF1TQAZ": 1.53,
+     "01M6HGXV55W5ES9NPFV7ND48MW": 0.05,
+     "01M64NDMS215WG4KDFYCWCVVZC": 0.08,
+     "01M6FB2HRRWK5V3CDHRFS2P976": 1.62,
+     "01M6FB29SPSTK35084CY8QJ2T3": 0.05,
+     "01M64MSX5ASP6K2MSN7ZGZWT85": 0.98,
+     "01M6HHBK746MVQ5S0GEDK6SZEB": 2.03,
+     "01M6K0JQ6279CHVRBG7FH4VNP9": 2.96,
+     "01M6HHAYNRFJ5Z3DSRVN8GZKE6": 0.65,
+     "01M64MNSEXTW9YJ8A70YPWWFGK": 1.62,
+     "01M6FB2FT7NWKVF4F8RKT13NKB": 1.62,
+     "01M6HJ8Y80RRS78T6RBZW9CG46": 1.94,
+     "01M64N7H3QP0VSX29YQV80BPC4": 3.25,
+     "01M64N4639HM6KPGFEWK4H15JX": 0.3,
+     "01M64N0EYAP59ZH05VRRMWJJ1E": 1.08,
+     "01M6FB2GVJYYTZXMS33BKYAVGH": 0.3,
+     "01M6HH1X8NW459DCPZ974HYPJH": 1.62,
+     "01M6FB4PCFRQYBTEK1S45QS2RG": 0.05,
+     "01M6YPE94PPDEC5MZQAJJWXMZE": 1.77,
+     "01M6FE6ZVD2FJ9G1K4DVZ7DWCC": 1.56,
+     "01M6HH1YHXTP1VW51SME1N5ME7": 0.3,
+     "01M6FB2AJ3TDC7RFTQ6JV5FJG9": 0.46,
+     "01M7JR4P10CVQ2F13H9GJR90E4": 1.62,
+     "01M64NRFA1P1ZXVJE8N4RXHY7Y": 0.62,
+     "01M70KR8M3AAE109J89XGMKBXV": 3.34,
+     "01M6HH3CM0604RQ600PEYNG5P2": 0.29,
+     "01M6FB3N92B0P3EKZBQKBK91D3": 1,
+     "01M64MRM5T6KZN8RQ23QFVTNSR": 3,
+     "01M6HGS6QPGZKS0E4F9GY1DS7P": 0.1,
+     "01M6HHSDHH8KB6Z17CB0J0SFPY": 0.63,
+     "01M6HHSB7P2J8DE357XA5YRDPM": 0.05,
+     "01M6KNYJH1X5V61RPSXXQXTFEF": 1.62,
+     "01M64N33N0V75JM1QJQJVCKCWW": 0.36,
+     "01M6HHGGYW599XRZEZG14GWS00": 1.62,
+     "01M64NMBHN0Y3B6ST38K72P4AH": 1,
+     "01M6HH6EFGZ43BGJ2Z6WYXG7DJ": 1.62,
+     "01M70KQZX6SSTTW2G7N9YQNXDV": 2.34,
+     "01M64N2A92GPX7NM1E34B8HBFV": 1,
+     "01M64NAMX4R8E1SYTVV2M574M5": 1,
+     "01M64MQ3M9JDDVRSGV9S8VDHPR": 0.43,
+     "01M6YPE4F6VSNTHPMTJVAEX5FT": 2.42,
+     "01M6FB26K7HDHQG3ZKZ84JMBBZ": 1.62,
+     "01M64MJFRBCX6WPFCH31334120": 0.68,
+     "01M6HGXBQDSPN3FCCVRCYMG8B5": 0.2,
+     "01M6HH72882QYN06QBGQS3CPT9": 1.54,
+     "01M6HH1D810HV8G89P12E183EX": 0.28,
+     "01M6HHKRY1G2GPWFRTFRW3GJWR": 0.46,
+     "01M6YPE0H2D5W1RV2SB0VVCSJR": 1.21,
+     "01M64MZ55VEQ9VM85NA919NWM2": 1.69,
+     "01M6FB4QAE9P4YX0YAY3KSY35R": 0.59,
+     "01M1SCDGCYAG83SBNCXYW5AR58": 1.62,
+     "01M44AGWHK5657CF68BF14BK92": 1.62,
+     "01M6R57P0ATR84AG4S0A47C94R": 0.81,
+     "01M60C7HNZ585C3DN71ZEKE17A": 1.62,
+     "01M6E2HDAW9WGQD7WZAF42G4AR": 1.62,
+     "01M6KK0KR6JBKN06FVS0HC2MBB": 1.62,
+     "01M6GPNWN64Y9TED21NX2XXHVC": 1.62,
+     "01M6GH2E11BT2R38S6J7NS2BQJ": 1.62,
+     "01M3YZCXM66PBNPT12DBSQ12DY": 1.62,
+     "01M6JBNVS68T02GMHRZ1M22C2H": 1.62,
+     "01M70DZM9S0HPX8FDQZ1RFXTTJ": 1.62,
+     "01KTJV84VMH8D3TQVAW4CW1ETS": 1.62,
+     "01KVXW3E7KHYM2N4AHXTKBK4V3": 1.62,
+     "01M60F7TWX764J6ETA45W0ZBCJ": 1.62,
+     "01M68C721FJZNDJWXQ28NB4HTT": 1.62,
+     "01M7BFA6AERAC9GHJ2VGXPN27F": 1.62,
+     "01M48H6MK5H08Y1B2T6NXM0NTG": 1.62
+    },
+    "openers": [
+     "01M70KR6QAZ1NRA2Z4NGDX08TD",
+     "01M6YPECQH7DRQJ8H6JMBE11GQ",
+     "01M64N7H3QP0VSX29YQV80BPC4",
+     "01M64N842PKDCD08A8TQG3DM30",
+     "01M6K0X6K397XCF6YGYVREFGFF",
+     "01M6ZAV5WCMQ5ADK2D6J2FJ4BY",
+     "01M6FB24JWX8ZTBEV4ET38TQH0",
+     "01M64MPZM3444F2MBPH52N3YRV",
+     "01M64MKA8DAVY2K87C4WEN7M1G",
+     "01M70KR15BJZACC9MQEVSAVEG2",
+     "01M64NP7D879YFJZW3NJ4CMDCV",
+     "01M64N68S75PCYNXEMK4A0VWFG",
+     "01M6HHJMEG8MBP4QNFTN08MBBP",
+     "01M6YPEDT3JDRFPTAWAA956R0E",
+     "01M6HJ4FCMTPQQB72MABG7Z7B7",
+     "01M6HHMZ1J5W9N16CW4E9DS573",
+     "01M6HJBF169GCN4DT589VS9PMD",
+     "01M6YPEAAPCM7NPC19VGY98P1J",
+     "01M64MKMVWV0M9A81Y1VEWB7JD",
+     "01M6HJ6GP4VFVYQ3NM8ZYT6HXN"
+    ],
+    "explore": [
+     "01M6HH202MQ5VQF97W8744XX1Z",
+     "01M6HHQ34AKHN80Z08BT9S272M",
+     "01M64N8HY015QGYY49SXG9W5A8",
+     "01M6K0TS1Z98F0FK998CK3BXXF",
+     "01M6HHKKZCH61PN05ZMQMERKC3",
+     "01M7JS9SFYV2G58DQ9NF8AD85E",
+     "01M6HG4ABNA6SQDHZ5M1F6S0QY",
+     "01M6FB88REYTNE9W16AAP9RM90",
+     "01M6HH967YPZ69E0EE7X0KWQXR",
+     "01M6FB2K2GNCNHZHJZFYWKRVYZ",
+     "01M7JS1E8RZG520KY152ANFGM0",
+     "01M6K1130DAKTEWRKTDFAH2JR1",
+     "01M7JRHFK74SKF1P89NGCD4DEV",
+     "01M7JRNTXHJTARTB5MV9W4KSD6",
+     "01M6HH7HJM5VZMNC1W1167DS2M",
+     "01M7JRSTKXTBAPKZSYEF34068X",
+     "01M6HH210P7G299TGWZ522Z5E0",
+     "01M6HH9CE4J6H313575QKH6HD3",
+     "01KZFW924HN8180Q622VCYGD4N",
+     "01M7JR9P8QFF2W5G3HS1XD4Y68",
+     "01M6HHC24GM0NGRSRG0WSF6KA3",
+     "01M6HHDX4TC7KGQ6X67EM3QD4M",
+     "01M6FB2HRRWK5V3CDHRFS2P976",
+     "01M6HH1X8NW459DCPZ974HYPJH",
+     "01M7JR4P10CVQ2F13H9GJR90E4",
+     "01M6HHGGYW599XRZEZG14GWS00",
+     "01M6JBNVS68T02GMHRZ1M22C2H",
+     "01M70DZM9S0HPX8FDQZ1RFXTTJ",
+     "01KTJV84VMH8D3TQVAW4CW1ETS",
+     "01KVXW3E7KHYM2N4AHXTKBK4V3",
+     "01M60F7TWX764J6ETA45W0ZBCJ",
+     "01M68C721FJZNDJWXQ28NB4HTT",
+     "01M7BFA6AERAC9GHJ2VGXPN27F",
+     "01M48H6MK5H08Y1B2T6NXM0NTG"
+    ],
+    "explore_share": 0.1,
+    "excluded": [
+     "01M6MJR9E4AX5Z25RQG88F3S8T",
+     "01M6JGMAN0FM2RNX7PVXKXC5YP",
+     "01M6JE8SCN0CJ4YZA9QRDV7M14",
+     "01M31PF3YMZS95T3Q6473ZM3TA",
+     "01M6H7P94Y4VRJVC6CV2V3GSB9",
+     "01M6GH4PKMZ4JEFTWNN3S879E0",
+     "01M6HJ0CHWR2A46YQZCKZKDGMW",
+     "01M2YPGH12BEAP6NJ6EC3JAJST",
+     "01M5G7389X7SNT6ET8K1TG3CXC",
+     "01M6FW290Z2JNGFE24C36022EG",
+     "01M655N3X7X41966WRR38FKJ6Z"
+    ],
+    "dropped": [
+     "01M6FB2D62XEBQV70B6GVFB5E0",
+     "01M6HJ4CT6TS9QYN6B5GKR4BF8",
+     "01M64NQ64KBNK2G9A60KWPGAX1"
+    ]
+   }
+  }
+ },
+ "3891932365": {
+  "rule": "5cqZdKlmZFgUY8vyhRnwTh:100.00:1",
+  "value": {
+   "contests": [
+    {
+     "id": "contest_food_frenzy_2025_03_11",
+     "startTime": 1741719600,
+     "endTime": 1742324400,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741289901/Screenshot_2025-03-05_at_6.02.55_PM_hrlioy.png",
+     "title": "Food Frenzy - Obby",
+     "subTitle": "Tasty and Treacherous!",
+     "description": "Design a wacky world where food becomes your parkour playground! Jump across floating waffles, dodge damaging meatballs, and climb up ladders made of french fries as you race to the end.",
+     "requirements": [
+      "Food-themed",
+      "Add a rotating/spinning object",
+      "10 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 10,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 5,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 3,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_food_frenzy_2025_03_11",
+     "templateType": "Blueprint",
+     "gameType": "obby",
+     "contestLevel": "beginner",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Kitchen Nightmare, Escape the Fridge"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Food-themed. 2) Add a rotating/spinning object. 3) 10 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_great_escape_2025_03_11",
+     "startTime": 1741719600,
+     "endTime": 1742324400,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741289891/Screenshot_2025-03-05_at_6.01.34_PM_mshkkg.png",
+     "title": "The Great Escape - Obby",
+     "subTitle": "Break Out!",
+     "description": "Create an escape-themed obby set in a prison, lab, castle, or villain’s lair. Include hazards, mazes, or enemies that the player must navigate!",
+     "requirements": [
+      "Escape or heist-themed",
+      "Include a secret/hidden room",
+      "Add climbable objects",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 25,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 10,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 5,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_great_escape_2025_03_11",
+     "templateType": "Blueprint",
+     "gameType": "obby",
+     "contestLevel": "intermediate",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Mad Scientist, Cursed Pyramid, Prison Break"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Escape or heist-themed. 2) Include a secret/hidden room. 3) Add climbable objects. 4) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_frozen_expedition_2025_03_11",
+     "startTime": 1741719600,
+     "endTime": 1742324400,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741289895/Screenshot_2025-03-05_at_6.01.41_PM_rsj4jq.png",
+     "title": "Frozen Expedition - Treasure Hunter",
+     "subTitle": "Explore the Ice Ruins",
+     "description": "Build an expansive frozen landscape filled with hidden treasures, enemies, and frozen weapons!",
+     "requirements": [
+      "Frozen-themed",
+      "Add several mines and collectibles hidden by objects and decorations",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 25,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 10,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 5,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_frozen_expedition_2025_03_11",
+     "templateType": "Blueprint",
+     "gameType": "treasurehunter",
+     "contestLevel": "intermediate",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Frozen, Ice Temple, Eternal Winter"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Frozen-themed. 2) Add several mines and collectibles hidden by objects and decorations. 3) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_upside_down_2025_03_11",
+     "startTime": 1741719600,
+     "endTime": 1742324400,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741289905/Screenshot_2025-03-05_at_6.03.07_PM_lclptk.png",
+     "title": "Upside Down - Collectathon",
+     "subTitle": "Everything is Flipped!",
+     "description": "Design an environment where everything is inverted—buildings, trees, mountains, and everything else appears upside-down in the sky!",
+     "requirements": [
+      "Features upside-down decorations and objects",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 35,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 15,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 10,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_upside_down_2025_03_11",
+     "templateType": "Blueprint",
+     "gameType": "collectathon",
+     "contestLevel": "advanced",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Inverted City, Gravity Glitch, Dreamworld"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Features upside-down decorations and objects. 2) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_hidden_secrets_2025_03_11",
+     "startTime": 1741719600,
+     "endTime": 1742324400,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741289898/Screenshot_2025-03-05_at_6.02.07_PM_dfdfgi.png",
+     "title": "Hidden Secrets - Treasure Hunter",
+     "subTitle": "Uncover the Truth!",
+     "description": "Create a world filled with secrets waiting to be discovered. Instead of just collecting treasure, players might piece together a mystery, unlock a forgotten past, or reveal the truth about a character, place, or event.",
+     "requirements": [
+      "Secret-themed",
+      "Use Characters and Message Zones to set the scene or tell a story",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 35,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 15,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 10,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_hidden_secrets_2025_03_11",
+     "templateType": "Blueprint",
+     "gameType": "treasurehunter",
+     "contestLevel": "advanced",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Forgotten Notebook, Vanishing City, Haunted Attic"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Secret-themed. 2) Use Characters and Message Zones to set the scene or tell a story. 3) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_under_the_sea_2025_03_18",
+     "startTime": 1742324400,
+     "endTime": 1742929200,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741638769/Screenshot_2025-03-10_at_1.22.23_PM_bxybxb.jpg",
+     "title": "Under the Sea - Collectathon",
+     "subTitle": "Dive Deep!",
+     "description": "Create a collectathon set in an underwater world. Decorate with sunken treasure, sea creatures, and mysterious artifacts lost beneath the waves.",
+     "requirements": [
+      "Underwater-themed",
+      "Add a fly or double jump power-up",
+      "10 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_under_the_sea_2025_03_18",
+     "templateType": "Blueprint",
+     "gameType": "collectathon",
+     "contestLevel": "beginner",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Diver, Sunken City, Coral Reef"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Underwater-themed. 2) Add a fly or double jump power-up. 3) 10 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_rainbow_run_2025_03_18",
+     "startTime": 1742324400,
+     "endTime": 1742929200,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741638781/Screenshot_2025-03-10_at_1.22.45_PM_y9982t.jpg",
+     "title": "Rainbow Run - Collectathon",
+     "subTitle": "It's a Color Rush!",
+     "description": "Create a collectathon full of bright colors and vibrancy! Can your players collect the full rainbow?",
+     "requirements": [
+      "Rainbow-themed",
+      "Add a speed boost power-up",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_rainbow_run_2025_03_18",
+     "templateType": "Blueprint",
+     "gameType": "collectathon",
+     "contestLevel": "intermediate",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Color Rush, Rainbow Chase, Neon City"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Rainbow-themed. 2) Add a speed boost power-up. 3) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_tricky_trial_2025_03_18",
+     "startTime": 1742324400,
+     "endTime": 1742929200,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741638785/Screenshot_2025-03-10_at_1.30.00_PM_twnpx8.jpg",
+     "title": "Tricky Trial - Obby",
+     "subTitle": "A Fun Challenge!",
+     "description": "Moving platforms, mazes, jumps, decorations disguised as objects—how will you trick the player's mind and create a fun challenge?",
+     "requirements": [
+      "Features challenging/tricky features like a maze, moving/rotating platforms, or jumps",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_tricky_trial_2025_03_18",
+     "templateType": "Blueprint",
+     "gameType": "obby",
+     "contestLevel": "intermediate",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Moving Maze, Invisible Path, Obstacle Course"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Features challenging/tricky features like a maze, moving/rotating platforms, or jumps. 2) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_shadow_realm_2025_03_18",
+     "startTime": 1742324400,
+     "endTime": 1742929200,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741638772/Screenshot_2025-03-10_at_1.22.29_PM_za7equ.jpg",
+     "title": "Shadow Realm - Obby",
+     "subTitle": "The Darkness Awaits!",
+     "description": "Design a world of darkness, mostly devoid of color and light. Will your shadow realm be eerie and mysterious, full of hidden tricks, or a happy getaway?",
+     "requirements": [
+      "Shadow-themed",
+      "Include climbable or moving objects",
+      "Use Message Zones for story, guidance, or humor",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_shadow_realm_2025_03_18",
+     "templateType": "Blueprint",
+     "gameType": "obby",
+     "contestLevel": "advanced",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Dark Maze, Cursed Realm, Shadow City"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Shadow-themed. 2) Include climbable or moving objects. 3) Use Message Zones for story, guidance, or humor. 4) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_market_madness_2025_03_18",
+     "startTime": 1742324400,
+     "endTime": 1742929200,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1741638777/Screenshot_2025-03-10_at_1.22.40_PM_ncgi9l.jpg",
+     "title": "Market Madness - Treasure Hunter",
+     "subTitle": "Find a Fortune!",
+     "description": "Design a treasure-hunting experience set in a bustling market. Maybe players must search through crowded stalls, outsmart rival treasure seekers, or decipher hidden clues in plain sight.",
+     "requirements": [
+      "Market/festival-themed",
+      "Use Message Zones and Characters for guidance or story",
+      "Use lots of objects and decorations to set the scene",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_market_madness_2025_03_18",
+     "templateType": "Blueprint",
+     "gameType": "treasurehunter",
+     "contestLevel": "advanced",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Merchant's Market, Festival Market"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Market/festival-themed. 2) Use Message Zones and Characters for guidance or story. 3) Use lots of objects and decorations to set the scene. 4) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_lost_in_jungle_2025_03_25",
+     "startTime": 1742929200,
+     "endTime": 1743534000,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1742426650/Screenshot_2025-03-19_at_5.15.10_PM_vi3w7n.jpg",
+     "title": "Lost in the Jungle - Obby",
+     "subTitle": "Find the Exit!",
+     "description": "Design an adventurous obby set deep in the jungle. Players must jump across fallen logs, climb up vines, and escape lurking dangers.",
+     "requirements": [
+      "Jungle-themed",
+      "Add a climbable object or fun jumps",
+      "Add a damaging object",
+      "10 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_lost_in_jungle_2025_03_25",
+     "templateType": "Blueprint",
+     "gameType": "obby",
+     "contestLevel": "beginner",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Temple Escape, Animals, Vine Climb"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Jungle-themed. 2) Add a climbable object or fun jumps. 3) Add a damaging object. 4) 10 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_gem_rush_2025_03_25",
+     "startTime": 1742929200,
+     "endTime": 1743534000,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1742426672/Screenshot_2025-03-19_at_5.15.18_PM_avjgox.jpg",
+     "title": "Gem Rush - Collectathon",
+     "subTitle": "Find Rare Treasures!",
+     "description": "Design a fast-paced collection game where players compete to gather as many valuable gems as possible before time runs out.",
+     "requirements": [
+      "Gem-themed",
+      "Add rotating or climbable objects",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_gem_rush_2025_03_25",
+     "templateType": "Blueprint",
+     "gameType": "collectathon",
+     "contestLevel": "intermediate",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Gem Heist, Crystal Caves"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Gem-themed. 2) Add rotating or climbable objects. 3) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_the_vault_2025_03_25",
+     "startTime": 1742929200,
+     "endTime": 1743534000,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1742426662/Screenshot_2025-03-19_at_5.16.00_PM_x38w6d.jpg",
+     "title": "The Vault - Treasure Hunter",
+     "subTitle": "Crack the Code!",
+     "description": "Build a treasure-hunting experience set inside a vault. Players must navigate traps, solve puzzles, and outwit guards to reach the ultimate prize hidden within.",
+     "requirements": [
+      "Vault-themed",
+      "Add enemies, a trap room, or a maze",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_the_vault_2025_03_25",
+     "templateType": "Blueprint",
+     "gameType": "treasurehunter",
+     "contestLevel": "intermediate",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Bank Heist, Pharaoh Tomb, Bunker"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Vault-themed. 2) Add enemies, a trap room, or a maze. 3) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_memories_2025_03_25",
+     "startTime": 1742929200,
+     "endTime": 1743534000,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1742426657/Screenshot_2025-03-19_at_5.16.06_PM_bljplk.jpg",
+     "title": "Memories - Collectathon",
+     "subTitle": "Pieces of the Past",
+     "description": "Create a game based on memories! Tell a story of your own, something of forgotten history, or make up something completely new.",
+     "requirements": [
+      "Memory-themed",
+      "Use Message Zones and Characters for storytelling",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_memories_2025_03_25",
+     "templateType": "Blueprint",
+     "gameType": "collectathon",
+     "contestLevel": "advanced",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Childhood, Forgotten Past, Dreams"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Memory-themed. 2) Use Message Zones and Characters for storytelling. 3) 30 or more wishes."
+      }
+     ]
+    },
+    {
+     "id": "contest_the_future_2025_03_25",
+     "startTime": 1742929200,
+     "endTime": 1743534000,
+     "thumbnailUrl": "https://res.cloudinary.com/dvxbn0z8p/image/upload/v1742426653/Screenshot_2025-03-19_at_5.16.12_PM_rzwqsg.jpg",
+     "title": "The Future - Obby",
+     "subTitle": "Tomorrow's World!",
+     "description": "Design a futuristic obstacle course set in a high-tech, sci-fi-inspired world - or whatever you hope the future looks like!",
+     "requirements": [
+      "Future-themed",
+      "Add a fly or double jump power-up",
+      "30 or more wishes"
+     ],
+     "rewards": [
+      {
+       "rank": 1,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 2,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      },
+      {
+       "rank": 3,
+       "iconUrl": "https://base-platformer-1.s3.us-west-2.amazonaws.com/icon_cur_cash.png",
+       "quantity": 0,
+       "description": "Money"
+      }
+     ],
+     "gamePlanId": "contest_the_future_2025_03_25",
+     "templateType": "Blueprint",
+     "gameType": "obby",
+     "contestLevel": "advanced",
+     "examples": [
+      {
+       "title": "Theme Ideas",
+       "details": "Futuristic City, Robo Factory"
+      },
+      {
+       "title": "Requirements",
+       "details": "1) Future-themed. 2) Add a fly or double jump power-up. 3) 30 or more wishes."
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "3998577032": {
+  "rule": "default",
+  "value": {
+   "anchorGames": [
+    {
+     "gameId": "01K7VN0NXKJQ7Q84781PXRPTBR",
+     "title": "Tankor Arena"
+    },
+    {
+     "gameId": "01K9HW2DYVW7YTEHF10CGZ3ZVE",
+     "title": "Meme Slice"
+    }
+   ],
+   "studies": {
+    "rec-v1-a": {
+     "name": "Rec Ground Truth v1 - Group A",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=CTLB622V",
+     "minPlaySeconds": 45,
+     "games": [
+      {
+       "gameId": "01K7F1QVKZ2FYNM20MG5JM1CKY",
+       "title": "Spider-Kids Halloween Haul"
+      },
+      {
+       "gameId": "01K5SHF85TZ7CW4S58JRRHH80B",
+       "title": "Sortie"
+      },
+      {
+       "gameId": "01KATC9TFN2NHZ5D85K2K86AR9",
+       "title": "Park Pal"
+      },
+      {
+       "gameId": "01KAGEYQKN10YFQNN0GTGXK0RR",
+       "title": "Astroman"
+      },
+      {
+       "gameId": "01K8731RFXVHD9W7D5A5Z8PY2Z",
+       "title": "capys flight adventure"
+      },
+      {
+       "gameId": "01KC147CE2X38GCXA94NJ27THQ",
+       "title": "Tap-Tap Shots"
+      },
+      {
+       "gameId": "01KF6AQCYSXF5ECPK75V11Z6V8",
+       "title": "Shark Evolution 2"
+      },
+      {
+       "gameId": "01KBV9PCQA978B5RJNHFGH3S8P",
+       "title": "Angel of stickman"
+      }
+     ]
+    },
+    "rec-v1-a2": {
+     "name": "rec-v1-a2",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01K7F1QVKZ2FYNM20MG5JM1CKY",
+       "title": "Spider-Kids Halloween Haul"
+      },
+      {
+       "gameId": "01K5SHF85TZ7CW4S58JRRHH80B",
+       "title": "Sortie"
+      },
+      {
+       "gameId": "01KATC9TFN2NHZ5D85K2K86AR9",
+       "title": "Park Pal"
+      },
+      {
+       "gameId": "01KAGEYQKN10YFQNN0GTGXK0RR",
+       "title": "Astroman"
+      },
+      {
+       "gameId": "01K8731RFXVHD9W7D5A5Z8PY2Z",
+       "title": "capys flight adventure"
+      },
+      {
+       "gameId": "01KC147CE2X38GCXA94NJ27THQ",
+       "title": "Tap-Tap Shots"
+      },
+      {
+       "gameId": "01KF6AQCYSXF5ECPK75V11Z6V8",
+       "title": "Shark Evolution 2"
+      },
+      {
+       "gameId": "01KBV9PCQA978B5RJNHFGH3S8P",
+       "title": "Angel of stickman"
+      }
+     ]
+    },
+    "rec-v1-b": {
+     "name": "rec-v1-b",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01K85T9AG06B0XT1J95VTAHBMF",
+       "title": "Pocket Adventure"
+      },
+      {
+       "gameId": "01K4TSEEP1CFAPDPCDR1TYQTBE",
+       "title": "Pixel Playground"
+      },
+      {
+       "gameId": "01KE5DHWVR9VTM09YQNBZ4TFVY",
+       "title": "Among Us: Seek & Hide"
+      },
+      {
+       "gameId": "01KC8YQ4RJVRHQJ7M6DSJJKDED",
+       "title": "Garden Friends"
+      },
+      {
+       "gameId": "01K39MWT85GATV061PE4V4PE7K",
+       "title": "STACK IT!"
+      },
+      {
+       "gameId": "01K7VX1S85EV49RBVW0HWHH5VP",
+       "title": "Egg Escape"
+      },
+      {
+       "gameId": "01K6Z8GEJHK6499J9MVSVZG7CQ",
+       "title": "Object Sandbox"
+      },
+      {
+       "gameId": "01K7CQ99SVM1TCNFHPAP64GQD7",
+       "title": "Civitas Architect"
+      }
+     ]
+    },
+    "rec-v1-c": {
+     "name": "rec-v1-c",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01KF1FH43TP6KNPFKMXTKSTN7M",
+       "title": "Pixel Palette"
+      },
+      {
+       "gameId": "01K8QT0HG9PB006FDM08ED0RE1",
+       "title": "Emberwood Homestead"
+      },
+      {
+       "gameId": "01KBACDEWAZH5DYFMVE3PWXYBH",
+       "title": "Tic-Tac-Toe Classic"
+      },
+      {
+       "gameId": "01KBC5JFWY1NFRPYKX47WV8AH2",
+       "title": "Gardening Rush"
+      },
+      {
+       "gameId": "01K8QBCN1FFER58K5N1S4REHJ5",
+       "title": "Burst"
+      },
+      {
+       "gameId": "01K6XQRNP4R50V7T7W1V16DK3X",
+       "title": "Buggy Dash"
+      },
+      {
+       "gameId": "01K7NJDAD5BKGNJDV46G73WH68",
+       "title": "Halloween Run"
+      },
+      {
+       "gameId": "01K1A8ETXTSS3HX6H9GQWVHN06",
+       "title": "RPS Tactic Flip"
+      }
+     ]
+    },
+    "rec-v1-d": {
+     "name": "rec-v1-d",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01K6RKBZPG67FX59T9NM5PQK18",
+       "title": "Relic Haunt"
+      },
+      {
+       "gameId": "01KB4KWT8BEGN4KF0WQAVDN0QJ",
+       "title": "Santas Sleigh Ride"
+      },
+      {
+       "gameId": "01K1X8Z7FHR0GHBZWH78X7KPP0",
+       "title": "Find The Right Door"
+      },
+      {
+       "gameId": "01K73659P0M33CSCBA6HKC76XM",
+       "title": "The Purple Frog Curse"
+      },
+      {
+       "gameId": "01KCZ075GQ8S98BCRA538KKQCK",
+       "title": "Bubble Kombat"
+      },
+      {
+       "gameId": "01KACZ3N8N4RY3MC0PEWYPJ553",
+       "title": "My Dream Home"
+      },
+      {
+       "gameId": "01K9VMCN53RB1C24Z37D6XGD5J",
+       "title": "Pronoun Island Adventure"
+      },
+      {
+       "gameId": "01K6CJJ8GZGADQ41M3662910EK",
+       "title": "SONIX Sky Jumping"
+      }
+     ]
+    },
+    "rec-v1-e": {
+     "name": "rec-v1-e",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01K9ABDN5MCFF2062KWXTSC90Z",
+       "title": "Drag Metal 3D"
+      },
+      {
+       "gameId": "01K1V6EZBWAK19S4ZEWRAWEVYV",
+       "title": "Troll Memory"
+      },
+      {
+       "gameId": "01K8RQ07JSNK7W5NAMN155KW5Q",
+       "title": "Majestic Mahjong: Journey of Tiles"
+      },
+      {
+       "gameId": "01KBGX99CH151AF53PRN9JVKX0",
+       "title": "MineScape"
+      },
+      {
+       "gameId": "01KCRKB9M4TPNARKCJ2FZBXE68",
+       "title": "Sandbox"
+      },
+      {
+       "gameId": "01KEMW21Q5EX7FWFQXXDRZR6DC",
+       "title": "Galactic Chess"
+      },
+      {
+       "gameId": "01K8J88SS2ACAHSXVBK4FSSVC7",
+       "title": "Ant farm"
+      },
+      {
+       "gameId": "01K7KHJD077FKMMJ4FSKAYF7HJ",
+       "title": "Pocket Battletoads"
+      }
+     ]
+    },
+    "rec-v1-f": {
+     "name": "rec-v1-f",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01K6QC4WF7QMHGV3PS2Z93Q8E1",
+       "title": "Messi VS RONALDO"
+      },
+      {
+       "gameId": "01KC6SWG7GTC5AFCTRG5AZ3W6F",
+       "title": "TACOCAT HAUL"
+      },
+      {
+       "gameId": "01KB9X0JX8ZXFNHNGS1PVM2X4Q",
+       "title": "Duck Hop (Finished)"
+      },
+      {
+       "gameId": "01K8YH1C89GP3K81H8H0K9244E",
+       "title": "Math Battles"
+      },
+      {
+       "gameId": "01K90XM27T4XV42DZ600E1P9VJ",
+       "title": "Where the Cats Rest"
+      },
+      {
+       "gameId": "01KBJTQM1NPVY27JG77SVM4Y7J",
+       "title": "Cyber-Pilot Emily"
+      },
+      {
+       "gameId": "01KETX83R35Q5JGFNE4RKVXRSH",
+       "title": "AstroPlinko"
+      },
+      {
+       "gameId": "01KA3PNFMD21DF8QHJ67J88WYQ",
+       "title": "Islam game"
+      }
+     ]
+    },
+    "jam30-v1-a": {
+     "name": "jam30-v1-a",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01KFY23NRTE8MFXKTKEG72H2ER",
+       "title": "Skyport Cardhouse: Eidolon's Ante"
+      },
+      {
+       "gameId": "01KGJ0XJMRPTGZECVQA6C4B2HB",
+       "title": "Sootbound"
+      },
+      {
+       "gameId": "01KFBDMC79KTAKSMKWBE6JWD88",
+       "title": "Bowser's Mushroom Rampage"
+      },
+      {
+       "gameId": "01KGHF0JT2V17MJAEA8DVV921G",
+       "title": "Parkour Block 3D"
+      },
+      {
+       "gameId": "01KFTTNP7F8JN807PXCWQ19D2B",
+       "title": "Quick Count"
+      },
+      {
+       "gameId": "01KGX82CVE0WR88175NJAJZAN7",
+       "title": "Realm's Gambit"
+      }
+     ]
+    },
+    "jam30-v1-b": {
+     "name": "jam30-v1-b",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01KGKCYTB7DPZY19712GXVBRX6",
+       "title": "Slime Siege"
+      },
+      {
+       "gameId": "01KFYFFBZGBZTQNA9CYXZWQGN7",
+       "title": "VoyageAC"
+      },
+      {
+       "gameId": "01KFXRSFJ1A1FFQ6S75K0V4RPY",
+       "title": "War for Tibet"
+      },
+      {
+       "gameId": "01KG82BBTGGFJTY9BM6F4KZXN2",
+       "title": "Blocky Red Light, Green Light"
+      },
+      {
+       "gameId": "01KGXCAN8QBGFXESMDZAP54C11",
+       "title": "The Alien Abduction"
+      },
+      {
+       "gameId": "01KGXFQ2221RRFP69JH001JNCW",
+       "title": "Mind Grid: IQ Reactor"
+      }
+     ]
+    },
+    "jam30-v1-c": {
+     "name": "jam30-v1-c",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01KG4ZC225QHMGWR1ASZ5ZD58Y",
+       "title": "Brick Breaker"
+      },
+      {
+       "gameId": "01KG5F7JJ47E82579XS6NBMVJW",
+       "title": "Kluster"
+      },
+      {
+       "gameId": "01KGWXS071G7AHZ7N6CTBWK3QQ",
+       "title": "Pixel Queens"
+      },
+      {
+       "gameId": "01KGH6ZGC9F7WGPBGJH8AQWKR6",
+       "title": "MicroWars"
+      },
+      {
+       "gameId": "01KGYGHZXQ8VJEBP80CR90EQYJ",
+       "title": "Dungeon Dice"
+      },
+      {
+       "gameId": "01KGK41YW40C9D35CNG57R40MC",
+       "title": "Joker+"
+      }
+     ]
+    },
+    "jam30-v1-d": {
+     "name": "jam30-v1-d",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01KF411RX5XAERY2CWNXQBM2QD",
+       "title": "Doodle Road"
+      },
+      {
+       "gameId": "01KGA7JA87P3PXNZ47821B5CK5",
+       "title": "Match Fruit 3"
+      },
+      {
+       "gameId": "01KGC6P7Z92C41HVK262VJ319X",
+       "title": "Mini Master Tuner"
+      },
+      {
+       "gameId": "01KGWXPT7KQ95ZFRV8E2KWMFY0",
+       "title": "Connect 4"
+      },
+      {
+       "gameId": "01KG8YTKGEZHAG5Z9Y6NBKXX1B",
+       "title": "The Last Defense"
+      },
+      {
+       "gameId": "01KGCFDDCYVX7BMWCVDFZF1FMR",
+       "title": "The Viral Engine"
+      }
+     ]
+    },
+    "jam30-v1-e": {
+     "name": "jam30-v1-e",
+     "apiBaseUrl": "https://astrocade-api-prod.com",
+     "minPlaySeconds": 45,
+     "prolificCompletionUrl": "https://app.prolific.com/submissions/complete?cc=SURVEY_COMPLETE",
+     "games": [
+      {
+       "gameId": "01KG16Z0ES8E9V2TB9DA0X2RQX",
+       "title": "Capy vs. Zombie Kitties"
+      },
+      {
+       "gameId": "01KGFJXPPSG831S8P4CA8WC4TY",
+       "title": "Battleship"
+      },
+      {
+       "gameId": "01KGJJXH2NG89BD02H7NGNMJ8F",
+       "title": "DigiMania"
+      },
+      {
+       "gameId": "01KGCDD9YRS9AN7JQF5P5C2P3D",
+       "title": "Stock Market"
+      },
+      {
+       "gameId": "01KGYVCWGV97DBD9R2044JVYEP",
+       "title": "Picture Drop"
+      },
+      {
+       "gameId": "01KGR3SV3AGH00QJR8VRFBYAE6",
+       "title": "Neon Ninja: Ikubak's Revenge"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "4123456054": {
+  "rule": "66dB4hULp1UZla5tNUwpzl",
+  "value": {
+   "contests": [
+    {
+     "contestId": "contest_lost_in_jungle_2025_03_25",
+     "results": [
+      {
+       "gameId": "01JQEMMT2WMC5JGYY9QT861E1J",
+       "rank": 1,
+       "message": "Congrats, you won 1st place in Lost in the Jungle! Your game was awesome!"
+      },
+      {
+       "gameId": "01JQS0SYT277GAZJ48V3THK88T",
+       "rank": 2,
+       "message": "Congrats, you won 2nd place in Lost in the Jungle! Your game was awesome!"
+      },
+      {
+       "gameId": "01JQJPPWW8XVMVGCJP4EERG764",
+       "rank": 3,
+       "message": "Congrats, you won 3rd place in Lost in the Jungle! Your game was awesome!"
+      }
+     ],
+     "defaultMessage": "While you didn't win this time, your Lost in the Jungle entry was awesome!"
+    },
+    {
+     "contestId": "contest_memories_2025_03_25",
+     "results": [
+      {
+       "gameId": "01JQFTGARBPMVVHZV5T3RBTYXF",
+       "rank": 1,
+       "message": "Congrats, you won 1st place in Memories! Your game was awesome!"
+      }
+     ],
+     "defaultMessage": "While you didn't win this time, your Memories entry was awesome!"
+    }
+   ]
+  }
+ },
+ "4142972848": {
+  "rule": "default",
+  "value": {
+   "max_fue_games": 30,
+   "gumbel_temperature": 0
+  }
+ }
+}
