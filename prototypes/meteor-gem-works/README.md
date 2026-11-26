@@ -23,6 +23,25 @@ The day-3 and day-9 updates from `updates.md` are in the code behind `drops` in 
   gift, hatch, parade cap, fireworks, album fit, draw calls tier 0 151/160 and tier 2 204/260). Evidence in
   `production/qa/evidence/meteor-gem-works/drops/`. Locally, `?drops=night,festival` turns them on.
 
+## Clarity and phone performance pass (2026-11-26)
+
+After the owner's first play of the draft (confusing flow, not smooth):
+- **Station badges:** a round icon over every working stop says what it is for (pickaxe, rock, rock to gem, gem,
+  stand, coins); the guide's next stop gets a big bouncing badge, and a gold chevron trail on the floor leads to it.
+  One atlas texture and one instanced draw, plus one for the trail.
+- **Tall phones fill the screen** (up to 9:20, no dark bars); the HUD scales by the tighter side (`--u`).
+- **Lighter start:** `quality.start` 1 (no glow pass), climbs to `quality.max` 2 only after 8 s of fast frames;
+  drops sooner (`dropMs` 19); a pixel budget per tier (`quality.maxPx`) caps the resolution on big screens.
+- **Meteor on phone GPUs**: the rock's carve depth now comes from a per-vertex attribute filled on the CPU
+  instead of a texture read in the vertex shader (not available on every phone GPU, which left the crater empty).
+  If a shader still fails to build, the meteor switches to a plain lit material so it is never missing.
+- **Less at once**: the parade shows at most 6 critters (`critter.show`) and the fence crowd is
+  `quality.crowd` = [10, 16, 24, 30] per tier.
+- **Fast first load**: the import map points cdnjs's `./three.core.js` import at the minified core, both library
+  files are preloaded, shaders compile in parallel before the first frame (`quality.warmMs` cap), and a warm sky
+  with the glowing meteor shows while the 3D world loads. Numbers: `production/qa/evidence/meteor-gem-works/clarity/load-2026-11-26.md`
+  (`node tools/load-time.js prototypes/meteor-gem-works`).
+
 ## Milestone 5: chapter 2, the Frost Comet (built, switched off)
 
 Chapter 2 is in the code behind `drops.ch2` (`false`), so the shipped build stays chapter 1 plus whichever drops are on.

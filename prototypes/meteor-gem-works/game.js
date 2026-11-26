@@ -157,7 +157,7 @@ export function run(mode = 'play') {
 
   // ---- layout: --u is the design scale (1 at 720 x 1280)
   function layout() {
-    const r = root.getBoundingClientRect(); root.style.setProperty('--u', (r.height / 1280).toFixed(4));
+    const r = root.getBoundingClientRect(); root.style.setProperty('--u', Math.min(r.height / 1280, r.width / 720).toFixed(4)); // tall phones fill the screen; the HUD keeps its 720-wide design
     scene.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height)));
   }
   layout();
@@ -586,11 +586,13 @@ export function run(mode = 'play') {
   $('tap').querySelector('b').textContent = T('tapGlint');
   { const g = $('ride').querySelector('canvas').getContext('2d'); g.translate(80, 64); g.scale(1.2, 1.2); drawIcon(g, 'cable', '#ffe6a8', '#3a5a9a'); }
   scene.snap(S);
-  scene.prewarm();
+  // the first frame waits for the shaders (at most a short while), so the picture appears whole instead of hitching
+  const warm = scene.prewarm();
   // a new game in play mode opens with the meteor landing (3 s, any tap skips); the save is read at the same time
   if (mode === 'play' && !bot) { if (!qs.has('nointro')) { phase = 'intro'; scene.startIntro(); Sound.boom(); } if (canSave) readSave(); else loaded = true; }
   if (window.__load) window.__load.done();
-  raf = requestAnimationFrame(frame);
+  const go = () => { if (alive && !raf) { root.classList.add('live'); last = performance.now(); raf = requestAnimationFrame(frame); } };
+  Promise.race([warm, new Promise((r) => setTimeout(r, cfg.quality.warmMs))]).then(go);
 
   const api = {
     destroy() { alive = false; saveNow(); document.removeEventListener('visibilitychange', onHide); cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
