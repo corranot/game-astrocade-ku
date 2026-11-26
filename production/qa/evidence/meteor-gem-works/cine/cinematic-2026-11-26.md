@@ -19,3 +19,14 @@ Goal: Players' Choice (playbook §11: 50K plays, then 15×D1 + 10×share of sess
 
 ## Not proven
 - Real-phone feel and FPS; D1 and session length are only measurable after publish.
+
+## Round 2 (focus pass)
+
+Screenshots are now taken at the peak of each beat (`scene.showK` = 1), not at its start.
+
+- Key beats push the camera in further (`cine.push` 0.72 × the beat's zoom), so the subject fills about half the frame. Locked finale shots keep their framing.
+- During a beat, the HUD pills, buttons, guide trail, goal ring and station badges fade out. The banner, the pops and touch input stay.
+  - With the top pills gone, the letterbox bars read as symmetric top and bottom.
+- A warm focus light (`cine.light`) eases onto the subject, with a burst and a ring at its start.
+- Hatch: the new critter hops out beside the hero toward the camera (`critter.pop`). It poses there for `critter.stay` game seconds before it joins the parade.
+- Egg drop: new "AN EGG!" banner in 7 languages. The camera frames the middle of the egg's arc.

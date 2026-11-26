@@ -238,11 +238,21 @@ export function run(mode = 'play') {
   function moment(p, zoom, sec, pri = 1, o = {}) {
     const C = cfg.cine, t = S.t;
     if (pri < 2 && (t < cine.cool || (t < cine.until && pri <= cine.pri))) return false;
-    scene.showcase(p, zoom, sec, o.pitch || 0, !!o.lock);
+    // key beats push in past the normal framing so the subject fills the frame; locked finale shots keep their own framing
+    scene.showcase(p, pri >= 1 && !o.lock ? zoom * C.push : zoom, sec, o.pitch || 0, !!o.lock);
+    if (pri >= 1) { scene.burst(p.clone(), 1.6, 10); scene.ring(p.clone().setY(0.3), 0xffe9a8, 0.4, 3.2, 0.6); }
     cine.until = t + sec; cine.pri = pri; cine.cool = t + sec + C.gap * (pri === 0 ? 2 : 1);
     cine.slow = Math.max(cine.slow, o.slow ?? (pri >= 1 ? C.slow : 0)); cine.stop = Math.max(cine.stop, o.stop || 0); cine.bars = Math.max(cine.bars, sec);
     if (o.sting !== false) Sound.whoosh();
     return true;
+  }
+  // during a beat the HUD and world bubbles fade so only the subject, the banner and the pops read; input stays live
+  const CINE_HIDE = '.top,#bubble,#edge,#tap,#mute,#carry,#hint,#goal,#albumB,#share';
+  let cineOn = false, cineAnims = [];
+  function cineHud(on) {
+    if (on === cineOn) return; cineOn = on;
+    if (on) cineAnims = [...root.querySelectorAll(CINE_HIDE)].filter((e) => e.animate).map((e) => e.animate([{ opacity: getComputedStyle(e).opacity }, { opacity: 0 }], { duration: 300, fill: 'forwards', easing: 'ease-out' }));
+    else for (const a of cineAnims) { a.onfinish = () => a.cancel(); a.reverse(); }
   }
   /** Real seconds -> game seconds while a beat slows or stops time. */
   function timeK(real) {
@@ -325,9 +335,9 @@ export function run(mode = 'play') {
       }
       case 'rush': scene.rush(); Sound.rush(); banner(T('rush'), '', 2.2); moment(V(0, 2.5, cfg.world.meteor.z + 1.5), 0.8, 1.8, 1); break;
       case 'scoop': if (e.kind === 'coin') { cashBump = 1; Sound.coin(coinK++); } else Sound.pick(e.n || 1, false); break;
-      case 'eggDrop': scene.eggDrop(); moment(V(cfg.world.egg.x, 0, cfg.world.egg.z - 1.5), 0.8, 1.6, 1); break;
+      case 'eggDrop': scene.eggDrop(); banner(T('eggDrop'), '', 1.6); moment(scene.eggAt, 0.8, 1.6, 1); break;
       case 'hatchStart': scene.hatchStart(); hatchCracks = 0; break;
-      case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); moment(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0, 2, { stop: cfg.cine.stop }); saveNow(); break;
+      case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); moment(V(cfg.world.egg.x + cfg.critter.pop[0] * 0.5, 0.6, cfg.world.egg.z + cfg.critter.pop[1] * 0.5), 0.62, 2.0, 2, { stop: cfg.cine.stop }); saveNow(); break;
       // ---- the ghost town, the crown jeweler, the finale, stars and hats
       case 'cartGo': Sound.whoosh(); pop('➜', scene.cartAt.x, 1.8, scene.cartAt.z, 'gold'); break;
       case 'ghostLight': {
@@ -624,7 +634,7 @@ export function run(mode = 'play') {
   function draw(dt) {
     const g = lastGuide = L.guide(cfg, S);
     scene.update(S, dt, g); scene.render(); hud(dt); edgePointer(); coach();
-    if (cine.bars > 0) cine.bars -= dt; root.classList.toggle('cinema', cine.bars > 0);
+    if (cine.bars > 0) cine.bars -= dt; root.classList.toggle('cinema', cine.bars > 0); cineHud(cine.bars > 0);
   }
   // ---- first-time tutorial: a soft spotlight on the next stop with its icon and a few words. It moves on when the
   // player does the action there (never on a tap), skips what they already did, is saved, and can be skipped.

@@ -391,7 +391,9 @@
   "critter": {
     "follow": 1.4,
     "spring": 7,
-    "show": 6
+    "show": 6,
+    "stay": 1.8,
+    "pop": [1.1, 0.7]
   },
   "guide": {
     "cashMin": 6
@@ -563,6 +565,7 @@
       "drag": "DRAG TO MOVE",
       "rig": "DRILL RIG",
       "rigDone": "IT MINES FOR YOU!",
+      "eggDrop": "AN EGG!",
       "hatch": "NEW FRIEND!",
       "pup": "Pebble",
       "full": "MAX",
@@ -678,6 +681,7 @@
       "drag": "اسحب للتحرك",
       "rig": "منصة الحفر",
       "rigDone": "تحفر من أجلك!",
+      "eggDrop": "بيضة!",
       "hatch": "صديق جديد!",
       "pup": "حصوة",
       "full": "ممتلئ",
@@ -793,6 +797,7 @@
       "drag": "ARRASTRA PARA MOVER",
       "rig": "TALADRO",
       "rigDone": "¡MINA POR TI!",
+      "eggDrop": "¡UN HUEVO!",
       "hatch": "¡NUEVO AMIGO!",
       "pup": "Guijarro",
       "full": "MÁX",
@@ -908,6 +913,7 @@
       "drag": "KÉO ĐỂ DI CHUYỂN",
       "rig": "GIÀN KHOAN",
       "rigDone": "NÓ ĐÀO GIÚP BẠN!",
+      "eggDrop": "MỘT QUẢ TRỨNG!",
       "hatch": "BẠN MỚI!",
       "pup": "Sỏi",
       "full": "ĐẦY",
@@ -1023,6 +1029,7 @@
       "drag": "चलने के लिए खींचें",
       "rig": "ड्रिल रिग",
       "rigDone": "यह आपके लिए खोदता है!",
+      "eggDrop": "एक अंडा!",
       "hatch": "नया दोस्त!",
       "pup": "कंकड़",
       "full": "पूरा",
@@ -1138,6 +1145,7 @@
       "drag": "চলতে টানো",
       "rig": "ড্রিল রিগ",
       "rigDone": "এটা তোমার জন্য খোঁড়ে!",
+      "eggDrop": "একটা ডিম!",
       "hatch": "নতুন বন্ধু!",
       "pup": "নুড়ি",
       "full": "পূর্ণ",
@@ -1253,6 +1261,7 @@
       "drag": "GESER UNTUK JALAN",
       "rig": "BOR ROBOT",
       "rigDone": "IA MENAMBANG UNTUKMU!",
+      "eggDrop": "ADA TELUR!",
       "hatch": "TEMAN BARU!",
       "pup": "Kerikil",
       "full": "PENUH",
@@ -1944,7 +1953,9 @@
     "gap": 6,
     "slow": 0.5,
     "slowK": 0.35,
-    "stop": 0.08
+    "stop": 0.08,
+    "push": 0.72,
+    "light": 3.0
   },
   "tomorrow": {
     "after": 240
