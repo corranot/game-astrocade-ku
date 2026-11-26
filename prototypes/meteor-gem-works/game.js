@@ -306,7 +306,7 @@ export function run(mode = 'play') {
         scene.showcase(scene.houseAt(e.i), 0.72, 2.6); coinsTo(p, e.pay); pop('+' + e.pay, p.x, p.y + 1.5, p.z, 'gold'); saveNow();
         break;
       }
-      case 'districtDone': banner(T('districtDone'), '', 2.6); scene.showcase(V(0, 1.5, 19.5), 0.9, 2.4); break;
+      case 'districtDone': banner(T('districtDone'), '', 2.6); scene.showcase(V(0, 1.5, scene.houseAt(1).z), 0.9, 2.4); break;
       case 'cartBack': { const p = scene.cartAt; coinsTo(V(p.x, 1.2, p.z), e.pay); pop('+' + e.pay, p.x, 2, p.z, 'gold'); Sound.sale(); break; }
       case 'crown': {
         const jw = scene.slot('jw', 0, V()), to = S.pads.some((q) => q.id === 'cable' && q.done) ? 'gond' : 'sky';
@@ -459,13 +459,15 @@ export function run(mode = 'play') {
     const r = $('ride'); r.querySelector('b').textContent = T(to === 'frost' ? 'toFrost' : 'toDesert'); r.querySelector('span').textContent = T('ride');
     r.classList.toggle('frost', to === 'frost'); r.hidden = false; r.classList.remove('go'); void r.offsetWidth; r.classList.add('go');
   }
+  /** Builds the scene's deferred extras (far desert, full ground paint) a moment after its first frame. */
+  function lateFor(sc) { setTimeout(() => { if (alive && sc === scene) sc.late(); }, cfg.quality.lateMs); }
   /** A fresh scene (and canvas) for the active place, built from its state. */
   function buildScene() {
     const cv = document.createElement('canvas'), old = scene; cv.id = 'cv';
     scene = createScene(cv, cfg, L.rng(cfg.seed + 101));
     old.dispose(); $('cv').replaceWith(cv);
     scene.setTier(qa.tier); if (qa.rs !== 1) scene.setScale(qa.rs); layout();
-    scene.restoreBuilt(S); scene.snap(S); scene.setTod(qs.has('tod') ? Number(qs.get('tod')) : L.todGoal(cfg, S)); scene.prewarm();
+    scene.restoreBuilt(S); scene.snap(S); scene.setTod(qs.has('tod') ? Number(qs.get('tod')) : L.todGoal(cfg, S)); scene.prewarm(); lateFor(scene);
     nextIcon = null; bubbleKind = null;
   }
   /** Moves the hero to the other place: wallet and hat come along, the parade follows; the town there kept earning. */
@@ -608,7 +610,7 @@ export function run(mode = 'play') {
   // a new game in play mode opens with the meteor landing (3 s, any tap skips); the save is read at the same time
   if (mode === 'play' && !bot) { if (!qs.has('nointro')) { phase = 'intro'; scene.startIntro(); Sound.boom(); } if (canSave) readSave(); else loaded = true; }
   if (window.__load) window.__load.done();
-  const go = () => { if (alive && !raf) { root.classList.add('live'); last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const go = () => { if (alive && !raf) { root.classList.add('live'); last = performance.now(); raf = requestAnimationFrame(frame); lateFor(scene); } };
   Promise.race([warm, new Promise((r) => setTimeout(r, cfg.quality.warmMs))]).then(go);
 
   const api = {

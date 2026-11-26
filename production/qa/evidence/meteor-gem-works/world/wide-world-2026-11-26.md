@@ -53,3 +53,31 @@ the new chapter being built behind the ride card (same as before). Playtest draw
 
 - Real-phone FPS and GPU fill cost (swiftshader is CPU raster).
 - The load regression could be cut by painting the square after the first frame; not done in this pass.
+
+## Review round 2 (same day)
+
+Asked for: get the first-frame load back, fill the empty sand under the spectators, and give the top of the frame a
+real sky.
+
+- The full town-square paint (ripples, pebbles, grass, tracks) and the whole far desert (dunes, rocks, cacti, arches,
+  far windmill, grass tufts) now build `quality.lateMs` (300 ms) after the first frame, `scene.late()`. The far
+  desert is one merged mesh with its own seed.
+- Camera looks further ahead (`camera.ahead` 10, `zMin` -6, mining look `mineZ` -1.5) and sits lower (`pitch` 0.32),
+  so the spectators sit at the bottom of the frame and the horizon shows. The road is pulled in to run just behind
+  the spectators.
+- Sky: a tighter gradient (blue sooner above the warm horizon), a band of soft drifting clouds in the sky shader,
+  lower and brighter 3D clouds (dimmed at night), lower mesas, lighter fog (camera far 230). The sky is now drawn
+  after the opaque world, so the depth test skips its pixels under the ground.
+- Fixed: the "district done" camera move pointed at the ghost town's old spot.
+
+Load (`tools/load-time.js`, 3 runs): 4G done 2370-2538 ms, first frame 4152-4581 ms (before the wide world:
+4050-4544); slow 4G done 3769-3944, first frame 5531-6331. 285 kB.
+
+Frames (CPU 4x, `frames-round2-4x.txt`): median 5.0 / 6.4 / 7.2 / 7.9 / 8.6 ms at start / 3 min / 8 min / chapter 1
+done / frost +4 min; no gameplay frame over 50 ms; 77 to 152 draw calls. Playtest: all checks pass (tier 2 130 and
+145 calls, tier 0 94 and 102).
+
+Screenshots 01 to 06 replaced with this round's.
+
+Still visible: when the hero walks to the front fence the camera follows, and the ghost-town roofs fill the bottom
+of the frame.
