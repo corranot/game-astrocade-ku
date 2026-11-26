@@ -486,15 +486,11 @@
       1.5,
       2
     ],
-    "shadow": [
-      0,
-      1024,
-      1024,
-      2048
-    ],
+    "shadow": [512, 1024, 1024, 2048],
+    "shadowEvery1": 2,
     "crowd": [10, 16, 24, 30],
     "dropMs": 19,
-    "warmMs": 2500,
+    "warmMs": 2500, "warmLaterMs": 1500,
     "start": 1,
     "resMin": 0.7,
     "resStep": 0.1,

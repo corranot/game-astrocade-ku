@@ -1,0 +1,9 @@
+start {"med":7.9,"p99":21.7,"max":25.4,"over50":0,"cpu":1.2,"render":6.6,"gc":8,"heapMB":7.18,"calls":102,"tris":222214,"progs":59,"crit":0,"t":6,"area":"desert"}
+3min {"med":7.9,"p99":37,"max":48.9,"over50":0,"cpu":1.3,"render":6,"gc":12,"heapMB":-0.27,"calls":156,"tris":283516,"progs":62,"crit":3,"t":191,"area":"desert"}
+8min {"med":7.4,"p99":16.1,"max":19,"over50":0,"cpu":1.1,"render":6.2,"gc":14,"heapMB":2.42,"calls":184,"tris":320806,"progs":63,"crit":8,"t":497,"area":"desert"}
+15min {"med":6.1,"p99":19.7,"max":7290.1,"over50":1,"cpu":5.8,"render":0,"gc":6,"heapMB":30.73,"calls":124,"tris":229520,"progs":3,"crit":12,"t":4,"area":"frost"}
+finale true
+ch1done {"med":8.3,"p99":26,"max":33.2,"over50":0,"cpu":1.5,"render":6.9,"gc":11,"heapMB":1.37,"calls":169,"tris":395672,"progs":67,"crit":18,"t":303,"area":"frost"}
+travel false frost
+frost4min {"med":8.1,"p99":20.8,"max":34.9,"over50":0,"cpu":1.1,"render":7,"gc":21,"heapMB":1.19,"calls":166,"tris":360706,"progs":67,"crit":20,"t":671,"area":"frost"}
+exit 0
