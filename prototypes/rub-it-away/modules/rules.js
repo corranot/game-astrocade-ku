@@ -36,7 +36,7 @@ export function extendProgressArray(values, length, cap) {
 /** Report structural data issues without mutating the authored level table. */
 export function validateLevels(levels) {
   const issues = [];
-  if (!Array.isArray(levels) || levels.length !== 66) return ['Expected exactly 66 level definitions (11 worlds × 6 levels).'];
+  if (!Array.isArray(levels) || levels.length !== 72) return ['Expected exactly 72 level definitions (12 worlds × 6 levels).'];
   levels.forEach((level, index) => {
     const n = index + 1;
     if (level.n !== n) issues.push(`Level ${n}: n does not match its position.`);
@@ -58,8 +58,11 @@ export function validateLevels(levels) {
       }
     }
     if (targets !== 1) issues.push(`Level ${n}: expected exactly one puzzle target, found ${targets}.`);
-    if (n > 60 && (level.bg.indexOf('snow') < 0 || !level.weather || level.weather.kind !== 'snow' || level.things.filter((q) => q.role === 'decoy').length !== 2)) {
+    if (n > 60 && n <= 66 && (level.bg.indexOf('snow') < 0 || !level.weather || level.weather.kind !== 'snow' || level.things.filter((q) => q.role === 'decoy').length !== 2)) {
       issues.push(`Level ${n}: Snow World levels need snow art/weather and exactly two decoys.`);
+    }
+    if (n > 66 && (level.bg.indexOf('candy') < 0 || level.things.filter((q) => q.role === 'decoy').length !== 2)) {
+      issues.push(`Level ${n}: Candy World levels need candy art and exactly two decoys.`);
     }
   });
   return issues;

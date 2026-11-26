@@ -84,7 +84,7 @@ export function background(id, world) {
   const im = store.get(id);
   if (im) return im;
   if (bgCache.has(id)) return bgCache.get(id);
-  const grad = world === 'kitchen' ? ['#d8b27a', '#8a5a32'] : world === 'pond' ? ['#7fb0d8', '#d9e4ee'] : world === 'zoo' ? ['#4aa5e0', '#4a9a3a'] : world === 'town' ? ['#4aa5e0', '#8a8f99'] : world === 'space' ? ['#1c1850', '#6a5f8a'] : world === 'beach' ? ['#4aa5e0', '#e8b84a'] : world === 'castle' ? ['#4aa5e0', '#4a9a3a'] : world === 'sea' ? ['#2a8fc0', '#d9b46a'] : world === 'fair' ? ['#4aa5e0', '#d9a05a'] : world === 'jungle' ? ['#2f8f4a', '#5a7a3a'] : world === 'snow' ? ['#a8dff7', '#eef9ff'] : ['#7fb6d6', '#5a9a46'];
+  const grad = world === 'kitchen' ? ['#d8b27a', '#8a5a32'] : world === 'pond' ? ['#7fb0d8', '#d9e4ee'] : world === 'zoo' ? ['#4aa5e0', '#4a9a3a'] : world === 'town' ? ['#4aa5e0', '#8a8f99'] : world === 'space' ? ['#1c1850', '#6a5f8a'] : world === 'beach' ? ['#4aa5e0', '#e8b84a'] : world === 'castle' ? ['#4aa5e0', '#4a9a3a'] : world === 'sea' ? ['#2a8fc0', '#d9b46a'] : world === 'fair' ? ['#4aa5e0', '#d9a05a'] : world === 'jungle' ? ['#2f8f4a', '#5a7a3a'] : world === 'snow' ? ['#a8dff7', '#eef9ff'] : world === 'candy' ? ['#9fd8f5', '#ffc2dc'] : ['#7fb6d6', '#5a9a46'];
   const c = placeholder(id, 720, 1080, grad);
   bgCache.set(id, c);
   return c;

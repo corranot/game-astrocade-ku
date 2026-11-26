@@ -36,7 +36,7 @@ export function start(mode = 'play') {
     if (!dayC || now !== dayAt) { dayAt = now; const key = dayKey(); if (!dayC || dayC.key !== key) dayC = { key, n: dailyLevel(key, LEVEL_COUNT), tomorrowN: dailyLevel(nextDayKey(key), LEVEL_COUNT) }; }
     return { key: dayC.key, n: dayC.n, tomorrowN: dayC.tomorrowN, done: S.dailyDay === dayC.key, count: S.dailyN };
   };
-  const info = () => ({ rec: S.rec, reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, daily: daily(), ftue: S.ftue, pullAfter: TUNE.pullAfter });
+  const info = () => ({ rec: S.rec, reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, candyWorldSeen: S.candyWorldSeen, daily: daily(), ftue: S.ftue, pullAfter: TUNE.pullAfter });
 
   function applyPrefs() {
     AU.configureAudio(S.prefs);
@@ -59,6 +59,7 @@ export function start(mode = 'play') {
     lv.daily = mode === 'daily'; lv.ftue = n === 1 && !S.ftue && !lv.daily && S.stars[0] === 0;   // once level 1 is solved the tour never returns, however the card was left
     lv.golden = !lv.daily && goldenLevel(n, dayKey());
     if (n >= 61 && !S.snowWorldSeen) { S.snowWorldSeen = true; commit(); }
+    if (n >= 67 && !S.candyWorldSeen) { S.candyWorldSeen = true; commit(); }
     if (S.reached > 1) lv.touched = true;
     busy = false; show('play');
   }

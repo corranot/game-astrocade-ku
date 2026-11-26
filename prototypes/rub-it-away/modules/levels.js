@@ -1,4 +1,4 @@
-/* Rub It Away level data: the original 60 plain-table scenes remain unchanged; six Snow World scenes extend the campaign to 66. Each definition contains a background, localized prompt/win keys, optional weather, and its target/actors/decoys. */
+/* Rub It Away level data: the original 60 plain-table scenes remain unchanged; six Snow World scenes (61-66) and six Candy World scenes (67-72) extend the campaign to 72. Each definition contains a background, localized prompt/win keys, optional weather, and its target/actors/decoys. */
 const BOB = (a, s) => ({ bob: [a, s] });
 const T = (id, asset, x, y, w, role, o = {}) => Object.assign({ id, asset, x, y, w, role, erasable: role !== 'actor', ay: 0.5 }, o);
 const ACTOR = (asset, after, x, y, w, o = {}) => T('actor', asset, x, y, w, 'actor', Object.assign({ after, main: true, ay: 1, idle: { breathe: [0.022, 2.1], sway: [0.03, 1.1] } }, o));
@@ -646,6 +646,61 @@ export const LEVELS = [
       T('tangled_scarf', 'tangled_scarf', 360, 950, 180, 'target', { ar: 1.12, clue: 'heart', idle: BOB(3, 1.3), crumb: '#e8743b' }),
       T('snowcloud', 'snowcloud', 150, 455, 205, 'decoy', { ar: 1.3, crumb: '#8bb8e8', react: { say: 'r_brr', sfx: 'boing', kick: { on: 'actor', type: 'shiver' } } }),
       T('seal', 'seal', 570, 1050, 150, 'decoy', { ar: 0.88, ay: 1, crumb: '#8bb8e8', react: { say: 'r_honk', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
+    ],
+  },
+  {
+    n: 67, bg: 'bg_candy_land', prompt: 'p67', win: 'w67',
+    things: [
+      ACTOR('gingerbread_sad', 'gingerbread_happy', 360, 1080, 280, { ar: 0.7, mood: 'sad', afterW: 300 }),
+      T('splat', 'sprinkle_splat', 360, 795, 240, 'target', { ar: 1.13, clue: 'heart', idle: BOB(3, 1.2), crumb: '#ff6fae' }),
+      T('cane', 'candy_cane', 128, 1070, 90, 'decoy', { ar: 0.455, ay: 1, idle: { sway: [0.04, 1.5] }, crumb: '#e0443e', react: { say: 'r_ding', sfx: 'boing', kick: { on: 'self', type: 'spin' } } }),
+      T('donut', 'donut', 592, 1060, 140, 'decoy', { ar: 0.99, ay: 1, idle: { breathe: [0.03, 1.7] }, crumb: '#ff8fbf', react: { say: 'r_boing', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
+    ],
+  },
+  {
+    n: 68, bg: 'bg_candy_land', prompt: 'p68', win: 'w68',
+    things: [
+      ACTOR('cupcake_sour', 'cupcake_happy', 360, 1075, 320, { ar: 0.89, mood: 'sad', afterW: 320 }),
+      T('lemon', 'lemon_sour', 360, 690, 175, 'target', { ar: 1.04, clue: 'heart', idle: { sway: [0.06, 1.3], bob: [4, 1.1] }, crumb: '#f2d43a' }),
+      T('gumdrop', 'gumdrop', 118, 1070, 130, 'decoy', { ar: 1.15, ay: 1, idle: { breathe: [0.03, 1.5] }, crumb: '#3fb65a', react: { say: 'r_boing', sfx: 'boing', kick: { on: 'self', type: 'wobble' } } }),
+      T('cane', 'candy_cane', 610, 1075, 85, 'decoy', { ar: 0.455, ay: 1, idle: { sway: [0.04, 1.2] }, crumb: '#e0443e', react: { say: 'r_whee', sfx: 'pop', kick: { on: 'self', type: 'spin' } } }),
+    ],
+  },
+  {
+    n: 69, bg: 'bg_candy_river', prompt: 'p69', win: 'w69',
+    things: [
+      T('puppy', 'puppy_happy', 580, 840, 150, 'actor', { main: true, show: 'peek', ar: 1, idle: { breathe: [0.025, 2.6], sway: [0.04, 1.4] } }),
+      T('tree_l', 'lollipop_tree', 140, 880, 205, 'decoy', { ar: 0.7, idle: { sway: [0.015, 1.2] }, crumb: '#ff8fbf', react: { reveal: { asset: 'frog', w: 150, dy: -60, ar: 1 }, say: 'r_croak', sfx: 'croak', kick: { on: 'self', type: 'wobble' } } }),
+      T('tree_m', 'lollipop_tree', 360, 880, 205, 'decoy', { ar: 0.7, idle: { sway: [0.015, 1.6] }, crumb: '#7fdcc6', react: { reveal: { asset: 'mouse', w: 120, dy: -60, ar: 1 }, say: 'r_squeak', sfx: 'boing', kick: { on: 'self', type: 'shake' } } }),
+      T('tree_r', 'lollipop_tree', 580, 880, 205, 'target', { ar: 0.7, clue: 'heart', idle: { sway: [0.015, 1.9] }, crumb: '#ff8fbf' }),
+    ],
+  },
+  {
+    n: 70, bg: 'bg_candy_river', prompt: 'p70', win: 'w70',
+    things: [
+      ACTOR('gummy_sad', 'gummy_happy', 360, 1080, 190, { ar: 0.6, mood: 'sad', afterW: 220 }),
+      T('caramel', 'caramel_blob', 360, 1005, 340, 'target', { ar: 1.47, clue: 'heart', idle: { breathe: [0.02, 1.9] }, crumb: '#d9962e' }),
+      T('donut', 'donut', 112, 1065, 120, 'decoy', { ar: 0.99, ay: 1, idle: { breathe: [0.03, 1.6] }, crumb: '#ff8fbf', react: { say: 'r_wow', sfx: 'boing', kick: { on: 'self', type: 'spin' } } }),
+      T('gumdrop', 'gumdrop', 608, 1070, 120, 'decoy', { ar: 1.15, ay: 1, idle: { breathe: [0.03, 1.3] }, crumb: '#3fb65a', react: { say: 'r_oops', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
+    ],
+  },
+  {
+    n: 71, bg: 'bg_candy_land', prompt: 'p71', win: 'w71',
+    weather: { kind: 'rain', x: 360, y: 700, w: 260, h: 260 },
+    things: [
+      ACTOR('candy_train_stuck', 'candy_train_happy', 360, 1078, 380, { ar: 1.25, mood: 'sad', afterW: 390 }),
+      T('cloud', 'sour_cloud', 360, 470, 270, 'target', { ar: 0.94, clue: 'heart', idle: BOB(6, 1.5), crumb: '#6f8a78' }),
+      T('gumdrop', 'gumdrop', 96, 1072, 104, 'decoy', { ar: 1.15, ay: 1, idle: { breathe: [0.03, 1.4] }, crumb: '#3fb65a', react: { say: 'r_boing', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
+      T('cane', 'candy_cane', 632, 1075, 70, 'decoy', { ar: 0.455, ay: 1, idle: { sway: [0.04, 1.4] }, crumb: '#e0443e', react: { say: 'r_ding', sfx: 'pop', kick: { on: 'self', type: 'spin' } } }),
+    ],
+  },
+  {
+    n: 72, bg: 'bg_candy_river', prompt: 'p72', win: 'w72',
+    things: [
+      ACTOR('bear_sticky', 'bear_happy', 360, 1080, 300, { ar: 0.86, mood: 'sad', afterW: 310 }),
+      T('fluff', 'cotton_fluff', 360, 880, 320, 'target', { ar: 0.9, clue: 'zzz', idle: { breathe: [0.025, 2.2] }, crumb: '#ffb3d1' }),
+      T('donut', 'donut', 112, 1065, 115, 'decoy', { ar: 0.99, ay: 1, idle: { breathe: [0.03, 1.6] }, crumb: '#ff8fbf', react: { say: 'r_whee', sfx: 'boing', kick: { on: 'self', type: 'spin' } } }),
+      T('lemon', 'lemon_sour', 612, 1060, 110, 'decoy', { ar: 1.04, ay: 1, idle: { sway: [0.04, 1.3] }, crumb: '#f2d43a', react: { say: 'r_oops', sfx: 'pop', kick: { on: 'self', type: 'shake' } } }),
     ],
   },
 ];

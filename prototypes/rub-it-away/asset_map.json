@@ -5685,5 +5685,354 @@
     "loop": false,
     "opus_url": null,
     "animation": null
+  },
+  "gingerbread_sad": {
+    "animation": null,
+    "aspect_ratio": [
+      618,
+      877
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKC8540YCYJNTV61ZYMG8_58663f56-913c-4c44-b403-a57aa16fcf38_5812b175-de18-47b9-a36d-d1442afce7ad.webp"
+  },
+  "cupcake_sour": {
+    "animation": null,
+    "aspect_ratio": [
+      762,
+      856
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKCYSYMNTYNHVD66YV46H_f846d607-909b-4342-b222-e19fa8ffd666_bc29ea2c-3919-46d2-a0c5-31cf8e907003.webp"
+  },
+  "gummy_sad": {
+    "animation": null,
+    "aspect_ratio": [
+      650,
+      1092
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKDN6787XJHMP55G5JEAX_eeb9a53d-4ff1-44f0-9de2-6ab1c17dade9_c21a12b4-9abd-42ed-a613-52e505d153d9.webp"
+  },
+  "candy_train_stuck": {
+    "animation": null,
+    "aspect_ratio": [
+      759,
+      609
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKECAB4G4D0D6MNHT7V48_ab98f144-e86c-4c08-92a1-273e71f409c9_bea43157-8952-47ab-ac3e-5888cf8a6c1e.webp"
+  },
+  "bear_sticky": {
+    "animation": null,
+    "aspect_ratio": [
+      696,
+      814
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKFMDD23SV36BX50R0THA_103543d0-7489-4cd1-a452-1c0c05ddbf23_b5a3062e-c5e4-454d-b30a-a6496e39b7a1.webp"
+  },
+  "sprinkle_splat": {
+    "animation": null,
+    "aspect_ratio": [
+      926,
+      817
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKH35ZMGBJCRQ4BHTRKQ3_1f5541eb-1172-4be4-b740-52fd7b8673f5_390a6041-8be5-456f-adf7-f09c71382879.webp"
+  },
+  "lemon_sour": {
+    "animation": null,
+    "aspect_ratio": [
+      751,
+      725
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKJ61VJJ8GG9GEA1QJ8CG_d79b498f-b607-4f64-9aa7-791bc8d62a00_f49521ad-c18c-4711-82cd-364d6d7b026e.webp"
+  },
+  "candy_cane": {
+    "animation": null,
+    "aspect_ratio": [
+      458,
+      1006
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKQZNRZPECD4GB4KWJ6J4_9f0bd2d9-f1f9-4be3-b16a-0d218c739e61_22cdac89-29c2-4c6f-a64a-20ad963b06d3.webp"
+  },
+  "donut": {
+    "animation": null,
+    "aspect_ratio": [
+      760,
+      767
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMKRP9CHBMYM4WABTQFMJQ_7d729807-be8c-40fc-8751-e7e181beae65_22c6f344-cc60-4504-83dd-d058f072f94f.webp"
+  },
+  "caramel_blob": {
+    "animation": null,
+    "aspect_ratio": [
+      983,
+      668
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMMV657YNE42M8A6A1R7WT_45b15ff8-788f-4ba5-80df-84311f39372b_a9c92593-ab2b-4b28-836d-6ec649c37ec8.webp"
+  },
+  "candy_chime": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": 1.82,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M8CMMGMG35RMV5STST2FCET7_d7f9becb-a01c-43fc-bb2d-1cbb3eec2354_673714cf-8c4f-47b9-a623-2ebc018761de.ogg",
+    "prompt": null,
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M8CMMGMG35RMV5STST2FCET7_d7f9becb-a01c-43fc-bb2d-1cbb3eec2354_673714cf-8c4f-47b9-a623-2ebc018761de.mp3"
+  },
+  "bg_candy_land": {
+    "animation": null,
+    "aspect_ratio": [
+      768,
+      1376
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "background",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMP7CDPEPH3ESAGSSV9ZD4_a657e05b-bca8-40bd-a404-4cd6c74c3fc2_c1de10b6-34ed-4f7d-b81e-01de922d6afe.webp"
+  },
+  "bg_candy_river": {
+    "animation": null,
+    "aspect_ratio": [
+      768,
+      1376
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "background",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMP8E9ASBEGG481539G6ZC_e7de5078-17cd-47b3-b7b9-bd0223d68583_faf01180-9027-4a97-959f-d76afce9605d.webp"
+  },
+  "gingerbread_happy": {
+    "animation": null,
+    "aspect_ratio": [
+      825,
+      1195
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMPX6ABJXEDADVBFMBYRC9_6ac96fc1-e31e-47ca-9179-1164b7883892_d4e35f37-9831-4edb-bd59-ed1c823ea609.webp"
+  },
+  "cupcake_happy": {
+    "animation": null,
+    "aspect_ratio": [
+      910,
+      1022
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMPXZYVEGQZ5XNSYZ66TBT_9630f878-65ac-4407-aaa8-a597095f894d_f9f13e7f-61e6-4d6c-85a5-c3d6b2a9cdc8.webp"
+  },
+  "gummy_happy": {
+    "animation": null,
+    "aspect_ratio": [
+      812,
+      1194
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMPYQ17YZ6PA0CX7JDNRJQ_6d546cb8-a0b5-4381-94a9-107ab5c66f57_e5c13054-6e0a-472d-830a-8c1c9fb73789.webp"
+  },
+  "candy_train_happy": {
+    "animation": null,
+    "aspect_ratio": [
+      1024,
+      872
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMPZDE5APZAGEWDZGZ33TB_2c02a989-2264-471b-8149-fc5907d39803_f598a994-c449-4fb7-b614-8ca2950cd2f3.webp"
+  },
+  "bear_happy": {
+    "animation": null,
+    "aspect_ratio": [
+      875,
+      1023
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMQ0H574S06Q9S0WTG679Y_94e2aab7-feea-4f2a-9bd8-47fd4906f022_e6c3d093-b925-4dc3-b150-cc2c47214e45.webp"
+  },
+  "sour_cloud": {
+    "animation": null,
+    "aspect_ratio": [
+      960,
+      1023
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMQHPMWW64M9YN629ASVCF_acea4db0-0a7b-42be-af52-16e82738e5a6_d3daf08a-43b0-4ef9-887f-711a237c71e7.webp"
+  },
+  "cotton_fluff": {
+    "animation": null,
+    "aspect_ratio": [
+      799,
+      887
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMQJECTY9964NCMJX51091_78de15fe-f24f-4cd9-b336-90b2993b014b_fe34a54a-9584-455a-aef7-ec400771fa19.webp"
+  },
+  "gumdrop": {
+    "animation": null,
+    "aspect_ratio": [
+      932,
+      808
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMQK65S4N1WRD1SK1QQ9D3_6de33e43-11e5-46ee-aad9-1a207e37a52d_52214c59-7809-4882-88fb-a279695270e6.webp"
+  },
+  "lollipop_tree": {
+    "animation": null,
+    "aspect_ratio": [
+      762,
+      1086
+    ],
+    "compression_suggestion": "original",
+    "description": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": null,
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CMS01TXJXWMR06VK9TMB5M_f63ada8a-011b-4e0f-b0a5-0b0521091f42_651a0e16-b0b5-4cd9-938b-6f1499fee934.webp"
   }
 }

@@ -1,7 +1,7 @@
 /* Compact, backwards-compatible save layer: progress, permanent funny-reaction stickers and player accessibility preferences. Today's picture is an album count, never a streak; no leaderboard activity. */
 import { normalizePrefs, extendProgressArray } from './rules.js';
 
-export const LEVEL_COUNT = 66;
+export const LEVEL_COUNT = 72;
 const creatorDefaults = typeof window !== 'undefined' && window.gameConfig && window.gameConfig.settings || {};
 export const S = {
   reached: 1,
@@ -10,6 +10,7 @@ export const S = {
   gags: new Array(LEVEL_COUNT).fill(0),
   prefs: normalizePrefs(null, creatorDefaults),
   snowWorldSeen: false,
+  candyWorldSeen: false,
   dailyDay: '',   // the local day whose picture was last collected
   dailyN: 0,      // pictures of the day collected so far (an album count, never a streak)
   rec: { fast: 0, day: '', dayN: 0, dayBest: 0 },   // personal bests: fastest rub (s, first touch to fix), pictures solved today and the best day so far
@@ -35,6 +36,7 @@ function merge(st) {
   for (let i = 0; i < LEVEL_COUNT; i++) S.gags[i] |= oldGags[i];
   S.prefs = normalizePrefs(st.prefs, S.prefs);
   if (typeof st.snowWorldSeen === 'boolean') S.snowWorldSeen = S.snowWorldSeen || st.snowWorldSeen;
+  if (typeof st.candyWorldSeen === 'boolean') S.candyWorldSeen = S.candyWorldSeen || st.candyWorldSeen;
   if (typeof st.dailyDay === 'string' && st.dailyDay > S.dailyDay) S.dailyDay = st.dailyDay.slice(0, 10);
   if (Number.isFinite(st.dailyN)) S.dailyN = Math.max(S.dailyN, Math.floor(st.dailyN));
   if (st.rec && typeof st.rec === 'object') {
@@ -81,6 +83,7 @@ export async function flush() {
     gags: S.gags.slice(),
     prefs: { ...S.prefs },
     snowWorldSeen: S.snowWorldSeen,
+    candyWorldSeen: S.candyWorldSeen,
     dailyDay: S.dailyDay,
     dailyN: S.dailyN,
     rec: { ...S.rec },
