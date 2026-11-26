@@ -195,6 +195,23 @@ full plan unless they add a new game mode or rework the game.
   bundle test, a short smoke run and screenshots). Run the full playtest only
   before a publish or when a change touches gameplay pacing. Run independent
   steps in parallel.
+- **Share cards use the live thumbnail.** An in-game share calls `lib.share` with a
+  title and text but no `image`. The host's share card then shows the game's
+  current thumbnail, so a new thumbnail appears there with no game update. Pass an
+  image only when the owner asks for a custom card.
+- **Guidance points from the hero to the goal.** Every guide line, trail or arrow
+  starts at the player's character and points toward the current goal, updating
+  live as the character moves. An off-screen edge arrow also points from the
+  character's side toward the goal. Never point from the goal back at the
+  character (no arrow over the goal pointing down at it).
+- **FTUE is mandatory (every game).** Every game has a first-time tutorial as an
+  interactive, flexible spotlight: the screen dims except a soft cutout around the
+  current target (an object, a station or a button), with a short icon-first hint,
+  one step at a time. A step advances when the player does the real action, never
+  on tap-to-continue. The spotlight follows moving targets, fits any screen size
+  and safe area, and never blocks the player. Steps the player already did are
+  skipped, a finished tutorial is saved and never repeats, and it has a skip
+  button. It covers the game's core loop.
 - **Modular meta-prompts between coordinator and threads.** Every message from
   the coordinator to a thread is a modular meta-prompt with labeled sections:
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,

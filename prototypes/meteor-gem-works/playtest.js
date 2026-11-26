@@ -214,13 +214,13 @@ async function open(browser, q = '', seed = null) {
     const M3 = [['unlock', 'cable', '32-unlock-cable-car', 70], ['unlock', 'stargaze', '33-unlock-stargazer-dusk', 70],
       ['unlock', 'crown', '34-unlock-crown-jeweler', 60], ['crown', null, '35-crown-to-cable-car', 75], ['unlock', 'neon', '36-unlock-neon-night', 150]];
     for (const [t, id, name, n] of M3) { const ok = await until(t, id); check(ok, `moment ${name} happened`); await after(n); console.log(`info ${name} at game time ${(await ev(page, () => __game.S.t)) | 0} s`); await shoot(page, name); }
-    // the share button: shows at a big moment and sends a picture of the town with the brag line
+    // the share button: shows at a big moment and sends the brag line with no picture (the host card uses the live cover)
     await ev(page, () => __game.offerShare()); await after(40);
     check(await ev(page, () => __game.shareOn), 'the share button shows at a big moment');
     await shoot(page, '37-share-button');
     await page.click('#share', { force: true });
     const sh = await ev(page, () => (window.__shares || []).map((o) => ({ img: String(o.image).slice(0, 15), len: String(o.image).length, text: o.text })));
-    check(sh.length === 1 && sh[0].img === 'data:image/jpeg' && sh[0].len > 20000 && !!sh[0].text, `share sends a picture and a line (${JSON.stringify(sh).slice(0, 120)})`);
+    check(sh.length === 1 && sh[0].img === 'undefined' && !!sh[0].text, `share sends a line and no picture (${JSON.stringify(sh).slice(0, 120)})`);
     // the finale
     for (const [t, name, n] of [['heartRise', '38-finale-heart-rises', 150], ['crownHatch', '39-finale-legendary-hatch', 50], ['comet', '40-finale-comet', 150], ['finaleEnd', '41-chapter-1-complete', 60]]) {
       const ok = await until(t, null, 400); check(ok, `moment ${name} happened`); await after(n); console.log(`info ${name} at game time ${(await ev(page, () => __game.S.t)) | 0} s`); await shoot(page, name);

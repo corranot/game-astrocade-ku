@@ -157,6 +157,41 @@ export function guide(cfg, S) {
   return pick('counter') || (S.pile >= 6 && pick('pile')) || pick('cash') || pick('mine') || pick('pile');
 }
 
+/** First-time tutorial steps, in the order the core loop teaches them; each is a bit in the saved `ft` mask. */
+export const FTUE = ['mine', 'carry', 'polish', 'sell', 'cash', 'buy', 'hatch'];
+const ftueOn = {
+  mine: (cfg, S, w) => w === 'mine', carry: (cfg, S, w) => w === 'pile' || w === 'counter',
+  polish: (cfg, S, w) => cfg.world.polishers.some((p) => p.id === w), sell: (cfg, S, w) => cfg.world.stands.some((p) => p.id === w),
+  cash: (cfg, S, w) => w === 'cash', buy: (cfg, S, w) => S.pads.some((p) => p.id === w), hatch: (cfg, S, w) => w === 'egg',
+};
+/**
+ * The tutorial step to spotlight now: the first step not yet done whose action is the guide's current target, or null.
+ * Steps the player already did are skipped, and a step waits (null) until the guide points at its kind of stop.
+ */
+export function ftueStep(cfg, S, g, done) {
+  if (!g || g.wait) return null;
+  for (let i = 0; i < FTUE.length; i++) if (!(done & (1 << i)) && ftueOn[FTUE[i]](cfg, S, g.what)) return FTUE[i];
+  return null;
+}
+/** The tutorial bit an event completes (0 when none): the player did that action once. */
+export function ftueBit(cfg, e) {
+  const b = (id) => 1 << FTUE.indexOf(id);
+  if ((e.type === 'hit' && e.src === 'hero') || e.type === 'perfect') return b('mine'); // a tapped sparkle mines too
+  if (e.type === 'pick') return b('carry');
+  if (e.type === 'drop' && cfg.world.polishers.some((p) => p.id === e.at)) return b('polish');
+  if (e.type === 'drop' && cfg.world.stands.some((p) => p.id === e.at)) return b('sell');
+  return { collect: b('cash'), unlock: b('buy'), hatch: b('hatch') }[e.type] || 0;
+}
+/** Tutorial bits a save already earned (saves from before the tutorial existed count what they show). */
+export function ftueFromSave(d) {
+  if (!d || typeof d !== 'object') return 0;
+  let m = Number.isFinite(d.ft) ? d.ft & ((1 << FTUE.length) - 1) : 0;
+  if (d.sold > 0) m |= 0b11111;
+  if (Array.isArray(d.pads) && d.pads.some((p) => p && p[1])) m |= 0b111111;
+  if (Array.isArray(d.critters) && d.critters.length) m |= 1 << 6;
+  return m;
+}
+
 /** Can the hero stand at (x, z)? Inside the deck, outside every obstacle (built unlocks add theirs when S is given). */
 export function walkable(cfg, x, z, S = null) {
   const D = cfg.world.deck, r = cfg.hero.r;

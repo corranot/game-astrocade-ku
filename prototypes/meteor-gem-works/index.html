@@ -48,6 +48,24 @@ body{display:flex;align-items:center;justify-content:center}
 .banner.go{animation:ban .5s cubic-bezier(.2,1.5,.4,1)}
 .banner .bt{font-size:calc(var(--u)*64px);line-height:1;color:#ffe08a}
 .banner .bs{font-size:calc(var(--u)*36px);line-height:1.1;color:#fff3dc}
+/* first-time tutorial: the world dims except a soft circle on the next stop; a pulsing gold ring marks it, and a hint
+   pill under it shows the stop's icon and a few words. Nothing here takes a touch except the skip button. */
+.spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;--x:50%;--y:50%;--r:100px;
+  background:radial-gradient(circle at var(--x) var(--y),transparent 0 calc(var(--r)*.82),rgba(16,8,30,.55) calc(var(--r) + var(--u)*60px))}
+.spot.on{opacity:1}
+.spot i{position:absolute;left:var(--x);top:var(--y);width:calc(var(--r)*2);height:calc(var(--r)*2);translate:-50% -50%;border-radius:50%;
+  border:calc(var(--u)*5px) solid rgba(255,211,90,.85);box-sizing:border-box;animation:spotP 1.2s ease-in-out infinite}
+@keyframes spotP{0%,100%{scale:1;opacity:.9}50%{scale:1.08;opacity:.45}}
+.coach{position:absolute;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);box-sizing:border-box;
+  padding:0 calc(var(--u)*12px);border-radius:calc(var(--u)*44px);white-space:nowrap;
+  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*6px) 0 rgba(0,0,0,.25);
+  animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
+.coach[hidden]{display:none}
+.coach canvas{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
+.coach b{font-size:calc(var(--u)*40px);line-height:1;color:#fff3dc}
+.coach .skip{pointer-events:auto;width:calc(var(--u)*56px);height:calc(var(--u)*56px);margin-inline-start:calc(var(--u)*8px);padding:calc(var(--u)*12px);
+  border-radius:50%;border:none;background:rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.coach .skip svg{display:block;width:100%;height:100%;fill:none;stroke:#fff3dc;stroke-width:6;stroke-linecap:round}
 /* first-time hint: a hand that drags */
 .hint{position:absolute;left:50%;bottom:calc(var(--u)*150px);translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*12px);transition:opacity .4s}
 .hint.gone{opacity:0}

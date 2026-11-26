@@ -608,11 +608,7 @@ export function createScene(canvas, cfg, random) {
   eggBeacon.position.set(W.egg.x, 0.2, W.egg.z); scene.add(eggBeacon);
   const eggState = { mode: 'lodged', t: 0, from: new THREE.Vector3() };
 
-  // ---- guide arrow: a gold chevron bobbing over the next useful stop, with a pulsing ring on the deck
-  const arrowShape = new THREE.Shape(); arrowShape.moveTo(-0.32, 0.5); arrowShape.lineTo(0.32, 0.5); arrowShape.lineTo(0.32, 0.05); arrowShape.lineTo(0.62, 0.05); arrowShape.lineTo(0, -0.62); arrowShape.lineTo(-0.62, 0.05); arrowShape.lineTo(-0.32, 0.05); arrowShape.closePath();
-  const arrowMat = K(new THREE.MeshStandardMaterial({ color: 0xffc94a, emissive: 0xff9a20, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.4 }));
-  const arrow = new THREE.Mesh(K(new THREE.ExtrudeGeometry(arrowShape, { depth: 0.16, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 }).translate(0, 0, -0.08)), arrowMat);
-  arrow.castShadow = true; scene.add(arrow);
+  // ---- goal marker: a pulsing ring on the deck at the next useful stop (the floor trail from the hero leads to it)
   const guideRing = new THREE.Mesh(K(new THREE.RingGeometry(0.55, 0.72, 40).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.6, depthWrite: false })));
   guideRing.renderOrder = 3; scene.add(guideRing); let guideSide = 0;
   // ---- station badges: a round icon over every working stop says what it is for (pickaxe = mine here, rock = pick
@@ -654,7 +650,7 @@ export function createScene(canvas, cfg, random) {
   })), NB);
   badges.frustumCulled = false; badges.renderOrder = 9; badges.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(badges);
   const trailShape = new THREE.Shape(); trailShape.moveTo(-0.22, -0.12); trailShape.lineTo(0, 0.14); trailShape.lineTo(0.22, -0.12); trailShape.lineTo(0.22, 0.02); trailShape.lineTo(0, 0.28); trailShape.lineTo(-0.22, 0.02); trailShape.closePath();
-  const TRAIL = 16, trail = new THREE.InstancedMesh(K(new THREE.ShapeGeometry(trailShape).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xffc94a, transparent: true, opacity: 0.85, depthWrite: false })), TRAIL);
+  const TRAIL = 16, trail = new THREE.InstancedMesh(K(new THREE.ShapeGeometry(trailShape).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.95, depthWrite: false })), TRAIL); // deep orange reads on pale planks and sand
   trail.renderOrder = 3; trail.frustumCulled = false; trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trail.count = 0; scene.add(trail);
   /** Station badges (built stops, small) and the target's big bouncing badge, plus the floor trail from the hero to it. */
   function drawBadges(S, g, top) {
@@ -670,8 +666,9 @@ export function createScene(canvas, cfg, random) {
     // the trail: chevrons flowing from the hero to the target spot (hidden when close)
     let n = 0;
     if (g && !g.wait) {
-      const dx = g.x - heroPos.x, dz = g.z - heroPos.z, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz), step = 0.75, off = (tAll * 1.6) % step;
-      for (let d = 0.9 + off; d < L - 0.8 && n < TRAIL; d += step) { const k = Math.min(1, (d - 0.9) / 0.6, (L - 0.8 - d) / 0.6); trail.setMatrixAt(n++, _m.compose(_p.set(heroPos.x + dx / L * d, 0.2, heroPos.z + dz / L * d), _q.setFromEuler(_e.set(0, ry, 0)), _s.setScalar(Math.max(0.05, k)))); }
+      const dx = g.x - heroPos.x, dz = g.z - heroPos.z, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz) + Math.PI, step = LK.trailStep, off = (tAll * 1.6) % step;
+      // ry + PI: the chevron's tip is its local -z, so this turns every tip toward the goal; they start at the hero's feet
+      for (let d = 0.35 + off; d < L - 0.8 && n < TRAIL; d += step) { const k = Math.min(1, (d - 0.35) / 0.4, (L - 0.8 - d) / 0.6); trail.setMatrixAt(n++, _m.compose(_p.set(heroPos.x + dx / L * d, 0.26, heroPos.z + dz / L * d), _q.setFromEuler(_e.set(0, ry, 0)), _s.setScalar(Math.max(0.05, k) * LK.trailScale))); }
     }
     trail.count = n; trail.instanceMatrix.needsUpdate = true;
   }
@@ -1005,7 +1002,7 @@ export function createScene(canvas, cfg, random) {
     return intro.t < 0 ? 0 : 1 - ease(Math.max(0, (intro.t - INTRO.fall) / (INTRO.len - INTRO.fall)));
   }
   const hasB = (S, id) => S.pads.some((p) => p.id === id && p.done);
-  /** Where the guide arrow hovers for a target: over the station mesh (not its walk-in point), and how high. */
+  /** Where the goal badge hovers for a target: over the station mesh (not its walk-in point), and how high. */
   function anchor(g) {
     const w = g.what, P = pols.find((p) => p.d.id === w), St = stands.find((q) => q.d.id === w);
     if (P) return [P.d.x, P.d.z, 2.6]; if (St) return [St.d.x, St.d.z, 3.4];
@@ -1246,21 +1243,19 @@ export function createScene(canvas, cfg, random) {
     if (eggState.mode !== 'lodged' && eggState.mode !== 'done') blob(egg.position.x, egg.position.z, 1.0);
     for (const p of tourists) if (p.root.visible) blob(p.root.position.x, p.root.position.z, 1.1);
     blobs.count = bn; blobs.instanceMatrix.needsUpdate = true;
-    // guide arrow and ring
+    // goal ring and badge
     if (g) {
-      const tx = g.x, tz = g.z, b = Math.abs(Math.sin(tAll * 3.2)), [ax0, az, top] = anchor(g);
-      // with the hero close to the stop the badge and arrow would cover them, so they slide to the side away from the hero
+      const tx = g.x, tz = g.z, [ax0, az, top] = anchor(g);
+      // with the hero close to the stop the badge would cover them, so they slide to the side away from the hero
       // (measured on screen at the unmoved spot, so the slide never feeds back into itself)
       const [hx, hy] = toScreen(S.hero.x, 1, S.hero.z), [bx, by] = toScreen(ax0, top + 2.3, az), side = hx > bx ? -1 : 1;
       const cover = hy > by - 0.04 && hy < by + LK.guideNear ? Math.max(0, 1 - Math.abs(hx - bx) / 0.14) : 0;
       guideSide = lerp(guideSide, Math.min(1, cover * 2) * LK.guideSide * side, Math.min(1, dt * 6));
       const ax = ax0 + guideSide;
-      arrow.visible = guideRing.visible = true;
-      arrow.position.set(lerp(arrow.position.x, ax, Math.min(1, dt * 10)), top + 0.5 + b * 0.45, lerp(arrow.position.z, az, Math.min(1, dt * 10)));
-      arrow.rotation.set(0, tAll * 2.2, 0); arrow.scale.set(1 + (1 - b) * 0.1, 0.9 + b * 0.15, 1);
+      guideRing.visible = true;
       guideRing.position.set(tx, 0.2, tz); guideRing.scale.setScalar(1 + Math.sin(tAll * 5) * 0.12); guideRing.material.opacity = g.wait ? 0.25 : 0.55;
       drawBadges(S, g, [ax, az, top]);
-    } else { arrow.visible = guideRing.visible = false; drawBadges(S, null, null); }
+    } else { guideRing.visible = false; drawBadges(S, null, null); }
     drawMarks(S, g);
     // glint
     if (glintState.on || glintState.out > 0) {
@@ -1362,6 +1357,8 @@ export function createScene(canvas, cfg, random) {
 
   return {
     renderer, scene, camera, setTier, setScale, resize, setTod, update, render: draw, toScreen, slot, fly, burst, puff, confetti, twinkle, ring,
+    /** The badge atlas cell for a guide target: [canvas, sx, sy, size], or null (the tutorial hint draws the same icon). */
+    icon(what) { const i = iconOf(what); if (!(i >= 0)) return null; const c = badgeTex.image.width / IC; return [badgeTex.image, (i % IC) * c, Math.floor(i / IC) * c, c]; },
     get tier() { return tier; }, get post() { return !!post; }, get tod() { return tod; }, get lamps() { return lampsK; }, firework,
     /** Hand-mining hit at lon/lat: carve, flash, burst; returns the world point of the hit. */
     hit(lon, lat, big = false) {

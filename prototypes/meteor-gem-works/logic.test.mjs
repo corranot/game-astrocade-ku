@@ -309,3 +309,25 @@ test('the hero walks through every station, prop and building and only the deck 
     assert.ok(dir > 0 ? S.hero.x >= D.x1 - r - 1e-3 : S.hero.x <= D.x0 + r + 1e-3, `crossed the deck at z ${z.toFixed(2)}`);
   }
 });
+
+test('tutorial: the bot completes every step in order, each step only spotlights its own kind of stop', () => {
+  const c = cfg(), S = L.createState(c, c.seed), shown = [];
+  let done = 0;
+  for (let i = 0; i < 900 * 60 && done !== (1 << L.FTUE.length) - 1; i++) {
+    const g = L.guide(c, S), st = L.ftueStep(c, S, g, done);
+    if (st) { assert.ok(!(done & (1 << L.FTUE.indexOf(st))), `${st} shown after it was done`); if (!shown.includes(st)) shown.push(st); }
+    L.step(c, S, 1 / 60, L.botInput(c, S), null); // no glint taps: the bot then mines by hand like a new player
+    for (const e of S.events) done |= L.ftueBit(c, e);
+    S.events.length = 0;
+  }
+  assert.equal(done, (1 << L.FTUE.length) - 1, `steps done: ${done.toString(2)}`);
+  assert.deepEqual([...shown].sort(), [...L.FTUE].sort(), `every step got its spotlight: ${shown.join(',')}`);
+  assert.equal(L.ftueStep(c, S, L.guide(c, S), done), null);
+});
+
+test('tutorial: old saves skip what they already did; a skipped tutorial stays off', () => {
+  assert.equal(L.ftueFromSave(null), 0);
+  assert.equal(L.ftueFromSave({ sold: 3, pads: [[0, 0]] }), 0b11111);
+  assert.equal(L.ftueFromSave({ sold: 3, pads: [[5, 1]], critters: ['a'] }), 0b1111111);
+  assert.equal(L.ftueFromSave({ ft: 0b1111111 }), 0b1111111);
+});
