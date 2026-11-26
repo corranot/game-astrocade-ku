@@ -12,5 +12,8 @@ Compare images: `compare-map.jpg`, `compare-world-end.jpg`, `compare-snow-L62.jp
 - FPS, headless software rendering: 60 FPS unthrottled in play, rubbing and world end, same as before. At 4x CPU both builds sit at 30-40 FPS (software GL); real-phone FPS is not proven.
 - Not assessed: `tools/astrocade-bundle-test.js` (it expects a module script tag; this game loads `game.js` as a classic script).
 
+## Second batch (study lessons)
+Personal bests with a NEW RECORD moment (fastest rub from first touch, most pictures in one day), a wobble with a soft squeak when rubbing very hard (feel only), toy tap on the finished picture (hop, sound, sparkles), share text carries the fastest rub, HTML/CSS first-paint card (first paint 40 ms locally while the scripts are held back 2.5 s). Shots: `after-new-record.jpg`, `after-toy-tap.jpg`, `after-html-loader.jpg`.
+
 ## Review fixes applied
 Reduced-motion world banner, golden hint once per level per day, tour never returns after level 1 is solved, golden praise not over the world banner, RTL tick, per-frame work cached (today's picture, tab labels, thumbnails).

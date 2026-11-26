@@ -36,7 +36,7 @@ export function start(mode = 'play') {
     if (!dayC || now !== dayAt) { dayAt = now; const key = dayKey(); if (!dayC || dayC.key !== key) dayC = { key, n: dailyLevel(key, LEVEL_COUNT), tomorrowN: dailyLevel(nextDayKey(key), LEVEL_COUNT) }; }
     return { key: dayC.key, n: dayC.n, tomorrowN: dayC.tomorrowN, done: S.dailyDay === dayC.key, count: S.dailyN };
   };
-  const info = () => ({ reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, daily: daily(), ftue: S.ftue, pullAfter: TUNE.pullAfter });
+  const info = () => ({ rec: S.rec, reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, daily: daily(), ftue: S.ftue, pullAfter: TUNE.pullAfter });
 
   function applyPrefs() {
     AU.configureAudio(S.prefs);
@@ -70,6 +70,14 @@ export function start(mode = 'play') {
 
   function onSolve(n, stars) {
     solvedHere++;
+    // personal bests: a NEW RECORD moment for the fastest rub (from level 3, beating an earlier best) or for beating the best day's picture count
+    if (lv) {
+      const key = dayKey(), r = S.rec, took = Math.round(Math.max(0.1, lv.t - (lv.touchT0 == null ? 0 : lv.touchT0)) * 10) / 10;
+      if (r.day !== key) { r.day = key; r.dayN = 0; }
+      r.dayN++;
+      if (n >= 3 && took < 600) { if (r.fast && took < r.fast) lv.record = { k: 'rec_fast', v: { s: took.toFixed(1) } }; if (!r.fast || took < r.fast) r.fast = took; }
+      if (r.dayN > r.dayBest) { if (r.dayBest >= 3 && r.dayN === r.dayBest + 1 && !lv.record) lv.record = { k: 'rec_day', v: { n: r.dayN } }; r.dayBest = r.dayN; }
+    }
     if (lv && giftDue(solvedHere)) lv.gift = { open: false, t: 0, n: TUNE.giftHints };
     if (lv && lv.golden) {
       // a golden picture pays one hint, once per level per day (replaying it is still golden, but free)
@@ -118,7 +126,7 @@ export function start(mode = 'play') {
     share: () => {
       if (!lv || !lv.worldEnd) return;
       const report = (e) => { try { window.lib.log('world share failed: ' + String(e)); } catch (ignored) { /* optional log */ } };
-      try { Promise.resolve(UI.shareWorld(lv)).catch(report); } catch (e) { report(e); }
+      try { Promise.resolve(UI.shareWorld(lv, S.rec)).catch(report); } catch (e) { report(e); }
     },
     more: () => { const n = firstBelow(); if (!busy && n) { UI.mapFocus(n); show('map'); } },
     hint: () => { if (lv && !lv.fixed && S.hints > 0) { S.hints--; lv.hint(); commit(); } },

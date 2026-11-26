@@ -12,6 +12,7 @@ export const S = {
   snowWorldSeen: false,
   dailyDay: '',   // the local day whose picture was last collected
   dailyN: 0,      // pictures of the day collected so far (an album count, never a streak)
+  rec: { fast: 0, day: '', dayN: 0, dayBest: 0 },   // personal bests: fastest rub (s, first touch to fix), pictures solved today and the best day so far
   goldDay: '',    // golden pictures already paid today, as 'YYYY-MM-DD:n,n,...' (one hint per golden level per day)
   ftue: false,    // the first-time spotlight tour is finished or skipped
 };
@@ -36,6 +37,12 @@ function merge(st) {
   if (typeof st.snowWorldSeen === 'boolean') S.snowWorldSeen = S.snowWorldSeen || st.snowWorldSeen;
   if (typeof st.dailyDay === 'string' && st.dailyDay > S.dailyDay) S.dailyDay = st.dailyDay.slice(0, 10);
   if (Number.isFinite(st.dailyN)) S.dailyN = Math.max(S.dailyN, Math.floor(st.dailyN));
+  if (st.rec && typeof st.rec === 'object') {
+    const r = st.rec, f = Number(r.fast);
+    if (f > 0 && f < 3600 && (!S.rec.fast || f < S.rec.fast)) S.rec.fast = Math.round(f * 10) / 10;
+    if (Number.isFinite(r.dayBest)) S.rec.dayBest = Math.max(S.rec.dayBest, Math.min(9999, Math.floor(r.dayBest)));
+    if (typeof r.day === 'string' && r.day >= S.rec.day && Number.isFinite(r.dayN)) { if (r.day > S.rec.day) S.rec.dayN = 0; S.rec.day = r.day.slice(0, 10); S.rec.dayN = Math.max(S.rec.dayN, Math.min(9999, Math.floor(r.dayN))); }
+  }
   if (typeof st.goldDay === 'string' && st.goldDay.length < 400 && st.goldDay.slice(0, 10) >= S.goldDay.slice(0, 10)) S.goldDay = st.goldDay;
   // a player who already got past level 1 before the tour existed never sees it
   S.ftue = S.ftue || st.ftue === true || S.reached > 1;
@@ -76,6 +83,7 @@ export async function flush() {
     snowWorldSeen: S.snowWorldSeen,
     dailyDay: S.dailyDay,
     dailyN: S.dailyN,
+    rec: { ...S.rec },
     goldDay: S.goldDay,
     ftue: S.ftue,
   };
