@@ -96,6 +96,9 @@ export function createScene(canvas, cfg, random) {
   // the town's dressing (shops, ghost town, road, cable car) was laid out for the first, small square; the same
   // stretch as world.spread moves it out to the wide town
   const SPR = W.spread || { kx: 1, kz: 1, z0: 0 }, sx = (x) => x * SPR.kx, sz = (z) => SPR.z0 + (z - SPR.z0) * SPR.kz;
+  // past the crowd the spread would leave a wide empty strip, so the road (and its barrels) is pulled in to run
+  // just behind the spectators
+  const sf = (z) => sz(z) - (sz(16.2) - W.crowd.z1 - 2.4);
   // chapter 2 (the Frost Comet valley) reuses this whole scene with a frost theme: snow, pines, a penguin, aurora
   const FROST = cfg.theme === 'frost', GEMS = FROST ? FROST_GEMS : GEM_COLS, DUST = FROST ? 0xc4c8e4 : 0xe8c69a;
   const fz = (g, snow = true) => (FROST ? M.frostify(g, snow) : g);
@@ -109,16 +112,17 @@ export function createScene(canvas, cfg, random) {
   renderer.debug.onShaderError = (gl, prog, vs, fs) => { shaderFail++; console.warn('shader build failed', gl.getProgramInfoLog(prog), gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs)); };
   const scene = new THREE.Scene(), keep = [];
   const K = (o) => { keep.push(o); return o; };
-  const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 9 / 16, 1, 160);
+  const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 9 / 16, 1, 230);
 
-  // ---- sky dome: four-stop gradient from the zenith to the horizon, a soft sun glow; colours come from the tod keys
+  // ---- sky dome: four-stop gradient from the zenith to the horizon, a band of soft drifting clouds, a soft sun glow; colours come from the tod keys
   const skyU = { c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, c2: { value: new THREE.Color() }, c3: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 0.5, -1) }, sunC: { value: new THREE.Color() }, uStars: { value: 0 }, uAur: { value: 0 }, uTime: { value: 0 } };
   const sky = new THREE.Mesh(K(new THREE.SphereGeometry(140, 32, 16)), K(new THREE.ShaderMaterial({
     uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3; uniform vec3 sunDir; uniform vec3 sunC; uniform float uStars; uniform float uAur; uniform float uTime; varying vec3 vD; void main(){ float y = clamp(vD.y, -0.2, 1.0); vec3 c = mix(c3, c2, smoothstep(-0.05, 0.08, y)); c = mix(c, c1, smoothstep(0.08, 0.3, y)); c = mix(c, c0, smoothstep(0.3, 0.8, y)); float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += sunC * (pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08); vec3 sc = floor(normalize(vD) * 260.0); float st = fract(sin(dot(sc, vec3(12.9898, 78.233, 37.719))) * 43758.5453); c += vec3(1.0, 0.95, 0.85) * step(0.9975, st) * smoothstep(0.12, 0.45, y) * uStars; if (uAur > 0.0) { float ax = atan(vD.x, -vD.z); float w = sin(ax * 3.0 + uTime * 0.12 + sin(ax * 7.0 - uTime * 0.25) * 0.7); float band = smoothstep(0.1, 0.95, w) * smoothstep(0.1, 0.26, y) * smoothstep(0.72, 0.34, y); float ray = 0.55 + 0.45 * sin(ax * 70.0 + uTime * 0.6 + w * 3.0); c += mix(vec3(0.12, 0.62, 0.48), vec3(0.42, 0.22, 0.7), smoothstep(0.2, 0.55, y)) * band * ray * uAur * 0.5; } gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
+    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3; uniform vec3 sunDir; uniform vec3 sunC; uniform float uStars; uniform float uAur; uniform float uTime; varying vec3 vD; float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), f.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), f.x), f.y); } void main(){ float y = clamp(vD.y, -0.2, 1.0); vec3 c = mix(c3, c2, smoothstep(-0.04, 0.025, y)); c = mix(c, c1, smoothstep(0.025, 0.1, y)); c = mix(c, c0, smoothstep(0.1, 0.45, y)); if (y > 0.01 && y < 0.3) { float ax = atan(vD.x, -vD.z); vec2 q = vec2(ax * 4.0 + uTime * 0.006, y * 16.0); float n = vn(q) * 0.62 + vn(q * 2.7 + 5.3) * 0.38; float cl = smoothstep(0.5, 0.74, n) * smoothstep(0.01, 0.04, y) * smoothstep(0.3, 0.1, y); vec3 cc = mix(c2, vec3(1.0, 0.98, 0.95), 0.75 * (1.0 - min(uStars, 1.0))) + sunC * 0.06; c = mix(c, cc, cl * 0.8); } float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += sunC * (pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08); vec3 sc = floor(normalize(vD) * 260.0); float st = fract(sin(dot(sc, vec3(12.9898, 78.233, 37.719))) * 43758.5453); c += vec3(1.0, 0.95, 0.85) * step(0.9975, st) * smoothstep(0.12, 0.45, y) * uStars; if (uAur > 0.0) { float ax = atan(vD.x, -vD.z); float w = sin(ax * 3.0 + uTime * 0.12 + sin(ax * 7.0 - uTime * 0.25) * 0.7); float band = smoothstep(0.1, 0.95, w) * smoothstep(0.1, 0.26, y) * smoothstep(0.72, 0.34, y); float ray = 0.55 + 0.45 * sin(ax * 70.0 + uTime * 0.6 + w * 3.0); c += mix(vec3(0.12, 0.62, 0.48), vec3(0.42, 0.22, 0.7), smoothstep(0.2, 0.55, y)) * band * ray * uAur * 0.5; } gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
   })));
-  sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
+  // drawn after the opaque world, so the depth test skips the sky's pixels under the ground and buildings
+  sky.renderOrder = 10; sky.frustumCulled = false; scene.add(sky);
   scene.fog = new THREE.Fog(0xf0d9b8, 34, 90);
 
   const hemi = new THREE.HemisphereLight(0xfff4e4, 0xb86f45, 1.05);
@@ -265,7 +269,7 @@ export function createScene(canvas, cfg, random) {
   // ---- the deck (play area) and its rope fence, the crowd behind it
   const D = W.deck;
   smesh(M.buildDeck(D), mat, false, false);
-  const lotsOn = new Set(); let repaintSquare = () => {};
+  const lotsOn = new Set(); let repaintSquare = () => {}, paintFull = () => {};
   // the town square as one painted texture (one draw): packed earth, a main boardwalk down the middle, a street along
   // the meteor and one along the stations, a plank platform under every station, pebbles and dry grass in between
   {
@@ -273,12 +277,16 @@ export function createScene(canvas, cfg, random) {
     const X = (x) => (x - D.x0 + 0.55) * PX, Z = (z) => (z - D.z0 + 0.55) * PX;
     // repainted when a station is bought (its lot gets its planks); a fixed seed keeps the earth the same each time
     let seed = 7; const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    // the first frame gets only the earth, boards and lots; late() repaints it with the ripples, pebbles, grass and tracks
+    let full = false;
     const paintSquare = (g) => {
       seed = 7;
       g.fillStyle = FROST ? '#b9bcd8' : '#d8a874'; g.fillRect(0, 0, cw, ch);
-      for (let i = 0; i < 60; i++) { const y = random() * ch; g.strokeStyle = FROST ? `rgba(${random() < 0.5 ? '160,170,214' : '208,210,234'},0.35)` : `rgba(${random() < 0.5 ? '186,134,88' : '236,198,150'},0.35)`; g.lineWidth = 3 + random() * 6; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= cw; x += 40) g.lineTo(x, y + Math.sin(x * 0.02 + i) * 9); g.stroke(); }
-      for (let i = 0; i < 2600; i++) { g.fillStyle = FROST ? ['rgba(150,160,205,0.35)', 'rgba(214,190,214,0.45)', 'rgba(225,228,244,0.55)'][i % 3] : ['rgba(140,92,60,0.35)', 'rgba(248,226,190,0.5)', 'rgba(176,112,72,0.3)'][i % 3]; g.beginPath(); g.arc(random() * cw, random() * ch, 0.8 + random() * 2.6, 0, 6.3); g.fill(); }
-      if (!FROST) for (let i = 0; i < 90; i++) { const x = random() * cw, y = random() * ch; g.strokeStyle = `rgba(${120 + random() * 40},${130 + random() * 30},70,0.55)`; g.lineWidth = 1.6; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + (random() - 0.5) * 12, y - 6 - random() * 8); g.stroke(); } }
+      if (full) {
+        for (let i = 0; i < 60; i++) { const y = random() * ch; g.strokeStyle = FROST ? `rgba(${random() < 0.5 ? '160,170,214' : '208,210,234'},0.35)` : `rgba(${random() < 0.5 ? '186,134,88' : '236,198,150'},0.35)`; g.lineWidth = 3 + random() * 6; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= cw; x += 40) g.lineTo(x, y + Math.sin(x * 0.02 + i) * 9); g.stroke(); }
+        for (let i = 0; i < 2600; i++) { g.fillStyle = FROST ? ['rgba(150,160,205,0.35)', 'rgba(214,190,214,0.45)', 'rgba(225,228,244,0.55)'][i % 3] : ['rgba(140,92,60,0.35)', 'rgba(248,226,190,0.5)', 'rgba(176,112,72,0.3)'][i % 3]; g.beginPath(); g.arc(random() * cw, random() * ch, 0.8 + random() * 2.6, 0, 6.3); g.fill(); }
+        if (!FROST) for (let i = 0; i < 90; i++) { const x = random() * cw, y = random() * ch; g.strokeStyle = `rgba(${120 + random() * 40},${130 + random() * 30},70,0.55)`; g.lineWidth = 1.6; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + (random() - 0.5) * 12, y - 6 - random() * 8); g.stroke(); } }
+      }
       // boards: a strip of planks across the strip's short side, dark seams, a few nails, a soft shadow at the edges
       const boards = (x0, z0, x1, z1) => {
         const ax = X(Math.min(x0, x1)), az = Z(Math.min(z0, z1)), bw = Math.abs(X(x1) - X(x0)), bh = Math.abs(Z(z1) - Z(z0)), along = bw > bh, n = Math.ceil((along ? bw : bh) / 17);
@@ -289,8 +297,8 @@ export function createScene(canvas, cfg, random) {
       const pad = (x, z, r) => { g.save(); g.beginPath(); g.arc(X(x), Z(z), r * PX, 0, 6.3); g.clip(); boards(x - r, z - r, x + r, z + r); g.restore(); g.strokeStyle = 'rgba(110,64,32,0.8)'; g.lineWidth = 5; g.beginPath(); g.arc(X(x), Z(z), r * PX, 0, 6.3); g.stroke(); };
       const midZ = (W.counter.z + W.stands[0].z) / 2;
       // cart-wheel tracks curving across the earth and little boot prints along the streets
-      g.lineWidth = 3; for (let k = 0; k < 4; k++) { const z0 = D.z0 + random() * (D.z1 - D.z0), z1 = D.z0 + random() * (D.z1 - D.z0), bend = (random() - 0.5) * 6; for (const off of [0, 1.1]) { g.strokeStyle = 'rgba(120,72,40,0.22)'; g.beginPath(); g.moveTo(X(D.x0 - 1), Z(z0 + off)); g.quadraticCurveTo(X(0), Z((z0 + z1) / 2 + bend + off), X(D.x1 + 1), Z(z1 + off)); g.stroke(); } }
-      g.fillStyle = 'rgba(110,66,36,0.28)'; for (let i = 0; i < 70; i++) { const along = random() < 0.5, t = random(), x = along ? D.x0 + t * (D.x1 - D.x0) : (random() < 0.5 ? -1.3 : 1.3), z = along ? (random() < 0.5 ? midZ + 1.2 : 2.6) : D.z0 + t * (D.z1 - D.z0); for (const sd of [-1, 1]) { g.beginPath(); g.ellipse(X(x) + (along ? 0 : sd * 4), Z(z) + (along ? sd * 4 : 0), 3, 5, along ? Math.PI / 2 : 0, 0, 6.3); g.fill(); } }
+      if (full) { g.lineWidth = 3; for (let k = 0; k < 4; k++) { const z0 = D.z0 + random() * (D.z1 - D.z0), z1 = D.z0 + random() * (D.z1 - D.z0), bend = (random() - 0.5) * 6; for (const off of [0, 1.1]) { g.strokeStyle = 'rgba(120,72,40,0.22)'; g.beginPath(); g.moveTo(X(D.x0 - 1), Z(z0 + off)); g.quadraticCurveTo(X(0), Z((z0 + z1) / 2 + bend + off), X(D.x1 + 1), Z(z1 + off)); g.stroke(); } }
+      g.fillStyle = 'rgba(110,66,36,0.28)'; for (let i = 0; i < 70; i++) { const along = random() < 0.5, t = random(), x = along ? D.x0 + t * (D.x1 - D.x0) : (random() < 0.5 ? -1.3 : 1.3), z = along ? (random() < 0.5 ? midZ + 1.2 : 2.6) : D.z0 + t * (D.z1 - D.z0); for (const sd of [-1, 1]) { g.beginPath(); g.ellipse(X(x) + (along ? 0 : sd * 4), Z(z) + (along ? sd * 4 : 0), 3, 5, along ? Math.PI / 2 : 0, 0, 6.3); g.fill(); } } }
       boards(-0.9, D.z0 - 0.55, 0.9, D.z1 + 0.55); // main boardwalk, meteor to the front fence
       boards(D.x0 - 0.55, 0.6, D.x1 + 0.55, 2.2); // street along the meteor
       boards(D.x0 - 0.55, midZ - 0.8, D.x1 + 0.55, midZ + 0.8); // street along the stations
@@ -298,6 +306,7 @@ export function createScene(canvas, cfg, random) {
       for (const [o, id] of [[W.pile], [W.counter], [W.cash], [W.crate], [W.order], [W.workshop, 'workshop'], [W.cart, 'ghost'], ...W.polishers.map((p) => [p, p.pad]), ...W.stands.map((p) => [p, p.pad])]) (!id || lotsOn.has(id) ? pad : lot)(o.x, o.z, (o.r || 1.25) + 0.9);
     };
     const sqTex = K(canvasTex(cw, ch, paintSquare));
+    paintFull = () => { full = true; paintSquare(sqTex.image.getContext('2d')); sqTex.needsUpdate = true; };
     repaintSquare = (id) => { if (lotsOn.has(id) || ![W.workshop.pad, 'workshop', 'ghost', ...W.polishers.map((p) => p.pad), ...W.stands.map((p) => p.pad)].includes(id)) return; lotsOn.add(id); paintSquare(sqTex.image.getContext('2d')); sqTex.needsUpdate = true; };
     const top = new THREE.Mesh(K(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2)), K(new THREE.MeshStandardMaterial({ map: sqTex, roughness: 0.85 })));
     top.position.set((D.x0 + D.x1) / 2, 0.175, (D.z0 + D.z1) / 2); top.receiveShadow = true; scene.add(top);
@@ -315,41 +324,50 @@ export function createScene(canvas, cfg, random) {
   const tower = smesh(M.buildWaterTower()); tower.position.set(sx(-9.6), 0, sz(-4.2));
   const wm = M.buildWindmill(), mill = smesh(wm.tower), blades = mesh(wm.blades); mill.position.set(sx(10.4), 0, sz(-4.6)); mill.rotation.y = -0.5;
   blades.position.set(sx(10.4) + Math.sin(-0.5) * 0.95, 6.35, sz(-4.6) + Math.cos(-0.5) * 0.95); blades.rotation.y = -0.5;
-  for (const [x, z, w, h, d, ry] of [[-24, -30, 20, 10, 8, 0.2], [6, -38, 28, 14, 10, -0.05], [30, -28, 18, 9, 8, -0.3], [-40, -18, 16, 8, 8, 0.9], [42, -14, 16, 10, 8, -0.9], [-12, -46, 26, 18, 10, 0.1], [22, -52, 24, 20, 10, -0.15]]) { const m = smesh(M.buildMesa(w, h, d), mat, false); m.position.set(x * 1.5, -0.4, z * 1.35 - 8); m.rotation.y = ry; }
+  for (const [x, z, w, h, d, ry] of [[-24, -30, 20, 10, 8, 0.2], [6, -38, 28, 14, 10, -0.05], [30, -28, 18, 9, 8, -0.3], [-40, -18, 16, 8, 8, 0.9], [42, -14, 16, 10, 8, -0.9], [-12, -46, 26, 18, 10, 0.1], [22, -52, 24, 20, 10, -0.15]]) { const m = smesh(M.buildMesa(w, h * 0.45, d), mat, false); m.position.set(x * 1.5, -0.4, z * 1.35 - 14); m.rotation.y = ry; }
   const cactusPos = [[-9.2, 10.5], [9.4, 11.2], [-13.6, 4.6], [14.0, 3.6], [-8.4, -1.8], [-15, -7], [15.5, -9], [-4.5, -12.5], [3.2, -13.2], [-18, 12], [18, 13]];
   cactusPos.forEach(([x, z], i) => { const c = smesh(FROST ? M.buildPine(i) : M.buildCactus(i)); c.position.set(sx(x), 0, sz(z)); c.rotation.y = i * 1.7; c.scale.setScalar(0.85 + (i % 3) * 0.15); });
   for (const [x, z, ry] of [[-9.0, 4.4, 0.4], [9.1, 3.8, -0.6], [-8.8, -6.6, 1.2], [9.4, 9.4, 2.1]]) { const b = smesh(M.buildBarrels()); b.position.set(sx(x), 0, sz(z)); b.rotation.y = ry; }
+  // the wide desert around the town (dunes, rocks, cacti, two rock arches, a far windmill, grass tufts) is built after
+  // the first frame by late(), into one merged mesh, so it never delays the first picture
+  const farParts = [], fmesh = (g, m, shadow, snow = true) => { const o = new THREE.Object3D(); o.userData.g = g; o.userData.snow = snow; farParts.push(o); return o; };
+  let fseed = 11; const frand = () => { fseed = (fseed * 16807) % 2147483647; return fseed / 2147483647; };
+  function buildFar() {
   // the wide desert around the town: low dunes, rocks and cacti out to the mesas (baked into the static meshes, so
   // they add no draw calls; the fog fades the far ones)
   {
     const near = (x, z) => x > D.x0 - 9 && x < D.x1 + 9 && z > D.z0 - 16 && z < D.z1 + 12;
     for (let i = 0, n = 0; n < 34 && i < 400; i++) {
-      const a = random() * Math.PI * 2, r = 26 + random() * 52, x = Math.cos(a) * r, z = 6 + Math.sin(a) * r; if (near(x, z)) continue; n++;
-      const dune = smesh(M.paint(new THREE.SphereGeometry(1, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), FROST ? 0xc8cbe6 : (n % 2 ? 0xe2b47e : 0xd59f69)), mat, false, false);
-      dune.position.set(x, -0.05, z); dune.scale.set(5 + random() * 7, 0.8 + random() * 1.6, 3 + random() * 4); dune.rotation.y = random() * 3;
+      const a = frand() * Math.PI * 2, r = 26 + frand() * 52, x = Math.cos(a) * r, z = 6 + Math.sin(a) * r; if (near(x, z)) continue; n++;
+      const dune = fmesh(M.paint(new THREE.SphereGeometry(1, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), FROST ? 0xc8cbe6 : (n % 2 ? 0xe2b47e : 0xd59f69)), mat, false, false);
+      dune.position.set(x, -0.05, z); dune.scale.set(5 + frand() * 7, 0.8 + frand() * 1.6, 3 + frand() * 4); dune.rotation.y = frand() * 3;
     }
     for (let i = 0, n = 0; n < 40 && i < 400; i++) {
-      const x = (random() - 0.5) * 110, z = -30 + random() * 80; if (near(x, z)) continue; n++;
-      const o = n % 3 ? smesh(FROST ? M.buildPine(n) : M.buildCactus(n), mat, false) : smesh(M.paint(new THREE.IcosahedronGeometry(0.7 + random() * 1.1, 0).scale(1.3, 0.6, 1), FROST ? 0x9aa0c8 : 0xb4704a), mat, false, false);
-      o.position.set(x, 0, z); o.rotation.y = random() * 6; if (n % 3) o.scale.setScalar(0.7 + random() * 0.6);
+      const x = (frand() - 0.5) * 110, z = -30 + frand() * 80; if (near(x, z)) continue; n++;
+      const o = n % 3 ? fmesh(FROST ? M.buildPine(n) : M.buildCactus(n), mat, false) : fmesh(M.paint(new THREE.IcosahedronGeometry(0.7 + frand() * 1.1, 0).scale(1.3, 0.6, 1), FROST ? 0x9aa0c8 : 0xb4704a), mat, false, false);
+      o.position.set(x, 0, z); o.rotation.y = frand() * 6; if (n % 3) o.scale.setScalar(0.7 + frand() * 0.6);
     }
   }
   // landmarks at middle distance (a sense of scale between the town and the mesas): two rock arches and a lone
   // windmill, plus sparse grass tufts on the sand around the town (all baked into the static meshes)
   for (const [x, z, ry, k] of [[-34, -6, 0.5, 1], [36, 4, -0.7, 0.85], [-30, 34, 1.2, 0.7]]) {
-    const arch = smesh(M.paint(new THREE.TorusGeometry(4.2, 1.3, 7, 14, Math.PI).scale(1, 1.15, 0.9), FROST ? 0x9aa0c8 : 0xc2784c), mat, false, false);
+    const arch = fmesh(M.paint(new THREE.TorusGeometry(4.2, 1.3, 7, 14, Math.PI).scale(1, 1.15, 0.9), FROST ? 0x9aa0c8 : 0xc2784c), mat, false, false);
     arch.position.set(x, -0.4, z); arch.rotation.y = ry; arch.scale.setScalar(k);
-    for (const sd of [-1, 1]) { const foot = smesh(M.paint(new THREE.IcosahedronGeometry(1.7, 0).scale(1, 0.7, 1), FROST ? 0x8c92ba : 0xa9643e), mat, false, false); foot.position.set(x + Math.cos(ry) * sd * 4.2 * k, 0, z - Math.sin(ry) * sd * 4.2 * k); foot.scale.setScalar(k); }
+    for (const sd of [-1, 1]) { const foot = fmesh(M.paint(new THREE.IcosahedronGeometry(1.7, 0).scale(1, 0.7, 1), FROST ? 0x8c92ba : 0xa9643e), mat, false, false); foot.position.set(x + Math.cos(ry) * sd * 4.2 * k, 0, z - Math.sin(ry) * sd * 4.2 * k); foot.scale.setScalar(k); }
   }
-  { const wm2 = M.buildWindmill(), m2 = smesh(wm2.tower); m2.position.set(30, 0, -22); m2.rotation.y = -0.9; m2.scale.setScalar(0.9); }
+  { const wm2 = M.buildWindmill(), m2 = fmesh(wm2.tower); m2.position.set(30, 0, -22); m2.rotation.y = -0.9; m2.scale.setScalar(0.9); }
   if (!FROST) for (let i = 0, n = 0; n < 70 && i < 600; i++) {
-    const x = (random() - 0.5) * 70, z = -14 + random() * 52; if (x > D.x0 - 1.5 && x < D.x1 + 1.5 && z > D.z0 - 7 && z < D.z1 + 1.5) continue; n++;
-    const tuft = smesh(M.merge([0, 1, 2, 3].map((k) => M.paint(M.at(new THREE.ConeGeometry(0.07, 0.45 + random() * 0.3, 3), Math.cos(k * 1.6) * 0.12, 0.22, Math.sin(k * 1.6) * 0.12, Math.cos(k) * 0.35, 0, Math.sin(k) * 0.35), k % 2 ? 0x9aa05a : 0x7f8a48))), mat, false, false);
-    tuft.position.set(x, 0, z); tuft.rotation.y = random() * 6;
+    const x = (frand() - 0.5) * 70, z = -14 + frand() * 52; if (x > D.x0 - 1.5 && x < D.x1 + 1.5 && z > D.z0 - 7 && z < D.z1 + 1.5) continue; n++;
+    const tuft = fmesh(M.merge([0, 1, 2, 3].map((k) => M.paint(M.at(new THREE.ConeGeometry(0.07, 0.45 + frand() * 0.3, 3), Math.cos(k * 1.6) * 0.12, 0.22, Math.sin(k * 1.6) * 0.12, Math.cos(k) * 0.35, 0, Math.sin(k) * 0.35), k % 2 ? 0x9aa05a : 0x7f8a48))), mat, false, false);
+    tuft.position.set(x, 0, z); tuft.rotation.y = frand() * 6;
+  }
+    const one = mesh(M.merge(farParts.map((o) => { o.updateMatrixWorld(true); const g = o.userData.g; if (FROST && g.attributes.color && !g.userData.frost) { M.frostify(g, o.userData.snow); g.userData.frost = true; } return g.applyMatrix4(o.matrixWorld); })), mat, false);
+    for (const o of farParts) o.userData.g.dispose();
+    farParts.length = 0; return one;
   }
   // foreground: barrels and cacti beside the crowd (the ghost town fills the bottom of the frame)
   for (const [x, z, ry, k] of [[-7.4, 17.2, 0.3, 0], [8.6, 14.6, 0, 4], [-8.8, 14.8, 0, 5]]) {
-    const o = k < 2 ? smesh(M.buildBarrels()) : smesh(FROST ? M.buildPine(k) : M.buildCactus(k)); o.position.set(sx(x), 0, sz(z)); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
+    const o = k < 2 ? smesh(M.buildBarrels()) : smesh(FROST ? M.buildPine(k) : M.buildCactus(k)); o.position.set(sx(x), 0, k < 2 ? sf(z) : sz(z)); o.rotation.y = ry; if (k >= 2) o.scale.setScalar(0.7 + (k % 2) * 0.2);
   }
   // lamp posts along both deck edges (instanced): bulbs glow at dusk
   const lampXZ = []; for (const sx of [-1, 1]) for (const z of [-0.4, 3.6, 7.6, 11.6].map(sz)) lampXZ.push([sx * (D.x1 + 0.75), z, sx < 0 ? 0 : Math.PI]);
@@ -418,7 +436,7 @@ export function createScene(canvas, cfg, random) {
   const beams = [-0.2, 0, 0.2].map((dx) => { const m = new THREE.Mesh(beamGeo, beamMat); m.renderOrder = 7; m.visible = false; scene.add(m); return { m, dx }; });
   const laserFx = { t: 0, p: new THREE.Vector3() };
   // canyon road with the bridge (planks come back when it is fixed) and the tour bus
-  const RD = { z: sz(16.2), bx: sx(-5.2), park: sx(1.6) };
+  const RD = { z: sf(16.2), bx: sx(-5.2), park: sx(1.6) };
   const road = M.buildRoad(-60, 60, RD.z, RD.bx); smesh(road.road, mat, false, false);
   unlockObj('road', mesh(M.merge(road.planks)));
   const busB = M.buildBus(), bus = new THREE.Group(); scene.add(bus);
@@ -662,8 +680,8 @@ export function createScene(canvas, cfg, random) {
   const twGeo = K(FROST ? M.buildSnowball() : M.buildTumbleweed()), weeds = [0, 1].map((i) => { const m = new THREE.Mesh(twGeo, mat); m.castShadow = true; scene.add(m); return { m, t: i * 9, z: sz(i ? 12.5 : -2.6), dir: i ? -1 : 1 }; });
   // ---- soft clouds drifting in the sky (instanced, one draw)
   const cloudGeo = K(M.merge([0, 1, 2, 3, 4].map((k) => M.paint(M.at(new THREE.SphereGeometry(1, 12, 8), (k - 2) * 1.3, Math.sin(k * 2) * 0.3 + (k === 2 ? 0.5 : 0), 0, 0, 0, 0, [1.3 - Math.abs(k - 2) * 0.15, 0.85 - Math.abs(k - 2) * 0.12, 1]), 0xfff2e4))));
-  const cloudMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: FROST ? 0xd8dcf4 : 0xffe8d0, emissiveIntensity: 0.35, fog: false })), clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, 7);
-  const cloudList = []; for (let i = 0; i < 7; i++) cloudList.push({ x: -40 + i * 13 + random() * 6, y: (FROST ? 9 : 16) + random() * (FROST ? 5 : 9), z: -55 - random() * 25, s: 2.4 + random() * 2, v: 0.4 + random() * 0.5 });
+  const cloudMat = K(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: FROST ? 0xd8dcf4 : 0xffe8d0, emissiveIntensity: 0.7, fog: false })), clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, 7);
+  const cloudList = []; for (let i = 0; i < 7; i++) cloudList.push({ x: -40 + i * 13 + random() * 6, y: (FROST ? 9 : 10) + random() * (FROST ? 5 : 6), z: -70 - random() * 22, s: 2.4 + random() * 2, v: 0.4 + random() * 0.5 });
   clouds.frustumCulled = false; clouds.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(clouds);
   // ---- soft cloud shadows drifting over the ground and the town (one transparent plane, its texture scrolls)
   const cloudShadowTex = K(canvasTex(256, 256, (g, s) => { for (let i = 0; i < 9; i++) { const x = random() * s, y = random() * s, r = 30 + random() * 50; for (const [dx, dy] of [[0, 0], [s, 0], [0, s], [s, s], [-s, 0], [0, -s], [-s, -s], [s, -s], [-s, s]]) { const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2); } } }));
@@ -879,7 +897,7 @@ export function createScene(canvas, cfg, random) {
     keyCol(a.sun, b.sun, k, sun.color); sun.intensity = L('sunI'); keyCol(a.sun, b.sun, k, skyU.sunC.value);
     keyCol(a.hemiSky, b.hemiSky, k, hemi.color); keyCol(a.hemiGround, b.hemiGround, k, hemi.groundColor); hemi.intensity = L('hemiI');
     const el = L('elev'); sunOff.set(Math.cos(el) * -9, Math.sin(el) * 22 + 2, Math.cos(el) * 11); placeSun();
-    renderer.toneMappingExposure = L('exp'); lampsK = L('lamps'); skyU.uStars.value = Math.max(0, lampsK - 0.3) * 1.4; meteorK = L('meteor');
+    renderer.toneMappingExposure = L('exp'); lampsK = L('lamps'); skyU.uStars.value = Math.max(0, lampsK - 0.3) * 1.4; cloudMat.emissiveIntensity = 0.7 * (1 - lampsK * 0.6); meteorK = L('meteor');
     glowMat.color.setRGB(0.35 + lampsK * 1.6, 0.27 + lampsK * 1.15, 0.18 + lampsK * 0.6);
     winMat.emissiveIntensity = lampsK * 1.4; crystalLight.intensity = 0.8 + meteorK * 1.2;
     scene.environmentIntensity = 0.45 - lampsK * 0.15;
@@ -1294,7 +1312,7 @@ export function createScene(canvas, cfg, random) {
     cam.mineK = lerp(cam.mineK, h.mining ? 1 : 0, Math.min(1, dt * (h.mining ? 1.5 : 0.8))); cam.punch = Math.max(0, cam.punch - dt * 2.2);
     const zoom = lerp(1, cfg.camera.mineZoom, ease(cam.mineK)) * lerp(1, cfg.camera.punch, Math.sin(Math.min(1, cam.punch) * Math.PI / 2));
     const dist = camDist() * zoom, yaw = cfg.camera.yaw; let pitch = cfg.camera.pitch;
-    camLook.set(lerp(cam.x, h.x * 0.5, cam.mineK * 0.5), 0, lerp(cam.z, cfg.camera.zMin, cam.mineK * 0.6));
+    camLook.set(lerp(cam.x, h.x * 0.5, cam.mineK * 0.5), 0, lerp(cam.z, cfg.camera.mineZ, cam.mineK * 0.6));
     let dd = dist, look = camLook;
     { const gx = Math.round(camLook.x / 2) * 2, gz = Math.round(camLook.z / 2) * 2 + 2; if (gx !== shadowAt.x || gz !== shadowAt.z) { shadowAt.set(gx, 0, gz); placeSun(); } }
     const ik = introStep(dt);
@@ -1331,6 +1349,7 @@ export function createScene(canvas, cfg, random) {
   }
 
   bakeStatics();
+  let lateDone = false;
   const proj = new THREE.Vector3();
   /** Screen position (0..1) of a world point. */
   function toScreen(x, y, z) { proj.set(x, y, z).project(camera); return [(proj.x + 1) / 2, (1 - proj.y) / 2, proj.z]; }
@@ -1414,6 +1433,8 @@ export function createScene(canvas, cfg, random) {
     snap(S) { cam.x = camX(S.hero.x); cam.z = camZ(S.hero.z); },
     /** Live GPU textures and draw calls of the last frame. */
     stats() { return { textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }; },
+    /** Work that waits for the first frame: the full town-square paint and the far desert. Safe to call twice. */
+    late() { if (lateDone) return; lateDone = true; paintFull(); buildFar(); },
     /** Builds every shader before the first draw; resolves when the GPU has them (in parallel where the driver can). */
     prewarm() {
       // hidden things (later unlocks, effects) are shown for the compile so their shaders never build mid-game

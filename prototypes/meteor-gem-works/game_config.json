@@ -399,11 +399,12 @@
   "camera": {
     "fov": 44,
     "yaw": 0,
-    "pitch": 0.45,
+    "pitch": 0.32,
     "width": 17,
     "lead": 0.9,
     "follow": 3,
-    "zMin": 1.5,
+    "zMin": -6.0,
+    "mineZ": -1.5,
     "zMid": 4.5,
     "lean": 0.7,
     "mineZoom": 0.88,
@@ -411,7 +412,7 @@
     "cometPitch": 0.18,
     "followX": 0.7,
     "zMax": 9.5,
-    "ahead": 2.5
+    "ahead": 10.0
   },
   "tod": {
     "start": 0,
@@ -419,14 +420,14 @@
       {
         "t": 0,
         "sky": [
-          "#5fa9e0",
-          "#8ec5ea",
-          "#f3dcb8",
-          "#f7e6c8"
+          "#3a86d6",
+          "#86c0ec",
+          "#f9cf9c",
+          "#f2b882"
         ],
-        "fog": "#f0d9b8",
-        "fogNear": 55,
-        "fogFar": 130,
+        "fog": "#f1cc9e",
+        "fogNear": 80,
+        "fogFar": 190,
         "sun": "#fff1d6",
         "sunI": 2.5,
         "hemiSky": "#fff4e4",
@@ -446,8 +447,8 @@
           "#f7d39a"
         ],
         "fog": "#efb98a",
-        "fogNear": 50,
-        "fogFar": 120,
+        "fogNear": 72,
+        "fogFar": 175,
         "sun": "#ffc387",
         "sunI": 2.1,
         "hemiSky": "#ffd9b0",
@@ -467,8 +468,8 @@
           "#ef9c78"
         ],
         "fog": "#7a5a86",
-        "fogNear": 44,
-        "fogFar": 110,
+        "fogNear": 60,
+        "fogFar": 160,
         "sun": "#ff9f7a",
         "sunI": 1.1,
         "hemiSky": "#8c86d6",
@@ -510,6 +511,7 @@
     "dropMs": 19,
     "warmMs": 2500,
     "warmLaterMs": 1500,
+    "lateMs": 300,
     "start": 1,
     "resMin": 0.7,
     "resStep": 0.1,
