@@ -131,6 +131,13 @@ export function run(mode = 'play') {
     return wait;
   }
   let cfg = JSON.parse(JSON.stringify(window.gameConfig || {})); // the active place's config (chapter 2 swaps it)
+  // the host's settings panel: a few feel values the creator can tune (applied on the next run)
+  if (typeof lib !== 'undefined' && lib.showGameParameters) lib.showGameParameters({ name: 'Meteor Gems', params: {
+    'Walk speed': { key: 'hero.speed', type: 'slider', min: 6, max: 16, step: 0.5 },
+    'Carry limit': { key: 'hero.carry', type: 'slider', min: 10, max: 40, step: 1 },
+    'Camera tilt': { key: 'camera.pitch', type: 'slider', min: 0.45, max: 0.85, step: 0.01 },
+    'Camera height': { key: 'camera.ahead', type: 'slider', min: 3, max: 9, step: 0.5 },
+  } });
   loadFonts();
   const qs = new URLSearchParams(location.search);
   // dev:start
@@ -161,6 +168,7 @@ export function run(mode = 'play') {
   let qa = { tier, rs: 1, okT: 0, fails: [] };
   scene.setTod(qs.has('tod') ? Number(qs.get('tod')) : cfg.tod.start);
   const bot = qs.has('bot') || mode === 'edit';
+  const buzz = (fx) => { if (!bot && typeof lib !== 'undefined' && lib.haptics) lib.haptics.play(fx); }; // a felt tick on physical moments
   let S = L.createState(cfg, cfg.seed), S1 = S, S2 = null, area = 'desert';
   const leftAt = { desert: 0, frost: 0 };
 
@@ -260,12 +268,12 @@ export function run(mode = 'play') {
     const h = S.hero;
     switch (e.type) {
       case 'hit': {
-        const p = scene.hit(mineLon + (Math.random() - 0.5) * 0.35, 0.08 + Math.random() * 0.3); Sound.hit();
+        const p = scene.hit(mineLon + (Math.random() - 0.5) * 0.35, 0.08 + Math.random() * 0.3); Sound.hit(); buzz('tap');
         for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.05 + i * 0.06, 2.2);
         break;
       }
       case 'perfect': {
-        const p = scene.hit(e.lon, e.lat, true); Sound.perfect();
+        const p = scene.hit(e.lon, e.lat, true); Sound.perfect(); buzz('thud');
         for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.1 + i * 0.08, 3.2);
         pop(T('perfect'), p.x, p.y + 1.2, p.z, 'big'); glintsHit++; cine.stop = Math.max(cine.stop, cfg.cine.stop); cine.slow = Math.max(cine.slow, cfg.cine.slow * 0.6);
         break;
@@ -313,7 +321,7 @@ export function run(mode = 'play') {
       case 'pay': { if (e.paid % 2 === 0) scene.fly('coin', V(h.x, 1.4, h.z), 'pad', () => 0, 0, 1.0); scene.padPay(); Sound.pay(e.paid); break; }
       case 'unlock': {
         { const d = padDef(e.id); if (d) { scene.ring(V(d.x, 0.3, d.z), 0xffd35a, 0.5, 4.5, 0.6); scene.confetti(V(d.x, 0.8, d.z), 40, 2.2); } } // the full bar pops
-        const c = scene.unlock(e.id); Sound.fanfare(); banner(T(e.id), e.id === 'rig' ? T('rigDone') : '', 2.6);
+        const c = scene.unlock(e.id); Sound.fanfare(); buzz('success'); banner(T(e.id), e.id === 'rig' ? T('rigDone') : '', 2.6);
         if (e.id === 'heart') moment(V(0, 3, cfg.world.meteor.z + 2), 0.85, 2.0, 2);
         else moment(V(c.x, 1.0, c.z - 0.5), e.id === 'road' || e.id === 'cable' ? 0.8 : 0.7, 2.2, 2, { stop: cfg.cine.stop });
         if (e.id === 'ghost') banner(T('ghost'), T('ghostGoal'), 2.6);
@@ -333,7 +341,7 @@ export function run(mode = 'play') {
       case 'scoop': if (e.kind === 'coin') { cashBump = 1; Sound.coin(coinK++); } else Sound.pick(e.n || 1, false); break;
       case 'eggDrop': scene.eggDrop(); banner(T('eggDrop'), '', 1.6); moment(scene.eggAt, 0.8, 1.6, 1); break;
       case 'hatchStart': scene.hatchStart(); hatchCracks = 0; break;
-      case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); moment(V(cfg.world.egg.x + cfg.critter.pop[0] * 0.5, 0.6, cfg.world.egg.z + cfg.critter.pop[1] * 0.5), 0.62, 2.0, 2, { stop: cfg.cine.stop }); saveNow(); break;
+      case 'hatch': scene.hatch(); Sound.fanfare(); buzz('success'); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); moment(V(cfg.world.egg.x + cfg.critter.pop[0] * 0.5, 0.6, cfg.world.egg.z + cfg.critter.pop[1] * 0.5), 0.62, 2.0, 2, { stop: cfg.cine.stop }); saveNow(); break;
       // ---- the ghost town, the crown jeweler, the finale, stars and hats
       case 'cartGo': Sound.whoosh(); pop('➜', scene.cartAt.x, 1.8, scene.cartAt.z, 'gold'); break;
       case 'ghostLight': {
