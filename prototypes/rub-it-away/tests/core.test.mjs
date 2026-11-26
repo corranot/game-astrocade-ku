@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { LEVELS } from '../modules/levels.js';
-import { effectiveLevelDefinition, extendProgressArray, normalizePrefs, starsForSolvedLevel, validateLevels, dailyLevel, dayKey, nextDayKey, giftDue, goldenLevel, TUNE } from '../modules/rules.js';
+import { effectiveLevelDefinition, extendProgressArray, normalizePrefs, starsForSolvedLevel, validateLevels, dailyLevel, dayKey, nextDayKey, giftDue, giftPlan, qualityStep, goldenLevel, TUNE } from '../modules/rules.js';
 import { LEVEL_ASSETS } from '../modules/levels.js';
 import { readFileSync } from 'node:fs';
 import { TABLES, setLang, t } from '../modules/strings.js';
@@ -52,6 +52,26 @@ assert.equal(nextDayKey('2026-12-31'), '2027-01-01');
 assert.match(dayKey(new Date(2026, 10, 26, 23, 59)), /^2026-11-26$/);
 // surprise gift every TUNE.giftEvery levels solved in one session, never at 0
 assert.equal(giftDue(0), false); assert.equal(giftDue(TUNE.giftEvery), true); assert.equal(giftDue(TUNE.giftEvery + 1), false);
+// session gift pacing: first gift on the first solve past minute 5 (never before giftFirstMin, never after giftFirstMax), the countdown never goes up, then every giftThen solves
+{
+  let r = giftPlan(null, 1, 20); assert.equal(r.due, false); assert.ok(r.plan.at <= TUNE.giftFirstMax && r.plan.at >= TUNE.giftFirstMin);
+  // slow player (60 s a level): at 5 solves = 300 s the next solve... at=5 is reached on the 5th solve
+  let plan = null, gotAt = 0;
+  for (let n = 1; n <= 20 && !gotAt; n++) { r = giftPlan(plan, n, n * 60); if (r.due) gotAt = n; plan = r.plan; }
+  assert.equal(gotAt, 5);
+  // fast player (15 s a level): capped at giftFirstMax
+  plan = null; gotAt = 0; let last = Infinity;
+  for (let n = 1; n <= 20 && !gotAt; n++) { r = giftPlan(plan, n, n * 15); if (r.due) gotAt = n; else { assert.ok(r.plan.at <= last); last = r.plan.at; } plan = r.plan; }
+  assert.equal(gotAt, TUNE.giftFirstMax);
+  // medium (30 s a level): first solve at or past 300 s is the 10th
+  plan = null; gotAt = 0;
+  for (let n = 1; n <= 20 && !gotAt; n++) { r = giftPlan(plan, n, n * 30); if (r.due) gotAt = n; plan = r.plan; }
+  assert.equal(gotAt, 10); assert.equal(plan.at, 10 + TUNE.giftThen); assert.equal(plan.given, 1);
+  // very fast first levels never give a gift before giftFirstMin
+  r = giftPlan({ at: TUNE.giftFirstMin, given: 0 }, 1, 400); assert.equal(r.due, false); assert.equal(r.plan.at, TUNE.giftFirstMin);
+}
+// adaptive quality only steps down, one step per slow window
+assert.equal(qualityStep(2, 0), 2); assert.equal(qualityStep(2, TUNE.fpsWindow), 1); assert.equal(qualityStep(0, 99), 0);
 // golden pictures: one in TUNE.goldenEvery, evenly spaced, never levels 1-2 or a world's last level, a different set tomorrow
 const gold = (k) => LEVELS.map((l) => l.n).filter((n) => goldenLevel(n, k));
 assert.ok(gold('2026-11-26').every((n) => n >= 3 && n % 6 !== 0));

@@ -47,7 +47,7 @@ export class Level {
     this.world = world; this.worldEnd = n % 6 === 0;
     // the rub tool changes with the world (same one-finger rub, a fresh feel every 6 levels): eraser, sponge (bubbles), brush, ice scraper (chips), icing spatula (sprinkles)
     this.tool = { kitchen: 'sponge', pond: 'sponge', town: 'sponge', sea: 'sponge', zoo: 'brush', beach: 'brush', fair: 'brush', castle: 'scraper', snow: 'scraper', candy: 'spatula' }[world] || 'eraser';
-    this.hinted = false; this.golden = false; this.touchT0 = null; this.record = null; this.hardT = -9; this.toyT = -9;
+    this.hinted = false; this.bloom = false; this.golden = false; this.touchT0 = null; this.record = null; this.hardT = -9; this.toyT = -9;
     this.bg = background(this.def.bg, world);
     this.fx = new Fx(this.reducedMotion); this.wx = new Weather(this.def.weather, this.reducedMotion);
     this.t = 0; this.s = 0; this.fixed = false; this.errors = 0; this.stars = 0; this.touched = false; this.idle = 0;
@@ -241,6 +241,12 @@ export class Level {
     this.fx.puff(c.x, c.y, 9, '#ffffff'); this.fx.confetti(hx, hy, 56); this.fx.spark(hx, hy, 8);
     if (this.golden) { this.fx.burst(c.x, c.y, 46, ['#ebb439', '#ffe27a', '#ffffff'], { v: [160, 420], dec: 0.8, r: 10 }); this.fx.ring(c.x, c.y, 380, '#ffe27a'); AU.sfx('star', 1.3); }
     this.perfect = this.n >= 3 && this.errors === 0 && !this.hinted && !this.golden;
+    // FIRST BLOOM (level 1, the first ten seconds of a new player): a longer hit-stop, a rainbow that grows behind the flower, a sun glow, a confetti shower over the whole card and the win arpeggio
+    if (this.n === 1 && !this.daily) {
+      this.bloom = true; this.hold = 0.14;
+      this.fx.confetti(360, 760, 70); this.fx.rain(STAGE.x + 20, STAGE.x + STAGE.w - 20, STAGE.y - 20, 50); this.fx.ring(360, 640, 560, '#ffe27a');
+      AU.sfx('arp');
+    }
     this.fx.ring(c.x, c.y, Math.max(this.target.w, this.target.h) * 0.9 + 120, '#ffffff'); this.fx.ring(c.x, c.y, Math.max(this.target.w, this.target.h) * 0.6 + 60, '#ebb439');
     // the payoff effect matches the payoff sound: water fans up (splash), bubbles rise, a ring of sparkles (sparkle, lights on, found), a second confetti pop (cheer, party horn)
     const fk = AU.FIX[this.n - 1] || '';
@@ -364,6 +370,7 @@ export class Level {
     for (const th of this.things) if (th.d.tie && th.state === 'alive') this.drawTie(g, th, t0);
     const kind = this.wx.k;
     this.wx.draw(g, kind === 'rain' ? (1 - prog) * (1 - k) : kind === 'steam' ? 1 - k : 1, t0);
+    if (this.bloom && this.fixed) this.drawBloom(g, t0);
     for (const th of this.things) th.draw(g, t0, this);
     if (this.def.finale && this.fixed) this.drawGlow(g, t0);
     if (this.def.warmReveal && this.fixed) this.drawWarmReveal(g, t0);
@@ -547,6 +554,23 @@ export class Level {
   }
 
   // ambient life behind the things (cached sprites and plain arcs, nothing allocated per frame); fades out before it reaches the prompt pill
+  // level 1's payoff behind the scene's things: a warm glow with slow rays around the sun, and a rainbow that grows out from behind the flower
+  drawBloom(g, t0) {
+    const k = this.reducedMotion ? 1 : ease.out(clamp(this.s / 0.9)), a = clamp(this.s / 0.3);
+    const sun = this.things.find((q) => q.asset === 'sun'), sx = sun ? sun.x : 360, sy = sun ? sun.y : 445;
+    g.save(); g.globalAlpha = 0.55 * a;
+    const gr = g.createRadialGradient(sx, sy, 20, sx, sy, 300 * k + 1); gr.addColorStop(0, 'rgba(255,226,122,0.9)'); gr.addColorStop(1, 'rgba(255,226,122,0)');
+    g.fillStyle = gr; g.fillRect(sx - 320, sy - 320, 640, 640);
+    g.translate(sx, sy); g.rotate(t0 * 0.25); g.fillStyle = 'rgba(255,236,150,0.5)';
+    for (let i = 0; i < 12; i++) { g.rotate(Math.PI / 6); g.beginPath(); g.moveTo(0, 0); g.lineTo(-26, -280 * k); g.lineTo(26, -280 * k); g.closePath(); g.fill(); }
+    g.restore();
+    const bands = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#9775fa'], cx = 360, cy = 1010, r0 = 250 + 60 * k;
+    g.save(); g.globalAlpha = 0.72 * a; g.lineCap = 'butt';
+    const end = Math.PI + Math.PI * k;
+    bands.forEach((c, i) => { g.beginPath(); g.arc(cx, cy, r0 + (bands.length - 1 - i) * 20, Math.PI, end); g.lineWidth = 21; g.strokeStyle = c; g.stroke(); });
+    g.restore();
+  }
+
   drawAmb(g, t0, lift) {
     const k = this.ambK;
     g.save();

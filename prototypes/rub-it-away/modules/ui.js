@@ -6,6 +6,7 @@ import { t, isJoined, isRtl } from './strings.js';
 import { Fx } from './fx.js';
 import { LEVEL_COUNT } from './save.js';
 import { LEVELS } from './levels.js';
+import { TUNE } from './rules.js';
 
 export const hits = [];
 export const tap = (x, y, w, h, fn) => hits.push({ x, y, w, h, fn });
@@ -330,9 +331,18 @@ export function drawResult(g, lv, time, go, info) {
   if (lv.rain && lv.fixed) { lv.rain.drawHigh(g); }
   if (lv.worldDone && rawS > 0.9) drawWorldBanner(g, lv, rawS, time);
   if (s <= 1.1) return;
-  const u = lv.reducedMotion ? 1 : ease.back(clamp((s - 1.1) / 0.5)), y0 = 1300 - u * 434, rtl = isRtl();
-  rr(g, 40, y0 + 12, 640, 380, 44); fillStroke(g, INK, 0);
-  rr(g, 40, y0, 640, 380, 44); fillStroke(g, '#fbefd0', 8);
+  // the gift countdown ("3 more to the gift!") gets its own 56 px row between the poster and the buttons once the session gift is close
+  const gLeft = !lv.daily && !lv.gift && info && info.giftLeft >= 1 && info.giftLeft <= TUNE.giftShowWithin ? info.giftLeft : 0, ex = gLeft ? 56 : 0;
+  const u = lv.reducedMotion ? 1 : ease.back(clamp((s - 1.1) / 0.5)), y0 = 1300 - u * (434 + ex), rtl = isRtl();
+  rr(g, 40, y0 + 12, 640, 380 + ex, 44); fillStroke(g, INK, 0);
+  rr(g, 40, y0, 640, 380 + ex, 44); fillStroke(g, '#fbefd0', 8);
+  if (gLeft) {
+    const msg = gLeft === 1 ? t('gift_next') : t('gift_more', { n: gLeft }), fs = fitSize(g, msg, 36, 470), gy = y0 + 272;
+    g.font = '900 ' + fs + 'px ' + FONT;
+    const mw = g.measureText(msg).width, bx = 360 - (52 + 12 + mw) / 2, ix = rtl ? bx + mw + 12 + 26 : bx + 26, pu = lv.reducedMotion ? 1 : 1 + (gLeft === 1 ? 0.08 * Math.sin(time * 6) : 0);
+    g.save(); g.translate(ix, gy); g.scale(0.5 * pu, 0.5 * pu); giftBox(g); g.restore();
+    label(g, msg, rtl ? bx + mw / 2 : bx + 64 + mw / 2, gy + 2, fs, COL.red, { stroke: 0 });
+  }
   const tf = fitLines(g, t(lv.def.win), 56, 560);
   labelLines(g, tf, 360, y0 + (tf.lines.length > 1 ? 50 : 56), COL.orange, { lw: 11 });
   const sy = y0 + 140, sr = 42, starX = [250, 360, 470];
@@ -378,17 +388,17 @@ export function drawResult(g, lv, time, go, info) {
     // one label size for the pair; a long SHARE word (es, vi...) turns SHARE into an icon-only 120 px button so neither label gets tiny
     const lead = deco ? 80 : 0, fs = Math.min(fitSize(g, t('next'), 48, 272 - lead), fitSize(g, t('share'), 48, 128));
     if (fs >= 38) {
-      button(g, rtl ? 492 : 228, y0 + 306, 328, 100, t('next'), go.next, time, fs, pull, 'green', deco, lead);
-      button(g, rtl ? 188 : 532, y0 + 306, 248, 100, t('share'), go.share, time, fs, 0, 'blue', shareDeco, 64);
+      button(g, rtl ? 492 : 228, y0 + 306 + ex, 328, 100, t('next'), go.next, time, fs, pull, 'green', deco, lead);
+      button(g, rtl ? 188 : 532, y0 + 306 + ex, 248, 100, t('share'), go.share, time, fs, 0, 'blue', shareDeco, 64);
     } else {
-      button(g, rtl ? 424 : 296, y0 + 306, 464, 100, t('next'), go.next, time, 48, pull, 'green', deco, lead);
-      button(g, rtl ? 124 : 596, y0 + 306, 120, 100, '', go.share, time, 40, 0, 'blue', (gg) => shareIcon(gg, 0, 2, 44, EDGE.blue));
+      button(g, rtl ? 424 : 296, y0 + 306 + ex, 464, 100, t('next'), go.next, time, 48, pull, 'green', deco, lead);
+      button(g, rtl ? 124 : 596, y0 + 306 + ex, 120, 100, '', go.share, time, 40, 0, 'blue', (gg) => shareIcon(gg, 0, 2, 44, EDGE.blue));
     }
-  } else if (lv.stars >= 3) button(g, 360, y0 + 306, 560, 100, t('next'), go.next, time, 54, pull, 'green', deco, deco ? 80 : 0);
+  } else if (lv.stars >= 3) button(g, 360, y0 + 306 + ex, 560, 100, t('next'), go.next, time, 54, pull, 'green', deco, deco ? 80 : 0);
   else {
     // 1-2 stars: REPLAY beside NEXT in one row (NEXT is the big green primary on the forward side, mirrored in ar and ur)
-    button(g, rtl ? 240 : 480, y0 + 306, 320, 100, t('next'), go.next, time, 54, pull);
-    button(g, rtl ? 540 : 180, y0 + 306, 240, 100, t('replay'), go.replay, time, 44, 0, 'blue');
+    button(g, rtl ? 240 : 480, y0 + 306 + ex, 320, 100, t('next'), go.next, time, 54, pull);
+    button(g, rtl ? 540 : 180, y0 + 306 + ex, 240, 100, t('replay'), go.replay, time, 44, 0, 'blue');
   }
   if (lv.gift) drawGift(g, lv, y0, time, go);
 }
@@ -412,6 +422,15 @@ function drawWorldBanner(g, lv, s, time) {
   g.restore();
 }
 
+// the wrapped gift box (about 104 x 112 around 0, 0): the surprise gift itself and the icon of the gift countdown
+function giftBox(g) {
+  rr(g, -44, -30, 88, 72, 12); fillStroke(g, COL.red, 6);
+  rr(g, -52, -44, 104, 24, 10); fillStroke(g, '#e86a6a', 6);
+  g.fillStyle = COL.gold; g.fillRect(-9, -44, 18, 86); g.lineWidth = 5; g.strokeStyle = INK; g.strokeRect(-9, -44, 18, 86);
+  g.beginPath(); g.ellipse(-18, -52, 18, 11, -0.5, 0, 7); fillStroke(g, COL.gold, 5);
+  g.beginPath(); g.ellipse(18, -52, 18, 11, 0.5, 0, 7); fillStroke(g, COL.gold, 5);
+}
+
 // the surprise gift on the result card (every few levels in one session): a wrapped box bobs beside the card; a tap opens it for free hints
 function drawGift(g, lv, y0, time, go) {
   const gf = lv.gift, rtl = isRtl(), x = rtl ? 110 : 610, y = y0 - 64;
@@ -424,13 +443,7 @@ function drawGift(g, lv, y0, time, go) {
     const pw = g.measureText(msg).width + 32, lx = clamp(x, 24 + pw / 2, W - 24 - pw / 2), ly = y - 98 + b;
     rr(g, lx - pw / 2, ly - 22, pw, 44, 22); fillStroke(g, '#fbefd0', 5);
     label(g, msg, lx, ly + 1, fs, COL.red, { stroke: 0 });
-    g.save(); g.translate(x, y + b); g.rotate(wob);
-    rr(g, -44, -30, 88, 72, 12); fillStroke(g, COL.red, 6);
-    rr(g, -52, -44, 104, 24, 10); fillStroke(g, '#e86a6a', 6);
-    g.fillStyle = COL.gold; g.fillRect(-9, -44, 18, 86); g.lineWidth = 5; g.strokeStyle = INK; g.strokeRect(-9, -44, 18, 86);
-    g.beginPath(); g.ellipse(-18, -52, 18, 11, -0.5, 0, 7); fillStroke(g, COL.gold, 5);
-    g.beginPath(); g.ellipse(18, -52, 18, 11, 0.5, 0, 7); fillStroke(g, COL.gold, 5);
-    g.restore();
+    g.save(); g.translate(x, y + b); g.rotate(wob); giftBox(g); g.restore();
     return;
   }
   const k = clamp((lv.s - gf.t) / 1.6);
