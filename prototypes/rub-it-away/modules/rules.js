@@ -81,7 +81,14 @@ export function normalizePrefs(value, fallback = {}) {
 
 /** Tuning for the session and return features (no timers, no streaks, nothing is ever lost). */
 export const TUNE = Object.freeze({
-  giftEvery: 10,       // a surprise gift on the result card after every 10th level solved in one session (about minute 3-4, 7, 10 at 20 s a level)
+  giftEvery: 10,       // legacy fixed cadence (giftDue); the live game paces gifts with giftPlan below
+  giftFirstSec: 300,   // the first gift of a session lands on the first solve at or past minute 5 (5+ minute sessions count most)
+  giftFirstMax: 12,    // ... or on the 12th solve, whichever comes first
+  giftFirstMin: 4,     // ... but never before the 4th solve
+  giftThen: 8,         // later gifts: every 8 more solves
+  giftShowWithin: 5,   // the result card shows "N more to the gift" once the gift is this close
+  fpsLow: 40,          // adaptive quality: when frames run under this rate...
+  fpsWindow: 3,        // ...for this many seconds of play, effects drop one step (full -> fewer particles -> fewer particles + 0.75 resolution)
   goldenEvery: 8,      // one level in 8 is a golden picture (which ones shifts every day); never level 1-2, never a world's last level
   giftHints: 2,        // what the gift holds
   dailyHints: 1,       // collecting today's picture
@@ -112,6 +119,23 @@ export function nextDayKey(key) {
 
 /** True when the n-th level solved in this session earns the surprise gift. */
 export function giftDue(solvedThisSession) { return solvedThisSession > 0 && solvedThisSession % TUNE.giftEvery === 0; }
+
+/**
+ * Session gift pacing. plan = { at, given }: `at` is the solve count that earns the next gift.
+ * After each solve: a gift is due when solved >= at; otherwise `at` is re-estimated from the session's own pace so the first
+ * gift lands on the first solve past TUNE.giftFirstSec seconds. `at` never moves later, so a shown "N more" only counts down.
+ * Returns { plan, due }.
+ */
+export function giftPlan(plan, solved, sessionSec) {
+  const p = plan || { at: TUNE.giftFirstMax, given: 0 };
+  if (solved >= p.at) return { plan: { at: solved + TUNE.giftThen, given: p.given + 1 }, due: true };
+  if (p.given > 0 || solved <= 0) return { plan: p, due: false };
+  const pace = Math.max(5, sessionSec / solved), est = solved + Math.ceil(Math.max(0, TUNE.giftFirstSec - sessionSec) / pace);
+  return { plan: { at: Math.min(p.at, Math.max(solved + 1, TUNE.giftFirstMin, est)), given: 0 }, due: false };
+}
+
+/** Adaptive quality step: given the current level (2 full, 1 fewer particles, 0 fewer particles + lower resolution) and how long frames have run slow, the level to use now. Only ever steps down within a session. */
+export function qualityStep(level, slowSec) { return slowSec >= TUNE.fpsWindow && level > 0 ? level - 1 : level; }
 
 /** True when level n is a golden picture today: evenly spaced (one in TUNE.goldenEvery), shifted each day, never in the tutorial levels or on a world's last level. */
 export function goldenLevel(n, key) {

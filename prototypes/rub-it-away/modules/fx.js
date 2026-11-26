@@ -2,7 +2,11 @@
 import { STAGE } from './util.js';
 
 const CONFETTI = ['#e8743b', '#ebb439', '#2dbe45', '#3d8fd2', '#9951d6'];
-const MAX = 420;
+const MAX0 = 420;
+// adaptive quality (set by the runtime when frames run slow): 1 = full, 0.5 = half the particles everywhere
+let Q = 1, MAX = MAX0;
+export function setFxQuality(q) { Q = q; MAX = Math.round(MAX0 * q); }
+const qn = (n) => Math.max(1, Math.ceil(n * Q));
 
 export class Fx {
   constructor(reducedMotion = false) { this.reducedMotion = reducedMotion; this.crumbs = []; this.conf = []; this.puffs = []; this.sparks = []; this.shots = []; this.rings = []; this.burstN = 0; }
@@ -11,7 +15,7 @@ export class Fx {
   crumb(x, y, col, dx = 0, dy = 0, sp = 0) {
     if (this.reducedMotion || this.crumbs.length > MAX) return;
     const dir = dx !== 0 || dy !== 0, k = 160 + Math.min(1, sp / 1500) * 260;
-    for (let j = 0; j < 2; j++) {
+    for (let j = 0; j < (Q < 1 ? 1 : 2); j++) {
       this.crumbs.push(dir
         ? { x: x + (Math.random() - 0.5) * 36, y: y + (Math.random() - 0.5) * 36, vx: dx * k * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 110, vy: dy * k * (0.6 + Math.random() * 0.8) - 50 - Math.random() * 90, r: 4 + Math.random() * 7, life: 1, col }
         : { x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 60, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 120, r: 4 + Math.random() * 7, life: 1, col });
@@ -20,6 +24,7 @@ export class Fx {
 
   confetti(x, y, n = 90) {
     if (this.reducedMotion) return;
+    n = qn(n);
     for (let i = 0; i < n && this.conf.length < MAX; i++) this.conf.push({ x: x + (Math.random() - 0.5) * 120, y, vx: (i % 2 ? 1 : -1) * (130 + Math.random() * 420), vy: -380 - Math.random() * 600, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 12, c: CONFETTI[i % 5] });
   }
 
@@ -29,12 +34,14 @@ export class Fx {
 
   spark(x, y, n = 8) {
     if (this.reducedMotion) return;
+    n = qn(n);
     for (let i = 0; i < n; i++) this.sparks.push({ x, y, vx: (Math.random() - 0.5) * 500, vy: -200 - Math.random() * 300, life: 1 });
   }
 
   // BURST: a ring (or fan) of glowing dots that fly out, fall and fade over about 1.1 s: a firework (default full ring) or a splash (o.ang = fan of angles, o.g = gravity); drawn in screen space
   burst(x, y, n = 22, cols = CONFETTI, o = {}) {
     if (this.reducedMotion) return;
+    n = qn(n);
     const a0 = o.ang ? o.ang[0] : 0, a1 = o.ang ? o.ang[1] : Math.PI * 2, v0 = o.v ? o.v[0] : 260, v1 = o.v ? o.v[1] : 380;
     for (let i = 0; i < n; i++) {
       const a = a0 + (a1 - a0) * (i + 0.5) / n, v = (v0 + (v1 - v0) * ((i * 0.618) % 1)) * (o.ang || i % 2 === 0 ? 1 : 0.55);   // a full ring is two shells (every second dot slower), so a firework reads as a burst, not a hoop
@@ -52,6 +59,7 @@ export class Fx {
   // RAIN: confetti pieces that drift down from above the card (gentle fall, sideways sway), used by the level 60 finale
   rain(x0, x1, y, n) {
     if (this.reducedMotion) return;
+    n = qn(n);
     for (let i = 0; i < n; i++) this.conf.push({ x: x0 + Math.random() * (x1 - x0), y, vx: (Math.random() - 0.5) * 120, vy: 120 + Math.random() * 160, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 9, c: CONFETTI[i % 5], soft: 1 });
   }
 
@@ -90,7 +98,7 @@ export class Fx {
 export class Weather {
   constructor(def, reducedMotion = false) {
     this.reducedMotion = reducedMotion; this.d = def; this.k = def ? def.kind : null; this.p = [];
-    const n = this.k === 'rain' ? 26 : this.k === 'snow' ? 40 : this.k === 'steam' ? 12 : 0;
+    const n = qn(this.k === 'rain' ? 26 : this.k === 'snow' ? 40 : this.k === 'steam' ? 12 : 1) * (this.k ? 1 : 0);
     for (let i = 0; i < n; i++) this.p.push(this.fresh(true, i, n));
   }
 
