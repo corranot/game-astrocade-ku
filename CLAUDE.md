@@ -78,8 +78,12 @@ none of them. The owner's words, verbatim:
 
 How it fits the existing rules:
 
-- **New games** follow it too: build them in 3D with Three.js to this bar from
-  the start, not only when converting a 2D game.
+- **New games may be 2D or 3D** (owner, 26 Nov). Pick by data and genre: the
+  traffic of 26 Nov showed her 2D one-finger toys far ahead of her 3D games
+  (`production/market/2026-11-26T1800-rub-it-away-audit/`). A 2D game meets the
+  same AAA bar in 2D terms: polished painted art, layered effects, juice, audio,
+  a clean HUD and 60 FPS on mobile. A 3D game is built with Three.js to the bar
+  above. Existing 2D games are not converted to 3D unless the owner asks.
 - **Prototypes too.** Throwaway engine and paper prototypes meet this standard
   as well; the placeholder-art allowance in `.claude/rules/prototype-code.md` no
   longer applies.
