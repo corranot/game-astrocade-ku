@@ -23,6 +23,17 @@ The day-3 and day-9 updates from `updates.md` are in the code behind `drops` in 
   gift, hatch, parade cap, fireworks, album fit, draw calls tier 0 151/160 and tier 2 204/260). Evidence in
   `production/qa/evidence/meteor-gem-works/drops/`. Locally, `?drops=night,festival` turns them on.
 
+## Smooth frames and free walking (2026-11-26)
+
+- **No hitch on quality steps:** a step only rebuilds shaders when shadows switch on or off, and tier 0 keeps a 512
+  shadow map, so no step does. Both shader sets (glow target and straight to screen) are built at start, the second
+  `quality.warmLaterMs` after the first frame. Hidden unlocks and effects are compiled up front too.
+- Shadows refresh every other frame below tier `quality.shadowEvery1`; no per-frame allocations in the glow toggle
+  and crowd sync.
+- **Never stuck:** the hero walks through stations, props, critters and people; only the deck edge stops them.
+- **Check:** `node perf.js <gameDir> <out.json> 4` (long-session frame times) and `node tierstep.js <gameDir>`
+  (quality-step hitches). Numbers: `production/qa/evidence/meteor-gem-works/perf/smooth-fps-2026-11-26.md`.
+
 ## Clarity and phone performance pass (2026-11-26)
 
 After the owner's first play of the draft (confusing flow, not smooth):

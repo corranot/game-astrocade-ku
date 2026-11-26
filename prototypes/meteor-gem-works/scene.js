@@ -99,7 +99,7 @@ export function createScene(canvas, cfg, random) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false; // refreshed in draw(): every frame on high tiers, every other frame below
   renderer.info.autoReset = false;
   // a shader that fails to build on some phone must not take the meteor with it: log it and fall back (see update)
   let shaderFail = 0;
@@ -817,10 +817,12 @@ export function createScene(canvas, cfg, random) {
     t = Math.max(0, Math.min(cfg.quality.dpr.length - 1, t)); if (t === tier) return; tier = t;
     renderer.setPixelRatio(ratio());
     const sm = cfg.quality.shadow[t];
+    const shadowsChange = renderer.shadowMap.enabled !== sm > 0;
     renderer.shadowMap.enabled = sm > 0; sun.castShadow = sm > 0;
-    if (sm > 0) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+    if (sm > 0) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } shadowN = 0; }
     crowdN = Math.min(C.n, cfg.quality.crowd[t]); crowdA.count = crowdB.count = crowdN;
-    scene.traverse((o) => { if (o.material) { for (const m of [].concat(o.material)) m.needsUpdate = true; } });
+    // only shadows on/off change the shaders; rebuilding every program on each tier step was a long hitch
+    if (shadowsChange) scene.traverse((o) => { if (o.material) { for (const m of [].concat(o.material)) m.needsUpdate = true; } });
     postSync();
   }
   function setScale(s) { if (s === rs) return; rs = s; renderer.setPixelRatio(ratio()); postSync(); }
@@ -830,7 +832,7 @@ export function createScene(canvas, cfg, random) {
   // pass, blur at 1/4 and 1/8, then tone mapping + sRGB + warmth/saturation/contrast/vignette to the canvas
   const BL = LK.bloom, GR = LK.grade;
   const glowList = [
-    { set: (on) => { for (const m of [gemMat, chunkMat]) m.emissiveIntensity = on ? 0.3 * LK.glow.gem : 0.3; for (const m of [shellMat, spotMat, ...Object.values(critters).map((c) => c.sm)]) m.emissiveIntensity = on ? 0.35 * LK.glow.gem : 0.35; lanternMat.color.setScalar(on ? LK.glow.lantern : 1); beamMat.color.setRGB(1, 0.42, 0.85).multiplyScalar(on ? LK.glow.fx : 1); } },
+    { set: (on) => { gemMat.emissiveIntensity = chunkMat.emissiveIntensity = on ? 0.3 * LK.glow.gem : 0.3; const e = on ? 0.35 * LK.glow.gem : 0.35; shellMat.emissiveIntensity = spotMat.emissiveIntensity = e; for (const k in critters) critters[k].sm.emissiveIntensity = e; lanternMat.color.setScalar(on ? LK.glow.lantern : 1); beamMat.color.setRGB(1, 0.42, 0.85).multiplyScalar(on ? LK.glow.fx : 1); } },
     { set: (on) => { meteorU.uGlow.value = (on ? LK.glow.meteor : 1) * meteorK; } },
     { set: (on) => { glowPts.m.uniforms.boost.value = on ? LK.glow.fx : 1; glintMat.uniforms.a.value = glintState.out * (on ? LK.glow.fx : 1); } },
     { set: (on) => { const k = on ? LK.glow.lamp : 1; glowMat.color.setRGB((0.35 + lampsK * 1.6) * (lampsK > 0.05 ? k : 1), (0.27 + lampsK * 1.15) * (lampsK > 0.05 ? k : 1), (0.18 + lampsK * 0.6) * (lampsK > 0.05 ? k : 1)); } },
@@ -861,8 +863,10 @@ export function createScene(canvas, cfg, random) {
     post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8));
   }
   const fsPass = (m, target) => { fsMesh.material = m; renderer.setRenderTarget(target); renderer.render(fsMesh, fsCam); };
+  let shadowN = 0;
   function draw() {
     renderer.info.reset();
+    renderer.shadowMap.needsUpdate = tier >= cfg.quality.shadowEvery1 || (shadowN++ & 1) === 0;
     if (!post) { glowSet(false); renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
     glowSet(true); renderer.setRenderTarget(post.scene); renderer.render(scene, camera); glowSet(false);
     const Pp = post, u = brightMat.uniforms, d = blurMat.uniforms.d.value, f = finalMat.uniforms;
@@ -882,6 +886,7 @@ export function createScene(canvas, cfg, random) {
   const bumpS = (o, k, base = 1) => { const b = fx.stationBump[k] || 0; o.scale.set(base * (1 + b * 0.08), base * (1 - b * 0.1), base * (1 + b * 0.08)); };
   let tAll = 0, stepT = 0;
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
+  const liveIds = new Set(); // reused every frame
   const looseT = new Map(); // Rush pickup id -> time it started falling
   // cold open (3 s, skippable): the meteor streaks in from the sky, slams into the crater, the camera swoops to town
   const INTRO = { fall: 1.4, len: 3.0 }, intro = { t: -1, hit: false };
@@ -1029,7 +1034,7 @@ export function createScene(canvas, cfg, random) {
       if (k >= 1) { pend[f.key] = Math.max(0, pendOf(f.key) - 1); flyers.splice(i, 1); if (f.onLand) f.onLand(to); }
     }
     // tourists
-    const live = new Set(S.tourists.map((q) => q.id));
+    const live = liveIds; live.clear(); for (const q of S.tourists) live.add(q.id);
     for (const p of tourists) if (p.id >= 0 && !live.has(p.id)) { p.id = -1; p.root.visible = false; }
     for (const q of S.tourists) {
       let p = tourists.find((o) => o.id === q.id);
@@ -1327,7 +1332,22 @@ export function createScene(canvas, cfg, random) {
     /** Live GPU textures and draw calls of the last frame. */
     stats() { return { textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, calls: renderer.info.render.calls, tris: renderer.info.render.triangles }; },
     /** Builds every shader before the first draw; resolves when the GPU has them (in parallel where the driver can). */
-    prewarm() { try { return renderer.compileAsync(scene, camera).catch(() => {}); } catch (e) { return Promise.resolve(); /* drivers without compile build shaders on first draw */ } },
+    prewarm() {
+      // hidden things (later unlocks, effects) are shown for the compile so their shaders never build mid-game
+      // drawing to the glow target and drawing straight to the screen use different shaders (tone mapping), so both
+      // sets are built: the one in use now first, the other a moment later, so a quality step never builds them mid-game
+      const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+      const build = (target) => {
+        const hidden = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+        const was = renderer.getRenderTarget(); renderer.setRenderTarget(target);
+        let p; try { p = renderer.compileAsync(scene, camera).catch(() => {}); } catch (e) { p = Promise.resolve(); /* drivers without compile build shaders on first draw */ }
+        renderer.setRenderTarget(was); for (const o of hidden) o.visible = false;
+        return p;
+      };
+      const p = build(post ? rt : null);
+      p.then(() => setTimeout(() => build(post ? null : rt).then(() => rt.dispose()), cfg.quality.warmLaterMs));
+      return p;
+    },
     dispose() {
       for (const o of keep) if (o && o.dispose) o.dispose();
       postFree(); scene.traverse((o) => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh && o.geometry) o.geometry.dispose(); });

@@ -293,3 +293,19 @@ test('chapter 2 save: both places round trip and share one parade and hat box; a
   assert.equal(n, c1.away.cap); assert.equal(R1.cashPile, pile + n);
   assert.ok(L.awayIncome(c2, R2, 60) > 0 && L.awayIncome(c2, R2, 60) <= c2.away.cap);
 });
+
+test('the hero walks through every station, prop and building and only the deck edge stops them', () => {
+  const c = cfg(), { S } = play(c, 900, 7); // a well-built town
+  const D = c.world.deck, r = c.hero.r;
+  // walk straight lines across the whole deck in both directions; any step that is not the deck edge must move
+  for (let z = D.z0 + r; z <= D.z1 - r; z += 0.5) for (const dir of [1, -1]) {
+    S.hero.x = dir > 0 ? D.x0 + r : D.x1 - r; S.hero.z = z; S.hero.vx = S.hero.vz = 0;
+    for (let i = 0; i < 60 * 6; i++) {
+      const x0 = S.hero.x; L.step(c, S, 1 / 60, { x: dir, z: 0 });
+      const atEdge = dir > 0 ? S.hero.x >= D.x1 - r - 1e-6 : S.hero.x <= D.x0 + r + 1e-6;
+      if (atEdge) break;
+      if (i > 20) assert.ok(Math.abs(S.hero.x - x0) > 1e-4, `stuck at x ${S.hero.x.toFixed(2)} z ${z.toFixed(2)}`);
+    }
+    assert.ok(dir > 0 ? S.hero.x >= D.x1 - r - 1e-3 : S.hero.x <= D.x0 + r + 1e-3, `crossed the deck at z ${z.toFixed(2)}`);
+  }
+});

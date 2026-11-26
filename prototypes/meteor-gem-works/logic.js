@@ -181,7 +181,9 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   const sp = heroSpeed(cfg, S), k = Math.min(1, dt * cfg.hero.accel);
   h.vx += (input.x * sp - h.vx) * k; h.vz += (input.z * sp - h.vz) * k;
   const nx = h.x + h.vx * dt, nz = h.z + h.vz * dt;
-  if (walkable(cfg, nx, nz, S)) { h.x = nx; h.z = nz; } else if (walkable(cfg, nx, h.z, S)) { h.x = nx; h.vz *= 0.5; } else if (walkable(cfg, h.x, nz, S)) { h.z = nz; h.vx *= 0.5; } else { h.vx *= 0.3; h.vz *= 0.3; }
+  // the hero walks through stations, props, critters and people (never stuck); only the deck's edge stops them
+  const D = W.deck, r = cfg.hero.r, cx = Math.min(D.x1 - r, Math.max(D.x0 + r, nx)), cz = Math.min(D.z1 - r, Math.max(D.z0 + r, nz));
+  if (cx !== nx) h.vx = 0; if (cz !== nz) h.vz = 0; h.x = cx; h.z = cz;
   const speed = Math.hypot(h.vx, h.vz);
   if (speed > 0.3) h.face = Math.atan2(h.vx, h.vz);
   const room = () => carryCap(cfg, S) - h.n;
