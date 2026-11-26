@@ -370,7 +370,8 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   else if (E.st === 'waiting' && near(h, W.egg.x, W.egg.z, cfg.egg.r)) { E.st = 'hatching'; E.t = 0; ev(S, 'hatchStart', { who: E.who }); S.progressT = 0; }
   else if (E.st === 'hatching' && E.t >= cfg.egg.hatch) {
     const rare = (cfg.critters.find((c) => c.id === E.who) || {}).rarity;
-    S.critters.push({ id: E.who, x: W.egg.x, z: W.egg.z, vx: 0, vz: 0, face: 0 }); S.eggs++; S.noRare = rare === 'rare' ? 0 : S.noRare + 1;
+    // a fresh critter hops out beside the hero, toward the camera, and poses there for the hatch beat
+    S.critters.push({ id: E.who, x: W.egg.x + cfg.critter.pop[0], z: W.egg.z + cfg.critter.pop[1], vx: 0, vz: 0, face: 0, stay: cfg.critter.stay }); S.eggs++; S.noRare = rare === 'rare' ? 0 : S.noRare + 1;
     ev(S, 'hatch', { who: E.who, rarity: rare }); S.progressT = 0;
     nextEgg(cfg, S);
   }
@@ -382,6 +383,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   let lead = h;
   for (const c of S.critters) {
     if (c.hide) { c.x = h.x; c.z = h.z; c.vx = c.vz = 0; continue; }
+    if (c.stay > 0) { c.stay -= dt; lead = c; continue; } // a fresh one poses on its egg spot for the hatch camera beat
     const f = cfg.critter.follow, tx = lead.x - Math.sin(lead.face) * f, tz = lead.z - Math.cos(lead.face) * f, kk = cfg.critter.spring;
     c.vx += ((tx - c.x) * kk - c.vx * 2 * Math.sqrt(kk)) * dt; c.vz += ((tz - c.z) * kk - c.vz * 2 * Math.sqrt(kk)) * dt;
     c.x += c.vx * dt; c.z += c.vz * dt;
@@ -556,11 +558,11 @@ export function applyDrops(cfg) {
 }
 
 /**
- * The welcome-back gift (festival drop): after gift.awayH hours away, coins that grow with the town (capped), and an
+ * The welcome-back gift: after gift.awayH hours away, coins that grow with the town (capped), and an
  * egg that comes sooner once per calendar day. seen and now are epoch milliseconds; null when there is no gift.
  */
 export function welcomeGift(cfg, d, now) {
-  if (!cfg.drops || !cfg.drops.festival || !d || !Number.isFinite(d.seen) || now - d.seen < cfg.gift.awayH * 3600e3) return null;
+  if (!d || !Number.isFinite(d.seen) || now - d.seen < cfg.gift.awayH * 3600e3) return null;
   const pads = Array.isArray(d.pads) ? d.pads.filter((p) => Array.isArray(p) && p[1]).length : 0, day = Math.floor(now / 864e5);
   return { coins: Math.min(cfg.gift.cap, cfg.gift.base + pads * cfg.gift.perPad), egg: day !== d.giftDay, day };
 }

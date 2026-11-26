@@ -391,7 +391,9 @@
   "critter": {
     "follow": 1.4,
     "spring": 7,
-    "show": 6
+    "show": 6,
+    "stay": 1.8,
+    "pop": [1.1, 0.7]
   },
   "guide": {
     "cashMin": 6
@@ -563,6 +565,7 @@
       "drag": "DRAG TO MOVE",
       "rig": "DRILL RIG",
       "rigDone": "IT MINES FOR YOU!",
+      "eggDrop": "AN EGG!",
       "hatch": "NEW FRIEND!",
       "pup": "Pebble",
       "full": "MAX",
@@ -668,12 +671,17 @@
       "ft_sell": "SELL HERE",
       "ft_cash": "GRAB COINS",
       "ft_buy": "BUILD IT",
-      "ft_hatch": "HATCH IT"
+      "ft_hatch": "HATCH IT",
+      "firstGem": "FIRST GEM!",
+      "firstSale": "FIRST SALE!",
+      "tomorrow": "COME BACK TOMORROW",
+      "tomorrowSub": "A gift and an egg will wait for you"
     },
     "ar": {
       "drag": "اسحب للتحرك",
       "rig": "منصة الحفر",
       "rigDone": "تحفر من أجلك!",
+      "eggDrop": "بيضة!",
       "hatch": "صديق جديد!",
       "pup": "حصوة",
       "full": "ممتلئ",
@@ -779,12 +787,17 @@
       "ft_sell": "بِع هنا",
       "ft_cash": "اجمع العملات",
       "ft_buy": "ابنِ هنا",
-      "ft_hatch": "افقس البيضة"
+      "ft_hatch": "افقس البيضة",
+      "firstGem": "أول جوهرة!",
+      "firstSale": "أول بيعة!",
+      "tomorrow": "عُد غدًا",
+      "tomorrowSub": "هدية وبيضة بانتظارك"
     },
     "es": {
       "drag": "ARRASTRA PARA MOVER",
       "rig": "TALADRO",
       "rigDone": "¡MINA POR TI!",
+      "eggDrop": "¡UN HUEVO!",
       "hatch": "¡NUEVO AMIGO!",
       "pup": "Guijarro",
       "full": "MÁX",
@@ -890,12 +903,17 @@
       "ft_sell": "VENDE AQUÍ",
       "ft_cash": "TOMA MONEDAS",
       "ft_buy": "CONSTRUYE",
-      "ft_hatch": "ABRE EL HUEVO"
+      "ft_hatch": "ABRE EL HUEVO",
+      "firstGem": "¡PRIMERA GEMA!",
+      "firstSale": "¡PRIMERA VENTA!",
+      "tomorrow": "VUELVE MAÑANA",
+      "tomorrowSub": "Te esperan un regalo y un huevo"
     },
     "vi": {
       "drag": "KÉO ĐỂ DI CHUYỂN",
       "rig": "GIÀN KHOAN",
       "rigDone": "NÓ ĐÀO GIÚP BẠN!",
+      "eggDrop": "MỘT QUẢ TRỨNG!",
       "hatch": "BẠN MỚI!",
       "pup": "Sỏi",
       "full": "ĐẦY",
@@ -1001,12 +1019,17 @@
       "ft_sell": "BÁN Ở ĐÂY",
       "ft_cash": "NHẶT XU",
       "ft_buy": "XÂY NÀO",
-      "ft_hatch": "ẤP TRỨNG"
+      "ft_hatch": "ẤP TRỨNG",
+      "firstGem": "VIÊN ĐÁ ĐẦU TIÊN!",
+      "firstSale": "LẦN BÁN ĐẦU!",
+      "tomorrow": "MAI QUAY LẠI NHÉ",
+      "tomorrowSub": "Quà và một quả trứng đang chờ bạn"
     },
     "hi": {
       "drag": "चलने के लिए खींचें",
       "rig": "ड्रिल रिग",
       "rigDone": "यह आपके लिए खोदता है!",
+      "eggDrop": "एक अंडा!",
       "hatch": "नया दोस्त!",
       "pup": "कंकड़",
       "full": "पूरा",
@@ -1112,12 +1135,17 @@
       "ft_sell": "यहाँ बेचो",
       "ft_cash": "सिक्के लो",
       "ft_buy": "बनाओ",
-      "ft_hatch": "अंडा फोड़ो"
+      "ft_hatch": "अंडा फोड़ो",
+      "firstGem": "पहला रत्न!",
+      "firstSale": "पहली बिक्री!",
+      "tomorrow": "कल फिर आना",
+      "tomorrowSub": "एक तोहफ़ा और अंडा इंतज़ार करेंगे"
     },
     "bn": {
       "drag": "চলতে টানো",
       "rig": "ড্রিল রিগ",
       "rigDone": "এটা তোমার জন্য খোঁড়ে!",
+      "eggDrop": "একটা ডিম!",
       "hatch": "নতুন বন্ধু!",
       "pup": "নুড়ি",
       "full": "পূর্ণ",
@@ -1223,12 +1251,17 @@
       "ft_sell": "এখানে বেচো",
       "ft_cash": "কয়েন নাও",
       "ft_buy": "বানাও",
-      "ft_hatch": "ডিম ফোটাও"
+      "ft_hatch": "ডিম ফোটাও",
+      "firstGem": "প্রথম রত্ন!",
+      "firstSale": "প্রথম বিক্রি!",
+      "tomorrow": "কাল আবার এসো",
+      "tomorrowSub": "একটা উপহার আর ডিম অপেক্ষা করবে"
     },
     "id": {
       "drag": "GESER UNTUK JALAN",
       "rig": "BOR ROBOT",
       "rigDone": "IA MENAMBANG UNTUKMU!",
+      "eggDrop": "ADA TELUR!",
       "hatch": "TEMAN BARU!",
       "pup": "Kerikil",
       "full": "PENUH",
@@ -1334,7 +1367,11 @@
       "ft_sell": "JUAL DI SINI",
       "ft_cash": "AMBIL KOIN",
       "ft_buy": "BANGUN",
-      "ft_hatch": "TETASKAN"
+      "ft_hatch": "TETASKAN",
+      "firstGem": "PERMATA PERTAMA!",
+      "firstSale": "PENJUALAN PERTAMA!",
+      "tomorrow": "BALIK LAGI BESOK",
+      "tomorrowSub": "Hadiah dan telur menunggumu"
     }
   },
   "start": {
@@ -1911,5 +1948,16 @@
   "ftue": {
     "r": 1.9,
     "rMin": 110
+  },
+  "cine": {
+    "gap": 6,
+    "slow": 0.5,
+    "slowK": 0.35,
+    "stop": 0.08,
+    "push": 0.72,
+    "light": 3.0
+  },
+  "tomorrow": {
+    "after": 240
   }
 }

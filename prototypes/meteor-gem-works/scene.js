@@ -132,7 +132,9 @@ export function createScene(canvas, cfg, random) {
   const rim = new THREE.DirectionalLight(0xb9a8ff, 0.5); rim.position.set(-8, 6, -18);
   // a soft violet bounce from the crystals onto the front of the square (kept low: it washes out anything close to it)
   const crystalLight = new THREE.PointLight(FROST ? 0x6aa8ff : 0xc070ff, 1.5, 14, 1.2); crystalLight.position.set(W.meteor.x, W.meteor.y + 0.5, W.meteor.z + W.meteor.r + 3.5);
-  scene.add(hemi, sun, sun.target, rim, crystalLight);
+  // a warm key light that lands on the subject of a camera beat (always in the scene so no shader rebuild; 0 when idle)
+  const focusLight = new THREE.PointLight(0xfff0d8, 0, 8, 1.4);
+  scene.add(hemi, sun, sun.target, rim, crystalLight, focusLight);
 
   // ---- environment for reflections (gems, brass): a tiny warm studio, baked once with PMREM
   const pm = new THREE.PMREMGenerator(renderer);
@@ -654,18 +656,18 @@ export function createScene(canvas, cfg, random) {
   trail.renderOrder = 3; trail.frustumCulled = false; trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trail.count = 0; scene.add(trail);
   /** Station badges (built stops, small) and the target's big bouncing badge, plus the floor trail from the hero to it. */
   function drawBadges(S, g, top) {
-    const tgt = g && !g.wait ? g.what : null;
+    const tgt = g && !g.wait ? g.what : null, hk = 1 - cam.showK; // badges fade out during a camera beat so only the subject reads
     badgeStops.forEach(([key, x, z, h, padId], i) => {
       const on = (!padId || S.pads.some((p) => p.id === padId && p.done)) && key !== tgt;
-      badges.setMatrixAt(i, _m.makeTranslation(x, h + 0.75, z)); bK.setXY(i, on ? 1.35 : 0, 0.85);
+      badges.setMatrixAt(i, _m.makeTranslation(x, h + 0.75, z)); bK.setXY(i, on ? 1.35 * hk : 0, 0.85);
     });
     const ti = NB - 1, cell = tgt ? iconOf(tgt) : -1;
-    if (cell >= 0 && top) { const b = Math.abs(Math.sin(tAll * 3.2)); bCell.setX(ti, cell); bCell.needsUpdate = true; badges.setMatrixAt(ti, _m.makeTranslation(top[0], top[2] + 2.3 + b * 0.35, top[1])); bK.setXY(ti, 2.5 + Math.sin(tAll * 6) * 0.08, 1); }
+    if (cell >= 0 && top) { const b = Math.abs(Math.sin(tAll * 3.2)); bCell.setX(ti, cell); bCell.needsUpdate = true; badges.setMatrixAt(ti, _m.makeTranslation(top[0], top[2] + 2.3 + b * 0.35, top[1])); bK.setXY(ti, (2.5 + Math.sin(tAll * 6) * 0.08) * hk, 1); }
     else bK.setXY(ti, 0, 0);
     badges.instanceMatrix.needsUpdate = true; bK.needsUpdate = true;
     // the trail: chevrons flowing from the hero to the target spot (hidden when close)
     let n = 0;
-    if (g && !g.wait) {
+    if (g && !g.wait && cam.showK < 0.3) {
       const dx = g.x - heroPos.x, dz = g.z - heroPos.z, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz) + Math.PI, step = LK.trailStep, off = (tAll * 1.6) % step;
       // ry + PI: the chevron's tip is its local -z, so this turns every tip toward the goal; they start at the hero's feet
       for (let d = 0.35 + off; d < L - 0.8 && n < TRAIL; d += step) { const k = Math.min(1, (d - 0.35) / 0.4, (L - 0.8 - d) / 0.6); trail.setMatrixAt(n++, _m.compose(_p.set(heroPos.x + dx / L * d, 0.26, heroPos.z + dz / L * d), _q.setFromEuler(_e.set(0, ry, 0)), _s.setScalar(Math.max(0.05, k) * LK.trailScale))); }
@@ -1253,7 +1255,7 @@ export function createScene(canvas, cfg, random) {
       guideSide = lerp(guideSide, Math.min(1, cover * 2) * LK.guideSide * side, Math.min(1, dt * 6));
       const ax = ax0 + guideSide;
       guideRing.visible = true;
-      guideRing.position.set(tx, 0.2, tz); guideRing.scale.setScalar(1 + Math.sin(tAll * 5) * 0.12); guideRing.material.opacity = g.wait ? 0.25 : 0.55;
+      guideRing.position.set(tx, 0.2, tz); guideRing.scale.setScalar(1 + Math.sin(tAll * 5) * 0.12); guideRing.material.opacity = (g.wait ? 0.25 : 0.55) * (1 - cam.showK);
       drawBadges(S, g, [ax, az, top]);
     } else { guideRing.visible = false; drawBadges(S, null, null); }
     drawMarks(S, g);
@@ -1321,7 +1323,7 @@ export function createScene(canvas, cfg, random) {
     if (cam.show) {
       cam.showK = Math.min(1, cam.showK + dt / 0.6); cam.show.t -= dt; if (cam.show.t <= 0) cam.show = null;
     } else cam.showK = Math.max(0, cam.showK - dt / 0.7);
-    if (cam.showK > 0 && (cam.show || cam.last)) { const sh = cam.show || cam.last; cam.last = sh; const k = ease(cam.showK); look = tmp.copy(camLook).lerp(sh.p, k); dd = lerp(dist, camDist() * sh.zoom, k); if (sh.pitch) pitch = lerp(pitch, sh.pitch, k); }
+    if (cam.showK > 0 && (cam.show || cam.last)) { const sh = cam.show || cam.last; cam.last = sh; const k = ease(cam.showK); look = tmp.copy(camLook).lerp(sh.p, k); dd = lerp(dist, camDist() * sh.zoom, k); if (sh.pitch) pitch = lerp(pitch, sh.pitch, k); focusLight.position.set(sh.p.x, sh.p.y + 2.4, sh.p.z + 1.8); focusLight.intensity = k * (cfg.cine ? cfg.cine.light : 0); } else focusLight.intensity = 0;
     camBase.set(look.x + Math.sin(yaw) * Math.cos(pitch) * dd, look.y + Math.sin(pitch) * dd, look.z + Math.cos(yaw) * Math.cos(pitch) * dd);
     const sh = cam.trauma * cam.trauma * 0.35;
     camera.position.set(camBase.x + (Math.random() - 0.5) * sh, camBase.y + (Math.random() - 0.5) * sh, camBase.z + (Math.random() - 0.5) * sh);
@@ -1400,6 +1402,8 @@ export function createScene(canvas, cfg, random) {
     },
     /** The tour bus honks in on the canyon road. */
     busIn() { if (busSt.mode === 'off') { busSt.mode = 'in'; busSt.t = 0; } },
+    /** Mid-arc of the egg's fall from the meteor to its spot, where the egg-drop beat looks. */
+    get eggAt() { return new THREE.Vector3((eggLodge.x + W.egg.x) / 2, 1.6, (eggLodge.z + W.egg.z) / 2); },
     get busAt() { return new THREE.Vector3(RD.park, 0.5, RD.z - 1.5); },
     /** The order kid cheers: delivered. */
     kidHappy() { kidSt.happy = 1.3; confetti(tmp.set(W.order.x, 1.6, W.order.z), 40, 2.5); },
@@ -1429,6 +1433,8 @@ export function createScene(canvas, cfg, random) {
     get heartAt() { return heart.position.clone(); },
     beltPath: (to) => { const P = pols[polIdx(to)]; return P === pols[1] ? beltPath : [beltPath[0]]; },
     /** Camera showcase: ease toward world point p and zoom (fraction of the normal distance) for sec seconds. */
+    /** How far the current camera beat has eased in (0 idle, 1 at its peak). */
+    get showK() { return cam.showK; },
     showcase(p, zoom, sec, pitch = 0, lock = false) { if (cam.show && cam.show.lock && !lock) return; cam.show = { p: p.clone(), zoom, t: sec, pitch, lock }; cam.last = cam.show; }, // a locked one (finale) is not cut short
     cheer(id) { fx.crowdCheer = 1.2; const p = tourists.find((o) => o.id === id); if (p) p.cheer = 0.9; },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
