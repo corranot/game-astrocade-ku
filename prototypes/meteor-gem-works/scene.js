@@ -817,12 +817,11 @@ export function createScene(canvas, cfg, random) {
     t = Math.max(0, Math.min(cfg.quality.dpr.length - 1, t)); if (t === tier) return; tier = t;
     renderer.setPixelRatio(ratio());
     const sm = cfg.quality.shadow[t];
-    const shadowsChange = renderer.shadowMap.enabled !== sm > 0;
-    renderer.shadowMap.enabled = sm > 0; sun.castShadow = sm > 0;
-    if (sm > 0) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } shadowN = 0; }
+    // shadows stay on in the shaders (switching them rebuilds every program, a long hitch); tier 0 stops drawing the
+    // map (no shadow pass draw calls) and fades it out instead
+    sun.shadow.intensity = sm > 0 ? 1 : 0; shadowN = 0;
+    if (sm > 0 && sm !== sun.shadow.mapSize.x) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     crowdN = Math.min(C.n, cfg.quality.crowd[t]); crowdA.count = crowdB.count = crowdN;
-    // only shadows on/off change the shaders; rebuilding every program on each tier step was a long hitch
-    if (shadowsChange) scene.traverse((o) => { if (o.material) { for (const m of [].concat(o.material)) m.needsUpdate = true; } });
     postSync();
   }
   function setScale(s) { if (s === rs) return; rs = s; renderer.setPixelRatio(ratio()); postSync(); }
@@ -866,7 +865,7 @@ export function createScene(canvas, cfg, random) {
   let shadowN = 0;
   function draw() {
     renderer.info.reset();
-    renderer.shadowMap.needsUpdate = tier >= cfg.quality.shadowEvery1 || (shadowN++ & 1) === 0;
+    renderer.shadowMap.needsUpdate = cfg.quality.shadow[tier] > 0 && (tier >= cfg.quality.shadowEvery1 || (shadowN++ & 1) === 0);
     if (!post) { glowSet(false); renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
     glowSet(true); renderer.setRenderTarget(post.scene); renderer.render(scene, camera); glowSet(false);
     const Pp = post, u = brightMat.uniforms, d = blurMat.uniforms.d.value, f = finalMat.uniforms;
