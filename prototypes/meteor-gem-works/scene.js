@@ -650,7 +650,7 @@ export function createScene(canvas, cfg, random) {
   })), NB);
   badges.frustumCulled = false; badges.renderOrder = 9; badges.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(badges);
   const trailShape = new THREE.Shape(); trailShape.moveTo(-0.22, -0.12); trailShape.lineTo(0, 0.14); trailShape.lineTo(0.22, -0.12); trailShape.lineTo(0.22, 0.02); trailShape.lineTo(0, 0.28); trailShape.lineTo(-0.22, 0.02); trailShape.closePath();
-  const TRAIL = 16, trail = new THREE.InstancedMesh(K(new THREE.ShapeGeometry(trailShape).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xffc94a, transparent: true, opacity: 0.85, depthWrite: false })), TRAIL);
+  const TRAIL = 16, trail = new THREE.InstancedMesh(K(new THREE.ShapeGeometry(trailShape).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.95, depthWrite: false })), TRAIL); // deep orange reads on pale planks and sand
   trail.renderOrder = 3; trail.frustumCulled = false; trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trail.count = 0; scene.add(trail);
   /** Station badges (built stops, small) and the target's big bouncing badge, plus the floor trail from the hero to it. */
   function drawBadges(S, g, top) {
@@ -666,9 +666,9 @@ export function createScene(canvas, cfg, random) {
     // the trail: chevrons flowing from the hero to the target spot (hidden when close)
     let n = 0;
     if (g && !g.wait) {
-      const dx = g.x - heroPos.x, dz = g.z - heroPos.z, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz) + Math.PI, step = 0.75, off = (tAll * 1.6) % step;
+      const dx = g.x - heroPos.x, dz = g.z - heroPos.z, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz) + Math.PI, step = LK.trailStep, off = (tAll * 1.6) % step;
       // ry + PI: the chevron's tip is its local -z, so this turns every tip toward the goal; they start at the hero's feet
-      for (let d = 0.35 + off; d < L - 0.8 && n < TRAIL; d += step) { const k = Math.min(1, (d - 0.35) / 0.4, (L - 0.8 - d) / 0.6); trail.setMatrixAt(n++, _m.compose(_p.set(heroPos.x + dx / L * d, 0.2, heroPos.z + dz / L * d), _q.setFromEuler(_e.set(0, ry, 0)), _s.setScalar(Math.max(0.05, k)))); }
+      for (let d = 0.35 + off; d < L - 0.8 && n < TRAIL; d += step) { const k = Math.min(1, (d - 0.35) / 0.4, (L - 0.8 - d) / 0.6); trail.setMatrixAt(n++, _m.compose(_p.set(heroPos.x + dx / L * d, 0.26, heroPos.z + dz / L * d), _q.setFromEuler(_e.set(0, ry, 0)), _s.setScalar(Math.max(0.05, k) * LK.trailScale))); }
     }
     trail.count = n; trail.instanceMatrix.needsUpdate = true;
   }

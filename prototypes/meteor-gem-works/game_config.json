@@ -554,7 +554,9 @@
     "rim": 0.32,
     "cloudShadow": 0.16,
     "guideNear": 0.2,
-    "guideSide": 1.8
+    "guideSide": 1.8,
+    "trailScale": 2.4,
+    "trailStep": 1.0
   },
   "strings": {
     "en": {
