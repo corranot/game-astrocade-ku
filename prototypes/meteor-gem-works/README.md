@@ -25,8 +25,8 @@ The day-3 and day-9 updates from `updates.md` are in the code behind `drops` in 
 
 ## Smooth frames and free walking (2026-11-26)
 
-- **No hitch on quality steps:** a step only rebuilds shaders when shadows switch on or off, and tier 0 keeps a 512
-  shadow map, so no step does. Both shader sets (glow target and straight to screen) are built at start, the second
+- **No hitch on quality steps:** no step rebuilds shaders any more. Shadows stay on in the shaders; tier 0 stops
+  drawing the shadow map (no shadow-pass draw calls) and fades it out with `shadow.intensity`. Both shader sets (glow target and straight to screen) are built at start, the second
   `quality.warmLaterMs` after the first frame. Hidden unlocks and effects are compiled up front too.
 - Shadows refresh every other frame below tier `quality.shadowEvery1`; no per-frame allocations in the glow toggle
   and crowd sync.

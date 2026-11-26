@@ -40,13 +40,15 @@ Reading it:
 |---|---|---|
 | tier 1 to 2 (first glow on, about 8 s into play) | 759 | 181 |
 | tier 2 to 1 | 6 | 20 |
-| tier 1 to 0 (slow phone drops) | 633 | 14 |
+| tier 1 to 0 (slow phone drops) | 633 | 10 |
 | tier 0 to 1 | 51 | 19 |
 | tier 1 to 2 again | 16 | 15 |
 
 What caused them, and the fix:
-- Every quality step flagged every material for a rebuild (all shaders recompiled). Now only a change of shadows
-  on/off does that, and tier 0 keeps a small 512 shadow map, so no step switches shadows any more.
+- Every quality step flagged every material for a rebuild (all shaders recompiled). Now no step does: shadows stay
+  on in the shaders, and tier 0 stops drawing the shadow map (no shadow-pass draw calls, so the tier 0 draw-call
+  budget holds) and fades it out with the light's shadow intensity. A first version kept a 512 shadow map on tier 0
+  instead; the playtest caught that it broke the tier 0 budget (181 calls, budget 160).
 - Drawing into the glow target and drawing straight to the screen use different shaders (tone mapping in the
   shader or not). Only one set was built before the first frame, so the first glow-on or glow-off step built the
   other set mid-game. Both sets are built now: the one in use first, the other 1.5 s after the first frame
