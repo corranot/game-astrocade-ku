@@ -556,11 +556,11 @@ export function applyDrops(cfg) {
 }
 
 /**
- * The welcome-back gift (festival drop): after gift.awayH hours away, coins that grow with the town (capped), and an
+ * The welcome-back gift: after gift.awayH hours away, coins that grow with the town (capped), and an
  * egg that comes sooner once per calendar day. seen and now are epoch milliseconds; null when there is no gift.
  */
 export function welcomeGift(cfg, d, now) {
-  if (!cfg.drops || !cfg.drops.festival || !d || !Number.isFinite(d.seen) || now - d.seen < cfg.gift.awayH * 3600e3) return null;
+  if (!d || !Number.isFinite(d.seen) || now - d.seen < cfg.gift.awayH * 3600e3) return null;
   const pads = Array.isArray(d.pads) ? d.pads.filter((p) => Array.isArray(p) && p[1]).length : 0, day = Math.floor(now / 864e5);
   return { coins: Math.min(cfg.gift.cap, cfg.gift.base + pads * cfg.gift.perPad), egg: day !== d.giftDay, day };
 }

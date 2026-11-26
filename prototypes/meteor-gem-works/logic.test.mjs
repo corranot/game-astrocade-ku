@@ -221,10 +221,10 @@ test('night drop on an old finished save: a new egg comes within 30 s of Continu
   assert.ok(all.some((e) => e.type === 'hatch'), 'a night critter hatched');
 });
 
-test('welcome-back gift: only with the festival drop, after awayH, capped, one egg a day', () => {
+test('welcome-back gift: always on (a reason to come back tomorrow), after awayH, capped, one egg a day', () => {
   const H = 3600e3, d = { seen: 0, giftDay: -1, pads: Array.from({ length: 30 }, () => [0, 1]) };
-  assert.equal(L.welcomeGift(cfg(), d, 20 * H), null);
-  const c = cfg({ festival: true });
+  assert.ok(L.welcomeGift(cfg(), d, 20 * H), 'no festival needed');
+  const c = cfg();
   assert.equal(L.welcomeGift(c, d, c.gift.awayH * H - 1), null);
   const g = L.welcomeGift(c, d, 20 * H);
   assert.equal(g.coins, c.gift.cap); assert.equal(g.egg, true);

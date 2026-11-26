@@ -95,6 +95,7 @@ function loadFonts() {
 const HTML = `
 <canvas id="cv"></canvas>
 <div class="hud">
+  <div id="cine" class="cine"><i></i><i></i></div>
   <div id="spot" class="spot"><i></i></div>
   <div class="top"><div id="cash" class="chip cash"><i class="coin" aria-hidden="true"></i><b id="cashN" class="out">0</b></div>
   <div id="next" class="next" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><span class="bar"><i></i></span><b class="out"></b></div></div>
@@ -230,6 +231,25 @@ export function run(mode = 'play') {
   const perkText = (id) => { const d = cfg.critters.find((c) => c.id === id); return d ? T('perk' + d.perk[0].toUpperCase() + d.perk.slice(1)) : ''; };
   const polN = (id) => (S.pols.find((p) => p.id === id) || { polIn: 0 }).polIn, standN = (id) => (S.stands.find((p) => p.id === id) || { items: [] }).items.length;
   let coinK = 0;
+  // ---- cinematic beats: the camera eases to the moment, time slows (or stops for a blink), letterbox bars and a soft
+  // vignette slide in, then everything eases back. pri 2 = story beat (always plays), 1 = big moment (waits out the
+  // cooldown), 0 = small moment (only when the camera is free). Input keeps working the whole time.
+  const cine = { until: -1, cool: -1, pri: 0, slow: 0, stop: 0, bars: 0 };
+  function moment(p, zoom, sec, pri = 1, o = {}) {
+    const C = cfg.cine, t = S.t;
+    if (pri < 2 && (t < cine.cool || (t < cine.until && pri <= cine.pri))) return false;
+    scene.showcase(p, zoom, sec, o.pitch || 0, !!o.lock);
+    cine.until = t + sec; cine.pri = pri; cine.cool = t + sec + C.gap * (pri === 0 ? 2 : 1);
+    cine.slow = Math.max(cine.slow, o.slow ?? (pri >= 1 ? C.slow : 0)); cine.stop = Math.max(cine.stop, o.stop || 0); cine.bars = Math.max(cine.bars, sec);
+    if (o.sting !== false) Sound.whoosh();
+    return true;
+  }
+  /** Real seconds -> game seconds while a beat slows or stops time. */
+  function timeK(real) {
+    if (cine.stop > 0) { cine.stop -= real; return 0; }
+    if (cine.slow > 0) { cine.slow -= real; return cfg.cine.slowK; }
+    return 1;
+  }
   function onEvent(e) {
     if (area === 'desert') ftDone |= L.ftueBit(cfg, e);
     const h = S.hero;
@@ -242,7 +262,7 @@ export function run(mode = 'play') {
       case 'perfect': {
         const p = scene.hit(e.lon, e.lat, true); Sound.perfect();
         for (let i = 0; i < e.n; i++) scene.fly('chunk', p, 'pile', () => Math.max(0, S.pile - 1), 0.1 + i * 0.08, 3.2);
-        pop(T('perfect'), p.x, p.y + 1.2, p.z, 'big'); glintsHit++;
+        pop(T('perfect'), p.x, p.y + 1.2, p.z, 'big'); glintsHit++; cine.stop = Math.max(cine.stop, cfg.cine.stop); cine.slow = Math.max(cine.slow, cfg.cine.slow * 0.6);
         break;
       }
       case 'glint': scene.glintOn(e.lon, e.lat); Sound.glint(); break;
@@ -266,7 +286,9 @@ export function run(mode = 'play') {
         Sound.drop(h.n);
         break;
       }
-      case 'gem': scene.fly('gem', scene.slot('wheel:' + e.from, 0, V()), 'counter', () => Math.max(0, S.counter - 1), 0, 1.2, (p) => { scene.bump('counter'); scene.twinkle(p, 4, 0xfff0c0, 0.4); }); Sound.gem(); break;
+      case 'gem': scene.fly('gem', scene.slot('wheel:' + e.from, 0, V()), 'counter', () => Math.max(0, S.counter - 1), 0, 1.2, (p) => { scene.bump('counter'); scene.twinkle(p, 4, 0xfff0c0, 0.4); }); Sound.gem();
+        if (S.made === 1) { moment(scene.slot('counter', 0, V()), 0.6, 1.5, 2); banner(T('firstGem'), '', 1.8); }
+        break;
       case 'ring': { const p = scene.slot('wsR', Math.max(0, S.ws.rings - 1), V()); scene.bump('workshop'); scene.twinkle(p, 8, 0xffe6a0, 0.45); scene.puff(p.x, p.z, 2, 0.5, 0xfff0d0); Sound.ring(); break; }
       case 'keeperPick': scene.fly('gem', scene.slot('counter', Math.max(0, S.counter), V()), 'keeper', () => Math.max(0, (S.keeper ? S.keeper.n : 1) - 1), 0, 0.6); Sound.pick(e.n, true); break;
       case 'keeperDrop': scene.bump(e.at); scene.twinkle(scene.slot('stand:' + e.at, 0, V()), 6, 0xfff0c0, 0.4); Sound.drop(4); break;
@@ -275,24 +297,25 @@ export function run(mode = 'play') {
         const p = V(e.x, 1.3, e.z);
         for (let i = 0; i < e.amount; i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), i * 0.08, 2.0, () => { Sound.coin(coinK++); scene.bump('cash'); });
         scene.cheer(e.id); pop('+' + e.amount, e.x, 2.3, e.z, 'gold'); Sound.at(farK(e.x, e.z)).sale(); Sound.at(1);
+        if (S.sold === 1) { moment(V(e.x, 1.0, e.z), 0.62, 1.5, 2); banner(T('firstSale'), '', 1.8); }
         break;
       }
       case 'collect': {
         for (let i = 0; i < Math.min(3, e.n); i++) scene.fly('coin', scene.slot('cash', S.cashPile + i, V()), 'hero', () => 0, i * 0.04, 1.0, () => { cashBump = 1; Sound.coin(coinK++); });
         break;
       }
-      case 'padShow': { const d = padDef(e.id); Sound.pop(); if (d) scene.showcase(V(d.x, 0, d.z), 0.82, 1.2); break; }
+      case 'padShow': { const d = padDef(e.id); Sound.pop(); if (d) moment(V(d.x, 0, d.z), 0.82, 1.2, 0, { sting: false }); break; }
       case 'pay': { if (e.paid % 2 === 0) scene.fly('coin', V(h.x, 1.4, h.z), 'pad', () => 0, 0, 1.0); scene.padPay(); Sound.pay(e.paid); break; }
       case 'unlock': {
         const c = scene.unlock(e.id); Sound.fanfare(); banner(T(e.id), e.id === 'rig' ? T('rigDone') : '', 2.6);
-        if (e.id === 'heart') scene.showcase(V(0, 3, cfg.world.meteor.z + 2), 0.85, 2.0);
-        else scene.showcase(V(c.x, 1.0, c.z - 0.5), e.id === 'road' || e.id === 'cable' ? 0.8 : 0.7, 2.2);
+        if (e.id === 'heart') moment(V(0, 3, cfg.world.meteor.z + 2), 0.85, 2.0, 2);
+        else moment(V(c.x, 1.0, c.z - 0.5), e.id === 'road' || e.id === 'cable' ? 0.8 : 0.7, 2.2, 2, { stop: cfg.cine.stop });
         if (e.id === 'ghost') banner(T('ghost'), T('ghostGoal'), 2.6);
         if (e.id === 'laser') offerShare();
         saveNow();
         break;
       }
-      case 'bus': scene.busIn(); Sound.honk(); banner(T('bus'), '', 2.2); scene.showcase(scene.busAt, 0.85, 2.4); break;
+      case 'bus': scene.busIn(); Sound.honk(); banner(T('bus'), '', 2.2); moment(scene.busAt, 0.85, 2.4, 0, { sting: false }); break;
       case 'order': Sound.pop(); break;
       case 'orderDone': {
         const k = scene.slot('kid', 0, V()); scene.kidHappy(); Sound.heart(); pop('♥', k.x, k.y + 1.2, k.z, 'big');
@@ -300,19 +323,19 @@ export function run(mode = 'play') {
         banner(T('thanks'), '', 1.6);
         break;
       }
-      case 'rush': scene.rush(); Sound.rush(); banner(T('rush'), '', 2.2); break;
+      case 'rush': scene.rush(); Sound.rush(); banner(T('rush'), '', 2.2); moment(V(0, 2.5, cfg.world.meteor.z + 1.5), 0.8, 1.8, 1); break;
       case 'scoop': if (e.kind === 'coin') { cashBump = 1; Sound.coin(coinK++); } else Sound.pick(e.n || 1, false); break;
-      case 'eggDrop': scene.eggDrop(); Sound.whoosh(); scene.showcase(V(cfg.world.egg.x, 0, cfg.world.egg.z - 1.5), 0.8, 1.6); break;
+      case 'eggDrop': scene.eggDrop(); moment(V(cfg.world.egg.x, 0, cfg.world.egg.z - 1.5), 0.8, 1.6, 1); break;
       case 'hatchStart': scene.hatchStart(); hatchCracks = 0; break;
-      case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); scene.showcase(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0); saveNow(); break;
+      case 'hatch': scene.hatch(); Sound.fanfare(); banner(e.rarity && e.rarity !== 'common' ? T(e.rarity) : T('hatch'), `${critterName(e.who)}  ${perkText(e.who)}`, 2.8); offerShare(); moment(V(cfg.world.egg.x, 0.5, cfg.world.egg.z), 0.62, 2.0, 2, { stop: cfg.cine.stop }); saveNow(); break;
       // ---- the ghost town, the crown jeweler, the finale, stars and hats
       case 'cartGo': Sound.whoosh(); pop('➜', scene.cartAt.x, 1.8, scene.cartAt.z, 'gold'); break;
       case 'ghostLight': {
         const p = scene.lightHouse(e.i); Sound.fanfare(); banner(T('ghostLit'), `${e.i + 1} / ${cfg.cart.lights}`, 2.4);
-        scene.showcase(scene.houseAt(e.i), 0.72, 2.6); coinsTo(p, e.pay); pop('+' + e.pay, p.x, p.y + 1.5, p.z, 'gold'); saveNow();
+        moment(scene.houseAt(e.i), 0.72, 2.6, 1); coinsTo(p, e.pay); pop('+' + e.pay, p.x, p.y + 1.5, p.z, 'gold'); saveNow();
         break;
       }
-      case 'districtDone': banner(T('districtDone'), '', 2.6); scene.showcase(V(0, 1.5, scene.houseAt(1).z), 0.9, 2.4); break;
+      case 'districtDone': banner(T('districtDone'), '', 2.6); moment(V(0, 1.5, scene.houseAt(1).z), 0.9, 2.4, 2); break;
       case 'cartBack': { const p = scene.cartAt; coinsTo(V(p.x, 1.2, p.z), e.pay); pop('+' + e.pay, p.x, 2, p.z, 'gold'); Sound.sale(); break; }
       case 'crown': {
         const jw = scene.slot('jw', 0, V()), to = S.pads.some((q) => q.id === 'cable' && q.done) ? 'gond' : 'sky';
@@ -323,14 +346,14 @@ export function run(mode = 'play') {
         });
         break;
       }
-      case 'finale': scene.rush(); Sound.rush(); banner(T('finale'), '', 2.6); scene.showcase(V(0, 4, cfg.world.meteor.z + 1), 0.8, 3.4, 0, true); break;
-      case 'heartRise': scene.finale('rise'); Sound.boom(); scene.showcase(V(0, 6, cfg.world.meteor.z + 1), 0.72, 3.6, 0, true); break;
+      case 'finale': scene.rush(); Sound.rush(); banner(T('finale'), '', 2.6); moment(V(0, 4, cfg.world.meteor.z + 1), 0.8, 3.4, 2, { lock: true }); break;
+      case 'heartRise': scene.finale('rise'); Sound.boom(); moment(V(0, 6, cfg.world.meteor.z + 1), 0.72, 3.6, 2, { lock: true, sting: false }); break;
       case 'crownHatch': scene.finale('burst'); Sound.perfect(); Sound.fanfare(); banner(T('legendary'), `${critterName(e.who)}  ${perkText(e.who)}`, 3.0); offerShare(); break;
-      case 'comet': scene.finale('comet'); Sound.whoosh(); banner(area === 'frost' ? T0('chapter2') + ' ★' : T('chapter2'), T('comet'), 3.2); scene.showcase(scene.cometAt.add(V(2.5, 0, 0)), 0.55, 4.2, cfg.camera.cometPitch, true); break;
+      case 'comet': scene.finale('comet'); Sound.whoosh(); banner(area === 'frost' ? T0('chapter2') + ' ★' : T('chapter2'), T('comet'), 3.2); moment(scene.cometAt.add(V(2.5, 0, 0)), 0.55, 4.2, 2, { pitch: cfg.camera.cometPitch, lock: true, sting: false }); break;
       case 'finaleEnd': scene.finale('fireworks'); Sound.fanfare(); banner(T(area === 'frost' ? 'chapter2' : 'chapter1'), '★', 2.6); if (L.travelOpen(cfg, S) && area === 'desert') banner(T('toFrost'), T('ride'), 3.0); offerShare(); saveNow(); break;
       case 'travel': if (phase === 'play') startRide(e.to); break;
       case 'awayCoins': banner(T('awayCoins'), '+' + e.n, 2.6); pop('+' + e.n, cfg.world.cash.x, 1.8, cfg.world.cash.z, 'gold'); Sound.sale(); break;
-      case 'star': Sound.heart(); banner(T('star'), '★'.repeat(e.n) + '☆'.repeat(Math.max(0, 3 - e.n)), 2.4); offerShare(); saveNow(); break;
+      case 'star': moment(V(S.hero.x, 1, S.hero.z), 0.66, 1.8, 2, { stop: cfg.cine.stop }); Sound.heart(); banner(T('star'), '★'.repeat(e.n) + '☆'.repeat(Math.max(0, 3 - e.n)), 2.4); offerShare(); saveNow(); break;
       case 'gift': Sound.fanfare(); banner(T('gift'), `${T('giftSub')}  +${e.coins}`, 3.0); coinsTo(V(h.x, 3.5, h.z), e.coins); saveNow(); break;
       case 'hat': Sound.pop(); banner(T('hat'), '', 2.0); pop('✦', h.x, 3.0, h.z, 'big'); albumDot = true; saveNow(); break;
       default: break;
@@ -500,7 +523,7 @@ export function run(mode = 'play') {
   document.addEventListener('visibilitychange', onHide);
 
   // ---- loop
-  let raf = 0, last = performance.now(), acc = 0, perfT = 0, perfN = 0, perfMs = 0, paused = false, glintAuto = 0;
+  let sessT = 0, teased = false, raf = 0, last = performance.now(), acc = 0, perfT = 0, perfN = 0, perfMs = 0, paused = false, glintAuto = 0;
   const DT = 1 / 60;
   function tick(dt) {
     if (phase === 'intro' && !scene.introOn) phase = 'play';
@@ -512,6 +535,7 @@ export function run(mode = 'play') {
     if (tapGlint) { tap = { glint: true }; tapGlint = false; }
     if (bot && S.glint && S.glint.t > 0.6 && (glintAuto += dt) > 0.1) { tap = { glint: true }; glintAuto = 0; }
     L.step(cfg, S, dt, input, tap);
+    if (!teased && !bot && (sessT += dt) >= cfg.tomorrow.after) { teased = true; banner(T('tomorrow'), T('tomorrowSub'), 3.2); Sound.pop(); }
     for (const e of S.events) onEvent(e);
     S.events.length = 0;
     if (S.egg.st === 'hatching') { const k = Math.floor((S.egg.t / cfg.egg.hatch) * 5); if (k > hatchCracks) { hatchCracks = k; Sound.crack(k); } }
@@ -582,7 +606,7 @@ export function run(mode = 'play') {
     raf = requestAnimationFrame(frame);
     if (paused) return;
     // a frame's timestamp can be older than the moment this run started its loop: never step backwards
-    const raw = Math.max(0, (now - last) / 1000), real = Math.min(0.1, raw); last = now; acc += real;
+    const raw = Math.max(0, (now - last) / 1000), real = Math.min(0.1, raw); last = now; acc += real * timeK(real);
     let n = 0; while (acc >= DT && n < 6) { tick(DT); acc -= DT; n++; }
     if (n === 6) acc = 0;
     draw(real);
@@ -600,12 +624,13 @@ export function run(mode = 'play') {
   function draw(dt) {
     const g = lastGuide = L.guide(cfg, S);
     scene.update(S, dt, g); scene.render(); hud(dt); edgePointer(); coach();
+    if (cine.bars > 0) cine.bars -= dt; root.classList.toggle('cinema', cine.bars > 0);
   }
   // ---- first-time tutorial: a soft spotlight on the next stop with its icon and a few words. It moves on when the
   // player does the action there (never on a tap), skips what they already did, is saved, and can be skipped.
   function coach() {
     const sp = $('spot'), ch = $('coach'), g = lastGuide;
-    const st = mode === 'play' && !bot && phase === 'play' && area === 'desert' && ftDone !== FT_ALL ? L.ftueStep(cfg, S, g, ftDone) : null;
+    const st = mode === 'play' && !bot && phase === 'play' && area === 'desert' && ftDone !== FT_ALL && S.t >= cine.until ? L.ftueStep(cfg, S, g, ftDone) : null;
     let on = false;
     if (st) {
       const [x, y, z] = scene.toScreen(g.x, 0.5, g.z), [x2, y2] = scene.toScreen(g.x + cfg.ftue.r, 0.5, g.z);
@@ -653,7 +678,7 @@ export function run(mode = 'play') {
   const api = {
     destroy() { alive = false; saveNow(); document.removeEventListener('visibilitychange', onHide); cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); scene.dispose(); root.innerHTML = ''; if (window.__mg === api) window.__mg = null; },
     debug: {
-      get S() { return S; }, get cfg() { return cfg; }, get scene() { return scene; }, L, get phase() { return phase; }, get ftDone() { return ftDone; }, get ftStep() { return ftShown; }, saveNow, get lastEvents() { return lastEvents; },
+      get S() { return S; }, get cfg() { return cfg; }, get scene() { return scene; }, L, get phase() { return phase; }, get ftDone() { return ftDone; }, get ftStep() { return ftShown; }, get cine() { return cine; }, saveNow, get lastEvents() { return lastEvents; },
       /** Stops the real-time loop; frame(dt) then advances by hand (step-by-step viewing). */
       pause(p = true) { paused = p; last = performance.now(); },
       /** Runs sec seconds of game time (bot input when bot is true), drawing only the last frame. */
