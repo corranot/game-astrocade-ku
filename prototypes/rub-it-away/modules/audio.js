@@ -13,7 +13,7 @@ const MAP = {
   plop: { id: 'ria_plop', g: 0.8, j: 0.06 }, whoosh: { id: 'ria_whoosh', g: 0.7, j: 0 },
   // the same files played lower or higher: a soft low blip when a wrong rub counts, a ticklish two-note giggle
   lost: { id: 'ria_tap', g: 0.5, j: 0.03, r: 0.55 }, tickle: { id: 'ria_tap', g: 0.65, j: 0.06, r: 1.7 },
-  snow_bell: { id: 'snow_bell', g: 0.65, j: 0 },
+  snow_bell: { id: 'snow_bell', g: 0.65, j: 0 }, candy_chime: { id: 'candy_chime', g: 0.6, j: 0.03 },
 };
 const LOOPS = { rub: { id: 'ria_rub', g: 1.4 }, music: { id: 'ria_music', g: 0.2 } };
 // GAINS-BEGIN (levels measured by tools/audio_levels.py; files differ a lot in loudness)
@@ -42,7 +42,7 @@ export const FIX = ('f_sparkle f_purr g_woof f_tweet f_sparkle f_cheer f_hiss f_
 const WORLD = {
   garden: ['ria_music', 'ria_amb_birds'], kitchen: ['ria_music', 'ria_amb_kitchen'], pond: ['ria_music', 'ria_amb_wind'], zoo: ['ria_music', 'ria_amb_birds'], town: ['ria_music', 'ria_amb_birds'],
   space: ['ria_music_adv', 'ria_amb_space'], castle: ['ria_music_adv', 'ria_amb_birds'], sea: ['ria_music_adv', 'ria_amb_sea'], jungle: ['ria_music_adv', 'ria_amb_jungle'],
-  beach: ['ria_music_fun', 'ria_amb_waves'], fair: ['ria_music_fun', 'ria_amb_fair'], snow: ['ria_music', 'ria_amb_wind'],
+  beach: ['ria_music_fun', 'ria_amb_waves'], fair: ['ria_music_fun', 'ria_amb_fair'], snow: ['ria_music', 'ria_amb_wind'], candy: ['ria_music_fun', 'ria_amb_birds'],
 };
 const NIGHT = 'ria_amb_night';
 const ORDER = ['ria_pop', 'ria_rub', 'ria_music', 'ria_win', 'ria_star', 'ria_boing', 'ria_tap', 'ria_plop', 'ria_whoosh'];
@@ -137,7 +137,7 @@ export function scene(world, night, n, says) {
   const d = dev(); if (d) d.want = [wantMusic, wantAmb];
   load(wantMusic, syncScene); load(wantAmb, syncScene);
   [FIX[n - 1]].concat((says || []).map((k) => SAY[k])).forEach((k) => { if (k && EXTRA[k]) load(EXTRA[k].id); });
-  load(currentRubAsset); if (world === 'snow') load('snow_bell');
+  load(currentRubAsset); if (world === 'snow') load('snow_bell'); if (world === 'candy') load('candy_chime');
   syncScene();
 }
 // the payoff sound of level n (played with the win jingle); false while its file is not ready

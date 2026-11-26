@@ -30,7 +30,7 @@ export function button(g, cx, cy, w, h, text, fn, time, size, pulse = 0.03, kind
   g.restore();
 }
 
-const worldOf = (bg) => ['kitchen', 'pond', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow'].find((w) => bg.indexOf(w) >= 0) || 'garden';
+const worldOf = (bg) => ['kitchen', 'pond', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow', 'candy'].find((w) => bg.indexOf(w) >= 0) || 'garden';
 /** A small framed picture of level n's scene (cover-cropped background); a scene not loaded yet shows a plain card, never a text placeholder. */
 // a scene's cover crop, drawn once into a small canvas at 2x and reused every frame (a full background scaled down each frame is costly on phones)
 const thumbCache = new Map();
@@ -136,8 +136,8 @@ function drawDailyButton(g, time, d, go) {
   if (d.done) { g.save(); g.translate(isRtl() ? x + w - 74 : x + 74, y + 18); g.beginPath(); g.arc(0, 0, 15, 0, 7); fillStroke(g, COL.green, 4); g.beginPath(); g.moveTo(-7, 0); g.lineTo(-2, 6); g.lineTo(8, -6); g.lineWidth = 5; g.strokeStyle = '#fff'; g.lineCap = 'round'; g.stroke(); g.restore(); }
 }
 
-const WORLDS = ['garden', 'kitchen', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow'], PER = 6, TABS = 5;
-const WCOL = [COL.green, COL.orange, COL.blue, COL.plum, '#4a2fd0', '#14a3a3', '#c42b2b', '#1f6fb5', '#d02a88', '#25a35a', '#398db8'];
+const WORLDS = ['garden', 'kitchen', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow', 'candy'], PER = 6, TABS = 5;
+const WCOL = [COL.green, COL.orange, COL.blue, COL.plum, '#4a2fd0', '#14a3a3', '#c42b2b', '#1f6fb5', '#d02a88', '#25a35a', '#398db8', '#ec5f8c'];
 let mapWorld = 0;
 const tabLabels = new Map();
 // sticker collection: every wrong-rub gag of a level is one sticker (the picture it reveals or swaps to, else the thing itself); the map shows the found ones and an empty slot for each one not found yet
@@ -166,7 +166,7 @@ export function drawMap(g, time, info, go) {
   g.beginPath(); g.moveTo(mx(84), 54); g.lineTo(mx(56), 74); g.lineTo(mx(84), 94); g.lineWidth = 12; g.lineCap = g.lineJoin = 'round'; g.strokeStyle = INK; g.stroke();
   settingsButton(g, rtl ? 24 : 600, 26, go);
   label(g, t('levels'), 360, 74, fitSize(g, t('levels'), 62, 440), COL.orange, { lw: 11 });
-  // Eleven world tabs on one 4-column grid (rows of 4, 4, 3; the short row centred), one shared label size, the NEW badge on the tab's top edge (never over the words). Six 200 px level tiles below.
+  // Twelve world tabs on one 4-column grid (three full rows of 4; a short last row would be centred), one shared label size, the NEW badge on the tab's top edge (never over the words). Six 200 px level tiles below.
   const COLS = 4, tw = 160, th = 92, tg = 8, rowH = 104, tx0 = (W - COLS * tw - (COLS - 1) * tg) / 2;
   // tab names, their two-line splits and the one shared label size depend only on the language: measured once per language
   const names = WORLDS.map((w) => t('world_' + w)), mk = names.join('|');
@@ -190,7 +190,8 @@ export function drawMap(g, time, info, go) {
     g.font = '900 ' + ts + 'px ' + FONT;
     const fit = g.measureText(name).width <= tw - 22 || name.indexOf(' ') < 0 ? { lines: [name], size: Math.min(ts, fitSize(g, name, ts, tw - 22)) } : { lines: tl.splits[wi].lines, size: ts };
     labelLines(g, fit, x + tw / 2, y + th / 2 + 2, on ? '#fff' : INK, { stroke: on ? INK : 0, lw: 7 }, 1.0);
-    if (w === 'snow' && !info.snowWorldSeen) { const bw = 64, bx = rtl ? x + 8 : x + tw - bw - 8, by = y - 14; rr(g, bx, by, bw, 28, 14); fillStroke(g, COL.red, 4); label(g, t('new_badge'), bx + bw / 2, by + 15, fitSize(g, t('new_badge'), 17, bw - 10), '#fff', { stroke: 0 }); }
+    // the NEW badge sits on the newest world only, until its first level is opened
+    if (w === 'candy' && !info.candyWorldSeen) { const bw = 64, bx = rtl ? x + 8 : x + tw - bw - 8, by = y - 14; rr(g, bx, by, bw, 28, 14); fillStroke(g, COL.red, 4); label(g, t('new_badge'), bx + bw / 2, by + 15, fitSize(g, t('new_badge'), 17, bw - 10), '#fff', { stroke: 0 }); }
   });
   const tile = 200, gap = 24, x0 = (W - 3 * tile - 2 * gap) / 2, y0 = 470;
   for (let k = 0; k < PER; k++) {

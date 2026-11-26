@@ -14,6 +14,7 @@ const COACH_WAIT = 6;
 
 const FAM = [1, 1.26, 0.84, 1.5];            // four reaction pitch families (by decoy index) so neighbouring decoys never sound alike
 const FLINCH = ['startle', 'headshake', 'lean'];  // the main actor's flinch variants, cycled per level; each has its own emote
+const SPRINKLES = ['#ff6fae', '#7fdcc6', '#ffd84a', '#8fb8ff', '#ffffff', '#c58bff'];
 const AMB_N = 14, GLOW = { blob: null, dot: null }, CONF = ['#d93030', '#2d6cc2', '#ebb439', '#2d9f25'];
 
 // cached soft sprites for the ambient layer (built once, never per frame)
@@ -42,10 +43,10 @@ export class Level {
     this.by = {}; this.things.forEach((th) => { this.by[th.id] = th; });
     this.main = this.things.find((th) => th.d.main) || null;
     this.target = this.things.find((th) => th.role === 'target');
-    const world = ['kitchen', 'pond', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow'].find((w) => this.def.bg.indexOf(w) >= 0) || 'garden';
+    const world = ['kitchen', 'pond', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow', 'candy'].find((w) => this.def.bg.indexOf(w) >= 0) || 'garden';
     this.world = world; this.worldEnd = n % 6 === 0;
-    // the rub tool changes with the world (same one-finger rub, a fresh feel every 6 levels): eraser, sponge (bubbles), brush, ice scraper (chips)
-    this.tool = { kitchen: 'sponge', pond: 'sponge', town: 'sponge', sea: 'sponge', zoo: 'brush', beach: 'brush', fair: 'brush', castle: 'scraper', snow: 'scraper' }[world] || 'eraser';
+    // the rub tool changes with the world (same one-finger rub, a fresh feel every 6 levels): eraser, sponge (bubbles), brush, ice scraper (chips), icing spatula (sprinkles)
+    this.tool = { kitchen: 'sponge', pond: 'sponge', town: 'sponge', sea: 'sponge', zoo: 'brush', beach: 'brush', fair: 'brush', castle: 'scraper', snow: 'scraper', candy: 'spatula' }[world] || 'eraser';
     this.hinted = false; this.golden = false; this.touchT0 = null; this.record = null; this.hardT = -9; this.toyT = -9;
     this.bg = background(this.def.bg, world);
     this.fx = new Fx(this.reducedMotion); this.wx = new Weather(this.def.weather, this.reducedMotion);
@@ -58,7 +59,7 @@ export class Level {
     this.decoyIx = this.things.filter((th) => th.role === 'decoy').map((th) => th.id);
     AU.scene(world, !!(this.def.night || this.def.evening), n, this.things.filter((th) => th.d.react && th.d.react.say).map((th) => th.d.react.say.slice(2)));
     // ambient life per world, drawn behind the things: motes (garden, kitchen, pond, castle), drifting confetti (fair), falling leaves (jungle), cloud shadows + glints (zoo, town, beach), stars (space), bubbles (sea, dark), fireflies (evening, night)
-    this.ambK = this.def.night || this.def.evening ? 'fire' : world === 'space' ? 'stars' : world === 'fair' ? 'confetti' : world === 'jungle' ? 'leaves' : world === 'sea' || this.def.dark ? 'bubbles' : world === 'zoo' || world === 'town' || world === 'beach' ? 'shadow' : 'motes';
+    this.ambK = this.def.night || this.def.evening ? 'fire' : world === 'space' ? 'stars' : world === 'fair' || world === 'candy' ? 'confetti' : world === 'jungle' ? 'leaves' : world === 'sea' || this.def.dark ? 'bubbles' : world === 'zoo' || world === 'town' || world === 'beach' ? 'shadow' : 'motes';
     this.amb = [];
     for (let i = 0; i < AMB_N; i++) { const u = (i * 0.618034) % 1, v = (i * 0.381966 + 0.13) % 1; this.amb.push({ x: STAGE.x + 20 + u * (STAGE.w - 40), y: 290 + v * 800, p: i * 1.7, v: 18 + (i % 5) * 9, r: 3 + (i % 4) * 1.6 }); }
   }
@@ -210,6 +211,7 @@ export class Level {
         if (sp > 2) this.fx.crumb(p.x, p.y, th.d.crumb || '#4174d3', nx, ny, sp / 0.016);
         if (this.world === 'snow' && !this.reducedMotion && sp > 2 && this.t - this.snowPuffT > 0.09) { this.snowPuffT = this.t; this.fx.puff(p.x, p.y, 2, '#f1fbff', 100); }
         if (this.tool === 'sponge' && !this.reducedMotion && sp > 2 && this.t - (this.toolFxT || 0) > 0.12) { this.toolFxT = this.t; this.fx.burst(p.x, p.y, 3, ['#ffffff', '#cfefff'], { ang: [-2.4, -0.7], v: [60, 140], g: -90, dec: 1.3, r: 7 }); }
+        if (this.tool === 'spatula' && !this.reducedMotion && sp > 2 && this.t - (this.toolFxT || 0) > 0.08) { this.toolFxT = this.t; this.fx.burst(p.x, p.y, 3, SPRINKLES, { ang: [-2.6, -0.5], v: [90, 200], g: 420, dec: 1.6, r: 5 }); }
         if (this.tool === 'scraper' && this.world !== 'snow' && !this.reducedMotion && sp > 2 && this.t - (this.toolFxT || 0) > 0.1) { this.toolFxT = this.t; this.fx.spark(p.x, p.y, 2); }
       }
       if (th.state === 'alive') { if (this.t - th.rubAt < 0.1) pr = Math.max(pr, th.progress()); if (th.contains(p, this.t)) over = true; }
@@ -271,6 +273,7 @@ export class Level {
     }
     haptic({ intensity: 0.65, sharpness: 0.5 }, this.hapticsEnabled);
     if (this.world === 'snow') AU.sfx('snow_bell');
+    if (this.world === 'candy') { AU.sfx('candy_chime'); const c = this.main ? this.main.center(this.t) : { x: 360, y: 700 }; this.fx.burst(c.x, c.y - 60, 30, SPRINKLES, { v: [220, 520], g: 520, dec: 0.9, r: 6 }); }
     AU.fixSfx(this.n);
     if (this.onSolve) this.onSolve(this.n, this.stars);
   }
@@ -640,6 +643,13 @@ export class Level {
       g.beginPath(); g.ellipse(0, -30, 18, 10, 0, 0, 7); g.fillStyle = '#a86e34'; g.fill();
       for (let i = -3; i <= 3; i++) { rr(g, i * 12 - 4, 20, 9, 46, 4); fillStroke(g, COL.blue, 4); }
       rr(g, -44, 14, 88, 14, 6); fillStroke(g, '#8a5a2b', 6);
+    } else if (this.tool === 'spatula') {
+      // an icing spatula: striped candy handle, a long mint blade with a dab of pink icing at the tip
+      rr(g, -16, -78, 32, 70, 14); fillStroke(g, '#ff8fbf', 7);
+      g.save(); g.beginPath(); rr(g, -16, -78, 32, 70, 14); g.clip(); g.fillStyle = '#ffffff'; for (let k = -3; k < 4; k++) { g.beginPath(); g.moveTo(-20, -60 + k * 18); g.lineTo(20, -76 + k * 18); g.lineTo(20, -68 + k * 18); g.lineTo(-20, -52 + k * 18); g.fill(); } g.restore();
+      rr(g, -16, -78, 32, 70, 14); g.lineWidth = 7; g.strokeStyle = INK; g.stroke();
+      rr(g, -24, -12, 48, 86, 22); fillStroke(g, '#bff0e2', 7);
+      g.beginPath(); g.ellipse(0, 56, 18, 12, 0, 0, 7); g.fillStyle = '#ff6fae'; g.fill();
     } else if (this.tool === 'scraper') {
       // an ice scraper: red handle, wide pale blade
       rr(g, -18, -72, 36, 86, 16); fillStroke(g, '#e05a4f', 7);
