@@ -75,3 +75,44 @@ export function normalizePrefs(value, fallback = {}) {
     reduceMotion: typeof prefs.reduceMotion === 'boolean' ? prefs.reduceMotion : defaults.reduceMotion,
   };
 }
+
+/** Tuning for the session and return features (no timers, no streaks, nothing is ever lost). */
+export const TUNE = Object.freeze({
+  giftEvery: 10,       // a surprise gift on the result card after every 10th level solved in one session (about minute 3-4, 7, 10 at 20 s a level)
+  goldenEvery: 8,      // one level in 8 is a golden picture (which ones shifts every day); never level 1-2, never a world's last level
+  giftHints: 2,        // what the gift holds
+  dailyHints: 1,       // collecting today's picture
+  pullAfter: 2.4,      // s after the result card settles before NEXT starts its stronger pulse
+});
+
+/** Local calendar day as YYYY-MM-DD: today's picture changes at the player's own midnight. */
+export function dayKey(date) {
+  const d = date || new Date(), p = (v) => String(v).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+/** The level shown as "today's picture": the same for everyone on a day, never the same two days running. */
+export function dailyLevel(key, count) {
+  const days = Math.floor(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10)) / 86400000);
+  // a fixed stride that shares no factor with the level count walks every level before repeating
+  let stride = 23; while (gcd(stride, count) !== 1) stride++;
+  return ((days * stride) % count + count) % count + 1;
+}
+function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+
+/** The next day's key, for the "tomorrow" teaser. */
+export function nextDayKey(key) {
+  const d = new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10) + 1));
+  const p = (v) => String(v).padStart(2, '0');
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate());
+}
+
+/** True when the n-th level solved in this session earns the surprise gift. */
+export function giftDue(solvedThisSession) { return solvedThisSession > 0 && solvedThisSession % TUNE.giftEvery === 0; }
+
+/** True when level n is a golden picture today: evenly spaced (one in TUNE.goldenEvery), shifted each day, never in the tutorial levels or on a world's last level. */
+export function goldenLevel(n, key) {
+  if (n < 3 || n % 6 === 0) return false;
+  const days = Math.floor(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10)) / 86400000);
+  return (days * 3 + n) % TUNE.goldenEvery === 0;
+}

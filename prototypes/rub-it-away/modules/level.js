@@ -44,6 +44,9 @@ export class Level {
     this.target = this.things.find((th) => th.role === 'target');
     const world = ['kitchen', 'pond', 'zoo', 'town', 'space', 'beach', 'castle', 'sea', 'fair', 'jungle', 'snow'].find((w) => this.def.bg.indexOf(w) >= 0) || 'garden';
     this.world = world; this.worldEnd = n % 6 === 0;
+    // the rub tool changes with the world (same one-finger rub, a fresh feel every 6 levels): eraser, sponge (bubbles), brush, ice scraper (chips)
+    this.tool = { kitchen: 'sponge', pond: 'sponge', town: 'sponge', sea: 'sponge', zoo: 'brush', beach: 'brush', fair: 'brush', castle: 'scraper', snow: 'scraper' }[world] || 'eraser';
+    this.hinted = false; this.golden = false;
     this.bg = background(this.def.bg, world);
     this.fx = new Fx(this.reducedMotion); this.wx = new Weather(this.def.weather, this.reducedMotion);
     this.t = 0; this.s = 0; this.fixed = false; this.errors = 0; this.stars = 0; this.touched = false; this.idle = 0;
@@ -71,7 +74,7 @@ export class Level {
   resultReady() { return this.fixed && this.s > 1.1 + this.cardHold; }
 
   // the coach points at the answer (the bulb, or free after 3 wrong rubs): ring + hand + the word
-  hint(dur = 3.2) { this.hintT = dur; AU.sfx('tick'); window.__qaMark?.('hint'); }
+  hint(dur = 3.2) { this.hintT = dur; this.hinted = true; AU.sfx('tick'); window.__qaMark?.('hint'); }
 
   update(dt) {
     // hit-stop: the whole world freezes for a beat when the target is fully rubbed
@@ -106,6 +109,11 @@ export class Level {
       if (this.s > 0.25 && !this.jing) { this.jing = true; AU.sfx('win'); AU.sfx('arp'); }
       for (let i = this.dings || 0; i < this.stars; i++) if (this.s > 1.5 + this.cardHold + i * 0.22) { this.dings = i + 1; AU.sfx('star'); }
       if (this.def.finale) this.finale(dt);
+      // WORLD COMPLETE: three firework bursts above the stage behind the ribbon, once (the level 60 finale has its own)
+      if (this.worldDone && !this.def.finale) {
+        const fw = [[0.95, 200, 380], [1.25, 520, 340], [1.55, 360, 300]];
+        while ((this.wdN || 0) < fw.length && this.s >= fw[this.wdN || 0][0]) { const b = fw[this.wdN || 0]; this.wdN = (this.wdN || 0) + 1; this.fx.burst(b[1], b[2], 40, ['#ebb439', '#e8743b', '#ffffff', '#3d8fd2'], { v: [120, 300], dec: 0.9, r: 9 }); AU.sfx('pop', 0.9 + this.wdN * 0.2); if (this.wdN === 1) AU.sfx('arp'); }
+      }
       const sp = this.def.splash;
       if (sp && !this.splashed && this.s >= sp.at) { this.splashed = true; this.fx.burst(sp.x, sp.y - this.curLift, 26, ['#2f93da', '#4cbfe6', '#1a5c9e'], { ang: [-2.5, -0.64], v: [380, 700], g: 900, dec: 0.8, r: 9 }); AU.sfx('plop'); AU.sfx('pop', 1.2); }
     }
@@ -157,7 +165,7 @@ export class Level {
   actorAt(p) { return this.things.find((th) => th.role === 'actor' && th.d.show !== 'fix' && th.contains(p, this.t)); }
 
   down(p) {
-    this.cur = this.last = p;
+    this.cur = this.last = p; this.lastTouch = p;
     if (!this.ep) this.ep = { x: p.x + 34, y: p.y - 30 }; else { this.ep.x = p.x + 34; this.ep.y = p.y - 30; } this.touched = true; this.idle = 0;
     if (this.fixed) {
       const q = { x: p.x, y: p.y + this.curLift };
@@ -183,7 +191,7 @@ export class Level {
   move(p) {
     if (!this.cur) return;
     const a = this.last || p;
-    this.last = this.cur = p;
+    this.last = this.cur = p; this.lastTouch = p;
     if (this.fixed) { this.giggle(p); return; }
     const sp = Math.hypot(p.x - a.x, p.y - a.y);
     this.moveT = this.t;
@@ -195,6 +203,8 @@ export class Level {
         th.rubDx = nx; th.rubDy = ny;
         if (sp > 2) this.fx.crumb(p.x, p.y, th.d.crumb || '#4174d3', nx, ny, sp / 0.016);
         if (this.world === 'snow' && !this.reducedMotion && sp > 2 && this.t - this.snowPuffT > 0.09) { this.snowPuffT = this.t; this.fx.puff(p.x, p.y, 2, '#f1fbff', 100); }
+        if (this.tool === 'sponge' && !this.reducedMotion && sp > 2 && this.t - (this.toolFxT || 0) > 0.12) { this.toolFxT = this.t; this.fx.burst(p.x, p.y, 3, ['#ffffff', '#cfefff'], { ang: [-2.4, -0.7], v: [60, 140], g: -90, dec: 1.3, r: 7 }); }
+        if (this.tool === 'scraper' && this.world !== 'snow' && !this.reducedMotion && sp > 2 && this.t - (this.toolFxT || 0) > 0.1) { this.toolFxT = this.t; this.fx.spark(p.x, p.y, 2); }
       }
       if (th.state === 'alive') { if (this.t - th.rubAt < 0.1) pr = Math.max(pr, th.progress()); if (th.contains(p, this.t)) over = true; }
       if (th.state === 'alive' && th.melt < 0 && th.progress() >= NEED) { if (th.holdLeft() > 0.05) this.startMelt(th); else this.erased(th); }
@@ -219,6 +229,9 @@ export class Level {
     this.hold = 0.08; this.pt = 0;
     const m = this.main0 || this.things.find((q) => q.role === 'actor' && !q.d.show), hx = m ? m.x : 360, hy = m ? m.y - m.h * m.ay - 6 : 520;
     this.fx.puff(c.x, c.y, 9, '#ffffff'); this.fx.confetti(hx, hy, 56); this.fx.spark(hx, hy, 8);
+    if (this.golden) { this.fx.burst(c.x, c.y, 46, ['#ebb439', '#ffe27a', '#ffffff'], { v: [160, 420], dec: 0.8, r: 10 }); this.fx.ring(c.x, c.y, 380, '#ffe27a'); AU.sfx('star', 1.3); }
+    this.perfect = this.n >= 3 && this.errors === 0 && !this.hinted && !this.golden;
+    this.fx.ring(c.x, c.y, Math.max(this.target.w, this.target.h) * 0.9 + 120, '#ffffff'); this.fx.ring(c.x, c.y, Math.max(this.target.w, this.target.h) * 0.6 + 60, '#ebb439');
     // the payoff effect matches the payoff sound: water fans up (splash), bubbles rise, a ring of sparkles (sparkle, lights on, found), a second confetti pop (cheer, party horn)
     const fk = AU.FIX[this.n - 1] || '';
     if (fk === 'f_splash' && !this.def.splash) this.fx.burst(c.x, c.y, 22, ['#2f93da', '#4cbfe6', '#1a5c9e'], { ang: [-2.5, -0.64], v: [320, 620], g: 900, dec: 0.8, r: 8 });
@@ -353,8 +366,11 @@ export class Level {
     this.fx.drawLow(g);
     g.restore(); g.restore();
     rr(g, S.x, S.y, S.w, S.h, S.r); g.lineWidth = 9; g.strokeStyle = INK; g.stroke();
+    if (this.golden && !this.fixed) this.drawGolden(g);
     this.drawHint(g);
-    if (this.firstFix && this.fixed && this.s > 0.5 && this.s < 2.4) { g.save(); g.globalAlpha = clamp((this.s - 0.5) / 0.3) * clamp((2.4 - this.s) / 0.3); label(g, t('coachNice'), 360, 310, 64, COL.orange, { lw: 12 }); g.restore(); }   // the first fix ever: one word of praise
+    // one word of praise in the same slot: the first fix ever, a golden picture (+1 hint), or a clean solve (no wrong rub, no hint). The World Complete ribbon owns the slot on a world's last level.
+    const praise = this.firstFix ? ['coachNice', COL.orange] : this.golden && !this.worldDone ? ['golden', COL.gold] : this.perfect && !this.worldDone ? ['perfect', COL.green] : null;
+    if (praise && this.fixed && this.s > 0.5 && this.s < 2.4) { const a = clamp((this.s - 0.5) / 0.3) * clamp((2.4 - this.s) / 0.3), sc = this.reducedMotion ? 1 : 0.8 + 0.2 * ease.back(clamp((this.s - 0.5) / 0.35)), w = t(praise[0]); g.save(); g.globalAlpha = a; g.translate(360, 310); g.scale(sc, sc); label(g, w, 0, 0, fitSize(g, w, 64, 560), praise[1], { lw: 12 }); g.restore(); }
     this.drawProgress(g);
     if (this.cur && !this.fixed) this.drawEraser(g);
     this.fx.drawHigh(g);
@@ -463,6 +479,19 @@ export class Level {
   drawHint(g) {
     if (this.fixed || !this.target || this.target.state !== 'alive') return;
     const c = this.target.center(this.reducedMotion ? 0 : this.t), animT = this.reducedMotion ? 0 : this.t;
+    // GUIDE: a dotted gold line from where the finger last was toward the target, arrowhead at the target end (hint bulb, or level 1 tutorial after a miss)
+    const lt = this.lastTouch;
+    if (lt && (this.hintT > 0 || this.ftue) && !this.cur) {
+      const dx = c.x - lt.x, dy = c.y - lt.y, d = Math.hypot(dx, dy), rr0 = Math.max(this.target.w, this.target.h) * 0.5 + 24;
+      if (d > rr0 + 60) {
+        const ux = dx / d, uy = dy / d, L = d - rr0, off = this.reducedMotion ? 0 : (animT * 60) % 36;
+        g.save(); g.globalAlpha = this.hintT > 0 ? Math.min(1, this.hintT) : 0.9; g.fillStyle = COL.gold; g.strokeStyle = INK; g.lineWidth = 4;
+        for (let s2 = 18 + off; s2 < L - 30; s2 += 36) { g.beginPath(); g.arc(lt.x + ux * s2, lt.y + uy * s2, 9, 0, 7); g.fill(); g.stroke(); }
+        const hx = lt.x + ux * L, hy = lt.y + uy * L, px = -uy, py = ux;
+        g.beginPath(); g.moveTo(hx + ux * 14, hy + uy * 14); g.lineTo(hx - ux * 26 + px * 22, hy - uy * 26 + py * 22); g.lineTo(hx - ux * 26 - px * 22, hy - uy * 26 - py * 22); g.closePath(); g.fill(); g.stroke();
+        g.restore();
+      }
+    }
     if (this.hintT > 0) {
       const a = Math.min(1, this.hintT), pulse = this.reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(animT * 8);
       g.save(); g.translate(c.x, c.y); g.globalAlpha = a * (0.5 + pulse * 0.4);
@@ -568,6 +597,21 @@ export class Level {
     g.restore();
   }
 
+  // GOLDEN PICTURE: the target glows gold and four sparkles orbit it, so a rare round reads as special before it is solved
+  drawGolden(g) {
+    if (!this.target || this.target.state !== 'alive') return;
+    const tt = this.reducedMotion ? 0 : this.t, c = this.target.center(tt), R = Math.max(this.target.w, this.target.h) * 0.62;
+    g.save(); g.globalCompositeOperation = 'lighter';
+    const gr = g.createRadialGradient(c.x, c.y, R * 0.3, c.x, c.y, R * 1.25); gr.addColorStop(0, 'rgba(255,214,90,0.5)'); gr.addColorStop(1, 'rgba(255,214,90,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, R * 1.25, 0, 7); g.fill(); g.restore();
+    for (let i = 0; i < 4; i++) {
+      const a = tt * 1.4 + i * 1.571, x = c.x + Math.cos(a) * R, y = c.y + Math.sin(a) * R * 0.8, k = 17 + 6 * Math.sin(tt * 6 + i);
+      g.save(); g.translate(x, y); g.rotate(tt * 2); g.beginPath();
+      for (let j = 0; j < 8; j++) { const rr2 = j % 2 ? k * 0.35 : k; g.lineTo(Math.cos(j * 0.785) * rr2, Math.sin(j * 0.785) * rr2); }
+      g.closePath(); g.fillStyle = '#ffe27a'; g.fill(); g.lineWidth = 3; g.strokeStyle = INK; g.stroke(); g.restore();
+    }
+  }
+
   drawEraser(g) {
     const p = this.ep || { x: this.cur.x + 34, y: this.cur.y - 30 }, mv = this.t - this.moveT < 0.1;
     if (this.ek > 1.12) {
@@ -577,9 +621,27 @@ export class Level {
     g.save(); g.translate(p.x, p.y); g.rotate(0.55 + this.etilt + (mv ? Math.sin(this.t * 30) * 0.05 : 0));
     const es = Math.min(1.9, 1 + (this.ek - 1) * 0.45); g.scale(es, es);
     if (mv) g.scale(1.04, 0.96);
-    rr(g, -40, -64, 80, 138, 18); fillStroke(g, '#e07a7a', 7);
-    rr(g, -40, -8, 80, 40, 6); fillStroke(g, COL.blue, 7);
-    rr(g, -40, -64, 80, 138, 18); g.lineWidth = 7; g.stroke();
+    if (this.tool === 'sponge') {
+      // a yellow sponge with a green scrub layer and pores
+      rr(g, -46, -56, 92, 120, 22); fillStroke(g, '#f2c94c', 7);
+      rr(g, -46, 30, 92, 34, 12); fillStroke(g, '#4caf6a', 7);
+      g.fillStyle = '#d9a92e'; for (const [x, y, r] of [[-20, -30, 7], [14, -36, 5], [22, -6, 8], [-14, 4, 5], [4, -16, 4]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+    } else if (this.tool === 'brush') {
+      // a scrub brush: wooden back, a row of blue bristles at the rubbing end
+      rr(g, -44, -60, 88, 82, 26); fillStroke(g, '#c98a4b', 7);
+      g.beginPath(); g.ellipse(0, -30, 18, 10, 0, 0, 7); g.fillStyle = '#a86e34'; g.fill();
+      for (let i = -3; i <= 3; i++) { rr(g, i * 12 - 4, 20, 9, 46, 4); fillStroke(g, COL.blue, 4); }
+      rr(g, -44, 14, 88, 14, 6); fillStroke(g, '#8a5a2b', 6);
+    } else if (this.tool === 'scraper') {
+      // an ice scraper: red handle, wide pale blade
+      rr(g, -18, -72, 36, 86, 16); fillStroke(g, '#e05a4f', 7);
+      g.beginPath(); g.moveTo(-50, 70); g.lineTo(50, 70); g.lineTo(30, 10); g.lineTo(-30, 10); g.closePath(); fillStroke(g, '#bfe6ff', 7);
+      g.beginPath(); g.moveTo(-36, 58); g.lineTo(36, 58); g.lineWidth = 4; g.strokeStyle = '#ffffff'; g.stroke();
+    } else {
+      rr(g, -40, -64, 80, 138, 18); fillStroke(g, '#e07a7a', 7);
+      rr(g, -40, -8, 80, 40, 6); fillStroke(g, COL.blue, 7);
+      rr(g, -40, -64, 80, 138, 18); g.lineWidth = 7; g.stroke();
+    }
     g.restore();
   }
 }

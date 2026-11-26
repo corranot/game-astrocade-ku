@@ -312,17 +312,20 @@
     "animation": null
   },
   "snowman_happy": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7C2BM0YW92BASSZWCR6X51T_b0718bb7-2101-46ce-863f-d05ad3cb2350_bb701d0e-ba72-448c-9449-71c52f01ef7b.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      794,
+      830
+    ],
     "compression_suggestion": "original",
+    "description": "A cute snowman, clearly very happy: big open smile, rosy pink cheeks, happy curved closed eyes, carrot nose, three coal buttons, a small red knit scarf, twig arms raised in joy. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail. Full body front view, centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A cute snowman, clearly very happy: big open smile, rosy pink cheeks, happy curved closed eyes, carrot nose, three coal buttons, a small red knit scarf, twig arms raised in joy. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail. Full body front view, centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CHA1CX2YBWB1ZE4Z40WQN0_9f0cfd8b-68e7-4653-b7b9-04186d3f154b_a8af1c3d-7b93-48e0-b483-3ce4ec271898.webp"
   },
   "snail_win": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7C2BP8XZ38K9NHQT4W2N2GT_3b862dea-64ad-46ba-a6f8-657443ed964e_bad0b278-b401-42a5-a16a-35daaefebc9d.webp",
@@ -4641,121 +4644,148 @@
     "animation": null
   },
   "bg_snow_village": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/b09e3726b2b141c4a8d45b6254854bca.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      768,
+      1376
+    ],
     "compression_suggestion": "original",
+    "description": "Portrait 9:16 children's game background: a cozy snowy meadow, soft rolling snow hills, a few simple rounded pine trees with snow caps at the sides, one tiny wooden cabin with a lit window far away, pale blue sky with two simple white clouds. Large empty flat snow ground in the lower middle for characters. Flat cartoon style exactly like the references: simple flat shapes, thick dark outlines on hills and trees, flat bright colors, no texture, no painterly detail, no characters, no text.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "Portrait 9:16 children's game background: a cozy snowy meadow, soft rolling snow hills, a few simple rounded pine trees with snow caps at the sides, one tiny wooden cabin with a lit window far away, pale blue sky with two simple white clouds. Large empty flat snow ground in the lower middle for characters. Flat cartoon style exactly like the references: simple flat shapes, thick dark outlines on hills and trees, flat bright colors, no texture, no painterly detail, no characters, no text.",
+    "subtype": "background",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXT4XD3QFRXFWQN1J3G6R_6869c025-9171-48e6-8d13-cc6f77c55585_ea3b1862-df44-4d8b-83cc-779d57a8cab2.webp"
   },
   "bg_snow_pond": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/beb9804f3a364e229e5959304c68f189.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      768,
+      1376
+    ],
     "compression_suggestion": "original",
+    "description": "Portrait 9:16 children's game background: a frozen pond in a snowy meadow, a large flat pale-blue ice oval in the lower middle, rounded snowy banks, a few simple rounded pine trees with snow caps at the sides, pale blue sky with two simple white clouds. Large empty area on and around the ice for characters. Flat cartoon style exactly like the references: simple flat shapes, thick dark outlines on hills and trees, flat bright colors, no texture, no painterly detail, no characters, no text.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "Portrait 9:16 children's game background: a frozen pond in a snowy meadow, a large flat pale-blue ice oval in the lower middle, rounded snowy banks, a few simple rounded pine trees with snow caps at the sides, pale blue sky with two simple white clouds. Large empty area on and around the ice for characters. Flat cartoon style exactly like the references: simple flat shapes, thick dark outlines on hills and trees, flat bright colors, no texture, no painterly detail, no characters, no text.",
+    "subtype": "background",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CHA4CST0A8RYSVZ079JH2F_1566b1fe-19f1-40d9-98e6-5bedac231c5c_750f935d-591a-44f4-a7f7-8d6513c7e727.webp"
   },
   "bg_snow_cabin": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/56262227421c45c4934454fc0ba65d7e.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      768,
+      1376
+    ],
     "compression_suggestion": "original",
+    "description": "Portrait 9:16 children's game background: inside a cozy wooden cabin, a simple stone fireplace with a warm fire on one side, a window showing falling snow, a plain wooden floor and a round rug, the lower middle left empty for characters. Flat cartoon style exactly like the references: simple flat shapes, thick dark outlines, flat warm colors, no wood grain texture, no painterly detail, no characters, no text.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "Portrait 9:16 children's game background: inside a cozy wooden cabin, a simple stone fireplace with a warm fire on one side, a window showing falling snow, a plain wooden floor and a round rug, the lower middle left empty for characters. Flat cartoon style exactly like the references: simple flat shapes, thick dark outlines, flat warm colors, no wood grain texture, no painterly detail, no characters, no text.",
+    "subtype": "background",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXVHXCZWX11D2914H9PS6_8e548307-ca6d-4263-a26a-ddaa7ff7adc4_c236a3d1-1133-4faf-b61f-3d91c4080a19.webp"
   },
   "cocoa_worried": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/dd2f958b00d34887bd16fb2440ae88f6.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      727,
+      830
+    ],
     "compression_suggestion": "original",
+    "description": "A cute hot cocoa mug character with a worried face (wobbly frown, worried eyebrows), a red knitted sleeve band, one marshmallow floating in the cocoa, two small steam curls. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no knit texture detail, no painterly detail. Centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A cute hot cocoa mug character with a worried face (wobbly frown, worried eyebrows), a red knitted sleeve band, one marshmallow floating in the cocoa, two small steam curls. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no knit texture detail, no painterly detail. Centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXJQ94B9VJFSY30XXPR6R_ab771d61-3728-4201-ba59-2da02c0a3da3_844b59be-02de-4b6c-9a40-d2ecb08df2f4.webp"
   },
   "cocoa_happy": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/459381d586db403ca8cc17e652b9bf6d.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      895,
+      1024
+    ],
     "compression_suggestion": "original",
+    "description": "Exactly the same brown hot cocoa mug character as the first reference (same brown mug, same red knitted sleeve band, same marshmallow, same shape and handle), now happy: big smile, rosy cheeks, happy closed curved eyes, cozy steam curls rising. No cat, no ears, no face on the sleeve, no saucer. Flat cartoon sticker style: thick dark plum outline, flat bright colors, minimal simple shading, no painterly detail. Centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "Exactly the same brown hot cocoa mug character as the first reference (same brown mug, same red knitted sleeve band, same marshmallow, same shape and handle), now happy: big smile, rosy cheeks, happy closed curved eyes, cozy steam curls rising. No cat, no ears, no face on the sleeve, no saucer. Flat cartoon sticker style: thick dark plum outline, flat bright colors, minimal simple shading, no painterly detail. Centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CHBH985Y0WDM6DW0HSSWGH_8f709c94-513e-4821-b567-476440309a6d_15d975ed-4cc4-45ee-be55-cc11ef333f55.webp"
   },
   "sled_stuck": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/52e6f7e45c8e4f1b9113997e7b2a96dc.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      886,
+      492
+    ],
     "compression_suggestion": "original",
+    "description": "A cute red wooden sled with a small sad face on its front (worried eyes, tiny frown), side view, standing still. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no wood grain texture, no painterly detail. Centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A cute red wooden sled with a small sad face on its front (worried eyes, tiny frown), side view, standing still. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no wood grain texture, no painterly detail. Centered, transparent background.",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXNVGCB1GPEW3VG9S3Y04_d99106f3-b2ca-4289-aeae-7c8feeaf5095_8965587e-8b1b-4609-ad72-08b738ec2e68.webp"
   },
   "sled_happy": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/a492b7561216442a9bcd9b21f7e7379f.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      1263,
+      701
+    ],
     "compression_suggestion": "original",
+    "description": "The same cute red wooden sled, now happy and gliding: big smile and happy eyes on its front, a few small motion lines and snow puffs behind it, side view. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no wood grain texture, no painterly detail. Centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "The same cute red wooden sled, now happy and gliding: big smile and happy eyes on its front, a few small motion lines and snow puffs behind it, side view. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no wood grain texture, no painterly detail. Centered, transparent background.",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CHA2RPF7E8EAWF4ADMJ36C_b1572a80-ede9-4bfa-ac1c-cf97ea55e541_c4e8818b-1e7f-4f25-a136-d75cc9f4c489.webp"
   },
   "tangled_scarf": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/1d4443a5adaf49d48c7f96f63967096b.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      779,
+      698
+    ],
     "compression_suggestion": "original",
+    "description": "A messy tangled knot of red and teal striped knit scarf yarn, loops and loose ends sticking out, shaped like a round ball. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no knit texture detail, no painterly detail. Centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A messy tangled knot of red and teal striped knit scarf yarn, loops and loose ends sticking out, shaped like a round ball. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no knit texture detail, no painterly detail. Centered, transparent background.",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CHA3JBME281M7AWSGYVA7P_f50e382c-279d-40c4-a4db-2b5e1be4fd68_7594b9a3-d075-4a98-9b6a-0a476d5f0a8a.webp"
   },
   "frost_scribbles": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/491abfe189a94120860a6c82eec39c6a.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      1131,
+      706
+    ],
     "compression_suggestion": "original",
+    "description": "A flat oval patch of frosty ice covered in white scribbly frost swirls and little snowflake marks, seen from slightly above, pale icy blue. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat colors, minimal simple shading, no glossy realism, no painterly detail. Centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A flat oval patch of frosty ice covered in white scribbly frost swirls and little snowflake marks, seen from slightly above, pale icy blue. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat colors, minimal simple shading, no glossy realism, no painterly detail. Centered, transparent background.",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXR0V9A9GDKAY3SYQW6V5_3c6920d7-4991-4c17-aed6-674b293c2f30_b4a9f2d4-7f6b-408f-a068-14a2358449c8.webp"
   },
   "reindeer_worried": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/88c708d4f8174a819897bee1253b0294.webp",
@@ -4771,69 +4801,84 @@
     "animation": null
   },
   "reindeer_happy": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/ad71c24db28945b89a71c00ffca49072.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      564,
+      777
+    ],
     "compression_suggestion": "original",
+    "description": "The same cute baby reindeer, now happy and cozy: big smile with closed happy eyes, rosy cheeks, wearing a neat red and teal striped scarf around its neck, little red nose, small antlers. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no fur texture, no painterly detail. Full body front view, centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "The same cute baby reindeer, now happy and cozy: big smile with closed happy eyes, rosy cheeks, wearing a neat red and teal striped scarf around its neck, little red nose, small antlers. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no fur texture, no painterly detail. Full body front view, centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXFR3Z724EJHD8T5734XX_35cae147-45c5-4804-b423-fa7385d47a37_7e6f63fc-aad4-4e23-ae02-69d7fe2081cb.webp"
   },
   "reindeer_bare": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/13a16b9df6334200afb05abbcba694b7.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      699,
+      818
+    ],
     "compression_suggestion": "original",
+    "description": "A cute baby reindeer standing, cold and sad: droopy ears, worried eyebrows, small frown, little red nose, no scarf, small antlers. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no fur texture, no painterly detail, round kawaii face with simple dot eyes. Full body front view, centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A cute baby reindeer standing, cold and sad: droopy ears, worried eyebrows, small frown, little red nose, no scarf, small antlers. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no fur texture, no painterly detail, round kawaii face with simple dot eyes. Full body front view, centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXF1KRW39FN6WCJX62B2M_230e12e2-0666-4ebe-b1ae-cc921a3e8791_3f3b8ae2-e987-44a7-b199-547080f36fc5.webp"
   },
   "penguin_shivering": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/2103ccdc494b4a1187374a878f6a6dc4.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      629,
+      1084
+    ],
     "compression_suggestion": "original",
+    "description": "A cute baby penguin standing, shivering from cold: arms hugging itself, worried wobbly mouth, small blue knit beanie, a few tiny shiver lines. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail, round kawaii face with simple dot eyes. Full body, centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A cute baby penguin standing, shivering from cold: arms hugging itself, worried wobbly mouth, small blue knit beanie, a few tiny shiver lines. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail, round kawaii face with simple dot eyes. Full body, centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXCB5J16Z7B9778QGV515_3fdc529c-83d3-4f34-8636-54a38819c124_e9bcacb1-a651-4197-beab-aa248cdc0e14.webp"
   },
   "penguin_happy": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/220e77b7276e43ab973949d399cd2228.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      843,
+      1121
+    ],
     "compression_suggestion": "original",
+    "description": "The same cute baby penguin, now warm and happy: big open smile, rosy cheeks, one flipper waving, small blue knit beanie. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail, round kawaii face with simple dot eyes. Full body, centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "The same cute baby penguin, now warm and happy: big open smile, rosy cheeks, one flipper waving, small blue knit beanie. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail, round kawaii face with simple dot eyes. Full body, centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXE4WTP4A4GBDK2Y56RM6_d6fc1e24-e38b-4add-9306-05f134c58f6a_6be6ad2d-0a1d-4d50-a104-5cc9666a13b9.webp"
   },
   "fish_sleepy": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/201b67ee3acb480ca1d3016c5ac01284.webp",
-    "type": "image",
-    "prompt": null,
-    "description": null,
-    "subtype": null,
-    "aspect_ratio": null,
+    "animation": null,
+    "aspect_ratio": [
+      1074,
+      759
+    ],
     "compression_suggestion": "original",
+    "description": "A cute round orange goldfish fast asleep, eyes closed, tiny sleepy smile, a small bubble near its mouth. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail. Only the fish, no bowl, no circle, no checkerboard. Side view, centered, transparent background.",
     "duration_secs": null,
     "loop": null,
     "opus_url": null,
-    "animation": null
+    "prompt": "A cute round orange goldfish fast asleep, eyes closed, tiny sleepy smile, a small bubble near its mouth. Flat cartoon sticker style exactly like the references: thick dark plum outline, flat bright colors, minimal simple shading, no texture, no painterly detail. Only the fish, no bowl, no circle, no checkerboard. Side view, centered, transparent background.",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M8CGXGTE8V6E1F420EJZ7MH5_16a75df1-156d-47e9-a320-e4fb8979b8e1_628481cc-2fbb-46a1-9cd0-ea6b01b3e469.webp"
   },
   "snow_rub": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/fcaa9a7828b047aaba0b2a188668d94d.mp3",

@@ -1,4 +1,4 @@
-/* Compact, backwards-compatible save layer: progress, permanent funny-reaction stickers and player accessibility preferences. No date-based rewards or leaderboard activity. */
+/* Compact, backwards-compatible save layer: progress, permanent funny-reaction stickers and player accessibility preferences. Today's picture is an album count, never a streak; no leaderboard activity. */
 import { normalizePrefs, extendProgressArray } from './rules.js';
 
 export const LEVEL_COUNT = 66;
@@ -10,6 +10,10 @@ export const S = {
   gags: new Array(LEVEL_COUNT).fill(0),
   prefs: normalizePrefs(null, creatorDefaults),
   snowWorldSeen: false,
+  dailyDay: '',   // the local day whose picture was last collected
+  dailyN: 0,      // pictures of the day collected so far (an album count, never a streak)
+  goldDay: '',    // golden pictures already paid today, as 'YYYY-MM-DD:n,n,...' (one hint per golden level per day)
+  ftue: false,    // the first-time spotlight tour is finished or skipped
 };
 export const HINT_MAX = 9;
 let loaded = false, dirty = false, reading = false, saving = false, flushTimer = 0, readTimer = 0;
@@ -30,6 +34,11 @@ function merge(st) {
   for (let i = 0; i < LEVEL_COUNT; i++) S.gags[i] |= oldGags[i];
   S.prefs = normalizePrefs(st.prefs, S.prefs);
   if (typeof st.snowWorldSeen === 'boolean') S.snowWorldSeen = S.snowWorldSeen || st.snowWorldSeen;
+  if (typeof st.dailyDay === 'string' && st.dailyDay > S.dailyDay) S.dailyDay = st.dailyDay.slice(0, 10);
+  if (Number.isFinite(st.dailyN)) S.dailyN = Math.max(S.dailyN, Math.floor(st.dailyN));
+  if (typeof st.goldDay === 'string' && st.goldDay.length < 400 && st.goldDay.slice(0, 10) >= S.goldDay.slice(0, 10)) S.goldDay = st.goldDay;
+  // a player who already got past level 1 before the tour existed never sees it
+  S.ftue = S.ftue || st.ftue === true || S.reached > 1;
 }
 
 async function readOnce() {
@@ -65,6 +74,10 @@ export async function flush() {
     gags: S.gags.slice(),
     prefs: { ...S.prefs },
     snowWorldSeen: S.snowWorldSeen,
+    dailyDay: S.dailyDay,
+    dailyN: S.dailyN,
+    goldDay: S.goldDay,
+    ftue: S.ftue,
   };
   let ok = false;
   try { const response = await window.lib.saveUserGameState(snapshot); ok = !failed(response); }

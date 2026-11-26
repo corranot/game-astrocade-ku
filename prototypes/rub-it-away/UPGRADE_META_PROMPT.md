@@ -53,3 +53,11 @@ Spesifikasi ini tidak menganggap pengujian dengan anak/pengasuh atau validasi pr
 Pertahankan thumbnail dan seluruh 60 level/10 dunia awal tanpa perubahan. Tambahkan Snow World sebagai dunia ke-11 dengan level 61–66, enam adegan salju dan tepat satu target jelas serta dua decoy lucu per level. Tambahkan nama/prompt/win dan teks share yang terlokalisasi ke delapan bahasa; map menampilkan badge NEW sampai level Snow pertama dibuka. Migrasikan save dengan aman: jangan rename/reset field lama, perluas array level lama dengan nol untuk enam level baru, dan tambahkan `snowWorldSeen: false`.
 
 Untuk penutup setiap dunia, pertahankan tombol Next dan tambahkan Share opsional satu ketukan. Kirim gambar kanvas 720×1080 berisi adegan bahagia, nama dunia, dan tiga bintang memakai `lib.share`. Snow VFX/audio hanya memakai aset bundel: serpihan salju, puff saat rub, glow/sparkle, napas dingin, rub salju lembut dan lonceng. Gerakan dekoratif mengikuti pengaturan reduced motion; rub/bell mengikuti toggle efek suara. Hindari fetch layanan pihak ketiga.
+### Addendum: pembaruan sesi panjang dan Snow World rapi
+- Map: tile level kembali 200 px di semua dunia; 11 tab dunia di satu grid 4-4-3 dengan ukuran tab dan ukuran label yang sama; badge NEW di tepi atas tab, tidak menutupi teks.
+- Share di akhir dunia mengirim judul dan teks saja (tanpa gambar), sehingga kartu share memakai sampul game.
+- Kartu hasil: tombol NEXT menampilkan gambar adegan berikutnya; poster dunia 6 bingkai terisi satu per level; akhir dunia mendapat pita WORLD COMPLETE, kembang api dan 1 hint bonus.
+- Variasi tanpa mengubah gosok satu jari: alat gosok berganti per dunia (penghapus, spons, sikat, pengikis es); sekitar 1 dari 8 level menjadi gambar emas (+1 hint, bergeser tiap hari); PERFECT! untuk penyelesaian tanpa salah gosok dan tanpa hint; kotak hadiah kejutan setelah setiap 10 level dalam satu sesi.
+- Gambar hari ini: satu level per hari dari menu, +1 hint, dengan intipan gambar besok. Tidak ada streak; melewatkan hari tidak menghilangkan apa pun.
+- Tutorial level 1: layar meredup kecuali awan yang harus digosok, lalu tombol NEXT; maju hanya lewat aksi nyata, bisa dilewati, tersimpan. Garis panduan titik-titik dari jari ke target saat hint.
+- Snow World digambar ulang dengan gaya stiker datar bergaris tebal seperti dunia lain; boneka salju yang sudah dibantu tersenyum lebar.

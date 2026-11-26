@@ -5,7 +5,7 @@ const CONFETTI = ['#e8743b', '#ebb439', '#2dbe45', '#3d8fd2', '#9951d6'];
 const MAX = 420;
 
 export class Fx {
-  constructor(reducedMotion = false) { this.reducedMotion = reducedMotion; this.crumbs = []; this.conf = []; this.puffs = []; this.sparks = []; this.shots = []; this.burstN = 0; }
+  constructor(reducedMotion = false) { this.reducedMotion = reducedMotion; this.crumbs = []; this.conf = []; this.puffs = []; this.sparks = []; this.shots = []; this.rings = []; this.burstN = 0; }
 
   // crumbs fly off in the rub direction (dx, dy = unit vector of the finger move); without a direction they burst upward as before
   crumb(x, y, col, dx = 0, dy = 0, sp = 0) {
@@ -43,6 +43,12 @@ export class Fx {
     this.burstN++;
   }
 
+  // RING: a shockwave that grows from the solved target and fades over 0.55 s (white core ring, gold outer ring)
+  ring(x, y, r = 240, col = '#ffffff') {
+    if (this.reducedMotion) return;
+    this.rings.push({ x, y, r, life: 1, col });
+  }
+
   // RAIN: confetti pieces that drift down from above the card (gentle fall, sideways sway), used by the level 60 finale
   rain(x0, x1, y, n) {
     if (this.reducedMotion) return;
@@ -52,6 +58,8 @@ export class Fx {
   update(dt) {
     for (const p of this.shots) { p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.8; p.life -= dt * p.dec; }
     this.shots = this.shots.filter((p) => p.life > 0);
+    for (const p of this.rings) p.life -= dt / 0.55;
+    this.rings = this.rings.filter((p) => p.life > 0);
     for (const p of this.crumbs) { p.vy += 500 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 1.5; }
     for (const p of this.conf) { p.vy += (p.soft ? 40 : 1500) * dt; if (p.soft) p.x += Math.sin(p.rot * 2) * 30 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; }
     for (const p of this.puffs) { p.r += p.v * dt; p.life -= dt * 1.6; }
@@ -71,6 +79,7 @@ export class Fx {
 
   drawHigh(g) {
     if (this.reducedMotion) return;
+    for (const p of this.rings) { const u = 1 - p.life, e = 1 - (1 - u) * (1 - u); g.globalAlpha = p.life * 0.85; g.lineWidth = 6 + 18 * p.life; g.strokeStyle = p.col; g.beginPath(); g.arc(p.x, p.y, 30 + p.r * e, 0, 7); g.stroke(); }
     for (const p of this.shots) { g.globalAlpha = Math.max(0, Math.min(1, p.life * 1.6)); g.fillStyle = p.col; g.beginPath(); g.arc(p.x, p.y, p.r * (0.35 + 0.65 * p.life), 0, 7); g.fill(); g.globalAlpha *= 0.4; g.beginPath(); g.arc(p.x - p.vx * 0.04, p.y - p.vy * 0.04, p.r * 0.55 * p.life, 0, 7); g.fill(); }
     for (const p of this.sparks) { g.globalAlpha = Math.max(0, p.life); g.fillStyle = '#ebb439'; g.beginPath(); g.arc(p.x, p.y, 6 * p.life + 2, 0, 7); g.fill(); }
     g.globalAlpha = 1;

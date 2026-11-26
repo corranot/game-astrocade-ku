@@ -6,9 +6,13 @@ A child-friendly, one-touch visual puzzle: look at the scene, find the thing spo
 - Portrait canvas: 720×1280; touch-first drag/rub controls, with oversized buttons.
 - Permanent level map, collected funny decoy reactions, free hints, saved progress, and a non-timed hint for completing each world.
 - Snow World unlocks at level 61. A small NEW badge stays on its map island until the first Snow World level is started.
-- Every sixth-level world finale includes an optional one-tap Share button. It sends a 720×1080 picture of the happy scene, world name, and three stars through Astrocade's built-in `lib.share` feature; Next remains visible.
+- Every world ends with a payoff: a WORLD COMPLETE ribbon, fireworks, a full world poster and a bonus hint. The finale card has an optional one-tap Share button (`lib.share` with a title and text; the share card shows the game's own cover). Next remains visible.
+- The result card shows the next scene's picture on NEXT and a six-frame world poster that fills one frame per level.
+- Variety without changing the one-finger rub: the rub tool changes with the world (eraser, sponge with bubbles, scrub brush, ice scraper); about one level in eight is a golden picture that shimmers and pays a bonus hint (which levels shifts each day); a clean solve shows PERFECT!; a surprise gift box appears after every 10th level solved in one sitting.
+- Today's picture: one level a day, the same for everyone, playable from the menu for a bonus hint, with a peek at tomorrow's picture. Missing a day costs nothing.
+- First-time tour on level 1: the screen dims around the cloud to rub, then around NEXT; it advances only on the real action, can be skipped, and never repeats. A dotted guide line runs from the finger to the target when a hint is shown.
 - Snow World uses falling snow, reduced-motion-aware snow puffs, warm reveal glows, subtle frosty breath, a soft snow-rub loop, and a happy bell. Existing music/settings and all prior world effects remain in place.
-- No date-based streaks, limited-time rewards, surprise reward timers, competitive leaderboard, or automatic result-card advance.
+- No streaks, nothing that is lost by missing a day, no timers, no competitive leaderboard, and no automatic result-card advance. Wrong rubs never cost stars.
 - Settings are reachable from the menu, map, and active game: music, sound effects, haptics, and reduced decorative motion. Settings persist in player save data.
 - Eight languages, including Arabic and Urdu right-to-left layout.
 
@@ -23,7 +27,7 @@ A child-friendly, one-touch visual puzzle: look at the scene, find the thing spo
 - `modules/boot.js` – Play lifecycle, input, navigation, save hooks, and clean mode/reload teardown.
 - `modules/editor.js` – static creator editor with select/drag/resize/reset.
 - `modules/levels.js` – authored scene, target, decoy and reaction data for levels 1–66.
-- `modules/rules.js` – pure rules: bounded editor overrides, safe save-array migration, star award, preference normalization, and level-data validation.
+- `modules/rules.js` – pure rules: bounded editor overrides, safe save-array migration, star award, preference normalization, level-data validation, today's picture, golden pictures, the gift cadence and their tuning (`TUNE`).
 - `modules/level.js`, `thing.js`, `fx.js` – rub logic, rendering, object behavior, feedback and optional reduced motion.
 - `modules/ui.js` – menu, map, settings, HUD, share card, result and completion screens.
 - `modules/audio.js` – optional Web Audio effects/music, including Snow World audio.

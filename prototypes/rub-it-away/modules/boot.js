@@ -1,12 +1,14 @@
-/* Play-mode runtime: a portrait 720×1280 one-touch puzzle with explicit result-card pacing, optional settings, permanent progress and no date-based rewards or leaderboard pressure. */
+/* Play-mode runtime: a portrait 720×1280 one-touch puzzle with explicit result-card pacing, optional settings, permanent progress, today's picture, golden pictures and session gifts (nothing is ever lost, no streaks, no leaderboard pressure). */
 import { W, H, COL, INK } from './util.js';
 import { LEVEL_ASSETS } from './levels.js';
 import { loadMany } from './assets.js';
 import { Level } from './level.js';
 import * as UI from './ui.js';
+import { isRtl as isRtlNow } from './strings.js';
 import * as AU from './audio.js';
 import { S, LEVEL_COUNT, HINT_MAX, totalStars, startRead, commit } from './save.js';
 import { startEditor } from './editor.js';
+import { TUNE, dayKey, nextDayKey, dailyLevel, giftDue, goldenLevel } from './rules.js';
 
 export function start(mode = 'play') {
   if (typeof window.__RUB_CLEANUP === 'function') { try { window.__RUB_CLEANUP(); } catch (e) { /* stale run cleanup is best-effort */ } }
@@ -26,7 +28,15 @@ export function start(mode = 'play') {
   const show = (name) => { scr = name; fade = 0.24; shownAt = performance.now(); };
   const firstBelow = () => { const i = S.stars.findIndex((v) => v < 3); return i < 0 ? 0 : i + 1; };
   const playN = () => (S.reached > LEVEL_COUNT ? firstBelow() || 1 : Math.min(S.reached, LEVEL_COUNT));
-  const info = () => ({ reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen });
+  let solvedHere = 0;   // levels solved in this session: drives the surprise gift
+  // today's picture, worked out once per day (info() runs every frame); dayKey only changes at midnight, checked once a second
+  let dayC = null, dayAt = -1;
+  const daily = () => {
+    const now = Math.floor(performance.now() / 1000);
+    if (!dayC || now !== dayAt) { dayAt = now; const key = dayKey(); if (!dayC || dayC.key !== key) dayC = { key, n: dailyLevel(key, LEVEL_COUNT), tomorrowN: dailyLevel(nextDayKey(key), LEVEL_COUNT) }; }
+    return { key: dayC.key, n: dayC.n, tomorrowN: dayC.tomorrowN, done: S.dailyDay === dayC.key, count: S.dailyN };
+  };
+  const info = () => ({ reached: S.reached, stars: S.stars, total: totalStars(), hints: S.hints, returning: S.reached > 1, playN: playN(), below: S.stars.filter((v) => v < 3).length, gags: S.gags, prefs: S.prefs, snowWorldSeen: S.snowWorldSeen, daily: daily(), ftue: S.ftue, pullAfter: TUNE.pullAfter });
 
   function applyPrefs() {
     AU.configureAudio(S.prefs);
@@ -39,13 +49,15 @@ export function start(mode = 'play') {
     }
   }
 
-  async function openLevel(n) {
+  async function openLevel(n, mode = '') {
     AU.sfx('whoosh');
     if (busy) return;
     busy = true;
     if (!ready.has(n)) { show('loading'); pct = 0; await loadMany(LEVEL_ASSETS[n - 1], (p) => { pct = p; }); if (!active) return; ready.add(n); }
     if (!active) return;
     lv = new Level(n, onSolve, onGag, window.gameConfig, S.prefs);
+    lv.daily = mode === 'daily'; lv.ftue = n === 1 && !S.ftue && !lv.daily && S.stars[0] === 0;   // once level 1 is solved the tour never returns, however the card was left
+    lv.golden = !lv.daily && goldenLevel(n, dayKey());
     if (n >= 61 && !S.snowWorldSeen) { S.snowWorldSeen = true; commit(); }
     if (S.reached > 1) lv.touched = true;
     busy = false; show('play');
@@ -57,6 +69,21 @@ export function start(mode = 'play') {
   }
 
   function onSolve(n, stars) {
+    solvedHere++;
+    if (lv && giftDue(solvedHere)) lv.gift = { open: false, t: 0, n: TUNE.giftHints };
+    if (lv && lv.golden) {
+      // a golden picture pays one hint, once per level per day (replaying it is still golden, but free)
+      const key = dayKey(), got = S.goldDay.slice(0, 10) === key ? S.goldDay.slice(11).split(',').filter(Boolean) : [];
+      lv.goldPaid = !got.includes(String(n));
+      if (lv.goldPaid) { got.push(String(n)); S.goldDay = key + ':' + got.join(','); S.hints = Math.min(HINT_MAX, S.hints + 1); }
+    }
+    if (lv && lv.daily) {
+      // today's picture adds to the album count and a hint; it never changes campaign progress or stars
+      const key = dayKey();
+      lv.dailyGot = S.dailyDay !== key;
+      if (lv.dailyGot) { S.dailyDay = key; S.dailyN++; S.hints = Math.min(HINT_MAX, S.hints + TUNE.dailyHints); }
+      commit(); return;
+    }
     const worldStart = Math.floor((n - 1) / 6) * 6;
     const worldWasDone = S.stars.slice(worldStart, worldStart + 6).every((v) => v > 0);
     const first = S.stars[n - 1] === 0;
@@ -76,7 +103,17 @@ export function start(mode = 'play') {
     toggle: (key) => { if (Object.prototype.hasOwnProperty.call(S.prefs, key)) { S.prefs[key] = !S.prefs[key]; applyPrefs(); commit(); } },
     back: () => { if (!busy) show(scr === 'settings' ? settingsFrom : 'menu'); },
     level: (n) => openLevel(n),
-    next: () => { if (lv && lv.n >= LEVEL_COUNT) show('end'); else if (lv) openLevel(lv.n + 1); },
+    next: () => {
+      if (lv && lv.ftue) { S.ftue = true; commit(); }
+      if (lv && lv.daily) openLevel(playN()); else if (lv && lv.n >= LEVEL_COUNT) show('end'); else if (lv) openLevel(lv.n + 1);
+    },
+    daily: () => { if (busy) return; const d = daily(); if (!d.done) openLevel(d.n, 'daily'); },
+    gift: () => {
+      if (!lv || !lv.gift || lv.gift.open) return;
+      lv.gift.open = true; lv.gift.t = lv.s; S.hints = Math.min(HINT_MAX, S.hints + lv.gift.n); commit();
+      lv.fx.confetti(isRtlNow() ? 110 : 610, 760, 50); lv.fx.spark(isRtlNow() ? 110 : 610, 780, 14); AU.sfx('arp'); AU.sfx('star', 1.2);
+    },
+    skipFtue: () => { S.ftue = true; if (lv) lv.ftue = false; commit(); },
     replay: () => { if (lv) openLevel(lv.n); },
     share: () => {
       if (!lv || !lv.worldEnd) return;
@@ -109,7 +146,7 @@ export function start(mode = 'play') {
   let prev = performance.now();
   function frame(now) {
     if (!active) return;
-    const dt = Math.min(0.11, (now - prev) / 1000);
+    const dt = Math.max(0, Math.min(0.11, (now - prev) / 1000));   // a first frame stamped before prev must not run time backwards
     prev = now; time += dt;
     UI.hits.length = 0;
     const uiTime = S.prefs.reduceMotion ? (scr === 'menu' ? 3.5 : 0) : time;
@@ -121,7 +158,9 @@ export function start(mode = 'play') {
     else if (scr === 'end') UI.drawEnd(g, uiTime, dt, info(), go);
     else if (scr === 'play' && lv) {
       lv.update(dt); lv.draw(g);
-      UI.drawHud(g, lv, uiTime, info(), go); UI.drawResult(g, lv, uiTime, go, info());
+      const inf = info();
+      UI.drawHud(g, lv, uiTime, inf, go); UI.drawResult(g, lv, uiTime, go, inf);
+      if (lv.ftue && !S.ftue) UI.drawFtue(g, lv, uiTime, go);
     }
     if (fade > 0) { fade -= dt; g.globalAlpha = Math.max(0, fade / 0.24); g.fillStyle = INK; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
     raf = requestAnimationFrame(frame);
@@ -136,7 +175,7 @@ export function start(mode = 'play') {
 
   if (window.__RUB_DEV) {
     window.__rub = () => ({ scr, n: lv ? lv.n : 0, fixed: lv ? lv.fixed : false, result: lv ? lv.resultReady() : false, errors: lv ? lv.errors : 0, stars: lv ? lv.stars : 0, progress: lv ? lv.progress() : 0, reached: S.reached, prefs: { ...S.prefs } });
-    window.__rubS = S; window.__rubGo = (n) => { S.reached = Math.max(S.reached, n); openLevel(n); };
+    window.__rubS = S; window.__rubGo = (n, mode) => { if (mode !== 'daily') S.reached = Math.max(S.reached, n); openLevel(n, mode); }; window.__rubGoFn = go;
   }
 
   startRead().then(() => { if (active) applyPrefs(); });
@@ -144,6 +183,10 @@ export function start(mode = 'play') {
   return loadMany(LEVEL_ASSETS[0], (p) => { pct = p; }).then(() => {
     if (!active) return;
     ready.add(1); show('menu');
-    (async () => { for (let n = 2; n <= LEVEL_COUNT && active; n++) { await loadMany(LEVEL_ASSETS[n - 1]); if (active) ready.add(n); } })();
+    // the level PLAY opens and today's picture (and tomorrow's teaser) load first, then the rest in order
+    (async () => {
+      const d = daily(), first = [playN(), d.n, d.tomorrowN].filter((n) => n > 1), order = [...new Set([...first, ...Array.from({ length: LEVEL_COUNT - 1 }, (_, i) => i + 2)])];
+      for (const n of order) { if (!active) return; if (ready.has(n)) continue; await loadMany(LEVEL_ASSETS[n - 1]); if (active) ready.add(n); }
+    })();
   });
 }

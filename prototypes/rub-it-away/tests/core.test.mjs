@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { LEVELS } from '../modules/levels.js';
-import { effectiveLevelDefinition, extendProgressArray, normalizePrefs, starsForSolvedLevel, validateLevels } from '../modules/rules.js';
+import { effectiveLevelDefinition, extendProgressArray, normalizePrefs, starsForSolvedLevel, validateLevels, dailyLevel, dayKey, nextDayKey, giftDue, goldenLevel, TUNE } from '../modules/rules.js';
 import { LEVEL_ASSETS } from '../modules/levels.js';
 import { readFileSync } from 'node:fs';
 import { TABLES, setLang, t } from '../modules/strings.js';
@@ -30,16 +30,30 @@ assert.deepEqual(normalizePrefs({ music: false, effects: true }, { haptics: fals
 });
 const textMetrics = { font: '', direction: 'ltr', measureText(text) { const size = Number((this.font.match(/(\\d+)px/) || [0, 28])[1]); return { width: Array.from(text).length * size * 0.55 }; } };
 for (const [language, table] of Object.entries(TABLES)) {
-  const snowTab = fitLines(textMetrics, table.world_snow, 38, 114, true);
-  assert.equal(snowTab.lines.length, 2, `${language} Snow World map label should wrap into two lines`);
-  assert.ok(snowTab.size >= 25, `${language} Snow World map label should stay large and readable`);
-  for (const key of ['settings', 'music', 'effects', 'haptics', 'reduce_motion', 'on', 'off', 'back', 'move', 'resize', 'reset', 'world_snow', 'new_badge', 'share', 'world_share']) {
+  const snowTab = fitLines(textMetrics, table.world_snow, 34, 140, true);
+  assert.ok(snowTab.lines.length <= 2 && snowTab.size >= 20, `${language} Snow World map label should fit the shared tab at a readable size`);
+  for (const key of ['settings', 'music', 'effects', 'haptics', 'reduce_motion', 'on', 'off', 'back', 'move', 'resize', 'reset', 'world_snow', 'new_badge', 'share', 'world_share',
+    'daily_short', 'daily_got', 'daily_tomorrow', 'tomorrow', 'gift', 'gift_got', 'world_done', 'skip', 'golden', 'perfect']) {
     assert.ok(typeof table[key] === 'string' && table[key].length > 0, `${language} should translate ${key}`);
   }
   for (const level of LEVELS) {
     assert.ok(table[level.prompt] && table[level.win], `${language} should translate level ${level.n} prompt and win text`);
   }
 }
+// today's picture: a stable level per local day, never the same two days running, every level reached within a cycle
+const seen = new Set(); let key = '2026-11-26', prev = 0;
+for (let i = 0; i < LEVELS.length; i++) { const n = dailyLevel(key, LEVELS.length); assert.ok(n >= 1 && n <= LEVELS.length); assert.notEqual(n, prev, 'daily level must change day to day'); seen.add(n); prev = n; key = nextDayKey(key); }
+assert.equal(seen.size, LEVELS.length, 'daily picture cycles through every level');
+assert.equal(dailyLevel('2026-11-26', 66), dailyLevel('2026-11-26', 66), 'daily level is deterministic');
+assert.equal(nextDayKey('2026-12-31'), '2027-01-01');
+assert.match(dayKey(new Date(2026, 10, 26, 23, 59)), /^2026-11-26$/);
+// surprise gift every TUNE.giftEvery levels solved in one session, never at 0
+assert.equal(giftDue(0), false); assert.equal(giftDue(TUNE.giftEvery), true); assert.equal(giftDue(TUNE.giftEvery + 1), false);
+// golden pictures: one in TUNE.goldenEvery, evenly spaced, never levels 1-2 or a world's last level, a different set tomorrow
+const gold = (k) => LEVELS.map((l) => l.n).filter((n) => goldenLevel(n, k));
+assert.ok(gold('2026-11-26').every((n) => n >= 3 && n % 6 !== 0));
+assert.ok(gold('2026-11-26').length >= 5 && gold('2026-11-26').length <= 9, 'about one level in eight is golden');
+assert.notDeepEqual(gold('2026-11-26'), gold('2026-11-27'), 'golden levels shift each day');
 setLang('id'); assert.equal(t('settings'), 'PENGATURAN');
 setLang('ar'); assert.ok(t('settings').length > 0);
 console.log('Core rules, all 66 levels/assets, save migration defaults, and eight-language labels passed.');

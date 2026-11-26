@@ -606,7 +606,7 @@ export const LEVELS = [
   {
     n: 62, bg: 'bg_snow_village', prompt: 'p62', win: 'w62', weather: { kind: 'snow', x: 360, y: 520, w: 620, h: 820 }, warmReveal: true,
     things: [
-      ACTOR('penguin_shivering', 'penguin_happy', 360, 1060, 230, { ar: 0.82, mood: 'sad', breath: true, afterW: 230 }),
+      ACTOR('penguin_shivering', 'penguin_happy', 360, 1060, 230, { ar: 0.58, mood: 'sad', breath: true, afterW: 230 }),
       T('cloud_cold', 'cloud_rain', 360, 530, 300, 'target', { ar: 0.94, clue: 'heart', idle: BOB(6, 1.4), crumb: '#9bb5c8' }),
       T('snowball', 'snow_pile', 148, 1050, 170, 'decoy', { ar: 1.13, ay: 1, crumb: '#e5f6ff', react: { say: 'r_oops', sfx: 'boing', kick: { on: 'self', type: 'shake' } } }),
       T('seal', 'seal', 574, 1060, 160, 'decoy', { ar: 0.88, ay: 1, crumb: '#8bb8e8', react: { say: 'r_splash', sfx: 'pop', kick: { on: 'self', type: 'hop' } } }),
@@ -615,8 +615,8 @@ export const LEVELS = [
   {
     n: 63, bg: 'bg_snow_pond', prompt: 'p63', win: 'w63', weather: { kind: 'snow', x: 360, y: 500, w: 620, h: 850 }, warmReveal: true,
     things: [
-      T('fish', 'fish_sleepy', 360, 850, 200, 'actor', { after: 'fish_jump', main: true, ay: 0.5, ar: 1.2, idle: { breathe: [0.02, 1.8] }, fixMove: { dy: -35 } }),
-      T('frost', 'frost_scribbles', 360, 810, 410, 'target', { ar: 1.08, clue: 'zzz', idle: BOB(3, 1.2), crumb: '#dff5ff' }),
+      T('fish', 'fish_sleepy', 360, 850, 200, 'actor', { after: 'fish_jump', main: true, ay: 0.5, ar: 1.41, idle: { breathe: [0.02, 1.8] }, fixMove: { dy: -35 } }),
+      T('frost', 'frost_scribbles', 360, 810, 410, 'target', { ar: 1.6, clue: 'zzz', idle: BOB(3, 1.2), crumb: '#dff5ff' }),
       T('snowcloud', 'snowcloud', 155, 450, 190, 'decoy', { ar: 1.3, crumb: '#8bb8e8', react: { say: 'r_brr', sfx: 'boing', kick: { on: 'self', type: 'shiver' } } }),
       T('seal', 'seal', 565, 1045, 155, 'decoy', { ar: 0.88, ay: 1, crumb: '#8bb8e8', react: { say: 'r_splash', sfx: 'pop', kick: { on: 'self', type: 'hop' } } }),
     ],
@@ -624,7 +624,7 @@ export const LEVELS = [
   {
     n: 64, bg: 'bg_snow_cabin', prompt: 'p64', win: 'w64', weather: { kind: 'snow', x: 360, y: 400, w: 620, h: 760 }, warmReveal: true,
     things: [
-      ACTOR('cocoa_worried', 'cocoa_happy', 360, 1040, 300, { ar: 1.05, mood: 'sad', afterW: 300 }),
+      ACTOR('cocoa_worried', 'cocoa_happy', 360, 1040, 300, { ar: 0.88, mood: 'sad', afterW: 300 }),
       T('fly', 'fly', 360, 835, 86, 'target', { ar: 1, idle: { orbit: [24, 2.1, 12], jitter: 1.5 }, crumb: '#6c3c22' }),
       T('spoon', 'spoon', 165, 1025, 118, 'decoy', { ar: 0.55, ay: 1, crumb: '#c99a2e', react: { say: 'r_ding', sfx: 'boing', kick: { on: 'self', type: 'spin' } } }),
       T('cat', 'cat_annoyed', 570, 1040, 170, 'decoy', { ar: 1.2, ay: 1, crumb: '#c96d2a', react: { say: 'r_bow', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
@@ -633,7 +633,7 @@ export const LEVELS = [
   {
     n: 65, bg: 'bg_snow_village', prompt: 'p65', win: 'w65', weather: { kind: 'snow', x: 360, y: 500, w: 620, h: 850 }, warmReveal: true,
     things: [
-      ACTOR('sled_stuck', 'sled_happy', 360, 1060, 350, { ar: 1.15, mood: 'sad', afterW: 350 }),
+      ACTOR('sled_stuck', 'sled_happy', 360, 1060, 350, { ar: 1.8, mood: 'sad', afterW: 350 }),
       T('drift', 'snow_pile', 360, 1000, 320, 'target', { ar: 1.13, clue: 'heart', idle: BOB(3, 1.1), crumb: '#e5f6ff' }),
       T('penguin', 'penguin_baby', 150, 1040, 142, 'decoy', { ar: 0.8, ay: 1, crumb: '#4b5c6e', react: { say: 'r_whee', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
       T('snowcloud', 'snowcloud', 570, 490, 200, 'decoy', { ar: 1.3, crumb: '#8bb8e8', react: { say: 'r_brr', sfx: 'boing', kick: { on: 'actor', type: 'shiver' } } }),
@@ -642,8 +642,8 @@ export const LEVELS = [
   {
     n: 66, bg: 'bg_snow_village', prompt: 'p66', win: 'w66', weather: { kind: 'snow', x: 360, y: 500, w: 620, h: 850 }, warmReveal: true,
     things: [
-      ACTOR('reindeer_bare', 'reindeer_happy', 360, 1080, 360, { ar: 0.59, mood: 'sad', breath: true, afterW: 360 }),
-      T('tangled_scarf', 'tangled_scarf', 360, 730, 240, 'target', { ar: 1.2, clue: 'heart', idle: BOB(3, 1.3), crumb: '#e8743b' }),
+      ACTOR('reindeer_bare', 'reindeer_happy', 360, 1080, 330, { ar: 0.85, mood: 'sad', breath: true, afterW: 290 }),
+      T('tangled_scarf', 'tangled_scarf', 360, 950, 180, 'target', { ar: 1.12, clue: 'heart', idle: BOB(3, 1.3), crumb: '#e8743b' }),
       T('snowcloud', 'snowcloud', 150, 455, 205, 'decoy', { ar: 1.3, crumb: '#8bb8e8', react: { say: 'r_brr', sfx: 'boing', kick: { on: 'actor', type: 'shiver' } } }),
       T('seal', 'seal', 570, 1050, 150, 'decoy', { ar: 0.88, ay: 1, crumb: '#8bb8e8', react: { say: 'r_honk', sfx: 'boing', kick: { on: 'self', type: 'hop' } } }),
     ],
