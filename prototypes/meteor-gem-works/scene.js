@@ -938,8 +938,8 @@ export function createScene(canvas, cfg, random) {
     'uniform sampler2D t; uniform vec2 px; uniform float thr; uniform float knee; uniform float lim; varying vec2 vUv; void main(){ vec3 c = (texture2D(t, vUv - px).rgb + texture2D(t, vUv + vec2(px.x, -px.y)).rgb + texture2D(t, vUv + vec2(-px.x, px.y)).rgb + texture2D(t, vUv + px).rgb) * 0.25; float b = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(min(c * smoothstep(thr, thr + knee, b), vec3(lim)), 1.0); }');
   const blurMat = fsMat({ t: { value: null }, d: { value: new THREE.Vector2() } },
     'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227027; c += (texture2D(t, vUv + d * 1.384615).rgb + texture2D(t, vUv - d * 1.384615).rgb) * 0.316216; c += (texture2D(t, vUv + d * 3.230769).rgb + texture2D(t, vUv - d * 3.230769).rgb) * 0.070270; gl_FragColor = vec4(c, 1.0); }');
-  const finalMat = fsMat({ t: { value: null }, b1: { value: null }, b2: { value: null }, strength: { value: 0 }, vig: { value: 0 }, con: { value: 1 }, sat: { value: 1 }, warm: { value: 0 } },
-    'uniform sampler2D t; uniform sampler2D b1; uniform sampler2D b2; uniform float strength; uniform float vig; uniform float con; uniform float sat; uniform float warm; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb + (texture2D(b1, vUv).rgb + texture2D(b2, vUv).rgb) * strength, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\nvec3 g = gl_FragColor.rgb; g += vec3(warm, warm * 0.35, -warm) * (1.0 - g); g = mix(vec3(dot(g, vec3(0.2126, 0.7152, 0.0722))), g, sat); g = (g - 0.5) * con + 0.5; g *= 1.0 - vig * smoothstep(0.4, 1.0, length((vUv - 0.5) * vec2(1.0, 1.25)) * 1.4142); gl_FragColor.rgb = clamp(g, 0.0, 1.0); }');
+  const finalMat = fsMat({ t: { value: null }, b1: { value: null }, b2: { value: null }, tb: { value: null }, tf: { value: 0.6 }, ta: { value: 0 }, tw: { value: 0.1 }, ts: { value: 0.3 }, strength: { value: 0 }, vig: { value: 0 }, con: { value: 1 }, sat: { value: 1 }, warm: { value: 0 } },
+    'uniform sampler2D t; uniform sampler2D b1; uniform sampler2D b2; uniform sampler2D tb; uniform float tf; uniform float ta; uniform float tw; uniform float ts; uniform float strength; uniform float vig; uniform float con; uniform float sat; uniform float warm; varying vec2 vUv; void main(){ gl_FragColor = vec4(mix(texture2D(t, vUv).rgb, texture2D(tb, vUv).rgb, ta * smoothstep(tw, tw + ts, abs(vUv.y - tf))) + (texture2D(b1, vUv).rgb + texture2D(b2, vUv).rgb) * strength, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\nvec3 g = gl_FragColor.rgb; g += vec3(warm, warm * 0.35, -warm) * (1.0 - g); g = mix(vec3(dot(g, vec3(0.2126, 0.7152, 0.0722))), g, sat); g = (g - 0.5) * con + 0.5; g *= 1.0 - vig * smoothstep(0.4, 1.0, length((vUv - 0.5) * vec2(1.0, 1.25)) * 1.4142); gl_FragColor.rgb = clamp(g, 0.0, 1.0); }');
   let post = null;
   const postSize = new THREE.Vector2();
   function hdrOk() { try { const gl = renderer.getContext(); return typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext && !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float')); } catch (e) { return false; } }
@@ -949,10 +949,10 @@ export function createScene(canvas, cfg, random) {
     renderer.getDrawingBufferSize(postSize); const w = Math.max(1, postSize.x), h = Math.max(1, postSize.y), q = (d) => [Math.max(1, Math.round(w / d)), Math.max(1, Math.round(h / d))];
     if (!post) {
       const small = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
-      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small() };
-      post.rt = [post.scene, post.q1, post.q2, post.e1, post.e2];
+      post = { scene: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: BL.samples }), q1: small(), q2: small(), e1: small(), e2: small(), d1: small(), d2: small() };
+      post.rt = [post.scene, post.q1, post.q2, post.e1, post.e2, post.d1, post.d2];
     }
-    post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8));
+    post.scene.setSize(w, h); post.q1.setSize(...q(4)); post.q2.setSize(...q(4)); post.e1.setSize(...q(8)); post.e2.setSize(...q(8)); post.d1.setSize(...q(4)); post.d2.setSize(...q(4));
   }
   const fsPass = (m, target) => { fsMesh.material = m; renderer.setRenderTarget(target); renderer.render(fsMesh, fsCam); };
   let shadowN = 0;
@@ -967,6 +967,15 @@ export function createScene(canvas, cfg, random) {
     blurMat.uniforms.t.value = Pp.q2.texture; d.set(0, 1 / Pp.q1.height); fsPass(blurMat, Pp.q1);
     blurMat.uniforms.t.value = Pp.q1.texture; d.set(1 / Pp.e1.width, 0); fsPass(blurMat, Pp.e2);
     blurMat.uniforms.t.value = Pp.e2.texture; d.set(0, 1 / Pp.e1.height); fsPass(blurMat, Pp.e1);
+    // tilt-shift: a quarter-size blurred copy of the frame, mixed in away from a soft band at the hero (or the beat's subject)
+    const TS = LK.tilt, tOn = TS && TS.on && tier >= TS.tier;
+    if (tOn) {
+      blurMat.uniforms.t.value = Pp.scene.texture; d.set(1 / Pp.d1.width, 0); fsPass(blurMat, Pp.d2);
+      blurMat.uniforms.t.value = Pp.d2.texture; d.set(0, 1 / Pp.d1.height); fsPass(blurMat, Pp.d1);
+      const sh = cam.last, k = sh ? ease(cam.showK) : 0, fy = toScreen(lerp(heroPos.x, sh ? sh.p.x : 0, k), lerp(1, sh ? sh.p.y : 0, k), lerp(heroPos.z, sh ? sh.p.z : 0, k))[1];
+      f.tf.value = 1 - Math.max(0.15, Math.min(0.85, fy)); f.tw.value = TS.band; f.ts.value = TS.soft;
+    }
+    f.tb.value = Pp.d1.texture; f.ta.value = tOn ? TS.amount : 0;
     f.t.value = Pp.scene.texture; f.b1.value = Pp.q1.texture; f.b2.value = Pp.e1.texture; f.strength.value = BL.strength; f.vig.value = GR.vignette; f.con.value = GR.contrast; f.sat.value = GR.saturation; f.warm.value = GR.warmth;
     fsPass(finalMat, null);
   }
@@ -976,7 +985,7 @@ export function createScene(canvas, cfg, random) {
   const pops = []; // unlock build-up bounces: { o, t, d }
   const bump = (k) => { fx.stationBump[k] = 1; };
   const bumpS = (o, k, base = 1) => { const b = fx.stationBump[k] || 0; o.scale.set(base * (1 + b * 0.08), base * (1 - b * 0.1), base * (1 + b * 0.08)); };
-  let tAll = 0, stepT = 0;
+  let tAll = 0, stepT = 0, toyT = 0;
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
   const liveIds = new Set(); // reused every frame
   const looseT = new Map(); // Rush pickup id -> time it started falling
@@ -1067,7 +1076,8 @@ export function createScene(canvas, cfg, random) {
     heroPos.set(h.x, 0.16, h.z); hero.root.position.copy(heroPos);
     let dy = h.face - hero.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); hero.root.rotation.y += dy * Math.min(1, dt * 14);
     hero.swingK = h.mining ? h.swing / cfg.mining.swing : 0;
-    M.animPerson(hero, dt, sp, h.mining ? 'mine' : h.n > 0 ? 'carry' : null, tAll);
+    toyT = Math.max(0, toyT - dt);
+    M.animPerson(hero, dt, sp, toyT > 0 ? 'cheer' : h.mining ? 'mine' : h.n > 0 ? 'carry' : null, tAll);
     hero.prop.visible = h.mining || h.n === 0;
     heroBob = hero.body.position.y * 1.15;
     if (sp > 1 && (stepT += dt) > 0.28) { stepT = 0; puff(h.x, h.z, 1, 0.45); }
@@ -1233,7 +1243,7 @@ export function createScene(canvas, cfg, random) {
       if (c.hide) { m.root.visible = false; continue; }
       if (!m.root.visible) { m.root.visible = true; m.hatchK = 0; }
       m.hatchK = Math.min(1, m.hatchK + dt / 0.6);
-      m.root.position.set(c.x, 0.16 + (m.hatchK < 1 ? Math.sin(m.hatchK * Math.PI) * 1.6 : 0), c.z);
+      m.root.position.set(c.x, 0.16 + (m.hatchK < 1 ? Math.sin(m.hatchK * Math.PI) * 1.6 : 0) + (toyT > 0 ? Math.abs(Math.sin(toyT * 9)) * 0.35 : 0), c.z);
       m.root.scale.setScalar(m.s * Math.max(0.05, back(m.hatchK)));
       let d = c.face - m.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.root.rotation.y += d * Math.min(1, dt * 8);
       M.animCritter(m, dt, Math.hypot(c.vx, c.vz), tAll, m.hatchK < 1 ? 0.3 : 0);
@@ -1436,6 +1446,8 @@ export function createScene(canvas, cfg, random) {
     /** How far the current camera beat has eased in (0 idle, 1 at its peak). */
     get showK() { return cam.showK; },
     showcase(p, zoom, sec, pitch = 0, lock = false) { if (cam.show && cam.show.lock && !lock) return; cam.show = { p: p.clone(), zoom, t: sec, pitch, lock }; cam.last = cam.show; }, // a locked one (finale) is not cut short
+    /** The cheer toy: the hero waves, the crowd does a wave, visitors and critters hop, a few sparkles. */
+    toy() { toyT = 1.0; fx.crowdCheer = 1.2; for (const p of tourists) if (p.root.visible) p.cheer = 0.9; confetti(tmp3.set(heroPos.x, 2.2, heroPos.z), 18, 1.6); },
     cheer(id) { fx.crowdCheer = 1.2; const p = tourists.find((o) => o.id === id); if (p) p.cheer = 0.9; },
     shake(a) { cam.trauma = Math.min(1, cam.trauma + a); },
     /** Snaps the camera to its follow target (no easing): for the first frame and still views. */

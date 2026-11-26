@@ -39,7 +39,24 @@ export function createState(cfg, seed = cfg.seed) {
     rig2: { t: 0 }, jw: { t: 0 }, ghost: { n: 0, lit: 0, go: -1 }, eggs: 0, noRare: 0,
     stars: [], hats: [cfg.hats[0].id], hat: cfg.hats[0].id, finale: null, done1: false, giftDay: -1, seen2: false, travelT: 0,
     sold: 0, made: 0, earned: 0, progressT: 0, events: [],
+    // personal bests: best (all time), prev (at session start, the bar a record must beat), run (this session)
+    rec: { best: { gems: 0, chain: 0, cpm: 0 }, prev: { gems: 0, chain: 0, cpm: 0 }, run: { gems: 0, chain: 0, cpm: 0 }, chain: 0, win: [], secT: 0, told: [] },
   };
+}
+
+const RECS = ['gems', 'chain', 'cpm'];
+/**
+ * Personal bests: coins in the best rolling minute join gems made and the perfect-strike streak. A stat that passes the
+ * best saved before this session (and that best is at least records.min, so a first session stays quiet) raises one
+ * 'record' event, once per stat per session.
+ */
+function recordStep(cfg, S, dt) {
+  const R = S.rec, C = cfg.records;
+  if ((R.secT += dt) >= 1) { R.secT -= 1; R.win.push(S.earned); if (R.win.length > 61) R.win.shift(); if (R.win.length === 61) R.run.cpm = Math.max(R.run.cpm, S.earned - R.win[0]); }
+  for (const k of RECS) {
+    if (R.run[k] > R.prev[k] && R.prev[k] >= C.min[k] && !R.told.includes(k)) { R.told.push(k); ev(S, 'record', { k, v: R.run[k] }); }
+    R.best[k] = Math.max(R.best[k], R.run[k]);
+  }
 }
 
 /** True when the cable car to the other place runs: always up on the frost mesa, after the finale in the desert. */
@@ -233,10 +250,10 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   } else h.swing = Math.min(h.swing, sw * 0.6);
 
   // ---- the glint: a sparkle on the meteor; a tap on it is a Perfect Strike (3 chunks and a big burst)
-  if (S.glint) { S.glint.t += dt; if (S.glint.t > cfg.glint.life) { ev(S, 'glintGone', {}); S.glint = null; S.glintT = 0; } }
+  if (S.glint) { S.glint.t += dt; if (S.glint.t > cfg.glint.life) { ev(S, 'glintGone', {}); S.rec.chain = 0; S.glint = null; S.glintT = 0; } }
   else if ((S.glintT += dt) >= cfg.glint.every * perk(cfg, S, 'luck')) { S.glint = { t: 0, lon: (rand() - 0.5) * 1.5, lat: 0.15 + rand() * 0.55 }; ev(S, 'glint', { ...S.glint }); }
   if (tap && tap.glint && S.glint) {
-    ev(S, 'perfect', { n: addPile(cfg.glint.chunks), lon: S.glint.lon, lat: S.glint.lat }); S.glint = null; S.glintT = 0; S.progressT = 0;
+    ev(S, 'perfect', { n: addPile(cfg.glint.chunks), lon: S.glint.lon, lat: S.glint.lat }); S.rec.run.chain = Math.max(S.rec.run.chain, ++S.rec.chain); S.glint = null; S.glintT = 0; S.progressT = 0;
   }
 
   // ---- machines that mine on their own: drill rig, laser cutter
@@ -282,7 +299,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   // ---- polishers: 3 chunks -> 1 gem onto the counter; the ring workshop: 2 gems -> 1 ring
   for (const p of polOn(cfg, S)) {
     if (p.polIn >= cfg.polish.per && S.counter < W.counter.cap) {
-      if ((p.polT += dt) >= polishTime(cfg, S)) { p.polT = 0; p.polIn -= cfg.polish.per; S.counter++; S.made++; ev(S, 'gem', { from: p.id }); S.progressT = 0; }
+      if ((p.polT += dt) >= polishTime(cfg, S)) { p.polT = 0; p.polIn -= cfg.polish.per; S.counter++; S.made++; S.rec.run.gems++; ev(S, 'gem', { from: p.id }); S.progressT = 0; }
     } else p.polT = 0;
   }
   if (has(S, 'workshop') && S.ws.gemsIn >= cfg.workshop.per && S.ws.rings < W.workshop.ringCap) {
@@ -390,6 +407,8 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
     if (Math.hypot(c.vx, c.vz) > 0.25) c.face = Math.atan2(c.vx, c.vz);
     lead = c;
   }
+
+  recordStep(cfg, S, dt);
 
   // ---- the finale: the heart of the meteor rises, the crown critter hatches from it, a comet points to chapter 2
   if (S.finale) {
@@ -581,7 +600,7 @@ export function serialize(cfg, S) {
     pols: S.pols.map((p) => p.polIn), stands: S.stands.map((s) => s.items.slice()), ws: { g: S.ws.gemsIn, r: S.ws.rings },
     pads: S.pads.map((p) => [p.paid, p.done ? 1 : 0]), critters: S.critters.map((c) => c.id), hearts: S.hearts, sold: S.sold, made: S.made, earned: S.earned,
     ghost: { n: S.ghost.go >= 0 ? 0 : S.ghost.n, lit: S.ghost.lit + (S.ghost.go >= 0 && S.ghost.lit < cfg.cart.lights ? 1 : 0) }, stars: ['orders', 'critters', 'town'].filter((id) => S.stars.includes(id)), hats: cfg.hats.map((x) => x.id).filter((id) => S.hats.includes(id)), hat: S.hat,
-    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare, giftDay: S.giftDay, seen2: S.seen2,
+    done1: S.done1 || !!S.finale, eggs: S.eggs, noRare: S.noRare, giftDay: S.giftDay, seen2: S.seen2, best: RECS.map((k) => S.rec.best[k]),
   };
 }
 
@@ -596,6 +615,7 @@ export function restore(cfg, d, seed = cfg.seed, shared = null) {
   if (Array.isArray(d.pols)) d.pols.forEach((v, i) => { if (S.pols[i]) S.pols[i].polIn = num(v, 0, W.polisherCap, 0); });
   if (Array.isArray(d.stands)) d.stands.forEach((v, i) => { if (S.stands[i] && Array.isArray(v)) S.stands[i].items = v.filter((x) => ITEMS.includes(x)).slice(0, W.standCap); });
   if (d.ws) { S.ws.gemsIn = num(d.ws.g, 0, W.workshop.gemCap, 0); S.ws.rings = num(d.ws.r, 0, W.workshop.ringCap, 0); }
+  if (Array.isArray(d.best)) RECS.forEach((k, i) => { S.rec.best[k] = S.rec.prev[k] = num(d.best[i], 0, 1e9, 0); });
   S.hearts = num(d.hearts, 0, 1e9, 0); S.sold = num(d.sold, 0, 1e9, 0); S.made = num(d.made, 0, 1e9, 0); S.earned = num(d.earned, 0, 1e9, 0);
   if (Array.isArray(d.critters)) for (const id of d.critters) if (cfg.critters.some((c) => c.id === id) && !S.critters.some((c) => c.id === id)) S.critters.push({ id, x: S.hero.x, z: S.hero.z + 1, vx: 0, vz: 0, face: 0 });
   if (ITEMS.concat('chunk').includes(d.kind)) { S.hero.kind = d.kind; S.hero.n = num(d.n, 0, carryCap(cfg, S), 0); if (!S.hero.n) S.hero.kind = null; }

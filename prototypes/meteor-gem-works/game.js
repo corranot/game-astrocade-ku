@@ -27,6 +27,7 @@ const Sound = (() => {
     if (ctx) { noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noise.getChannelData(0); let s = 1; for (let i = 0; i < d.length; i++) { s = (s * 16807) % 2147483647; d[i] = s / 1073741823.5 - 1; } }
     return ctx;
   };
+  let toyN = 0;
   function tone(type, f0, f1, dur, vol, at = 0) {
     const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -68,6 +69,7 @@ const Sound = (() => {
     honk() { if (!on()) return; for (const at of [0, 0.22]) { tone('square', 392, 380, 0.18, 0.06, at); tone('square', 494, 480, 0.18, 0.05, at); } },
     laser() { if (!on()) return; tone('sawtooth', 1400, 500, 0.3, 0.03); hiss(3000, 2, 0.25, 0.06); },
     ring() { if (!on()) return; tone('sine', 2093, 2093, 0.35, 0.05); tone('triangle', 3136, 3136, 0.25, 0.03, 0.05); },
+    toy() { if (!on()) return; const b = [0, 2, 4, 5, 7, 9, 12][toyN++ % 7]; [0, 4, 7].forEach((n, i) => tone('triangle', 523 * 2 ** ((b + n) / 12), 523 * 2 ** ((b + n) / 12), 0.28, 0.06, i * 0.05)); },
     heart() { if (!on()) return; [0, 4, 7, 12].forEach((n, i) => tone('triangle', 784 * 2 ** (n / 12), 784 * 2 ** (n / 12), 0.22, 0.07, i * 0.06)); },
     rush() { if (!on()) return; tone('sine', 80, 40, 0.9, 0.4); [0, 5, 7, 12, 17, 19, 24].forEach((n, i) => tone('triangle', 330 * 2 ** (n / 12), 330 * 2 ** (n / 12), 0.25, 0.07, i * 0.05)); },
     boom() { if (!on()) return; tone('sine', 90, 28, 1.2, 0.6); hiss(400, 0.6, 1.0, 0.35); hiss(2400, 1, 0.4, 0.15, 0.02); },
@@ -111,6 +113,7 @@ const HTML = `
   <div id="stick" class="stick" hidden><i></i></div>
   <div id="goal" class="goal" hidden><b class="gt out"></b><span class="gh"><i></i><i></i><i></i></span></div>
   <button id="albumB" class="albumB" aria-label="album"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 8h24a4 4 0 0 1 4 4v28H14a4 4 0 0 1-4-4z"/><path class="pg" d="M14 40a4 4 0 0 1 0-8h24"/><path class="st" d="M24 13l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></svg><em class="out"></em></button>
+  <button id="toy" class="toy" aria-label="cheer"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 30c4-3 9-4 16-4s12 1 16 4c-2 3-8 5-16 5s-14-2-16-5z"/><path d="M15 27c0-8 3-14 9-14s9 6 9 14"/><path class="sp" d="M24 4v4M36 8l-3 3M12 8l3 3M42 18h-4M6 18h4"/></svg></button>
   <button id="share" class="share out" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 30V8M15 16l9-9 9 9"/><path d="M12 24v14h24V24"/></svg><b></b></button>
   <div id="album" class="album" hidden><div class="card"><h2 class="out"></h2><div class="sec crit"></div><div class="sec hats"></div><div class="sec stars"></div><div class="sec chap"></div><button class="close out" aria-label="close">&#10005;</button></div></div>
   <div id="ride" class="ride" hidden><canvas width="160" height="120" aria-hidden="true"></canvas><b class="out"></b><span class="out"></span></div>
@@ -166,7 +169,7 @@ export function run(mode = 'play') {
   function layout() {
     const r = root.getBoundingClientRect(); root.style.setProperty('--u', Math.min(r.height / 1280, r.width / 720).toFixed(4)); // tall phones fill the screen; the HUD keeps its 720-wide design
     scene.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height)));
-    const ab = $('albumB').getBoundingClientRect(), u = Math.min(r.height / 1280, r.width / 720);
+    const ab = $('toy').getBoundingClientRect(), u = Math.min(r.height / 1280, r.width / 720);
     hudB = r.height > 0 && ab.height > 0 ? (ab.bottom - r.top + 16 * u) / r.height : 0.17; uH = r.height > 0 ? u / r.height : 1 / 1280;
   }
   layout();
@@ -214,7 +217,7 @@ export function run(mode = 'play') {
   // ---- HUD helpers: pops are pooled DOM nodes (no textures per event), banner, carry label, cash chip
   const popEls = []; for (let i = 0; i < 14; i++) { const d = document.createElement('div'); d.className = 'pop out'; d.hidden = true; $('pops').appendChild(d); popEls.push({ d, t: 0, x: 0, y: 0, z: 0, life: 1 }); }
   let popNext = 0;
-  function pop(text, x, y, z, cls = '') { const p = popEls[popNext]; popNext = (popNext + 1) % popEls.length; p.d.textContent = text; p.d.className = 'pop out ' + cls; p.d.hidden = false; Object.assign(p, { t: 0, x, y, z, life: cls === 'big' ? 1.4 : 0.9 }); }
+  function pop(text, x, y, z, cls = '', col = '') { const p = popEls[popNext]; popNext = (popNext + 1) % popEls.length; p.d.textContent = text; p.d.className = 'pop out ' + cls; p.d.style.color = col; p.d.hidden = false; Object.assign(p, { t: 0, x, y, z, life: cls === 'big' ? 1.4 : 0.9 }); }
   let bannerT = 0; const bannerQ = [];
   function banner(title, sub, sec = 2.4) {
     if (bannerT > 0.4) { bannerQ.push([title, sub, sec]); return; } // two big moments at once: the second waits its turn
@@ -247,7 +250,7 @@ export function run(mode = 'play') {
     return true;
   }
   // during a beat the HUD and world bubbles fade so only the subject, the banner and the pops read; input stays live
-  const CINE_HIDE = '.top,#bubble,#edge,#tap,#mute,#carry,#hint,#goal,#albumB,#share';
+  const CINE_HIDE = '.top,#bubble,#edge,#tap,#mute,#carry,#hint,#goal,#albumB,#toy,#share';
   let cineOn = false, cineAnims = [];
   function cineHud(on) {
     if (on === cineOn) return; cineOn = on;
@@ -306,7 +309,7 @@ export function run(mode = 'play') {
       case 'sale': {
         const p = V(e.x, 1.3, e.z);
         for (let i = 0; i < e.amount; i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), i * 0.08, 2.0, () => { Sound.coin(coinK++); scene.bump('cash'); });
-        scene.cheer(e.id); pop('+' + e.amount, e.x, 2.3, e.z, 'gold'); Sound.at(farK(e.x, e.z)).sale(); Sound.at(1);
+        scene.cheer(e.id); pop('+' + e.amount, e.x, 2.3, e.z, 'gold', cfg.kindColor[e.kind]); Sound.at(farK(e.x, e.z)).sale(); Sound.at(1);
         if (S.sold === 1) { moment(V(e.x, 1.0, e.z), 0.62, 1.5, 2); banner(T('firstSale'), '', 1.8); }
         break;
       }
@@ -363,6 +366,7 @@ export function run(mode = 'play') {
       case 'finaleEnd': scene.finale('fireworks'); Sound.fanfare(); banner(T(area === 'frost' ? 'chapter2' : 'chapter1'), '★', 2.6); if (L.travelOpen(cfg, S) && area === 'desert') banner(T('toFrost'), T('ride'), 3.0); offerShare(); saveNow(); break;
       case 'travel': if (phase === 'play') startRide(e.to); break;
       case 'awayCoins': banner(T('awayCoins'), '+' + e.n, 2.6); pop('+' + e.n, cfg.world.cash.x, 1.8, cfg.world.cash.z, 'gold'); Sound.sale(); break;
+      case 'record': moment(V(S.hero.x, 1, S.hero.z), 0.7, 1.6, 1); Sound.fanfare(); banner(T('rec'), T('rec' + e.k[0].toUpperCase() + e.k.slice(1)).replace('{n}', e.v), 2.4); offerShare(); break;
       case 'star': moment(V(S.hero.x, 1, S.hero.z), 0.66, 1.8, 2, { stop: cfg.cine.stop }); Sound.heart(); banner(T('star'), '★'.repeat(e.n) + '☆'.repeat(Math.max(0, 3 - e.n)), 2.4); offerShare(); saveNow(); break;
       case 'gift': Sound.fanfare(); banner(T('gift'), `${T('giftSub')}  +${e.coins}`, 3.0); coinsTo(V(h.x, 3.5, h.z), e.coins); saveNow(); break;
       case 'hat': Sound.pop(); banner(T('hat'), '', 2.0); pop('✦', h.x, 3.0, h.z, 'big'); albumDot = true; saveNow(); break;
@@ -383,7 +387,7 @@ export function run(mode = 'play') {
   function offerShare() { if (!canShare) return; shareT = cfg.share.show; const b = $('share'); b.hidden = false; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
   $('share').addEventListener('click', () => {
     Sound.unlock();
-    Promise.resolve().then(() => lib.share({ title: T('title'), text: T('brag') })).catch(() => { /* host has no sheet: nothing to do */ });
+    Promise.resolve().then(() => lib.share({ title: T('title'), text: S.rec.best.gems > 0 ? T('bragGems').replace('{n}', S.rec.best.gems) : T('brag') })).catch(() => { /* host has no sheet: nothing to do */ });
     shareT = 0; $('share').hidden = true;
   });
 
@@ -448,6 +452,8 @@ export function run(mode = 'play') {
   }
   openAlbum.refresh = () => { phase = 'play'; openAlbum(); };
   const closeAlbum = () => { $('album').hidden = true; if (phase === 'album') phase = 'play'; last = performance.now(); };
+  // the cheer toy: no score, just the hero waving, the crowd doing a wave and a chord that climbs with each press
+  $('toy').addEventListener('click', () => { Sound.unlock(); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } scene.toy(); Sound.toy(); });
   $('albumB').addEventListener('click', () => { Sound.unlock(); if (phase === 'intro') { scene.skipIntro(); phase = 'play'; } openAlbum(); });
   $('album').querySelector('.close').addEventListener('click', () => { Sound.pop(); closeAlbum(); });
   $('album').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (e.target === $('album')) closeAlbum(); });
@@ -559,7 +565,7 @@ export function run(mode = 'play') {
     if (cashBump > 0) { bumpEl($('cash')); cashBump = 0; }
     // carry label over the stack
     const c = $('carry'), cap = L.carryCap(cfg, S);
-    if (h.n > 0) { const [x, y] = proj(h.x, 1.7 + h.n * 0.16, h.z); c.hidden = false; c.style.left = x + '%'; c.style.top = y + '%'; const t = h.n >= cap ? T('full') : `${h.n}/${cap}`; if (c.textContent !== t) c.textContent = t; c.classList.toggle('max', h.n >= cap); }
+    if (h.n > 0) { const [x, y] = proj(h.x, 1.7 + h.n * 0.16, h.z); c.hidden = false; c.style.setProperty('--k', cfg.kindColor[h.kind] || cfg.kindColor.chunk); c.style.left = x + '%'; c.style.top = y + '%'; const t = h.n >= cap ? T('full') : `${h.n}/${cap}`; if (c.textContent !== t) c.textContent = t; c.classList.toggle('max', h.n >= cap); }
     else c.hidden = true;
     for (const p of popEls) {
       if (p.d.hidden) continue; p.t += dt; const k = p.t / p.life;
@@ -595,7 +601,7 @@ export function run(mode = 'play') {
     // the order kid's bubble
     const bu = $('bubble');
     if (S.order) {
-      if (bubbleKind !== S.order.kind) { bubbleKind = S.order.kind; paintItem(bu.querySelector('canvas'), bubbleKind); bu.hidden = true; }
+      if (bubbleKind !== S.order.kind) { bubbleKind = S.order.kind; paintItem(bu.querySelector('canvas'), bubbleKind); bu.style.setProperty('--k', cfg.kindColor[bubbleKind] || ''); bu.hidden = true; }
       const [x, y] = proj(cfg.world.order.x, 2.9, cfg.world.order.z); bu.hidden = false; bu.style.left = x + '%'; bu.style.top = Math.max(y, (hudB + 96 * uH) * 100) + '%'; // never under the HUD
     } else { bu.hidden = true; bubbleKind = null; }
     // first glint: a tapping finger over the sparkle until the first Perfect Strike
