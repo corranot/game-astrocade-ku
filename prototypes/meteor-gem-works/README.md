@@ -23,6 +23,28 @@ The day-3 and day-9 updates from `updates.md` are in the code behind `drops` in 
   gift, hatch, parade cap, fireworks, album fit, draw calls tier 0 151/160 and tier 2 204/260). Evidence in
   `production/qa/evidence/meteor-gem-works/drops/`. Locally, `?drops=night,festival` turns them on.
 
+## Wide living town (2026-11-26)
+
+The first square fit one camera frame (15 m deck, 15 m frame) and felt cramped. Now:
+- **Wider town:** every station is spread out 1.6x across and 1.5x deep from the meteor's edge (`world.spread`;
+  the mine, laser and drill rigs stay at the rock). The shops, ghost town, road, cable car and props move out by
+  the same stretch in `scene.js` (`sx`/`sz`). The deck is 24 x 18 m.
+- **Streets:** the square is one painted texture: a main boardwalk from the meteor to the front, a street along the
+  meteor and one along the stations, a plank platform under every built station and a dashed lot where one will be
+  built (repainted on each unlock).
+- **Camera follows the hero** (`camera.followX`, `lean`, `zMin`/`zMax`, `ahead`), a little wider (`width` 17), lower
+  and with a wider lens (`pitch` 0.45, `fov` 44) so the horizon (mesas, haze, sky) shows across the top of every
+  frame. The sun's 30 m shadow box follows the camera in 2 m steps. The spectators stand in one thin row.
+- **Quick travel:** hero 10 m/s (`hero.speed`, `accel`), the helper and visitors walk faster, and the later unlocks
+  cost 8% less so the pacing tests (laser by 3:50, finale by ~11 min, chapter 2 in 7-9 min) hold.
+- **Living desert:** dunes, rocks, cacti, grass tufts, two rock arches and a far windmill (baked into the static
+  meshes: no draw calls), big soft colour patches in the sand (vertex colours), cart tracks and boot prints on the
+  square, birds circling over the town (one instanced draw), a shooting meteor across the sky every 6-14 s (one
+  draw), and soft cloud shadows drifting over everything (one transparent plane, `look.cloudShadow`).
+- **Off-screen goals:** a gold arrow on the screen edge points to the next stop when it is out of frame.
+- **Sound:** a sale far from the hero plays quieter (full within 7 m, a quarter at 31 m).
+- Skipped: auto-walk to the next goal (the faster walk and the edge arrow cover it) and roaming wild critters.
+
 ## Smooth frames and free walking (2026-11-26)
 
 - **No hitch on quality steps:** no step rebuilds shaders any more. Shadows stay on in the shaders; tier 0 stops

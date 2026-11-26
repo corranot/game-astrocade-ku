@@ -135,6 +135,10 @@ body{display:flex;align-items:center;justify-content:center}
 .menu .new{min-width:calc(var(--u)*320px);height:calc(var(--u)*100px);font-size:calc(var(--u)*44px)}
 .menu .new.sure{background:linear-gradient(#d9544a,#a83a32);color:#fff3dc}
 /* first-glint hint: a tapping finger over the sparkle */
+.edge{position:absolute;width:calc(var(--u)*84px);height:calc(var(--u)*84px);translate:-50% -50%;pointer-events:none;z-index:3}
+.edge[hidden]{display:none}
+.edge i{position:absolute;inset:0;rotate:var(--a);background:radial-gradient(circle at 40% 50%,#fff3c4 0 22%,#ffd35a 23% 52%,transparent 53%);clip-path:polygon(0 18%,62% 18%,62% 0,100% 50%,62% 100%,62% 82%,0 82%);filter:drop-shadow(0 0 4px #7a4a10);animation:edgep .8s ease-in-out infinite alternate}
+@keyframes edgep{to{scale:1.15}}
 .tap{position:absolute;translate:-50% -10%;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6px)}
 .tap i{width:calc(var(--u)*90px);height:calc(var(--u)*90px);border-radius:50%;background:radial-gradient(circle,rgba(255,243,220,.95) 0 30%,rgba(255,243,220,.35) 31% 55%,transparent 56%);animation:tapf 1s ease-in-out infinite}
 .tap b{font-size:calc(var(--u)*40px);white-space:nowrap}

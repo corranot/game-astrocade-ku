@@ -20,7 +20,7 @@ const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28];
 
 // ---------------------------------------------------------------- sound: all made in code, no files to load
 const Sound = (() => {
-  let ctx = null, master = null, noise = null, muted = false;
+  let ctx = null, master = null, noise = null, muted = false, far = 1; // far: distance gain for the next sounds (see at)
   const ensure = () => {
     if (ctx) return ctx;
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = muted ? 0 : 0.7; master.connect(ctx.destination); } catch (e) { ctx = null; }
@@ -30,13 +30,13 @@ const Sound = (() => {
   function tone(type, f0, f1, dur, vol, at = 0) {
     const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol * far), t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
   }
   function hiss(f, q, dur, vol, at = 0) {
     const t = ctx.currentTime + at, s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noise; fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.gain.setValueAtTime(Math.max(0.0002, vol * far), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(fl).connect(g).connect(master); s.start(t, (at * 7.3) % 0.5); s.stop(t + dur + 0.02);
   }
   const note = (n, base = 880) => base * 2 ** (PENTA[Math.max(0, Math.min(PENTA.length - 1, n))] / 12);
@@ -44,6 +44,8 @@ const Sound = (() => {
   return {
     unlock() { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
     get muted() { return muted; },
+    /** Sounds from a spot far from the hero are quieter in the wide town: k (0..1) applies until the next at(). */
+    at(k) { far = k; return this; },
     setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.7; },
     /** Pickaxe on crystal rock: a dull knock with a glassy ping on top. */
     hit() { if (!on()) return; tone('sine', 190, 80, 0.16, 0.35); hiss(1400, 1.5, 0.12, 0.18); tone('triangle', 1980 + Math.random() * 300, 1900, 0.18, 0.05, 0.01); },
@@ -96,6 +98,7 @@ const HTML = `
   <div id="cash" class="chip cash"><i class="coin" aria-hidden="true"></i><b id="cashN" class="out">0</b></div>
   <div id="next" class="next" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><span class="bar"><i></i></span><b class="out"></b></div>
   <div id="bubble" class="bubble" hidden><canvas width="96" height="96" aria-hidden="true"></canvas><em>&#9829;</em></div>
+  <div id="edge" class="edge" hidden><i aria-hidden="true"></i></div>
   <div id="tap" class="tap" hidden><i aria-hidden="true"></i><b class="out"></b></div>
   <button id="mute" class="mute" aria-label="sound"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="spk" d="M9 19h7l10-8v26l-10-8H9z"/><path class="wav" d="M31 17c3 2 4 4.5 4 7s-1 5-4 7M35 12c5 3.5 7 7.5 7 12s-2 8.5-7 12"/><path class="x" d="M31 18l11 12M42 18L31 30"/></svg></button>
   <div id="carry" class="carry out" hidden></div>
@@ -265,7 +268,7 @@ export function run(mode = 'play') {
       case 'sale': {
         const p = V(e.x, 1.3, e.z);
         for (let i = 0; i < e.amount; i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), i * 0.08, 2.0, () => { Sound.coin(coinK++); scene.bump('cash'); });
-        scene.cheer(e.id); pop('+' + e.amount, e.x, 2.3, e.z, 'gold'); Sound.sale();
+        scene.cheer(e.id); pop('+' + e.amount, e.x, 2.3, e.z, 'gold'); Sound.at(farK(e.x, e.z)).sale(); Sound.at(1);
         break;
       }
       case 'collect': {
@@ -328,6 +331,8 @@ export function run(mode = 'play') {
     }
   }
   /** Up to 12 coins fly from p to the cash tray (the logic already paid the full amount into it). */
+  /** Gain for a sound at (x, z): full within 7 m of the hero, down to a quarter 25 m away. */
+  const farK = (x, z) => Math.max(0.25, Math.min(1, 1 - (Math.hypot(x - S.hero.x, z - S.hero.z) - 7) / 24));
   function coinsTo(p, n) { for (let i = 0; i < Math.min(12, n); i++) scene.fly('coin', p, 'cash', () => Math.max(0, S.cashPile - 1), 0.1 + i * 0.06, 2.4, () => Sound.coin(coinK++)); }
   let albumDot = false;
 
@@ -580,9 +585,20 @@ export function run(mode = 'play') {
       perfT = 0; perfN = 0; perfMs = 0;
     }
   }
+  let lastGuide = null;
   function draw(dt) {
-    const g = L.guide(cfg, S);
-    scene.update(S, dt, g); scene.render(); hud(dt);
+    const g = lastGuide = L.guide(cfg, S);
+    scene.update(S, dt, g); scene.render(); hud(dt); edgePointer();
+  }
+  /** In the wide town the next stop can be off screen: a gold arrow on the screen's edge points the way to it. */
+  function edgePointer() {
+    const el = $('edge'), g = lastGuide;
+    if (!g || g.wait || phase !== 'play') { el.hidden = true; return; }
+    const [x, y, z] = scene.toScreen(g.x, 0.5, g.z), M = 0.09, T = 0.15, B = 0.86;
+    if (z < 1 && x > M && x < 1 - M && y > T && y < B) { el.hidden = true; return; }
+    // from the screen centre toward the target (flipped when it is behind the camera), stopped at the safe frame
+    let dx = (x - 0.5) * (z < 1 ? 1 : -1), dy = (y - 0.5) * (z < 1 ? 1 : -1); const k = Math.min(Math.abs((0.5 - M) / (dx || 1e-6)), Math.abs(((dy > 0 ? B : T) - 0.5) / (dy || 1e-6)));
+    el.hidden = false; el.style.left = (0.5 + dx * k) * 100 + '%'; el.style.top = (0.5 + dy * k) * 100 + '%'; el.style.setProperty('--a', Math.atan2(dy * 16, dx * 9) + 'rad');
   }
   $('tap').querySelector('b').textContent = T('tapGlint');
   { const g = $('ride').querySelector('canvas').getContext('2d'); g.translate(80, 64); g.scale(1.2, 1.2); drawIcon(g, 'cable', '#ffe6a8', '#3a5a9a'); }
