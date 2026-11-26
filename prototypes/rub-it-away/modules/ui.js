@@ -298,7 +298,21 @@ export function drawHud(g, lv, time, info, go) {
   const prompt = t(lv.def.prompt), fit = fitLines(g, prompt, 34, 560), ph = fit.lines.length > 1 ? 100 : 66;
   g.font = '900 ' + fit.size + 'px ' + FONT;
   const pw = Math.min(600, Math.max(...fit.lines.map((l) => g.measureText(l).width)) + 80), pb = lv.reducedMotion || lv.fixed ? 1 : 1 + Math.sin(time * 3) * 0.015;
-  g.save(); g.translate(360, 207 + (ph - 66) / 2); g.scale(pb, pb); rr(g, -pw / 2, -ph / 2, pw, ph, ph / 2 > 40 ? 40 : ph / 2); fillStroke(g, '#fbefd0', 6); labelLines(g, fit, 0, 2, INK, { stroke: 0 }); g.restore();
+  // a moment of praise takes over the prompt bubble's slot (HUD space, never the scene's art): the prompt fades out as the praise pill pops in
+  const pr = lv.praiseNow ? lv.praiseNow() : null;
+  g.save(); if (pr) g.globalAlpha = 1 - pr.a;
+  g.translate(360, 207 + (ph - 66) / 2); g.scale(pb, pb); rr(g, -pw / 2, -ph / 2, pw, ph, ph / 2 > 40 ? 40 : ph / 2); fillStroke(g, '#fbefd0', 6); labelLines(g, fit, 0, 2, INK, { stroke: 0 }); g.restore();
+  if (pr) {
+    const qh = pr.sub ? 100 : 76, ws = fitSize(g, pr.word, pr.sub ? 46 : 54, 520), ss = pr.sub ? fitSize(g, pr.sub, 28, 520) : 0;
+    g.font = '900 ' + ws + 'px ' + FONT; let qw = g.measureText(pr.word).width;
+    if (pr.sub) { g.font = '900 ' + ss + 'px ' + FONT; qw = Math.max(qw, g.measureText(pr.sub).width); }
+    qw = Math.min(600, qw + 96);
+    g.save(); g.globalAlpha = pr.a; g.translate(360, 174 + qh / 2); g.scale(pr.sc, pr.sc);
+    rr(g, -qw / 2, -qh / 2 + 6, qw, qh, 38); fillStroke(g, INK, 0); rr(g, -qw / 2, -qh / 2, qw, qh, 38); fillStroke(g, '#fbefd0', 6);
+    label(g, pr.word, 0, pr.sub ? -16 : 2, ws, pr.col, { lw: 10 });
+    if (pr.sub) label(g, pr.sub, 0, 30, ss, INK, { stroke: 0 });
+    g.restore();
+  }
   if (!lv.fixed) {
     const on = info.hints > 0, k = stalled(lv) && on ? (lv.reducedMotion ? 0.35 : 0.5 + 0.5 * Math.sin(time * 6)) : 0;
     tap(300, 1156, 120, 112, go.hint);
