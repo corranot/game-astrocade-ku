@@ -331,3 +331,14 @@ test('tutorial: old saves skip what they already did; a skipped tutorial stays o
   assert.equal(L.ftueFromSave({ sold: 3, pads: [[5, 1]], critters: ['a'] }), 0b1111111);
   assert.equal(L.ftueFromSave({ ft: 0b1111111 }), 0b1111111);
 });
+
+test('hatch: a fresh critter poses on its egg spot for critter.stay, then joins the parade', () => {
+  const c = cfg(), S = L.createState(c, 3);
+  S.egg = { st: 'hatching', t: 99, at: 0, who: S.egg.who };
+  L.step(c, S, 1 / 60, { x: 0, z: 0 });
+  const k = S.critters.at(-1), at = [k.x, k.z];
+  for (let t = 0; t < c.critter.stay - 0.1; t += 1 / 60) L.step(c, S, 1 / 60, { x: 0, z: 0 });
+  assert.deepEqual([k.x, k.z], at, 'still on the egg spot');
+  for (let t = 0; t < 1; t += 1 / 60) L.step(c, S, 1 / 60, { x: 0, z: 0 });
+  assert.notDeepEqual([k.x, k.z], at, 'then follows');
+});

@@ -370,7 +370,8 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   else if (E.st === 'waiting' && near(h, W.egg.x, W.egg.z, cfg.egg.r)) { E.st = 'hatching'; E.t = 0; ev(S, 'hatchStart', { who: E.who }); S.progressT = 0; }
   else if (E.st === 'hatching' && E.t >= cfg.egg.hatch) {
     const rare = (cfg.critters.find((c) => c.id === E.who) || {}).rarity;
-    S.critters.push({ id: E.who, x: W.egg.x, z: W.egg.z, vx: 0, vz: 0, face: 0 }); S.eggs++; S.noRare = rare === 'rare' ? 0 : S.noRare + 1;
+    // a fresh critter hops out beside the hero, toward the camera, and poses there for the hatch beat
+    S.critters.push({ id: E.who, x: W.egg.x + cfg.critter.pop[0], z: W.egg.z + cfg.critter.pop[1], vx: 0, vz: 0, face: 0, stay: cfg.critter.stay }); S.eggs++; S.noRare = rare === 'rare' ? 0 : S.noRare + 1;
     ev(S, 'hatch', { who: E.who, rarity: rare }); S.progressT = 0;
     nextEgg(cfg, S);
   }
@@ -382,6 +383,7 @@ export function step(cfg, S, dt, input = { x: 0, z: 0 }, tap = null) {
   let lead = h;
   for (const c of S.critters) {
     if (c.hide) { c.x = h.x; c.z = h.z; c.vx = c.vz = 0; continue; }
+    if (c.stay > 0) { c.stay -= dt; lead = c; continue; } // a fresh one poses on its egg spot for the hatch camera beat
     const f = cfg.critter.follow, tx = lead.x - Math.sin(lead.face) * f, tz = lead.z - Math.cos(lead.face) * f, kk = cfg.critter.spring;
     c.vx += ((tx - c.x) * kk - c.vx * 2 * Math.sqrt(kk)) * dt; c.vz += ((tz - c.z) * kk - c.vz * 2 * Math.sqrt(kk)) * dt;
     c.x += c.vx * dt; c.z += c.vz * dt;
