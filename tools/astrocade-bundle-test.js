@@ -40,8 +40,9 @@ window.lib = { showGameParameters() {}, log() {}, getUserGameState: none, delete
 addEventListener('load', () => window.run && window.run('play'));
 </script>`;
 let page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-const tag = /<script type="module" src="\.\/game\.js"><\/script>/;
-if (!tag.test(page)) throw new Error('index.html has no <script type="module" src="./game.js">');
+// the entry tag may be a module or a classic script (older multi-file games); the host bundles game.js either way
+const tag = /<script(?: type="module")? src="\.\/game\.js"><\/script>/;
+if (!tag.test(page)) throw new Error('index.html has no <script src="./game.js"> entry tag');
 page = page.replace(tag, () => `<script>${bundle.replace(/<\/script/gi, '<\\/script')}</script>`).replace(/<head>/i, (m) => m + host);
 const W = 405, H = 720, scale = W / 720;
 const outer = `<!doctype html><html><body style="margin:0;overflow:hidden"><iframe id="g" sandbox="allow-scripts allow-pointer-lock" allow="autoplay *" style="border:0;width:720px;height:1280px;transform:scale(${scale});transform-origin:0 0" srcdoc="${page.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></iframe></body></html>`;
