@@ -121,9 +121,9 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   // ---- pine forest (3 shapes, instanced, swaying in the wind)
   const pineGeo = (tiers, w, hgt) => {
-    const items = [{ g: new THREE.CylinderGeometry(0.16, 0.24, 1.2, 7), m: M4(0, 0.6, 0), col: C('#6a4630') }];
+    const items = [{ g: new THREE.CylinderGeometry(0.16, 0.24, 0.9, 7), m: M4(0, 0.45, 0), col: C('#6a4630') }]; // a short trunk under a low skirt: no bare stick against the snow
     for (let i = 0; i < tiers; i++) {
-      const k = i / tiers, r = w * (1 - k * 0.62), y = 1.0 + k * hgt, hh = hgt / tiers * 1.7;
+      const k = i / tiers, r = w * (1 - k * 0.62), y = 0.6 + k * hgt, hh = hgt / tiers * 1.7;
       items.push({ g: new THREE.ConeGeometry(1, 1, 9, 1), m: M4(0, y + hh * 0.5, 0, r, hh, r, 0, i * 0.7), col: (n, p) => (n.y > 0.5 - k * 0.1 ? C('#f4f9ff') : C(i % 2 ? '#2f6b5a' : '#2a6152')).multiplyScalar(0.78 + 0.22 * Math.max(0, n.y)) });
       items.push({ g: new THREE.ConeGeometry(1, 1, 9, 1), m: M4(0, y + hh * 0.62, 0, r * 0.82, hh * 0.55, r * 0.82, 0, i * 0.7 + 0.3), col: C('#f2f7ff') });
     }
@@ -349,7 +349,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   /** Gate dressing built after the first frame: the stumps left when a gate breaks, and drifts on its approach. */
   const dressGates = () => { for (const G of gates) {
     // what is left once it breaks: low ice stumps lining both sides of the way through, shown when the gate opens
-    const st = []; for (let i = 0; i < 12; i++) { const sx = i % 2 ? 1 : -1, k = (i >> 1) - 2, h = 0.7 + ((i * 3) % 4) * 0.25; st.push({ g: new THREE.OctahedronGeometry(1, 0), m: M4(sx * (3.6 + (Math.abs(k) % 2) * 0.9), h * 0.3, -1.5 - k * 2.4, 0.45, h * 0.55, 0.4, 0.15 * sx, i, -0.25 * sx), col: C(i % 3 ? '#6cc8ff' : '#9ae6ff') }); }
+    const st = []; for (let i = 0; i < 6; i++) { const sx = i % 2 ? 1 : -1, k = (i >> 1) - 1, h = 1.0 + ((i * 3) % 4) * 0.3; st.push({ g: new THREE.OctahedronGeometry(1, 0), m: M4(sx * (3.8 + (Math.abs(k) % 2) * 0.6), h * 0.3, -1.5 - k * 3.4, 0.62, h * 0.6, 0.55, 0.15 * sx, i, -0.25 * sx), col: C(i % 3 ? '#6cc8ff' : '#9ae6ff') }); }
     G.rest = new THREE.Mesh(keep(merge(st)), G.mesh.material); G.rest.position.copy(G.mesh.position); G.rest.visible = !G.mesh.visible; G.rest.castShadow = true; scene.add(G.rest);
     // the approach: drifts heaped against the ice and fallen chips on the near side, off the trodden path
     const ap = []; for (let i = 0; i < 6; i++) { const sx = i % 2 ? 1 : -1, k = i >> 1, x = sx * (2.8 + k * 0.8), z = 2 + k * 2.6;

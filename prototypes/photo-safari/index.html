@@ -103,15 +103,16 @@ body{display:flex;align-items:center;justify-content:center}
 .card.rare{box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 0 calc(var(--u)*40px) calc(var(--u)*8px) rgba(255,207,58,.85)}
 .card.shake{animation:shake .5s ease-in-out}
 /* centre toast at eye level, with an optional share button */
-.toast{position:absolute;left:50%;top:22%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*8px);text-align:center;animation:ban .45s cubic-bezier(.2,1.5,.4,1)}
+.toast{position:absolute;left:50%;top:calc(var(--st) + var(--h) + var(--g) * 2);translate:-50% 0;max-width:calc(100% - var(--sl) - var(--sr));display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*4px);padding:calc(var(--u)*12px) calc(var(--u)*32px);border-radius:calc(var(--u)*32px);background:rgba(26,33,71,.58);box-shadow:0 calc(var(--u)*4px) calc(var(--u)*16px) rgba(26,33,71,.25);text-align:center;animation:ban .45s cubic-bezier(.2,1.5,.4,1)}
 .toast[hidden]{display:none}
-.toast b{font-size:calc(var(--u)*64px);line-height:1.05;color:#fff;white-space:nowrap}
-.toast span{font-size:calc(var(--u)*36px);color:var(--cream)}
+.toast.low{top:calc(var(--st) + var(--h) + var(--g) * 3 + var(--u)*96px)}
+.toast b{font-size:calc(var(--u)*44px);line-height:1.1;color:#fff;white-space:nowrap}
+.toast span{font-size:calc(var(--u)*28px);color:var(--cream)}
 .share{display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);padding:0 calc(var(--u)*28px) 0 calc(var(--u)*18px);border-radius:calc(var(--u)*44px);margin-top:calc(var(--u)*8px);pointer-events:auto;color:#fff;font-size:calc(var(--u)*36px);background:linear-gradient(#3fd8b0,#25a888);box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 calc(var(--u)*7px) 0 calc(var(--u)*2px) rgba(26,33,71,.45)}
 .share svg{width:calc(var(--u)*44px);height:calc(var(--u)*44px);fill:none;stroke:#fff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
 .share[hidden]{display:none}
 /* small request tick at the top */
-.tick{position:absolute;left:50%;top:calc(var(--st) + var(--h) + var(--g));translate:-50% 0;height:calc(var(--u)*72px);padding:0 calc(var(--u)*24px);border-radius:calc(var(--u)*36px);display:flex;align-items:center;gap:calc(var(--u)*8px);font-size:calc(var(--u)*32px);white-space:nowrap;animation:ban .4s cubic-bezier(.2,1.5,.4,1)}
+.tick{position:absolute;left:50%;top:calc(var(--st) + var(--h) + var(--g) * 2 + var(--u)*136px);translate:-50% 0;height:calc(var(--u)*72px);padding:0 calc(var(--u)*24px);border-radius:calc(var(--u)*36px);display:flex;align-items:center;gap:calc(var(--u)*8px);font-size:calc(var(--u)*32px);white-space:nowrap;animation:ban .4s cubic-bezier(.2,1.5,.4,1)}
 .tick[hidden]{display:none}
 /* cinematic vignette (no bars: the world runs edge to edge) and a coloured flash (never full white) */
 .cine{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s ease;background:radial-gradient(ellipse 80% 70% at 50% 48%,transparent 55%,rgba(13,18,48,.5) 100%)}
