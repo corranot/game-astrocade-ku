@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const out = process.argv[2] || 'evidence'; fs.mkdirSync(out, { recursive: true });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.mp3': 'audio/mpeg' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2' };
 const server = http.createServer((q, r) => {
   const f = path.join(__dirname, decodeURIComponent(q.url.split('?')[0]).replace(/^\/$/, '/index.html'));
   fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); } else { r.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); r.end(d); } });
@@ -106,7 +106,8 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   ok(w1.every((w) => JSON.stringify(w).length < 40000), 'save stays under 40 KB');
   const nx = await G(page, () => window.__game.NEXT); await page.mouse.click(nx.x, nx.y);
   await wait(page, () => window.__game.S.n === 1);
-  s = await st(page); ok(s.order.shape === 'star' && s.step === 'chop', 'the big ▶ brings order 2 (a star), made from scratch: it starts by chopping');
+  s = await st(page); ok(s.order.shape === 'star' && s.step === 'carve', 'the big ▶ brings order 2 (a star) as a ready bar: straight to the knife');
+  ok(await G(page, () => window.__game.save.ftue === true), 'the first soap all the way round ends the lesson');
   await ready(page); await page.waitForTimeout(300); await shot(page, '04-order2-start'); await toCarve(page);
 
   console.log('4. knife rules: the core stays, a fast slip inside the line says oops and costs Shape');
@@ -141,7 +142,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   ok(await G(page, () => window.__game.save.charms.length === 1), 'the charm goes into the album');
 
   console.log('7. a purchase is followed by an order asking for it');
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 200, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 200, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page);
   await G(page, () => { const G = window.__game; G.S.si = G.S.steps.indexOf('sparkle'); G.S.k = 'sparkle'; G.S.edges = new Int32Array(0); });
   await page.waitForTimeout(100); await shot(page, '08-tray-locked');
@@ -196,9 +197,9 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   ok(await G(page, () => Number.isFinite(window.__game.save.coins) && window.__game.save.coins >= 0), 'coins stay a sane number');
 
   console.log('12. layout: nothing tappable in the bottom 15%, buttons ≥ 96 px');
-  const L = await G(page, () => { const G = window.__game; return { next: G.NEXT, slots: [G.slotXY(0, 0), G.slotXY(1, 5)], lang: G.LANGB(), free: G.FREEB(), check: G.CHECK(), mute: G.MUTE(), shelf: G.SHELFB(), shop: G.SHOP_XY(0) }; });
-  ok(L.next.y + L.next.r <= 1088 && L.slots[1][1] + 48 <= 1088 && L.lang.y + L.lang.h <= 1088 && L.free.y + L.free.h <= 1088, 'every control ends above y 1088');
-  ok(L.check.s >= 96 && L.mute.s >= 92 && L.next.r * 2 >= 96 && L.lang.h >= 84, 'controls are big enough for a child finger');
+  const L = await G(page, () => { const G = window.__game; return { next: G.NEXT, slots: [G.slotXY(0, 0), G.slotXY(1, 5)], lang: G.LANGB(), free: G.FREEB(), check: G.CHECK(), mute: G.MUTE(), shelf: G.SHELFB(), shop: G.SHOP_XY(0), share: G.SHAREB(), skip: G.SKIPB() }; });
+  ok(L.next.y + L.next.r <= 1088 && L.slots[1][1] + 48 <= 1088 && L.lang.y + L.lang.h <= 1088 && L.free.y + L.free.h <= 1088 && L.share.y + L.share.h <= 1088 && L.skip.y + L.skip.s <= 1088, 'every control ends above y 1088');
+  ok(L.check.s >= 96 && L.mute.s >= 96 && L.shelf.s >= 96 && L.skip.s >= 96 && L.share.h >= 84 && L.next.r * 2 >= 96 && L.lang.h >= 84, 'controls are big enough for a child finger');
 
   console.log('13. seven languages: every screen, with the device locale');
   for (const l of LANGS) {
@@ -211,7 +212,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     await G(page, () => window.__game.finishSparkle()); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 3.6); await shot(page, `lang-${l}-4-bath`);
     await G(page, () => { window.__game.view = 'shelf'; }); await page.waitForTimeout(300); await shot(page, `lang-${l}-5-shelf`);
     ok(page.errors.length === 0, `${l}: no errors`);
-    page = await open('', { locale: l === 'en' ? 'en-US' : l }, () => { window.__saved = { n: 2, coins: 120, stars: 6 }; });
+    page = await open('', { locale: l === 'en' ? 'en-US' : l }, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 120, stars: 6 }; });
     await wait(page, () => window.__game.S.n === 2); await ready(page); await page.waitForTimeout(400); await shot(page, `lang-${l}-6-chop`);
     for (const [k, name] of [['stir', '7-stir'], ['pour', '8-pour'], ['stamp', '9-stamp']]) { await G(page, (k) => { const G = window.__game; while (G.S.k !== k) G.nextStep(); }, k); await page.waitForTimeout(700); await shot(page, `lang-${l}-${name}`); }
     await G(page, () => { const G = window.__game; while (G.S.k !== 'bath') G.nextStep(); }); await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.6);
@@ -300,7 +301,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   ok(await G(page, () => window.__game.view === 'shelf' && window.__game.coinShown === window.__game.save.coins && window.__game.save.coins > 0), 'opening the shelf during the bath shows the real coin total');
 
   console.log('19. the full recipe (soap 2 on): twelve steps, each its own gesture, by real touches');
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page);
   ok(JSON.stringify(await G(page, () => window.__game.S.steps)) === JSON.stringify(['chop', 'color', 'stir', 'scent', 'pour', 'cool', 'pop', 'carve', 'smooth', 'stamp', 'sparkle', 'bath']), 'the recipe has 12 steps');
   const k19 = () => G(page, () => window.__game.S.k), t19 = await G(page, () => window.__game.S.t), seen = [];
@@ -350,12 +351,12 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
 
   console.log('20. regressions found by the second bug hunt');
   const toStep = (page, k) => G(page, (k) => { const G = window.__game; while (G.S.k !== k) G.nextStep(); }, k);
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour');
   await page.mouse.move(360, 650); await page.mouse.down(); await page.waitForTimeout(1500);
   ok(await G(page, () => window.__game.S.make.level > 0.3), 'holding before the pot arrives still pours');
   await page.mouse.up();
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour'); await page.waitForTimeout(700);
   await page.mouse.move(360, 650); await page.mouse.down(); await wait(page, () => window.__game.S.make.level > 0.45); await page.mouse.up();
   ok(await G(page, () => window.__game.S.k === 'pour' && window.__game.S.make.lowT > 0), 'letting go too early shows and sounds a hint');
@@ -363,7 +364,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   await page.mouse.move(360, 650); await page.mouse.down(); await wait(page, () => window.__game.S.make.level > 0.7);
   await G(page, () => window.run('play')); await page.waitForTimeout(300); await page.mouse.up();
   ok(await G(page, () => !window.__game.S.make.pouring), 'a second run() mid-pour stops the pouring');
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page);
   const w20 = await G(page, () => (window.__writes || []).length); await toStep(page, 'color');
   ok(await G(page, (w) => (window.__writes || []).length > w && window.__writes[window.__writes.length - 1].learned.includes('chop'), w20), 'a finished step is saved at once (coins and learned gestures)');
@@ -413,7 +414,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   page = await open(); await ready(page);
   await burst(page, Array.from({ length: 40 }, (_, j) => [BAR.x + 60 + j * 4, BAR.y + BAR.h / 2]), 4); // 4 px apart, 4 events a frame: about 1,000 px/s
   ok(await G(page, () => window.__game.S.speed < 1500 && window.__game.S.soap.nicks === 0), 'a slow stroke sent in bursts is measured as slow (no false slip)');
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'stir');
   await burst(page, Array.from({ length: 160 }, (_, j) => [360 + Math.cos(j / 16) * 100, 640 + Math.sin(j / 16) * 100]), 4); // 1.6 turns
   ok(await G(page, () => window.__game.makeProgress() > 1.5 / window.__game.cfg.stirTurns), 'stirring counts the spoon\'s turns, however the events arrive');
@@ -422,7 +423,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   await toStep(page, 'cool');
   for (let y = BAR.y + 20; y < BAR.y + BAR.h; y += 36) await burst(page, [[BAR.x - 10, y], [BAR.x + BAR.w + 10, y]], 1); // long swipes, two events each
   ok(await G(page, () => window.__game.S.k !== 'cool'), 'cooling counts the whole length of a fast swipe');
-  page = await open('', { locale: 'ar' }, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', { locale: 'ar' }, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'pour');
   ok(await G(page, () => { const a = window.__game.landAt(), b = window.__game.fillCentre(); return Math.abs(a[0] - b[0]) < 1 && Math.abs(a[1] - b[1]) < 1; }), 'in Arabic the mould fills from where the stream lands');
 
@@ -445,7 +446,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   }
 
   console.log('24. a stamp tapped at the very edge of the soap');
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'stamp');
   const edge24 = await G(page, () => { const G = window.__game, s = G.S.soap, y = s.h >> 1; let x = 0; while (x < s.w && !s.m[y * s.w + x]) x++; return [G.cfg.bar.x + x + 3, G.cfg.bar.y + y]; });
   const e24 = page.errors.length; await page.mouse.click(edge24[0], edge24[1]); await page.waitForTimeout(200);
@@ -461,7 +462,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   await page.mouse.up();
   await wait(page, () => window.__game.S.k === 'smooth' && !window.__game.S.trim);
   ok(await G(page, () => { const S = window.__game.S; return !!S.spotC && S.spots.some((q) => Math.hypot(q[0] - S.spotC[0], q[1] - S.spotC[1]) < 1); }), 'the smoothing hand aims at a real rough spot, not the middle of the soap');
-  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  page = await open('', {}, () => { window.__fullRecipe = true; window.__saved = { n: 2, coins: 0, stars: 6 }; });
   await wait(page, () => window.__game.S.n === 2); await ready(page); await toStep(page, 'carve'); await wait(page, () => window.__game.S.enter <= 0);
   await drag(page, row(BAR.y + 20)); await drag(page, row(BAR.y + 50));
   ok(await G(page, () => { const G = window.__game; G.S.ribbon = { len: 120, c: '#fff', back: 0 }; return true; }), 'a shaving is left on the blade');
@@ -478,6 +479,40 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
   await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 1.7);
   await G(page, () => { window.__game.freeNext = true; }); await page.waitForTimeout(100);
   ok(await G(page, () => { const r = window.__game.S.reveal; return !r.next || r.next.free; }), 'the next-order peek follows a change made during the reveal');
+
+  console.log('24. carve first: ready bars, quick making every few soaps, a lesson, a share with the live picture, tall phones');
+  page = await open('', {}, () => { window.__saved = { n: 2, coins: 0, stars: 6 }; });
+  await wait(page, () => window.__game.S.n === 2);
+  ok(await G(page, () => window.__game.S.k === 'carve'), 'a returning player lands on the knife, even on a making order');
+  ok(await G(page, () => window.__game.save.ftue === true && !window.__game.spotOn()), 'a returning player gets no lesson');
+  const sets = await G(page, () => { const G = window.__game, c = G.cfg, out = {}; for (const n of [1, 2, 3, 5, 8, 11]) out[n] = G.stepsOf(G.makeOrder(n), false).join(','); return out; });
+  const R5 = 'carve,smooth,stamp,sparkle,bath';
+  ok(sets[1] === R5 && sets[3] === R5, 'most soaps arrive as a ready bar');
+  ok(sets[2] === [...cfg.quickMake[0], R5].join(',') && sets[5] === [...cfg.quickMake[1], R5].join(',') && sets[8] === [...cfg.quickMake[2], R5].join(',') && sets[11] === sets[2], 'every third soap is made from scratch, the quick sets taking turns');
+  ok(['chop', 'color', 'stir', 'scent', 'pour', 'cool', 'pop'].every((k) => cfg.quickMake.some((q) => q.includes(k))), 'every making step still comes round');
+  ok(cfg.quickMake.every((q) => q.length <= 5), 'a quick making is at most 5 steps');
+  page = await open(); await ready(page);
+  ok(await G(page, () => !!window.__game.spotRect()), 'a new player gets the spotlight on the bar');
+  await drag(page, [[BAR.x + 10, BAR.y + 20], [BAR.x + 60, BAR.y + 24]]);
+  ok(await G(page, () => !window.__game.spotRect()), 'the spotlight moves on with the real first stroke');
+  page = await open(); await ready(page);
+  const sk = await G(page, () => window.__game.SKIPB()); await page.mouse.click(sk.x + sk.s / 2, sk.y + sk.s / 2);
+  ok(await G(page, () => window.__game.save.ftue === true && !window.__game.spotOn()), 'the skip button ends the lesson');
+  page = await open(); await ready(page); await G(page, () => { const G = window.__game; G.finishCarve(); });
+  await wait(page, () => window.__game.S.k === 'smooth'); await G(page, () => window.__game.finishSmooth()); await wait(page, () => window.__game.S.k === 'sparkle'); await G(page, () => window.__game.finishSparkle());
+  await wait(page, () => window.__game.S.reveal && window.__game.S.reveal.t > 0.7);
+  ok(await G(page, () => window.__game.cineOn), 'the first soap gets its camera beat');
+  await wait(page, () => window.__game.S.reveal.t > 3.7);
+  const shb = await G(page, () => window.__game.SHAREB()); await page.mouse.click(shb.x + shb.w / 2, shb.y + shb.h / 2); await page.waitForTimeout(200);
+  const sh = await G(page, () => window.__shared && { title: window.__shared.title, text: window.__shared.text, image: 'image' in window.__shared });
+  ok(sh && sh.title && sh.text && !sh.image, 'Share sends a title and words only, so the card shows the live picture');
+  ok(await G(page, () => window.__game.save.made.includes('heart')), 'the shapes made are kept');
+  for (const [w, h] of [[390, 844], [430, 932], [360, 640], [768, 1024]]) {
+    page = await open('', { viewport: { width: w, height: h } }); await ready(page);
+    const f = await G(page, () => { const G = window.__game, c = document.getElementById('game').getBoundingClientRect(), m = G.MUTE(); return { off: G.OFF, cw: c.width, ch: c.height, muteTop: (m.y + G.OFF) * c.height / (1280 + 2 * G.OFF) }; });
+    ok(Math.abs(f.ch - Math.min(h, w * (1280 + 2 * f.off) / 720)) < 2 && (h / w <= 16 / 9 + 0.01 ? f.off === 0 : f.off > 0), `${w}x${h}: the canvas fills the height (OFF ${f.off})`);
+    ok(Math.abs(f.muteTop - 24 * f.ch / (1280 + 2 * f.off)) < 1, `${w}x${h}: the top row sits on the top margin`);
+  }
 
   await browser.close(); server.close();
   console.log(failed ? `\n${failed} FAILED` : '\nall playtest checks pass');

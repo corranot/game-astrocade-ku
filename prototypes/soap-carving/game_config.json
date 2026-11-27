@@ -26,6 +26,27 @@
  "shadowX": 10,
  "shadowY": 8,
  "freeAfter": 6,
+ "scratchEvery": 3,
+ "quickMake": [
+  [
+   "color",
+   "pour",
+   "pop"
+  ],
+  [
+   "chop",
+   "scent",
+   "pour",
+   "pop"
+  ],
+  [
+   "color",
+   "stir",
+   "pour",
+   "cool",
+   "pop"
+  ]
+ ],
  "confetti": 120,
  "slowFrameMs": 30,
  "bar": {
@@ -291,7 +312,8 @@
    "gift": "Tap the gift!",
    "great": "Great job!",
    "almost": "Almost there!",
-   "stop": "STOP!"
+   "stop": "STOP!",
+   "tomorrow": "Come back tomorrow for a gift!"
   },
   "ar": {
    "carve": "انحت خارج الخط!",
@@ -335,7 +357,8 @@
    "gift": "المس الهدية!",
    "great": "عمل رائع!",
    "almost": "اقتربت!",
-   "stop": "توقف!"
+   "stop": "توقف!",
+   "tomorrow": "عد غدًا لتحصل على هدية!"
   },
   "es": {
    "carve": "¡Talla fuera de la línea!",
@@ -379,7 +402,8 @@
    "gift": "¡Toca el regalo!",
    "great": "¡Muy bien!",
    "almost": "¡Casi listo!",
-   "stop": "¡ALTO!"
+   "stop": "¡ALTO!",
+   "tomorrow": "¡Vuelve mañana por un regalo!"
   },
   "vi": {
    "carve": "Khắc ngoài đường kẻ!",
@@ -423,7 +447,8 @@
    "gift": "Chạm hộp quà!",
    "great": "Giỏi lắm!",
    "almost": "Sắp xong rồi!",
-   "stop": "DỪNG!"
+   "stop": "DỪNG!",
+   "tomorrow": "Mai quay lại nhận quà nhé!"
   },
   "hi": {
    "carve": "रेखा के बाहर काटो!",
@@ -467,7 +492,8 @@
    "gift": "तोहफ़ा छुओ!",
    "great": "बहुत बढ़िया!",
    "almost": "बस थोड़ा और!",
-   "stop": "रुको!"
+   "stop": "रुको!",
+   "tomorrow": "कल फिर आओ, तोहफ़ा मिलेगा!"
   },
   "bn": {
    "carve": "দাগের বাইরে কাটো!",
@@ -511,7 +537,8 @@
    "gift": "উপহার ছোঁও!",
    "great": "দারুণ হয়েছে!",
    "almost": "প্রায় হয়ে গেছে!",
-   "stop": "থামো!"
+   "stop": "থামো!",
+   "tomorrow": "কাল আবার এসো, উপহার পাবে!"
   },
   "id": {
    "carve": "Ukir di luar garis!",
@@ -555,7 +582,8 @@
    "gift": "Ketuk hadiahnya!",
    "great": "Hebat!",
    "almost": "Sedikit lagi!",
-   "stop": "STOP!"
+   "stop": "STOP!",
+   "tomorrow": "Kembali besok, ada hadiah!"
   }
  },
  "persistent_storage_config": {
@@ -936,5 +964,54 @@
  },
  "smoothCheckSecs": 8,
  "ribbonMax": 150,
- "ribbonCells": 60
+ "ribbonCells": 60,
+ "bgPreview": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAwAEgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDtJpPKUcZJqNbvAIIywXOMYzUs1uLqMoG2kdx2pqadFDG3LO5GCxNeJSpc0bs9aSqe1unoRw3pacI+ACcfjV/ArLttOQTCYyMSp6E9K1ABitamFcmnE5J5jTjNxs9BNtZepzXkAfYmYj0eP7yfh3rVOP8AJqNwCMH+dKnhZRld2ZDzKn2ZiW2rOVEU+0ysRtYfxCthdiozyKpQD1wfwrLutEt5XEsRaOUMCrA96L9rqGIIynLDnA4NN0oxq6nXhK31iL6FgMsqB0PBoqnZTNGoieiuSpBxlY7FJPY03cwTCX+EjDVC+ovKdsCFj6064c7mBZdoHQ96lSaG3i27NpPYDrT+sSpQSSuXayvYSyWVVZpj8zHpVsNVeNiUBbg1Jur2IaxTPjK8m6sm+7JCajJpN3vTS1WkYthnDKfcVJOrXCEdPqe/tUDPjB9CKQ3RTqcAmvOxcuWor9j3srg5UpNdzK8i6+1AFQFU9RRWqcYorjnVc3dnrQioKyI5gGaMEcZqAvub5mYNnjHarDAOuDVd4pA4Od6jt0pwatZm8WupZEmBhiAe/NL5q/3h+dRKJHfexA9sZqf5PQflXWsbypKx4VTKVKblz7+Q3zR/eH500yr/AHh+dSfL6D8qQ7fQU/r/APdM/wCyP7/4f8Ei3qxAyDk1XnEMZEjSkqG+7mrfAPGKzb4GBmkSPeG7ehpRqQr1VzKx10qEsJTaTbV9bblyGcSrkAgds96KzLSO5eUTSNgdlFFc1eMFP3Gd1Pmt7yt/kf/Z",
+ "firstSprites": [
+  "studio_bg"
+ ],
+ "cineCooldown": 6,
+ "cineSlowRate": 0.25,
+ "cine": {
+  "first": {
+   "zoom": 1.16,
+   "dur": 1.8,
+   "ease": 0.35,
+   "slow": 0.18,
+   "prio": 4,
+   "sting": true,
+   "always": true
+  },
+  "newShape": {
+   "zoom": 1.14,
+   "dur": 1.6,
+   "ease": 0.35,
+   "slow": 0.15,
+   "prio": 3,
+   "sting": true
+  },
+  "perfect": {
+   "zoom": 1.12,
+   "dur": 1.4,
+   "ease": 0.3,
+   "slow": 0.12,
+   "prio": 2,
+   "sting": true
+  },
+  "charm": {
+   "zoom": 1.12,
+   "dur": 1.0,
+   "ease": 0.25,
+   "slow": 0.12,
+   "prio": 3
+  },
+  "gift": {
+   "zoom": 1.08,
+   "dur": 1.2,
+   "ease": 0.3,
+   "slow": 0,
+   "prio": 2,
+   "sting": true
+  }
+ },
+ "maxHeight": 1600
 }

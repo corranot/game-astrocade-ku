@@ -7,7 +7,7 @@
  */
 export const MAKE_STEPS = ['chop', 'color', 'stir', 'scent', 'pour', 'cool', 'pop'];
 const TAU = Math.PI * 2;
-const POT = { x: 360, y: 640, r: 196, liquid: 160 };
+export const POT = { x: 360, y: 640, r: 196, liquid: 160 };
 const POT_SIDE = { x: 588, y: 520, r: 106 }; // beside the mould, fully on screen in both reading directions
 const FC = 10, FR = 12; // the frost grid over the mould: cooling is done where the finger rubbed
 const SCENTS = [{ id: 'lavender', c: '#B57BFF', c2: '#E3CCFF' }, { id: 'rose', c: '#FF6FA8', c2: '#FFD0E2' }, { id: 'lemon', c: '#FFD23F', c2: '#FFF3B0' }];
