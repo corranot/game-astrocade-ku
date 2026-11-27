@@ -361,7 +361,7 @@ day each.
 - **[CHANGE] Title: "Wonder Sprout"** (13 characters). The full "Wonder-Sprout: Royal Sky-Garden" is the
   in-game logo. Reason: the fastest quarter of the feed has a median title of 14 characters; short titles
   read in every market. Alternative if a test wants the verb first: "Sky Garden Fling".
-- **Description (draft, 129 characters):** "Fling your critter, smash crystals and catch star-gems! Hatch
+- **Description (draft, 122 characters):** "Fling your critter, smash crystals and catch star-gems! Hatch
   eggs, evolve cute pets and build a magic sky-garden kingdom." Verb-led, unique, no brand or workflow
   words.
 - **Target theme row: Farm** (68 games, smaller than Incremental's 100). To land there the game's own
