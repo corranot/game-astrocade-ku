@@ -1,0 +1,132 @@
+{
+ "NEKO": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 22765,
+  "errs": [],
+  "nErr": 0
+ },
+ "ICE": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 21707,
+  "errs": [],
+  "nErr": 0
+ },
+ "PIN": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 15819,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "REEL": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 19882,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "GRAB": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 17160,
+  "errs": [
+   "console: Permissions policy violation: focus-without-user-activation is not allowed in this document."
+  ],
+  "nErr": 1
+ },
+ "COZY": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 15582,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "SM1": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 19000,
+  "errs": [],
+  "nErr": 0
+ },
+ "SM2": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 24529,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "HERO": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 18918,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "BLUE": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 17582,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "DATE": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 16417,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "VW": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 18006,
+  "errs": [
+   "console: [GSI_LOGGER]: FedCM get() rejects with TypeError: Failed to execute 'get' on 'CredentialsContainer': Failed to read the 'identity' property from 'CredentialRequ"
+  ],
+  "nErr": 1
+ },
+ "MH": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 31931,
+  "errs": [],
+  "nErr": 0
+ },
+ "SNIP": {
+  "ok": true,
+  "frames": 1,
+  "frameUrl": "about:srcdoc",
+  "ms": 16629,
+  "errs": [],
+  "nErr": 0
+ }
+}
