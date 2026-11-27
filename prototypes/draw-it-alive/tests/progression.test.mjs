@@ -30,7 +30,7 @@ test('new chapter, share and puzzle words exist in every existing language', asy
   const cfg = JSON.parse(await readFile(new URL('../game_config.json', import.meta.url), 'utf8'));
   assert.deepEqual(Object.keys(cfg.strings).sort(), ['ar', 'bn', 'en', 'es', 'hi', 'id', 'vi']);
   for (const words of Object.values(cfg.strings)) {
-    for (const key of ['share', 'myDrawing', 'snowChapter', 'winterSet', 'snowOpen', 'L21', 'L22', 'L23', 'L24', 'L25']) {
+    for (const key of ['share', 'shareText', 'myDrawing', 'snowChapter', 'winterSet', 'snowOpen', 'L21', 'L22', 'L23', 'L24', 'L25']) {
       assert.equal(typeof words[key], 'string', `missing ${key}`);
       assert.ok(words[key].length > 0, `empty ${key}`);
     }

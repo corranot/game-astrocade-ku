@@ -268,11 +268,11 @@ function rock(ctx) {
 }
 
 // ---------- chapter 5: snowy day ----------
-const WINTER = '#B8E9FF', ICE = '#8DE1F3', PINE = '#29B989';
+const WINTER = '#7CCFF5', ICE = '#8DE1F3', PINE = '#29B989';
 function snowGround(ctx) {
   dots(ctx);
-  ctx.fillStyle = '#EAF9FF'; ctx.beginPath(); ctx.moveTo(0, 900); ctx.quadraticCurveTo(180, 830, 360, 900); ctx.quadraticCurveTo(530, 820, 720, 890); ctx.lineTo(720, 1280); ctx.lineTo(0, 1280); ctx.fill();
-  ctx.fillStyle = WHITE; ctx.beginPath(); ctx.moveTo(0, 980); ctx.quadraticCurveTo(210, 910, 390, 980); ctx.quadraticCurveTo(550, 900, 720, 970); ctx.lineTo(720, 1280); ctx.lineTo(0, 1280); ctx.fill();
+  ctx.fillStyle = '#C4E6F8'; ctx.beginPath(); ctx.moveTo(0, 900); ctx.quadraticCurveTo(180, 830, 360, 900); ctx.quadraticCurveTo(530, 820, 720, 890); ctx.lineTo(720, 1280); ctx.lineTo(0, 1280); ctx.fill();
+  ctx.fillStyle = '#E4F5FD'; ctx.beginPath(); ctx.moveTo(0, 980); ctx.quadraticCurveTo(210, 910, 390, 980); ctx.quadraticCurveTo(550, 900, 720, 970); ctx.lineTo(720, 1280); ctx.lineTo(0, 1280); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.72)';
   for (const [x, y, r] of [[110, 340, 48], [170, 325, 34], [530, 290, 50], [590, 305, 34]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.55, 0, 0, 7); ctx.fill(); }
 }
@@ -838,7 +838,7 @@ export const LEVELS = [
     },
     live(ctx, S) {
       const w = S.won, line = S.lines[0]; if (line) sticker(() => S.part(ctx, 20, WHITE));
-      let p = w >= 0 ? [160, 822] : [105, 930], rot = 0;
+      let p = w >= 0 ? [160, 822] : [84, 1045], rot = 0; // waits clear of the start dot
       if (w >= 0 && line) { const k = ease((w - 0.2) / 2.2); p = pointAt(line, k); const q = pointAt(line, Math.min(1, k + 0.03)); rot = Math.atan2(q[1] - p[1], q[0] - p[0]); }
       chick(ctx, p[0], p[1] - 12, SUNNY, 1, w >= 0 ? 'happy' : S.mood, S.t, null, rot * 0.22);
       if (w > 1.5) { ctx.fillStyle = WHITE; for (let i = 0; i < 4; i++) { const q = pointAt(line || target, (w * 0.18 + i / 4) % 1); blob(ctx, q[0], q[1] + 15, 5, 5, WHITE); } }

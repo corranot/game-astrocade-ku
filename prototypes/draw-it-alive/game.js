@@ -15,13 +15,13 @@
  * then opens the next chapter. Every star is a paint drop for the jar; a full jar gives a surprise box with a
  * sticker the player does not have yet (five sets of six), kept in the sticker book behind the jar. The first
  * win of a new day gives extra drops; a tap on the padlock opens the next chapter; a tapped picture on the
- * wall is shown large and shareable. Levels 26-50 show every scene mirrored.
+ * wall is shown large. A share button (top right) sends the game to a friend and nods once at a peak moment. Levels 26-50 show every scene mirrored.
  *
  * The 720 x 1280 scene is drawn by code (art.js). What never moves is drawn once per level into a
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame. The wall shows
  * cached cards and animates one at a time. Tunable numbers live in game_config.json.
  */
-import { sticker, stick, shape, star, box, blob, dots, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
+import { sticker, stick, shape, star, box, blob, heart, dots, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
 import { LEVELS } from './levels.js';
 import { migrateLegacyLevel, stickerChoices } from './progress.js';
 
@@ -31,9 +31,9 @@ const DEBUG = location.search.includes('local');
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, WHITE];
 const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of the swipe edge
 const WALLB = { x: 600, y: 1040, s: 96 }; // button to the wall, lower right
-const JAR = { x: 24, y: 40, s: 110 }; // the paint jar, top left; it opens the sticker book
+const JAR = { x: 24, y: 40, s: 96 }; // the paint jar, top left; it opens the sticker book
 const BACK = { x: 312, y: 1110, s: 96 }; // the way back out of the sticker book
-const SHAREB = { x: 250, y: 1080, w: 220, h: 104 }; // one-tap share; never replaces the automatic next-level flow
+const SHAREB = { x: 600, y: 40, s: 96 }; // share, top right, mirrors the jar; stays until the player leaves the level
 const LANGB = { x: 140, y: 46, w: 440, h: 96 }; // the language button at the top of the sticker book
 const CARD = { k: 0.4, w: 288, h: 320, top: 280, border: 1.6, pad: 30 }; // a wall card shows the scene at 0.4, cropped from y = 280
 const SKIN = '#FFD8B5';
@@ -419,13 +419,13 @@ const onButton = (b, p) => Math.hypot(p[0] - b.x - b.s / 2, p[1] - b.y - b.s / 2
 
 /** What a press at p would trigger, or null for drawing. */
 function pressTarget(p) {
-  if (view === 'wall') return wall.big >= 0 && onShareButton(p) ? 'shareWall' : 'wall';
+  if (view === 'wall') return shareShown() && onButton(SHAREB, p) ? 'share' : 'wall';
   if (view === 'box') return 'box';
   if (view === 'book') return 'book';
+  if (shareShown() && onButton(SHAREB, p)) return 'share';
   if (wallShown() && onButton(WALLB, p)) return 'toWall';
   if (muteShown() && onButton(JAR, p)) return 'jar';
   if (muteShown() && onButton(MUTE, p)) return 'mute';
-  if (S.won >= 0 && onShareButton(p)) return 'shareLevel';
   if (S.won >= 0) return 'skip';
   return null;
 }
@@ -434,8 +434,7 @@ function pressTarget(p) {
 function release(p) {
   const pr = press; press = null;
   if (!pr || dist(p, pr.p) > cfg.tapTravel) return;
-  if (pr.what === 'shareLevel') return sharePicture(S, S.stars, S.flip);
-  if (pr.what === 'shareWall') { const c = wall.cards[wall.big]; return sharePicture(c.s, save.stars[c.s.i] || 0, false); }
+  if (pr.what === 'share' && onButton(SHAREB, p)) return shareGame();
   if (pr.what === 'wall') return wallTap(p);
   if (pr.what === 'toWall' && onButton(WALLB, p)) { const c = wallChapter(); return openWall(c, S.i, false); }
   if (pr.what === 'jar' && onButton(JAR, p)) return openBook();
@@ -571,8 +570,8 @@ function drawBox() {
 }
 
 /** Book: four panels of one set each, two by two; a panel holds three rows of two. */
-const panelAt = (s) => ({ x: 34 + (s % 2) * 346, y: 170 + Math.floor(s / 2) * 310, w: 306, h: 280 });
-const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 74 : -74), y: p.y + 100 + Math.floor(j / 2) * 64 }; };
+const panelAt = (s) => { const n = Math.min(3, STICKERS.length / SET - Math.floor(s / 3) * 3), w = 212, gap = 20; return { x: (W - n * w - (n - 1) * gap) / 2 + (s % 3) * (w + gap), y: 200 + Math.floor(s / 3) * 450, w, h: 420 }; }; // rows of three, a short last row centred
+const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 52 : -52), y: p.y + 95 + Math.floor(j / 2) * 125 }; };
 
 function openBook() { hush(); S.pen = null; S.liftAt = 0; view = 'book'; press = null; pointerDown = false; book = { t: 0 }; beep(880, 0.1, 'triangle'); }
 
@@ -584,7 +583,6 @@ function drawBook() {
     box(g, P.x, top + 10, P.w, P.h, 36, 'rgba(31,42,107,0.22)');
     if (gold) box(g, P.x - 8, top - 8, P.w + 16, P.h + 16, 42, ORANGE); // a finished set gets a gold frame
     box(g, P.x, top, P.w, P.h, 36, STICKER_BG);
-    if (s0 === 24) words(T('winterSet'), P.x + P.w / 2, top + 45, 24, P.w - 24, NAVY);
     if (gold) for (const x of [P.x + 34, P.x + P.w - 34]) sticker(() => star(g, x, top + 18, 22, SUNNY, Math.sin(book.t * 3) * 0.3));
     for (let id = s0; id < s0 + SET; id++) {
       const { x, y } = slotAt(id);
@@ -605,6 +603,7 @@ function drawBook() {
 }
 
 function update(dt) {
+  updateNudge(dt);
   if (view === 'wall') return updateWall(dt);
   if (view === 'box') return updateBox(dt);
   if (view === 'book') { book.t += dt; return; }
@@ -725,54 +724,34 @@ function drawWallButton() {
   g.fillStyle = MINT; g.beginPath(); g.moveTo(x + 28, y + 64); g.lineTo(x + 44, y + 46); g.lineTo(x + 60, y + 64); g.closePath(); g.fill();
 }
 
-const onShareButton = (p) => p[0] >= SHAREB.x && p[0] <= SHAREB.x + SHAREB.w && p[1] >= SHAREB.y && p[1] <= SHAREB.y + SHAREB.h;
+/** The share button shows wherever the jar does, from the first win on, and on a picture opened big on the wall. */
+const shareShown = () => mode === 'play' && ((view === 'play' && (muteShown() || S.won >= 0)) || (view === 'wall' && wall.big >= 0));
+let nudge = -1, nudged = false; // the once-a-session nod of the share button at a peak moment (seconds since it began)
+/** Round share button: three linked dots. It pops on every win and nods once a session after a perfect picture. */
 function drawShareButton() {
-  const b = SHAREB, pulse = S && S.won >= 0 && S.won < 0.45 ? 1 + Math.sin(S.won / 0.45 * Math.PI) * 0.035 : 1;
-  g.save(); g.translate(b.x + b.w / 2, b.y + b.h / 2); g.scale(pulse, pulse);
-  box(g, -b.w / 2, -b.h / 2 + 7, b.w, b.h, 48, 'rgba(31,42,107,0.24)');
-  box(g, -b.w / 2, -b.h / 2, b.w, b.h, 48, WHITE);
-  const ix = -61, iy = 0; g.strokeStyle = VIOLET; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(ix - 5, iy + 8); g.lineTo(ix + 13, iy - 8); g.moveTo(ix - 4, iy + 10); g.lineTo(ix + 14, iy + 18); g.stroke();
-  for (const [x, y] of [[ix - 15, iy + 11], [ix + 19, iy - 13], [ix + 20, iy + 21]]) { g.fillStyle = SKY; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
-  words(T('share'), 42, 1, 38, 130, NAVY); g.restore();
+  if (!shareShown()) return;
+  const b = SHAREB, cx = b.x + b.s / 2, cy = b.y + b.s / 2, won = view === 'play' ? S.won : -1;
+  let k = won >= 0 && won < 0.45 ? 1 + Math.sin(won / 0.45 * Math.PI) * 0.08 : 1;
+  if (nudge >= 0) k *= 1 + Math.max(0, Math.sin(nudge * 7)) * 0.1 * Math.max(0, 1 - nudge / cfg.shareNudgeSeconds);
+  g.save(); g.translate(cx, cy); g.scale(k, k); g.translate(-cx, -cy);
+  if (nudge >= 0) { g.globalAlpha = Math.max(0, 1 - nudge / cfg.shareNudgeSeconds); g.lineWidth = 8; g.strokeStyle = ORANGE; g.beginPath(); g.arc(cx, cy, b.s / 2 + 6 + (nudge * 30) % 18, 0, 7); g.stroke(); g.globalAlpha = 1; }
+  disc(b);
+  g.strokeStyle = VIOLET; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - 14, cy + 4); g.lineTo(cx + 12, cy - 12); g.moveTo(cx - 14, cy + 4); g.lineTo(cx + 12, cy + 18); g.stroke();
+  for (const [x, y] of [[cx - 16, cy + 4], [cx + 14, cy - 14], [cx + 14, cy + 20]]) { g.fillStyle = SKY; g.beginPath(); g.arc(x, y, 10, 0, 7); g.fill(); }
+  if (nudge >= 0) { const p = Math.min(1, nudge / 0.25); g.save(); g.translate(b.x + 10, b.y + b.s - 10); g.scale(p, p); sticker(() => heart(g, 0, 0, 16, CORAL)); g.restore(); }
+  g.restore();
 }
-
-/** Build a card only in response to a Share tap; the host turns this canvas into the share image. */
-function renderShareCard(source, stars, flip = false) {
-  const image = document.createElement('canvas'); image.width = 720; image.height = 1080;
-  const c = image.getContext('2d'); c.fillStyle = '#D9F3FF'; c.fillRect(0, 0, image.width, image.height);
-  // Soft card surface; the picture and stars are rendered only after the player taps Share.
-  box(c, 22, 14, 676, 1052, 40, WHITE);
-  const scale = 0.65, x = (W - W * scale) / 2, y = 26, was = borderScale(1 / scale);
-  c.save(); c.translate(x, y); c.scale(scale, scale);
-  if (flip) { c.translate(W, 0); c.scale(-1, 1); }
-  c.fillStyle = source.lv.bg; c.fillRect(0, 0, W, H);
-  source.lv.back(c);
-  const preview = scene(source.lv, source.i);
-  preview.lines = (source.lines || []).map((line) => line ? line.map((p) => p.slice()) : null);
-  preview.done = preview.lines.map(() => 0); preview.won = 3.2; preview.t = 3.2; preview.mood = 'happy'; preview.stars = stars; preview.quiet = true; preview.quality = 2;
-  source.lv.live(c, preview);
-  // Keep every player's actual stroke visible, even when a scene animation uses it as a moving prop.
-  c.save(); c.lineCap = c.lineJoin = 'round'; c.shadowColor = 'rgba(255,46,147,0.72)'; c.shadowBlur = 18;
-  for (const line of preview.lines) if (line && line.length > 1) {
-    c.beginPath(); c.moveTo(line[0][0], line[0][1]); for (const p of line) c.lineTo(p[0], p[1]);
-    c.strokeStyle = 'rgba(255,46,147,0.46)'; c.lineWidth = 14; c.stroke();
-    c.shadowBlur = 0; c.strokeStyle = 'rgba(255,255,255,0.82)'; c.lineWidth = 4; c.stroke(); c.shadowBlur = 18;
-  }
-  c.restore(); c.restore(); borderScale(was);
-  c.direction = rtl() ? 'rtl' : 'ltr'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 44px system-ui, sans-serif'; c.fillStyle = NAVY;
-  let title = T('myDrawing'); while (c.measureText(title).width > 620 && parseInt(c.font, 10) > 24) c.font = `bold ${parseInt(c.font, 10) - 2}px system-ui, sans-serif`;
-  c.fillText(title, 360, 949);
-  for (let i = 0; i < 3; i++) sticker(() => star(c, 272 + i * 88, 1015, 34, i < stars ? ORANGE : '#D9CCFF'));
-  return image;
+/** Advance the share nod; it starts once a session, on a perfect picture from the third level on. */
+function updateNudge(dt) {
+  if (nudge >= 0 && (nudge += dt) > cfg.shareNudgeSeconds) nudge = -1;
+  if (!nudged && view === 'play' && S.won > 1 && S.stars === 3 && S.i >= cfg.shareNudgeFromLevel) { nudged = true; nudge = 0; }
 }
 let sharePending = false;
-function sharePicture(source, stars, flip = false) {
-  if (sharePending) return;
-  sharePending = true;
-  try {
-    const image = renderShareCard(source, stars, flip);
-    Promise.resolve(lib.share({ image, title: T('myDrawing'), text: T('myDrawing') })).catch(() => {}).finally(() => { sharePending = false; });
-  } catch (e) { sharePending = false; }
+/** One-tap share of the game; the host's card shows the game's current picture. */
+function shareGame() {
+  if (sharePending || !lib.share) return;
+  sharePending = true; nudge = -1; beep(880, 0.08, 'triangle'); buzz('tap');
+  Promise.resolve().then(() => lib.share({ text: T('shareText') })).catch(() => {}).finally(() => { sharePending = false; });
 }
 
 function draw() {
@@ -799,7 +778,7 @@ function draw() {
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
   drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawWords();
-  if (S.won >= 0) drawShareButton();
+  drawShareButton();
 }
 
 /** The paint jar: drops of every colour piled up to how full it is; it glows when a box is due. */

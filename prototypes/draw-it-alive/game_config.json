@@ -25,6 +25,8 @@
   "jarDrops": 6,
   "boxAutoOpen": 3,
   "boxShowSeconds": 2.6,
+  "shareNudgeSeconds": 2.4,
+  "shareNudgeFromLevel": 2,
   "strings": {
     "en": {
       "L1": "Draw the bridge!",
@@ -75,7 +77,8 @@
       "L22": "Draw a sled hill!",
       "L23": "Draw a chimney!",
       "L24": "String the lights!",
-      "L25": "Draw the ice!"
+      "L25": "Draw the ice!",
+      "shareText": "Draw the missing part and watch it come alive!"
     },
     "ar": {
       "L1": "ارسم الجسر!",
@@ -126,7 +129,8 @@
       "L22": "ارسم تلًّا!",
       "L23": "ارسم مدخنة!",
       "L24": "علّق الأضواء!",
-      "L25": "ارسم الجليد!"
+      "L25": "ارسم الجليد!",
+      "shareText": "ارسم الجزء الناقص وشاهده يدبّ فيه الحياة!"
     },
     "es": {
       "L1": "¡Dibuja el puente!",
@@ -177,7 +181,8 @@
       "L22": "¡Dibuja una colina!",
       "L23": "¡Dibuja una chimenea!",
       "L24": "¡Cuelga las luces!",
-      "L25": "¡Dibuja el hielo!"
+      "L25": "¡Dibuja el hielo!",
+      "shareText": "¡Dibuja la parte que falta y mírala cobrar vida!"
     },
     "vi": {
       "L1": "Vẽ cây cầu!",
@@ -228,7 +233,8 @@
       "L22": "Vẽ đồi trượt tuyết!",
       "L23": "Vẽ ống khói!",
       "L24": "Treo đèn lên!",
-      "L25": "Vẽ mặt băng!"
+      "L25": "Vẽ mặt băng!",
+      "shareText": "Vẽ phần còn thiếu và xem nó sống động!"
     },
     "hi": {
       "L1": "पुल बनाओ!",
@@ -279,7 +285,8 @@
       "L22": "बर्फ़ीली ढलान बनाओ!",
       "L23": "चिमनी बनाओ!",
       "L24": "लाइटें लगाओ!",
-      "L25": "बर्फ़ की राह बनाओ!"
+      "L25": "बर्फ़ की राह बनाओ!",
+      "shareText": "छूटा हिस्सा बनाओ और उसे ज़िंदा होते देखो!"
     },
     "bn": {
       "L1": "সেতু আঁকো!",
@@ -330,7 +337,8 @@
       "L22": "বরফের ঢাল আঁকো!",
       "L23": "চিমনি আঁকো!",
       "L24": "আলো ঝোলাও!",
-      "L25": "বরফের পথ আঁকো!"
+      "L25": "বরফের পথ আঁকো!",
+      "shareText": "হারানো অংশটা আঁকো, দেখো সেটা জীবন্ত হয়ে ওঠে!"
     },
     "id": {
       "L1": "Gambar jembatan!",
@@ -381,7 +389,8 @@
       "L22": "Gambar bukit salju!",
       "L23": "Gambar cerobong!",
       "L24": "Rangkai lampu!",
-      "L25": "Gambar jalur es!"
+      "L25": "Gambar jalur es!",
+      "shareText": "Gambar bagian yang hilang, lalu lihat jadi hidup!"
     }
   },
   "rtl": [
