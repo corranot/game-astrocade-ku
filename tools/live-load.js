@@ -5,6 +5,7 @@
 // drawImage/fill*) seen in the iframe, "frame" = the rAF after it, both ms from parent navigation start.
 // Profile: 390x844 phone, 4x CPU, 4G 60 ms / 9 Mbps (PROFILE=slow4g: 150 ms / 1.6 Mbps). Software GL here, so GPU
 // work is slower than a phone; compare runs with each other.
+// GONE=<selector> adds "gone": when the game's loading overlay is hidden (the real time to play).
 // Usage: node tools/live-load.js <srcdoc.html> <msgs.json> [runs] [shot-prefix]   -> one JSON line per run
 const { chromium } = require('playwright'); const http = require('http'), fs = require('fs'), zlib = require('zlib');
 const [sdPath, msgPath, runsArg, shot] = process.argv.slice(2); const runs = +runsArg || 1;
@@ -26,10 +27,13 @@ const srv = http.createServer((q, r) => { if (q.url === '/sd') { r.writeHead(200
   const port = srv.address().port, b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   for (let i = 0; i < runs; i++) {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-    await ctx.addInitScript(() => { if (window === top) return; const o = performance.timeOrigin - top.performance.timeOrigin; const T = top.__ft = top.__ft || {};
+    await ctx.addInitScript((GONE) => { if (window === top) return; const o = performance.timeOrigin - top.performance.timeOrigin; const T = top.__ft = top.__ft || {};
       const hit = () => { if (T.first) return; T.first = performance.now() + o; requestAnimationFrame(() => requestAnimationFrame(() => { T.frame = performance.now() + o; })); };
       for (const P of [window.WebGLRenderingContext, window.WebGL2RenderingContext].filter(Boolean).map(c => c.prototype)) for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) if (P[k]) { const f = P[k]; P[k] = function () { hit(); return f.apply(this, arguments); }; }
-      const C = CanvasRenderingContext2D.prototype; for (const k of ['drawImage', 'fill', 'fillRect', 'fillText', 'stroke', 'putImageData']) { const f = C[k]; C[k] = function () { if (this.canvas.width > 64 && this.canvas.isConnected) hit(); return f.apply(this, arguments); }; } });
+      // GONE=<css selector>: also record when that loader overlay is gone (hidden, faded or removed) as "gone"
+      const G = GONE; if (G) { let seen = false; const iv = setInterval(() => { const el = document.querySelector(G); if (el) seen = true;
+        const cs = el && getComputedStyle(el); if (seen && (!el || cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05 || el.classList.contains('done'))) { T.gone = performance.now() + o; clearInterval(iv); } }, 50); }
+      const C = CanvasRenderingContext2D.prototype; for (const k of ['drawImage', 'fill', 'fillRect', 'fillText', 'stroke', 'putImageData']) { const f = C[k]; C[k] = function () { if (this.canvas.width > 64 && this.canvas.isConnected) hit(); return f.apply(this, arguments); }; } }, process.env.GONE || '');
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message.slice(0, 160)));
     const c = await ctx.newCDPSession(p); await c.send('Network.enable');
     await c.send('Network.emulateNetworkConditions', { offline: false, latency: prof[0], downloadThroughput: prof[1] / 8, uploadThroughput: 750e3 / 8 });
@@ -48,10 +52,11 @@ const srv = http.createServer((q, r) => { if (q.url === '/sd') { r.writeHead(200
     while (Date.now() - t0 < 30000) { await p.waitForTimeout(100);
       const ft = await p.evaluate(() => window.__ft || {}); if (ft.frame && bytesAtFrame === null) bytesAtFrame = bytes;
       if (shot && !shot2 && Date.now() - t0 >= 2000) { shot2 = true; await p.screenshot({ path: `${shot}-2s.jpg`, quality: 60, scale: 'css' }); }
-      if (ft.frame && Date.now() - t0 > Math.max(ft.frame, 2000) + 500) break; }
+      if (ft.frame && (!process.env.GONE || ft.gone) && Date.now() - t0 > Math.max(ft.frame, ft.gone || 0, 2000) + 500) break; }
     await p.waitForTimeout(6000); if (shot) await p.screenshot({ path: `${shot}-8s.jpg`, quality: 60, scale: 'css' });
     const t = await p.evaluate(() => ({ ...(window.__ft || {}), sd: window.__sdAt, ready: window.__readyAt, gameErrs: window.__errs || [] }));
-    const r = { run: i, sdKB: Math.round(sd.length / 1024), kBframe: bytesAtFrame === null ? null : Math.round(bytesAtFrame / 1024), kB8s: Math.round(bytes / 1024), sdAt: Math.round(t.sd), ready: Math.round(t.ready), first: t.first ? Math.round(t.first) : null, frame: t.frame ? Math.round(t.frame) : null, errs: [...errs, ...t.gameErrs].slice(0, 4) };
+    const r = { run: i, sdKB: Math.round(sd.length / 1024), kBframe: bytesAtFrame === null ? null : Math.round(bytesAtFrame / 1024), kB8s: Math.round(bytes / 1024), sdAt: Math.round(t.sd), ready: Math.round(t.ready), first: t.first ? Math.round(t.first) : null, frame: t.frame ? Math.round(t.frame) : null, gone: t.gone ? Math.round(t.gone) : undefined, errs: [...errs, ...t.gameErrs].slice(0, 4) };
+    if (process.env.EVAL) r.eval = await p.evaluate(process.env.EVAL); // EVAL=<js>: read a probe value from the top page
     if (process.env.WF) for (const w of Object.values(wf).sort((a, b) => a.s - b.s)) console.log('WF', w.s, w.e, w.kB, w.u);
     console.log(JSON.stringify(r)); await ctx.close();
   }
