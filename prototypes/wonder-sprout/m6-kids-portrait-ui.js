@@ -62,10 +62,13 @@ export function createUI(world) {
   /** Satin button tile. */
   const tile = (ctx, x, y, w, h, base, pressed = 0, dim = false) => {
     ctx.save(); const s = 1 - pressed * 0.06; ctx.translate(x + w / 2, y + h / 2); ctx.scale(s, s); ctx.translate(-x - w / 2, -y - h / 2);
-    rr(ctx, x, y + 8, w, h, 36); ctx.fillStyle = rgba(PAL.plum, 0.55); ctx.fill();
-    rr(ctx, x, y, w, h, 36); const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, mix(base, PAL.cream, 0.35)); g.addColorStop(0.45, base); g.addColorStop(1, mix(base, PAL.plum, 0.3)); ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = rgba(PAL.plum, 0.6); ctx.stroke();
-    rr(ctx, x + 10, y + 8, w - 20, h * 0.36, 26); ctx.fillStyle = rgba(PAL.cream, 0.16); ctx.fill();
+    // chunky toy button: dark lip under the face, a bright face with a cream inner rim and a glossy cap
+    rr(ctx, x, y + 10 - pressed * 6, w, h, 36); ctx.fillStyle = mix(base, PAL.plum, 0.55); ctx.fill();
+    ctx.translate(0, pressed * 6);
+    rr(ctx, x, y, w, h, 36); const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, mix(base, PAL.cream, 0.3)); g.addColorStop(0.5, base); g.addColorStop(1, mix(base, PAL.plum, 0.22)); ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = 3.5; ctx.strokeStyle = rgba(PAL.plum, 0.75); ctx.stroke();
+    rr(ctx, x + 5, y + 5, w - 10, h - 10, 31); ctx.lineWidth = 2.5; ctx.strokeStyle = rgba(PAL.cream, 0.35); ctx.stroke();
+    rr(ctx, x + 14, y + 10, w - 28, h * 0.3, 22); const gl = ctx.createLinearGradient(0, y + 10, 0, y + 10 + h * 0.3); gl.addColorStop(0, rgba(PAL.cream, 0.42)); gl.addColorStop(1, rgba(PAL.cream, 0.04)); ctx.fillStyle = gl; ctx.fill();
     if (dim) { rr(ctx, x, y, w, h, 36); ctx.fillStyle = rgba(PAL.plum, 0.45); ctx.fill(); }
     ctx.restore();
   };
@@ -82,7 +85,9 @@ export function createUI(world) {
     const hatch = (k.eggReady() ? 1 : 0) || (s.eggs.length === 0 && s.starGems >= E.eggCost.meadow ? 1 : 0);
     const kingdom = (!s.planted && s.activeLandmark < 6) || (k.activeNeeds() && s.starGems >= 50);
     const evo = s.critters.some((c) => k.canEvolve(c));
-    return [hatch, kingdom, evo];
+    // at most one badge, on the most useful next action: a ready egg, then an evolution, then the kingdom
+    const best = hatch && k.eggReady() ? 0 : evo ? 2 : kingdom ? 1 : hatch ? 0 : -1;
+    return [best === 0, best === 1, best === 2];
   };
   // ---------- layout ----------
   const dockRect = (i) => ({ x: mir(DOCK.x0 + i * (DOCK.w + DOCK.gap), DOCK.w), y: DOCK.top, w: DOCK.w, h: DOCK.bh });
@@ -196,9 +201,11 @@ export function createUI(world) {
     const g = { x: mir(HUD.gem.x, HUD.gem.w), y: HUD.y, w: HUD.gem.w, h: HUD.h }; R.gemPill = g;
     pill(ctx, g.x, g.y, g.w, g.h, V.pills.gem); gemIcon(ctx, g.x + 40, g.y + 36, 1.7); text(ctx, fmt(s.starGems), g.x + 76, g.y + 38, 34, PAL.cream, 900, 'left', g.w - 92);
     const w = { x: mir(HUD.wood.x, HUD.wood.w), y: HUD.y, w: HUD.wood.w, h: HUD.h }; R.woodPill = w;
-    // the wood counter appears (springing in) with the first wood; before that its slot stays empty
-    const wk = spring(U.woodIn, s.stats.wood > 0 || s.magicWood >= 1 ? 1 : 0, 1 / 60);
-    if (wk > 0.02) { ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(wk, wk); ctx.translate(-w.x - w.w / 2, -w.y - w.h / 2); pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore(); }
+    // fixed slot: the wood pill is always there so the row never jumps; it pops when the first wood lands
+    const wk = spring(U.woodIn, s.stats.wood > 0 || s.magicWood >= 1 ? 1 : 0, 1 / 60), pop = 1 + Math.max(0, Math.sin(Math.min(1, wk) * Math.PI)) * 0.08;
+    ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(pop, pop); ctx.translate(-w.x - w.w / 2, -w.y - w.h / 2);
+    pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); ctx.globalAlpha = 0.45 + 0.55 * clamp(wk, 0, 1);
+    if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore();
     const k = { x: mir(HUD.track.x, HUD.track.w), y: HUD.y, w: HUD.track.w, h: HUD.h }; R.track = k;
     pill(ctx, k.x, k.y, k.w, k.h, 0);
     ctx.save(); ctx.strokeStyle = rgba(PAL.cream, 0.5); ctx.lineWidth = 4; ctx.setLineDash([4, 8]); ctx.beginPath(); ctx.moveTo(k.x + 44, k.y + 36); ctx.lineTo(k.x + k.w - 44, k.y + 36); ctx.stroke(); ctx.restore();
@@ -220,8 +227,16 @@ export function createUI(world) {
     ctx.restore();
   }
   U.drawDock = (ctx, t) => {
-    const g = ctx.createLinearGradient(0, DOCK.y - 30, 0, H); g.addColorStop(0, rgba(PAL.velvet, 0)); g.addColorStop(0.12, rgba(PAL.velvet, 0.86)); g.addColorStop(1, PAL.velvet); ctx.fillStyle = g; ctx.fillRect(0, DOCK.y - 30, W, H - DOCK.y + 30);
-    const bad = U.badges(), cols = [PAL.sage, PAL.lav, PAL.coral];
+    // a carved wooden garden shelf with a gold trim and a leafy garland along its top edge
+    const x0 = -VIEW.dx, ww = VIEW.w, top = DOCK.y + 4;
+    const g = ctx.createLinearGradient(0, top, 0, H); g.addColorStop(0, '#8A5A3C'); g.addColorStop(0.25, '#6E4530'); g.addColorStop(1, '#4A2D22'); ctx.fillStyle = g; ctx.fillRect(x0, top, ww, H - top + 4);
+    ctx.save(); ctx.strokeStyle = 'rgba(40,20,14,0.28)'; ctx.lineWidth = 2;
+    for (let yy = top + 62; yy < H; yy += 58) { ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x0 + ww, yy); ctx.stroke(); }
+    for (let k = 0; k < 14; k++) { const xx = x0 + ((k * 151) % ww), yy = top + 30 + ((k * 89) % (H - top - 40)); ctx.beginPath(); ctx.ellipse(xx, yy, 22, 5, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+    ctx.fillStyle = mix(PAL.gold, PAL.coral, 0.2); ctx.fillRect(x0, top - 4, ww, 10); ctx.fillStyle = rgba(PAL.cream, 0.5); ctx.fillRect(x0, top - 4, ww, 3);
+    for (let xx = x0 - 10; xx < x0 + ww + 20; xx += 34) { const yy = top - 2 + Math.sin(xx * 0.09) * 3, sw = Math.sin(t * 1.6 + xx * 0.05) * 0.12; for (const [dx, a, c] of [[-8, -0.7, '#4E9E52'], [8, 0.7, '#6DBE5A']]) { ctx.save(); ctx.translate(xx + dx, yy); ctx.rotate(a + sw); ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, 0, 15, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(35,31,58,0.35)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); } if (((xx - x0) / 34 | 0) % 3 === 1) { ctx.fillStyle = ['#F28DAE', PAL.gold, PAL.cream][Math.abs((xx / 34) | 0) % 3]; ctx.beginPath(); ctx.arc(xx, yy - 4, 5, 0, Math.PI * 2); ctx.fill(); } }
+    const bad = U.badges(), cols = ['#4FAE6A', '#8C78D8', '#EE7458'];
     for (let i = 0; i < 3; i++) {
       const r = dockRect(i), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
       tile(ctx, r.x, r.y, r.w, r.h, cols[i], U.press['d' + i] || 0);
@@ -229,31 +244,55 @@ export function createUI(world) {
       if (i === 0 && A_.eggs) put(ctx, A_.eggs.meadow, cx, cy + 40, 1.25, 1.25, Math.sin(t * 2) * 0.06);
       if (i === 1) { const sp = A_.landmark5 || A_.landmark0; if (sp) put(ctx, sp, cx, cy + 74, 0.72, 0.72); }
       if (i === 2) { const c = K().hero(); world.vfx.drawCritter(ctx, { id: -1, species: c.species, stage: c.stage }, cx, cy + 54, { size: 0.95, idle: true, look: world.pointer }); }
+      // progress toward this button's next thing: egg warming or saving up, landmark filling, next evolution
+      const p = U.dockProgress(i);
+      if (p != null) { const bx = r.x + 28, bw = r.w - 56, by = r.y + r.h - 22; rr(ctx, bx, by, bw, 12, 6); ctx.fillStyle = rgba(PAL.plum, 0.55); ctx.fill(); if (p > 0.01) { rr(ctx, bx, by, Math.max(12, bw * p), 12, 6); ctx.fillStyle = p >= 1 ? mix(PAL.gold, PAL.cream, 0.3) : PAL.gold; ctx.fill(); } }
       if (bad[i]) badge(ctx, r.x + r.w - 26, r.y + 22, t + i, 0);
     }
+  };
+  U.dockProgress = (i) => {
+    const s = S(), k = K(), E = world.cfg.economy;
+    if (i === 0) return s.eggs.length ? clamp(s.eggs[0].warm / E.incubateSec, 0, 1) : clamp(s.starGems / E.eggCost.meadow, 0, 1);
+    if (i === 1) return s.activeLandmark < 6 ? (s.planted ? k.progress(s.activeLandmark) : 1) : null;
+    const h = k.hero(); return h.stage >= 3 ? null : clamp(s.starGems / k.evolveCost(h), 0, 1);
   };
   U.drawLogo = (ctx, t) => {
     if (U.logo <= 0) return;
     ctx.save(); ctx.globalAlpha = U.logo; const b = Math.sin(t * 2) * 4;
     ctx.translate(W / 2, 214 - VIEW.dy * 0.45 + b); ctx.rotate(-0.03);
-    text(ctx, 'Wonder', 0, -44, 92, PAL.gold); text(ctx, 'Sprout', 0, 44, 92, mix(PAL.gold, PAL.cream, 0.45));
-    text(ctx, 'Royal Sky-Garden', 0, 116, 30, PAL.cream, 800);
+    // chunky storybook title: plum outline, cream-to-gold fill, a sprout on top and a gold ribbon
+    const word = (str, y, px) => {
+      ctx.font = FONT(900, px); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.lineWidth = px * 0.3; ctx.strokeStyle = PAL.plum; ctx.strokeText(str, 0, y + 6);
+      ctx.lineWidth = px * 0.26; ctx.strokeStyle = mix(PAL.plum, PAL.lav, 0.2); ctx.strokeText(str, 0, y);
+      const g = ctx.createLinearGradient(0, y - px * 0.5, 0, y + px * 0.5); g.addColorStop(0, PAL.cream); g.addColorStop(0.55, '#FFE9A8'); g.addColorStop(1, PAL.gold);
+      ctx.fillStyle = g; ctx.fillText(str, 0, y);
+    };
+    ctx.save(); ctx.translate(0, -100); ctx.rotate(Math.sin(t * 2.2) * 0.1); ctx.fillStyle = '#6DBE5A'; ctx.strokeStyle = PAL.plum; ctx.lineWidth = 4;
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0, 8); ctx.quadraticCurveTo(sx * 22, -26, sx * 44, -8); ctx.quadraticCurveTo(sx * 20, 4, 0, 8); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+    word('Wonder', -40, 96); word('Sprout', 50, 96);
+    ctx.save(); ctx.translate(0, 120); const rw = 300;
+    ctx.fillStyle = mix(PAL.gold, PAL.coral, 0.35); for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * rw / 2 - sx * 6, -18); ctx.lineTo(sx * (rw / 2 + 34), -18); ctx.lineTo(sx * (rw / 2 + 20), 0); ctx.lineTo(sx * (rw / 2 + 34), 18); ctx.lineTo(sx * rw / 2 - sx * 6, 18); ctx.fill(); }
+    rr(ctx, -rw / 2, -22, rw, 44, 10); ctx.fillStyle = PAL.gold; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = PAL.plum; ctx.stroke();
+    text(ctx, 'Royal Sky-Garden', 0, 1, 28, PAL.cream, 900, 'center', rw - 24);
+    ctx.restore();
     ctx.restore();
   };
   U.drawToasts = (ctx, t) => {
-    const y = HUD.y + HUD.h + 16 + 60;
+    const y = HUD.y + HUD.h + 16 + 60; // toast top sits 16 px under the HUD row (120 px tall)
     for (const o of U.toasts.slice(0, 1)) {
       const u = o.t / o.dur, inK = clamp(o.t / 0.35, 0, 1), outK = clamp((o.dur - o.t) / 0.3, 0, 1), k = Math.min(easeOutBack(inK), outK);
       if (k <= 0) continue;
       ctx.save(); ctx.translate(W / 2, y); ctx.scale(k, k); ctx.globalAlpha = Math.min(1, outK * 1.5);
-      const w = 416, h = o.sub ? 120 : 96;
+      const w = 448, h = 120; // one fixed toast size and spot for every message
       rr(ctx, -w / 2, -h / 2, w, h, 44); ctx.fillStyle = rgba(PAL.plum, 0.82); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.85); ctx.stroke();
       const ix = -w / 2 + 60, A_ = A();
       if (o.critter) world.vfx.drawCritter(ctx, o.critter, ix, 40, { size: 0.72, happy: true, idle: true });
       else if (o.icon === 'gem') put(ctx, A_.gem, ix, 0, 2.2, 2.2, Math.sin(t * 3) * 0.2);
       else if (o.icon === 'giftEgg' && A_.eggs) put(ctx, A_.eggs.gift, ix, 34, 0.85);
       else if (o.icon && A_[o.icon]) put(ctx, A_[o.icon], ix, o.icon === 'airship' ? 0 : 50, o.icon === 'airship' ? 0.3 : 0.48, o.icon === 'airship' ? 0.3 : 0.48);
-      const tx = o.share ? 0 : 44, tw = o.share ? 180 : 260;
+      const tx = o.share ? 16 : 52, tw = o.share ? 200 : 280;
       text(ctx, o.text, tx, o.sub ? -20 : 0, 40, PAL.gold, 900, 'center', tw);
       if (o.sub) text(ctx, o.sub, tx, 28, 28, PAL.cream, 800, 'center', tw);
       o.shareRect = null;
@@ -337,7 +376,7 @@ export function createUI(world) {
     if (U.drawer.x < 0.01 && !U.open) return;
     const y0 = drawerY(), R = U.rects, s = S(), k = K(), E = world.cfg.economy, A_ = A();
     ctx.save(); ctx.fillStyle = rgba(PAL.velvet, 0.45 * clamp(U.drawer.x, 0, 1)); ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h);
-    rr(ctx, 16, y0, W - 32, H - y0 + 60, 44); const g = ctx.createLinearGradient(0, y0, 0, H); g.addColorStop(0, mix(PAL.plum, PAL.lav, 0.32)); g.addColorStop(1, PAL.plum); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.7); ctx.stroke();
+    rr(ctx, 16, y0, W - 32, H - y0 + 60, 44); const g = ctx.createLinearGradient(0, y0, 0, H); g.addColorStop(0, '#3C86B8'); g.addColorStop(0.35, '#2F5E96'); g.addColorStop(1, '#283E70'); ctx.fillStyle = g; ctx.fill(); ctx.save(); ctx.clip(); ctx.globalAlpha = 0.06; ctx.fillStyle = PAL.cream; for (let k = -4; k < 16; k++) { ctx.beginPath(); ctx.moveTo(k * 80, H); ctx.lineTo(k * 80 + 40, H); ctx.lineTo(k * 80 + 340, y0); ctx.lineTo(k * 80 + 300, y0); ctx.fill(); } ctx.restore(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.7); ctx.stroke();
     rr(ctx, W / 2 - 50, y0 + 14, 100, 10, 5); ctx.fillStyle = rgba(PAL.cream, 0.4); ctx.fill();
     R.close = { x: mir(W - 120, 96), y: y0 + 24, w: 96, h: 96 };
     ctx.save(); ctx.translate(R.close.x + 48, R.close.y + 48); ctx.strokeStyle = PAL.cream; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-14, -14); ctx.lineTo(14, 14); ctx.moveTo(14, -14); ctx.lineTo(-14, 14); ctx.stroke(); ctx.restore();

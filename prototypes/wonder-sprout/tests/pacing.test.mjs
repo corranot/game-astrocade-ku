@@ -1,5 +1,5 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// Pacing: a bot that plays like a child must reach each milestone inside the plan's windows (plan section 6).
+// Pacing (garden goal rewards included): a bot that plays like a child must reach each milestone inside the plan's windows (plan section 6).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { simulate } from './sim.mjs';
@@ -15,6 +15,7 @@ for (const seed of [7, 11, 23]) {
     assert.ok(r.heroStages[1] >= 360 && r.heroStages[1] <= 840, 'hero stage 3 at 6-14 min: ' + r.heroStages[1]);
     assert.ok(r.raids.length >= 1, 'at least one sky pirate raid is broken');
     const gaps = []; for (let i = 1; i < r.rewards.length; i++) if (r.rewards[i] < 60) gaps.push(r.rewards[i] - r.rewards[i - 1]);
+    assert.ok(r.goals.length >= 20 && r.goals[0] <= 60, 'garden goals keep coming (first within a minute): ' + r.goals.length + ' / ' + r.goals[0]);
     assert.ok(r.rewards[0] <= 3 && Math.max(...gaps) <= 8, 'a reward every few seconds in the first minute');
   });
 }

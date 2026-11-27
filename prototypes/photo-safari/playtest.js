@@ -165,7 +165,7 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     await page.close();
   }
 
-  // ---- the HUD on four screens: equal margins, one pill height, buttons on one column
+  // ---- the HUD on four screens: equal margins, one pill height, one top row, brackets inside the HUD
   for (const [w, h] of [[360, 640], [390, 844], [430, 932], [768, 1024]]) {
     const { page, errors } = await open(w, h, '', saved);
     await ev(page, () => { const f = __game.animals.find((a) => a.id === 'owl'); __game.tp(f.x, f.z + 6); }); await step(page, 60);
@@ -173,12 +173,16 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
       // layout boxes without CSS transforms (the ready shutter pulses in scale)
       const app = document.getElementById('app').getBoundingClientRect();
       const R = (s) => { let e = document.querySelector(s), x = 0, y = 0; const w = e.offsetWidth, h = e.offsetHeight; for (; e && e.id !== 'app'; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { l: x, t: y, r: app.width - x - w, b: app.height - y - h, w, h }; };
-      return { fl: R('#flakes'), stp: R('#stamps'), mute: R('#mute'), book: R('#bookB'), sh: R('#shutter') };
+      return { fl: R('#flakes'), stp: R('#stamps'), mute: R('#mute'), book: R('#bookB'), sh: R('#shutter'), vf: R('#vf'), skip: R('#skip') };
     });
     const eq = (a, b) => Math.abs(a - b) <= 1.5;
     check(eq(r.fl.l, r.mute.r) && eq(r.fl.t, r.mute.t), `${w}x${h}: equal side margins top-left/top-right (${r.fl.l.toFixed(1)} / ${r.mute.r.toFixed(1)})`);
     check(eq(r.fl.h, r.stp.h) && eq(r.fl.h, r.mute.h), `${w}x${h}: pills and round buttons share one height (${r.fl.h.toFixed(1)}, ${r.stp.h.toFixed(1)}, ${r.mute.h.toFixed(1)})`);
-    check(eq(r.mute.r, r.book.r) && eq(r.book.r, r.sh.r), `${w}x${h}: right buttons on one column (${r.mute.r.toFixed(1)}, ${r.book.r.toFixed(1)}, ${r.sh.r.toFixed(1)})`);
+    check(eq(r.fl.t, r.book.t) && eq(r.book.t, r.mute.t), `${w}x${h}: pills, book and sound on one top row (${r.fl.t.toFixed(1)}, ${r.book.t.toFixed(1)}, ${r.mute.t.toFixed(1)})`);
+    const gapL = r.stp.l - (r.fl.l + r.fl.w), gapR = r.book.r - (r.mute.r + r.mute.w), clear = r.book.l - (r.stp.l + r.stp.w);
+    check(eq(gapL, gapR) && clear >= gapL - 1.5, `${w}x${h}: equal gaps in the top row, pills clear of the book (${gapL.toFixed(1)} / ${gapR.toFixed(1)}, clear ${clear.toFixed(1)})`);
+    check(eq(r.mute.r, r.sh.r), `${w}x${h}: sound button and shutter on one right margin (${r.mute.r.toFixed(1)}, ${r.sh.r.toFixed(1)})`);
+    check(r.vf.t >= r.mute.t + r.mute.h * 2 && r.vf.t + r.vf.h <= r.sh.t && r.vf.l > r.fl.l && r.vf.r > r.mute.r, `${w}x${h}: viewfinder brackets inside the HUD (top ${r.vf.t.toFixed(0)}, bottom ${(r.vf.t + r.vf.h).toFixed(0)}, shutter top ${r.sh.t.toFixed(0)})`);
     await shoot(page, `21-hud-${w}x${h}`);
     check(errors.length === 0, `${w}x${h}: no page errors`);
     await page.close();

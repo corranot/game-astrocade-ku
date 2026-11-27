@@ -21,12 +21,13 @@ body{display:flex;align-items:center;justify-content:center}
 .hud button{pointer-events:auto;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;border:0;padding:0}
 .out{--o:calc(var(--u)*3.5px);text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
 /* HUD grid (720-wide design units, multiples of 8): 24 margin plus the safe area, one 88 height for every pill and
-   round button, 16 gaps, 56 icons, 48 numbers. The pills share one row that stops a gap short of the right column. */
+   round button, 16 gaps, 56 icons, 44 numbers (five digits per pill still fit beside two buttons). One top row: the pills on the left, the book and sound buttons on the
+   right; row 2 holds only the tutorial's skip button (same 88 height) and the centred request tick. */
 .glass{background:linear-gradient(#3b4c8e,#2c3a72 60%,#24306a);border:calc(var(--u)*4px) solid #cfe6ff;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,255,255,.28),inset 0 calc(var(--u)*-5px) 0 rgba(10,14,40,.35),0 calc(var(--u)*8px) 0 calc(var(--u)*2px) rgba(26,33,71,.45);box-sizing:border-box}
-.top{position:absolute;top:var(--st);left:var(--sl);right:calc(var(--sr) + var(--h) + var(--g));display:flex;align-items:center;gap:var(--g)}
-[dir=rtl] .top{left:calc(var(--sl) + var(--h) + var(--g));right:var(--sr)}
-.pill{flex:none;display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);padding:0 calc(var(--u)*24px) 0 calc(var(--u)*16px);border-radius:calc(var(--u)*44px);direction:ltr}
-.pill b{font-size:calc(var(--u)*48px);line-height:1;min-width:calc(var(--u)*40px);color:#fff}
+.top{position:absolute;top:var(--st);left:var(--sl);right:calc(var(--sr) + var(--h) * 2 + var(--g) * 2);display:flex;align-items:center;gap:var(--g)}
+[dir=rtl] .top{left:calc(var(--sl) + var(--h) * 2 + var(--g) * 2);right:var(--sr)}
+.pill{flex:none;display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);padding:0 calc(var(--u)*20px) 0 calc(var(--u)*12px);border-radius:calc(var(--u)*44px);direction:ltr}
+.pill b{font-size:calc(var(--u)*44px);line-height:1;min-width:calc(var(--u)*40px);color:#fff}
 .pill.bump{animation:bump .3s ease-out}
 .pill svg{width:calc(var(--u)*56px);height:calc(var(--u)*56px);flex:none;overflow:visible}
 .clock{position:relative;width:calc(var(--u)*56px);height:calc(var(--u)*56px);flex:none}
@@ -36,7 +37,7 @@ body{display:flex;align-items:center;justify-content:center}
 .mute{top:var(--st);right:var(--sr)} [dir=rtl] .mute{right:auto;left:var(--sl)}
 .mute svg{fill:#fff;stroke:#fff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 .mute .wav{fill:none}.mute .x{display:none;fill:none}.mute.off .wav{display:none}.mute.off .x{display:block}
-.bookB{top:calc(var(--st) + var(--h) + var(--g));right:var(--sr)} [dir=rtl] .bookB{right:auto;left:var(--sl)}
+.bookB{top:var(--st);right:calc(var(--sr) + var(--h) + var(--g))} [dir=rtl] .bookB{right:auto;left:calc(var(--sl) + var(--h) + var(--g))}
 .bookB em{position:absolute;top:calc(var(--u)*-8px);right:calc(var(--u)*-8px);min-width:calc(var(--u)*32px);height:calc(var(--u)*32px);border-radius:calc(var(--u)*16px);background:var(--red);box-shadow:0 0 0 calc(var(--u)*3px) var(--ink);font-style:normal;font-size:calc(var(--u)*22px);line-height:calc(var(--u)*32px);text-align:center;color:#fff;display:none}
 .bookB.dot em{display:block;animation:pulse 1s ease-in-out infinite}
 .bookB.bump,.shutter.bump{animation:bump .3s ease-out}
@@ -59,7 +60,8 @@ body{display:flex;align-items:center;justify-content:center}
 .stick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*64px);height:calc(var(--u)*64px);margin:calc(var(--u)*-32px);border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#cfe6ff);box-shadow:0 0 0 calc(var(--u)*3px) var(--ink)}
 .stick[hidden]{display:none}
 /* viewfinder: four corner brackets, the focus ring on the subject and three star dots */
-.vf{position:absolute;inset:calc(var(--u)*200px) calc(var(--u)*64px) calc(var(--u)*260px);opacity:0;transition:opacity .2s}
+/* the brackets sit inside the HUD: below the two top rows, a margin in from the sides, above the shutter */
+.vf{position:absolute;top:calc(var(--st) + var(--h) * 2 + var(--g) * 2);left:calc(var(--sl) + var(--g));right:calc(var(--sr) + var(--g));bottom:calc(var(--sb) + var(--u)*176px + var(--g) * 2);opacity:0;transition:opacity .2s}
 .vf.on{opacity:1}
 .vf i{position:absolute;width:calc(var(--u)*64px);height:calc(var(--u)*64px);border:calc(var(--u)*6px) solid rgba(255,255,255,.9);filter:drop-shadow(0 0 calc(var(--u)*3px) rgba(26,33,71,.6))}
 .vf i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-radius:calc(var(--u)*18px) 0 0 0}
@@ -119,14 +121,15 @@ body{display:flex;align-items:center;justify-content:center}
 /* tutorial spotlight: the screen dims except a soft cutout; never blocks touches */
 .spot{position:absolute;inset:0;background:radial-gradient(circle at var(--x,50%) var(--y,50%),transparent 0 var(--r,100px),rgba(10,14,40,.4) calc(var(--r,100px) + var(--u)*40px));opacity:0;transition:opacity .3s}
 .spot.on{opacity:1}
+.spot.on.lite{opacity:.45}
 .coach{position:absolute;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*10px);height:calc(var(--u)*80px);padding:0 calc(var(--u)*24px) 0 calc(var(--u)*12px);border-radius:calc(var(--u)*40px);font-size:calc(var(--u)*38px);white-space:nowrap;animation:popIn .3s cubic-bezier(.2,1.6,.4,1)}
 .coach[hidden]{display:none}
 .coach svg{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
 .hand{position:absolute;width:calc(var(--u)*84px);height:calc(var(--u)*84px);translate:-30% -10%;pointer-events:none;animation:tapf 1s ease-in-out infinite}
 .hand[hidden]{display:none}
 .hand.drag{animation:drag 1.6s ease-in-out infinite}
-.skip{position:absolute;top:calc(var(--st) + var(--h) + var(--g));left:var(--sl);height:calc(var(--u)*64px);padding:0 calc(var(--u)*22px);border-radius:calc(var(--u)*32px);font-size:calc(var(--u)*30px);color:#fff}
-[dir=rtl] .skip{left:auto;right:calc(var(--sr) + var(--h) + var(--g))}
+.skip{position:absolute;top:calc(var(--st) + var(--h) + var(--g));left:var(--sl);height:var(--h);padding:0 calc(var(--u)*32px);border-radius:calc(var(--u)*44px);font-size:calc(var(--u)*36px);color:#fff}
+[dir=rtl] .skip{left:auto;right:var(--sr)}
 .skip[hidden]{display:none}
 /* live title over the valley for the first seconds */
 .logo{position:absolute;left:0;right:0;top:calc(var(--st) + var(--h) + var(--g) * 2);text-align:center;font-size:calc(var(--u)*88px);line-height:.95;color:#fff;transition:opacity .6s,transform .6s;letter-spacing:calc(var(--u)*1px)}

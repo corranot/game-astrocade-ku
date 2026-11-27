@@ -10,7 +10,7 @@
     "_formula": "landmark n costs gemsBase * growth^(n-1) gems and woodBase * growth^(n-1) wood (plan section 4)",
     "landmarkGems": 240, "landmarkWood": 3, "landmarkGrowth": 1.85, "toLandmarkShare": 0.65,
     "gemsPerHit": { "mushroom": 1, "geode": 3, "tree": 1, "pinata": 2, "raid": 4 },
-    "woodPerTreeHit": 1, "geodeHp": 3, "geodeBurst": 8, "pinataHp": 5, "pinataBurst": 18, "pinataEggChance": 0.12,
+    "woodPerTreeHit": 1, "geodeHp": 3, "geodeBurst": 8, "pinataHp": 5, "pinataBurst": 18, "pinataEggChance": 0.12, "goalGems": 20, "goalGrowth": 0.04, "goalEggEvery": 6,
     "respawnSec": { "geode": 3.5, "pinata": 7 },
     "eggCost": { "meadow": 300, "coral": 1200 }, "incubateSec": 5, "hatchTaps": 3,
     "_evolveFormula": "stage s to s+1 costs evolveBase * evolveGrowth^(s-1) * species tier",

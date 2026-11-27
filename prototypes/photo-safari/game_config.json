@@ -2,7 +2,7 @@
   "seed": 20261127,
   "save": { "version": 1, "everyS": 8 },
   "hero": { "speed": 5.2, "radius": 0.5, "tapMaxPx": 12, "tapMaxMs": 220, "stickMaxPx": 70, "ftueWalkM": 2 },
-  "camera": { "fov": 56, "dist": 11, "height": 8.4, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2 },
+  "camera": { "fov": 56, "dist": 11, "height": 8.4, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2, "focusH": 0.5, "focusD": 0.62 },
   "photo": { "range": 9, "rangeZoom2": 14, "rangeZoom3": 19, "fovZoom2": 26, "fovZoom3": 18, "aimCover": 0.6, "frameR": 1.7, "printContrast": 1.18, "printSat": 1.4, "printVignette": 0.35, "maxFov": 72, "personalM": 4.5, "minCover": 0.2, "maxCover": 0.8, "poseWindowS": 1.6, "poseWindowSlowS": 2.6, "poseCueS": 0.8, "poseEveryS": [5, 8], "nightCapNoFlash": 2, "sceneryPerMin": 3, "developS": 0.8, "w": 256, "h": 320 },
   "economy": {
     "photo": [0, 5, 12, 25], "firstSlotMul": 2, "rareMul": 5, "halfPage": 50, "page": 150, "request": 60, "mail": 150, "scenery": 2,
@@ -34,11 +34,12 @@
   "gates": [ { "z": -38, "area": 1 }, { "z": -118, "area": 2 } ],
   "clock": { "dayS": 360, "phases": [["day", 240], ["dusk", 40], ["night", 60], ["dawn", 20]], "startS": 10 },
   "daily": { "requests": 3, "rareCount": 4 },
-  "beats": { "cooldownS": 8, "slowMo": 0.3 },
-  "quality": { "bootDpr": 1, "bootS": 1.2, "bootAnimals": 3, "dpr": [1, 1.5, 2], "shadow": [0, 512, 1024], "bloom": [0, 1, 1], "snow": [400, 800, 1400], "particles": [250, 500, 800], "msaa": [0, 0, 4], "downFps": 50, "upFps": 58, "upAfterS": 10 },
-  "grade": { "exposure": 0.84, "lift": [0.0, 0.01, 0.03], "gain": [1.04, 1.0, 0.97], "sat": 1.3, "vignette": 0.22, "bloomStrength": 0.55, "bloomThreshold": 1.0 },
+  "beats": { "cooldownS": 8, "slowMo": 0.3, "clearFog": 0.65 },
+  "world": { "cover": 160 },
+  "quality": { "bootDpr": 1, "bootS": 1.2, "bootAnimals": 3, "dpr": [1, 1.5, 2], "shadow": [0, 768, 1024], "bloom": [0, 1, 1], "snow": [400, 800, 1400], "particles": [250, 500, 800], "msaa": [0, 0, 4], "downFps": 50, "upFps": 58, "upAfterS": 10 },
+  "grade": { "exposure": 0.8, "lift": [-0.015, -0.005, 0.01], "gain": [1.02, 1.0, 0.97], "contrast": 0.3, "tier0Exposure": 0.9, "sat": 1.15, "vignette": 0.22, "bloomStrength": 0.55, "bloomThreshold": 1.0, "lanternI": 9, "lanternM": 10 },
   "tod": {
-    "day":   { "sky": ["#8fc6ff", "#e8f4ff"], "fog": "#cfe2f8", "fogD": 0.0085, "sun": "#ffdcae", "sunI": 2.7, "hemi": ["#b8d6ff", "#8a9ed6"], "hemiI": 0.95, "aurora": 0 },
+    "day":   { "sky": ["#8fc6ff", "#e8f4ff"], "fog": "#c4dbf4", "fogD": 0.0055, "sun": "#ffe6c8", "sunI": 2.8, "hemi": ["#c0d6f4", "#8294c6"], "hemiI": 0.9, "aurora": 0 },
     "dusk":  { "sky": ["#6a6ab8", "#ffb08a"], "fog": "#e8b8a8", "fogD": 0.0095, "sun": "#ffb070", "sunI": 1.7, "hemi": ["#ffc8b0", "#7a7ab8"], "hemiI": 0.9, "aurora": 0.25 },
     "night": { "sky": ["#0f1640", "#2a3a78"], "fog": "#26305e", "fogD": 0.011, "sun": "#9ab0ff", "sunI": 1.05, "hemi": ["#7a8ad8", "#3a4278"], "hemiI": 1.15, "aurora": 1 },
     "dawn":  { "sky": ["#8a8ad8", "#ffd2b0"], "fog": "#e2d0d8", "fogD": 0.009, "sun": "#ffd2a0", "sunI": 1.6, "hemi": ["#ffd8c8", "#8a90c8"], "hemiI": 0.95, "aurora": 0.15 }
@@ -47,7 +48,7 @@
     { "id": "fox", "area": 0, "type": "quad", "pose": "yawn", "body": [0.42, 0.36, 0.62], "head": 0.36, "snout": 0.26, "ears": "fox", "tail": "bushy", "main": "#f08a3c", "belly": "#fff4e6", "accent": "#3a2418", "scale": 1.15, "home": [1.5, -2], "wander": 1.5 },
     { "id": "hare", "area": 0, "type": "quad", "pose": "hop", "shy": "carrot", "body": [0.32, 0.32, 0.42], "head": 0.3, "snout": 0.1, "ears": "long", "tail": "puff", "main": "#f4f1ee", "belly": "#ffffff", "accent": "#e8a0a8", "scale": 0.9, "home": [-8, -15], "wander": 2 },
     { "id": "penguin", "area": 0, "type": "biped", "pose": "slide", "body": [0.4, 0.55, 0.38], "head": 0.3, "snout": 0.1, "ears": "none", "tail": "none", "main": "#2b3242", "belly": "#fff8ef", "accent": "#ffb347", "scale": 0.9, "home": [8, -21], "wander": 4 },
-    { "id": "owl", "area": 0, "type": "bird", "pose": "turn", "body": [0.38, 0.46, 0.36], "head": 0.34, "snout": 0.06, "ears": "tuft", "tail": "fan", "main": "#f2efe8", "belly": "#ffffff", "accent": "#ffcf3a", "scale": 0.85, "home": [-13, -3], "wander": 0, "perch": 1.1 },
+    { "id": "owl", "area": 0, "type": "bird", "pose": "turn", "body": [0.38, 0.46, 0.36], "head": 0.34, "snout": 0.06, "ears": "tuft", "tail": "fan", "main": "#f2efe8", "belly": "#ffffff", "accent": "#ffcf3a", "scale": 0.85, "home": [-13, -3], "wander": 0, "perch": 0.7 },
     { "id": "reindeer", "area": 0, "type": "quad", "pose": "hop", "skittish": 2, "body": [0.48, 0.5, 0.9], "head": 0.32, "snout": 0.3, "ears": "round", "tail": "puff", "antler": 1, "main": "#9a6a44", "belly": "#f3e2c8", "accent": "#e8513a", "scale": 1.25, "home": [14, -26], "wander": 4 },
     { "id": "squirrel", "area": 0, "type": "quad", "pose": "spin", "body": [0.26, 0.3, 0.34], "head": 0.26, "snout": 0.12, "ears": "tuft", "tail": "bushy", "main": "#c8562c", "belly": "#fff0dc", "accent": "#7a3218", "scale": 0.75, "home": [-5, 5], "wander": 2.5 },
     { "id": "ermine", "area": 0, "type": "quad", "pose": "peek", "night": 1, "body": [0.22, 0.24, 0.56], "head": 0.22, "snout": 0.14, "ears": "round", "tail": "long", "main": "#fbfbff", "belly": "#ffffff", "accent": "#2b2b2b", "scale": 0.8, "home": [7, 3], "wander": 3 },
@@ -65,9 +66,9 @@
     { "id": "marmot", "area": 2, "type": "quad", "pose": "wave", "body": [0.38, 0.36, 0.5], "head": 0.3, "snout": 0.12, "ears": "tiny", "tail": "bushy", "main": "#8f6f4f", "belly": "#d8c0a0", "accent": "#3a2418", "scale": 0.9, "home": [-14, -162], "wander": 2 },
     { "id": "goat", "area": 2, "type": "quad", "pose": "hop", "skittish": 2, "body": [0.4, 0.44, 0.66], "head": 0.3, "snout": 0.24, "ears": "round", "tail": "puff", "horns": 1, "main": "#f6f3ec", "belly": "#ffffff", "accent": "#2b2b2b", "scale": 1.0, "home": [16, -168], "wander": 4 },
     { "id": "leopard", "area": 2, "type": "quad", "pose": "hop", "shy": "yarn", "body": [0.42, 0.4, 0.8], "head": 0.34, "snout": 0.14, "ears": "round", "tail": "long", "spots": 1, "main": "#e4ddd0", "belly": "#fbf8f2", "accent": "#4a4a52", "scale": 1.05, "home": [2, -176], "wander": 3 },
-    { "id": "bat", "area": 2, "type": "bird", "pose": "flap", "night": 1, "body": [0.2, 0.24, 0.24], "head": 0.2, "snout": 0.06, "ears": "fox", "tail": "none", "main": "#4a3a52", "belly": "#7a6a82", "accent": "#2b2233", "scale": 0.7, "home": [-10, -140], "wander": 3, "perch": 1.1 },
+    { "id": "bat", "area": 2, "type": "bird", "pose": "flap", "night": 1, "body": [0.2, 0.24, 0.24], "head": 0.2, "snout": 0.06, "ears": "fox", "tail": "none", "main": "#4a3a52", "belly": "#7a6a82", "accent": "#2b2233", "scale": 0.7, "home": [-10, -140], "wander": 3, "perch": 0.7 },
     { "id": "wolf", "area": 2, "type": "quad", "pose": "yawn", "night": 1, "body": [0.42, 0.42, 0.72], "head": 0.34, "snout": 0.3, "ears": "fox", "tail": "bushy", "main": "#9aa2ae", "belly": "#eef1f4", "accent": "#2b2f38", "scale": 1.0, "home": [14, -154], "wander": 4 },
-    { "id": "moth", "area": 2, "type": "bird", "pose": "flap", "night": 1, "glow": 1, "body": [0.18, 0.2, 0.26], "head": 0.15, "snout": 0.02, "ears": "tuft", "tail": "none", "main": "#bff7ff", "belly": "#ffffff", "accent": "#5cf2c7", "scale": 0.7, "home": [-2, -160], "wander": 4, "perch": 1.1 }
+    { "id": "moth", "area": 2, "type": "bird", "pose": "flap", "night": 1, "glow": 1, "body": [0.18, 0.2, 0.26], "head": 0.15, "snout": 0.02, "ears": "tuft", "tail": "none", "main": "#bff7ff", "belly": "#ffffff", "accent": "#5cf2c7", "scale": 0.7, "home": [-2, -160], "wander": 4, "perch": 0.7 }
   ],
   "rares": [
     { "id": "goldhare", "base": "hare", "area": 0, "main": "#ffcf3a", "belly": "#fff2b0", "accent": "#ff9a4a", "glow": 1, "home": [-17, 12] },

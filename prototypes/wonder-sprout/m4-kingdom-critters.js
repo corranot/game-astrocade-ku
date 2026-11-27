@@ -227,8 +227,10 @@ export function createKingdom(world) {
       }
       if (!sp) continue;
       const a = K.anim[i];
-      if (a > 0 && a < 1.2) K.drawPopup(ctx, sp, x, y - 10, a); else put(ctx, sp, x, y - 10, 1, 1 + Math.sin(t * 1.3 + i) * 0.006);
-      K.drawLive(ctx, art, i, x, y - 10, t);
+      ctx.save(); ctx.translate(x, y - 10); ctx.scale(1.16, 1.16);
+      if (a > 0 && a < 1.2) K.drawPopup(ctx, sp, 0, 0, a); else put(ctx, sp, 0, 0, 1, 1 + Math.sin(t * 1.3 + i) * 0.006);
+      K.drawLive(ctx, art, i, 0, 0, t);
+      ctx.restore();
     }
   };
   /** Three-tier origami unfold: each third of the sprite hinges up from its bottom, staggered. */
@@ -248,6 +250,8 @@ export function createKingdom(world) {
     }
     if (i === 4) { ctx.save(); ctx.strokeStyle = rgba(mix(PAL.teal, PAL.cream, 0.5), 0.75); ctx.lineWidth = 3; for (let k = -1; k <= 1; k += 2) { ctx.beginPath(); ctx.moveTo(x, y - 82); ctx.quadraticCurveTo(x + k * 30, y - 112 - Math.sin(t * 5) * 4, x + k * 40, y - 26); ctx.stroke(); } ctx.restore(); if (art.glowTeal) put(ctx, art.glowTeal, x, y - 112, 0.7, 0.7, 0, 0.5 + 0.3 * Math.sin(t * 3)); }
     if (i === 5 && art.glow) { put(ctx, art.glow, x, y - 146, 1.2, 1.2, 0, 0.6 + 0.3 * Math.sin(t * 2.5)); ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = PAL.gold; ctx.translate(x, y - 146); ctx.rotate(Math.sin(t * 0.8) * 0.8); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(260, -40); ctx.lineTo(260, 40); ctx.fill(); ctx.restore(); }
+    if (i === 0) { ctx.save(); for (let k = 0; k < 3; k++) { const u = (t * 0.4 + k / 3) % 1; ctx.globalAlpha = 0.55 * (1 - u); ctx.fillStyle = PAL.cream; ctx.beginPath(); ctx.arc(x + 25 + Math.sin(u * 6 + k) * 6, y - 130 - u * 60, 6 + u * 12, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+    if (i === 1 && art.glowCoral) for (let k = 0; k < 3; k++) { const u = (t * 0.5 + k / 3) % 1; put(ctx, art.glowCoral, x - 30 + k * 30, y - 60 - u * 80, 0.25, 0.25, 0, Math.sin(u * Math.PI) * 0.8); }
     if (i === 2 && art.star) put(ctx, art.star, x - 20, y - 160 + Math.sin(t * 2) * 3, 0.8 + 0.2 * Math.sin(t * 5), 0.8 + 0.2 * Math.sin(t * 5), t, 0.9);
   };
   /** Nest with the first egg: warm glow, spring wobble, crack lines, light rays when ready. */
