@@ -268,6 +268,7 @@ export function createUI(world) {
     if (U.logo <= 0) return;
     ctx.save(); ctx.globalAlpha = U.logo; const b = Math.sin(t * 2) * 4;
     ctx.translate(W / 2, 214 - VIEW.dy * 0.45 + b); ctx.rotate(-0.03);
+    if (VIEW.dy < 40) ctx.scale(0.88, 0.88); // short screens: keep a clear gap to the Skip pill beside it
     // chunky storybook title: plum outline, cream-to-gold fill, a sprout on top and a gold ribbon
     const word = (str, y, px) => {
       ctx.font = FONT(900, px); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
@@ -293,7 +294,7 @@ export function createUI(world) {
       const u = o.t / o.dur, inK = clamp(o.t / 0.35, 0, 1), outK = clamp((o.dur - o.t) / 0.3, 0, 1), k = Math.min(easeOutBack(inK), outK);
       if (k <= 0) continue;
       ctx.save(); ctx.translate(W / 2, y); ctx.scale(k, k); ctx.globalAlpha = Math.min(1, outK * 1.5);
-      const w = 448, h = 120; // one fixed toast size and spot for every message
+      const w = 400, h = 120; // one fixed size; 400 leaves a 16 px gap to the Skip pill on the left margin
       rr(ctx, -w / 2, -h / 2, w, h, 44); ctx.fillStyle = rgba(PAL.plum, 0.82); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.85); ctx.stroke();
       const ix = -w / 2 + 60, A_ = A();
       if (o.critter) world.vfx.drawCritter(ctx, o.critter, ix, 40, { size: 0.72, happy: true, idle: true });
@@ -303,7 +304,8 @@ export function createUI(world) {
         if (o.moon) { ctx.save(); ctx.translate(ix + 30, -30); ctx.rotate(-0.4); ctx.fillStyle = '#FFE9A8'; ctx.strokeStyle = PAL.plum; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 18, 0.55, Math.PI * 2 - 0.55); ctx.arc(10, -2, 13, Math.PI * 2 - 1.2, 1.2, true); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
       }
       else if (o.icon && A_[o.icon]) put(ctx, A_[o.icon], ix, o.icon === 'airship' ? 0 : 50, o.icon === 'airship' ? 0.3 : 0.48, o.icon === 'airship' ? 0.3 : 0.48);
-      const tx = o.share ? 16 : 52, tw = o.share ? 200 : 280;
+      // text centred in the space between the icon (left 120) and the share tile or the right padding
+      const tR = o.share ? w / 2 - 112 : w / 2 - 24, tx = (-w / 2 + 120 + tR) / 2, tw = tR - (-w / 2 + 120);
       text(ctx, o.text, tx, o.sub ? -20 : 0, 40, PAL.gold, 900, 'center', tw);
       if (o.sub) text(ctx, o.sub, tx, 28, 28, PAL.cream, 800, 'center', tw);
       o.shareRect = null;
@@ -365,12 +367,13 @@ export function createUI(world) {
     const label = U.T(ftueHint[i]); ctx.font = FONT(900, 34); const tw = Math.min(520, ctx.measureText(label).width + 60);
     let py = tg.y - r - 58; if (py < HUD.y + HUD.h + 40) py = tg.y + r + 58;
     if (py > DOCK.y - 40 && tg.y < DOCK.y) py = tg.y - r - 58;
+    if (U.open) py = drawerY() - 50; // drawer steps: hint sits just above the panel, never over tile labels
     const px = clamp(tg.x, tw / 2 + 24, W - tw / 2 - 24);
     rr(ctx, px - tw / 2, py - 34, tw, 68, 34); ctx.fillStyle = rgba(PAL.plum, 0.9); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = PAL.gold; ctx.stroke();
     text(ctx, label, px, py + 1, 34, PAL.cream, 900, 'center', tw - 40);
     // skip, small, on the margin under the HUD
-    const sk = { x: mir(24, 120), y: HUD.y + HUD.h + 16, w: 120, h: 56 }; U.rects.skip = sk;
-    rr(ctx, sk.x, sk.y, sk.w, sk.h, 28); ctx.fillStyle = rgba(PAL.plum, 0.7); ctx.fill(); text(ctx, U.T('skip') + ' »', sk.x + sk.w / 2, sk.y + 29, 24, PAL.cream, 800, 'center', sk.w - 20);
+    const sk = { x: mir(24, 128), y: HUD.y + HUD.h + 16, w: 128, h: 64 }; U.rects.skip = sk; // same row height as the goal chip
+    rr(ctx, sk.x, sk.y, sk.w, sk.h, 32); ctx.fillStyle = rgba(PAL.plum, 0.7); ctx.fill(); text(ctx, U.T('skip') + ' »', sk.x + sk.w / 2, sk.y + 33, 24, PAL.cream, 800, 'center', sk.w - 20);
     ctx.restore();
   };
   function drawFinger(ctx, x, y) {
@@ -389,7 +392,7 @@ export function createUI(world) {
     ctx.save(); ctx.fillStyle = rgba(PAL.velvet, 0.45 * clamp(U.drawer.x, 0, 1)); ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h);
     rr(ctx, 16, y0, W - 32, H - y0 + 60, 44); const g = ctx.createLinearGradient(0, y0, 0, H); g.addColorStop(0, '#3C86B8'); g.addColorStop(0.35, '#2F5E96'); g.addColorStop(1, '#283E70'); ctx.fillStyle = g; ctx.fill(); ctx.save(); ctx.clip(); ctx.globalAlpha = 0.06; ctx.fillStyle = PAL.cream; for (let k = -4; k < 16; k++) { ctx.beginPath(); ctx.moveTo(k * 80, H); ctx.lineTo(k * 80 + 40, H); ctx.lineTo(k * 80 + 340, y0); ctx.lineTo(k * 80 + 300, y0); ctx.fill(); } ctx.restore(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.7); ctx.stroke();
     rr(ctx, W / 2 - 50, y0 + 14, 100, 10, 5); ctx.fillStyle = rgba(PAL.cream, 0.4); ctx.fill();
-    R.close = { x: mir(W - 120, 96), y: y0 + 24, w: 96, h: 96 };
+    R.close = { x: mir(W - 136, 96), y: y0 + 24, w: 96, h: 96 }; // right edge on the 40 px content margin
     ctx.save(); ctx.translate(R.close.x + 48, R.close.y + 48); ctx.strokeStyle = PAL.cream; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-14, -14); ctx.lineTo(14, 14); ctx.moveTo(14, -14); ctx.lineTo(-14, 14); ctx.stroke(); ctx.restore();
     const top = y0 + 128;
     if (U.open === 'hatchery' || (!U.open && U.lastOpen === 'hatchery')) {
@@ -412,7 +415,7 @@ export function createUI(world) {
     } else if (U.open === 'kingdom' || (!U.open && U.lastOpen === 'kingdom')) {
       R.plant = null; R.rush = null;
       for (let i = 0; i < 6; i++) {
-        const col = i % 3, row = Math.floor(i / 3), r = { x: mir(40 + col * 216, 200), y: top + row * 232, w: 200, h: 216 }, l = s.landmarks[i];
+        const col = i % 3, row = Math.floor(i / 3), r = { x: mir(40 + col * 220, 200), y: top + row * 236, w: 200, h: 216 }, l = s.landmarks[i];
         const active = i === s.activeLandmark && s.planted, next = i === s.activeLandmark && !s.planted;
         rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.fillStyle = rgba(PAL.cream, l.built ? 0.16 : 0.07); ctx.fill(); ctx.lineWidth = active || next ? 4 : 2; ctx.strokeStyle = active || next ? PAL.gold : rgba(PAL.cream, 0.25); ctx.stroke();
         const sp = A_['landmark' + i]; if (sp) put(ctx, sp, r.x + r.w / 2, r.y + 170, 0.78, 0.78, 0, l.built ? 1 : active ? 0.55 : 0.25);
@@ -424,7 +427,7 @@ export function createUI(world) {
         if (next) { const b = { x: r.x + 16, y: r.y + r.h - 84, w: r.w - 32, h: 72 }; R.plant = b; tile(ctx, b.x, b.y, b.w, b.h, PAL.gold, 0); text(ctx, U.T('plant'), b.x + b.w / 2, b.y + 36, 26, PAL.cream, 900, 'center', b.w - 20); }
       }
       const need = k.activeNeeds();
-      if (need && (s.starGems >= 1 || s.magicWood >= 1)) { const b = { x: mir(160, 400), y: top + 480, w: 400, h: 96 }; R.rush = b; tile(ctx, b.x, b.y, b.w, b.h, PAL.teal); gemIcon(ctx, b.x + 60, b.y + 48, 1.8); text(ctx, U.T('rush'), b.x + 230, b.y + 50, 38, PAL.cream, 900, 'center', 260); }
+      if (need && (s.starGems >= 1 || s.magicWood >= 1)) { const b = { x: mir(160, 400), y: top + 472, w: 400, h: 96 }; R.rush = b; tile(ctx, b.x, b.y, b.w, b.h, PAL.teal); gemIcon(ctx, b.x + 60, b.y + 48, 1.8); text(ctx, U.T('rush'), b.x + 230, b.y + 50, 38, PAL.cream, 900, 'center', 260); }
     } else if (U.open === 'evolution' || (!U.open && U.lastOpen === 'evolution')) {
       const list = U.evoList();
       list.forEach((c, i) => {
@@ -449,7 +452,7 @@ export function createUI(world) {
     rr(ctx, 64, 260, W - 128, 760, 44); ctx.fillStyle = mix(PAL.plum, PAL.lav, 0.25); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = PAL.gold; ctx.stroke();
     text(ctx, '🌐 ' + U.T('lang'), W / 2, 316, 34, PAL.gold, 900, 'center', 400);
     LANGS.forEach((l, i) => {
-      const r = { x: 96 + (i % 2) * 272, y: 364 + Math.floor(i / 2) * 112, w: 256, h: 96 }; R['lang_' + l] = U.sheet ? r : null;
+      const lone = i === LANGS.length - 1 && i % 2 === 0, r = { x: lone ? W / 2 - 128 : 96 + (i % 2) * 272, y: 364 + Math.floor(i / 2) * 112, w: 256, h: 96 }; R['lang_' + l] = U.sheet ? r : null;
       tile(ctx, r.x, r.y, r.w, r.h, l === U.lang ? PAL.gold : PAL.lav); text(ctx, LANG_NAMES[l], r.x + r.w / 2, r.y + 48, 30, PAL.cream, 800, 'center', r.w - 24);
     });
     const m = { x: 96, y: 832, w: W - 192, h: 96 }; R.music = U.sheet ? m : null;
