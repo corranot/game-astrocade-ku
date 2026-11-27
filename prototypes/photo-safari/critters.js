@@ -53,13 +53,15 @@ function fur(main, belly, opt = {}) {
  */
 export function critterMaterials() {
   const night = { value: 0 }, lamp = { value: new THREE.Vector4() };
-  const rim = (mat, strength, glow = 0) => {
+  const rim = (mat, strength, glow = 0, quilt = 0) => {
     mat.onBeforeCompile = (sh) => {
-      sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow }; sh.uniforms.uNight = night; sh.uniforms.uLamp = lamp;
+      sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow }; sh.uniforms.uNight = night; sh.uniforms.uLamp = lamp; sh.uniforms.uQuilt = { value: quilt };
+      // object-space position: fur strands (short cells stretched along y) or, with uQuilt, the parka's stitched channels
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLp = position;');
       // pale fur gets a cool blue-grey edge so white animals keep their outline on snow; the rim light stays soft on
       // them, and the glow of a rare visitor is a warm gold edge instead of a white blow-out
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow; uniform float uNight; uniform vec4 uLamp;')
-        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat fr0 = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 1.8);\nfloat pale = smoothstep(0.62, 0.9, dot(diffuseColor.rgb, vec3(0.333)));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.62, 0.84), fr0 * pale * 0.85);\nfloat upF = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));\ndiffuseColor.rgb *= mix(vec3(0.8, 0.84, 0.94), vec3(1.04, 1.02, 0.98), smoothstep(-0.7, 0.8, upF));')
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow; uniform float uNight; uniform vec4 uLamp; uniform float uQuilt; varying vec3 vLp;')
+        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat fr0 = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 1.8);\nfloat pale = smoothstep(0.62, 0.9, dot(diffuseColor.rgb, vec3(0.333)));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.62, 0.84), fr0 * pale * 0.85);\nfloat upF = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));\ndiffuseColor.rgb *= mix(vec3(0.8, 0.84, 0.94), vec3(1.04, 1.02, 0.98), smoothstep(-0.7, 0.8, upF));\nfloat fn = fract(sin(dot(floor(vLp * vec3(46.0, 17.0, 46.0)), vec3(12.9898, 78.233, 37.719))) * 43758.5453);\nfloat qc = abs(fract(vLp.y * 10.0) - 0.5) * 2.0;\ndiffuseColor.rgb *= mix(0.9 + 0.16 * fn, mix(0.74, 1.05, smoothstep(0.0, 0.4, qc)), uQuilt);')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * fr * uRim * (1.0 - 0.75 * pale) + vec3(0.55, 0.7, 1.0) * fr * uNight * 0.6 + diffuseColor.rgb * vec3(1.0, 0.62, 0.3) * uLamp.w * 0.05 * pow(1.0 - clamp(length(-vViewPosition - (viewMatrix * vec4(uLamp.xyz + vec3(0.0, 1.0, 0.0), 1.0)).xyz) / 10.0, 0.0, 1.0), 2.0) + mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.42), 0.5) * uGlow * (0.15 + fr * 0.9);');
       mat.userData.sh = sh;
     };
@@ -69,7 +71,7 @@ export function critterMaterials() {
   const glow = rim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0 }), 1.2, 0.9);
   const eye = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0 });
   const mouth = new THREE.MeshStandardMaterial({ color: 0x8a2c3a, roughness: 0.7 });
-  return { fur, glow, eye, mouth, night, lamp };
+  return { fur, glow, eye, mouth, night, lamp, make: rim };
 }
 
 /** Eyes (dark, glossy, two catchlights), merged into one mesh. Positioned on a head of radius r at the front. */
@@ -233,10 +235,12 @@ export function animateCritter(a, sp, st) {
 }
 
 /** The hero: Pip in a quilted puffer parka, a pom-pom hat, mittens, boots and a big instant camera. */
-export function buildHero(look) {
+export function buildHero(look, mats) {
+  const soft = (m, r, q) => (mats ? mats.make(m, r, 0, q) : m);
   const group = new THREE.Group(), inner = new THREE.Group(); group.add(inner);
-  const matParka = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, color: look.parka });
-  const matHat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, color: look.hat });
+  // parka and hat share the fur program (no extra shader compile): stitched quilt channels on the parka, knit grain on the hat
+  const matParka = soft(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, color: look.parka }), 0.3, 1);
+  const matHat = soft(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, color: look.hat }), 0.3, 0);
   const matSkin = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 });
   const matCam = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, color: look.cam });
   const matEye = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12 });

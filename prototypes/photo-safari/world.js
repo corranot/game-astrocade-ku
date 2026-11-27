@@ -151,7 +151,11 @@ export function createWorld(canvas, cfg, opts = {}) {
  { float k = vSee < 0.9 ? vSee : 1.1;
    vec2 q = mod(floor(gl_FragCoord.xy), 4.0);
    float bay = (mod(q.x + q.y * 2.0, 4.0) * 4.0 + mod(q.x * 3.0 + q.y, 4.0)) / 16.0;
-   if (k > bay + 0.03) discard; }`);
+   if (k > bay + 0.03) discard; }`).replace('#include <color_fragment>', `#include <color_fragment>
+ { vec3 cc = diffuseColor.rgb; float bark = step(cc.g * 1.25, cc.r), wht = step(0.8, cc.b);
+   float n1 = fract(sin(dot(floor(vWp * vec3(16.0, 3.0, 16.0)), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+   float n2 = fract(sin(dot(floor(vWp * vec3(6.0, 10.0, 6.0)), vec3(39.3, 11.1, 83.7))) * 24634.6345);
+   diffuseColor.rgb *= mix(mix(0.8 + 0.32 * n2, 0.95 + 0.08 * n2, wht), 0.68 + 0.5 * n1, bark); }`);
   };
   const shapes = [pineGeo(4, 1.6, 4.2), pineGeo(5, 2.0, 5.6), pineGeo(3, 1.3, 3.0)].map(keep);
   const trees = [[], [], []], trunks = [];
@@ -278,9 +282,18 @@ export function createWorld(canvas, cfg, opts = {}) {
   for (let i = 0; i < 16; i++) { const a = R() * 6.28, r = 12 + R() * 16, x = Math.cos(a) * r * 0.95, z = -154 + Math.sin(a) * r; if (!clearOf(x, z, 3)) continue; crystal(x, z, i % 3 === 0); }
   place([{ g: new THREE.CylinderGeometry(2.2, 3.2, 9, 14, 1, true, 0, Math.PI), m: M4(0, 4.5, 0), col: C('#bfeaff') }], 0, -186, Math.PI);
   // ice gates: a wall of shards across each corridor, gone when the area opens
+  // gate ice: deep blue at the foot, frosted white tips and edges, and a slow glint sweeping across the shards
+  const gateMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.9, emissive: 0x2a9ad8, emissiveIntensity: 0.6 }));
+  gateMat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = uTime;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGl;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvGl = position;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uTime; varying vec3 vGl;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat gh = smoothstep(0.3, 4.2, vGl.y); float gr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.0);\ndiffuseColor.rgb = mix(diffuseColor.rgb * vec3(0.55, 0.75, 1.0), mix(diffuseColor.rgb, vec3(0.9, 0.97, 1.0), 0.6), gh);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.99, 1.0), gr * 0.6);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ float sw = fract(vGl.x * 0.09 + vGl.y * 0.05 - uTime * 0.16); totalEmissiveRadiance += vec3(0.75, 0.95, 1.0) * smoothstep(0.05, 0.0, abs(sw - 0.5)) * 1.1; }');
+  };
   const gates = cfg.gates.map((g) => {
     const items = []; for (let i = 0; i < 9; i++) { const x = -4.6 + i * 1.15, h = 3 + ((i * 5) % 4) * 0.9; items.push({ g: new THREE.OctahedronGeometry(1, 0), m: M4(x, h * 0.45, 0, 0.66, h * 0.62, 0.5, 0, i * 0.4, (i - 4) * 0.05), col: C(i % 2 ? '#6cc8ff' : '#9ae6ff') }); }
-    const mesh = new THREE.Mesh(keep(merge(items)), keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.9, emissive: 0x2a9ad8, emissiveIntensity: 0.6 })));
+    const mesh = new THREE.Mesh(keep(merge(items)), gateMat);
     mesh.position.set(0, L.terrainH(cfg, 0, g.z), g.z); mesh.castShadow = true; scene.add(mesh);
     return { mesh, rest: null, z: g.z, area: g.area };
   });
