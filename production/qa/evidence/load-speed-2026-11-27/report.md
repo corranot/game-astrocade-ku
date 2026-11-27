@@ -208,3 +208,18 @@ Bridge music + SFX after a tap.
 
 Not done yet (CPU-bound world builds, need per-game staging): Tiny Town (town build 0.57 s + shop/park/mini
 0.45 s; a rounded-box geometry cache gave nothing and was dropped), Dragon, Candy Mine, Prop Heist, Mega Aura.
+
+### Toybox lazy physics and shadow-bug sweep (18:45-19:00 UTC)
+
+- **Toybox Town**: physics (1.5 MB uncompressed text, the largest single download) no longer blocks the first frame.
+  Its download starts after the engine files and runs alongside the world build, and the unpack and init run after the first frame.
+  Until Rapier is ready, the world is built on recording stand-ins (`tools/boot_tb_lazy.py`).
+  The calls replay in order and the stand-ins are then swapped for the real bodies.
+  A Play tap made earlier is queued.
+  - First draw median: 3795 → **2708 ms** (lab, 3 runs). The earlier boot rework had reached 3795, and the original was 4021.
+  - Probe with a tap at the first frame: the tap was queued and play started 0.3 s later. The world had 133 bodies, the hero was grounded, and there were no errors.
+  - The title screen and feed handover look the same (`toybox-lazy-physics-before-after.jpg`: the 2 s loader, then 8 s and handover before/after).
+- **Shadow vanish bug** (Paint Peekaboo `setFxTier` disposed the shadow map while `shadowMap.autoUpdate=false`): I checked all 60 account games, using `search_game_files` and local captures.
+  Only Paint Peekaboo was affected, and it is fixed and published.
+  The others either keep `autoUpdate` on, or refresh shadows on a fixed cadence: Splash #1/#2, Spooky, Ambulance, Voxel Wonderland, Reel & Hatch, Dum Biryani, Meteor Gems, Tiny Town, Mega Aura and Prop Heist.
+- 18:45-19:00 UTC published (Astrocade review): Splash #1, Paint Peekaboo, Hero Bridge, Megalodon, Toybox.
