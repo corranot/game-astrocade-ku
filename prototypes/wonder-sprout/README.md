@@ -11,6 +11,9 @@
 - Tests: `node --test prototypes/wonder-sprout/tests/*.test.mjs` (pure functions + pacing bot);
   `node tests/sim.mjs 15 7` prints milestone times for one bot run.
 - Screens: `node prototypes/wonder-sprout/tests/shots.js` (needs Playwright) writes phone-portrait JPGs.
+  `tests/quick.js` writes six screens fast while iterating.
+- Garden goals (`m7-garden-goals.js`): one icon-first goal at a time with gem rewards and a gift egg every
+  fourth; `economy.goalGems` sets the base reward. The pacing bot does not model goal rewards yet.
 
 ## Pacing (bot, 3 seeds, 27 Nov tuning)
 

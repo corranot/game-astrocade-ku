@@ -8,6 +8,7 @@ import { landmarkCost, evolveCost, rollSpecies, offlineGems, gardenStars, comboB
 import { validateState, freshState, readConfig, frameDt, makeRng, SCHEMA_VERSION } from '../m0-orchestrator.js';
 import { nextFtue, FTUE, fmt } from '../m6-kids-portrait-ui.js';
 import { pickBeat } from '../m5-vfx-kinematics.js';
+import { goalAt, GOALS } from '../m7-garden-goals.js';
 import { STR, LANGS, detectLang } from '../strings.js';
 
 const CFG = JSON.parse(fs.readFileSync(new URL('../game_config.json', import.meta.url)));
@@ -135,4 +136,20 @@ test('every language has every word; commands stay short', () => {
     assert.equal(STR[l].lm.length, 6);
   }
   assert.equal(detectLang(['ar-EG']), 'ar'); assert.equal(detectLang(['de-DE']), 'en'); assert.equal(fmt(12345), '12K');
+});
+
+test('garden goals cycle through every kind, grow each lap and pay a gift egg every fourth', () => {
+  const first = goalAt(0, E), lap2 = goalAt(GOALS.length, E);
+  assert.equal(first.ev, GOALS[0].ev);
+  assert.equal(first.n, GOALS[0].n);
+  assert.ok(lap2.n > first.n);
+  assert.ok(lap2.reward > first.reward);
+  assert.equal(goalAt(3, E).egg, true);
+  assert.equal(goalAt(4, E).egg, false);
+});
+
+test('saved goal progress survives a reload and bad values are clamped', () => {
+  const s = freshState(1000); s.quest = { i: 5, p: 3 };
+  assert.deepEqual(validateState(JSON.parse(JSON.stringify(s)), 1000).quest, { i: 5, p: 3 });
+  assert.deepEqual(validateState({ ...s, quest: { i: -4, p: 'x' } }, 1000).quest, { i: 0, p: 0 });
 });

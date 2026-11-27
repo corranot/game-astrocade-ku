@@ -19,12 +19,13 @@ import { createGameplay } from './m3-physics-gameplay.js';
 import { createKingdom } from './m4-kingdom-critters.js';
 import { createVfx } from './m5-vfx-kinematics.js';
 import { createUI } from './m6-kids-portrait-ui.js';
+import { createGoals } from './m7-garden-goals.js';
 
 const DEFAULTS = {
   settings: { music: true, effects: true, haptics: true },
   physics: { critterRadius: 34, maxPull: 170, launchPower: 13.5, maxSpeed: 2300, drag: 0.62, restSpeed: 70, friction: 260, wallBounce: 0.82, bumperBoost: 1.18, bumperMin: 900, substep: 1 / 120, hitboxScale: 1.45, assistDeg: 6, assistConeDeg: 20, tapMovePx: 14, tapMs: 220, returnSec: 0.45 },
   rhythm: { period: 2.6, ringStart: 2.3, window: 0.13, critMult: 5 },
-  economy: { landmarkGems: 240, landmarkWood: 3, landmarkGrowth: 1.85, toLandmarkShare: 0.65, gemsPerHit: { mushroom: 1, geode: 3, tree: 1, pinata: 2, raid: 4 }, woodPerTreeHit: 1, geodeHp: 3, geodeBurst: 8, pinataHp: 5, pinataBurst: 18, pinataEggChance: 0.12, respawnSec: { geode: 3.5, pinata: 7 }, eggCost: { meadow: 300, coral: 1200 }, incubateSec: 5, hatchTaps: 3, evolveBase: 900, evolveGrowth: 2.3, stageMult: [1, 1.7, 2.8], helperEverySec: [4.2, 3.2, 2.4], helperGems: 2, honeyEverySec: 6, ferrisGemsPerSec: 0.8, observatoryPower: 1.15, observatoryCrit: 1.4, offlineCapHours: 8, offlineShare: 0.25, maxCritters: 12, maxEggs: 6 },
+  economy: { landmarkGems: 240, landmarkWood: 3, landmarkGrowth: 1.85, toLandmarkShare: 0.65, gemsPerHit: { mushroom: 1, geode: 3, tree: 1, pinata: 2, raid: 4 }, woodPerTreeHit: 1, geodeHp: 3, geodeBurst: 8, pinataHp: 5, pinataBurst: 18, pinataEggChance: 0.12, goalGems: 40, respawnSec: { geode: 3.5, pinata: 7 }, eggCost: { meadow: 300, coral: 1200 }, incubateSec: 5, hatchTaps: 3, evolveBase: 900, evolveGrowth: 2.3, stageMult: [1, 1.7, 2.8], helperEverySec: [4.2, 3.2, 2.4], helperGems: 2, honeyEverySec: 6, ferrisGemsPerSec: 0.8, observatoryPower: 1.15, observatoryCrit: 1.4, offlineCapHours: 8, offlineShare: 0.25, maxCritters: 12, maxEggs: 6 },
   raid: { firstSec: 75, everySec: 75, staySec: 22, weakHp: 3, burstGems: 50 },
   fx: { hitstopMs: 45, shake: 1, beatCooldownSec: 8, particleCap: [180, 350, 600] },
   quality: { scale: [0.8, 1, 1.25], downFps: 45, upFps: 58, upAfterSec: 10 },
@@ -73,6 +74,7 @@ function build() {
   w.kingdom = createKingdom(w);
   w.vfx = createVfx(w); w.vfx.setTier(w.quality.tier);
   w.ui = createUI(w);
+  w.goals = createGoals(w);
   wireEvents(w);
   wireInput(w);
   addEventListener('resize', () => resize());
@@ -165,6 +167,7 @@ function frame(w, now) {
   w.kingdom.update(wdt);
   V.update(V.hitstop > 0 ? 0 : dt);
   w.ui.update(dt);
+  w.goals.update(dt);
   w.audio.tick();
   if (w.art.queue.length) w.art.pump(w.firstFrames > 2 ? 4 : 0);
   w.saver.tick();
@@ -191,7 +194,8 @@ function render(w, t) {
   for (const h of G.helpers) { const c = K.critter(h.id); if (c) V.drawCritter(ctx, c, h.x, h.y + 26, { vx: h.vx, vy: h.vy, fly: h.mode === 'dash', idle: h.mode === 'wander', size: 0.78, look: w.pointer, air: Math.abs(Math.sin(h.hop * 9)) * (h.mode === 'wander' ? 8 : 0) }); }
   V.drawSlingBack(ctx, G);
   const hero = K.hero(), h = G.hero;
-  V.drawCritter(ctx, hero, h.x, h.y + 30, { vx: h.vx, vy: h.vy, fly: h.mode === 'fly', idle: h.mode === 'rest', look: w.pointer, happy: h.mode !== 'fly' });
+  V.drawTrail(ctx, h, t);
+  V.drawCritter(ctx, hero, h.x, h.y + 30, { vx: h.vx, vy: h.vy, fly: h.mode === 'fly', idle: h.mode === 'rest', look: w.pointer, happy: h.mode !== 'fly', size: 1.2, pull: G.tension() });
   V.drawSlingFront(ctx, G);
   V.drawEggFly(ctx);
   V.drawOrbs(ctx);
@@ -202,6 +206,7 @@ function render(w, t) {
   V.drawOverlay(ctx);
   U.drawLogo(ctx, t);
   U.drawHUD(ctx, t, V);
+  w.goals.draw(ctx, t);
   U.drawDock(ctx, t);
   U.drawToasts(ctx, t);
   U.drawDrawer(ctx, t);
