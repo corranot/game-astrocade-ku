@@ -1,4 +1,3 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 /**
  * Glossy candy UI that sits on the painted art: discs, pills, a frosted panel, light rays and a warm vignette.
  * Every piece is a gradient body, a white sheen on top, a soft rim and a soft drop below; no hard outlines.
@@ -55,3 +54,4 @@ export function vignette(w, h) {
   const gr = q.createRadialGradient(w / 2, h * 0.44, h * 0.25, w / 2, h * 0.44, h * 0.78); gr.addColorStop(0, 'rgba(255,220,180,0)'); gr.addColorStop(1, 'rgba(80,30,70,0.32)');
   q.fillStyle = gr; q.fillRect(0, 0, w, h); return c;
 }
+

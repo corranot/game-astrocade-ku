@@ -13,16 +13,17 @@
  * Arabic right to left; the globe on the shelf screen changes it). Tunable numbers live in game_config.json.
  */
 import { PLUM, PINK, GREEN, tint, glossDisc, glossPill, panel, rays, vignette, roundRect } from './ui.js';
-import { loadSprites, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
+import { loadSprites, loadRest, loadedN, previewIn, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
 import { rng, makeSoap, markDirty, carve, trimRows, carvedShare, sponge, edgeCells, meanRough, takeIslands, islandSprite, shapeScore, sparkleScore, verdict, soapCount, encodeMask, decodeMask, marbleAlbedo, attachPaint, paint, stamp as pressStamp } from './soap.js';
-import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide, landAt, fillCentre } from './make.js';
+import { POT, MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide, landAt, fillCentre } from './make.js';
 import { createFx, ribbonShape, strokeCurl } from './fx.js';
+import { orderShape, winterMarble } from './winter.js';
 
 const DEBUG = location.search.includes('local');
 const W = 720, H = 1280, TAU = Math.PI * 2, LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
 const FONT = "'Baloo 2', 'Baloo Da 2', 'Baloo Bhaijaan 2', system-ui, 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Bengali', sans-serif";
 // the recipes: the first soap is short (carving on the very first touch); every later soap is made from scratch
-const SHORT = ['carve', 'smooth', 'sparkle', 'bath'], FULL = [...MAKE_STEPS, 'carve', 'smooth', 'stamp', 'sparkle', 'bath'];
+const SHORT = ['carve', 'smooth', 'sparkle', 'bath'], READY = ['carve', 'smooth', 'stamp', 'sparkle', 'bath'], FULL = [...MAKE_STEPS, ...READY];
 const TOOL_CELL = { carve: 0, smooth: 1, sparkle: 2 }; // tools_sheet cells for the step icons
 const MOOD = { calm: 0, happy: 1, wow: 2, oops: 3 };
 const CONF = ['#FF5FA2', '#FFD23F', '#3DDC97', '#3EC5FF', '#B57BFF', '#FF9F1C'];
@@ -30,9 +31,12 @@ const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 const back3 = (k) => { k = Math.max(0, Math.min(1, k)); const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
 
 let cv, g, cfg, mode, raf = 0, last = 0, runs = 0, base = null, tables = [], ti = 0, fx = null, vig = null, chrome = null, chromeKey = '';
-let save = { n: 0, coins: 0, stars: 0, buys: 0, gifts: 0, giftDue: false, learned: [], owned: { marbles: [], glitters: [], gems: [], stamps: [] }, shelf: [], charms: [], fresh: null, lang: null, muted: false };
+let save = { n: 0, coins: 0, stars: 0, buys: 0, gifts: 0, giftDue: false, learned: [], owned: { marbles: [], glitters: [], gems: [], stamps: [] }, shelf: [], charms: [], fresh: null, lang: null, muted: false, winterSeen: [], made: [], ftue: false };
 let saveRead = false, merged = false, muteTouched = false, touched = false;
 let view = 'play', S = null, lang = 'en', pen = null, penId = null, coinShown = 0, coinPulse = 0, wiggle = null, shake = 0, freeNext = false;
+// tall phones: the canvas grows to HV high and the 1280-high game sits in the middle, OFF below the top;
+// the table art fills the extra height and the top HUD row moves up to the screen edge
+let HV = 1280, OFF = 0;
 let coinShake = 0, quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, bootT = 0, photoSel = -1, coinsFlying = [];
 let ac = null, noiseBuf = null, fizzNode = null, gift = null;
 const ALB = new Map(), ALB_SMALL = new Map(), THUMBS = new WeakMap(), throttle = {};
@@ -72,6 +76,89 @@ function banner(str, x, y, size, maxW, color = PLUM, pop = 1, base = '#FFFFFF') 
 }
 const popIn = (age) => (age < 0.35 ? 0.6 + 0.4 * ease(age / 0.35) + Math.sin(Math.min(1, age / 0.35) * Math.PI) * 0.12 : 1);
 
+// ---------- the rounded Baloo family, from the asset map (no outside requests); the system font shows until it lands ----------
+const FONTS = [
+  ['font_baloo2_latin', 'Baloo 2', 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD'],
+  ['font_baloo2_latin_ext', 'Baloo 2', 'U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF'],
+  ['font_baloo2_vietnamese', 'Baloo 2', 'U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB'],
+  ['font_baloo2_devanagari', 'Baloo 2', 'U+0900-097F,U+1CD0-1CF9,U+200C-200D,U+20A8,U+20B9,U+20F0,U+25CC,U+A830-A839,U+A8E0-A8FF,U+11B00-11B09'],
+  ['font_baloo_da2_bengali', 'Baloo Da 2', 'U+0951-0952,U+0964-0965,U+0980-09FE,U+1CD0,U+1CD2,U+1CD5-1CD6,U+1CD8,U+1CE1,U+1CEA,U+1CED,U+1CF2,U+1CF5-1CF7,U+200C-200D,U+20B9,U+25CC,U+A8F1'],
+  ['font_baloo_bhaijaan2_arabic', 'Baloo Bhaijaan 2', 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC'],
+];
+let fontsAdded = false;
+function loadFonts() {
+  if (fontsAdded || typeof FontFace === 'undefined' || !document.fonts) return; fontsAdded = true;
+  for (const [id, family, unicodeRange] of FONTS) {
+    let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map */ }
+    if (a && a.url) try { document.fonts.add(new FontFace(family, `url(${a.url}) format('woff2')`, { weight: '800', display: 'swap', unicodeRange })); } catch (e) { /* bad face: fallback font */ }
+  }
+}
+
+// ---------- first-time spotlight: the table dims except what to touch next; it moves on when the player does it ----------
+const SKIPB = () => ({ x: mx(24, 96), y: 312, s: 96 }); // under the prompt, clear of the lit area
+/** The hole of the spotlight for the current step, or null when there is nothing to teach. */
+function spotRect() {
+  if (mode !== 'play' || view !== 'play' || save.ftue || !S || S.enter > 0 || S.trim || S.k === 'bath') return null;
+  if (S.stepUsed || save.learned.includes(S.k)) return null;
+  const b = cfg.bar, pad = 28; let x0 = b.x - pad, y0 = b.y - pad, x1 = b.x + b.w + pad, y1 = b.y + b.h + pad;
+  if (isMake(S.k)) { const ps = potSide(); x0 = Math.min(x0, POT.x - POT.r - pad, ps.x - ps.r - 8); x1 = Math.max(x1, POT.x + POT.r + pad, ps.x + ps.r + 8); y0 = Math.min(y0, POT.y - POT.r - pad, ps.y - ps.r - 8); y1 = Math.max(y1, POT.y + POT.r + pad); }
+  if (trayShown()) { y1 = 1090; x0 = 8; x1 = W - 8; } // the tray of glitter, gems, cubes or flowers is part of the lesson
+  return { x: Math.max(8, x0), y: y0, w: Math.min(W - 8, x1) - Math.max(8, x0), h: y1 - y0 };
+}
+const spotOn = () => !!spotRect() || (!save.ftue && mode === 'play' && view === 'play' && S && S.k === 'bath' && S.reveal && S.reveal.t > 1.5);
+function drawSpot() {
+  const r = spotRect(); if (!r) return;
+  const a = Math.min(1, (S.t - (S.promptAt || 0)) * 3), k = 1 + Math.sin(S.t * 4) * 0.012;
+  g.save(); g.fillStyle = `rgba(40,16,50,${0.5 * a})`;
+  g.beginPath(); g.rect(0, -OFF, W, HV);
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2, w = r.w * k, h = r.h * k, x = cx - w / 2, y = cy - h / 2, q = 44;
+  g.moveTo(x + q, y); g.arcTo(x, y, x, y + h, q); g.arcTo(x, y + h, x + w, y + h, q); g.arcTo(x + w, y + h, x + w, y, q); g.arcTo(x + w, y, x, y, q); g.closePath(); // the hole, wound the other way
+  g.fill('evenodd');
+  g.lineWidth = 6; g.strokeStyle = `rgba(255,255,255,${0.85 * a})`; roundRect(g, x, y, w, h, q); g.stroke();
+  g.restore();
+}
+/** The ring that points at the big next button on the first result, and the skip button while the lesson runs. */
+function drawSpotTop() {
+  if (!spotOn()) return;
+  if (S.k === 'bath') { const p = (S.t * 1.2) % 1; g.strokeStyle = `rgba(255,255,255,${1 - p})`; g.lineWidth = 8; g.beginPath(); g.arc(NEXT.x, NEXT.y, NEXT.r + 10 + p * 40, 0, TAU); g.stroke(); }
+  if (S.k === 'bath') return;
+  const b = SKIPB(); glossDisc(g, b.x + b.s / 2, b.y + b.s / 2, b.s / 2, '#FFFFFF', '#FF9CC8');
+  g.fillStyle = PLUM; for (const dx of [-14, 8]) { const x = b.x + b.s / 2 + dx; g.beginPath(); g.moveTo(x - 8, b.y + b.s / 2 - 16); g.lineTo(x + 10, b.y + b.s / 2); g.lineTo(x - 8, b.y + b.s / 2 + 16); g.closePath(); g.fill(); } // skip: two arrows, no words
+}
+
+// ---------- cinematic beats: on a key moment the camera eases in, frames it with a brief slow-down, then eases back ----------
+// One beat at a time from a priority queue with a cooldown, so they never pile up; input is never blocked.
+let cine = null, cineCool = 0, cineSlow = 0;
+const cineQ = [];
+/** Ask for the beat kind (cfg.cine) at world point (x, y). */
+function beat(kind, x, y) {
+  const c = cfg.cine[kind]; if (!c || reduced()) return;
+  if ((cineCool > 0 || cine) && !c.always) return;
+  cineQ.push({ kind, x, y, ...c, t: 0 }); cineQ.sort((a, b) => b.prio - a.prio);
+}
+/** Real-time step of the beat; returns the factor game time runs at (below 1 during a slow-down). */
+function stepCine(dt) {
+  cineCool = Math.max(0, cineCool - dt);
+  if (!cine && cineQ.length) { cine = cineQ.shift(); cineQ.length = 0; cineSlow = cine.slow || 0; if (cine.sting) SFX.sting(); }
+  if (cine && (cine.t += dt) >= cine.dur) { cine = null; cineCool = cfg.cineCooldown; }
+  if (cineSlow > 0) { cineSlow -= dt; return cfg.cineSlowRate; }
+  return 1;
+}
+/** How far in the camera is now, 0..1: eases in, holds, eases out. */
+const cineK = () => (!cine ? 0 : cine.t < cine.ease ? ease(cine.t / cine.ease) : cine.t > cine.dur - cine.ease ? ease(Math.max(0, cine.dur - cine.t) / cine.ease) : 1);
+/** The camera of the beat around the world layer, and its soft vignette after. */
+function cineCamera() {
+  const k = cineK(); if (!k) return;
+  const z = 1 + (cine.zoom - 1) * k, fx0 = 360 + (cine.x - 360) * k, fy0 = 640 + (cine.y - 640) * k; // the focus slides to the centre as it zooms
+  g.translate(360, 640); g.scale(z, z); g.translate(-fx0, -fy0);
+  return true;
+}
+function cineVignette() {
+  const k = cineK(); if (!k) return;
+  const v = g.createRadialGradient(360, 640, 330, 360, 640, 820); v.addColorStop(0, 'rgba(60,20,70,0)'); v.addColorStop(1, `rgba(60,20,70,${0.42 * k})`);
+  g.fillStyle = v; g.fillRect(0, -OFF, W, HV);
+}
+
 // ---------- host calls that must never stop the game ----------
 const buzz = (kind) => { try { lib.haptics.play(kind); } catch (e) { /* no vibration here */ } };
 /** Write the save, only after the player's stored save was read, so it can never be overwritten blind. */
@@ -80,7 +167,7 @@ const submitScore = () => { if (mode === 'play' && saveRead) Promise.resolve().t
 
 // ---------- sound (synthesized; starts on the first touch) ----------
 // ---------- recorded sounds from the asset map; the synthesized ones stay as the fallback ----------
-const REC = {}; let recAsked = false, musicNode = null, pourNode = null;
+const REC = {}; let ext = null, restAsked = false, tipShown = false, recAsked = false, musicNode = null, pourNode = null;
 function loadRecorded() {
   if (recAsked || !ac) return; recAsked = true;
   for (const id of Object.keys(cfg.sounds || {})) {
@@ -163,8 +250,10 @@ const SFX = {
   star: (k) => beep(880 + k * 220, 0.28, 'triangle', 0.1),
   coin: () => { beep(1568, 0.05, 'square', 0.03); beep(2093, 0.09, 'square', 0.03, 0, 0.05); },
   wow: () => rec('sfx_win') || SFX.wowSynth(),
+  sting: () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.22, 'triangle', 0.06, 0, i * 0.07)); beep(1568, 0.5, 'sine', 0.03, 0, 0.3); },
   wowSynth: () => { tune([523, 659, 784, 1047, 1319], 95, 0.3, 0.09); hiss(0.4, 0.05, 6000, 0.5); },
   charm: () => tune([1047, 1319, 1568, 2093], 70, 0.2, 0.08),
+  winter: () => tune([1175, 1568, 1976], 58, 0.09, 0.035),
   swish: () => hiss(0.22, 0.08, 700 + Math.random() * 300, 0.8),
   crackle: () => { hiss(0.05, 0.09, 5200, 3); hiss(0.04, 0.06, 7000, 3, 'bandpass', 0.05); },
   pour: () => hiss(0.16, 0.08, 1100 + Math.random() * 400, 0.7),
@@ -189,15 +278,29 @@ const MARBLE = (id) => cfg.marbles.find((m) => m.id === id) || cfg.marbles[0];
 const owns = (kind, id) => { const list = cfg[kind], it = list.find((x) => x.id === id); return !!it && (!it.shop || save.owned[kind].includes(id)); };
 const price = () => cfg.priceBase + cfg.priceStep * save.buys;
 const shapeOf = (id) => cfg.shapes.find((s) => s.id === id) || cfg.shapes[0];
+const isWinterShape = (id) => !!(cfg.shapes.find((s) => s.id === id) || {}).winter;
 
+/** The steps of order o: the first soap is short, every scratchEvery-th soap is made from scratch first
+ *  (a few quick making steps, from cfg.quickMake), the rest arrive as a ready bar. ready: always start at the knife (a fresh load). */
+const stepsOf = (o, ready) => {
+  if (o.n === 0) return SHORT;
+  // dev:start
+  if (window.__fullRecipe) return FULL; // tests: every making gesture in one soap
+  // dev:end
+  if (!o.scratch || ready) return READY;
+  const sets = cfg.quickMake, i = Math.floor(o.n / cfg.scratchEvery) % sets.length; // the sets take turns, so every making step still comes round
+  return [...sets[i], ...READY];
+};
 /** The order for soap n: always the same for the same n and the same things owned. */
 function makeOrder(n) {
   const r = rng(1000 + n * 7919), pick = (a) => a[Math.floor(r() * a.length) % a.length];
-  const plain = cfg.marbles.filter((m) => m.id !== 'gold' && owns('marbles', m.id)).map((m) => m.id);
+  const plain = cfg.marbles.filter((m) => m.id !== 'gold' && (n >= cfg.freeAfter || !['frost', 'candy_cane'].includes(m.id)) && owns('marbles', m.id)).map((m) => m.id);
   const golden = n % 4 === 3, freeCarve = freeNext;
-  let marble = golden ? 'gold' : n === 0 ? 'pink' : pick(plain);
-  const shape = freeCarve ? 'free' : n === 0 ? 'heart' : n === 1 ? 'star' : cfg.shapes[(n * 3 + Math.floor(r() * cfg.shapes.length)) % cfg.shapes.length].id;
-  const o = { n, shape, marble, golden: golden && !freeCarve, customer: cfg.customers[n % cfg.customers.length], charm: null, glitter: null, gem: null, stamp: null, simple: n < 2, free: freeCarve };
+  let marble = golden ? 'gold' : n === 0 ? 'pink' : winterMarble(n, cfg.freeAfter) || pick(plain);
+  // Six familiar soaps first; four winter silhouettes then arrive one by one. Free carve uses
+  // them as a guide while retaining its original no-fail, player-made outline.
+  const shape = orderShape(n, freeCarve, cfg.freeAfter, cfg.shapes, (length) => Math.floor(r() * length));
+  const o = { n, shape, marble, golden: golden && !freeCarve, customer: cfg.customers[n % cfg.customers.length], charm: null, glitter: null, gem: null, stamp: null, simple: n < 2, free: freeCarve, scratch: !freeCarve && n % cfg.scratchEvery === cfg.scratchEvery - 1 };
   if (n % 5 === 4) { const left = [...Array(8).keys()].filter((c) => !save.charms.includes(c)); o.charm = left.length ? left[Math.floor(r() * left.length) % left.length] : Math.floor(r() * 8) % 8; }
   const f = save.fresh;
   if (f && f.k === 'marbles' && owns('marbles', f.id) && !golden) o.marble = f.id;
@@ -210,6 +313,19 @@ function makeOrder(n) {
 // ---------- shapes ----------
 /** An SVG path (0..100 box) for a shape: its own path, or a star or flower built from [points, inner radius]. */
 function shapeD(sh) {
+  if (sh.snowflake) {
+    const poly = (pts) => 'M' + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L') + ' Z';
+    const out = ['M50 31 C39 31 31 39 31 50 C31 61 39 69 50 69 C61 69 69 61 69 50 C69 39 61 31 50 31 Z'];
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3, ux = Math.cos(a), uy = Math.sin(a), px = -uy, py = ux, half = 7, len = 44;
+      out.push(poly([[50 + px * half, 50 + py * half], [50 + ux * len + px * half, 50 + uy * len + py * half], [50 + ux * len - px * half, 50 + uy * len - py * half], [50 - px * half, 50 - py * half]]));
+      for (const side of [-1, 1]) {
+        const ba = a + side * 0.82, bx = 50 + ux * 25, by = 50 + uy * 25, bux = Math.cos(ba), buy = Math.sin(ba), bpx = -buy, bpy = bux, bl = 17, bh = 4.4;
+        out.push(poly([[bx + bpx * bh, by + bpy * bh], [bx + bux * bl + bpx * bh, by + buy * bl + bpy * bh], [bx + bux * bl - bpx * bh, by + buy * bl - bpy * bh], [bx - bpx * bh, by - bpy * bh]]));
+      }
+    }
+    return out.join(' ');
+  }
   if (sh.d) return sh.d;
   const [n, inner] = sh.star || sh.flower, cx = 50, cy = sh.star ? 53 : 50, Ro = 48, pts = [];
   if (sh.star) { for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, k = i % 2 ? Ro * inner : Ro; pts.push(`${(cx + Math.cos(a) * k).toFixed(1)} ${(cy + Math.sin(a) * k).toFixed(1)}`); } return 'M' + pts.join(' L') + ' Z'; }
@@ -244,7 +360,7 @@ const albedoOf = (id, w, h) => {
 };
 
 // ---------- a new soap ----------
-function newOrder(n, enter) {
+function newOrder(n, enter, ready = false) {
   const o = makeOrder(n), b = cfg.bar, fit = fitOf(o.shape);
   freeNext = false;
   const bar = rasterize(b.w, b.h, (q) => { roundRect(q, 0, 0, b.w, b.h, b.r); q.fill(); });
@@ -260,13 +376,18 @@ function newOrder(n, enter) {
   if (enter) { ti = 1 - ti; fx.setPile(tables[ti]); } // the old pile fades out on the other table
   freshTable(tables[ti]);
   S = {
-    n, order: o, steps: n === 0 ? SHORT : FULL, si: 0, k: n === 0 ? 'carve' : FULL[0], soap, fit, make: null, stamps: [], stampAnim: null, scent: null,
+    n, order: o, steps: stepsOf(o, ready), si: 0, k: stepsOf(o, ready)[0], soap, fit, make: null, stamps: [], stampAnim: null, scent: null,
     stampSel: Math.max(0, cfg.stamps.findIndex((x) => x.id === o.stamp)), enter: enter ? 0.7 : 0, t: 0, idle: 0, used: false, stepUsed: false, shaveAcc: 0, islandT: 0, dirtyIsl: false,
     score: { shape: 0, smooth: 0, sparkle: 0, v: 0, stars: 0 }, edges: null, rough: 1, trim: null, glitLayer: glit, specks: [], glitCount: 0,
     gems: [], gemSel: -1, glitSel: owns('glitters', o.glitter) ? cfg.glitters.findIndex((x) => x.id === o.glitter) : ['honey', 'gold'].includes(o.marble) ? 2 : 1, lastAct: 0, added: false, // glitSel: a glitter that stands out on this soap
     charm: o.charm === null ? null : placeCharm(soap, n, o.charm), mood: 'calm', moodT: 0, reveal: null, photo: null, oopsT: 9, pileFade: enter ? 1 : 0, speed: 0, done: false,
   };
   if (isMake(S.k)) S.make = makeState(S);
+  if (isWinterShape(o.shape) && !save.winterSeen.includes(o.shape)) {
+    S.winterNew = true;
+    save.winterSeen.push(o.shape);
+    persist();
+  }
 }
 /** A hidden charm: a point deep in the waste soap, and the cells around it that hide it. */
 function placeCharm(soap, n, id) {
@@ -355,7 +476,7 @@ function popCharm() {
   const c = S.charm; c.state = 'out'; c.t = 0;
   for (const i of c.cells) if (S.soap.m[i]) { S.soap.m[i] = 0; if (S.soap.sd[i] < 0) S.soap.removedOut++; } // the charm's hollow comes out with it
   markDirty(S.soap, c.x - 20, c.y - 20, c.x + 20, c.y + 20); S.dirtyIsl = true;
-  SFX.charm(); buzz('success'); setMood('wow', 1.6); burst(cfg.bar.x + c.x, cfg.bar.y + c.y, 24, false);
+  SFX.charm(); buzz('success'); setMood('wow', 1.6); beat('charm', cfg.bar.x + c.x, cfg.bar.y + c.y); burst(cfg.bar.x + c.x, cfg.bar.y + c.y, 24, false);
   if (!save.charms.includes(c.id)) save.charms.push(c.id);
 }
 function dropIslands() {
@@ -381,6 +502,7 @@ function finishCarve() {
   if (S.trim) return;
   if (S.dirtyIsl) dropIslands();
   const sh = shapeScore(S.soap); S.score.shape = S.order.free ? 1 : sh.shape;
+  if (isWinterShape(S.order.shape) && !S.winterJingled) { S.winterJingled = true; SFX.winter(); }
   dropRibbon(); pen = null;
   if (S.order.free) { if (S.charm && S.charm.state === 'hidden') popCharm(); nextStep(); return; } // the player's shape stays as carved
   S.trim = { y: -1, t: 0 }; SFX.step();
@@ -485,7 +607,9 @@ function startReveal() {
   S.reveal = { t: 0, coins, small: sm, k, foam, paid: false, stars: 0, bars: 0 };
   // the save, written once per soap
   save.n++; save.coins += coins; save.stars += S.score.stars;
-  const entry = { m: encodeMask(S.soap), mb: S.order.marble, g: S.glitSel, gc: S.glitCount, gems: S.gems.map((gm) => [gm.id, Math.round(gm.x), Math.round(gm.y)]), st: S.stamps.map((q) => [q.id, Math.round(q.x), Math.round(q.y)]), s: S.score.stars, sh: S.order.shape };
+  if (!S.order.free && !save.made.includes(S.order.shape)) save.made.push(S.order.shape);
+  S.tip = !tipShown; tipShown = true; // once a session: tomorrow brings a gift
+  const entry = { m: encodeMask(S.soap), mb: S.order.marble, g: S.glitSel, gc: S.glitCount, gems: S.gems.map((gm) => [gm.id, Math.round(gm.x), Math.round(gm.y)]), st: S.stamps.map((q) => [q.id, Math.round(q.x), Math.round(q.y)]), s: S.score.stars, sh: S.order.shape, cu: S.order.customer };
   THUMBS.set(entry, thumbFrom(sm));
   save.shelf.unshift(entry); if (save.shelf.length > 12) save.shelf.length = 12;
   if (save.fresh && ((save.fresh.k === 'marbles' && S.order.marble === save.fresh.id) || (save.fresh.k === 'glitters' && S.order.glitter === save.fresh.id) || (save.fresh.k === 'gems' && S.order.gem === save.fresh.id) || (save.fresh.k === 'stamps' && S.order.stamp === save.fresh.id))) save.fresh = null;
@@ -496,10 +620,18 @@ function startReveal() {
   fizz(true);
 }
 const thumbFrom = (src) => { const c = document.createElement('canvas'), k = 150 / Math.max(src.width, src.height); c.width = Math.round(src.width * k); c.height = Math.round(src.height * k); const q = c.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(src, 0, 0, c.width, c.height); return c; };
+/** Share the game: title and text only, so the host's card shows the game's current thumbnail. */
+function shareGame() {
+  try {
+    const result = lib.share({ title: 'Soap Carving: Satisfying ASMR', text: T('shareDesc') });
+    if (result && typeof result.catch === 'function') result.catch(() => {});
+  } catch (e) { /* Sharing is optional and never interrupts carving. */ }
+}
 const BOWL = { x: 360, y: 566, d: 640 };
 function stepReveal(dt) {
   const rv = S.reveal, t0 = rv.t; rv.t += dt; const t = rv.t;
   const at = (s) => t0 < s && t >= s;
+  if (at(0.5)) { const st = S.score.stars, k = save.n === 1 ? 'first' : S.winterNew ? 'newShape' : st === 3 ? 'perfect' : null; if (k) beat(k, BOWL.x, BOWL.y); }
   if (at(0.55)) { SFX.plop(); buzz('thud'); fx.ring(BOWL.x, BOWL.y, 120, 1.2); fx.ring(BOWL.x, BOWL.y, 80, 0.9); for (let i = 0; i < 18; i++) fx.bubble(BOWL.x + (R() - 0.5) * 300, BOWL.y + 60 + R() * 120, 6 + R() * 12, -40 - R() * 80, 1.4 + R()); }
   if (t > 0.6 && t < 3.5 && every('bub', 90)) { fx.bubble(BOWL.x + (R() - 0.5) * 340, BOWL.y + 100 + R() * 80, 5 + R() * 12, -50 - R() * 70, 1.5 + R()); if (R() < 0.4) SFX.pop(); }
   if (t > 0.8 && every('ring', 900)) fx.ring(BOWL.x, BOWL.y, 150 + R() * 30, 1.4);
@@ -518,6 +650,7 @@ function stepReveal(dt) {
 const starXY = (i) => [360 + (i - 1) * 110, 196];
 function nextOrder() {
   fizz(false);
+  if (!save.ftue) { save.ftue = true; persist(); } // the first soap went all the way round: the lesson is done
   if (save.giftDue) return showGift();
   newOrder(save.n, true);
 }
@@ -531,7 +664,7 @@ function pickGift() {
   return { k: 'coins', n: cfg.giftCoins };
 }
 function openGift() {
-  const it = pickGift(); gift.item = it; gift.open = 0; save.gifts++; save.giftDue = false;
+  const it = pickGift(); gift.item = it; gift.open = 0; beat('gift', 360, 640); save.gifts++; save.giftDue = false;
   if (it.k === 'coins') { save.coins += it.n; coinShown = save.coins; } else { save.owned[it.k].push(it.id); save.fresh = { k: it.k, id: it.id }; }
   SFX.unlock(); SFX.wow(); buzz('success'); burst(360, 600, cfg.confetti, true); persist();
 }
@@ -541,15 +674,17 @@ function giftTap() {
 }
 
 // ---------- layout ----------
-const MUTE = () => ({ x: mx(612, 92), y: 18, s: 92 }), SHELFB = () => ({ x: mx(512, 92), y: 18, s: 92 }); // centred on the HUD line y 64, like the coin pill
+// the top row sits on one 8 px grid: 16 px margins and gaps all round, every pill and button 96 tall, centred on y 64
+const MUTE = () => ({ x: mx(608, 96), y: 16 - OFF, s: 96 }), SHELFB = () => ({ x: mx(496, 96), y: 16 - OFF, s: 96 });
 const CHECK = () => ({ x: mx(564, 112), y: 740, s: 112 });
 const NEXT = { x: 360, y: 1028, r: 56 };
 /** The icons of the current part of the recipe (making, or finishing) and where step k's icon sits. */
-const phaseList = (k = S.k) => (isMake(k) ? MAKE_STEPS : S.steps.filter((q) => !isMake(q)));
+const phaseList = (k = S.k) => S.steps.filter((q) => isMake(q) === isMake(k));
 const stepPos = (k) => { const list = phaseList(k), n = list.length, i = Math.max(0, list.indexOf(k)), sp = Math.min(92, 470 / Math.max(1, n - 1)); return [mx(360 + (i - (n - 1) / 2) * sp), 160]; };
-const GIFTB = () => ({ x: mx(290, 190), y: 34, w: 190, h: 60 });
+const GIFTB = () => ({ x: mx(248, 232), y: 16 - OFF, w: 232, h: 96 });
+const SHAREB = () => (view === 'photo' ? { x: 240, y: 984, w: 240, h: 84 } : { x: mx(24, 240), y: 988, w: 240, h: 84 }); // beside the big next button (centred under a shelf photo), above the bottom 15%
 const slotXY = (row, j) => [mx(72 + j * 115), row ? 1040 : 962];
-const ORDER = () => ({ x: mx(458, 244), y: 206, w: 244, h: 202 });
+const ORDER = () => ({ x: mx(452, 244), y: 206, w: 244, h: 202 });
 const SHELF_CELL = (i) => [mx(30 + (i % 4) * 168, 150), 226 + Math.floor(i / 4) * 182];
 const SHOP_XY = (j) => [mx(150 + j * 140), 932];
 const LANGB = () => ({ x: mx(30, 300), y: 1000, w: 300, h: 84 }), FREEB = () => ({ x: mx(390, 300), y: 1000, w: 300, h: 84 });
@@ -560,18 +695,19 @@ const trayShown = () => mode === 'play' && view === 'play' && S.enter <= 0 && (S
 const freeOpen = () => save.n >= cfg.freeAfter;
 
 // ---------- input ----------
-function point(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H]; }
+function point(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * HV - OFF]; }
 /** Where the tool works: a touch works a little above the finger, so the finger never hides it. */
 const tipOf = (p, touch) => (touch && (S.k === 'carve' || S.k === 'smooth') ? [p[0], p[1] - 56] : p);
 function down(p, touch) {
   startAudio(); touched = true; S.idle = 0; S.ribbon = null; // a new touch starts with a clean blade
-  if (view === 'photo') { view = 'shelf'; photoSel = -1; SFX.pick(); return; }
+  if (view === 'photo') { if (inRect(SHAREB(), p)) { shareGame(); return; } view = 'shelf'; photoSel = -1; SFX.pick(); return; }
   if (inDisc(MUTE(), p)) { save.muted = !save.muted; muteTouched = true; if (save.muted) { fizz(false); pourLoop(false); } music(!save.muted); SFX.pick(); persist(); return; }
+  if (spotRect() && inDisc(SKIPB(), p)) { save.ftue = true; SFX.pick(); persist(); return; } // skip the lesson
   if (view === 'gift') return giftTap(); // the gift screen holds every tap until the box is opened and closed
   if (inDisc(SHELFB(), p)) { view = view === 'shelf' ? 'play' : 'shelf'; pen = null; SFX.pick(); return; }
   if (view === 'shelf') return shelfTap(p);
   if (S.enter > 0 || S.trim) return;
-  if (S.k === 'bath') { if (S.reveal.t > 1.5) { SFX.pick(); nextOrder(); } return; }
+  if (S.k === 'bath') { if (S.reveal.t > 3.5 && inRect(SHAREB(), p)) { shareGame(); return; } if (S.reveal.t > 1.5) { SFX.pick(); nextOrder(); } return; }
   if (checkShown() && inDisc(CHECK(), p)) { SFX.pick(); if (S.k === 'carve') finishCarve(); else if (S.k === 'smooth') finishSmooth(); else if (S.k === 'stamp') nextStep(); else finishSparkle(); return; }
   if (isMake(S.k)) { // making: taps on the tray things, or a drag (stir, cool, swipe), or a hold (pour)
     S.used = true; S.stepUsed = true; S.lastAct = S.t;
@@ -634,14 +770,22 @@ function gesture(dt) {
     if (every('tick', 160)) buzz('tick');
   }
 }
+function paintGlitterMark(q, gx, gy, c, z, winter = false) {
+  const st = (ox, oy) => { q.beginPath(); q.moveTo(gx + ox, gy - z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy + z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx - z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy - z + oy); q.fill(); };
+  q.fillStyle = 'rgba(74,35,102,0.28)'; st(1, 1); q.fillStyle = c; st(0, 0);
+  if (winter && ((gx * 13 + gy * 7) % 3 | 0) === 0) {
+    q.save(); q.strokeStyle = 'rgba(235,251,255,0.95)'; q.lineWidth = 1.15; q.lineCap = 'round'; q.beginPath();
+    for (let j = 0; j < 6; j++) { const a = j * Math.PI / 3; q.moveTo(gx + Math.cos(a) * z * 0.34, gy + Math.sin(a) * z * 0.34); q.lineTo(gx + Math.cos(a) * z * 1.18, gy + Math.sin(a) * z * 1.18); }
+    q.stroke(); q.restore();
+  }
+  q.fillStyle = 'rgba(255,255,255,0.95)'; q.fillRect(gx - 0.8, gy - z * 0.6, 1.6, 1.6);
+}
 function landGlitter(x, y, c) {
   if (!S || S.k !== 'sparkle') return;
   const [cx, cy] = barXY(x, y), s = S.soap, i = (cy | 0) * s.w + (cx | 0);
   if (cx >= 0 && cy >= 0 && cx < s.w && cy < s.h && s.m[i] && s.emb[i] < 0.3) { // glitter keeps off the stamped picture
     const q = S.glitLayer.getContext('2d'), gx = cx + cfg.margin, gy = cy + cfg.margin;
-    const z = 3.5 + R() * 3, st = (ox, oy) => { q.beginPath(); q.moveTo(gx + ox, gy - z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy + z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx - z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy - z + oy); q.fill(); };
-    q.fillStyle = 'rgba(74,35,102,0.35)'; st(1, 1); q.fillStyle = c; st(0, 0); // a little four-point star with a shadow
-    q.fillStyle = 'rgba(255,255,255,0.95)'; q.fillRect(gx - 0.8, gy - z * 0.6, 1.6, 1.6);
+    paintGlitterMark(q, gx, gy, c, 3.5 + R() * 3, isWinterShape(S.order.shape));
     S.glitCount++; S.added = true; S.stepUsed = true; if (S.specks.length < 1500) S.specks.push([x, y]);
   } else if (R() < 0.25) { const q = fx.pile.getContext('2d'); q.fillStyle = c; q.fillRect(x - 1.5, y - 1.5, 3, 3); }
 }
@@ -699,7 +843,9 @@ function bindInput() {
 
 // ---------- update ----------
 function update(dt) {
-  bootT += dt; if (!S) return;
+  bootT += dt;
+  if (!restAsked && (bootT > 3 || ready('studio_bg'))) { restAsked = true; loadRest(); } // the rest waits until the first picture is in
+  if (!S) return;
   if (fx) fx.step(dt);
   if (shake > 0) shake = Math.max(0, shake - dt * 1.8);
   coinPulse = Math.max(0, coinPulse - dt * 2.5); if (wiggle && (wiggle.t += dt) > 0.5) wiggle = null;
@@ -742,22 +888,28 @@ function update(dt) {
 const booting = () => bootT < 2.5 && !settled() && !ready('studio_bg');
 /** The table art with its vignette, made once (again when the painted table arrives). */
 function makeBase() {
+  ext = ext || document.createElement('canvas'); ext.width = W; ext.height = HV;
+  const q = ext.getContext('2d');
+  const tb = drawTable(q, W, HV);
+  if (!tb) { const gr = q.createLinearGradient(0, 0, 0, HV); gr.addColorStop(0, '#FFE1B8'); gr.addColorStop(1, '#F7C98F'); q.fillStyle = gr; q.fillRect(0, 0, W, HV); q.fillStyle = '#BFF0DD'; roundRect(q, 60, 300 + OFF, 600, 720, 40); q.fill(); }
+  q.drawImage(vignette(W, HV), 0, 0);
   base = base || document.createElement('canvas'); base.width = W; base.height = H;
-  const q = base.getContext('2d');
-  if (!drawTable(q, W, H)) { const gr = q.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#FFE1B8'); gr.addColorStop(1, '#F7C98F'); q.fillStyle = gr; q.fillRect(0, 0, W, H); q.fillStyle = '#BFF0DD'; roundRect(q, 60, 300, 600, 720, 40); q.fill(); base.__plain = true; }
-  else base.__plain = false;
-  q.drawImage(vig || (vig = vignette(W, H)), 0, 0);
+  base.getContext('2d').drawImage(ext, 0, -OFF); // the game's own 1280 high slice of the same picture, so there is no seam
+  base.__prev = tb === 'preview'; base.__plain = tb !== true;
 }
 /** A table canvas back to the bare table: the pile of shavings lands on it. */
 function freshTable(c) { if (!base) makeBase(); c.getContext('2d').drawImage(base, 0, 0); }
 function drawBack() {
-  if (!base || (base.__plain && ready('studio_bg'))) { makeBase(); for (const c of tables) freshTable(c); }
+  if (!base || (base.__plain && (ready('studio_bg') || (!base.__prev && previewIn())))) { makeBase(); for (const c of tables) freshTable(c); }
   g.drawImage(tables[ti], 0, 0);
   if (S && S.pileFade > 0) { g.globalAlpha = S.pileFade; g.drawImage(tables[1 - ti], 0, 0); g.globalAlpha = 1; }
 }
 function draw() {
   g.setTransform(RES, 0, 0, RES, 0, 0);
+  if (!ext) makeBase(); g.drawImage(ext, 0, 0); // the table above and below the game, and under a moving camera
+  g.setTransform(RES, 0, 0, RES, 0, OFF * RES);
   if (shake > 0 && !reduced()) { const k = shake * shake * 10; g.translate((R() - 0.5) * k, (R() - 0.5) * k); }
+  if (cineCamera()) g.drawImage(ext, 0, -OFF); // a camera off centre shows past the game's edges
   drawBack();
   if (!S) return;
   if (S.k === 'bath') drawBath();
@@ -765,7 +917,9 @@ function draw() {
   else drawWork();
   fx.draw(g);
   if (S.k !== 'bath' && view === 'play') { drawRibbon(); drawTool(); }
-  g.setTransform(RES, 0, 0, RES, 0, 0);
+  g.setTransform(RES, 0, 0, RES, 0, OFF * RES);
+  cineVignette();
+  drawSpot();
   drawChrome();
   if (view === 'play') {
     if (S.k !== 'bath') drawRing();
@@ -776,7 +930,8 @@ function draw() {
     if (S.k === 'bath') drawResult();
   } else if (view === 'gift') drawGift();
   else drawShelf();
-  for (const c of coinsFlying) { if (c.t < 0) continue; const k = ease(c.t / 0.7), [tx, ty] = [rtl() ? mx(20, 230) + 187 : 63, 64]; coinIcon(c.x + (tx - c.x) * k, c.y + (ty - c.y) * k - Math.sin(k * Math.PI) * 120, 22); }
+  drawSpotTop();
+  for (const c of coinsFlying) { if (c.t < 0) continue; const k = ease(c.t / 0.7), [tx, ty] = [rtl() ? mx(16, 216) + 180 : 52, 64 - OFF]; coinIcon(c.x + (tx - c.x) * k, c.y + (ty - c.y) * k - Math.sin(k * Math.PI) * 120, 22); }
 }
 function drawWork() {
   const b = cfg.bar, k = S.enter > 0 ? back3(1 - S.enter / 0.7) : 1, oy = (1 - k) * -700;
@@ -890,29 +1045,30 @@ function lock(x, y, s) {
 }
 function disc(b, draw) { const r = b.s / 2; glossDisc(g, b.x + r, b.y + r, r, '#FFFFFF', '#FF9CC8'); draw(b.x + r, b.y + r, b.s); }
 function drawHud() {
-  const x = mx(20, 230), wig = coinShake > 0 ? Math.sin(coinShake * 60) * 6 : 0, pop = 1 + coinPulse * 0.12;
-  g.save(); g.translate(x + 115 + wig, 64); g.scale(pop, pop);
-  glossPill(g, -115, -38, 230, 76, '#FFFFFF', '#FFC94D'); coinIcon(rtl() ? 72 : -72, 0, 28);
+  const x = mx(16, 216), wig = coinShake > 0 ? Math.sin(coinShake * 60) * 6 : 0, pop = 1 + coinPulse * 0.12;
+  g.save(); g.translate(x + 108 + wig, 64 - OFF); g.scale(pop, pop);
+  glossPill(g, -108, -48, 216, 96, '#FFFFFF', '#FFC94D'); coinIcon(rtl() ? 72 : -72, 0, 28);
   g.direction = 'ltr'; g.font = `800 42px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = PLUM; g.fillText(String(Math.floor(coinShown)), rtl() ? -22 : 22, 4);
   g.restore();
   disc(MUTE(), (cx, cy, s) => iconSound(cx, cy, s * 0.7, save.muted));
   if (view !== 'gift') disc(SHELFB(), (cx, cy, s) => (view === 'play' ? iconShelf(cx, cy, s * 0.8) : iconX(cx, cy, s * 0.8)));
   if (view === 'play') { // how close the next gift box is
-    const gb = GIFTB(), k = giftDots(); glossPill(g, gb.x, gb.y, gb.w, gb.h, '#FFFFFF', '#FF9CC8'); giftIcon(rtl() ? gb.x + gb.w - 34 : gb.x + 34, gb.y + 30, 22, 0);
-    for (let i = 0; i < cfg.giftEvery; i++) { const dx = rtl() ? gb.x + gb.w - 80 - i * 40 : gb.x + 80 + i * 40; g.fillStyle = i < k ? PINK : 'rgba(74,35,102,0.18)'; g.beginPath(); g.arc(dx, gb.y + 30, 12, 0, TAU); g.fill(); }
+    const gb = GIFTB(), k = giftDots(); glossPill(g, gb.x, gb.y, gb.w, gb.h, '#FFFFFF', '#FF9CC8'); giftIcon(rtl() ? gb.x + gb.w - 44 : gb.x + 44, gb.y + gb.h / 2, 24, 0);
+    for (let i = 0; i < cfg.giftEvery; i++) { const dx = rtl() ? gb.x + gb.w - 100 - i * 44 : gb.x + 100 + i * 44; g.fillStyle = i < k ? PINK : 'rgba(74,35,102,0.18)'; g.beginPath(); g.arc(dx, gb.y + gb.h / 2, 13, 0, TAU); g.fill(); }
   }
   if (view === 'play' && save.shelf.length && S.k === 'bath' && S.reveal && S.reveal.t > 3.5) { const b = SHELFB(); g.fillStyle = PINK; g.beginPath(); g.arc(b.x + b.s - 10, b.y + 12, 13, 0, TAU); g.fill(); }
 }
 /** HUD, step row, prompt and order card: drawn into one layer, again only when what they show changes. */
 function drawChrome() {
   const live = S.enter > 0 || S.oopsT < 1.1 || S.t - (S.promptAt || 0) < 0.4 || coinPulse > 0 || wiggle || coinsFlying.length || view !== 'play' || S.k === 'bath';
-  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue, ready('gift_box')].join('|'); // a sprite that arrives redraws the layer
-  if (live) { drawHud(); if (view === 'play' && S.k !== 'bath') { drawSteps(); drawPrompt(); drawOrder(); } chromeKey = ''; return; }
+  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue, loadedN(), document.fonts ? document.fonts.status : ''].join('|'); // a sprite that arrives redraws the layer
+  drawHud(); // the top row sits at the screen edge, outside the cached layer
+  if (live) { if (view === 'play' && S.k !== 'bath') { drawSteps(); drawPrompt(); drawOrder(); } chromeKey = ''; return; }
   if (key !== chromeKey) {
     chromeKey = key;
     if (!chrome) { chrome = document.createElement('canvas'); chrome.width = W; chrome.height = 420; }
     const keep = g; g = chrome.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, 420);
-    drawHud(); drawSteps(); drawPrompt(); drawOrder();
+    drawSteps(); drawPrompt(); drawOrder();
     g = keep;
   }
   g.drawImage(chrome, 0, 0);
@@ -965,7 +1121,7 @@ function giftIcon(x, y, r, hit) {
 }
 /** The gift screen: tap the box three times; it bursts open and shows what it held. */
 function drawGift() {
-  g.fillStyle = 'rgba(74,35,102,0.55)'; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(74,35,102,0.55)'; g.fillRect(0, -OFF, W, HV);
   const gf = gift, it = gf.item;
   rays(g, 360, 620, 460, S.t, gf.open >= 0 ? 0.85 : 0.35);
   if (gf.open < 0) {
@@ -1015,6 +1171,7 @@ function drawOrder() {
   if (S.order.gem) { drawCell(g, 'gems_sheet', gemCell(S.order.gem), wx, ry, 38); wx += 44; }
   if (S.order.stamp) { g.save(); g.translate(wx - 15, ry - 15); g.scale(0.3, 0.3); g.fillStyle = '#FF8FC0'; g.fill(pathOf(cfg.stamps.find((x) => x.id === S.order.stamp).shape)); g.restore(); }
   if (S.order.charm !== null && !S.order.free) { g.fillStyle = PINK; words('?', sx + 34, o.y + 30, 30, 40, '#FFFFFF', PINK); }
+  if (S.winterNew) banner(T('new'), sx, o.y + 166, 22, 96, '#FFFFFF', 1, PINK);
   g.restore();
 }
 function drawCheck() { const b = CHECK(), r = b.s / 2, p = 1 + Math.sin(S.t * 6) * 0.05; g.save(); g.translate(b.x + r, b.y + r); g.scale(p, p); glossDisc(g, 0, 0, r, GREEN); g.strokeStyle = '#FFFFFF'; g.lineWidth = 12; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-r * 0.36, 0); g.lineTo(-r * 0.08, r * 0.28); g.lineTo(r * 0.4, -r * 0.3); g.stroke(); g.restore(); }
@@ -1084,6 +1241,12 @@ function drawResult() {
   else {
     for (let i = 0; i < 3; i++) { const [x, y] = starXY(i), on = i < rv.stars, s = on ? 52 * popIn(t - 2.6 - i * 0.28) : 40; starPath(x, y, s); g.fillStyle = on ? '#FFD23F' : 'rgba(255,255,255,0.6)'; g.fill(); g.lineWidth = 6; g.strokeStyle = on ? '#FFFFFF' : 'rgba(74,35,102,0.25)'; g.stroke(); }
     if (t > 2.6 + rv.stars * 0.28) banner(T(['p1', 'p1', 'p2', 'p3'][S.score.stars]), 360, 290, 40, 600, PLUM, popIn(t - 2.6 - rv.stars * 0.28));
+    if (S.tip && t > 3.4) { // a reason to come back: the first soap of a new day opens a gift box
+      const p = popIn(t - 3.4); g.save(); g.translate(360, 372); g.scale(p, p); g.font = `800 28px ${FONT}`;
+      const tw = Math.min(440, g.measureText(T('tomorrow')).width), w = tw + 110;
+      glossPill(g, -w / 2, -32, w, 64, '#FFFFFF', '#FF9CC8'); giftIcon(rtl() ? w / 2 - 40 : -w / 2 + 40, 0, 20, 0); words(T('tomorrow'), rtl() ? -22 : 22, 2, 28, 440, PLUM);
+      g.restore();
+    }
   }
   // the customer and the three bars
   if (t > 0.9) {
@@ -1112,7 +1275,7 @@ function drawResult() {
     }
   }
   if (rv.flash !== undefined && rv.flash < 1.3) { // the flash, then the photo card flies to the shelf button
-    const f = rv.flash; if (f < 0.35) { g.fillStyle = `rgba(255,255,255,${0.85 * (1 - f / 0.35)})`; g.fillRect(0, 0, W, H); }
+    const f = rv.flash; if (f < 0.35) { g.fillStyle = `rgba(255,255,255,${0.85 * (1 - f / 0.35)})`; g.fillRect(0, -OFF, W, HV); }
     const th = save.shelf[0] && THUMBS.get(save.shelf[0]);
     if (th && f > 0.15) {
       const k = ease((f - 0.35) / 0.9), sb = SHELFB(), x = BOWL.x + (sb.x + 46 - BOWL.x) * Math.max(0, k), y = BOWL.y + (sb.y + 46 - BOWL.y) * Math.max(0, k), sc = 1.2 - Math.max(0, k) * 0.9;
@@ -1126,10 +1289,19 @@ function drawResult() {
   if (t > 1.5) { // a peek at the next order: its shape in its colour, gold when it is a golden soap
     const no = makeOrder(save.n), nx = mx(470, 150), ny = 990, mb = MARBLE(no.marble), pop = popIn(t - 1.5);
     g.save(); g.translate(nx + 75, ny + 45); g.scale(pop, pop); glossPill(g, -75, -40, 150, 80, no.golden ? '#FFE27A' : '#FFFFFF', '#FF9CC8');
-    if (no.shape !== 'free') { g.save(); g.translate(-28, -28); g.scale(0.56, 0.56); g.fillStyle = mb.kind === 'layers' ? '#FFB3E0' : mb.base; g.fill(pathOf(no.shape)); g.lineWidth = 6; g.strokeStyle = '#FFFFFF'; g.stroke(pathOf(no.shape)); g.restore(); }
+    if (no.shape !== 'free') { g.save(); g.translate(-62, -24); g.scale(0.48, 0.48); g.fillStyle = mb.kind === 'layers' ? '#FFB3E0' : mb.base; g.fill(pathOf(no.shape)); g.lineWidth = 6; g.strokeStyle = '#FFFFFF'; g.stroke(pathOf(no.shape)); g.restore(); }
+    words(`${save.made.length}/${cfg.shapes.length}`, no.shape === 'free' ? 0 : 26, 3, 30, 84, PLUM); // shapes made so far: the long goal
     g.restore();
   }
   if (t > 1.5) { const p = 1 + Math.sin(t * 5) * 0.06; g.save(); g.translate(NEXT.x, NEXT.y); g.scale(p, p); glossDisc(g, 0, 0, NEXT.r, GREEN); g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-14, -22); g.lineTo(24, 0); g.lineTo(-14, 22); g.closePath(); g.fill(); g.restore(); }
+  if (t > 3.5) drawShareButton();
+}
+function drawShareButton() {
+  const b = SHAREB(); glossPill(g, b.x, b.y, b.w, b.h, '#FF5FA2', '#FFFFFF');
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2, icx = rtl() ? cx + 66 : cx - 66; g.strokeStyle = '#FFFFFF'; g.fillStyle = '#FFFFFF'; g.lineWidth = 6; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(icx - 22, cy); g.lineTo(icx + 10, cy - 18); g.moveTo(icx - 22, cy); g.lineTo(icx + 10, cy + 18); g.stroke();
+  for (const [x, y] of [[icx - 22, cy], [icx + 12, cy - 19], [icx + 12, cy + 19]]) { g.beginPath(); g.arc(x, y, 8, 0, TAU); g.fill(); }
+  words(T('share'), rtl() ? cx - 28 : cx + 28, cy + 1, 30, 124, '#FFFFFF', PLUM);
 }
 
 // ---------- shelf ----------
@@ -1149,17 +1321,17 @@ function thumbOf(e) {
   const out = thumbFrom(c); THUMBS.set(e, out); return out;
 }
 function drawShelf() {
-  const wall = g.createLinearGradient(0, 120, 0, H); wall.addColorStop(0, '#FFF3E6'); wall.addColorStop(1, '#FFE3EE');
-  g.fillStyle = wall; g.fillRect(0, 120, W, H - 120);
+  const wall = g.createLinearGradient(0, 120 - OFF, 0, H + OFF); wall.addColorStop(0, '#FFF3E6'); wall.addColorStop(1, '#FFE3EE');
+  g.fillStyle = wall; g.fillRect(0, 120 - OFF, W, HV - 120);
   words(T('shelf'), 360, 172, 52, 600, PLUM, '#FFFFFF');
   for (let row = 0; row < 3; row++) { const y = 226 + row * 182 + 150; g.fillStyle = '#E3A869'; roundRect(g, 18, y, 684, 22, 10); g.fill(); g.fillStyle = '#C98345'; g.fillRect(26, y + 18, 668, 8); }
   if (view === 'photo' && save.shelf[photoSel]) {
     const e = save.shelf[photoSel], th = thumbOf(e);
-    g.fillStyle = 'rgba(74,35,102,0.55)'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(74,35,102,0.55)'; g.fillRect(0, -OFF, W, HV);
     rays(g, 360, 600, 420, S.t, 0.6);
     if (th) g.drawImage(th, 360 - th.width * 1.6, 600 - th.height * 1.6, th.width * 3.2, th.height * 3.2);
-    for (let i = 0; i < 3; i++) { starPath(360 + (i - 1) * 100, 960, 42); g.fillStyle = i < e.s ? '#FFD23F' : 'rgba(255,255,255,0.4)'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke(); }
-    return;
+    for (let i = 0; i < 3; i++) { starPath(360 + (i - 1) * 100, 900, 42); g.fillStyle = i < e.s ? '#FFD23F' : 'rgba(255,255,255,0.4)'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke(); }
+    drawShareButton(); return;
   }
   for (let i = 0; i < 12; i++) {
     const [x, y] = SHELF_CELL(i), e = save.shelf[i];
@@ -1190,11 +1362,27 @@ function cellCanvasMarble(mb) {
   for (let i = 0; i < 88 * 88; i++) { img.data[i * 4] = a[i * 3]; img.data[i * 4 + 1] = a[i * 3 + 1]; img.data[i * 4 + 2] = a[i * 3 + 2]; img.data[i * 4 + 3] = 255; }
   q.putImageData(img, 0, 0);
   const gr = q.createRadialGradient(30, 26, 4, 44, 44, 60); gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(74,35,102,0.25)'); q.fillStyle = gr; q.fillRect(0, 0, 88, 88);
+  if (mb.kind === 'frost') {
+    q.save(); q.globalCompositeOperation = 'screen';
+    const sheen = q.createLinearGradient(8, 68, 74, 12); sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.48, 'rgba(255,255,255,0.28)'); sheen.addColorStop(1, 'rgba(220,250,255,0)');
+    q.strokeStyle = sheen; q.lineWidth = 5; q.beginPath(); q.ellipse(43, 43, 34, 17, -0.55, 0.25, 2.65); q.stroke();
+    q.fillStyle = 'rgba(255,255,255,0.72)'; for (const [x, y, r] of [[22, 26, 2], [63, 37, 1.6], [34, 64, 1.8], [70, 59, 1.2]]) { q.beginPath(); q.arc(x, y, r, 0, TAU); q.fill(); }
+    q.restore();
+  }
   MARB_TH.set(mb.id, c); return c;
 }
 
 // ---------- frame and speed ----------
-function setRes(k) { if (k === RES) return; RES = k; cv.width = Math.round(W * k); cv.height = Math.round(H * k); }
+function setRes(k) { if (k === RES) return; RES = k; cv.width = Math.round(W * k); cv.height = Math.round(HV * k); }
+/** Fit the canvas to the screen: taller than 9:16 grows the height (up to cfg.maxHeight), wider keeps 9:16 with table sides. */
+function fit() {
+  const ar = innerHeight / Math.max(1, innerWidth), hv = Math.round(Math.min(cfg.maxHeight, Math.max(H, W * ar)) / 2) * 2;
+  if (hv !== HV || !cv.style.width) {
+    HV = hv; OFF = (HV - H) / 2; ext = null; if (base) makeBase(); chromeKey = ''; // the shavings pile stays as it is
+    cv.width = Math.round(W * RES); cv.height = Math.round(HV * RES);
+  }
+  cv.style.cssText = `display:block;width:min(100vw,calc(100vh*${W}/${HV}));height:min(100vh,calc(100vw*${HV}/${W}));touch-action:none;margin:auto`;
+}
 /** Quality steps down after two slow half-seconds and back up after five fast ones. */
 function watchSpeed(dt) {
   frameTimes.push(dt); if (frameTimes.length < 30) return;
@@ -1208,8 +1396,9 @@ function frame(now) {
   raf = requestAnimationFrame(frame);
   const rawDt = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, rawDt); last = now;
   if (rawDt > 0 && rawDt < 1) watchSpeed(rawDt);
-  if (DEBUG) { const a = performance.now(); update(dt); const b = performance.now(); draw(); const c = performance.now(); const p = (window.__prof = window.__prof || { u: 0, d: 0, n: 0 }); p.u += b - a; p.d += c - b; p.n++; window.__frames = (window.__frames || 0) + 1; }
-  else { update(dt); draw(); }
+  const gdt = dt * stepCine(dt);
+  if (DEBUG) { const a = performance.now(); update(gdt); const b = performance.now(); draw(); const c = performance.now(); const p = (window.__prof = window.__prof || { u: 0, d: 0, n: 0 }); p.u += b - a; p.d += c - b; p.n++; window.__frames = (window.__frames || 0) + 1; }
+  else { update(gdt); draw(); }
 }
 
 // ---------- save ----------
@@ -1221,7 +1410,7 @@ function cleanEntry(e) {
   if (!(e.sh === 'free' || cfg.shapes.some((s) => s.id === e.sh)) || !Array.isArray(e.gems) || e.gems.length > 3) return null;
   const gems = e.gems.filter((x) => Array.isArray(x) && cfg.gems.some((gm) => gm.id === x[0]) && int(x[1], 0, cfg.bar.w) !== null && int(x[2], 0, cfg.bar.h) !== null).map((x) => [x[0], x[1], x[2]]);
   const st = (Array.isArray(e.st) ? e.st : []).slice(0, cfg.stampMax).filter((x) => Array.isArray(x) && cfg.stamps.some((q) => q.id === x[0]) && int(x[1], 0, cfg.bar.w) !== null && int(x[2], 0, cfg.bar.h) !== null).map((x) => [x[0], x[1], x[2]]);
-  return { m: e.m, mb: e.mb, g: e.g, gc: e.gc, gems, st, s: e.s, sh: e.sh };
+  return { m: e.m, mb: e.mb, g: e.g, gc: e.gc, gems, st, s: e.s, sh: e.sh, cu: cfg.customers.includes(e.cu) ? e.cu : cfg.customers[0] };
 }
 /** Merge the stored save into the current one, once; progress made before it arrived is added on top. */
 function applySave(st) {
@@ -1234,12 +1423,15 @@ function applySave(st) {
   for (const k of ['marbles', 'glitters', 'gems', 'stamps']) if (Array.isArray(ow[k])) for (const id of ow[k]) if (cfg[k].some((x) => x.id === id && x.shop) && !save.owned[k].includes(id)) save.owned[k].push(id);
   if (Array.isArray(st.shelf)) for (const e of st.shelf.slice(0, 12)) { const c = cleanEntry(e); if (c && save.shelf.length < 12) save.shelf.push(c); }
   if (Array.isArray(st.learned)) for (const k of st.learned) if (FULL.includes(k) && !save.learned.includes(k)) save.learned.push(k);
+  if (Array.isArray(st.made)) for (const id of st.made) if (cfg.shapes.some((x) => x.id === id) && !save.made.includes(id)) save.made.push(id);
+  save.ftue = save.ftue || st.ftue === true || n0 > 0; // a returning player has seen the basics
   if (Array.isArray(st.charms)) for (const c of st.charms) if (int(c, 0, 7) !== null && !save.charms.includes(c)) save.charms.push(c);
+  if (Array.isArray(st.winterSeen)) for (const id of st.winterSeen) if (isWinterShape(id) && !save.winterSeen.includes(id)) save.winterSeen.push(id);
   if (st.fresh && ['marbles', 'glitters', 'gems', 'stamps'].includes(st.fresh.k) && cfg[st.fresh.k].some((x) => x.id === st.fresh.id) && !save.fresh) save.fresh = { k: st.fresh.k, id: st.fresh.id };
   if (!muteTouched && typeof st.muted === 'boolean') save.muted = st.muted;
   if (!save.lang && typeof st.lang === 'string' && cfg.strings[st.lang]) lang = save.lang = st.lang;
   coinShown = save.coins;
-  if (n0 > 0 && before === 0 && !touched && view === 'play') newOrder(save.n, false); // a returning player meets their next customer
+  if (n0 > 0 && before === 0 && !touched && view === 'play') newOrder(save.n, false, true); // a returning player meets their next customer
   if (save.giftDue && !touched && view === 'play' && S && S.si === 0 && !S.used) showGift(); // a gift left waiting before a reload
 }
 
@@ -1247,13 +1439,14 @@ function applySave(st) {
 function run(m) {
   const me = ++runs;
   mode = m; cfg = window.gameConfig;
+  loadSprites(cfg.sprites, cfg.firstSprites, cfg.bgPreview); // first, so the table starts downloading before any set-up work
   cv = document.getElementById('game') || document.body.appendChild(Object.assign(document.createElement('canvas'), { id: 'game' }));
-  cv.style.cssText = 'display:block;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(100vw*16/9));touch-action:none;margin:auto';
-  cv.width = Math.round(W * RES); cv.height = Math.round(H * RES);
+  cv.style.cssText = ''; fit(); if (!fit.on) { fit.on = true; addEventListener('resize', () => { if (cfg) fit(); }); }
   g = cv.getContext('2d');
   initMake({ cfg: () => cfg, get fx() { return fx; }, SFX, buzz, burst, R, drawCellAt, stopSign: (x, y) => banner(T('stop'), x, y, 26, 160, '#FFFFFF', 1 + Math.sin(S.t * 14) * 0.08, '#FF5F7E'), reward, drawKnife, done: () => nextStep(), roundRect, tint, mx, every, mix, shake: (v) => { shake = Math.max(shake, v); } });
   if (!fx) { tables = [0, 1].map(() => Object.assign(document.createElement('canvas'), { width: W, height: H })); fx = createFx(tables[0]); ti = 0; }
-  loadSprites(cfg.sprites); bootT = 0;
+  bootT = 0;
+  loadFonts();
   try { for (const f of ["800 40px 'Baloo 2'", "800 40px 'Baloo Da 2'", "800 40px 'Baloo Bhaijaan 2'"]) document.fonts.load(f); } catch (e) { /* fonts load when they can */ }
   const slider = (key, min, max, step) => ({ key, type: 'slider', min, max, step });
   try {
@@ -1270,7 +1463,7 @@ function run(m) {
   cancelAnimationFrame(raf); pen = null; penId = null; makeStop(S); pourLoop(false); // a pour or stir in progress lost its finger
   lang = save.lang || detectLang();
   // a soap in progress is kept through edit runs; edit mode only shows it, with no input
-  if (!S || (S.edit && mode === 'play')) { view = 'play'; fx.clear(); newOrder(mode === 'play' ? save.n : 0, false); S.edit = mode !== 'play'; }
+  if (!S || (S.edit && mode === 'play')) { view = 'play'; fx.clear(); newOrder(mode === 'play' ? save.n : 0, false, true); S.edit = mode !== 'play'; }
   if (mode === 'play') {
     bindInput();
     const read = (tries) => Promise.resolve().then(() => lib.getUserGameState()).then((r) => {
@@ -1287,11 +1480,12 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   const read = window.__slowSave ? () => new Promise((r) => { window.__resolveSave = r; }) : window.__saved ? async () => ({ state: window.__saved }) : none;
-  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : /^(sfx|music)_/.test(id) ? { url: './' + id + '.mp3', type: 'audio' } : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
+  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : /^(sfx|music)_/.test(id) ? { url: './' + id + '.mp3', type: 'audio' } : /^font_/.test(id) ? { url: './' + id + '.woff2', type: 'other' } : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, share: async (options) => { window.__shared = options; }, haptics: { play() {}, start() {}, stop() {} } };
   window.__game = {
     get S() { return S; }, get save() { return save; }, set save(v) { save = v; }, get view() { return view; }, set view(v) { view = v; }, get cfg() { return cfg; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; },
     get quality() { return quality; }, set quality(q) { quality = q; }, get fx() { return fx; }, get pen() { return pen; }, get coinShown() { return coinShown; }, set coinShown(v) { coinShown = v; },
     booting, T, detectLang, applySave, nextStep, fillShare, potSide, giftDots, landAt, fillCentre, sounds: () => Object.keys(REC), get musicOn() { return !!musicNode; }, today, drawKnife, drawShaker, MOUTH_UP, isMake, makeProgress: () => makeProgress(S), stepPos, GIFTB, get gift() { return gift; }, newOrder, makeOrder, finishCarve, finishSmooth, finishSparkle, nextOrder, checkShown, handShown, handAt, trayItems, price, carvedShare: () => carvedShare(S.soap),
+    get OFF() { return OFF; }, spotRect, spotOn, SKIPB, SHAREB, stepsOf, get cineOn() { return !!cine; },
     MUTE, SHELFB, CHECK, NEXT, ORDER, slotXY, SHELF_CELL, SHOP_XY, LANGB, FREEB, BOWL, freeOpen, set freeNext(v) { freeNext = v; },
   };
   const q = new URLSearchParams(location.search);

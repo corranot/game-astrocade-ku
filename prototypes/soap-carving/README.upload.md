@@ -1,23 +1,19 @@
 # Soap Carving: Satisfying ASMR
 
-A soap carving craft game for kids aged 6–10 (DIY, ASMR, creative, casual). A marbled soap bar waits on a craft table
-with a shape drawn on it as a dotted line. Carve away the soap outside the line with a knife: every drag peels a curly
-shaving that falls and piles up on the table, and pieces cut loose drop off with a thud. Rub the rough edges smooth and
-glossy with a damp sponge, shake glitter and place gems, then drop the soap into a bath bowl where it fizzes and foams
-while the customer reacts and gives 1–3 stars. Some soaps hide a toy charm in the soap you carve away.
+A painted, mobile-first soap-carving craft game. Players use a knife to follow a dotted silhouette, watch curly shavings fall, smooth the edges with a sponge, decorate with glitter and gems, then place the soap in a bath bowl for a customer reaction and 1–3 stars. Some orders hide charms; players can browse finished soaps on the shelf or start a no-fail free carve after six completed soaps.
 
-Features: 8 shapes (heart, star, duck, flower, fish, cat, crown, cloud), 8 soap marbles, 6 glitters, 6 gems, golden
-soaps with double coins, a charm album, a shelf of your last 12 soaps, free carve after 6 orders, no fail, a helper hand,
-7 languages (English, Arabic, Spanish, Vietnamese, Hindi, Bengali, Indonesian) chosen from the device, saved progress
-and a total-stars leaderboard.
+The original eight shapes, marbles, glitter, gems, golden soaps, charm album, gift boxes, helper hand, seven languages, saved progress and total-stars leaderboard remain in place. After soap six, four winter silhouettes (snowman, penguin, mitten, snowflake) and two seasonal marbles join orders and free carve; their first appearances get a saved NEW badge. Finished soaps can be shared from the star reveal or their shelf photo with a one-tap share card containing the soap, stars and a smiling customer. Winter carving has icy sparkle accents, frosted marble sheen and a tiny muted-aware jingle.
 
 ## Code
 | File | What |
 |---|---|
-| `index.html` | page, fonts, canvas |
-| `game.js` | game flow, input, HUD, sound, save, languages |
-| `soap.js` | the soap: carving, smoothing, scores, drawing of the soap block |
-| `fx.js` | shavings, chunks, glitter, foam, sparkles, confetti |
-| `sprites.js` | painted art |
-| `ui.js` | glossy buttons and panels |
-| `game_config.json` | tuning values, shapes, marbles, texts in 7 languages |
+| `index.html` | Page, fonts and canvas |
+| `game.js` | Game flow, input, HUD, share card, sound, save and languages |
+| `soap.js` | Soap carving, smoothing, scoring, marble albedo and soap drawing |
+| `fx.js` | Shavings, chunks, glitter, foam, sparkles and confetti |
+| `sprites.js` | Painted art |
+| `ui.js` | Glossy buttons and panels |
+| `game_config.json` | Tuning values, shape/marble data and seven-language text |
+| `winter.js` | Pure seasonal shape unlock and winter-marble order rules |
+| `tests/winter-marble.mjs` | Seasonal unlock, free-carve, marble pattern and determinism checks |
+

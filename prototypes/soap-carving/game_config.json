@@ -26,6 +26,27 @@
  "shadowX": 10,
  "shadowY": 8,
  "freeAfter": 6,
+ "scratchEvery": 3,
+ "quickMake": [
+  [
+   "color",
+   "pour",
+   "pop"
+  ],
+  [
+   "chop",
+   "scent",
+   "pour",
+   "pop"
+  ],
+  [
+   "color",
+   "stir",
+   "pour",
+   "cool",
+   "pop"
+  ]
+ ],
  "confetti": 120,
  "slowFrameMs": 30,
  "bar": {
@@ -73,6 +94,26 @@
   {
    "id": "cloud",
    "d": "M22 80 C6 80 0 66 6 56 C0 42 12 30 26 34 C28 18 44 12 56 20 C64 8 86 10 90 28 C100 32 102 50 94 58 C100 70 92 82 78 80 Z"
+  },
+  {
+   "id": "snowman",
+   "winter": true,
+   "d": "M50 5 C36 5 26 16 26 29 C26 40 32 49 42 53 C22 57 12 73 15 87 C18 98 32 100 50 100 C68 100 82 98 85 87 C88 73 78 57 58 53 C68 49 74 40 74 29 C74 16 64 5 50 5 Z"
+  },
+  {
+   "id": "penguin",
+   "winter": true,
+   "d": "M50 5 C32 5 22 18 22 36 C14 40 10 48 11 58 C12 69 18 77 23 81 L20 90 C18 97 28 100 36 94 C44 99 56 99 64 94 C72 100 82 97 80 90 L77 81 C82 77 88 69 89 58 C90 48 86 40 78 36 C78 18 68 5 50 5 Z"
+  },
+  {
+   "id": "mitten",
+   "winter": true,
+   "d": "M32 30 C25 27 18 31 17 38 C16 44 20 49 25 52 L24 73 C23 81 27 87 34 89 L34 96 C34 100 66 100 66 96 L66 89 C73 87 77 81 76 73 L75 39 C75 31 64 28 58 34 L55 37 L55 17 C55 8 43 8 43 17 L43 32 L42 17 C42 9 31 9 31 18 Z"
+  },
+  {
+   "id": "snowflake",
+   "winter": true,
+   "snowflake": true
   }
  ],
  "marbles": [
@@ -143,6 +184,22 @@
    "inner": "#E2F7FF",
    "kind": "marble",
    "shop": true
+  },
+  {
+   "id": "frost",
+   "base": "#B8E5F5",
+   "vein": "#FFFFFF",
+   "swirl": "#F3FCFF",
+   "inner": "#E8FAFF",
+   "kind": "frost"
+  },
+  {
+   "id": "candy_cane",
+   "base": "#FFF8F3",
+   "vein": "#FFFFFF",
+   "swirl": "#EF5367",
+   "inner": "#FFF0F2",
+   "kind": "candyCane"
   }
  ],
  "glitters": [
@@ -233,6 +290,13 @@
    "smoothBar": "Smooth",
    "sparkleBar": "Sparkle",
    "new": "NEW!",
+   "share": "Share",
+   "shareCard": "My finished soap",
+   "shareDesc": "I made this soap in Soap Carving!",
+   "snowman": "Snowman",
+   "penguin": "Penguin",
+   "mitten": "Mitten",
+   "snowflake": "Snowflake",
    "lang": "English",
    "gem": "Tap the soap!",
    "carveFree": "Carve any shape!",
@@ -248,7 +312,8 @@
    "gift": "Tap the gift!",
    "great": "Great job!",
    "almost": "Almost there!",
-   "stop": "STOP!"
+   "stop": "STOP!",
+   "tomorrow": "Come back tomorrow for a gift!"
   },
   "ar": {
    "carve": "انحت خارج الخط!",
@@ -270,6 +335,13 @@
    "smoothBar": "النعومة",
    "sparkleBar": "اللمعان",
    "new": "جديد!",
+   "share": "مشاركة",
+   "shareCard": "صابونتي المكتملة",
+   "shareDesc": "صنعت هذا الصابون في لعبة نحت الصابون!",
+   "snowman": "رجل الثلج",
+   "penguin": "بطريق",
+   "mitten": "قفاز",
+   "snowflake": "ندفة ثلج",
    "lang": "العربية",
    "gem": "المس الصابونة!",
    "carveFree": "انحت أي شكل!",
@@ -285,7 +357,8 @@
    "gift": "المس الهدية!",
    "great": "عمل رائع!",
    "almost": "اقتربت!",
-   "stop": "توقف!"
+   "stop": "توقف!",
+   "tomorrow": "عد غدًا لتحصل على هدية!"
   },
   "es": {
    "carve": "¡Talla fuera de la línea!",
@@ -307,6 +380,13 @@
    "smoothBar": "Suave",
    "sparkleBar": "Brillo",
    "new": "¡NUEVO!",
+   "share": "Compartir",
+   "shareCard": "Mi jabón terminado",
+   "shareDesc": "¡Hice este jabón en Soap Carving!",
+   "snowman": "Muñeco de nieve",
+   "penguin": "Pingüino",
+   "mitten": "Manopla",
+   "snowflake": "Copo de nieve",
    "lang": "Español",
    "gem": "¡Toca el jabón!",
    "carveFree": "¡Talla lo que quieras!",
@@ -322,7 +402,8 @@
    "gift": "¡Toca el regalo!",
    "great": "¡Muy bien!",
    "almost": "¡Casi listo!",
-   "stop": "¡ALTO!"
+   "stop": "¡ALTO!",
+   "tomorrow": "¡Vuelve mañana por un regalo!"
   },
   "vi": {
    "carve": "Khắc ngoài đường kẻ!",
@@ -344,6 +425,13 @@
    "smoothBar": "Mịn",
    "sparkleBar": "Lấp lánh",
    "new": "MỚI!",
+   "share": "Chia sẻ",
+   "shareCard": "Xà phòng của tôi",
+   "shareDesc": "Tôi đã làm bánh xà phòng này trong Soap Carving!",
+   "snowman": "Người tuyết",
+   "penguin": "Chim cánh cụt",
+   "mitten": "Găng tay len",
+   "snowflake": "Bông tuyết",
    "lang": "Tiếng Việt",
    "gem": "Chạm vào xà phòng!",
    "carveFree": "Khắc hình bạn thích!",
@@ -359,7 +447,8 @@
    "gift": "Chạm hộp quà!",
    "great": "Giỏi lắm!",
    "almost": "Sắp xong rồi!",
-   "stop": "DỪNG!"
+   "stop": "DỪNG!",
+   "tomorrow": "Mai quay lại nhận quà nhé!"
   },
   "hi": {
    "carve": "रेखा के बाहर काटो!",
@@ -381,6 +470,13 @@
    "smoothBar": "चिकना",
    "sparkleBar": "चमक",
    "new": "नया!",
+   "share": "साझा करें",
+   "shareCard": "मेरा तैयार साबुन",
+   "shareDesc": "मैंने Soap Carving में यह साबुन बनाया!",
+   "snowman": "हिममानव",
+   "penguin": "पेंगुइन",
+   "mitten": "दस्ताना",
+   "snowflake": "हिमकण",
    "lang": "हिन्दी",
    "gem": "साबुन को छुओ!",
    "carveFree": "कोई भी आकार काटो!",
@@ -396,7 +492,8 @@
    "gift": "तोहफ़ा छुओ!",
    "great": "बहुत बढ़िया!",
    "almost": "बस थोड़ा और!",
-   "stop": "रुको!"
+   "stop": "रुको!",
+   "tomorrow": "कल फिर आओ, तोहफ़ा मिलेगा!"
   },
   "bn": {
    "carve": "দাগের বাইরে কাটো!",
@@ -418,6 +515,13 @@
    "smoothBar": "মসৃণ",
    "sparkleBar": "ঝিলিক",
    "new": "নতুন!",
+   "share": "শেয়ার",
+   "shareCard": "আমার তৈরি সাবান",
+   "shareDesc": "আমি Soap Carving-এ এই সাবানটি বানিয়েছি!",
+   "snowman": "তুষারমানব",
+   "penguin": "পেঙ্গুইন",
+   "mitten": "দস্তানা",
+   "snowflake": "তুষারফুল",
    "lang": "বাংলা",
    "gem": "সাবান ছোঁও!",
    "carveFree": "যেকোনো আকার কাটো!",
@@ -433,7 +537,8 @@
    "gift": "উপহার ছোঁও!",
    "great": "দারুণ হয়েছে!",
    "almost": "প্রায় হয়ে গেছে!",
-   "stop": "থামো!"
+   "stop": "থামো!",
+   "tomorrow": "কাল আবার এসো, উপহার পাবে!"
   },
   "id": {
    "carve": "Ukir di luar garis!",
@@ -455,6 +560,13 @@
    "smoothBar": "Halus",
    "sparkleBar": "Kilau",
    "new": "BARU!",
+   "share": "Bagikan",
+   "shareCard": "Sabun buatanku",
+   "shareDesc": "Aku membuat sabun ini di Soap Carving!",
+   "snowman": "Manusia salju",
+   "penguin": "Penguin",
+   "mitten": "Sarung tangan",
+   "snowflake": "Kepingan salju",
    "lang": "Bahasa Indonesia",
    "gem": "Ketuk sabunnya!",
    "carveFree": "Ukir bentuk apa saja!",
@@ -470,7 +582,8 @@
    "gift": "Ketuk hadiahnya!",
    "great": "Hebat!",
    "almost": "Sedikit lagi!",
-   "stop": "STOP!"
+   "stop": "STOP!",
+   "tomorrow": "Kembali besok, ada hadiah!"
   }
  },
  "persistent_storage_config": {
@@ -851,5 +964,54 @@
  },
  "smoothCheckSecs": 8,
  "ribbonMax": 150,
- "ribbonCells": 60
+ "ribbonCells": 60,
+ "bgPreview": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAwAEgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDtJpPKUcZJqNbvAIIywXOMYzUs1uLqMoG2kdx2pqadFDG3LO5GCxNeJSpc0bs9aSqe1unoRw3pacI+ACcfjV/ArLttOQTCYyMSp6E9K1ABitamFcmnE5J5jTjNxs9BNtZepzXkAfYmYj0eP7yfh3rVOP8AJqNwCMH+dKnhZRld2ZDzKn2ZiW2rOVEU+0ysRtYfxCthdiozyKpQD1wfwrLutEt5XEsRaOUMCrA96L9rqGIIynLDnA4NN0oxq6nXhK31iL6FgMsqB0PBoqnZTNGoieiuSpBxlY7FJPY03cwTCX+EjDVC+ovKdsCFj6064c7mBZdoHQ96lSaG3i27NpPYDrT+sSpQSSuXayvYSyWVVZpj8zHpVsNVeNiUBbg1Jur2IaxTPjK8m6sm+7JCajJpN3vTS1WkYthnDKfcVJOrXCEdPqe/tUDPjB9CKQ3RTqcAmvOxcuWor9j3srg5UpNdzK8i6+1AFQFU9RRWqcYorjnVc3dnrQioKyI5gGaMEcZqAvub5mYNnjHarDAOuDVd4pA4Od6jt0pwatZm8WupZEmBhiAe/NL5q/3h+dRKJHfexA9sZqf5PQflXWsbypKx4VTKVKblz7+Q3zR/eH500yr/AHh+dSfL6D8qQ7fQU/r/APdM/wCyP7/4f8Ei3qxAyDk1XnEMZEjSkqG+7mrfAPGKzb4GBmkSPeG7ehpRqQr1VzKx10qEsJTaTbV9bblyGcSrkAgds96KzLSO5eUTSNgdlFFc1eMFP3Gd1Pmt7yt/kf/Z",
+ "firstSprites": [
+  "studio_bg"
+ ],
+ "cineCooldown": 6,
+ "cineSlowRate": 0.25,
+ "cine": {
+  "first": {
+   "zoom": 1.16,
+   "dur": 1.8,
+   "ease": 0.35,
+   "slow": 0.18,
+   "prio": 4,
+   "sting": true,
+   "always": true
+  },
+  "newShape": {
+   "zoom": 1.14,
+   "dur": 1.6,
+   "ease": 0.35,
+   "slow": 0.15,
+   "prio": 3,
+   "sting": true
+  },
+  "perfect": {
+   "zoom": 1.12,
+   "dur": 1.4,
+   "ease": 0.3,
+   "slow": 0.12,
+   "prio": 2,
+   "sting": true
+  },
+  "charm": {
+   "zoom": 1.0,
+   "dur": 1.0,
+   "ease": 0.25,
+   "slow": 0.12,
+   "prio": 3
+  },
+  "gift": {
+   "zoom": 1.08,
+   "dur": 1.2,
+   "ease": 0.3,
+   "slow": 0,
+   "prio": 2,
+   "sting": true
+  }
+ },
+ "maxHeight": 1600
 }
