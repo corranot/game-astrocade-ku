@@ -194,6 +194,10 @@ full plan unless they add a new game mode or rework the game.
   equal gaps, consistent icon and number sizes, button columns on the same
   margin, and world bubbles or pointers never under the HUD. Check it on small,
   mid and large phones and a tablet.
+- **Solve problems proactively.** Solve every problem found proactively, without
+  waiting to be asked. When work turns up a bug, a slow load, a broken share, a
+  stale draft or any other issue, fix it (or start the fix) in the same pass and
+  report it, instead of only listing it for the owner to request later.
 - **Work effectively and efficiently.** Give all review feedback for a round in one
   batch. Each round runs only the quick checks (unit tests, CI checks, the feed
   bundle test, a short smoke run and screenshots). Run the full playtest only
