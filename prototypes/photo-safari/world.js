@@ -74,7 +74,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   const tw = 140, tz0 = 70, tz1 = -232, tseg = [70, 151];
   const tg = keep(new THREE.PlaneGeometry(tw, tz0 - tz1, tseg[0], tseg[1])); tg.rotateX(-Math.PI / 2); tg.translate(0, 0, (tz0 + tz1) / 2);
   const tp = tg.attributes.position, tcol = new Float32Array(tp.count * 3);
-  const snowLit = C('#eef5fc'), snowBlue = C('#b9d4f2'), rock = C('#7d889e'), path = C('#d6e4f2');
+  const tc = C('#ffffff'), cave = C('#c8d6f2'), snowLit = C('#eef5fc'), snowBlue = C('#b9d4f2'), rock = C('#7d889e'), path = C('#d6e4f2');
   for (let i = 0; i < tp.count; i++) {
     const x = tp.getX(i), z = tp.getZ(i), y = L.terrainH(cfg, x, z); tp.setY(i, y);
   }
@@ -83,11 +83,11 @@ export function createWorld(canvas, cfg, opts = {}) {
   for (let i = 0; i < tp.count; i++) {
     const x = tp.getX(i), z = tp.getZ(i), ny = tn.getY(i);
     const hollow = Math.max(0, Math.min(1, -L.noise2(x * 0.11, z * 0.11) * 0.7 + 0.25));
-    let c = snowLit.clone().lerp(snowBlue, hollow * 0.45);
+    const c = tc.copy(snowLit).lerp(snowBlue, hollow * 0.45);
     const steep = Math.max(0, Math.min(1, (0.82 - ny) * 3.2)); if (steep > 0) c.lerp(rock, steep * (0.55 + 0.3 * L.noise2(x * 0.4, z * 0.4)));
     const px = Math.sin(z * 0.045) * 3; if (Math.abs(x - px) < 1.6 && z < 20 && z > -186) c.lerp(path, 0.55);
-    if (z < -128) c.lerp(C('#c8d6f2'), 0.25);
-    tcol.set([c.r, c.g, c.b], i * 3);
+    if (z < -128) c.lerp(cave, 0.25);
+    tcol[i * 3] = c.r; tcol[i * 3 + 1] = c.g; tcol[i * 3 + 2] = c.b;
   }
   tg.setAttribute('color', new THREE.BufferAttribute(tcol, 3));
   const terrainMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }));
@@ -252,13 +252,23 @@ export function createWorld(canvas, cfg, opts = {}) {
   const black = keep(new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1)); black.needsUpdate = true;
   const compMat = keep(new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: black }, uExp: { value: G.exposure }, uBloom: { value: G.bloomStrength }, uSat: { value: G.sat }, uVig: { value: G.vignette }, uLift: { value: new THREE.Vector3(...G.lift) }, uGain: { value: new THREE.Vector3(...G.gain) } }, vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false }));
   const hdrType = renderer.capabilities.isWebGL2 && (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType;
-  let rtScene = null, rtA = null, rtB = null, tier = 1, W0 = 1, H0 = 1;
+  let rtScene = null, rtA = null, rtB = null, tier = 1, W0 = 1, H0 = 1, boot = true;
   const pass = (mat, target) => { quad.material = mat; renderer.setRenderTarget(target); renderer.render(quadScene, quadCam); };
 
+  /** The first frames draw at quality.bootDpr (fewer pixels while the page is still busy), then at the tier's. */
+  function endBoot() { if (!boot) return; boot = false; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[tier])); resize(W0, H0, true); }
+  /** Compiles the full-screen passes too, so the first frame compiles nothing new. */
+  /** Compiles the first frame's shaders, each against the target it draws into (the program key includes it). */
+  function warm() {
+    const into = (rt, fn) => { renderer.setRenderTarget(rt); try { return fn(); } finally { renderer.setRenderTarget(null); } };
+    if (tier > 0 && rtA) for (const m of [brightMat, blurMat]) { quad.material = m; into(rtA, () => renderer.compile(quadScene, quadCam)); }
+    if (tier > 0) { quad.material = compMat; renderer.compile(quadScene, quadCam); }
+    return into(tier === 0 ? null : rtScene, () => (renderer.compileAsync ? renderer.compileAsync(scene, camera) : renderer.compile(scene, camera)));
+  }
   /** Applies quality tier 0 (light), 1 (mid) or 2 (high). */
   function setTier(t) {
     tier = Math.max(0, Math.min(2, t)); const Q = cfg.quality;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.dpr[tier]));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.dpr[tier], boot ? Q.bootDpr : 9));
     sun.castShadow = Q.shadow[tier] > 0;
     if (Q.shadow[tier] > 0 && sun.shadow.mapSize.x !== Q.shadow[tier]) { sun.shadow.mapSize.set(Q.shadow[tier], Q.shadow[tier]); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     renderer.shadowMap.enabled = Q.shadow[tier] > 0;
@@ -401,7 +411,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
     renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake,
-    setTier, resize, setTod, updateCamera, snapCamera, render, capture, toScreen, openGate, gateShown, stats, dispose,
+    setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, render, capture, toScreen, openGate, gateShown, stats, dispose,
     get tier() { return tier; }, get night() { return night; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
   };
