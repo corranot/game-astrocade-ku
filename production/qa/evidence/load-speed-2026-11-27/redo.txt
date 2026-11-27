@@ -1,0 +1,11 @@
+01M87H6GDS3KK07Q3Z38MZNGXE|{"run":0,"sdKB":78,"kBframe":621,"kB8s":621,"sdAt":264,"ready":738,"first":1686,"frame":2590,"errs":[]}|{"run":0,"sdKB":78,"kBframe":497,"kB8s":497,"sdAt":249,"ready":515,"first":1425,"frame":2408,"errs":[]}
+01M87H6GDS3KK07Q3Z38MZNGXE|{"run":0,"sdKB":78,"kBframe":621,"kB8s":621,"sdAt":240,"ready":710,"first":1402,"frame":2197,"errs":[]}|{"run":0,"sdKB":78,"kBframe":497,"kB8s":497,"sdAt":262,"ready":466,"first":1467,"frame":2337,"errs":[]}
+01M86VN0RJ9J9C6KQVMJZNN68S|{"run":0,"sdKB":76,"kBframe":641,"kB8s":641,"sdAt":241,"ready":577,"first":1099,"frame":1585,"errs":[]}|{"run":0,"sdKB":76,"kBframe":517,"kB8s":517,"sdAt":235,"ready":440,"first":1019,"frame":1510,"errs":[]}
+01M86VN0RJ9J9C6KQVMJZNN68S|{"run":0,"sdKB":76,"kBframe":641,"kB8s":641,"sdAt":251,"ready":750,"first":1116,"frame":1624,"errs":[]}|{"run":0,"sdKB":76,"kBframe":517,"kB8s":517,"sdAt":251,"ready":598,"first":1107,"frame":1581,"errs":[]}
+01M864715VW2G1XCCDYA262YEZ|{"run":0,"sdKB":76,"kBframe":620,"kB8s":620,"sdAt":234,"ready":693,"first":1277,"frame":2997,"errs":[]}|{"run":0,"sdKB":76,"kBframe":495,"kB8s":495,"sdAt":256,"ready":761,"first":1395,"frame":3040,"errs":[]}
+01M864715VW2G1XCCDYA262YEZ|{"run":0,"sdKB":76,"kBframe":620,"kB8s":620,"sdAt":232,"ready":660,"first":1319,"frame":3047,"errs":[]}|{"run":0,"sdKB":76,"kBframe":495,"kB8s":495,"sdAt":234,"ready":435,"first":1406,"frame":3119,"errs":[]}
+01M7YWVX1JHRJH2KJ0P7HRXCY9|{"run":0,"sdKB":134,"kBframe":916,"kB8s":935,"sdAt":326,"ready":600,"first":1480,"frame":3135,"errs":[]}|{"run":0,"sdKB":134,"kBframe":811,"kB8s":811,"sdAt":344,"ready":613,"first":1265,"frame":2805,"errs":[]}
+01M7YWVX1JHRJH2KJ0P7HRXCY9|{"run":0,"sdKB":134,"kBframe":896,"kB8s":935,"sdAt":348,"ready":601,"first":1491,"frame":3234,"errs":[]}|{"run":0,"sdKB":134,"kBframe":810,"kB8s":810,"sdAt":359,"ready":654,"first":1634,"frame":3164,"errs":[]}
+01M86DW148VER9R37N1CN95PEH|{"run":0,"sdKB":73,"kBframe":738,"kB8s":738,"sdAt":249,"ready":434,"first":1658,"frame":3225,"errs":[]}|{"run":0,"sdKB":73,"kBframe":481,"kB8s":481,"sdAt":260,"ready":506,"first":1567,"frame":3147,"errs":[]}
+01M86DW148VER9R37N1CN95PEH|{"run":0,"sdKB":73,"kBframe":737,"kB8s":737,"sdAt":234,"ready":666,"first":1771,"frame":3342,"errs":[]}|{"run":0,"sdKB":73,"kBframe":481,"kB8s":481,"sdAt":239,"ready":422,"first":1349,"frame":2982,"errs":[]}
+DONE
