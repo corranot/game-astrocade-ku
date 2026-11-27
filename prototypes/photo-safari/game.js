@@ -164,8 +164,11 @@ export function run(mode = 'play') {
     W.scene.add(parts.group); animals.push(a); return a;
   }
   const speciesOf = (id) => L.speciesById(cfg, id);
-  const buildQueue = [];
-  for (const sp of cfg.species) (sp.area === 0 ? (f) => f() : (f) => buildQueue.push(f))(() => makeAnimal(sp, sp, false));
+  const buildQueue = []; let booted = false;
+  // only the animals the first frame shows are built now (nearest first); the rest build one per frame after it
+  { const d = (sp) => Math.hypot(sp.home[0] - hero.x, sp.home[1] - hero.z);
+    const order = cfg.species.slice().sort((p, q) => (p.area - q.area) || (d(p) - d(q)));
+    order.forEach((sp, i) => (i < cfg.quality.bootAnimals ? (f) => f() : (f) => buildQueue.push(f))(() => makeAnimal(sp, sp, false))); }
   const placeRare = () => {
     for (const a of animals.filter((q) => q.rare)) { W.scene.remove(a.parts.group); animals.splice(animals.indexOf(a), 1); }
     const r = L.rareById(cfg, rareId), base = speciesOf(r.base);
@@ -198,13 +201,15 @@ export function run(mode = 'play') {
   }
   let tickT = 0;
   function tick(html) { if (!alive) return; const el = $('tick'); el.innerHTML = html; el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; tickT = 2.4; }
-  const toPx = (sx, sy) => { const r = root.getBoundingClientRect(); return [sx * r.width, sy * r.height]; };
-  const unit = () => { const r = root.getBoundingClientRect(); return Math.min(r.width, r.height * 9 / 16) / 720; }; // phone-sized HUD on any screen; the world fills it
+  // the root's box, read once per resize: reading it every frame forced a layout after each HUD write
+  let rootR = null; const rootRect = () => rootR || (rootR = root.getBoundingClientRect());
+  const toPx = (sx, sy) => { const r = rootRect(); return [sx * r.width, sy * r.height]; };
+  const unit = () => { const r = rootRect(); return Math.min(r.width, r.height * 9 / 16) / 720; }; // phone-sized HUD on any screen; the world fills it
   const layoutU = () => { root.style.setProperty('--u', String(unit())); };
   layoutU();
   // flying snowflakes from a screen point into the counter
   function flyFlakes(fromX, fromY, n) {
-    const tgt = $('flakes').getBoundingClientRect(), r = root.getBoundingClientRect();
+    const tgt = $('flakes').getBoundingClientRect(), r = rootRect();
     for (let i = 0; i < Math.min(8, n); i++) {
       const el = document.createElement('div'); el.className = 'fly'; el.innerHTML = ICON.flake; $('flies').appendChild(el);
       el.style.left = fromX + 'px'; el.style.top = fromY + 'px';
@@ -381,7 +386,7 @@ export function run(mode = 'play') {
     if (e.pointerId !== input.id) return;
     input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
     if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) {
-      input.drag = true; input.target = null; const r = root.getBoundingClientRect(), s = $('stick'); s.hidden = false; s.style.left = (input.x0 - r.left) + 'px'; s.style.top = (input.y0 - r.top) + 'px';
+      input.drag = true; input.target = null; const r = rootRect(), s = $('stick'); s.hidden = false; s.style.left = (input.x0 - r.left) + 'px'; s.style.top = (input.y0 - r.top) + 'px';
     }
     if (input.drag) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy), k = l > m ? m / l : 1; $('stick').firstChild.style.transform = `translate(${input.dx * k}px,${input.dy * k}px)`; }
   }
@@ -389,7 +394,7 @@ export function run(mode = 'play') {
     if (e.pointerId !== input.id) return;
     const kind = L.tapOrDrag(cfg, Math.hypot(input.dx, input.dy) / unit(), performance.now() - input.t0);
     if (kind === 'tap' && !input.drag) {
-      const r = root.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      const r = rootRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, W.camera); plane.constant = -hero.y;
       if (ray.ray.intersectPlane(plane, hit)) { input.target = [hit.x, hit.z]; fx.ring(hit.x, L.terrainH(cfg, hit.x, hit.z), hit.z, 0.9, '#bff7ff', 0.45); }
     }
@@ -487,11 +492,11 @@ export function run(mode = 'play') {
     const dev = () => { const k = Math.min(1, (performance.now() - t0) / devMs); ph.style.setProperty('--dev', String((1 - k) * (1 - k))); if (k < 1 && alive) requestAnimationFrame(dev); };
     requestAnimationFrame(dev);
     setTimeout(() => { card.classList.add('shake'); }, 60);
-    if (a) st.querySelectorAll('svg').forEach((s, i) => { if (i < stars) setTimeout(() => { s.classList.add('on'); Sound.star(i + (stars >= 3 ? 2 : 0)); if (i === stars - 1 && stars >= 3) { const r = card.getBoundingClientRect(), rr = root.getBoundingClientRect(); confetti(r.left - rr.left + r.width / 2, r.top - rr.top + r.height * 0.4); } }, 600 + i * 220); });
+    if (a) st.querySelectorAll('svg').forEach((s, i) => { if (i < stars) setTimeout(() => { s.classList.add('on'); Sound.star(i + (stars >= 3 ? 2 : 0)); if (i === stars - 1 && stars >= 3) { const r = card.getBoundingClientRect(), rr = rootRect(); confetti(r.left - rr.left + r.width / 2, r.top - rr.top + r.height * 0.4); } }, 600 + i * 220); });
     const flyAt = (a ? 1500 + stars * 120 : 900) + (res.newSpecies ? 300 : 0);
     setTimeout(() => {
       if (!alive) return;
-      const r = card.getBoundingClientRect(), rr = root.getBoundingClientRect(), b = $('bookB').getBoundingClientRect();
+      const r = card.getBoundingClientRect(), rr = rootRect(), b = $('bookB').getBoundingClientRect();
       if (res.flakes > 0) flyFlakes(r.left - rr.left + r.width / 2, r.top - rr.top + r.height / 2, Math.ceil(res.flakes / 10));
       const an = card.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${b.left + b.width / 2 - (r.left + r.width / 2)}px,${b.top + b.height / 2 - (r.top + r.height / 2)}px) scale(.12) rotate(18deg)`, opacity: 0.4 }], { duration: 480, easing: 'cubic-bezier(.6,0,.6,1)' });
       Sound.whoosh();
@@ -681,7 +686,7 @@ export function run(mode = 'play') {
     const on = ftueOn() && !bookOpen && !beats.cur && $('card').hidden;
     ftueT += dt;
     let tgt = null, hint = '', icon = '', handOn = false, handDrag = false;
-    const rr = root.getBoundingClientRect(), u = unit();
+    const rr = rootRect(), u = unit();
     const elC = (id) => { const b = $(id).getBoundingClientRect(); return [b.left - rr.left + b.width / 2, b.top - rr.top + b.height / 2, b.width * 0.62]; };
     const world = (x, y, z, r) => { const s = W.toScreen(x, y, z); return s[2] && s[0] > 0.06 && s[0] < 0.94 && s[1] > 0.1 && s[1] < 0.9 ? [s[0] * rr.width, s[1] * rr.height, r * u] : null; };
     if (on) {
@@ -713,14 +718,14 @@ export function run(mode = 'play') {
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
     if (aimA && vf > 0.3) {
       // the focus pill sits under the animal's feet, never on it
-      const s = W.toScreen(aimA.x, aimA.y, aimA.z), [px, py0] = toPx(s[0], s[1]), py = Math.min(py0 + 24 * unit(), root.getBoundingClientRect().height - 300 * unit());
+      const s = W.toScreen(aimA.x, aimA.y, aimA.z), [px, py0] = toPx(s[0], s[1]), py = Math.min(py0 + 24 * unit(), rootRect().height - 300 * unit());
       const sh = shotOf(aimA);
       focus.classList.add('on'); focus.classList.toggle('ok', sh.framed); focus.style.left = px + 'px'; focus.style.top = py + 'px';
       dots.forEach((d, i) => d.classList.toggle('on', i < sh.stars));
       $('shutter').classList.toggle('ready', true);
     } else { focus.classList.remove('on'); $('shutter').classList.remove('ready'); }
     // pose cue bubbles over the three nearest cued or posing animals
-    const rr = root.getBoundingClientRect(), u = unit(), cued = animals.filter((a) => (a.cue || a.pose) && a.parts.group.visible && Math.hypot(a.x - hero.x, a.z - hero.z) < 16).sort((a, b) => Math.hypot(a.x - hero.x, a.z - hero.z) - Math.hypot(b.x - hero.x, b.z - hero.z));
+    const rr = rootRect(), u = unit(), cued = animals.filter((a) => (a.cue || a.pose) && a.parts.group.visible && Math.hypot(a.x - hero.x, a.z - hero.z) < 16).sort((a, b) => Math.hypot(a.x - hero.x, a.z - hero.z) - Math.hypot(b.x - hero.x, b.z - hero.z));
     bubs.forEach((b, i) => {
       const a = cued[i]; if (!a || bookOpen) { b.hidden = true; return; }
       const s = W.toScreen(a.x, a.y + a.parts.height + 0.5, a.z); if (!s[2]) { b.hidden = true; return; }
@@ -759,13 +764,18 @@ export function run(mode = 'play') {
 
   // ---- the loop
   let last = performance.now(), raf = 0, t = 0, fpsT = 0, fpsN = 0, fpsV = 60, first = true, mailT = 1.5;
-  const ro = new ResizeObserver(() => { const r = root.getBoundingClientRect(); W.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height))); layoutU(); });
+  const ro = new ResizeObserver(() => { rootR = null; const r = rootRect(); W.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height))); layoutU(); });
   ro.observe(root);
-  { const r = root.getBoundingClientRect(); W.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height))); }
+  { const r = rootRect(); W.resize(Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height))); }
   W.snapCamera(hero);
+  const ftRing = new Float32Array(240), jsRing = new Float32Array(240), tierLog = []; let ftN = 0, realT = 0;
   function frame(now, manual = false, draw = true) {
     if (!alive) return;
     if (!manual) raf = requestAnimationFrame(frame);
+    // frame times (ms) for the quality self-check, kept in a small ring
+    if (!manual && t > 0) { ftRing[ftN % ftRing.length] = now - last; ftN++; }
+    // the quality check counts real seconds (a pause over 0.25 s is not a slow frame); the game itself steps at most 50 ms
+    const realDt = Math.max(0, Math.min(0.25, (now - last) / 1000)); realT += realDt;
     const rdt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
     const b = stepBeats(rdt);
     const dt = rdt * timeScale; t += dt; clockT += dt;
@@ -791,7 +801,7 @@ export function run(mode = 'play') {
     if (Math.hypot(W.chimney.x - hero.x, W.chimney.z - hero.z) < 45 && R() < 0.12) fx.emit({ pool: 'soft', x: W.chimney.x, y: W.chimney.y, z: W.chimney.z, spread: 0.2, speed: 0.2, up: 0.9, life: 3, size: 0.8, color: '#e6ecf4', alpha: 0.55, grav: 0.1, drag: 0.6, grow: 2 }, 1);
     fx.update(dt);
     // deferred builds, one per frame
-    if (buildQueue.length && !first) buildQueue.shift()();
+    if (buildQueue.length && booted) buildQueue.shift()();
     // HUD
     const goal = play || bot ? guide() : null; updateGuide(t, goal);
     if (play) { updateHud(rdt); updateSpot(rdt); }
@@ -805,15 +815,16 @@ export function run(mode = 'play') {
     // a new calendar day while playing
     if (play && loaded && (Math.floor(t) % 30 === 0) && L.dateKey(Date.now()) !== S.day) { if (L.rollDay(cfg, S, L.dateKey(Date.now())).mail) mailPending = true; rareId = L.dailyRare(cfg, S.day); placeRare(); sawRare = false; soon(); }
     // adaptive quality
-    fpsT += rdt; fpsN++;
+    fpsT += realDt; fpsN++;
     if (fpsT >= 0.5) { fpsV = fpsN / fpsT; fpsT = 0; fpsN = 0; }
-    if (!qs.has('tier') && t > 5 && L.qualityStep(cfg, quality, fpsV, rdt)) W.setTier(quality.tier);
+    if (!qs.has('tier') && realT > 5 && L.qualityStep(cfg, quality, fpsV, realDt)) { W.setTier(quality.tier); tierLog.push([Math.round(realT * 10) / 10, quality.tier, Math.round(fpsV)]); }
     if (draw) W.render();
-    if (first) { first = false; root.classList.add('live'); if (play) setTimeout(() => { if (alive) hideLogo(); }, logoT * 1000); if (window.__load) window.__load.done(); }
+    if (!manual) jsRing[(ftN + jsRing.length - 1) % jsRing.length] = performance.now() - now;
+    if (first) { first = false; setTimeout(() => { if (alive) { W.endBoot(); booted = true; } }, cfg.quality.bootS * 1000); root.classList.add('live'); if (play) setTimeout(() => { if (alive) hideLogo(); }, logoT * 1000); if (window.__load) window.__load.done(); }
   }
-  // compile shaders in parallel before the first picture when the driver can (capped)
+  // compile every shader against the target it draws into, in parallel where the driver can (capped)
   const start = () => { if (alive && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
-  try { const p = W.renderer.compileAsync ? W.renderer.compileAsync(W.scene, W.camera) : null; if (p) { p.then(start, start); setTimeout(start, 1500); } else start(); } catch (e) { start(); }
+  try { const p = W.warm(); if (p && p.then) { p.then(start, start); setTimeout(start, 1500); } else start(); } catch (e) { start(); }
 
   const api = {
     destroy() {
@@ -827,6 +838,8 @@ export function run(mode = 'play') {
   api.debug = {
     get S() { return S; }, get hero() { return hero; }, get animals() { return animals; }, get ftue() { return ftue; }, get vf() { return vf; }, get beat() { return beats.cur; }, get loaded() { return loaded; },
     W, fx, snap, toss, openBook, closeBook, saveNow, hideLogo, openArea, guide, stats: () => W.stats(), fps: () => fpsV, tier: () => quality.tier,
+    // the self-check: frame-time spread of the last 240 frames, the tier now and every change the loop made
+    frames() { const n = Math.min(ftN, ftRing.length), a = Array.from(ftRing.slice(0, n)).sort((p, q) => p - q), at = (k) => Math.round(a[Math.min(n - 1, Math.floor(n * k))] * 10) / 10; const js = Array.from(jsRing.slice(0, n)).sort((p, q) => p - q); return { n, p50: at(0.5), p95: at(0.95), max: at(1), js50: Math.round(js[Math.floor(n / 2)] * 10) / 10, fps: Math.round(fpsV), tier: quality.tier, start: tier0, changes: tierLog.slice() }; },
     tp(x, z) { hero.x = x; hero.z = z; hero.vx = hero.vz = 0; input.target = null; W.snapCamera(hero); },
     walkTo(x, z) { input.target = [x, z]; },
     clock(s) { S.clock = s; }, give(n) { S.flakes += n; },
