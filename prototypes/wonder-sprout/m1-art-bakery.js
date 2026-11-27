@@ -5,7 +5,7 @@
  * multi-stop satin gradients, a soft rim light on top, feathered contact shadows and a paper-grain pass.
  * No pure white and no neon anywhere: the brightest colour is Cream Alabaster.
  */
-import { W, H, LAYOUT, makeRng } from './m0-orchestrator.js';
+import { W, H, VIEW, LAYOUT, makeRng } from './m0-orchestrator.js';
 
 /** The seven palette colours (plan section 5). */
 export const PAL = { cream: '#F5EFE4', plum: '#231F3A', gold: '#E6A83A', teal: '#1B7F79', coral: '#DF6458', sage: '#4D8B6F', lav: '#8E7CC3', velvet: '#1A162E' };
@@ -319,8 +319,13 @@ export const SLING_TIPS = [[-51, -102], [51, -102]];
 export const LANDMARK_X = [75, 189, 303, 417, 531, 645];
 export const LANDMARK_BASE = 434;
 function bakePedestal(s) {
-  return sprite(112, 46, s, 0.5, 0.5, (g) => {
-    shadow(g, 56, 30, 52, 12);
+  // a round stone plinth: lit top with a rune ring, a darker front face, soft contact shadow
+  return sprite(112, 64, s, 0.5, 0.36, (g) => {
+    shadow(g, 56, 50, 54, 12);
+    const side = mix(PAL.lav, PAL.plum, 0.35);
+    g.beginPath(); g.moveTo(6, 24); g.lineTo(6, 42); g.ellipse(56, 42, 50, 16, 0, Math.PI, 0, true); g.lineTo(106, 24); g.closePath();
+    g.fillStyle = satin(g, 24, 58, side); g.fill(); outline(g, 2.5);
+    for (let i = 0; i < 5; i++) { const x = 18 + i * 19; g.strokeStyle = rgba(PAL.plum, 0.25); g.lineWidth = 2; g.beginPath(); g.moveTo(x, 30 + Math.abs(i - 2) * -1); g.lineTo(x, 50 - Math.abs(i - 2) * 3); g.stroke(); }
     g.fillStyle = satin(g, 8, 38, mix(PAL.cream, PAL.lav, 0.25)); ell(g, 56, 24, 50, 16); g.fill(); outline(g, 2.5);
     g.fillStyle = mix(PAL.cream, PAL.lav, 0.45); ell(g, 56, 20, 42, 11); g.fill();
     g.strokeStyle = rgba(PAL.teal, 0.7); g.lineWidth = 2; ell(g, 56, 20, 30, 7.5); g.stroke();
@@ -513,28 +518,48 @@ export function createBakery(bgScale) {
 }
 
 /** Sky and far layers with parallax; px is the hero's offset from centre (-1..1). */
+/** Stretch a sprite's outer pixel columns over the extra side width of a wide screen. */
+function sideFill(ctx, sp, x, y, sx, sy) {
+  const im = sp.img, iw = im.width, ih = im.height, top = y - sp.h * sp.ay * sy, h = sp.h * sy, d = VIEW.dx + 8;
+  const k = Math.ceil(iw / sp.w * 10); // 10 px in from each edge: the outer columns can be soft or clear
+  ctx.drawImage(im, k, 0, 1, ih, x - d, top, d + 10 * sx, h);
+  ctx.drawImage(im, iw - k, 0, 1, ih, x + (sp.w - 10) * sx, top, d + 10 * sx, h);
+}
 export function drawBackdrop(ctx, art, t, px) {
-  ctx.fillStyle = PAL.velvet; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = PAL.velvet; ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h);
+  if (art.sky && VIEW.dx > 0) sideFill(ctx, art.sky, -px * 4, 0, 1.02, 1.02);
+  if (art.sky && VIEW.dy > 0) {
+    // taller screen: the sky simply goes on higher, deepening toward the top, with its own slow clouds
+    const im = art.sky.img, dy = VIEW.dy;
+    ctx.drawImage(im, 0, 0, im.width, 1, -VIEW.dx - 4, -dy - 2, W * 1.02 + VIEW.dx * 2 + 8, dy + 4);
+    const g = ctx.createLinearGradient(0, -dy, 0, 2); g.addColorStop(0, rgba(PAL.lav, 0.55)); g.addColorStop(1, rgba(PAL.lav, 0)); ctx.fillStyle = g; ctx.fillRect(-VIEW.dx, -dy, VIEW.w, dy + 2);
+    if (art.clouds && dy > 120) { put(ctx, art.clouds[1], ((t * 5 + 380) % 1080) - 180 - px * 6, -dy * 0.42, 0.9, 0.9, 0, 0.7); put(ctx, art.clouds[2], ((t * 3 + 820) % 1160) - 220 - px * 5, -dy * 0.8 + 40, 0.75, 0.75, 0, 0.55); }
+    if (art.star && !art.lite) for (let i = 0; i < 7; i++) { const x = (i * 137 + 60) % W, y = -dy + 30 + ((i * 89) % Math.max(40, dy - 60)); put(ctx, art.star, x, y, 0.32, 0.32, t * 0.5 + i, 0.25 + 0.25 * Math.sin(t * 2 + i * 1.7)); }
+  }
   put(ctx, art.sky, 0 - px * 4, 0, 1.02, 1.02);
   if (art.clouds) {
     const c = art.clouds;
     put(ctx, c[0], ((t * 9 + 120) % 1080) - 180 - px * 8, 150, 1, 1, 0, 0.9);
     put(ctx, c[1], ((t * 6 + 620) % 1000) - 140 - px * 8, 236, 1, 1, 0, 0.8);
-    put(ctx, c[2], ((t * 4 + 300) % 1160) - 220 - px * 6, 96, 1, 1, 0, 0.7);
+    if (!art.lite) put(ctx, c[2], ((t * 4 + 300) % 1160) - 220 - px * 6, 96, 1, 1, 0, 0.7);
   }
   if (art.far) {
     const f = art.far, bob = Math.sin(t * 0.6) * 4;
     put(ctx, f[2], 600 - px * 10, 230 + bob * 0.6); put(ctx, f[1], 130 - px * 12, 268 - bob);
     put(ctx, f[0], 420 - px * 14, 302 + bob * 0.8);
-    // tiny waterfalls
+    // tiny waterfalls (skipped on the lowest quality tier)
+    if (!art.lite) {
     ctx.save(); ctx.globalAlpha = 0.55;
     for (const [x, y, l] of [[440 - px * 14, 318, 70], [118 - px * 12, 282, 52], [606 - px * 10, 242, 40]]) {
       const gr = ctx.createLinearGradient(0, y, 0, y + l); gr.addColorStop(0, rgba(PAL.cream, 0.9)); gr.addColorStop(1, rgba(PAL.cream, 0)); ctx.fillStyle = gr; ctx.fillRect(x, y, 4, l);
       ctx.fillStyle = rgba(PAL.cream, 0.9); for (let k = 0; k < 3; k++) { const yy = y + ((t * 40 + k * l / 3) % l); ctx.fillRect(x, yy, 4, 5); }
     }
     ctx.restore();
+    }
   }
   put(ctx, art.hills, -px * 18 - 10, 330, 1.03, 1);
+  // wide screens: the hills run on past the stage edge (drawn over the sprite's own outer columns)
+  if (art.hills && VIEW.dx > 0) sideFill(ctx, art.hills, -px * 18 - 10, 330, 1.03, 1);
   if (art.grass) for (let i = 0; i < 6; i++) put(ctx, art.grass[i % 3], 60 + i * 120 - px * 18, 552 - (i % 2) * 6, 1, 1, Math.sin(t * 1.4 + i) * 0.04);
 }
 /** The terrace with its swaying flowers and glowing runes. */
@@ -547,12 +572,12 @@ const FLOWERS = [[52, 520, 0], [92, 640, 1], [660, 560, 2], [622, 700, 3], [70, 
 /** Foreground framing leaves, soft-focus, swaying. */
 export function drawForeground(ctx, art, t) {
   if (!art.leaves) return;
-  put(ctx, art.leaves[0], -50, 1040, 0.7, 0.7, Math.sin(t * 0.9) * 0.03, 0.95);
-  put(ctx, art.leaves[1], W + 50, 1040, 0.7, 0.7, Math.sin(t * 0.8 + 1) * 0.03, 0.95);
+  put(ctx, art.leaves[0], -50 - VIEW.dx, 1040, 0.7, 0.7, Math.sin(t * 0.9) * 0.03, 0.95);
+  put(ctx, art.leaves[1], W + 50 + VIEW.dx, 1040, 0.7, 0.7, Math.sin(t * 0.8 + 1) * 0.03, 0.95);
 }
 /** Paper-grain pass over the whole frame. */
 export function drawGrain(ctx, art) {
-  if (!art.grain) return;
+  if (!art.grain || art.lite) return;
   if (!art.grainPat) art.grainPat = ctx.createPattern(art.grain, 'repeat');
-  ctx.save(); ctx.globalAlpha = 0.035; ctx.fillStyle = art.grainPat; ctx.fillRect(0, 0, W, H); ctx.restore();
+  ctx.save(); ctx.globalAlpha = 0.035; ctx.fillStyle = art.grainPat; ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h); ctx.restore();
 }

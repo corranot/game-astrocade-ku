@@ -21,6 +21,6 @@
   },
   "raid": { "firstSec": 75, "everySec": 75, "staySec": 22, "weakHp": 3, "burstGems": 50 },
   "fx": { "hitstopMs": 45, "shake": 1, "beatCooldownSec": 8, "particleCap": [180, 350, 600] },
-  "quality": { "scale": [0.8, 1, 1.25], "downFps": 50, "upFps": 58, "upAfterSec": 10 },
+  "quality": { "scale": [0.8, 1, 1.25], "downFps": 45, "upFps": 58, "upAfterSec": 10 },
   "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
 }

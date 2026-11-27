@@ -7,7 +7,7 @@
  * a small spring rig: squash and stretch that keeps volume, blinking eyes that track the finger, bobbing
  * ears, wagging tail, flapping wings at stage 2, crown and orbiting star halo at stage 3.
  */
-import { W, H, LAYOUT, HUD_TARGET, clamp, lerp, easeInOut, easeOut } from './m0-orchestrator.js';
+import { W, H, VIEW, LAYOUT, HUD_TARGET, clamp, lerp, easeInOut, easeOut } from './m0-orchestrator.js';
 import { put, PAL, rgba, mix, SLING_TIPS, LANDMARK_X, LANDMARK_BASE } from './m1-art-bakery.js';
 
 /** Quadratic Bezier point. */
@@ -25,7 +25,7 @@ function sprout(ctx, x, y, sway) {
 }
 export function createVfx(world) {
   const { bus, cfg, rng } = world, F = cfg.fx;
-  const V = { trauma: 0, hitstop: 0, timeScale: 1, slowT: 0, cam: { x: W / 2, y: H / 2, z: 1 }, beat: null, beatQ: [], beatReady: 0, bars: 0, time: 0, curtain: 0, pills: { gem: 0, wood: 0 }, rigs: new Map(), firstNova: true };
+  const V = { flash: 0, rainbow: 0, trauma: 0, hitstop: 0, timeScale: 1, slowT: 0, cam: { x: W / 2, y: H / 2, z: 1 }, beat: null, beatQ: [], beatReady: 0, bars: 0, time: 0, curtain: 0, pills: { gem: 0, wood: 0 }, rigs: new Map(), firstNova: true };
   const N = 600, pool = Array.from({ length: N }, () => ({ on: false }));
   let cap = F.particleCap[1], live = 0;
   V.setTier = (tier) => { cap = F.particleCap[tier]; };
@@ -73,7 +73,7 @@ export function createVfx(world) {
     V.impulse(e.by === 'hero' ? world.state.heroId : e.helper, e.type === 'mushroom' ? 0.5 : 0.35);
     V.sparks(e.x, e.y, e.type === 'mushroom' ? 5 : 7, e.type === 'geode' ? 'gemTeal' : 'star', 300);
     V.ring(e.x, e.y, 8, 54, 0.3, e.type === 'mushroom' ? PAL.coral : PAL.gold, 4);
-    if (e.type === 'tree') V.petals(e.x, e.y - 70, 4, 80);
+    if (e.type === 'tree') { V.petals(e.x, e.y - 70, 4, 80); if (e.by !== 'helper') V.pop(e.x, e.y - 96, '+1', mix(PAL.coral, PAL.gold, 0.5)); }
     if (e.by === 'hero' && e.combo >= 3) V.pop(e.x, e.y - 40, '×' + e.combo, mix(PAL.gold, PAL.cream, 0.3));
     if (e.by === 'hero') V.shake(e.type === 'mushroom' ? 0.08 : 0.12);
   });
@@ -118,7 +118,9 @@ export function createVfx(world) {
   bus.on('raid:weak', (e) => { V.shards(e.x, e.y, 10, ['gemCoral', 'gem', 'gemLav']); V.ring(e.x, e.y, 10, 110, 0.4, PAL.coral, 6); V.shake(0.25); V.stop(30); });
   bus.on('raid:hit', (e) => { V.sparks(e.x, e.y, 8, 'star', 300); V.shake(0.1); });
   bus.on('raid:break', (e) => { V.stop(F.hitstopMs); V.shake(0.7); V.confetti(e.x, e.y, 70); V.shards(e.x, e.y, 26, ['gem', 'gemCoral', 'gemTeal', 'gemLav']); for (let k = 0; k < 4; k++) setTimeout(() => V.firework(e.x - 150 + k * 100, e.y - 40 + (k % 2) * 40), k * 160); V.queueBeat({ x: e.x, y: e.y, pri: 4, dur: 1.4, zoom: 1.12, slow: 0.3, bars: true }); });
-  bus.on('world:done', () => V.curtainGo());
+  // island complete: a short golden flash, then the rainbow bridge to the next island draws itself across
+  // the sky while the camera frames it
+  bus.on('world:done', () => { V.flash = 1; V.rainbow = 0.0001; V.beatReady = 0; V.queueBeat({ x: 380, y: 300, pri: 6, dur: 2.2, zoom: 1.06, slow: 0, bars: true }); V.sparks(645, 300, 14, 'star', 360); });
 
   // ---------- rigs ----------
   V.rig = (id) => { let r = V.rigs.get(id); if (!r) { r = { sq: 0, v: 0, blink: 1 + rng() * 3, eyes: 1, tail: rng() * 6, pop: 0, evo: 0, face: 1, look: [0, 0] }; V.rigs.set(id, r); } return r; };
@@ -260,6 +262,8 @@ export function createVfx(world) {
     }
     V.cam.z = tz; V.cam.x = tx; V.cam.y = ty; V.bars = bars;
     if (V.curtain > 0) { V.curtain += rawDt / 2.4; if (V.curtain >= 1) V.curtain = 0; }
+    if (V.flash > 0) V.flash = Math.max(0, V.flash - rawDt / 0.45);
+    if (V.rainbow > 0 && V.rainbow < 1) V.rainbow = Math.min(1, V.rainbow + rawDt / 1.6);
     const dt = rawDt * V.timeScale;
     updOrbs(dt);
     for (let i = 0; i < N; i++) {
@@ -275,8 +279,8 @@ export function createVfx(world) {
     const z = V.cam.z, sh = V.trauma * V.trauma * 18, t = V.time;
     const ox = sh ? Math.sin(t * 91) * sh : 0, oy = sh ? Math.cos(t * 73) * sh : 0;
     // keep the zoomed view inside the painted stage: a beat near an edge never shows past it
-    const zz = Math.max(1, z), hx = W / (2 * zz), hy = H / (2 * zz), m = sh / zz;
-    const cx = clamp(V.cam.x, hx + m, W - hx - m), cy = clamp(V.cam.y, hy + m, H - hy - m);
+    const zz = Math.max(1, z), m = sh / zz, dx = VIEW.dx, dy = VIEW.dy;
+    const cx = clamp(V.cam.x, -dx + (W / 2 + dx) / zz + m, W + dx - (W / 2 + dx) / zz - m), cy = clamp(V.cam.y, -dy + (H / 2 + dy) / zz + m, H - H / (2 * zz) - m);
     ctx.translate(W / 2 + ox, H / 2 + oy); ctx.scale(zz, zz); ctx.translate(-cx, -cy);
   };
   V.drawParticles = (ctx) => {
@@ -300,15 +304,26 @@ export function createVfx(world) {
   /** Letterbox bars, vignette and the world-transition curtain (screen space). */
   V.drawOverlay = (ctx) => {
     if (V.bars > 0.01) {
-      const h = 84 * V.bars; ctx.fillStyle = rgba(PAL.velvet, 0.92); ctx.fillRect(0, 0, W, h); ctx.fillRect(0, H - h, W, h);
-      const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75); g.addColorStop(0, rgba(PAL.plum, 0)); g.addColorStop(1, rgba(PAL.plum, 0.4 * V.bars)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      const h = 84 * V.bars, x0 = -VIEW.dx, y0 = -VIEW.dy; ctx.fillStyle = rgba(PAL.velvet, 0.92); ctx.fillRect(x0, y0, VIEW.w, h); ctx.fillRect(x0, H - h, VIEW.w, h);
+      const cy = y0 + VIEW.h / 2, R = VIEW.h; const g = ctx.createRadialGradient(W / 2, cy, R * 0.3, W / 2, cy, R * 0.75); g.addColorStop(0, rgba(PAL.plum, 0)); g.addColorStop(1, rgba(PAL.plum, 0.4 * V.bars)); ctx.fillStyle = g; ctx.fillRect(x0, y0, VIEW.w, VIEW.h);
     }
+    if (V.flash > 0) { ctx.fillStyle = rgba(mix(PAL.gold, PAL.cream, 0.45), 0.5 * V.flash * V.flash); ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h); }
     if (V.curtain > 0) {
       const u = V.curtain, x = lerp(-W * 1.2, W * 1.2, u), A = art();
       ctx.save(); const g = ctx.createLinearGradient(x - 500, 0, x + 500, 0); g.addColorStop(0, rgba(PAL.cream, 0)); g.addColorStop(0.5, rgba(mix(PAL.cream, PAL.lav, 0.25), 0.96)); g.addColorStop(1, rgba(PAL.cream, 0)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       if (A.petals) for (let k = 0; k < 40; k++) put(ctx, A.petals[k % 3], x + Math.sin(k * 7.1) * 300, (k * 97 + u * 900) % H, 1.4, 1.4, k + u * 8);
       ctx.restore();
     }
+  };
+  /** The rainbow bridge over a finished island: grows from the lighthouse across the sky, then stays. */
+  V.drawRainbow = (ctx, t) => {
+    const done = world.state.landmarks[5] && world.state.landmarks[5].built; if (!done) return;
+    const k = V.rainbow > 0 ? easeInOut(V.rainbow) : 1, cx = 380, cy = 430, r0 = 300;
+    const a1 = Math.PI * 2 - 0.12, a0 = a1 - (Math.PI - 0.24) * k;
+    ctx.save(); ctx.lineCap = 'round'; ctx.globalAlpha = 0.5 + 0.06 * Math.sin(t * 1.5);
+    [PAL.coral, PAL.gold, mix(PAL.gold, PAL.sage, 0.5), PAL.teal, PAL.lav].forEach((c, i) => { ctx.strokeStyle = c; ctx.lineWidth = 13; ctx.beginPath(); ctx.arc(cx, cy, r0 - i * 12, a0, a1); ctx.stroke(); });
+    ctx.restore();
+    if (k < 1 && art().star) { const a = a0; put(ctx, art().star, cx + Math.cos(a) * (r0 - 24), cy + Math.sin(a) * (r0 - 24), 0.9, 0.9, t * 6, 1); }
   };
   V.liveCount = () => live;
   return V;

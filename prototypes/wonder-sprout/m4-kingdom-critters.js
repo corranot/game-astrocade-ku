@@ -50,7 +50,8 @@ export function createKingdom(world) {
   let toggle = 0;
   const dest = (kind) => {
     const need = K.activeNeeds(); if (!need) return 'wallet';
-    if (kind === 'wood') return need.wood > 0 ? 'landmark' : 'wallet';
+    // the very first wood lands on the HUD so the wood counter appears and the child sees where wood comes from
+    if (kind === 'wood') return need.wood > 0 && S().stats.wood > 0 ? 'landmark' : 'wallet';
     if (need.gems <= 0) return 'wallet';
     toggle = (toggle + E.toLandmarkShare) % 1; return toggle < E.toLandmarkShare ? 'landmark' : 'wallet';
   };
@@ -97,7 +98,7 @@ export function createKingdom(world) {
         return;
       }
     }
-    if (o.kind === 'wood') s.magicWood += o.value; else s.starGems += o.value;
+    if (o.kind === 'wood') { s.magicWood += o.value; if (!s.stats.wood) bus.emit('wood:first', {}); s.stats.wood += o.value; } else s.starGems += o.value;
     bus.emit('wallet', {});
   };
   K.build = (i) => {
@@ -207,17 +208,21 @@ export function createKingdom(world) {
     for (let i = 0; i < 6; i++) {
       const x = LANDMARK_X[i], y = LANDMARK_BASE, l = s.landmarks[i], sp = art['landmark' + i];
       if (!l.built) {
+        // empty spot: a stone plinth carrying a little model of what will grow there
         put(ctx, art.pedestal, x, y - 6);
-        const active = i === s.activeLandmark && s.planted;
-        if (sp) put(ctx, sp, x, y - 10, 0.92, 0.92, 0, active ? 0.28 + 0.06 * Math.sin(t * 3) : 0.1);
+        const active = i === s.activeLandmark && s.planted, next = i === s.activeLandmark && !s.planted;
         if (active) {
-          const p = K.progress(i), r = 46;
+          // growing: a gold meter ring around the model, filling as gems arrive
+          const p = K.progress(i), r = 44, cy = y - 66;
+          if (art.glow) put(ctx, art.glow, x, cy, 1.4, 1.4, 0, 0.25 + 0.15 * Math.sin(t * 4));
           ctx.save(); ctx.lineCap = 'round';
-          ctx.strokeStyle = rgba(PAL.plum, 0.35); ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(x, y - 70, r, 0, Math.PI * 2); ctx.stroke();
-          ctx.strokeStyle = PAL.gold; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(x, y - 70, r, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = rgba(PAL.cream, 0.55); ctx.beginPath(); ctx.arc(x, cy, r - 6, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = PAL.plum; ctx.lineWidth = 13; ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.stroke();
+          ctx.strokeStyle = mix(PAL.cream, PAL.lav, 0.3); ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.stroke();
+          if (p > 0) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(x, cy, r, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke(); }
           ctx.restore();
-          if (art.glow) put(ctx, art.glow, x, y - 70, 1.4, 1.4, 0, 0.25 + 0.15 * Math.sin(t * 4));
-        }
+          if (sp) put(ctx, sp, x, cy + 30, 0.3, 0.3, 0, 1);
+        } else if (sp) put(ctx, sp, x, y - 14, 0.3 + (next ? 0.03 * Math.sin(t * 5) : 0), 0.3 + (next ? 0.03 * Math.sin(t * 5) : 0), 0, i < s.activeLandmark + 2 ? 0.95 : 0.6);
         continue;
       }
       if (!sp) continue;

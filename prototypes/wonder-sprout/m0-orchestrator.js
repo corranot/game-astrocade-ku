@@ -72,7 +72,7 @@ export function freshState(now) {
     critters: [{ id: 1, species: 'fox', stage: 1, xp: 0 }],
     heroId: 1, activeCritterIds: [], nextId: 2,
     bossState: null, weatherEvent: null, rebirthCount: 0,
-    stats: { lifetime: 0, flings: 0, crits: 0, hatched: 0, bestCombo: 0, playSec: 0, raids: 0 },
+    stats: { lifetime: 0, flings: 0, crits: 0, hatched: 0, bestCombo: 0, playSec: 0, raids: 0, wood: 0 },
     ftue: { done: 0, skipped: false }, lastSeen: now || 0, giftDay: '', firstDay: now ? dayKey(now) : '', lang: '', sound: true,
   };
 }
@@ -137,17 +137,26 @@ export async function loadSaved() {
   } catch (e) { warn('load failed: ' + e); return null; }
 }
 
-/** Fit the 720 x 1280 canvas to the window (outside Astrocade the page may be any size). */
+/**
+ * The visible view in stage px: the 720 x 1280 stage plus extra sky above it on tall screens (dy) or extra
+ * width at both sides on wide ones (dx). The stage stays anchored to the bottom so the dock sits on the
+ * bottom edge; the HUD follows the top edge. Never letterboxed.
+ */
+export const VIEW = { w: W, h: H, dx: 0, dy: 0 };
+/** Cover the whole window with the canvas and work out VIEW; moves the HUD row to the top edge. */
 export function fitCanvas(canvas) {
-  const vw = window.innerWidth || W, vh = window.innerHeight || H;
-  const k = Math.min(vw / W, vh / H);
-  canvas.style.width = Math.round(W * k) + 'px'; canvas.style.height = Math.round(H * k) + 'px';
+  const vw = window.innerWidth || W, vh = window.innerHeight || H, a = vh / vw;
+  if (a >= H / W) { VIEW.w = W; VIEW.h = Math.round(Math.min(a, 2.6) * W); VIEW.dx = 0; VIEW.dy = VIEW.h - H; }
+  else { VIEW.h = H; VIEW.w = Math.round(Math.min(H / a, H * 1.6)); VIEW.dy = 0; VIEW.dx = (VIEW.w - W) / 2; }
+  canvas.style.width = vw + 'px'; canvas.style.height = vh + 'px';
+  HUD.y = 24 - VIEW.dy;
+  for (const k of ['gem', 'honey', 'wood']) HUD_TARGET[k][1] = HUD.y + 36;
 }
 
 /** Pointer position in logical stage px. */
 export function toStage(canvas, e) {
   const r = canvas.getBoundingClientRect();
-  return { x: (e.clientX - r.left) * W / (r.width || W), y: (e.clientY - r.top) * H / (r.height || H) };
+  return { x: (e.clientX - r.left) * VIEW.w / (r.width || VIEW.w) - VIEW.dx, y: (e.clientY - r.top) * VIEW.h / (r.height || VIEW.h) - VIEW.dy };
 }
 
 /** Frame clock: clamped delta (never negative, at most 0.05 s) so physics never tunnels after a tab switch. */

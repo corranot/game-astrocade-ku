@@ -33,7 +33,7 @@ async function page(b, vw, vh, saved, dsf = 2) {
   pg.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') errs.push(m.type() + ': ' + m.text()); });
   if (saved) await pg.addInitScript((s) => { window.__saved = s; }, saved);
   await pg.goto(base); await pg.waitForFunction(() => window.__ws && window.__ws.loaded); await pg.waitForTimeout(1500);
-  const box = await pg.evaluate(() => { const r = document.getElementById('c').getBoundingClientRect(); return { x: r.left, y: r.top, k: r.width / 720 }; });
+  const box = await pg.evaluate(() => { const r = document.getElementById('c').getBoundingClientRect(), v = __ws.VIEW, k = r.width / v.w; return { x: r.left + v.dx * k, y: r.top + v.dy * k, k }; });
   const P = (x, y) => [box.x + x * box.k, box.y + y * box.k];
   pg.shot = (n) => pg.screenshot({ path: path.join(out, n + '.jpg'), type: 'jpeg', quality: 82 });
   pg.tap = async (x, y) => { const [a, c] = P(x, y); await pg.mouse.click(a, c); };
@@ -51,7 +51,7 @@ let base;
 
   // 2. FTUE, step by step, with the real actions
   let pg = await page(b, 390, 844);
-  await pg.shot('ftue1-fling');
+  await pg.shot('ftue1-fling'); await pg.waitForTimeout(500); await pg.shot('ftue1-fling-b'); await pg.waitForTimeout(500); await pg.shot('ftue1-fling-c');
   const hero = await pg.ev(() => ({ x: __ws.gameplay.hero.x, y: __ws.gameplay.hero.y }));
   await pg.drag(hero.x, hero.y, hero.x + 30, hero.y + 160, false); await pg.shot('aim-pull'); await pg.mouse.up();
   await pg.waitForTimeout(140); await pg.shot('fling-flight');
@@ -59,6 +59,7 @@ let base;
   await pg.shot('ftue2-nova');
   const t = await pg.ev(() => new Promise((res) => { const R = __ws.cfg.rhythm; const f = () => { const g = __ws.gameplay.targets.filter((k) => k.alive && (k.type === 'geode' || k.type === 'pinata')).sort((a, b) => a.y - b.y).pop(); const u = (g.phase % R.period) / R.period; if (u > 1 - R.window + 0.03) res({ x: g.x, y: g.y }); else requestAnimationFrame(f); }; f(); }));
   await pg.tap(t.x, t.y); await pg.waitForTimeout(90); await pg.shot('nova-burst'); await pg.waitForTimeout(500); await pg.shot('nova-orbs');
+  await pg.ev(() => __ws.bus.emit('hit', { type: 'tree', x: 96, y: 482, by: 'hero', combo: 0 })); await pg.waitForTimeout(300); await pg.shot('wood-first-a'); await pg.waitForTimeout(900); await pg.shot('wood-first-b');
   await pg.ev(() => { if (!__ws.state.eggs.length) __ws.kingdom.addEgg('meadow', 360, 700); }); await pg.waitForTimeout(700); await pg.shot('egg-drop');
   await pg.waitForFunction(() => __ws.kingdom.eggReady(), null, { timeout: 12000 }); await pg.waitForTimeout(800); await pg.shot('ftue3-hatch');
   const L = await pg.ev(() => ({ nx: 128, ny: 912 - 34 }));
@@ -94,7 +95,7 @@ let base;
   await pg.waitForTimeout(1500); await pg.shot('late-island');
   for (const [i, n] of [[0, 'hatchery'], [1, 'kingdom'], [2, 'evolution']]) { await pg.tap(24 + i * 232 + 104, 1128); await pg.waitForTimeout(700); await pg.shot('drawer-' + n); await pg.ev(() => __ws.ui.closeDrawer()); await pg.waitForTimeout(500); }
   const tr = await pg.rect('track'); if (tr) { await pg.tap(tr.x + tr.w / 2, tr.y + tr.h / 2); await pg.waitForTimeout(700); await pg.shot('sheet-language'); await pg.ev(() => { __ws.ui.sheet = false; }); }
-  await pg.ev(() => { __ws.state.planted = true; __ws.kingdom.build(5); }); await pg.waitForTimeout(700); await pg.shot('lighthouse-pop'); await pg.waitForTimeout(2600); await pg.shot('world-done');
+  await pg.ev(() => { __ws.state.planted = true; __ws.kingdom.build(5); }); await pg.waitForTimeout(700); await pg.shot('lighthouse-pop'); await pg.waitForTimeout(2100); await pg.shot('world-flash'); await pg.waitForTimeout(1200); await pg.shot('world-done'); await pg.waitForTimeout(2500); await pg.shot('world-rainbow');
   await pg.context().close();
 
   // 6. every language, with the HUD and a hint, Arabic mirrored
