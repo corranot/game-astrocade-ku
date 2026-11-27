@@ -2,10 +2,11 @@
   "seed": 20261127,
   "save": { "version": 1, "everyS": 8 },
   "hero": { "speed": 5.2, "radius": 0.5, "tapMaxPx": 12, "tapMaxMs": 220, "stickMaxPx": 70, "ftueWalkM": 2 },
-  "camera": { "fov": 56, "dist": 11, "height": 8.4, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2, "focusH": 0.5, "focusD": 0.62 },
-  "photo": { "range": 9, "rangeZoom2": 14, "rangeZoom3": 19, "fovZoom2": 26, "fovZoom3": 18, "aimCover": 0.6, "frameR": 1.7, "printContrast": 1.18, "printSat": 1.4, "printVignette": 0.35, "maxFov": 72, "personalM": 4.5, "minCover": 0.2, "maxCover": 0.8, "poseWindowS": 1.6, "poseWindowSlowS": 2.6, "poseCueS": 0.8, "poseEveryS": [5, 8], "nightCapNoFlash": 2, "sceneryPerMin": 3, "developS": 0.8, "w": 256, "h": 320 },
+  "camera": { "fov": 56, "dist": 9, "height": 7, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2, "gateInM": 9, "focusH": 0.5, "focusD": 0.62 },
+  "photo": { "range": 9, "rangeZoom2": 14, "rangeZoom3": 19, "fovZoom2": 26, "fovZoom3": 18, "aimCover": 0.6, "frameR": 1.7, "printContrast": 1.18, "printSat": 1.4, "printVignette": 0.35, "maxFov": 72, "personalM": 4.5, "minCover": 0.2, "maxCover": 0.8, "poseWindowS": 2.0, "poseWindowSlowS": 3.0, "poseCueS": 0.8, "poseEveryS": [7, 12], "poseEveryNearS": [4, 7], "poseGraceS": 0.5, "fullPenaltyM": 8, "nightCapNoFlash": 2, "sceneryPerMin": 3, "developS": 0.8, "w": 256, "h": 320 },
+  "feel": { "buzz": { "snap": 12, "friend": [18, 40, 18], "big": [30, 50, 60] } },
   "economy": {
-    "photo": [0, 5, 12, 25], "firstSlotMul": 2, "rareMul": 5, "halfPage": 50, "page": 150, "request": 60, "mail": 150, "scenery": 2,
+    "photo": [0, 5, 12, 25], "firstSlotMul": 2, "rareMul": 5, "repeatK": 0.4, "halfPage": 50, "page": 150, "request": 60, "mail": 150, "scenery": 2,
     "shop": [
       { "id": "fish", "kind": "treat", "price": 80 },
       { "id": "berries", "kind": "treat", "price": 150 },
@@ -28,16 +29,21 @@
   },
   "areas": [
     { "id": "meadow", "c": [0, 0], "r": [30, 34], "unlock": 0, "tint": "#ffffff" },
-    { "id": "lake", "c": [0, -80], "r": [34, 36], "unlock": 10, "tint": "#e6f6ff", "lake": [5, -80, 15] },
-    { "id": "caves", "c": [0, -154], "r": [30, 32], "unlock": 25, "tint": "#dfeaff" }
+    { "id": "lake", "c": [0, -80], "r": [34, 36], "unlock": 14, "tint": "#e6f6ff", "lake": [5, -80, 15] },
+    { "id": "caves", "c": [0, -154], "r": [30, 32], "unlock": 34, "tint": "#dfeaff" }
   ],
   "gates": [ { "z": -38, "area": 1 }, { "z": -118, "area": 2 } ],
-  "clock": { "dayS": 360, "phases": [["day", 240], ["dusk", 40], ["night", 60], ["dawn", 20]], "startS": 10 },
+  "clock": { "dayS": 360, "phases": [["day", 210], ["dusk", 40], ["night", 90], ["dawn", 20]], "startS": 10, "skipRate": 90 },
   "daily": { "requests": 3, "rareCount": 4 },
   "beats": { "cooldownS": 8, "slowMo": 0.3, "clearFog": 0.65 },
-  "world": { "cover": 300, "fenceK": 0.975, "fences": [[-1.9, 7], [1.3, 7], [-0.9, 5], [2.4, 6]], "tracks": [[-22, 0, 1.0], [18, -16, 2.6], [-6, 14, 3.4], [10, 12, 4.6], [24, -2, 3.3], [-24, 10, 0.3]] },
+  "world": { "cover": 300, "shrubs": 44, "streamW": 1.4,
+    "startShrubs": [[2.1, 1.8, 0.6], [3.2, -5.5, 0.95]], "startLogs": [[2.8, -11.5, 0.25]],
+    "shrubAt": [[-27, -2, 1.1], [-22, 9, 0.9], [25, -2, 1.0], [30, -12, 0.9], [22, -14, 0.8], [23, -104, 1.0], [30, -95, 0.9], [27.5, -104, 1.0], [30.5, -100.5, 0.8]],
+    "logs": [[-23, 0, 0.8], [-31, 12, 2.0], [23, -5, 0.3], [31, -15, 1.2], [21, -92, 0.6], [29, -106, 1.9], [25.5, -108, 0.2], [-26, -80, 1.1]],
+    "streams": [[[-28.5, -10], [-25, -4], [-23.5, 3], [-25, 9], [-21, 15], [-15, 22]], [[27, -16], [24, -8], [25, 0], [21, 8], [15, 15]]],
+    "fenceK": 0.975, "fences": [[-1.9, 7], [1.3, 7], [-0.9, 5], [2.4, 6]], "tracks": [[-22, 0, 1.0], [18, -16, 2.6], [-6, 14, 3.4], [10, 12, 4.6], [24, -2, 3.3], [-24, 10, 0.3]] },
   "quality": { "bootDpr": 1, "bootS": 1.2, "bootAnimals": 3, "dpr": [1, 1.5, 2], "shadow": [0, 768, 1024], "bloom": [0, 1, 1], "snow": [400, 800, 1400], "particles": [250, 500, 800], "msaa": [0, 0, 4], "downFps": 50, "upFps": 58, "upAfterS": 10 },
-  "grade": { "exposure": 0.8, "lift": [-0.015, -0.005, 0.01], "gain": [1.02, 1.0, 0.97], "contrast": 0.3, "tier0Exposure": 0.9, "sat": 1.15, "vignette": 0.22, "bloomStrength": 0.55, "bloomThreshold": 1.0, "lanternI": 9, "shadowI": 0.78, "blob": "#3c5a96", "blobA": 0.4, "lanternM": 10 },
+  "grade": { "exposure": 0.8, "lift": [-0.015, -0.005, 0.01], "gain": [1.02, 1.0, 0.97], "contrast": 0.3, "tier0Exposure": 0.9, "sat": 1.15, "vignette": 0.22, "bloomStrength": 0.55, "bloomThreshold": 1.0, "lanternI": 9, "shadowI": 0.6, "shadowR": 4, "sunUp": 0.95, "blob": "#3c5a96", "blobA": 0.4, "lanternM": 10 },
   "tod": {
     "day":   { "sky": ["#8fc6ff", "#e8f4ff"], "fog": "#c4dbf4", "fogD": 0.0055, "sun": "#ffe6c8", "sunI": 2.8, "hemi": ["#c0d6f4", "#8294c6"], "hemiI": 0.9, "aurora": 0 },
     "dusk":  { "sky": ["#6a6ab8", "#ffb08a"], "fog": "#e8b8a8", "fogD": 0.0095, "sun": "#ffb070", "sunI": 1.7, "hemi": ["#ffc8b0", "#7a7ab8"], "hemiI": 0.9, "aurora": 0.25 },
@@ -80,7 +86,7 @@
     "en": {
       "title": "Snowy Snapshot", "walk": "Walk here", "snap": "Snap!", "book": "Your book", "treat": "Toss a treat", "pose": "Catch the pose!", "gate": "New place!", "skip": "Skip",
       "newFriend": "New friend!", "page": "Page done!", "half": "Nice set!", "area": "New place open!", "rare": "Rare visitor!", "night": "Aurora night", "morning": "Good morning!", "mail": "Hoot's mail", "share": "Share",
-      "shop": "Shop", "req": "Today", "buy": "Buy", "owned": "Got it", "wear": "Wear", "need": "Need {n}", "locked": "{n} stamps",
+      "shop": "Shop", "req": "Today", "tomorrow": "Tomorrow: a new visitor!", "nightB": "Wait for night", "flashHint": "3 stars at night? Get the flash!",  "buy": "Buy", "owned": "Got it", "wear": "Wear", "need": "Need {n}", "locked": "{n} stamps",
       "r_species": "Photo: {s}", "r_stars3": "A 3-star photo", "r_night": "A photo at night", "r_two": "Two friends in one photo", "r_pose": "Catch a pose", "r_area": "A photo in {a}",
       "a_meadow": "Pine Meadow", "a_lake": "Frozen Lake", "a_caves": "Ice Caves",
       "i_fish": "Fish", "i_berries": "Berries", "i_yarn": "Yarn ball", "i_zoom2": "Zoom 2x", "i_zoom3": "Zoom 3x", "i_flash": "Night flash", "i_slow": "Slow shutter", "i_outfit": "Outfit", "i_cam": "Camera color",
@@ -93,7 +99,7 @@
     "ar": {
       "title": "لقطة الثلج", "walk": "امشِ هنا", "snap": "صوّر!", "book": "كتابك", "treat": "ارمِ حلوى", "pose": "التقط الحركة!", "gate": "مكان جديد!", "skip": "تخطٍّ",
       "newFriend": "صديق جديد!", "page": "صفحة كاملة!", "half": "مجموعة رائعة!", "area": "فُتح مكان جديد!", "rare": "زائر نادر!", "night": "ليلة الشفق", "morning": "صباح الخير!", "mail": "رسالة البومة", "share": "شارك",
-      "shop": "المتجر", "req": "اليوم", "buy": "اشترِ", "owned": "لديك", "wear": "البس", "need": "تحتاج {n}", "locked": "{n} طوابع",
+      "shop": "المتجر", "req": "اليوم", "tomorrow": "غدًا: زائر جديد!", "nightB": "انتظر الليل", "flashHint": "3 نجوم ليلًا؟ احصل على الفلاش!",  "buy": "اشترِ", "owned": "لديك", "wear": "البس", "need": "تحتاج {n}", "locked": "{n} طوابع",
       "r_species": "صوّر: {s}", "r_stars3": "صورة بثلاث نجوم", "r_night": "صورة في الليل", "r_two": "صديقان في صورة", "r_pose": "التقط حركة", "r_area": "صورة في {a}",
       "a_meadow": "مرج الصنوبر", "a_lake": "البحيرة المتجمدة", "a_caves": "كهوف الجليد",
       "i_fish": "سمك", "i_berries": "توت", "i_yarn": "كرة صوف", "i_zoom2": "تكبير ×2", "i_zoom3": "تكبير ×3", "i_flash": "فلاش ليلي", "i_slow": "غالق بطيء", "i_outfit": "ملابس", "i_cam": "لون الكاميرا",
@@ -106,7 +112,7 @@
     "es": {
       "title": "Foto Nevada", "walk": "Camina aquí", "snap": "¡Foto!", "book": "Tu álbum", "treat": "Lanza un premio", "pose": "¡Atrapa la pose!", "gate": "¡Lugar nuevo!", "skip": "Saltar",
       "newFriend": "¡Nuevo amigo!", "page": "¡Página lista!", "half": "¡Buen grupo!", "area": "¡Lugar nuevo abierto!", "rare": "¡Visita rara!", "night": "Noche de aurora", "morning": "¡Buenos días!", "mail": "Carta del búho", "share": "Compartir",
-      "shop": "Tienda", "req": "Hoy", "buy": "Comprar", "owned": "Tuyo", "wear": "Usar", "need": "Faltan {n}", "locked": "{n} sellos",
+      "shop": "Tienda", "req": "Hoy", "tomorrow": "Mañana: ¡un nuevo visitante!", "nightB": "Esperar la noche", "flashHint": "¿3 estrellas de noche? ¡Consigue el flash!",  "buy": "Comprar", "owned": "Tuyo", "wear": "Usar", "need": "Faltan {n}", "locked": "{n} sellos",
       "r_species": "Foto: {s}", "r_stars3": "Una foto de 3 estrellas", "r_night": "Una foto de noche", "r_two": "Dos amigos en una foto", "r_pose": "Atrapa una pose", "r_area": "Una foto en {a}",
       "a_meadow": "Prado de Pinos", "a_lake": "Lago Helado", "a_caves": "Cuevas de Hielo",
       "i_fish": "Pez", "i_berries": "Bayas", "i_yarn": "Ovillo", "i_zoom2": "Zoom 2x", "i_zoom3": "Zoom 3x", "i_flash": "Flash nocturno", "i_slow": "Obturador lento", "i_outfit": "Ropa", "i_cam": "Color de cámara",
@@ -119,7 +125,7 @@
     "vi": {
       "title": "Ảnh Tuyết", "walk": "Đi tới đây", "snap": "Chụp!", "book": "Sổ ảnh", "treat": "Ném đồ ăn", "pose": "Bắt dáng!", "gate": "Nơi mới!", "skip": "Bỏ qua",
       "newFriend": "Bạn mới!", "page": "Xong trang!", "half": "Giỏi lắm!", "area": "Mở nơi mới!", "rare": "Khách hiếm!", "night": "Đêm cực quang", "morning": "Chào buổi sáng!", "mail": "Thư cú", "share": "Chia sẻ",
-      "shop": "Cửa hàng", "req": "Hôm nay", "buy": "Mua", "owned": "Đã có", "wear": "Mặc", "need": "Cần {n}", "locked": "{n} tem",
+      "shop": "Cửa hàng", "req": "Hôm nay", "tomorrow": "Ngày mai: vị khách mới!", "nightB": "Chờ đêm", "flashHint": "3 sao ban đêm? Mua đèn flash!",  "buy": "Mua", "owned": "Đã có", "wear": "Mặc", "need": "Cần {n}", "locked": "{n} tem",
       "r_species": "Chụp: {s}", "r_stars3": "Ảnh 3 sao", "r_night": "Ảnh ban đêm", "r_two": "Hai bạn một ảnh", "r_pose": "Bắt một dáng", "r_area": "Ảnh ở {a}",
       "a_meadow": "Đồng Thông", "a_lake": "Hồ Băng", "a_caves": "Hang Băng",
       "i_fish": "Cá", "i_berries": "Quả mọng", "i_yarn": "Cuộn len", "i_zoom2": "Phóng 2x", "i_zoom3": "Phóng 3x", "i_flash": "Đèn đêm", "i_slow": "Màn trập chậm", "i_outfit": "Áo", "i_cam": "Màu máy",
@@ -132,7 +138,7 @@
     "hi": {
       "title": "बर्फ़ीली फ़ोटो", "walk": "यहाँ चलो", "snap": "क्लिक!", "book": "तुम्हारी किताब", "treat": "दाना फेंको", "pose": "पोज़ पकड़ो!", "gate": "नई जगह!", "skip": "छोड़ो",
       "newFriend": "नया दोस्त!", "page": "पन्ना पूरा!", "half": "शाबाश!", "area": "नई जगह खुली!", "rare": "दुर्लभ मेहमान!", "night": "ऑरोरा रात", "morning": "सुप्रभात!", "mail": "उल्लू की चिट्ठी", "share": "शेयर",
-      "shop": "दुकान", "req": "आज", "buy": "खरीदो", "owned": "मिल गया", "wear": "पहनो", "need": "{n} चाहिए", "locked": "{n} मुहर",
+      "shop": "दुकान", "req": "आज", "tomorrow": "कल: एक नया मेहमान!", "nightB": "रात का इंतज़ार", "flashHint": "रात में 3 तारे? फ़्लैश लो!",  "buy": "खरीदो", "owned": "मिल गया", "wear": "पहनो", "need": "{n} चाहिए", "locked": "{n} मुहर",
       "r_species": "फ़ोटो: {s}", "r_stars3": "3 तारे वाली फ़ोटो", "r_night": "रात की फ़ोटो", "r_two": "एक फ़ोटो में दो दोस्त", "r_pose": "एक पोज़ पकड़ो", "r_area": "{a} में फ़ोटो",
       "a_meadow": "चीड़ का मैदान", "a_lake": "जमी झील", "a_caves": "बर्फ़ की गुफ़ा",
       "i_fish": "मछली", "i_berries": "बेरी", "i_yarn": "ऊन का गोला", "i_zoom2": "ज़ूम 2x", "i_zoom3": "ज़ूम 3x", "i_flash": "रात की फ़्लैश", "i_slow": "धीमा शटर", "i_outfit": "कपड़े", "i_cam": "कैमरा रंग",
@@ -145,7 +151,7 @@
     "bn": {
       "title": "বরফের ছবি", "walk": "এখানে হাঁটো", "snap": "ক্লিক!", "book": "তোমার বই", "treat": "খাবার ছোড়ো", "pose": "পোজ ধরো!", "gate": "নতুন জায়গা!", "skip": "বাদ দাও",
       "newFriend": "নতুন বন্ধু!", "page": "পাতা শেষ!", "half": "দারুণ!", "area": "নতুন জায়গা খুলেছে!", "rare": "বিরল অতিথি!", "night": "অরোরার রাত", "morning": "সুপ্রভাত!", "mail": "পেঁচার চিঠি", "share": "শেয়ার",
-      "shop": "দোকান", "req": "আজ", "buy": "কেনো", "owned": "পেয়েছ", "wear": "পরো", "need": "{n} লাগবে", "locked": "{n} স্ট্যাম্প",
+      "shop": "দোকান", "req": "আজ", "tomorrow": "আগামীকাল: নতুন অতিথি!", "nightB": "রাতের অপেক্ষা", "flashHint": "রাতে ৩ তারা? ফ্ল্যাশ নাও!",  "buy": "কেনো", "owned": "পেয়েছ", "wear": "পরো", "need": "{n} লাগবে", "locked": "{n} স্ট্যাম্প",
       "r_species": "ছবি: {s}", "r_stars3": "৩ তারার ছবি", "r_night": "রাতের ছবি", "r_two": "এক ছবিতে দুই বন্ধু", "r_pose": "একটা পোজ ধরো", "r_area": "{a}-এ ছবি",
       "a_meadow": "পাইনের মাঠ", "a_lake": "জমাট হ্রদ", "a_caves": "বরফ গুহা",
       "i_fish": "মাছ", "i_berries": "বেরি", "i_yarn": "উলের বল", "i_zoom2": "জুম ২x", "i_zoom3": "জুম ৩x", "i_flash": "রাতের ফ্ল্যাশ", "i_slow": "ধীর শাটার", "i_outfit": "পোশাক", "i_cam": "ক্যামেরার রং",
@@ -158,7 +164,7 @@
     "id": {
       "title": "Foto Salju", "walk": "Jalan ke sini", "snap": "Jepret!", "book": "Bukumu", "treat": "Lempar camilan", "pose": "Tangkap gayanya!", "gate": "Tempat baru!", "skip": "Lewati",
       "newFriend": "Teman baru!", "page": "Halaman penuh!", "half": "Hebat!", "area": "Tempat baru terbuka!", "rare": "Tamu langka!", "night": "Malam aurora", "morning": "Selamat pagi!", "mail": "Surat Burung Hantu", "share": "Bagikan",
-      "shop": "Toko", "req": "Hari ini", "buy": "Beli", "owned": "Punya", "wear": "Pakai", "need": "Kurang {n}", "locked": "{n} stempel",
+      "shop": "Toko", "req": "Hari ini", "tomorrow": "Besok: tamu baru!", "nightB": "Tunggu malam", "flashHint": "3 bintang malam hari? Beli lampu kilat!",  "buy": "Beli", "owned": "Punya", "wear": "Pakai", "need": "Kurang {n}", "locked": "{n} stempel",
       "r_species": "Foto: {s}", "r_stars3": "Foto bintang 3", "r_night": "Foto malam hari", "r_two": "Dua teman satu foto", "r_pose": "Tangkap satu gaya", "r_area": "Foto di {a}",
       "a_meadow": "Padang Pinus", "a_lake": "Danau Beku", "a_caves": "Gua Es",
       "i_fish": "Ikan", "i_berries": "Beri", "i_yarn": "Bola benang", "i_zoom2": "Zoom 2x", "i_zoom3": "Zoom 3x", "i_flash": "Lampu malam", "i_slow": "Rana lambat", "i_outfit": "Baju", "i_cam": "Warna kamera",
