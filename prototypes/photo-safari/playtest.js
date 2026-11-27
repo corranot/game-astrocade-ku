@@ -55,6 +55,7 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
   {
     const { page, errors } = await open(390, 844, '&tod=day');
     check(await ev(page, () => __game.ftue) === 'walk', 'a new game starts the tutorial at "walk"');
+    { const k = await ev(page, () => { const a = document.getElementById('skip').getBoundingClientRect(), b = document.getElementById('logo').getBoundingClientRect(); return [a.bottom, b.top]; }); check(k[0] <= k[1], `the title sits below the skip button (${k[0].toFixed(0)} <= ${k[1].toFixed(0)})`); }
     await step(page, 20);
     await shoot(page, '01-first-frame-ftue-walk');
     // a real tap on the snow walks the hero there
@@ -184,6 +185,8 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     check(eq(gapL, gapR) && clear >= gapL - 1.5, `${w}x${h}: equal gaps in the top row, pills clear of the book (${gapL.toFixed(1)} / ${gapR.toFixed(1)}, clear ${clear.toFixed(1)})`);
     check(eq(r.mute.r, r.sh.r), `${w}x${h}: sound button and shutter on one right margin (${r.mute.r.toFixed(1)}, ${r.sh.r.toFixed(1)})`);
     check(r.vf.t >= r.mute.t + r.mute.h * 2 && r.vf.t + r.vf.h <= r.sh.t && r.vf.l > r.fl.l && r.vf.r > r.mute.r, `${w}x${h}: viewfinder brackets inside the HUD (top ${r.vf.t.toFixed(0)}, bottom ${(r.vf.t + r.vf.h).toFixed(0)}, shutter top ${r.sh.t.toFixed(0)})`);
+    const pad = await ev(page, () => ['#mute', '#bookB', '#treat'].map((q) => parseFloat(getComputedStyle(document.querySelector(q)).paddingTop)));
+    check(pad.every((v) => v > 0), `${w}x${h}: round buttons keep their icon padding (${pad.map((v) => v.toFixed(1)).join(', ')})`);
     await shoot(page, `21-hud-${w}x${h}`);
     check(errors.length === 0, `${w}x${h}: no page errors`);
     await page.close();
