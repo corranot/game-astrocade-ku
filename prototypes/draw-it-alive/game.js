@@ -13,9 +13,9 @@
  * try, 2 with retries, 1 when helped. The next level starts by itself; a tap skips the end of a celebration.
  * Each chapter of five ends on the wall of the player's own pictures, which plays each picture once in turn and
  * then opens the next chapter. Every star is a paint drop for the jar; a full jar gives a surprise box with a
- * sticker the player does not have yet (four sets of six), kept in the sticker book behind the jar. The first
+ * sticker the player does not have yet (five sets of six), kept in the sticker book behind the jar. The first
  * win of a new day gives extra drops; a tap on the padlock opens the next chapter; a tapped picture on the
- * wall is shown large. Levels 21-40 show every scene mirrored.
+ * wall is shown large and shareable. Levels 26-50 show every scene mirrored.
  *
  * The 720 x 1280 scene is drawn by code (art.js). What never moves is drawn once per level into a
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame. The wall shows
@@ -23,6 +23,7 @@
  */
 import { sticker, stick, shape, star, box, blob, dots, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
 import { LEVELS } from './levels.js';
+import { migrateLegacyLevel, stickerChoices } from './progress.js';
 
 const W = 720, H = 1280, STEP = 8, CHAPTER = 5, SET = 6;
 const STICKER_BG = '#CFC2FF'; // behind every sticker (box and book): a lilac no sticker is drawn in, so white and pink ones show
@@ -32,13 +33,14 @@ const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of th
 const WALLB = { x: 600, y: 1040, s: 96 }; // button to the wall, lower right
 const JAR = { x: 24, y: 40, s: 110 }; // the paint jar, top left; it opens the sticker book
 const BACK = { x: 312, y: 1110, s: 96 }; // the way back out of the sticker book
+const SHAREB = { x: 250, y: 1080, w: 220, h: 104 }; // one-tap share; never replaces the automatic next-level flow
 const LANGB = { x: 140, y: 46, w: 440, h: 96 }; // the language button at the top of the sticker book
 const CARD = { k: 0.4, w: 288, h: 320, top: 280, border: 1.6, pad: 30 }; // a wall card shows the scene at 0.4, cropped from y = 280
 const SKIN = '#FFD8B5';
 const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 
 let cv, g, cfg, mode, raf = 0, last = 0, runs = 0;
-let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [], lang: null, day: 0 }, saveRead = false, muteTouched = false;
+let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [], lang: null, day: 0, progressVersion: 2 }, saveRead = false, muteTouched = false;
 let view = 'play', wall = null, gift = null, book = null; // 'play' a level, 'wall' the finished pictures, 'box' a surprise box, 'book' the stickers
 let lang = 'en', said = { key: '', t: 0 }; // the language shown; the command on screen and when it appeared
 let jarShown = 0, flyers = [], dropsSince = 0, dropsMerged = false; // drops in the jar as drawn, drops on their way to it, drops earned (less boxes opened) before the stored count was merged
@@ -101,9 +103,21 @@ function beep(freq, len, type = 'sine', vol = 0.1, slide = 0) {
   v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(0.001, t + len);
   o.connect(v).connect(ac.destination); o.start(t); o.stop(t + len);
 }
+let scratchBuffer = null;
 function startAudio() {
-  if (!ac) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ac = new AC(); }
+  if (!ac) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { ac = new AC(); scratchBuffer = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const samples = scratchBuffer.getChannelData(0); for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1; }
+  }
   if (ac && ac.state === 'suspended' && !document.hidden) ac.resume().catch(() => {});
+}
+/** A tiny filtered-noise crayon rasp, synthesized once the player has touched the game. */
+function crayonScratch() {
+  if (!ac || !scratchBuffer || save.muted || ac.state !== 'running') return;
+  const t = ac.currentTime, src = ac.createBufferSource(), filter = ac.createBiquadFilter(), gain = ac.createGain();
+  src.buffer = scratchBuffer; filter.type = 'lowpass'; filter.frequency.setValueAtTime(1500, t);
+  gain.gain.setValueAtTime(0.0001, t); gain.gain.exponentialRampToValueAtTime(0.014, t + 0.006); gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+  src.connect(filter).connect(gain).connect(ac.destination); src.start(t, Math.random() * 0.8, 0.055); src.stop(t + 0.06);
 }
 /** A note sequence; pending notes are dropped when the level or the screen changes. */
 function tune(notes, gap, len, vol) { notes.forEach((f, i) => timers.push(setTimeout(() => beep(f, len, 'triangle', vol), i * gap))); }
@@ -113,7 +127,7 @@ function hush() { for (const t of timers) clearTimeout(t); timers = []; }
 /** State of one scene: the level being played, or a card on the wall. */
 function scene(lv, i) {
   const s = {
-    i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, morph: null, misses: 0, k: 0, partMisses: 0,
+    i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, morph: null, misses: 0, k: 0, partMisses: 0, quality: 0,
     lines: [], done: [], // the player's line for each part, and the scene time it was drawn
     faded: null, sadFor: 0, assisted: false, stars: 0, starsShown: 0, freeze: 0, cue: 0, did: {}, quiet: false, idle: 0, dotPop: 0, daily: 0,
     get stroke() { return s.lines[0] || null; },
@@ -124,9 +138,11 @@ function scene(lv, i) {
     part(ctx, width, color, k = 0) {
       const line = s.lines[k]; if (!line) return;
       const age = s.done[k] != null ? s.t - s.done[k] : s.won, pop = age < 0.3 ? 1 + Math.sin(age / 0.3 * Math.PI) * 0.25 : 1, c = age < 0.15 ? PEN : color;
-      if (partsOf(lv)[k].closed) return shape(ctx, line, c);
-      stick(ctx, line, width * pop, c);
-      if (colourPass() && quality < 2) { ctx.save(); ctx.globalAlpha = 0.4; ctx.translate(0, -width * 0.18); stick(ctx, line, width * 0.25, WHITE); ctx.restore(); }
+      const glow = s.won >= 0 && colourPass();
+      if (glow) { ctx.save(); ctx.shadowColor = 'rgba(255,46,147,0.42)'; ctx.shadowBlur = 14; }
+      if (partsOf(lv)[k].closed) shape(ctx, line, c); else stick(ctx, line, width * pop, c);
+      if (glow) ctx.restore();
+      if (colourPass() && quality < 2 && !partsOf(lv)[k].closed) { ctx.save(); ctx.globalAlpha = 0.4; ctx.translate(0, -width * 0.18); stick(ctx, line, width * 0.25, WHITE); ctx.restore(); }
     },
   };
   return s;
@@ -264,6 +280,7 @@ function drawBig() {
     g.globalAlpha = 0.75; g.fillStyle = VIOLET; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
     g.drawImage(bigImg, Math.round(W / 2 - bigImg.width / 2), Math.round(590 - bigImg.height / 2));
     for (let j = 0; j < 3; j++) sticker(() => star(g, W / 2 + (j - 1) * 110, 1010, 44, j < (save.stars[c.s.i] || 0) ? ORANGE : '#D9CCFF', (j - 1) * 0.18));
+    drawShareButton();
     return;
   }
   bigFor = -1;
@@ -273,6 +290,7 @@ function drawBig() {
   g.save(); g.translate(cx, cy); g.scale(k, k); g.translate(-CARD.w / 2, -CARD.h / 2); frameCard(g, c, a); g.restore();
   for (let j = 0; j < 3; j++) sticker(() => star(g, W / 2 + (j - 1) * 110, 1010 + (1 - grow) * 200, 44, j < (save.stars[c.s.i] || 0) ? ORANGE : '#D9CCFF', (j - 1) * 0.18));
   if (a < 0.3) { g.globalAlpha = 0.85 * (1 - a / 0.3); g.fillStyle = WHITE; g.fillRect(0, 0, W, H); g.globalAlpha = 1; } // the flash
+  drawShareButton();
 }
 
 function drawWall() {
@@ -310,7 +328,10 @@ function drawWall() {
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
   if (wall.big >= 0) drawBig();
-  if (wall.opens && wall.unlocked >= 0 && wall.next % LEVELS.length > 0) banner(T('open').replace('{n}', chapterOf(wall.next) + 1), W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
+  if (wall.opens && wall.unlocked >= 0 && wall.next % LEVELS.length > 0) {
+    const text = wall.next % LEVELS.length === CHAPTER * 4 ? T('snowOpen') : T('open').replace('{n}', chapterOf(wall.next) + 1);
+    banner(text, W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
+  }
 }
 
 // ---------- judging ----------
@@ -369,6 +390,9 @@ function win(pen, from) {
   // sparkles rise off the whole line as it turns into the part
   if (!quality) for (const p of resample(toLevel(line), 24)) bits.push({ x: p[0], y: p[1], vx: (Math.random() - 0.5) * 120, vy: -120 - Math.random() * 160, g: -60, c: WHITE, s: 5, life: 0.5 + Math.random() * 0.5 });
   tune(S.lv.notes, 90, 0.22, 0.1);
+  // A warm rising ta-da; Snowy Day gets a soft, high bell shimmer too.
+  tune([659, 784, 988, 1319], 95, 0.2, 0.045);
+  if (S.i % LEVELS.length >= 20) tune([1047, 1319, 1568, 2093], 125, 0.28, 0.035);
   buzz('success');
   // keep the lines and the stars for the wall and for later scenes; help never replaces the player's own picture
   const n = S.i % LEVELS.length;
@@ -395,12 +419,13 @@ const onButton = (b, p) => Math.hypot(p[0] - b.x - b.s / 2, p[1] - b.y - b.s / 2
 
 /** What a press at p would trigger, or null for drawing. */
 function pressTarget(p) {
-  if (view === 'wall') return 'wall';
+  if (view === 'wall') return wall.big >= 0 && onShareButton(p) ? 'shareWall' : 'wall';
   if (view === 'box') return 'box';
   if (view === 'book') return 'book';
   if (wallShown() && onButton(WALLB, p)) return 'toWall';
   if (muteShown() && onButton(JAR, p)) return 'jar';
   if (muteShown() && onButton(MUTE, p)) return 'mute';
+  if (S.won >= 0 && onShareButton(p)) return 'shareLevel';
   if (S.won >= 0) return 'skip';
   return null;
 }
@@ -409,6 +434,8 @@ function pressTarget(p) {
 function release(p) {
   const pr = press; press = null;
   if (!pr || dist(p, pr.p) > cfg.tapTravel) return;
+  if (pr.what === 'shareLevel') return sharePicture(S, S.stars, S.flip);
+  if (pr.what === 'shareWall') { const c = wall.cards[wall.big]; return sharePicture(c.s, save.stars[c.s.i] || 0, false); }
   if (pr.what === 'wall') return wallTap(p);
   if (pr.what === 'toWall' && onButton(WALLB, p)) { const c = wallChapter(); return openWall(c, S.i, false); }
   if (pr.what === 'jar' && onButton(JAR, p)) return openBook();
@@ -439,8 +466,8 @@ function bindInput() {
     S.look = p;
     if (S.pen.length < 600 && dist(p, S.pen[S.pen.length - 1]) >= 4) {
       S.pen.push(p);
-      // the pencil sound climbs as the line gets longer
-      if (S.t - lastTick > 0.06) { lastTick = S.t; beep(420 + Math.min(1.2, pathLen(S.pen) / targetLen) * 520, 0.05, 'sine', 0.035); }
+      // A soft crayon rasp follows the moving line; the existing mute button silences it.
+      if (S.t - lastTick > 0.075) { lastTick = S.t; crayonScratch(); }
     }
   });
   const up = (e) => {
@@ -483,11 +510,8 @@ function finish() {
 // ---------- surprise box and sticker book ----------
 /** A sticker the player does not have: from the first set not yet complete. */
 function pickSticker() {
-  for (let s0 = 0; s0 < STICKERS.length; s0 += SET) {
-    const left = []; for (let id = s0; id < s0 + SET; id++) if (!save.stickers.includes(id)) left.push(id);
-    if (left.length) return left[Math.floor(Math.random() * left.length)];
-  }
-  return -1;
+  const left = stickerChoices(save.stickers, STICKERS.length, SET);
+  return left.length ? left[Math.floor(Math.random() * left.length)] : -1;
 }
 const setDone = (s0) => { for (let id = s0; id < s0 + SET; id++) if (!save.stickers.includes(id)) return false; return true; };
 
@@ -547,8 +571,8 @@ function drawBox() {
 }
 
 /** Book: four panels of one set each, two by two; a panel holds three rows of two. */
-const panelAt = (s) => ({ x: 34 + (s % 2) * 346, y: 200 + Math.floor(s / 2) * 450, w: 306, h: 420 });
-const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 74 : -74), y: p.y + 95 + Math.floor(j / 2) * 125 }; };
+const panelAt = (s) => ({ x: 34 + (s % 2) * 346, y: 170 + Math.floor(s / 2) * 310, w: 306, h: 280 });
+const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 74 : -74), y: p.y + 100 + Math.floor(j / 2) * 64 }; };
 
 function openBook() { hush(); S.pen = null; S.liftAt = 0; view = 'book'; press = null; pointerDown = false; book = { t: 0 }; beep(880, 0.1, 'triangle'); }
 
@@ -560,11 +584,12 @@ function drawBook() {
     box(g, P.x, top + 10, P.w, P.h, 36, 'rgba(31,42,107,0.22)');
     if (gold) box(g, P.x - 8, top - 8, P.w + 16, P.h + 16, 42, ORANGE); // a finished set gets a gold frame
     box(g, P.x, top, P.w, P.h, 36, STICKER_BG);
+    if (s0 === 24) words(T('winterSet'), P.x + P.w / 2, top + 45, 24, P.w - 24, NAVY);
     if (gold) for (const x of [P.x + 34, P.x + P.w - 34]) sticker(() => star(g, x, top + 18, 22, SUNNY, Math.sin(book.t * 3) * 0.3));
     for (let id = s0; id < s0 + SET; id++) {
       const { x, y } = slotAt(id);
-      if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 50);
-      else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 48, 0, 7); g.fill(); g.fillStyle = STICKER_BG; g.beginPath(); g.arc(x, y, 14, 0, 7); g.fill(); }
+      if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 32);
+      else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 36, 0, 7); g.fill(); g.fillStyle = STICKER_BG; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); }
     }
     let n = 0; for (let id = s0; id < s0 + SET; id++) if (save.stickers.includes(id)) n++;
     box(g, P.x + P.w / 2 - 62, top - 26, 124, 52, 26, gold ? ORANGE : VIOLET); words(n + '/' + SET, P.x + P.w / 2, top + 2, 34, 110, WHITE); // numbers are not mirrored
@@ -583,6 +608,7 @@ function update(dt) {
   if (view === 'wall') return updateWall(dt);
   if (view === 'box') return updateBox(dt);
   if (view === 'book') { book.t += dt; return; }
+  S.quality = quality;
   if (S.freeze > 0) { S.freeze -= dt; return; } // a short hold on the hit
   S.t += dt;
   if (!S.pen && S.won < 0) S.idle += dt;
@@ -699,6 +725,56 @@ function drawWallButton() {
   g.fillStyle = MINT; g.beginPath(); g.moveTo(x + 28, y + 64); g.lineTo(x + 44, y + 46); g.lineTo(x + 60, y + 64); g.closePath(); g.fill();
 }
 
+const onShareButton = (p) => p[0] >= SHAREB.x && p[0] <= SHAREB.x + SHAREB.w && p[1] >= SHAREB.y && p[1] <= SHAREB.y + SHAREB.h;
+function drawShareButton() {
+  const b = SHAREB, pulse = S && S.won >= 0 && S.won < 0.45 ? 1 + Math.sin(S.won / 0.45 * Math.PI) * 0.035 : 1;
+  g.save(); g.translate(b.x + b.w / 2, b.y + b.h / 2); g.scale(pulse, pulse);
+  box(g, -b.w / 2, -b.h / 2 + 7, b.w, b.h, 48, 'rgba(31,42,107,0.24)');
+  box(g, -b.w / 2, -b.h / 2, b.w, b.h, 48, WHITE);
+  const ix = -61, iy = 0; g.strokeStyle = VIOLET; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(ix - 5, iy + 8); g.lineTo(ix + 13, iy - 8); g.moveTo(ix - 4, iy + 10); g.lineTo(ix + 14, iy + 18); g.stroke();
+  for (const [x, y] of [[ix - 15, iy + 11], [ix + 19, iy - 13], [ix + 20, iy + 21]]) { g.fillStyle = SKY; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
+  words(T('share'), 42, 1, 38, 130, NAVY); g.restore();
+}
+
+/** Build a card only in response to a Share tap; the host turns this canvas into the share image. */
+function renderShareCard(source, stars, flip = false) {
+  const image = document.createElement('canvas'); image.width = 720; image.height = 1080;
+  const c = image.getContext('2d'); c.fillStyle = '#D9F3FF'; c.fillRect(0, 0, image.width, image.height);
+  // Soft card surface; the picture and stars are rendered only after the player taps Share.
+  box(c, 22, 14, 676, 1052, 40, WHITE);
+  const scale = 0.65, x = (W - W * scale) / 2, y = 26, was = borderScale(1 / scale);
+  c.save(); c.translate(x, y); c.scale(scale, scale);
+  if (flip) { c.translate(W, 0); c.scale(-1, 1); }
+  c.fillStyle = source.lv.bg; c.fillRect(0, 0, W, H);
+  source.lv.back(c);
+  const preview = scene(source.lv, source.i);
+  preview.lines = (source.lines || []).map((line) => line ? line.map((p) => p.slice()) : null);
+  preview.done = preview.lines.map(() => 0); preview.won = 3.2; preview.t = 3.2; preview.mood = 'happy'; preview.stars = stars; preview.quiet = true; preview.quality = 2;
+  source.lv.live(c, preview);
+  // Keep every player's actual stroke visible, even when a scene animation uses it as a moving prop.
+  c.save(); c.lineCap = c.lineJoin = 'round'; c.shadowColor = 'rgba(255,46,147,0.72)'; c.shadowBlur = 18;
+  for (const line of preview.lines) if (line && line.length > 1) {
+    c.beginPath(); c.moveTo(line[0][0], line[0][1]); for (const p of line) c.lineTo(p[0], p[1]);
+    c.strokeStyle = 'rgba(255,46,147,0.46)'; c.lineWidth = 14; c.stroke();
+    c.shadowBlur = 0; c.strokeStyle = 'rgba(255,255,255,0.82)'; c.lineWidth = 4; c.stroke(); c.shadowBlur = 18;
+  }
+  c.restore(); c.restore(); borderScale(was);
+  c.direction = rtl() ? 'rtl' : 'ltr'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 44px system-ui, sans-serif'; c.fillStyle = NAVY;
+  let title = T('myDrawing'); while (c.measureText(title).width > 620 && parseInt(c.font, 10) > 24) c.font = `bold ${parseInt(c.font, 10) - 2}px system-ui, sans-serif`;
+  c.fillText(title, 360, 949);
+  for (let i = 0; i < 3; i++) sticker(() => star(c, 272 + i * 88, 1015, 34, i < stars ? ORANGE : '#D9CCFF'));
+  return image;
+}
+let sharePending = false;
+function sharePicture(source, stars, flip = false) {
+  if (sharePending) return;
+  sharePending = true;
+  try {
+    const image = renderShareCard(source, stars, flip);
+    Promise.resolve(lib.share({ image, title: T('myDrawing'), text: T('myDrawing') })).catch(() => {}).finally(() => { sharePending = false; });
+  } catch (e) { sharePending = false; }
+}
+
 function draw() {
   if (view === 'wall') return drawWall();
   if (view === 'book') return drawBook();
@@ -712,11 +788,18 @@ function draw() {
     if (handAt) { hand(handAt[0], handAt[1]); handAt = null; }
   } else { S.lv.live(g, S); drawGuide(); }
   if (S.faded) { const k = S.faded.age / 0.45; g.save(); g.globalAlpha = 1 - k; g.translate(Math.sin(k * 30) * 6, 0); sticker(() => stick(g, S.faded.pts, 22, PEN)); g.restore(); }
-  if (S.pen) sticker(() => stick(g, S.pen, 22, PEN));
+  if (S.pen) {
+    g.save(); g.shadowColor = 'rgba(255,46,147,0.62)'; g.shadowBlur = 16; sticker(() => stick(g, S.pen, 22, PEN)); g.restore();
+    const tip = S.pen[S.pen.length - 1], halo = g.createRadialGradient(tip[0], tip[1], 2, tip[0], tip[1], 26);
+    halo.addColorStop(0, 'rgba(255,255,255,0.85)'); halo.addColorStop(0.35, 'rgba(255,82,177,0.4)'); halo.addColorStop(1, 'rgba(255,82,177,0)');
+    g.fillStyle = halo; g.beginPath(); g.arc(tip[0], tip[1], 26, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.beginPath(); g.moveTo(tip[0] - 15, tip[1]); g.lineTo(tip[0] + 15, tip[1]); g.moveTo(tip[0], tip[1] - 15); g.lineTo(tip[0], tip[1] + 15); g.stroke();
+  }
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
   drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawWords();
+  if (S.won >= 0) drawShareButton();
 }
 
 /** The paint jar: drops of every colour piled up to how full it is; it glows when a box is due. */
@@ -769,7 +852,12 @@ function applySave(st) {
   if (Array.isArray(st.stickers)) for (const id of st.stickers) if (Number.isInteger(id) && id >= 0 && id < STICKERS.length && !save.stickers.includes(id)) save.stickers.push(id);
   if (!dropsMerged && Number.isInteger(st.drops) && st.drops >= 0) { dropsMerged = true; save.drops = Math.max(0, Math.min(99, st.drops + dropsSince)); jarShown = Math.min(cfg.jarDrops, Math.max(0, save.drops - flyers.length)); } // drops still flying land on top
   if (Number.isInteger(st.day) && st.day > save.day && st.day < 30000000) save.day = st.day;
-  if (Number.isInteger(st.level) && st.level > save.level) { save.level = st.level; if (!touched && view === 'play') newLevel(st.level); }
+  if (Number.isInteger(st.level)) {
+    const incoming = st.progressVersion === 2 ? st.level : migrateLegacyLevel(st.level);
+    if (incoming > save.level) { save.level = incoming; if (!touched && view === 'play') newLevel(incoming); }
+  }
+  // New field is additive: all legacy stars, pictures, stickers, settings and daily state remain merged above.
+  save.progressVersion = 2;
 }
 
 /** Entry point. The host calls this on start and on every reload. */
