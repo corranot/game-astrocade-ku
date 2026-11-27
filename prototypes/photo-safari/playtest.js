@@ -185,6 +185,8 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     check(eq(gapL, gapR) && clear >= gapL - 1.5, `${w}x${h}: equal gaps in the top row, pills clear of the book (${gapL.toFixed(1)} / ${gapR.toFixed(1)}, clear ${clear.toFixed(1)})`);
     check(eq(r.mute.r, r.sh.r), `${w}x${h}: sound button and shutter on one right margin (${r.mute.r.toFixed(1)}, ${r.sh.r.toFixed(1)})`);
     check(r.vf.t >= r.mute.t + r.mute.h * 2 && r.vf.t + r.vf.h <= r.sh.t && r.vf.l > r.fl.l && r.vf.r > r.mute.r, `${w}x${h}: viewfinder brackets inside the HUD (top ${r.vf.t.toFixed(0)}, bottom ${(r.vf.t + r.vf.h).toFixed(0)}, shutter top ${r.sh.t.toFixed(0)})`);
+    const vis = await ev(page, () => { const r = document.getElementById('shutter').getBoundingClientRect(), m = document.getElementById('mute').getBoundingClientRect(); return [innerWidth - r.right, innerHeight - r.bottom, innerWidth - m.right]; }); // drawn boxes, pulse included
+    check(vis[0] >= vis[2] - 0.5 && vis[1] >= vis[2] - 0.5, `${w}x${h}: the drawn shutter keeps the HUD margin (right ${vis[0].toFixed(1)}, bottom ${vis[1].toFixed(1)}, margin ${vis[2].toFixed(1)})`);
     const pad = await ev(page, () => ['#mute', '#bookB', '#treat'].map((q) => parseFloat(getComputedStyle(document.querySelector(q)).paddingTop)));
     check(pad.every((v) => v > 0), `${w}x${h}: round buttons keep their icon padding (${pad.map((v) => v.toFixed(1)).join(', ')})`);
     await shoot(page, `21-hud-${w}x${h}`);

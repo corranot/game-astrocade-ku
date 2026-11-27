@@ -45,12 +45,14 @@ body{display:flex;align-items:center;justify-content:center}
 /* the shutter: bottom right on the margin; the treat button bottom left with its centre on the same line */
 .shutter{position:absolute;right:var(--sr);bottom:var(--sb);width:calc(var(--u)*176px);height:calc(var(--u)*176px);border-radius:50%;
   background:radial-gradient(circle at 50% 45%,#ff7a5c 0 30%,#e8513a 31% 46%,#fff6e6 47% 58%,#cfe6ff 59% 64%,#2c3a72 65%);box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 calc(var(--u)*10px) 0 calc(var(--u)*2px) rgba(26,33,71,.45)}
-[dir=rtl] .shutter{right:auto;left:var(--sl)}
+.shutter{transform-origin:100% 100%} /* pulse and bump grow inward, so the outer edges stay on the margin */
+[dir=rtl] .shutter{right:auto;left:var(--sl);transform-origin:0 100%}
 .shutter svg{position:absolute;inset:28%;width:44%;height:44%;fill:#fff}
 .shutter.ready{animation:pulse 1s ease-in-out infinite;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 0 calc(var(--u)*36px) calc(var(--u)*6px) rgba(92,242,199,.8),0 calc(var(--u)*10px) 0 calc(var(--u)*2px) rgba(26,33,71,.45)}
 .shutter:active{transform:scale(.92)}
 .treat{position:absolute;left:var(--sl);bottom:calc(var(--sb) + var(--u)*32px);width:calc(var(--u)*112px);height:calc(var(--u)*112px);border-radius:50%;padding:calc(var(--u)*18px);transition:opacity .2s,transform .2s}
-[dir=rtl] .treat{left:auto;right:var(--sr)}
+.treat{transform-origin:0 100%}
+[dir=rtl] .treat{left:auto;right:var(--sr);transform-origin:100% 100%}
 .nightb{color:#ffe48a;background:linear-gradient(#3b4a8c,#26306a)!important;animation:nb 1.6s ease-in-out infinite}
 .nightb svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:4}
 @keyframes nb{50%{box-shadow:0 0 calc(var(--u)*28px) #ffe48a}}
