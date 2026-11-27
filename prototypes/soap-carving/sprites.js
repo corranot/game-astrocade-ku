@@ -1,4 +1,3 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 /**
  * The painted art: the studio table (seen from above), four customers (each a 2x2 sheet of moods: calm, happy,
  * wow, oops), the tools, the gems, the charms and the bath bowl. Images come from the platform's asset map;
@@ -9,20 +8,33 @@ const IMG = {};
 let SP = {};
 const CACHE = new Map(); // sheet cells pre-scaled to the size they are drawn at: a plain copy per frame, not a scaled one
 
-/** Start loading every image. Safe to call again; images already asked for are kept. */
-export function loadSprites(sprites) {
-  SP = sprites || {};
-  for (const id of Object.keys(SP).concat('studio_bg', 'bath_bowl')) {
-    if (IMG[id]) continue;
-    let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map here */ }
-    if (!a || !a.url) continue;
-    const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async'; im.src = a.url; IMG[id] = im;
-  }
+/** Ask for image id once. */
+function want(id) {
+  if (IMG[id]) return;
+  let a = null; try { a = lib.getAsset(id); } catch (e) { /* no asset map here */ }
+  if (!a || !a.url) return;
+  const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async'; im.src = a.url; IMG[id] = im;
 }
+let PREV = null;
+/**
+ * Start loading images: only the ones the first picture needs (first), so they do not share the connection with
+ * the rest. loadRest() asks for everything else. preview: a tiny inline copy of the table shown until it arrives.
+ */
+export function loadSprites(sprites, first = [], preview = '') {
+  SP = sprites || {};
+  if (preview && !PREV) { PREV = new Image(); PREV.src = preview; }
+  for (const id of first) want(id);
+}
+/** How many images have arrived: a change redraws cached layers that used stand-ins. */
+export const loadedN = () => Object.values(IMG).reduce((n, im) => n + (im.complete && im.naturalWidth > 0 ? 1 : 0), 0);
+/** Whether the tiny table preview has decoded. */
+export const previewIn = () => !!(PREV && PREV.complete && PREV.naturalWidth);
+/** Load every other image. Safe to call again. */
+export function loadRest() { for (const id of Object.keys(SP).concat('studio_bg', 'bath_bowl')) want(id); }
 /** Whether image id has arrived. */
 export const ready = (id) => { const im = IMG[id]; return !!(im && im.complete && im.naturalWidth > 0); };
-/** Whether every image has arrived or failed. */
-export const settled = () => Object.values(IMG).every((im) => im.complete);
+/** Whether every image has arrived or failed (all of them asked for). */
+export const settled = () => Object.keys(IMG).length >= Object.keys(SP).length + 2 && Object.values(IMG).every((im) => im.complete);
 
 /** Cell n of sheet id scaled to fit a box of size s: a cached canvas, or null while loading. */
 export function cellCanvas(id, n, s) {
@@ -50,12 +62,13 @@ export function drawCellAt(g, id, n, x, y, s, base = 96) {
   const k = s / base; g.drawImage(c, x - c.width * k / 2, y - c.height * k / 2, c.width * k, c.height * k);
   return true;
 }
-/** The studio table, covering w x h. The flat lay is wider than tall, so it is turned a quarter. False while loading. */
+/** The studio table, covering w x h. The flat lay is wider than tall, so it is turned a quarter. 'preview' while only the tiny copy is in, false before that. */
 export function drawTable(g, w, h) {
-  if (!ready('studio_bg')) return false;
-  const im = IMG.studio_bg, iw = im.naturalHeight, ih = im.naturalWidth, k = Math.max(w / iw, h / ih);
-  g.save(); g.translate(w / 2, h / 2); g.rotate(Math.PI / 2); g.drawImage(im, -ih * k / 2, -iw * k / 2, ih * k, iw * k); g.restore();
-  return true;
+  const im = ready('studio_bg') ? IMG.studio_bg : previewIn() ? PREV : null;
+  if (!im) return false;
+  const iw = im.naturalHeight, ih = im.naturalWidth, k = Math.max(w / iw, h / ih);
+  g.save(); g.imageSmoothingQuality = 'high'; g.translate(w / 2, h / 2); g.rotate(Math.PI / 2); g.drawImage(im, -ih * k / 2, -iw * k / 2, ih * k, iw * k); g.restore();
+  return im === IMG.studio_bg ? true : 'preview';
 }
 /** The bath bowl, diameter d, centred on (x, y). False while loading. */
 export function drawBowl(g, x, y, d) {
@@ -65,3 +78,4 @@ export function drawBowl(g, x, y, d) {
   g.drawImage(c, Math.round(x - d / 2), Math.round(y - d / 2));
   return true;
 }
+

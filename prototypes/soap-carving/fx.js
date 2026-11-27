@@ -1,4 +1,3 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 /**
  * Things that fly: soap curls peeled by the knife, chunks that break off, crumbs, glitter specks, foam bubbles,
  * twinkles, confetti and water rings. Curls, chunks and crumbs fall in a fake height (z) above the table and,
@@ -128,3 +127,4 @@ export function createFx(pile) {
   };
   return fx;
 }
+
