@@ -164,6 +164,12 @@ full plan unless they add a new game mode or rework the game.
 - **Always learn from everything.** Learn from every correction, failure,
   result and piece of feedback: write the lesson down (project memory, and the
   repo when it is a lasting rule) and apply it from then on.
+- **Publishes wait for Astrocade review.** Every `publish_game` goes into the
+  Astrocade team's manual review queue, even when the tool answers
+  "approved/live". Until review passes, `list_versions` shows the publish with
+  `is_published: false` and the live page still serves the old build. That is
+  pending review, not a failure: never re-publish (it may reset the queue),
+  check again later, and re-publish only after a rejection.
 - **Astrocade sees only the game.** Everything uploaded to Astrocade (game
   files, code comments, title, description, tags, wishes/prompts, comments,
   replies) talks only about that game itself. Never mention or reveal our
