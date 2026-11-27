@@ -17,10 +17,10 @@ const BLUR_FS = `uniform sampler2D tIn; uniform vec2 uDir; varying vec2 vUv;
 void main(){ vec3 c = texture2D(tIn, vUv).rgb * 0.227;
  c += (texture2D(tIn, vUv + uDir * 1.385).rgb + texture2D(tIn, vUv - uDir * 1.385).rgb) * 0.316;
  c += (texture2D(tIn, vUv + uDir * 3.231).rgb + texture2D(tIn, vUv - uDir * 3.231).rgb) * 0.070; gl_FragColor = vec4(c, 1.0); }`;
-const COMP_FS = `uniform sampler2D tScene; uniform sampler2D tBloom; uniform float uExp, uBloom, uSat, uVig; uniform vec3 uLift, uGain; varying vec2 vUv;
+const COMP_FS = `uniform sampler2D tScene; uniform sampler2D tBloom; uniform float uExp, uBloom, uSat, uVig, uCon; uniform vec3 uLift, uGain; varying vec2 vUv;
 vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 void main(){ vec3 c = texture2D(tScene, vUv).rgb * uExp + texture2D(tBloom, vUv).rgb * uBloom;
- c = aces(c); c = c * uGain + uLift * (1.0 - c); float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, uSat);
+ c = aces(c); c = mix(c, c * c * (3.0 - 2.0 * c), uCon); c = c * uGain + uLift * (1.0 - c); float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, uSat);
  vec2 d = vUv - 0.5; d.x *= 0.75; c *= 1.0 - uVig * smoothstep(0.3, 0.85, length(d) * 1.4);
  c = mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
  gl_FragColor = vec4(c, 1.0); }`;
@@ -74,7 +74,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   const tw = 140, tz0 = 70, tz1 = -232, tseg = [70, 151];
   const tg = keep(new THREE.PlaneGeometry(tw, tz0 - tz1, tseg[0], tseg[1])); tg.rotateX(-Math.PI / 2); tg.translate(0, 0, (tz0 + tz1) / 2);
   const tp = tg.attributes.position, tcol = new Float32Array(tp.count * 3);
-  const tc = C('#ffffff'), cave = C('#c8d6f2'), snowLit = C('#eef5fc'), snowBlue = C('#b9d4f2'), rock = C('#7d889e'), path = C('#d6e4f2');
+  const tc = C('#ffffff'), cave = C('#c8d6f2'), snowLit = C('#eef5fc'), snowBlue = C('#a2c3ea'), rock = C('#7d889e'), path = C('#d6e4f2');
   for (let i = 0; i < tp.count; i++) {
     const x = tp.getX(i), z = tp.getZ(i), y = L.terrainH(cfg, x, z); tp.setY(i, y);
   }
@@ -83,7 +83,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   for (let i = 0; i < tp.count; i++) {
     const x = tp.getX(i), z = tp.getZ(i), ny = tn.getY(i);
     const hollow = Math.max(0, Math.min(1, -L.noise2(x * 0.11, z * 0.11) * 0.7 + 0.25));
-    const c = tc.copy(snowLit).lerp(snowBlue, hollow * 0.45);
+    const c = tc.copy(snowLit).lerp(snowBlue, hollow * 0.7);
     const steep = Math.max(0, Math.min(1, (0.82 - ny) * 3.2)); if (steep > 0) c.lerp(rock, steep * (0.55 + 0.3 * L.noise2(x * 0.4, z * 0.4)));
     const px = Math.sin(z * 0.045) * 3; if (Math.abs(x - px) < 1.6 && z < 20 && z > -186) c.lerp(path, 0.55);
     if (z < -128) c.lerp(cave, 0.25);
@@ -123,23 +123,25 @@ export function createWorld(canvas, cfg, opts = {}) {
     return merge(items);
   };
   const pineMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
-  // see-through: pines between the camera and the hero dissolve (ordered dither) so the hero is never hidden
+  // see-through: a whole pine between the camera and the hero fades out (ordered dither only while it fades), so the
+  // hero is never hidden and no tree is left half cut
   const heroU = { value: new THREE.Vector3() }, seeR = { value: cfg.camera.seeThroughM };
   pineMat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = uTime; sh.uniforms.uHero = heroU; sh.uniforms.uSeeR = seeR;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec3 vWp;').replace('#include <begin_vertex>', `#include <begin_vertex>
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform vec3 uHero;\nuniform float uSeeR;\nvarying vec3 vWp;\nvarying float vSee;').replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
  float ph = instanceMatrix[3].x * 0.31 + instanceMatrix[3].z * 0.17;
  float sw = (sin(uTime * 1.3 + ph) * 0.6 + sin(uTime * 2.7 + ph * 1.7) * 0.25) * 0.035 * max(0.0, position.y - 1.0);
  transformed.x += sw; transformed.z += sw * 0.5;
  vWp = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+ { vec3 ip = (modelMatrix * instanceMatrix * vec4(0.0, 2.5, 0.0, 1.0)).xyz, sg = uHero - cameraPosition;
+   float tt = clamp(dot(ip - cameraPosition, sg) / max(dot(sg, sg), 1e-3), 0.0, 1.0);
+   vSee = (1.0 - smoothstep(uSeeR * 0.8, uSeeR * 1.6, length(ip - (cameraPosition + sg * tt)))) * step(tt, 0.97); }
 #else
- vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;
+ vWp = (modelMatrix * vec4(transformed, 1.0)).xyz; vSee = 0.0;
 #endif`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uHero;\nuniform float uSeeR;\nvarying vec3 vWp;').replace('void main() {', `void main() {
- { vec3 sg = uHero - cameraPosition; float tt = clamp(dot(vWp - cameraPosition, sg) / max(dot(sg, sg), 1e-3), 0.0, 1.0);
-   float dd = length(vWp - (cameraPosition + sg * tt));
-   float k = (1.0 - smoothstep(uSeeR * 0.55, uSeeR, dd)) * step(tt, 0.96) * 0.86;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp;\nvarying float vSee;').replace('void main() {', `void main() {
+ { float k = vSee < 0.9 ? vSee : 1.1;
    vec2 q = mod(floor(gl_FragCoord.xy), 4.0);
    float bay = (mod(q.x + q.y * 2.0, 4.0) * 4.0 + mod(q.x * 3.0 + q.y, 4.0)) / 16.0;
    if (k > bay + 0.03) discard; }`);
@@ -207,7 +209,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   // stumps and branches the birds sit on, mounds the shy ones hide in
   const perch = {};
   for (const s of [...cfg.species, ...cfg.rares.map((r) => ({ ...L.speciesById(cfg, r.base), ...r }))]) {
-    if (s.perch) { place([{ g: new THREE.CylinderGeometry(0.42, 0.55, s.perch, 10), m: M4(0, s.perch / 2, 0), col: (n) => (n.y > 0.7 ? C('#f4f9ff') : C('#7a5236')) }, { g: sph(10), m: M4(0, s.perch + 0.02, 0, 0.5, 0.12, 0.5), col: W }], s.home[0], s.home[1]); perch[s.id] = s.perch; }
+    if (s.perch) { place([{ g: new THREE.CylinderGeometry(0.32, 0.42, s.perch, 10), m: M4(0, s.perch / 2, 0), col: (n) => (n.y > 0.7 ? C('#f4f9ff') : C('#7a5236')) }, { g: sph(10), m: M4(0, s.perch + 0.02, 0, 0.38, 0.1, 0.38), col: W }], s.home[0], s.home[1]); perch[s.id] = s.perch; }
     if (s.shy) place([{ g: sph(16), m: M4(0, 0, 0, 1.0, 0.55, 0.9), col: (n) => W.clone().multiplyScalar(0.86 + 0.14 * n.y) }, { g: sph(10), m: M4(0, 0.12, 0.72, 0.36, 0.26, 0.2), col: C('#3a4a6a') }], s.home[0], s.home[1] - 0.8);
   }
   // berry bushes, reeds, a beaver dam, ice floes
@@ -250,14 +252,14 @@ export function createWorld(canvas, cfg, opts = {}) {
   const brightMat = keep(new THREE.ShaderMaterial({ uniforms: { tIn: { value: null }, uTh: { value: G.bloomThreshold } }, vertexShader: QUAD_VS, fragmentShader: BRIGHT_FS, depthTest: false, depthWrite: false }));
   const blurMat = keep(new THREE.ShaderMaterial({ uniforms: { tIn: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: QUAD_VS, fragmentShader: BLUR_FS, depthTest: false, depthWrite: false }));
   const black = keep(new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1)); black.needsUpdate = true;
-  const compMat = keep(new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: black }, uExp: { value: G.exposure }, uBloom: { value: G.bloomStrength }, uSat: { value: G.sat }, uVig: { value: G.vignette }, uLift: { value: new THREE.Vector3(...G.lift) }, uGain: { value: new THREE.Vector3(...G.gain) } }, vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false }));
+  const compMat = keep(new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: black }, uExp: { value: G.exposure }, uBloom: { value: G.bloomStrength }, uSat: { value: G.sat }, uVig: { value: G.vignette }, uCon: { value: G.contrast || 0 }, uLift: { value: new THREE.Vector3(...G.lift) }, uGain: { value: new THREE.Vector3(...G.gain) } }, vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false }));
   const hdrType = renderer.capabilities.isWebGL2 && (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType;
   let rtScene = null, rtA = null, rtB = null, tier = 1, W0 = 1, H0 = 1, boot = true;
   const pass = (mat, target) => { quad.material = mat; renderer.setRenderTarget(target); renderer.render(quadScene, quadCam); };
 
   /** The first frames draw at quality.bootDpr (fewer pixels while the page is still busy), then at the tier's. */
-  function endBoot() { if (!boot) return; boot = false; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[tier])); resize(W0, H0, true); }
-  /** Compiles the full-screen passes too, so the first frame compiles nothing new. */
+  // the first frames skip the shadow pass (same shader keys, so nothing recompiles when it starts after boot)
+  function endBoot() { if (!boot) return; boot = false; renderer.shadowMap.autoUpdate = true; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.quality.dpr[tier])); resize(W0, H0, true); }
   /** Compiles the first frame's shaders, each against the target it draws into (the program key includes it). */
   function warm() {
     const into = (rt, fn) => { renderer.setRenderTarget(rt); try { return fn(); } finally { renderer.setRenderTarget(null); } };
@@ -268,7 +270,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   /** Applies quality tier 0 (light), 1 (mid) or 2 (high). */
   function setTier(t) {
     tier = Math.max(0, Math.min(2, t)); const Q = cfg.quality;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.dpr[tier], boot ? Q.bootDpr : 9));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.dpr[tier], boot ? Q.bootDpr : 9)); renderer.shadowMap.autoUpdate = !boot;
     sun.castShadow = Q.shadow[tier] > 0;
     if (Q.shadow[tier] > 0 && sun.shadow.mapSize.x !== Q.shadow[tier]) { sun.shadow.mapSize.set(Q.shadow[tier], Q.shadow[tier]); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     renderer.shadowMap.enabled = Q.shadow[tier] > 0;
@@ -286,7 +288,8 @@ export function createWorld(canvas, cfg, opts = {}) {
       rtScene = new THREE.WebGLRenderTarget(pw, ph, { type: hdrType, samples: cfg.quality.msaa[tier] });
       if (cfg.quality.bloom[tier]) { rtA = new THREE.WebGLRenderTarget(Math.max(1, pw >> 2), Math.max(1, ph >> 2), { type: hdrType }); rtB = rtA.clone(); }
     }
-    renderer.toneMapping = tier > 0 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = G.exposure * 1.05;
+    // tier 0 has no grade pass: neutral tone mapping keeps the snow white and the colours close to the graded look
+    renderer.toneMapping = tier > 0 ? THREE.NoToneMapping : THREE.NeutralToneMapping; renderer.toneMappingExposure = G.tier0Exposure || G.exposure;
   }
 
   // ---- time of day
