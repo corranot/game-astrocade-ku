@@ -139,7 +139,7 @@ export function createState(cfg, now = 0) {
   return {
     flakes: 0, slots: {}, rare: {}, open: 1, entered: 1, owned: [], outfit: null, cam: null,
     halves: [], pages: [], ftue: 0, ftueDone: false, clock: cfg.clock.startS,
-    day: 0, req: [], rareDay: 0, mailDay: 0, photos: 0, scenery: [], started: now,
+    day: 0, req: [], rareDay: 0, mailDay: 0, photos: 0, scenery: [], started: now, hints: 0, // hints: bit flags of one-time tips already shown
   };
 }
 
@@ -247,7 +247,7 @@ export function lens(cfg, S) {
 /** The save record (a few hundred bytes). */
 export function serialize(cfg, S) {
   return { v: cfg.save.version, flakes: Math.floor(S.flakes), slots: S.slots, rare: S.rare, open: S.open, entered: S.entered, owned: S.owned, outfit: S.outfit, cam: S.cam,
-    halves: S.halves, pages: S.pages, ftue: S.ftue, ftueDone: S.ftueDone, clock: Math.round(S.clock), day: S.day, req: S.req, rareDay: S.rareDay, mailDay: S.mailDay, photos: S.photos };
+    halves: S.halves, pages: S.pages, ftue: S.ftue, ftueDone: S.ftueDone, clock: Math.round(S.clock), day: S.day, req: S.req, rareDay: S.rareDay, mailDay: S.mailDay, photos: S.photos, hints: S.hints };
 }
 
 const int = (v, max = 1e9) => Math.max(0, Math.min(max, Math.floor(Number(v) || 0)));
@@ -264,7 +264,7 @@ export function restore(cfg, st) {
   if (Array.isArray(st.owned)) S.owned = st.owned.filter((x) => shop.has(x));
   S.outfit = S.owned.includes(st.outfit) ? st.outfit : null; S.cam = S.owned.includes(st.cam) ? st.cam : null;
   if (Array.isArray(st.halves)) S.halves = st.halves.map((x) => int(x, 99)); if (Array.isArray(st.pages)) S.pages = st.pages.map((x) => int(x, 99));
-  S.ftue = int(st.ftue, 99); S.ftueDone = !!st.ftueDone; S.clock = int(st.clock, 1e7); S.photos = int(st.photos);
+  S.ftue = int(st.ftue, 99); S.ftueDone = !!st.ftueDone; S.hints = int(st.hints, 255); S.clock = int(st.clock, 1e7); S.photos = int(st.photos);
   S.day = int(st.day, 99991231); S.rareDay = int(st.rareDay, 99991231); S.mailDay = int(st.mailDay, 99991231);
   const argOk = (q) => q.type === 'area' ? Number.isInteger(q.arg) && q.arg >= 1 && q.arg < cfg.areas.length : q.type === 'species' ? known.has(q.arg) : true;
   if (Array.isArray(st.req)) S.req = st.req.filter((q) => q && REQ_TYPES.includes(q.type) && argOk(q)).slice(0, cfg.daily.requests).map((q) => ({ type: q.type, arg: q.arg == null ? null : q.arg, done: !!q.done }));

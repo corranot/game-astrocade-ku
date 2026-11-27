@@ -440,7 +440,7 @@ export function run(mode = 'play') {
   $('shutter').addEventListener('click', () => { gesture(); snap(); });
   $('treat').addEventListener('click', () => { gesture(); toss(); });
   // "wait for night": once every day animal is done, the clock runs fast to nightfall instead of making the player wait
-  let skipTo = null, nightLeftT = 0, nightLeft = false, nightHinted = false;
+  let skipTo = null, nightLeftT = 0, nightLeft = false;
   $('nightB').addEventListener('click', () => {
     gesture(); if (skipTo !== null) return;
     const day = cfg.clock.dayS, ph = cfg.clock.phases, at = ph[0][1] + ph[1][1], base = Math.floor(S.clock / day) * day;
@@ -521,7 +521,7 @@ export function run(mode = 'play') {
     }
     showCard(cv, a, stars, res);
     // a posed night photo stuck at 2 stars: say once what would make it 3
-    if (shot && shot.night && shot.inPose && shot.framed && !S.owned.includes('flash') && !ui.flashHint) { ui.flashHint = true; setTimeout(() => toast(T('flashHint'), T('i_flash')), 2600); }
+    if (shot && shot.night && shot.inPose && shot.framed && !S.owned.includes('flash') && !(S.hints & 2)) { S.hints |= 2; dirty = true; setTimeout(() => toast(T('flashHint'), T('i_flash')), 2600); }
     soon();
   }
   function showCard(cv, a, stars, res) {
@@ -580,8 +580,8 @@ export function run(mode = 'play') {
       start: () => setTimeout(() => {
         if (!alive) return;
         W.openGate(i - 1); Sound.crack(); buzz('big'); W.shake.t = 0.4; W.shake.a = 0.12;
-        fx.debris(gp.x, gp.y + 0.5, gp.z, 9, 4); fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8);
-        fx.emit({ pool: 'glow', x: gp.x, y: gp.y + 1.5, z: gp.z, spread: 4, speed: 2.4, up: 2.4, life: 1.2, size: 0.22, color: '#bff7ff', shape: 'flake', grav: -1 }, 14);
+        fx.debris(gp.x, gp.y + 0.5, gp.z, 6, 3.5, 2.6); /* a few big chunks that drop and settle inside a second */ fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8);
+        fx.emit({ pool: 'glow', x: gp.x, y: gp.y + 1.5, z: gp.z, spread: 4, speed: 2.4, up: 2.4, life: 1.2, size: 0.22, color: '#bff7ff', shape: 'flake', grav: -1 }, 6);
         fx.emit({ pool: 'soft', x: gp.x, y: gp.y + 0.3, z: gp.z, spread: 4, speed: 1.5, up: 0.3, life: 1.2, size: 0.8, color: '#dceafb', alpha: 0.35, grav: 0.3, drag: 2, grow: 1 }, 6);
         toast(T('area'), T('a_' + cfg.areas[i].id), 'area');
       }, 900) });
@@ -805,8 +805,9 @@ export function run(mode = 'play') {
       tb.hidden = false; tb.classList.toggle('glow', L.treatOwned(S, sh.sp.shy));
     } else { tb.hidden = true; tb.dataset.k = ''; }
     nightLeftT -= 0.1; if (nightLeftT <= 0) { nightLeftT = 1; nightLeft = onlyNightLeft(); }
+    { const tt = $('toast'), co = $('coach'); if (!tt.hidden) tt.classList.toggle('low', !co.hidden && co.offsetTop < rootRect().height * 0.3); } // a tutorial bubble up top pushes the toast down a row
     const nb = $('nightB'), wantNight = !sh && play && S.ftueDone && !beats.cur && W.night < 0.3 && skipTo === null && nightLeft;
-    if (wantNight && nb.hidden && !nightHinted) { nightHinted = true; toast(T('nightB')); }
+    if (wantNight && nb.hidden && !(S.hints & 1)) { S.hints |= 1; dirty = true; toast(T('nightB')); } // once ever; then the moon button's glow carries it
     nb.hidden = !wantNight;
     // the day clock arc on the stamps pill
     const cl = L.clockAt(cfg, S.clock), day = cfg.clock.dayS, k = ((S.clock % day) + day) % day / day;
