@@ -493,7 +493,7 @@ export function run(mode = 'play') {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
     // a rAF timestamp can sit just before the last one (first frame, a page clock reset): never step backwards
-    let dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
+    wallDt = Math.max(0, Math.min(0.25, (now - last) / 1000)); let dt = Math.min(0.05, wallDt); last = now;
     frames.push(dt);
     if (hitstop > 0) { hitstop -= dt; dt = 0; }
     if (slowT > 0) { slowT -= dt; dt *= cfg.fx.tierSlowScale; } // the tier-up slow motion runs on real time
@@ -518,7 +518,7 @@ export function run(mode = 'play') {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const seenCine = new Set(), cineLog = [];
   let tallyN = 0;
-  let cine = null, cineUsed = 0, cineOut = 0, dropY = 0, introWait = -1;
+  let cine = null, wallDt = 0, cineUsed = 0, cineOut = 0, dropY = 0, introWait = -1;
   /** Starts cutscene id; len overrides its length. Returns false when there is no time left for it this run. */
   function playCine(id, len, o) {
     const C = cfg.cine[id]; if (!C || mode !== 'play') return false;
@@ -568,11 +568,11 @@ export function run(mode = 'play') {
   function stepCine(dt) {
     if (introWait >= 0) {
       // the first frames hold on the sky until the save says whether this player has seen the long intro
-      introWait += dt; if (saveLoaded || introWait > 1.2) { introWait = -1; startIntro(); }
+      introWait += wallDt; if (saveLoaded || introWait > 0.8) { introWait = -1; startIntro(); }
       else { L.cinePose(cfg.cine.intro.keys, 0, scene.cineCam); scene.cineCam.w = reduce ? 0 : 1; dropY = cfg.cine.intro.dropFrom; return; }
     }
     if (!cine) { if (cineOut > 0) { cineOut -= dt; scene.cineCam.w = reduce ? 0 : Math.max(0, cineOut / cfg.cine.blendOut); } else scene.cineCam.w = 0; return; }
-    cine.t += dt; const tau = Math.min(cine.t * cine.k, L.cineLen(cine.keys));
+    cine.t += cine.id === 'intro' ? Math.max(dt, wallDt) : dt; const tau = Math.min(cine.t * cine.k, L.cineLen(cine.keys));
     if (!reduce) { L.cinePose(cine.keys, tau, scene.cineCam); if (cine.C.blend) scene.cineCam.w = L.ease(Math.min(1, cine.t / cfg.cine.blendIn)); }
     if (cine.id === 'boss' && !cine.woke && tau >= cine.C.wakeAt) bossWake(cine, false);
     if (cine.id === 'defeat' && !cine.wave && tau >= cine.C.waveAt) { cine.wave = true; const r = cfg.kinds[cine.o.kind].r; scene.ring(cine.o.x, cine.o.z, r * 9, 1.1); scene.puff(cine.o.x, cine.o.z, 6, r); scene.shake(0.5); }
