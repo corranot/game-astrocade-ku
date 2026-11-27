@@ -83,7 +83,7 @@ export function createUI(world) {
   U.badges = () => {
     const s = S(), k = K(), E = world.cfg.economy;
     const hatch = (k.eggReady() ? 1 : 0) || (s.eggs.length === 0 && s.starGems >= E.eggCost.meadow ? 1 : 0);
-    const kingdom = (!s.planted && s.activeLandmark < 6) || (k.activeNeeds() && s.starGems >= 50);
+    const kingdom = (!s.planted && s.activeLandmark < 6) || (k.activeNeeds() && s.starGems >= 50 && s.activeLandmark < 6) || (k.goldTarget() >= 0 && k.activeNeeds() && s.starGems >= k.activeNeeds().gems);
     const evo = s.critters.some((c) => k.canEvolve(c));
     // at most one badge, on the most useful next action: a ready egg, then an evolution, then the kingdom
     const best = hatch && k.eggReady() ? 0 : evo ? 2 : kingdom ? 1 : hatch ? 0 : -1;
@@ -109,7 +109,10 @@ export function createUI(world) {
   bus.on('raid:start', () => U.toast({ text: U.T('raid'), icon: 'airship', dur: 2.2 }));
   bus.on('welcome', (e) => U.toast({ text: U.T('welcome'), sub: '+' + fmt(e.gems), icon: 'gem', dur: 3 }));
   bus.on('gift', () => setTimeout(() => U.toast({ text: U.T('gift'), icon: 'giftEgg', dur: 3 }), 1900));
-  bus.on('world:done', () => U.toast({ text: U.T('soon'), icon: 'landmark5', share: shareable(), dur: 6 }));
+  bus.on('world:done', () => { U.toast({ text: U.T('goldGo'), sub: U.T('soon'), icon: 'landmark5', share: shareable(), dur: 5 }); U.promiseTomorrow(7000); });
+  bus.on('landmark:gild', (e) => U.toast({ text: U.T(e.n >= 6 ? 'goldDone' : 'golden'), sub: (STR[U.lang] || STR.en).lm[e.i], icon: 'landmark' + e.i, share: e.n >= 6 && shareable(), dur: e.n >= 6 ? 6 : 2.8 }));
+  /** Once a day, tell the player a gift egg waits tomorrow (a reason to come back). */
+  U.promiseTomorrow = (delay) => { const s = S(), d = new Date().toISOString().slice(0, 10); if (s.tmrwDay === d) return; s.tmrwDay = d; world.saver.soon(); setTimeout(() => U.toast({ text: U.T('tomorrow'), icon: 'giftEgg', moon: true, dur: 3.6 }), delay || 0); };
   bus.on('launch', () => { U.logoGone = true; });
 
   // ---------- FTUE ----------
@@ -186,6 +189,8 @@ export function createUI(world) {
   // ---------- frame ----------
   U.update = (dt) => {
     U.sessionT += dt;
+    // after 8 minutes of play, promise tomorrow's gift egg once (a reason to come back)
+    if (U.sessionT > 480 && !U.tmrwAsked && world.mode === 'play' && !U.toasts.length && !U.open) { U.tmrwAsked = true; U.promiseTomorrow(0); }
     spring(U.drawer, U.open ? 1 : 0, dt); spring(U.sheetS, U.sheet ? 1 : 0, dt);
     for (const k of Object.keys(U.press)) U.press[k] = Math.max(0, U.press[k] - dt * 5);
     // one toast at a time: the next waits for the current one to finish
@@ -196,16 +201,19 @@ export function createUI(world) {
   };
 
   // ---------- drawing ----------
+  /** Counters roll toward their value (quick, so the number never lags the gems you just caught). */
+  U.rolled = {};
+  U.roll = (k, v) => { const c = U.rolled[k]; if (c == null || Math.abs(v - c) < 1 || v < c) return (U.rolled[k] = v); return (U.rolled[k] = c + (v - c) * 0.2); };
   U.drawHUD = (ctx, t, V) => {
     const s = S(), R = U.rects;
     const g = { x: mir(HUD.gem.x, HUD.gem.w), y: HUD.y, w: HUD.gem.w, h: HUD.h }; R.gemPill = g;
-    pill(ctx, g.x, g.y, g.w, g.h, V.pills.gem); gemIcon(ctx, g.x + 40, g.y + 36, 1.7); text(ctx, fmt(s.starGems), g.x + 76, g.y + 38, 34, PAL.cream, 900, 'left', g.w - 92);
+    pill(ctx, g.x, g.y, g.w, g.h, V.pills.gem); gemIcon(ctx, g.x + 40, g.y + 36, 1.7); text(ctx, fmt(U.roll('g', s.starGems)), g.x + 76, g.y + 38, 34, PAL.cream, 900, 'left', g.w - 92);
     const w = { x: mir(HUD.wood.x, HUD.wood.w), y: HUD.y, w: HUD.wood.w, h: HUD.h }; R.woodPill = w;
     // fixed slot: the wood pill is always there so the row never jumps; it pops when the first wood lands
     const wk = spring(U.woodIn, s.stats.wood > 0 || s.magicWood >= 1 ? 1 : 0, 1 / 60), pop = 1 + Math.max(0, Math.sin(Math.min(1, wk) * Math.PI)) * 0.08;
     ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(pop, pop); ctx.translate(-w.x - w.w / 2, -w.y - w.h / 2);
     pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); ctx.globalAlpha = 0.45 + 0.55 * clamp(wk, 0, 1);
-    if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore();
+    if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(U.roll('w', s.magicWood)), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore();
     const k = { x: mir(HUD.track.x, HUD.track.w), y: HUD.y, w: HUD.track.w, h: HUD.h }; R.track = k;
     pill(ctx, k.x, k.y, k.w, k.h, 0);
     ctx.save(); ctx.strokeStyle = rgba(PAL.cream, 0.5); ctx.lineWidth = 4; ctx.setLineDash([4, 8]); ctx.beginPath(); ctx.moveTo(k.x + 44, k.y + 36); ctx.lineTo(k.x + k.w - 44, k.y + 36); ctx.stroke(); ctx.restore();
@@ -253,7 +261,7 @@ export function createUI(world) {
   U.dockProgress = (i) => {
     const s = S(), k = K(), E = world.cfg.economy;
     if (i === 0) return s.eggs.length ? clamp(s.eggs[0].warm / E.incubateSec, 0, 1) : clamp(s.starGems / E.eggCost.meadow, 0, 1);
-    if (i === 1) return s.activeLandmark < 6 ? (s.planted ? k.progress(s.activeLandmark) : 1) : null;
+    if (i === 1) return s.activeLandmark < 6 ? (s.planted ? k.progress(s.activeLandmark) : 1) : k.goldTarget() >= 0 ? k.progress(k.goldTarget()) : null;
     const h = k.hero(); return h.stage >= 3 ? null : clamp(s.starGems / k.evolveCost(h), 0, 1);
   };
   U.drawLogo = (ctx, t) => {
@@ -290,7 +298,10 @@ export function createUI(world) {
       const ix = -w / 2 + 60, A_ = A();
       if (o.critter) world.vfx.drawCritter(ctx, o.critter, ix, 40, { size: 0.72, happy: true, idle: true });
       else if (o.icon === 'gem') put(ctx, A_.gem, ix, 0, 2.2, 2.2, Math.sin(t * 3) * 0.2);
-      else if (o.icon === 'giftEgg' && A_.eggs) put(ctx, A_.eggs.gift, ix, 34, 0.85);
+      else if (o.icon === 'giftEgg' && A_.eggs) {
+        put(ctx, A_.eggs.gift, ix, 34, 0.85);
+        if (o.moon) { ctx.save(); ctx.translate(ix + 30, -30); ctx.rotate(-0.4); ctx.fillStyle = '#FFE9A8'; ctx.strokeStyle = PAL.plum; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 18, 0.55, Math.PI * 2 - 0.55); ctx.arc(10, -2, 13, Math.PI * 2 - 1.2, 1.2, true); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+      }
       else if (o.icon && A_[o.icon]) put(ctx, A_[o.icon], ix, o.icon === 'airship' ? 0 : 50, o.icon === 'airship' ? 0.3 : 0.48, o.icon === 'airship' ? 0.3 : 0.48);
       const tx = o.share ? 16 : 52, tw = o.share ? 200 : 280;
       text(ctx, o.text, tx, o.sub ? -20 : 0, 40, PAL.gold, 900, 'center', tw);
@@ -405,7 +416,9 @@ export function createUI(world) {
         const active = i === s.activeLandmark && s.planted, next = i === s.activeLandmark && !s.planted;
         rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.fillStyle = rgba(PAL.cream, l.built ? 0.16 : 0.07); ctx.fill(); ctx.lineWidth = active || next ? 4 : 2; ctx.strokeStyle = active || next ? PAL.gold : rgba(PAL.cream, 0.25); ctx.stroke();
         const sp = A_['landmark' + i]; if (sp) put(ctx, sp, r.x + r.w / 2, r.y + 170, 0.78, 0.78, 0, l.built ? 1 : active ? 0.55 : 0.25);
-        if (l.built) { ctx.fillStyle = PAL.sage; ctx.beginPath(); ctx.arc(r.x + r.w - 30, r.y + r.h - 30, 20, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = PAL.cream; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(r.x + r.w - 40, r.y + r.h - 30); ctx.lineTo(r.x + r.w - 32, r.y + r.h - 22); ctx.lineTo(r.x + r.w - 20, r.y + r.h - 38); ctx.stroke(); }
+        if (i < s.gold && A_.star) put(ctx, A_.star, r.x + 30, r.y + r.h - 30, 1.6, 1.6, 0, 1);
+        if (i === k.goldTarget()) { const p = k.progress(i); rr(ctx, r.x + 20, r.y + r.h - 34, r.w - 60, 16, 8); ctx.fillStyle = rgba(PAL.plum, 0.6); ctx.fill(); rr(ctx, r.x + 20, r.y + r.h - 34, Math.max(16, (r.w - 60) * p), 16, 8); ctx.fillStyle = PAL.gold; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = PAL.gold; rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.stroke(); }
+        if (l.built) { ctx.fillStyle = i < s.gold ? PAL.gold : PAL.sage; ctx.beginPath(); ctx.arc(r.x + r.w - 30, r.y + r.h - 30, 20, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = PAL.cream; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(r.x + r.w - 40, r.y + r.h - 30); ctx.lineTo(r.x + r.w - 32, r.y + r.h - 22); ctx.lineTo(r.x + r.w - 20, r.y + r.h - 38); ctx.stroke(); }
         if (active) { const p = k.progress(i); rr(ctx, r.x + 20, r.y + r.h - 34, r.w - 40, 16, 8); ctx.fillStyle = rgba(PAL.plum, 0.6); ctx.fill(); rr(ctx, r.x + 20, r.y + r.h - 34, (r.w - 40) * p, 16, 8); ctx.fillStyle = PAL.gold; ctx.fill(); }
         text2(ctx, (STR[U.lang] || STR.en).lm[i], r.x + r.w / 2, r.y + 36, 26, l.built || active || next ? PAL.cream : rgba(PAL.cream, 0.55), r.w - 28);
         if (next) { const b = { x: r.x + 16, y: r.y + r.h - 84, w: r.w - 32, h: 72 }; R.plant = b; tile(ctx, b.x, b.y, b.w, b.h, PAL.gold, 0); text(ctx, U.T('plant'), b.x + b.w / 2, b.y + 36, 26, PAL.cream, 900, 'center', b.w - 20); }
@@ -445,8 +458,8 @@ export function createUI(world) {
   };
   /** World-side markers: a soft arrow over an off-screen-ish nest egg is not needed; the landmark pulse is. */
   U.drawWorldMarks = (ctx, t, V) => {
-    const s = S(); if (s.activeLandmark >= 6 || !s.planted || !V.landPulse) return;
-    const x = LANDMARK_X[s.activeLandmark], y = LANDMARK_BASE - 70; ctx.save(); ctx.globalAlpha = V.landPulse; ctx.strokeStyle = PAL.gold; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, 54 + (1 - V.landPulse) * 14, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    const s = S(), ti = K().target(); if (ti < 0 || !V.landPulse) return;
+    const x = LANDMARK_X[ti], y = LANDMARK_BASE - (s.activeLandmark >= 6 ? 196 : 70); ctx.save(); ctx.globalAlpha = V.landPulse; ctx.strokeStyle = PAL.gold; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, 54 + (1 - V.landPulse) * 14, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
   };
   return U;
 }

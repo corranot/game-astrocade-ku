@@ -95,6 +95,13 @@ export function createAudio() {
   A.sting = () => { pluck(PENTA[7], 0.14); pluck(PENTA[4], 0.1, 0.06); };
   /** Goal done: a bright three-note chime and a soft sparkle. */
   A.goal = () => { [4, 5, 7].forEach((k, i) => pluck(PENTA[k] * 2, 0.16, i * 0.07)); noise(0.4, 0.06, 7000, 0.6, 0.15, 'highpass'); };
+  /** Gild: a rising gold shimmer over a warm bell chord. */
+  A.gild = () => { duck(1.6); for (let i = 0; i < 8; i++) pluck(PENTA[(i * 2) % 8] * (i >= 4 ? 4 : 2), 0.12, i * 0.045); [0, 4, 7].forEach((k, i) => tone(sfx, 'sine', PENTA[k % 8] * 2, PENTA[k % 8] * 2, 1.4, 0.06, 0.4 + i * 0.03, 0.01)); noise(1, 0.07, 9000, 0.6, 0.35, 'highpass'); };
+  /** Soft landing thud and a wall bump (kept quiet: they repeat). */
+  A.land = () => tone(sfx, 'sine', 120, 70, 0.12, 0.12);
+  A.bump = () => tone(sfx, 'triangle', 260, 180, 0.06, 0.06);
+  /** An egg sails to the nest: an airy whoosh, then a soft pop on landing. */
+  A.whoosh = () => { noise(0.45, 0.12, 1800, 0.6); tone(sfx, 'sine', 300, 700, 0.4, 0.05); A.pop && setTimeout(() => A.pop(), 420); };
   A.coin = () => { pluck(PENTA[5] * 2, 0.12); pluck(PENTA[7] * 2, 0.1, 0.06); };
 
   /** Schedules the music-box loop a little ahead; call every frame. */

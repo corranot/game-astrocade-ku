@@ -23,7 +23,7 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
   w.gameplay = createGameplay(w); w.kingdom = createKingdom(w); w.vfx = createVfx(w);
   // garden goals pay gems and gift eggs like in the real game (opts.goals === false turns them off)
   if (opts.goals !== false) w.goals = createGoals(w);
-  const log = { landmarks: [], hatches: [], evolves: [], raids: [], rewards: [], heroStages: [], flings: 0, novas: 0, goals: [] };
+  const log = { landmarks: [], hatches: [], evolves: [], raids: [], rewards: [], heroStages: [], flings: 0, novas: 0, goals: [], gilds: [] };
   let T = 0;
   bus.on('landmark:built', (e) => log.landmarks.push(+T.toFixed(1)));
   bus.on('egg:hatch', () => log.hatches.push(+T.toFixed(1)));
@@ -31,6 +31,7 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
   bus.on('raid:break', () => log.raids.push(+T.toFixed(1)));
   bus.on('nova', () => log.novas++);
   bus.on('goal:done', () => log.goals.push(+T.toFixed(1)));
+  bus.on('landmark:gild', () => log.gilds.push(+T.toFixed(1)));
   bus.on('launch', () => { log.flings++; w.state.stats.flings++; });
   for (const ev of ['hit', 'burst', 'nova', 'egg:drop', 'egg:hatch', 'landmark:built']) bus.on(ev, () => log.rewards.push(+T.toFixed(1)));
   w.kingdom.onLoaded(0);
@@ -62,6 +63,8 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
       if (!s().planted && s().activeLandmark < 6 && botRng() < 0.3) K.plant();
       const hero = K.hero(); if (K.canEvolve(hero) && botRng() < 0.5) K.evolve(hero.id);
       for (const id of s().activeCritterIds) { const c = K.critter(id); if (c && K.canEvolve(c) && s().starGems > K.evolveCost(c) * 2 && botRng() < 0.2) K.evolve(id); }
+      // a child opens the Kingdom drawer and taps Fill it when the badge says the wallet can finish the job
+      { const n = K.activeNeeds(); if (opts.rush && n && n.gems > 0 && s().starGems >= n.gems && botRng() < 0.08) K.rush(); }
       if (!s().eggs.length && s().critters.length < 5 && s().starGems > cfg.economy.eggCost.meadow * 3 && botRng() < 0.2) K.buyEgg('meadow');
     }
   }
@@ -72,5 +75,5 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
 if (process.argv[1] && process.argv[1].endsWith('sim.mjs')) {
   const r = simulate(+(process.argv[2] || 15), +(process.argv[3] || 7));
   const gaps = []; for (let i = 1; i < r.rewards.length; i++) gaps.push(r.rewards[i] - r.rewards[i - 1]);
-  console.log(JSON.stringify({ hero: r.heroStages, landmarks: r.landmarks, hatches: r.hatches, evolves: r.evolves, raids: r.raids, goals: r.goals, flings: r.flings, novas: r.novas, gems: r.gems, lifetime: r.lifetime, critters: r.critters, firstRewards: r.rewards.slice(0, 8), maxGapFirstMin: Math.max(...gaps.filter((_, i) => r.rewards[i] < 60)) }, null, 1));
+  console.log(JSON.stringify({ hero: r.heroStages, landmarks: r.landmarks, hatches: r.hatches, evolves: r.evolves, raids: r.raids, gilds: r.gilds, goals: r.goals, flings: r.flings, novas: r.novas, gems: r.gems, lifetime: r.lifetime, critters: r.critters, firstRewards: r.rewards.slice(0, 8), maxGapFirstMin: Math.max(...gaps.filter((_, i) => r.rewards[i] < 60)) }, null, 1));
 }
