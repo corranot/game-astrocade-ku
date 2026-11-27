@@ -266,3 +266,44 @@ captures taken at 19:23 UTC.
 
 All three publishes sit in the Astrocade review queue. Tools: `tools/boot_dr.py`, `tools/boot_ph.py`,
 `tools/boot_ma.py`; playtests and the profile slicer in `tools/` under this folder.
+
+## Second round (19:50-20:10 UTC): Candy, Dragon CPU path, Tiny Town
+
+| Game | Before | After | What changed |
+|---|---|---|---|
+| Candy Mine Vacuum | ~3.07 s (returning player 3.39 s) | ~2.4 s (returning 2.47 s) | Staged world build (`tools/boot_cd.py`) |
+| Tame a Dragon | 3.53 s (3532, 3524, 3535) | ~3.24 s (3236, 3075, 3728) | Rivals built after the first frame (`tools/boot_dr2.py`) |
+| Tiny Town | 3.5-3.7 s | not changed | No fix above lab noise (below) |
+
+- **Candy Mine Vacuum** (published once, 20:00 UTC):
+  - The first picture now waits only for candy lands 0-1. The far lands are decorated one per 40 ms tick after
+    the first frame (`lateBuild`), then the spare shop hats.
+  - Hat geometry is built on first read through a lazy map, so any hat a save or the shop asks for early is
+    built on the spot.
+  - Total vertices are unchanged (451512).
+  - Title and play screenshots are identical, for a new player and a returning one
+    (`candy-staged-before-after*.jpg`).
+  - Tests pass (entry, pro, save-migration). The bundle test and the feed handover show no errors.
+  - Tool: `tools/boot_cd.py`.
+- **Tame a Dragon** (published once, 20:08 UTC; its previous publish had cleared review):
+  - Profile after the first round: `buildRivals` took about 0.68 s of the CPU-bound boot at 4x CPU
+    (3 rival riders and the sky thief, each a dragon plus a rider).
+  - They are now built 700 ms after the title shows. Race, thief and elder-race events call `buildRivals()`
+    themselves (it is idempotent), so an event fired before the timer still works; this was tested with an event
+    forced at the title frame.
+  - Rival powers are set right after the build. The mini board shows only "you" until then.
+  - A playtest showed the race and thief events, with no errors (`dragon-rivals-late-play-race-thief.jpg`).
+  - The tame playtest and the feed handover are unchanged versus before. Logic tests pass.
+  - What remains is spread thin: the player rider 0.24 s, templates 0.33 s, procedural textures about 0.23 s, the
+    zone 0.13 s and prewarm 0.37 s.
+- **Tiny Town**: closed for this round.
+  - A fresh capture (20:07 UTC) measured 3.45-4.1 s.
+  - Profile, inclusive at 4x CPU: `rbox` rounded boxes 0.84 s, `town` 0.77 s, prop meshes 0.57 s, Kubo meshes
+    0.53 s, plus 0.65-0.7 s of main-thread GL calls.
+  - Caching rounded boxes per size (`tools/boot_tt.py`) measured no gain: 3.56/3.66/3.52 s before versus
+    4.28/3.65/3.81 s after. Neither did the mesher port, compileAsync or the font order measured earlier.
+  - The only lever left is a staged town build (far blocks after the first frame), which changes the opening
+    frame. It is not worth a review cycle until a phone trace shows the CPU build is the real bottleneck there.
+
+Lab tools: `node tools/live-load.js` now takes `SAVE=<json>` for a returning player's save. The inclusive
+profile slicer is `tools/prof_incl.py` and the event probe is `tools/dr_ev.js`, both under this folder.

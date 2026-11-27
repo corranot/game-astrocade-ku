@@ -19,7 +19,7 @@ fetch('/sd').then(r => r.text()).then(t => { window.__sdAt = performance.now(); 
    // HANDOVER=1: feed handover, the host first runs the game in edit mode, then switches to play
    if (${!!process.env.HANDOVER}) { f.contentWindow.postMessage({ ...RWC, mode: 'edit', runId: 'e' + Date.now() }, '*'); setTimeout(() => f.contentWindow.postMessage({ ...RWC, runId: 'r' + Date.now() }, '*'), 1500); }
    else f.contentWindow.postMessage({ ...RWC, runId: 'r' + Date.now() }, '*'); }
-  else if (R[d.type] && d.messageId) f.contentWindow.postMessage({ type: R[d.type], messageId: d.messageId, response: d.type === 'USER_GAME_STATE_GET' ? { data: { success: true, state: null } } : {} }, '*'); // a new player's empty save, in the shape the lib unwraps
+  else if (R[d.type] && d.messageId) f.contentWindow.postMessage({ type: R[d.type], messageId: d.messageId, response: d.type === 'USER_GAME_STATE_GET' ? { data: { success: true, state: ${process.env.SAVE || 'null'} } } : {} }, '*'); // a new player's empty save (SAVE=<json>: a returning player's), in the shape the lib unwraps
   else if (d.type === 'GAME_ERROR') (window.__errs = window.__errs || []).push(String(d.error && d.error.message).slice(0, 160)); }); });
 </script>`;
 const srv = http.createServer((q, r) => { if (q.url === '/sd') { r.writeHead(200, { 'content-type': 'text/html', 'content-encoding': 'gzip' }); return r.end(sd); }
