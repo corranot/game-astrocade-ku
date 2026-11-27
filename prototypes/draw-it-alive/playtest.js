@@ -80,7 +80,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
       await page.waitForTimeout(400); await shot(page, 'after-wall');
     }
   }
-  const stored = await page.evaluate(() => { const g = window.__game; return [Object.keys(g.save.art).length, g.LEVELS.reduce((a, lv) => a + g.partsOf(lv).length, 0)]; });
+  const stored = await page.evaluate(() => { const g = window.__game; return [Object.keys(g.save.art).length, g.LEVELS.slice(0, 20).reduce((a, lv) => a + g.partsOf(lv).length, 0)]; });
   ok(stored[0] === stored[1] && stored[1] === 29, `every part of all 20 levels is stored: ${stored[0]} of ${stored[1]} lines`);
   ok(await page.evaluate(() => window.__game.save.stickers.length) >= 5, 'the jar has paid out stickers on the way: ' + await page.evaluate(() => JSON.stringify(window.__game.save.stickers)));
   ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
@@ -218,13 +218,13 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(true, 'the game carries on to the next level after the box');
   const got = await page.evaluate(async () => {
     const g = window.__game, seen = [];
-    for (let k = 0; k < 26; k++) { g.save.drops = 6; g.openBox(() => g.newLevel(2)); if (g.view === 'box') seen.push(g.gift.id); g.newLevel(2); }
+    for (let k = 0; k < 32; k++) { g.save.drops = 6; g.openBox(() => g.newLevel(2)); if (g.view === 'box') seen.push(g.gift.id); g.newLevel(2); }
     return { seen, kept: g.save.stickers.slice(), drops: g.save.drops };
   });
   const all = new Set(got.kept);
-  ok(all.size === 24 && got.kept.length === 24, 'twenty-four boxes give twenty-four different stickers: ' + got.kept.join(','));
+  ok(all.size === 30 && got.kept.length === 30, 'thirty boxes give thirty different stickers: ' + got.kept.join(','));
   ok(got.kept.slice(0, 6).every((id) => id < 6) && got.kept.slice(12, 18).every((id) => id >= 12 && id < 18), 'each set is finished before the next starts');
-  ok(got.seen.length === 23, 'no box once every sticker is owned (' + got.seen.length + ' more boxes after the first)');
+  ok(got.seen.length === 29, 'no box once every sticker is owned (' + got.seen.length + ' more boxes after the first)');
   await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 1, 2, 3, 4, 5, 7, 9]; g.newLevel(2); });
   const jar = await page.evaluate(() => window.__game.JAR);
   await page.mouse.click(jar.x + jar.s / 2, jar.y + jar.s / 2); await page.waitForTimeout(300);
@@ -298,6 +298,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
     const small = await page.evaluate(() => {
       const g = window.__game, c = document.createElement('canvas').getContext('2d'); let worst = [99, ''];
       for (const [k, v] of Object.entries(g.cfg.strings[g.lang])) {
+        if (k === 'shareText') continue; // sent with a share, never drawn
         const maxW = k === 'name' ? 310 : /^L/.test(k) ? 560 : 520; let px = k === 'name' ? 40 : 46;
         c.font = `bold ${px}px system-ui, 'Noto Sans', sans-serif`;
         while (px > 18 && c.measureText(v).width > maxW) { px -= 2; c.font = `bold ${px}px system-ui, 'Noto Sans', sans-serif`; }
@@ -431,12 +432,12 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(age >= 0 && age < 10, `the two-bridge card replays the first crossing (age of part 1 on the card: ${age})`);
   ok(page.errors.length === 0, 'no page errors: ' + page.errors.join(' | '));
 
-  console.log('14. four sticker sets, the daily gift, the mirrored second round, the big picture on the wall');
+  console.log('14. five sticker sets, the daily gift, the mirrored second round, the big picture on the wall');
   page = await open();
-  ok(await page.evaluate(() => window.__game.STICKERS.length) === 24, 'four sets of six stickers');
+  ok(await page.evaluate(() => window.__game.STICKERS.length) === 30, 'five sets of six stickers');
   await page.evaluate(() => { const g = window.__game; g.save.stickers = [0, 1, 2, 3, 4, 5, 6, 8, 12, 13, 14, 15, 16, 17, 18, 21]; g.openBook(); });
   await page.waitForTimeout(400); await shot(page, 'book-4sets');
-  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 24 }, (_, i) => i); });
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 30 }, (_, i) => i); });
   await page.waitForTimeout(300); await shot(page, 'book-full');
   ok(page.errors.length === 0, 'every sticker draws without an error: ' + page.errors.join(' | '));
   // daily gift: only on a later day, never on the first day, never with the clock turned back
@@ -456,10 +457,10 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   ok(!dy.daily && dy.drops === dy.stars, 'a clock turned back gives no gift');
   // second round: mirrored scenes, judged and stored in the level's own frame
   page = await open();
-  await page.evaluate(() => { const g = window.__game; g.save.level = 22; g.newLevel(22); });
+  await page.evaluate(() => { const g = window.__game; g.save.level = 27; g.newLevel(27); });
   await page.waitForTimeout(500); await shot(page, 'round2-L3-start');
   const st2 = await page.evaluate(() => ({ flip: window.__game.S.flip, x: window.__game.target[0][0] }));
-  ok(st2.flip && st2.x > 360, `level 23 is level 3 mirrored (the can is now on the right: path starts at x ${Math.round(st2.x)})`);
+  ok(st2.flip && st2.x > 360, `level 28 is level 3 mirrored (the can is now on the right: path starts at x ${Math.round(st2.x)})`);
   await drag(page, wobble(await target(page))); await settled(page);
   s = await state(page); ok(s.won >= 0 && !s.assisted, 'a line along the mirrored part wins');
   await page.waitForTimeout(1500); await shot(page, 'round2-L3-payoff');
@@ -499,7 +500,7 @@ const ok = (cond, what) => { console.log((cond ? '  ok  ' : '  FAIL ') + what); 
   await page.mouse.click(cq[0], cq[1]); await page.waitForTimeout(600); await shot(page, 'wall-big-slowphone');
   ok(await page.evaluate(() => window.__game.wall.big) === 1 && page.errors.length === 0, 'the big card on a slow phone shows without errors: ' + page.errors.join(' | '));
   page = await open();
-  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 24 }, (_, i) => i); g.openBook(); });
+  await page.evaluate(() => { const g = window.__game; g.save.stickers = Array.from({ length: 30 }, (_, i) => i); g.openBook(); });
   await page.waitForTimeout(300); await shot(page, 'book-full-2');
 
   await browser.close(); server.close();

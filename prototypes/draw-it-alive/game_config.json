@@ -25,6 +25,18 @@
   "jarDrops": 6,
   "boxAutoOpen": 3,
   "boxShowSeconds": 2.6,
+  "shareNudgeSeconds": 2.4,
+  "shareNudgeFromLevel": 2,
+  "beatZoom": 0.07,
+  "beatSeconds": 1.9,
+  "beatVignette": 0.32,
+  "spotDim": 0.5,
+  "spotSeconds": 6,
+  "musicBeat": 0.42,
+  "musicVolume": 0.018,
+  "spotLevels": 3,
+  "spotFirstDelay": 2.5,
+  "spotFirstDim": 0.6,
   "strings": {
     "en": {
       "L1": "Draw the bridge!",
@@ -65,7 +77,18 @@
       "setDone": "Set complete!",
       "open": "Chapter {n} is open!",
       "name": "English",
-      "daily": "Daily gift!"
+      "daily": "Daily gift!",
+      "share": "Share",
+      "myDrawing": "My Drawing",
+      "snowChapter": "Snowy Day",
+      "winterSet": "Winter friends",
+      "snowOpen": "Snowy Day is open!",
+      "L21": "Draw a scarf!",
+      "L22": "Draw a sled hill!",
+      "L23": "Draw a chimney!",
+      "L24": "String the lights!",
+      "L25": "Draw the ice!",
+      "shareText": "Draw the missing part and watch it come alive!"
     },
     "ar": {
       "L1": "ارسم الجسر!",
@@ -106,7 +129,18 @@
       "setDone": "اكتملت المجموعة!",
       "open": "فُتح الفصل {n}!",
       "name": "العربية",
-      "daily": "هدية اليوم!"
+      "daily": "هدية اليوم!",
+      "share": "شارك",
+      "myDrawing": "رسمي",
+      "snowChapter": "يوم ثلجي",
+      "winterSet": "أصدقاء الشتاء",
+      "snowOpen": "يوم ثلجي مفتوح!",
+      "L21": "ارسم وشاحًا!",
+      "L22": "ارسم تلًّا!",
+      "L23": "ارسم مدخنة!",
+      "L24": "علّق الأضواء!",
+      "L25": "ارسم الجليد!",
+      "shareText": "ارسم الجزء الناقص وشاهده يدبّ فيه الحياة!"
     },
     "es": {
       "L1": "¡Dibuja el puente!",
@@ -147,7 +181,18 @@
       "setDone": "¡Colección completa!",
       "open": "¡Capítulo {n} abierto!",
       "name": "Español",
-      "daily": "¡Regalo del día!"
+      "daily": "¡Regalo del día!",
+      "share": "Compartir",
+      "myDrawing": "Mi dibujo",
+      "snowChapter": "Día nevado",
+      "winterSet": "Amigos de invierno",
+      "snowOpen": "¡Día nevado abierto!",
+      "L21": "¡Dibuja una bufanda!",
+      "L22": "¡Dibuja una colina!",
+      "L23": "¡Dibuja una chimenea!",
+      "L24": "¡Cuelga las luces!",
+      "L25": "¡Dibuja el hielo!",
+      "shareText": "¡Dibuja la parte que falta y mírala cobrar vida!"
     },
     "vi": {
       "L1": "Vẽ cây cầu!",
@@ -188,7 +233,18 @@
       "setDone": "Đủ bộ rồi!",
       "open": "Mở chương {n}!",
       "name": "Tiếng Việt",
-      "daily": "Quà hôm nay!"
+      "daily": "Quà hôm nay!",
+      "share": "Chia sẻ",
+      "myDrawing": "Tranh của tôi",
+      "snowChapter": "Ngày tuyết",
+      "winterSet": "Bạn mùa đông",
+      "snowOpen": "Đã mở Ngày tuyết!",
+      "L21": "Vẽ khăn quàng!",
+      "L22": "Vẽ đồi trượt tuyết!",
+      "L23": "Vẽ ống khói!",
+      "L24": "Treo đèn lên!",
+      "L25": "Vẽ mặt băng!",
+      "shareText": "Vẽ phần còn thiếu và xem nó sống động!"
     },
     "hi": {
       "L1": "पुल बनाओ!",
@@ -229,7 +285,18 @@
       "setDone": "सेट पूरा!",
       "open": "अध्याय {n} खुला!",
       "name": "हिन्दी",
-      "daily": "आज का तोहफ़ा!"
+      "daily": "आज का तोहफ़ा!",
+      "share": "साझा करें",
+      "myDrawing": "मेरी ड्राइंग",
+      "snowChapter": "बर्फ़ीला दिन",
+      "winterSet": "सर्दी के दोस्त",
+      "snowOpen": "बर्फ़ीला दिन खुला!",
+      "L21": "स्कार्फ़ बनाओ!",
+      "L22": "बर्फ़ीली ढलान बनाओ!",
+      "L23": "चिमनी बनाओ!",
+      "L24": "लाइटें लगाओ!",
+      "L25": "बर्फ़ की राह बनाओ!",
+      "shareText": "छूटा हिस्सा बनाओ और उसे ज़िंदा होते देखो!"
     },
     "bn": {
       "L1": "সেতু আঁকো!",
@@ -270,7 +337,18 @@
       "setDone": "সেট পূর্ণ!",
       "open": "অধ্যায় {n} খুলল!",
       "name": "বাংলা",
-      "daily": "আজকের উপহার!"
+      "daily": "আজকের উপহার!",
+      "share": "শেয়ার",
+      "myDrawing": "আমার ছবি",
+      "snowChapter": "তুষার দিন",
+      "winterSet": "শীতের বন্ধু",
+      "snowOpen": "তুষার দিন খুলেছে!",
+      "L21": "মাফলার আঁকো!",
+      "L22": "বরফের ঢাল আঁকো!",
+      "L23": "চিমনি আঁকো!",
+      "L24": "আলো ঝোলাও!",
+      "L25": "বরফের পথ আঁকো!",
+      "shareText": "হারানো অংশটা আঁকো, দেখো সেটা জীবন্ত হয়ে ওঠে!"
     },
     "id": {
       "L1": "Gambar jembatan!",
@@ -311,7 +389,18 @@
       "setDone": "Set lengkap!",
       "open": "Bab {n} terbuka!",
       "name": "Bahasa Indonesia",
-      "daily": "Hadiah hari ini!"
+      "daily": "Hadiah hari ini!",
+      "share": "Bagikan",
+      "myDrawing": "Gambar Saya",
+      "snowChapter": "Hari Bersalju",
+      "winterSet": "Teman Musim Dingin",
+      "snowOpen": "Hari Bersalju terbuka!",
+      "L21": "Gambar syal!",
+      "L22": "Gambar bukit salju!",
+      "L23": "Gambar cerobong!",
+      "L24": "Rangkai lampu!",
+      "L25": "Gambar jalur es!",
+      "shareText": "Gambar bagian yang hilang, lalu lihat jadi hidup!"
     }
   },
   "rtl": [
