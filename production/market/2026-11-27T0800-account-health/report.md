@@ -169,6 +169,27 @@ advanced on frame time capped at 0.05 s per frame. On a slow device the 3.5 s in
 After the fix the same run reaches play about 5 s after `run('play')` even at 6 fps, and well under that at
 normal phone frame rates (`fixes/MH-after-9.jpg`). Same change in the repo: `prototypes/plus-one-mega-hammer/game.js`.
 
-Not covered: the share buttons on Paws, NEKO, Ice Cream and Grab were not pressed in a local harness, because
-those games open their share card only late in play. Each change only removes the `image` field from one
-object literal.
+## Final check (27 Nov 08:15–08:40 UTC)
+
+Every share button was pressed in its saved draft, and every untested draft got the feed handover at 3 sizes.
+Script: `final/sharetest.js` (draft served locally, host `lib` stubbed, `run('edit')` then `run('play')`, the
+game's own share card opened, its real button clicked at 390×844). Test-only hooks are added in memory to open
+the card; the saved drafts are unchanged by the test.
+
+| Game | Share call seen by the host | Handover 360×640, 390×844, 768×1024 | Draft version | Ready to publish |
+|---|---|---|---|---|
+| Reel & Hatch | `title`, `text`; no image; inside the tap | 0 errors (earlier round) | `01M8E08YG6Q0PMNE747M58XV9D` | Yes |
+| Pin & Bloom | `title`, `description`, `text`; no image; inside the tap | 0 errors (earlier round) | `01M8E0FTE0EDX7Y5TBZXF2HTX9` | Yes |
+| Paws & Chaos | `title`, `text`; no image; inside the tap | 0 errors | `01M8E0GN1WH409YBEY4FW2JZV4` | Yes |
+| NEKO ZOOMIES | `title`, `description`, `text`; no image; inside the tap | 0 errors | `01M8E0GPS902R1AAVC7Q7M3G4R` | Yes |
+| Ice Cream Roll Art | `title`, `description`; no image; inside the tap | 0 errors | `01M8E0GRE1NNF5MSBWXSBJSTTT` | Yes |
+| Grab and Park | `title`, `description`, `text`; no image; inside the tap | 0 errors | `01M8E160J0110A1ZYDQVRVRBXN` (new) | Yes |
+| +1 Mega Hammer | no share | 0 errors (earlier round) | `01M8E0RMWKPHENKPD2KYEH04J1` | Yes |
+| Voxel Wonderland | no share | 0 errors (earlier round) | `01M8E0WT5YW2AP3PR9MTM2K9WB` | Yes |
+
+Grab and Park got one more draft: its share still waited for a picture it no longer sends before opening the
+share sheet, which can lose the tap on a slow phone. That wait is removed, so the sheet opens straight from the
+tap. Its draft is now `01M8E160J0110A1ZYDQVRVRBXN`; the earlier `01M8E0GVGD5YW2MMHFH76CFFD6` is superseded.
+
+Screenshots: `final/share-sheet.jpg` (each share card before the press) and `final/handover-sheet.jpg`
+(Paws, NEKO, Ice Cream, Grab after handover at 3 sizes).
