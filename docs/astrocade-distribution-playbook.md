@@ -548,3 +548,24 @@ with 17 to 60 others instead of 100.
 6. **Compound as a creator**: a series in one family, a high polish level, a hand-made cover (Larisha's
    job). Pool owners have a median 3.2M lifetime plays and the config has a top-creator route. SEEN
    correlation and config; effect INFERRED.
+
+## 12. Update, 27 Nov: Players' Choice is a per-visitor lottery
+
+Source: `production/market/2026-11-27T1420-next-game-dig/report.md` (guest, read-only).
+
+- The Players' Choice config is unchanged from §11.2 (SEEN, byte-identical).
+- **The draw depends on a per-visit seed.** The server gives every home load a random 64-bit seed. Same seed:
+  identical draw for at least 11 minutes. Random seeds: 128 distinct games in 140 draws, 18 to 26 per draw.
+  17 games appear in at least half of all draws; 74 appear in under 10% (SEEN). The scored pool itself
+  updates within hours (SEEN). So the target is a high score, which buys a high share of visitors' rows,
+  not mere entry (INFERRED).
+- **Fastest entrants** (SEEN): Zoo Zen first seen at 4.1 days (now 97% of draws), Titan Transformer 6.3 d,
+  Train To Gain 6.8 d, Throw Food for Animals 7.1 d. They averaged 9K to 22K plays a day from day 0, so they
+  passed 50K on day 3 to 6. After the gate, traffic does not decide the share (Parking City, 8.7K/day, is in
+  100% of draws).
+- **Conversion by genre** (eligible games ever drawn, SEEN): io/arena 43%, steal 43%, creature collection 36%,
+  smash 31%, hero/transform 28%, tycoon 28%; cooking 19%, school/dating 15%, puzzle/sort 6%. Dress-up, salon,
+  ASMR and pull-the-pin games with 200K to 500K plays are never drawn. No top-24 game looks 2D.
+- **Design rule:** for a Players' Choice target, pick a 3D genre with a long goal (album, checklist, map, upgrades)
+  and a reason to return, aim at a thin niche (prank sandbox: 4 games; calm photo collection: 1), and plan for
+  10K+ day-0 plays a day.

@@ -1,0 +1,60 @@
+snapshots 24 distinct PC games ever 58 now samples 16 distinct now 20
+ageAtFirstSeen | firstSeen | plays then | now-seen/16 | title | by
+   4.1d 2026-11-26T1700-deep-dig/row        0  16    81655 Zoo Zen                                  JackloneStudio
+   6.3d 2026-11-25T1244/feed.json      140909   0   179023 Titan Transformer                        drivingver
+   6.8d 2026-11-26T1700-deep-dig/row        0   0    77156 Train To Gain                            FlameGames
+   7.1d 2026-11-24T1035/feed.json       88451  16   160345 Throw Food for Animals                   FuStudio
+   7.3d 2026-11-27T0800-account-heal    80198   0    80198 Goal for Millions                        cardsharkg
+   7.4d 2026-11-26T1700-deep-dig/row        0  16    73929 FISHMART MASTER                          aminraza99
+   8.2d 2026-11-27T0600-soap-carving        0   0   104818 Fly & Steal a Dragon Egg                 ProbablyWorks
+   8.6d 2026-11-27T0600-soap-carving        0   0   168922 Protein Smash: Meathead vs Everything    Leevai
+   8.9d 2026-11-25T1244/feed.json       58403  16    95151 Parking City: Prank Simulator            sxm
+  10.2d 2026-11-26T1700-deep-dig/row        0  16    97125 Mecha Clash                              Si1ver
+  10.3d 2026-11-18T1659/feed.json      129577   0   199641 Frost Harbor: Ice Fishing Tycoon         caranjitha
+  10.8d 2026-11-20T0749/feed.json      190144   0   241145 Sunrise High School life                 lil.moonX
+  10.8d 2026-11-18T1659/feed.json      206374  16   348522 Steal an Egg                             f3ather
+  11.1d 2026-11-27T0600-soap-carving        0   0   213885 Sword Swing Chopper                      cardsharkg
+  12.1d 2026-11-20T0749/feed.json      205811   0   285610 Meat Masters                             aminraza99
+  12.5d 2026-11-24T1035/feed.json      210752   0   240838 Mecha Arm +1                             ProbablyWorks
+  12.6d 2026-11-20T0749/feed.json      170823   0   170823 Steal an Egg Monster                     enyek
+  13.7d 2026-11-20T0749/feed.json      748844   0  1076155 Smash Everything!                        Si1ver
+  14.0d 2026-11-27T0600-soap-carving        0  16    96429 Tame a Dragon                            Laxci
+  14.1d 2026-11-27T1215-wonder-sprou        0   0    80567 Mega City Life                           lil.moonX
+  15.3d 2026-11-27T0800-account-heal    81596  16    86962 Mega Fun Obby                            Voxels
+  15.3d 2026-11-24T1035/feed.json       91026   0    91026 Lakeside Egg Thief                       Laxci
+  16.1d 2026-11-26T1700-deep-dig/row        0  16   392754 Zombies vs Humans with Guns              Leevai
+  16.3d now 14:22:30                   213586  16   213586 Steal a Lucky Block                      Hassan23
+  17.5d 2026-11-27T0600-soap-carving        0   0   309245 💋 Dating My Handsome Idol Boyfriend 2 💄  yoonsera
+  20.2d 2026-11-24T1035/feed.json      756794   0   756794 DIY Beauty Salon                         PokiGames
+  20.5d now 14:22:30                   189333  16   189333 Frost Lumber Camp                        CrazyHaribo
+  20.9d 2026-11-26T1700-deep-dig/row        0   0   168800 Frozen Sea Fish Factory                  CrazyHaribo
+  24.9d 2026-11-25T1244/feed.json      513757   0   557711 Ben 10: Ultimate Aliens                  ShadowZ
+  25.3d 2026-11-27T0600-soap-carving        0   0   237886 Minecraft Tnt City                       ?
+  26.5d 2026-11-20T0749/feed.json      575357   0   575357 Skateboard Pro                           JustJonny
+  26.9d 2026-11-25T1244/feed.json      359549   0   377583 Punch and Rob a Car                      Leevai
+  30.3d 2026-11-18T1659/feed.json      583888  16   653003 Forge Beyond                             VibeCreAI
+  31.0d 2026-11-25T1244/feed.json      572321   0   572321 Climb for Animal Eggs                    Echo_x
+  32.2d 2026-11-18T1659/feed.json     1372050  16  1773160 41 Ragdoll Executions                    psgame_studio
+  33.7d 2026-11-27T0800-account-heal    96751  16    97736 Minecraft  underwater quarrying of miner astra_creator_
+  36.2d 2026-11-18T1659/feed.json      919205   0   919205 Steal an Egg                             Voxels
+  36.4d 2026-11-27T0600-soap-carving        0  16   377990 Ben 10: Omnitrix City                    ShadowZ
+  36.4d 2026-11-27T0600-soap-carving        0   0  1067190 Giant Salami Factory                     ?
+  37.1d 2026-11-20T0749/feed.json      688069   0   688069 Astro Boy                                dantg
+  38.1d 2026-11-24T1035/feed.json     1049305   0  1049305 Natural Disaster Survival                Voxels
+  38.9d 2026-11-20T0749/feed.json     1026905   0  1026905 Minecraft tnt edition 2.3                Spyro
+  41.1d 2026-11-26T1700-deep-dig/row        0   0   159347 EGG HEIST TYCOON                         324926
+  41.4d 2026-11-27T0600-soap-carving        0   0   600353 Speed Halloween Keyboard Escape          KingJack
+  41.5d 2026-11-18T1659/feed.json      678154   0   678154 +1 rail for millions                     Killerdrone
+  44.7d 2026-11-24T1035/feed.json     2258876  16  2325034 Slap and steal a car                     JustJonny
+  46.8d 2026-11-27T1215-wonder-sprou        0   0  1478189 Slap and steal famous cars               JustJonny
+  46.8d 2026-11-18T1659/feed.json      746612  16   818314 Saiyan Hero                              ProbablyWorks
+  47.3d 2026-11-18T1659/feed.json     1633355  16  1760765 Demolition Derpy                         gamepture
+  49.6d 2026-11-27T0800-account-heal   796940   0   796940 Camp Rush                                CrazyHaribo
+  51.2d 2026-11-26T1700-deep-dig/row        0   0   630636 Minecraft Creative: Cats & Food Update   Tusk
+  52.1d 2026-11-27T1215-wonder-sprou        0   0  1399612 Steal an egg                             Echo_x
+  67.5d 2026-11-18T1659/feed.json     2246427   0  2246427 Astro Guys                               dantg
+  67.5d 2026-11-18T1659/feed.json      209141   0   209141 Egg Heist - season 01                    cardsharkg
+  74.5d 2026-11-20T0749/feed.json     1420504   0  1420504 PICKAXE SWING MASTER                     Leevai
+  86.8d 2026-11-27T1215-wonder-sprou        0   0  4874420 Snake Rush 3D                            SuperL
+ 168.9d 2026-11-20T0749/feed.json     3309587  16  3368649 Era.io                                   archeologist
+ 188.0d now 14:22:30                    55885  16    55885 Sort a Cake                              hilad
