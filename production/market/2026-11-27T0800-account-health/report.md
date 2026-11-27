@@ -84,14 +84,14 @@ content wish Larisha sent to Astra (18:27–18:44 UTC) that was never published:
 | Game | Live (served) version | Draft waiting | Draft runs? | Share in draft |
 |---|---|---|---|---|
 | Reel & Hatch | 22 Nov | New sea + limited event + rare-catch share (26 Nov "continue") | Yes, title and beach (`shots/REEL-draft-*`) | sends `image: canvas` |
-| Pin & Bloom | 22 Nov | Snow Garden, levels 41–60, snow melts to water (26 Nov "continue") | Yes, opens at Level 41 (`shots/PIN-draft-*`) | none |
+| Pin & Bloom | 22 Nov | Snow Garden, levels 41–60, snow melts to water (26 Nov "continue") | Yes, opens at Level 41 (`shots/PIN-draft-*`) | sends `image` (`src/app.js`; first search missed it) |
 | Paws & Chaos | 25 Nov 17:01 (bounce fix) | Funny first 5 s, first golden fish in 30 s | Yes (`shots/PAWS-draft-play.jpg`) | sends `image` |
 | Ice Cream Roll Art | 21 Nov | One-tap share of the finished cup + winter flavours | Yes (`shots/ICE-draft-play.jpg`) | sends `image` |
 | NEKO ZOOMIES | 24 Nov | First MEGA ZOOMIES within 30 s | not opened | sends `image` |
 | Grab and Park | 22 Nov | Extra effects, sounds and a share moment | not opened | sends `image` (`share_card.js`) |
 
 Our standing rule: in-game share passes a title and text only, so the share card shows the live thumbnail.
-All five shares above pass `image`. Fix: drop the `image` field (one line each) before publishing.
+All six shares above pass `image`. Fix: drop the `image` field (one line each) before publishing.
 
 ## Problems, ranked
 
