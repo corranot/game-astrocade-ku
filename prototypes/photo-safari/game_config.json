@@ -35,9 +35,9 @@
   "clock": { "dayS": 360, "phases": [["day", 240], ["dusk", 40], ["night", 60], ["dawn", 20]], "startS": 10 },
   "daily": { "requests": 3, "rareCount": 4 },
   "beats": { "cooldownS": 8, "slowMo": 0.3, "clearFog": 0.65 },
-  "world": { "cover": 160 },
+  "world": { "cover": 300, "fenceK": 0.975, "fences": [[-1.9, 7], [1.3, 7], [-0.9, 5], [2.4, 6]], "tracks": [[-22, 0, 1.0], [18, -16, 2.6], [-6, 14, 3.4], [10, 12, 4.6], [24, -2, 3.3], [-24, 10, 0.3]] },
   "quality": { "bootDpr": 1, "bootS": 1.2, "bootAnimals": 3, "dpr": [1, 1.5, 2], "shadow": [0, 768, 1024], "bloom": [0, 1, 1], "snow": [400, 800, 1400], "particles": [250, 500, 800], "msaa": [0, 0, 4], "downFps": 50, "upFps": 58, "upAfterS": 10 },
-  "grade": { "exposure": 0.8, "lift": [-0.015, -0.005, 0.01], "gain": [1.02, 1.0, 0.97], "contrast": 0.3, "tier0Exposure": 0.9, "sat": 1.15, "vignette": 0.22, "bloomStrength": 0.55, "bloomThreshold": 1.0, "lanternI": 9, "lanternM": 10 },
+  "grade": { "exposure": 0.8, "lift": [-0.015, -0.005, 0.01], "gain": [1.02, 1.0, 0.97], "contrast": 0.3, "tier0Exposure": 0.9, "sat": 1.15, "vignette": 0.22, "bloomStrength": 0.55, "bloomThreshold": 1.0, "lanternI": 9, "shadowI": 0.78, "blob": "#3c5a96", "blobA": 0.4, "lanternM": 10 },
   "tod": {
     "day":   { "sky": ["#8fc6ff", "#e8f4ff"], "fog": "#c4dbf4", "fogD": 0.0055, "sun": "#ffe6c8", "sunI": 2.8, "hemi": ["#c0d6f4", "#8294c6"], "hemiI": 0.9, "aurora": 0 },
     "dusk":  { "sky": ["#6a6ab8", "#ffb08a"], "fog": "#e8b8a8", "fogD": 0.0095, "sun": "#ffb070", "sunI": 1.7, "hemi": ["#ffc8b0", "#7a7ab8"], "hemiI": 0.9, "aurora": 0.25 },
