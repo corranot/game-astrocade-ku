@@ -164,6 +164,13 @@ full plan unless they add a new game mode or rework the game.
 - **Always learn from everything.** Learn from every correction, failure,
   result and piece of feedback: write the lesson down (project memory, and the
   repo when it is a lasting rule) and apply it from then on.
+- **One publish per game per round.** Each publish queues a manual Astrocade
+  review, so a game is published once per round, never back and forth. Finish
+  every fix for that game first (load speed, bugs found, everything planned),
+  then run full QA: a bug hunt, the feed handover, saves, phone-portrait
+  screenshots and a short playtest. Only then publish. Leave a game whose publish
+  is in review alone until the review clears, and bundle any further work into
+  its next single publish.
 - **Publishes wait for Astrocade review.** Every `publish_game` goes into the
   Astrocade team's manual review queue, even when the tool answers
   "approved/live". Until review passes, `list_versions` shows the publish with
