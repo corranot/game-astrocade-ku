@@ -194,6 +194,31 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     await page.close();
   }
 
+  // ---- swipe-to-look: a drag on the right side turns the view, the stick then walks relative to it, the view drifts back
+  {
+    const { page, errors } = await open(390, 844, '&tod=day', saved);
+    await ev(page, () => { __game.buildAll(); __game.tp(1, -30); }); await step(page, 90); // an open stretch of path: no viewfinder
+    await shoot(page, '23-look-before');
+    const h0 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z }));
+    const drag = async (x0, y0, dx, dy, n = 8) => { await page.mouse.move(x0, y0); await page.mouse.down(); for (let i = 1; i <= n; i++) { await page.mouse.move(x0 + dx * i / n, y0 + dy * i / n); await step(page, 2); } return async () => page.mouse.up(); };
+    const up1 = await drag(300, 420, 90, 20); await up1(); await step(page, 40);
+    const lk = await ev(page, () => __game.look());
+    check(lk.yaw < -0.5 && lk.yaw > -1.29 && lk.el > 0, `a right-side swipe turns and tilts the view (yaw ${lk.yaw.toFixed(2)}, tilt ${lk.el.toFixed(2)})`);
+    check(Math.hypot((await ev(page, () => __game.hero.x)) - h0.x, (await ev(page, () => __game.hero.z)) - h0.z) < 0.2, 'a look swipe does not move the hero');
+    await shoot(page, '23-swipe-look');
+    const p0 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z, yaw: __game.look().yaw }));
+    const up2 = await drag(90, 600, 0, -80); await step(page, 40);
+    const p1 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z })); await up2();
+    const mvx = p1.x - p0.x, mvz = p1.z - p0.z, ml = Math.hypot(mvx, mvz) || 1, ex = -Math.sin(p0.yaw), ez = -Math.cos(p0.yaw);
+    check((mvx * ex + mvz * ez) / ml > 0.8, `stick "up" walks away from the turned camera (dot ${((mvx * ex + mvz * ez) / ml).toFixed(2)})`);
+    check(await heroOnScreen(page), 'the hero stays framed in the turned view');
+    await step(page, 60 * 12);
+    const lk2 = await ev(page, () => __game.look());
+    check(Math.abs(lk2.yaw) < 0.08 && Math.abs(lk2.el) < 0.05, `the view drifts back after a quiet spell (yaw ${lk2.yaw.toFixed(3)})`);
+    check(errors.length === 0, `swipe-to-look: no page errors (${errors.slice(0, 3).join(' | ')})`);
+    await page.close();
+  }
+
   // ---- Arabic (right to left) and tier 0
   {
     const { page, errors } = await open(390, 844, '&lang=ar&tier=0', saved);
