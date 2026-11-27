@@ -223,3 +223,46 @@ Not done yet (CPU-bound world builds, need per-game staging): Tiny Town (town bu
   Only Paint Peekaboo was affected, and it is fixed and published.
   The others either keep `autoUpdate` on, or refresh shadows on a fixed cadence: Splash #1/#2, Spooky, Ambulance, Voxel Wonderland, Reel & Hatch, Dum Biryani, Meteor Gems, Tiny Town, Mega Aura and Prop Heist.
 - 18:45-19:00 UTC published (Astrocade review): Splash #1, Paint Peekaboo, Hero Bridge, Megalodon, Toybox.
+
+### One-publish round: Dragon, Prop Heist, Mega Aura (19:05-19:45 UTC)
+
+From 19:05 UTC each game gets one publish per round, after a full QA pass: bug hunt, feed handover, saves, phone
+screenshots and a short playtest. Lab numbers are first-draw medians on the 4G / 4x CPU phone profile, using live
+captures taken at 19:23 UTC.
+
+| Game | Before | After | What changed |
+|---|---|---|---|
+| Tame a Dragon | ~3.9 s (CPU-bound) | ~3.8 s; kB at first frame 3673 → 2151 | Physics download after the first frame (`tools/boot_dr.py`) |
+| Prop Heist | 4.17 s | ~3.0 s (3025, 2429, 3265) | Title no longer waits for physics or sound synthesis (`tools/boot_ph.py`) |
+| Mega Aura | 4.2 s (3908-4430) | ~3.1 s (2966-3718) | Static schoolyard built while the save is read (`tools/boot_ma.py`) |
+
+- **Dragon**: the bug hunt found that the one-time title card after the first tame landed on the TAMED card.
+  The title card fired 3 s after the tame, but the card shows for 4.2 s, so for 3.3 s two logos overlapped
+  (`dragon-titlecard-over-tamed-card-before.jpg`). The title card now also waits until the new-dragon card has
+  faded: overlap went from 33 samples to 0 (100 ms probe). The Share tap no longer renders an unused share picture.
+  Tests pass, the bundle test is clean, and the feed handover shows the title with no errors.
+- **Prop Heist**:
+  - Before, boot waited for the 1.5 MB physics text and its unpack, then built the world.
+  - Sound synthesis (about 3 s of main-thread time at 4x CPU) ran on idle callbacks with a 2.2 s timeout, so it
+    also landed before the first picture.
+  - Now the world is built while physics loads. Colliders for everything built so far are added once physics is
+    ready (`phLate`), and Pn stays off until then, so nothing gets two colliders.
+  - Synthesis starts after the title is drawn.
+  - A Play tap made before physics is ready is queued, and starts exactly one round.
+  - Playtest with a tap at the title: the round started at physics-ready, the robber moved, and there were no errors
+    (`propheist-after-early-tap-play.jpg`). The double-take test passes and the feed handover is clean.
+- **Mega Aura**:
+  - Boot waited for the save, and the lab's save reply is bimodal (0.55 s or about 2 s), then built the world.
+  - The materials, renderer, sky and school buildings read neither the save nor the language; this was checked
+    transitively over their call graph. They are now built while the save is read.
+  - Everything built from the save (zones, gates, Kubo) still waits for it, and `LATE.built` keeps its place.
+  - Core tests pass. The feed handover shows the title, and a playtest reached the first help (`megaaura-after-play.jpg`).
+- **Candy Mine Vacuum**: not published.
+  - It is about 2.8 s in the lab, and CPU-bound across many small world-build steps.
+  - The save is already back before the candy meshes are done, so there is no idle wait to overlap.
+  - The Paint Peekaboo mesher patch does not apply to its mesher as written.
+  - Getting under 2 s needs a staged world build, which changes the opening frames.
+- **Tiny Town**: lab time is swiftshader GPU time; no CPU fix measured above noise.
+
+All three publishes sit in the Astrocade review queue. Tools: `tools/boot_dr.py`, `tools/boot_ph.py`,
+`tools/boot_ma.py`; playtests and the profile slicer in `tools/` under this folder.
