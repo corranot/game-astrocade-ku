@@ -10,7 +10,8 @@
 // measures the frame rate from second 5 (when Astrocade starts grading it; headless SwiftShader is far slower
 // than a phone, so the number only compares runs).
 // Usage: node tools/astrocade-bundle-test.js <game folder> [screenshot.png]
-// Prints JSON observations. `fail` lists breaks of the platform's hard rules (CI fails on them): the game did
+// Prints JSON observations (feed.gpu: draw calls and triangles per frame; feed.pixels: colour, edge and contrast
+// metrics of the view after the tap, read with the threejs-qa-release skill). `fail` lists breaks of the platform's hard rules (CI fails on them): the game did
 // not start, threw errors, or hid the player's tap from the host.
 const { execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -25,7 +26,13 @@ window.__errs = []; addEventListener('error', (e) => __errs.push(String(e.messag
 // what the host counts: touch gestures on document (bubble), console.error reports, rAF cadence
 window.__g = { touchstart: 0, touchend: 0 }; for (const t of ['touchstart', 'touchend']) document.addEventListener(t, () => __g[t]++);
 window.__consoleErrors = 0; { const ce = console.error.bind(console); console.error = (...a) => { __consoleErrors++; ce(...a); }; }
-window.__fr = []; (function f(t) { __fr.push(t); requestAnimationFrame(f); })(0);
+// WebGL work per frame, counted at the draw calls (any renderer, no game hook): [calls, triangles] per rAF tick
+window.__gl = { calls: 0, tris: 0, frames: [] };
+for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) for (const [m, ci, ii] of [['drawArrays', 2, -1], ['drawElements', 1, -1], ['drawArraysInstanced', 2, 3], ['drawElementsInstanced', 1, 4]]) {
+  const o = C.prototype[m]; if (!o) continue;
+  C.prototype[m] = function (...a) { const n = a[ci], k = ii < 0 ? 1 : a[ii]; __gl.calls++; __gl.tris += (a[0] === 4 ? n / 3 : a[0] === 5 || a[0] === 6 ? Math.max(0, n - 2) : 0) * k; return o.apply(this, a); };
+}
+window.__fr = []; (function f(t) { __fr.push(t); if (__gl.calls) __gl.frames.push([__gl.calls, __gl.tris]); __gl.calls = __gl.tris = 0; requestAnimationFrame(f); })(0);
 window.__calls = { save: 0, share: 0, score: 0, device: 0 };
 const assets = ${assets}, none = async () => ({});
 const off = { supported: false, async start() { __calls.device++; return 'unavailable'; }, stop() {} };
@@ -56,6 +63,24 @@ const code = {
   deviceFeatures: ['motion', 'camera', 'mic'].filter((k) => new RegExp(`lib\\.${k}\\.`).test(bundle)),
   consoleErrorCalls: (bundle.match(/console\.error\s*\(/g) || []).length,
 };
+
+// Pixel metrics of the phone view a player sees (game + HUD), ported from threejs-game-skills' canvas inspector (MIT):
+// low colorEntropyBits / high dominantColorShare = flat sparse scene, low edgeDensity = empty or primitive framing,
+// low luminance.contrast = fog or darkness compressing the image. Runs in the page, so no PNG decoder is needed.
+async function pixelMetrics(b64) {
+  const img = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+  const cols = 90, rows = 160, c = new OffscreenCanvas(cols, rows), g = c.getContext('2d');
+  g.drawImage(img, 0, 0, cols, rows); const d = g.getImageData(0, 0, cols, rows).data;
+  const lum = new Float64Array(cols * rows), buckets = new Map();
+  for (let i = 0; i < cols * rows; i++) { const r = d[i * 4], gr = d[i * 4 + 1], bl = d[i * 4 + 2];
+    lum[i] = 0.2126 * r + 0.7152 * gr + 0.0722 * bl; const k = (r >> 4) * 256 + (gr >> 4) * 16 + (bl >> 4); buckets.set(k, (buckets.get(k) || 0) + 1); }
+  const n = cols * rows, sorted = Array.from(lum).sort((x, y) => x - y); let entropy = 0, dominant = 0, edges = 0;
+  for (const v of buckets.values()) { entropy -= (v / n) * Math.log2(v / n); dominant = Math.max(dominant, v); }
+  for (let y = 0; y < rows - 1; y++) for (let x = 0; x < cols - 1; x++) { const i = y * cols + x; if (Math.max(Math.abs(lum[i] - lum[i + 1]), Math.abs(lum[i] - lum[i + cols])) > 12) edges++; }
+  const r1 = (v, k) => Math.round(v * 10 ** k) / 10 ** k;
+  return { colorEntropyBits: r1(entropy, 2), dominantColorShare: r1(dominant / n, 3), edgeDensity: r1(edges / ((cols - 1) * (rows - 1)), 3),
+    luminance: { mean: r1(sorted.reduce((a, v) => a + v, 0) / n, 1), contrast: r1(sorted[Math.floor(n * 0.95)] - sorted[Math.floor(n * 0.05)], 1) } };
+}
 
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -94,6 +119,10 @@ const code = {
     await p.waitForTimeout(Math.max(0, 7500 - (Date.now() - t0 - startSec * 1000)));
     const r = await f.evaluate(() => { const fr = __fr.filter((t) => t > performance.now() - 2000); return { fps: fr.length > 2 ? (fr.length - 1) * 1000 / (fr[fr.length - 1] - fr[0]) : 0, calls: __calls, consoleErrors: __consoleErrors }; });
     feed.fpsAfter5s = Math.round(r.fps); feed.calls = r.calls; feed.consoleErrorsLogged = r.consoleErrors;
+    // median over the last 60 drawn frames; null for a game that draws no WebGL (2D canvas). Mobile budget: 150 / 300k
+    feed.gpu = await f.evaluate(() => { const fr = __gl.frames.slice(-60); if (!fr.length) return null; const med = (i) => fr.map((x) => x[i]).sort((x, y) => x - y)[fr.length >> 1];
+      return { drawCallsPerFrame: med(0), trianglesPerFrame: Math.round(med(1)), frames: fr.length }; });
+    if (after) feed.pixels = await p.evaluate(pixelMetrics, after.toString('base64'));
   }
   const errs = await f.evaluate(() => window.__errs).catch(() => ['frame not reachable']);
   const canvases = started ? undefined : await f.evaluate(() => [...document.querySelectorAll('canvas')].map((c) => { let n = -1; try { n = c.toDataURL('image/png').length; } catch (e) { n = 'tainted'; } return `${c.id || '?'} ${c.width}x${c.height} shown ${Math.round(c.getBoundingClientRect().width)} png ${n}`; })).catch(() => ['frame not reachable']);

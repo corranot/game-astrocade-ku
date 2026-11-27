@@ -144,6 +144,19 @@ Coordinate multiple agents on a single feature area:
 | `/team-live-ops` | live-ops-designer + economy-designer + community-manager + analytics-engineer |
 | `/team-qa` | qa-lead + qa-tester + gameplay-programmer + producer |
 
+## Three.js game skills (adapted, MIT)
+
+Adapted from majidmanzarpour/threejs-game-skills for Astrocade games. Claude loads them by task; see `CLAUDE.md` § Three.js Game Skills.
+
+| Skill | Purpose |
+|-------|---------|
+| `threejs-gameplay-systems` | Design brief, core-loop contract, level plan, input, camera, collision, game feel |
+| `threejs-aaa-graphics-builder` | Authored models, material kits, lighting, shaders, render budgets, visual scorecard |
+| `threejs-aaa-vfx-builder` | Layered event VFX, 5-beat timing, NaN-safe shaders, mobile VFX budget |
+| `threejs-game-ui-designer` | HUD, menus, overlays, touch UI, safe areas, text fit |
+| `threejs-debug-profiler` | Blank canvas, shader/runtime errors, profiling draw calls, memory and load |
+| `threejs-qa-release` | Quick QA round with the repo's feed, load and screenshot tools |
+
 ## Overlap with Claude Code's bundled skills
 
 Claude Code ships its own skills, and one name collides with Claude Code Game Studios'.
