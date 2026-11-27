@@ -19,7 +19,7 @@ shop and Today.
 | At 360 wide the "Snowy Snapshot" title touched the Skip button. | The title started inside row 2, where Skip sits. | The title starts below row 2 (st + 2h + 2g). |
 
 Two new playtest checks guard these fixes: the round buttons keep their icon padding at all four sizes, and the
-title sits below Skip. The playtest now has 80 checks, and all pass.
+title sits below Skip. The playtest now has 84 checks, and all pass. The camera and treat buttons pulse inward from their corner, so the drawn button keeps the HUD margin at every size (4 more checks).
 
 ## Grid (measured, 390x844, u = 0.54)
 
@@ -38,7 +38,7 @@ title sits below Skip. The playtest now has 80 checks, and all pass.
 |---|---|---|
 | colorEntropyBits / dominantColorShare / edgeDensity | 4.69 / 0.215 / 0.230 | 4.72 / 0.216 / 0.239 |
 | 4G first frame (6 runs each, interleaved, beside a parallel playtest) | median 2.12 s | median 2.13 s |
-| full playtest | 75/75 | 80/80 |
+| full playtest | 75/75 | 84/84 |
 
 The load is the same for both builds. These runs shared the machine with a playtest, so both read slower than the
 quiet round 9 runs (1.90 s).
