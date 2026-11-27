@@ -1,0 +1,220 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Meteor Gems</title>
+<!-- HUD: warm wood and brass with crystal accents; the rounded Baloo family loads from the asset map -->
+<style>
+html,body{margin:0;height:100%;background:#2a2233;overflow:hidden;font-family:"Baloo 2","Baloo Da 2","Baloo Bhaijaan 2","Arial Rounded MT Bold","Nunito","Noto Sans",system-ui,sans-serif;font-weight:800}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:min(100vw,calc(100vh*9/16));height:min(100vh,calc(min(100vw,100vh*9/16)*20/9));overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none;--u:1;--ink:#3a2418;--m:calc(var(--u)*24px);--h:calc(var(--u)*96px);--g:calc(var(--u)*16px);--st:calc(var(--m) + env(safe-area-inset-top,0px));--sl:calc(var(--m) + env(safe-area-inset-left,0px));--sr:calc(var(--m) + env(safe-area-inset-right,0px));background:#e9c08a}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* while the 3D world loads: a warm sky over the sand and the meteor glowing where it will land (gone with the first frame) */
+#app:not(.live){background:radial-gradient(circle at 50% 52%,#fff6d8 0,#ffd27a calc(var(--u)*34px),#ff9a4a calc(var(--u)*70px),rgba(255,140,70,0) calc(var(--u)*150px)),linear-gradient(#7f6fb0 0%,#f2a46a 46%,#e9c08a 60%,#d9a66e 100%)}
+#app:not(.live)::before{content:"";position:absolute;left:50%;top:52%;width:calc(var(--u)*120px);height:calc(var(--u)*120px);margin:calc(var(--u)*-60px);border-radius:50%;background:radial-gradient(circle at 38% 34%,#ffe9a8,#c9772f 55%,#5b3a2a 100%);box-shadow:0 0 calc(var(--u)*40px) #ffb35a;animation:pulse 1.4s ease-in-out infinite}
+.hud{position:absolute;inset:0;pointer-events:none;color:#fff3dc}
+.out{--o:calc(var(--u)*3.5px);text-shadow:var(--o) 0 0 var(--ink),calc(var(--o)*-1) 0 0 var(--ink),0 var(--o) 0 var(--ink),0 calc(var(--o)*-1) 0 var(--ink),var(--o) var(--o) 0 var(--ink),calc(var(--o)*-1) var(--o) 0 var(--ink),var(--o) calc(var(--o)*-1) 0 var(--ink),calc(var(--o)*-1) calc(var(--o)*-1) 0 var(--ink),0 calc(var(--o)*2) 0 var(--ink)}
+/* HUD grid (720-wide design units, multiples of 8): 24 margin plus the safe area, one 88 height for every plaque and
+   button, 16 gaps, 56 icons, 48 numbers. The coin plaque and the NEXT card share one row that stops a gap short of
+   the button column; the buttons stack on the same margin. */
+.top{position:absolute;top:var(--st);left:var(--sl);right:calc(var(--sr) + var(--h) + var(--g));display:flex;align-items:center;gap:var(--g);direction:inherit}
+[dir=rtl] .top{left:calc(var(--sl) + var(--h) + var(--g));right:var(--sr)}
+/* wooden plaque with a brass rim */
+.chip{position:relative;flex:none;display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);box-sizing:border-box;padding:0 calc(var(--u)*24px) 0 calc(var(--u)*12px);border-radius:calc(var(--u)*30px);direction:ltr;
+  background:linear-gradient(#a8693c,#86502c 55%,#6e4024);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,220,170,.35),inset 0 calc(var(--u)*-5px) 0 rgba(40,20,10,.35),0 calc(var(--u)*8px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+.chip b{font-size:calc(var(--u)*48px);line-height:1;min-width:calc(var(--u)*48px);color:#ffe08a}
+.chip.bump{animation:bump .25s ease-out}
+.coin{flex:none;width:calc(var(--u)*56px);height:calc(var(--u)*56px);border-radius:50%;box-sizing:border-box;border:calc(var(--u)*4px) solid var(--ink);background:radial-gradient(circle at 36% 30%,#fff1b0 0 12%,#ffd35a 13% 52%,#d99a2e 53% 62%,#ffcf55 63%);box-shadow:inset 0 calc(var(--u)*-4px) 0 rgba(150,90,20,.5)}
+.mute{position:absolute;top:var(--st);right:var(--sr);width:var(--h);height:var(--h);border-radius:50%;pointer-events:auto;cursor:pointer;padding:calc(var(--u)*12px);-webkit-tap-highlight-color:transparent;box-sizing:border-box;
+  background:radial-gradient(circle at 38% 30%,#b47a48,#7e4f2e 70%);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*7px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+[dir=rtl] .mute{right:auto;left:var(--sl)}
+.mute svg{display:block;width:100%;height:100%;fill:#ffe08a;stroke:#ffe08a;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.mute .wav{fill:none}.mute .x{display:none;fill:none}
+.mute.off .wav{display:none}.mute.off .x{display:block}
+/* carry count over the stack */
+/* one colour per carried kind (chunk violet, gem teal like the stand awning, ring gold): the carry dot, the order bubble rim and the sale pop share it */
+.carry::before{content:"";display:inline-block;width:calc(var(--u)*26px);height:calc(var(--u)*26px);margin-inline-end:calc(var(--u)*8px);border-radius:50%;background:var(--k,#8a5cf0);box-shadow:0 0 0 calc(var(--u)*3.5px) var(--ink);vertical-align:calc(var(--u)*2px)}
+.carry{position:absolute;translate:-50% -100%;font-size:calc(var(--u)*40px);line-height:1;color:#fff3dc;white-space:nowrap;direction:ltr}
+.carry.max{color:#ffd35a;font-size:calc(var(--u)*46px);animation:pulse .6s ease-in-out infinite}
+.carry[hidden],.pop[hidden],.banner[hidden],.stick[hidden]{display:none}
+/* floating world pops */
+.pop{position:absolute;translate:-50% -50%;direction:ltr;font-size:calc(var(--u)*46px);line-height:1;white-space:nowrap;color:#fff3dc}
+.pop.gold{color:#ffd35a}
+.pop.big{font-size:calc(var(--u)*78px);color:#ffe3f6;--ink:#5a1f5e;animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
+/* banner for unlocks and the hatch: a ribbon with a brass rim, slides in, holds, fades */
+/* banners sit one gap under the button column (three buttons now), so they never cover a button; long titles wrap */
+.banner{position:absolute;top:calc(var(--st) + var(--h) + var(--g));left:0;right:0;margin-inline:auto;width:max-content;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*4px);padding:calc(var(--u)*18px) calc(var(--u)*56px) calc(var(--u)*22px);border-radius:calc(var(--u)*40px);text-align:center;
+  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*6px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*5px) 0 rgba(255,255,255,.25),0 calc(var(--u)*12px) calc(var(--u)*30px) rgba(58,36,24,.45);white-space:nowrap;max-width:min(calc(var(--u)*640px),calc(100% - 2 * (var(--sr) + var(--h) + var(--g))));box-sizing:border-box}
+.banner .bs,.banner .bt{white-space:normal;text-wrap:balance}
+.banner.go{animation:ban .5s cubic-bezier(.2,1.5,.4,1)}
+.banner .bt{font-size:calc(var(--u)*60px);line-height:1.02;color:#ffe08a;text-shadow:0 calc(var(--u)*4px) 0 var(--ink)}
+.banner .bs{font-size:calc(var(--u)*36px);line-height:1.1;color:#fff3dc}
+/* cinematic beats: letterbox bars slide in from the top and bottom edges with a soft vignette, under the HUD */
+.cine{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .45s;background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(20,8,30,.45) 100%)}
+.cine i{position:absolute;left:0;right:0;height:calc(var(--u)*72px);background:#120a18;transition:transform .45s cubic-bezier(.3,.7,.3,1)}
+.cine i:first-child{top:0;transform:translateY(-100%)}.cine i:last-child{bottom:0;transform:translateY(100%)}
+#app.cinema .cine{opacity:1}#app.cinema .cine i{transform:none}
+/* during a beat the HUD and world bubbles fade so only the subject, the banner and the pops read; taps still work */
+.top,.bubble,.edge,.tap,.mute,.carry,.goal,.albumB,.toy,.share{transition:opacity .3s}
+#app.cinema :is(.top,.bubble,.edge,.tap,.mute,.carry,.hint,.goal,.albumB,.toy,.share){opacity:0}
+/* a banner takes the goal pill's row while it shows; the share button takes the hint's bottom band */
+#app:has(.banner:not([hidden])) .goal,#app:has(.share:not([hidden])) .hint{opacity:0}
+/* first-time tutorial: the world dims except a soft circle on the next stop; a pulsing gold ring marks it, and a hint
+   pill under it shows the stop's icon and a few words. Nothing here takes a touch except the skip button. */
+.spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;--x:50%;--y:50%;--r:100px;
+  background:radial-gradient(circle at var(--x) var(--y),transparent 0 calc(var(--r)*.82),rgba(16,8,30,.55) calc(var(--r) + var(--u)*60px))}
+.spot.on{opacity:1}
+.spot i{position:absolute;left:var(--x);top:var(--y);width:calc(var(--r)*2);height:calc(var(--r)*2);translate:-50% -50%;border-radius:50%;
+  border:calc(var(--u)*5px) solid rgba(255,211,90,.85);box-sizing:border-box;animation:spotP 1.2s ease-in-out infinite}
+@keyframes spotP{0%,100%{scale:1;opacity:.9}50%{scale:1.08;opacity:.45}}
+.coach{position:absolute;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);box-sizing:border-box;
+  padding:0 calc(var(--u)*12px);border-radius:calc(var(--u)*44px);white-space:nowrap;
+  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*6px) 0 rgba(0,0,0,.25);
+  animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
+.coach[hidden]{display:none}
+.coach canvas{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
+.coach b{font-size:calc(var(--u)*40px);line-height:1;color:#fff3dc}
+.coach .skip{position:relative;pointer-events:auto;width:calc(var(--u)*56px);height:calc(var(--u)*56px);margin-inline-start:calc(var(--u)*8px);padding:calc(var(--u)*12px);
+  border-radius:50%;border:none;background:rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.coach .skip svg{display:block;width:100%;height:100%;fill:none;stroke:#fff3dc;stroke-width:6;stroke-linecap:round}
+/* first-time hint: a hand that drags */
+.hint{position:absolute;left:50%;bottom:calc(var(--m) + env(safe-area-inset-bottom,0px));translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*12px);transition:opacity .4s}
+.hint.gone{opacity:0}
+.hint b{font-size:calc(var(--u)*44px);color:#fff3dc;white-space:nowrap}
+.hand{width:calc(var(--u)*90px);height:calc(var(--u)*90px);border-radius:50%;background:radial-gradient(circle,rgba(255,243,220,.95) 0 30%,rgba(255,243,220,.35) 31% 55%,transparent 56%);animation:drag 1.6s ease-in-out infinite}
+/* the joystick ring */
+.stick{position:absolute;width:calc(var(--u)*180px);height:calc(var(--u)*180px);translate:-50% -50%;border-radius:50%;border:calc(var(--u)*5px) solid rgba(255,243,220,.6);background:rgba(58,36,24,.18)}
+.stick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*80px);height:calc(var(--u)*80px);margin:calc(var(--u)*-40px);border-radius:50%;background:radial-gradient(circle at 38% 30%,#ffe9b0,#e5b75a 70%);box-shadow:0 calc(var(--u)*5px) 0 rgba(58,36,24,.5)}
+/* NEXT card: the unlock that is up next, its icon, a fill bar for the coins you have toward it, and the price */
+.next{position:relative;flex:none;display:flex;align-items:center;gap:calc(var(--u)*8px);height:var(--h);box-sizing:border-box;padding:0 calc(var(--u)*24px) 0 calc(var(--u)*12px);border-radius:calc(var(--u)*30px);direction:ltr;
+  background:linear-gradient(#3fb3a3,#2a7f78);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,255,255,.22),0 calc(var(--u)*8px) 0 calc(var(--u)*2px) rgba(58,36,24,.55);transition:opacity .3s}
+.next canvas{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
+.next .bar{position:relative;width:calc(var(--u)*96px);height:calc(var(--u)*24px);border-radius:calc(var(--u)*12px);background:rgba(20,40,40,.5);box-shadow:inset 0 0 0 calc(var(--u)*3px) var(--ink);overflow:hidden}
+.next .bar i{position:absolute;inset:0;width:0;border-radius:inherit;background:linear-gradient(#ffe9a0,#f2b43a);box-shadow:inset 0 0 0 calc(var(--u)*3px) var(--ink);transition:width .25s}
+.next b{font-size:calc(var(--u)*48px);line-height:1;color:#ffe08a;min-width:calc(var(--u)*48px)}
+.next.ready{animation:pulse .8s ease-in-out infinite}.next.ready b{color:#fff3dc}
+.next[hidden],.bubble[hidden],.menu[hidden],.tap[hidden]{display:none}
+/* ghost town goal: a small plaque under the NEXT card with three house lights */
+.goal{position:absolute;top:calc(var(--st) + var(--h) + var(--g) + var(--u)*20px);left:50%;translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u)*8px);height:calc(var(--u)*48px);box-sizing:border-box;padding:0 calc(var(--u)*16px);border-radius:calc(var(--u)*24px);background:rgba(58,36,24,.72);box-shadow:0 0 0 calc(var(--u)*3px) #e5b75a;white-space:nowrap}
+.goal b{font-size:calc(var(--u)*32px);color:#fff3dc}
+.goal .gh{display:flex;gap:calc(var(--u)*6px)}
+.goal i{width:calc(var(--u)*32px);height:calc(var(--u)*32px);clip-path:polygon(50% 0,100% 40%,100% 100%,0 100%,0 40%);background:#6e6474}
+.goal i.lit{background:#ffd35a;filter:drop-shadow(0 0 calc(var(--u)*6px) #ffb860)}
+/* album button under the sound button; a badge when something new is in it */
+.albumB{position:absolute;top:calc(var(--st) + var(--h) + var(--g));right:var(--sr);width:var(--h);height:var(--h);border-radius:50%;pointer-events:auto;cursor:pointer;padding:calc(var(--u)*12px);-webkit-tap-highlight-color:transparent;box-sizing:border-box;
+  background:radial-gradient(circle at 38% 30%,#5ec8b8,#2a7f78 70%);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*7px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+[dir=rtl] .albumB{right:auto;left:var(--sl)}
+.toy{position:absolute;top:calc(var(--st) + (var(--h) + var(--g)) * 2);right:var(--sr);width:var(--h);height:var(--h);border-radius:50%;pointer-events:auto;cursor:pointer;padding:calc(var(--u)*12px);-webkit-tap-highlight-color:transparent;box-sizing:border-box;
+  background:radial-gradient(circle at 38% 30%,#f4a35e,#c4612e 70%);border:calc(var(--u)*4px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*7px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+.toy svg{display:block;width:100%;height:100%;fill:#ffe08a;stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}.toy .sp{fill:none;stroke:#ffe08a;stroke-width:3.5}
+.toy:active{transform:translateY(calc(var(--u)*4px))}
+[dir=rtl] .toy{right:auto;left:var(--sl)}
+.albumB svg{display:block;width:100%;height:100%;fill:#ffe08a;stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
+.albumB .pg{fill:#fff3dc}.albumB .st{fill:#e04cc0;stroke:none}
+.albumB em{display:none;position:absolute;top:calc(var(--u)*-6px);right:calc(var(--u)*-6px);width:calc(var(--u)*30px);height:calc(var(--u)*30px);border-radius:50%;background:#e04c8c;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink)}
+.albumB.dot em{display:block;animation:pulse .8s ease-in-out infinite}
+/* share button: slides up at a big moment, leaves by itself */
+.share{position:absolute;right:var(--m);bottom:calc(var(--u)*170px);display:flex;align-items:center;gap:calc(var(--u)*10px);height:calc(var(--u)*96px);padding:0 calc(var(--u)*28px) 0 calc(var(--u)*18px);border-radius:calc(var(--u)*48px);pointer-events:auto;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;
+  background:linear-gradient(#ff8ac8,#d8479a);border:calc(var(--u)*5px) solid #ffe08a;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),0 calc(var(--u)*8px) 0 calc(var(--u)*2px) rgba(58,36,24,.55);color:#fff3dc}
+[dir=rtl] .share{right:auto;left:var(--m)}
+.share svg{width:calc(var(--u)*50px);height:calc(var(--u)*50px);fill:none;stroke:#fff3dc;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.share b{font-size:calc(var(--u)*38px);white-space:nowrap}
+.share.go{animation:shareIn .5s cubic-bezier(.2,1.5,.4,1),pulse 1.1s ease-in-out .6s infinite}
+@keyframes shareIn{from{transform:translateY(calc(var(--u)*120px)) scale(.6);opacity:0}}
+/* the sticker album: a wooden book over a dim veil; game time stops while it is open */
+.album{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(42,34,51,.55);pointer-events:auto}
+.album .card{position:relative;width:calc(var(--u)*640px);max-height:calc(var(--u)*1120px);overflow:auto;touch-action:pan-y;overscroll-behavior:contain;box-sizing:border-box;padding:calc(var(--u)*26px);border-radius:calc(var(--u)*40px);
+  background:linear-gradient(#f6e2bf,#e9c890);border:calc(var(--u)*8px) solid #a8693c;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),inset 0 0 0 calc(var(--u)*4px) #e5b75a,0 calc(var(--u)*16px) calc(var(--u)*40px) rgba(20,10,10,.5)}
+.album h2{margin:0 0 calc(var(--u)*14px);text-align:center;font-size:calc(var(--u)*56px);line-height:1;color:#ffe08a}
+.album .sec{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u)*10px);margin-bottom:calc(var(--u)*18px);padding:calc(var(--u)*12px);border-radius:calc(var(--u)*24px);background:rgba(126,79,46,.18)}
+.album .hats,.album .stars{grid-template-columns:repeat(6,1fr)}
+.album .stars{grid-template-columns:repeat(3,1fr)}
+.album .chap{grid-template-columns:1fr}
+.album .hats.nine{grid-template-columns:repeat(5,1fr);gap:calc(var(--u)*8px)}
+.album .hats.nine .tile{min-height:calc(var(--u)*96px);padding:calc(var(--u)*2px)}
+.album .hats.nine .tile canvas{width:calc(var(--u)*64px);height:calc(var(--u)*64px)}
+.album .hats.nine .tile b{font-size:calc(var(--u)*16px)}
+.album .crit.six{grid-template-columns:repeat(6,1fr);gap:calc(var(--u)*8px)}
+.album .crit.six .tile{min-height:calc(var(--u)*92px);padding:calc(var(--u)*4px)}
+.album .crit.six .tile canvas{width:calc(var(--u)*58px);height:calc(var(--u)*58px)}
+.album .crit.six .tile b{font-size:calc(var(--u)*17px);white-space:normal;text-align:center}
+.album .tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*2px);min-height:calc(var(--u)*110px);padding:calc(var(--u)*6px);border-radius:calc(var(--u)*20px);background:#2a7f78;box-shadow:0 0 0 calc(var(--u)*3px) var(--ink),inset 0 calc(var(--u)*4px) 0 rgba(255,255,255,.2);font:inherit;color:#fff3dc;border:0}
+.album button.tile{cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
+.album .tile canvas{width:calc(var(--u)*76px);height:calc(var(--u)*76px)}
+.album .tile b{font-size:calc(var(--u)*24px);line-height:1;white-space:nowrap}
+.album .tile.off{background:#4a3a50}
+.album .tile.on{box-shadow:0 0 0 calc(var(--u)*5px) #ffd35a,0 0 calc(var(--u)*18px) #ffd35a}
+.album .r-shiny:not(.off){background:linear-gradient(#5ec8e8,#2a7fa8)}.album .r-rare:not(.off){background:linear-gradient(#b08cff,#6a44c0)}.album .r-legendary:not(.off){background:linear-gradient(#ffd35a,#d98a2a)}
+.album .tile.wide{flex-direction:row;justify-content:flex-start;gap:calc(var(--u)*16px);min-height:calc(var(--u)*96px);padding:0 calc(var(--u)*18px)}
+.album .tile.wide b{font-size:calc(var(--u)*32px)}
+.album .close::after,.coach .skip::after{content:"";position:absolute;inset:calc(var(--u)*-20px)}
+.album .close{position:absolute;top:calc(var(--u)*14px);right:calc(var(--u)*14px);width:calc(var(--u)*80px);height:calc(var(--u)*80px);border-radius:50%;border:calc(var(--u)*4px) solid #e5b75a;background:#86502c;color:#ffe08a;font:inherit;font-size:calc(var(--u)*36px);cursor:pointer;pointer-events:auto}
+.goal[hidden],.album[hidden],.share[hidden]{display:none}
+/* the order kid's speech bubble: just the item it wants and a heart */
+.bubble{position:absolute;translate:-50% -100%;display:flex;align-items:center;gap:calc(var(--u)*6px);padding:calc(var(--u)*10px) calc(var(--u)*18px);border-radius:calc(var(--u)*28px);background:#fff3dc;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 0 0 calc(var(--u)*9px) var(--k,var(--ink)),0 calc(var(--u)*8px) 0 calc(var(--u)*6px) rgba(58,36,24,.45);animation:popIn .35s cubic-bezier(.2,1.6,.4,1)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:calc(var(--u)*-16px);margin-left:calc(var(--u)*-12px);border:calc(var(--u)*12px) solid transparent;border-top-color:#fff3dc;border-bottom:0}
+.bubble canvas{width:calc(var(--u)*56px);height:calc(var(--u)*56px)}
+.bubble em{font-style:normal;font-size:calc(var(--u)*40px);color:#e04c8c}
+/* continue / new game card */
+.ride{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*18px);background:linear-gradient(#e08a5a,#7a4a6a 55%,#3a2a4a);opacity:0;pointer-events:auto}
+.ride.frost{background:linear-gradient(#8a9ce0,#6a6ab8 55%,#2c3170)}
+.ride[hidden]{display:none}
+.ride.go{animation:ride 1.9s ease-in-out forwards}
+.ride canvas{width:calc(var(--u)*240px);height:calc(var(--u)*180px);animation:gond 1.9s ease-in-out forwards}
+.ride b{font-size:calc(var(--u)*64px);color:#ffe08a;text-align:center;padding:0 calc(var(--u)*40px)}
+.ride span{font-size:calc(var(--u)*40px);color:#f3e6cf}
+@keyframes ride{0%{opacity:0}25%,72%{opacity:1}100%{opacity:0}}
+@keyframes gond{0%{transform:translateX(-60%)}100%{transform:translateX(60%)}}
+.menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*34px);background:radial-gradient(ellipse at 50% 45%,rgba(42,34,51,.15),rgba(42,34,51,.55));pointer-events:auto}
+.menu h1{margin:0 0 calc(var(--u)*20px);font-size:calc(var(--u)*92px);line-height:1;color:#ffe08a;text-align:center}
+.menu button{pointer-events:auto;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;min-width:calc(var(--u)*420px);height:calc(var(--u)*128px);border-radius:calc(var(--u)*44px);font-size:calc(var(--u)*58px);color:#ffe08a;
+  background:linear-gradient(#a8693c,#86502c 55%,#6e4024);border:calc(var(--u)*6px) solid #e5b75a;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),inset 0 calc(var(--u)*5px) 0 rgba(255,220,170,.35),0 calc(var(--u)*10px) 0 calc(var(--u)*2px) rgba(58,36,24,.55)}
+.menu .go{background:linear-gradient(#3fb3a3,#2a7f78);font-size:calc(var(--u)*66px);height:calc(var(--u)*150px);animation:pulse 1.2s ease-in-out infinite}
+.menu .new{min-width:calc(var(--u)*320px);height:calc(var(--u)*100px);font-size:calc(var(--u)*44px)}
+.menu .new.sure{background:linear-gradient(#d9544a,#a83a32);color:#fff3dc}
+/* first-glint hint: a tapping finger over the sparkle */
+.edge{position:absolute;width:calc(var(--u)*84px);height:calc(var(--u)*84px);translate:-50% -50%;pointer-events:none;z-index:3}
+.edge[hidden]{display:none}
+.edge i{position:absolute;inset:0;rotate:var(--a);background:radial-gradient(circle at 40% 50%,#fff3c4 0 22%,#ffd35a 23% 52%,transparent 53%);clip-path:polygon(0 18%,62% 18%,62% 0,100% 50%,62% 100%,62% 82%,0 82%);filter:drop-shadow(0 0 4px #7a4a10);animation:edgep .8s ease-in-out infinite alternate}
+@keyframes edgep{to{scale:1.15}}
+.tap{position:absolute;translate:-50% -10%;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6px)}
+.tap i{width:calc(var(--u)*90px);height:calc(var(--u)*90px);border-radius:50%;background:radial-gradient(circle,rgba(255,243,220,.95) 0 30%,rgba(255,243,220,.35) 31% 55%,transparent 56%);animation:tapf 1s ease-in-out infinite}
+.tap b{font-size:calc(var(--u)*40px);white-space:nowrap}
+@keyframes tapf{0%,100%{transform:scale(1)}40%{transform:scale(.72)}}
+.retry{position:absolute;inset:0;margin:auto;width:140px;height:140px;border-radius:50%;border:5px solid #e5b75a;background:#7e4f2e;color:#ffe08a;font-size:64px;cursor:pointer}
+.retry small{display:block;font-size:18px}
+@keyframes bump{40%{transform:scale(1.14)}}
+@keyframes pulse{50%{transform:scale(1.1)}}
+@keyframes popIn{from{transform:scale(.3)}}
+@keyframes ban{from{transform:translateY(calc(var(--u)*-60px)) scale(.6)}}
+@keyframes drag{0%,100%{transform:translateX(calc(var(--u)*-70px))}50%{transform:translateX(calc(var(--u)*70px))}}
+@media (prefers-reduced-motion: reduce){#app::before,.share.go,.albumB.dot em,.banner.go,.pop.big,.hand,.carry.max,.next.ready,.menu .go,.tap i,.bubble,.ride.go,.ride canvas{animation:none}.ride.go{opacity:1}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// never a dead end: no picture after a script error (4 s), after 12 s waiting for the 3D library (code LIB), or when
+// WebGL fails (code GL, from game.js), a retry button with the reason code takes the screen
+(function () {
+  var shown = false;
+  function fail(code) {
+    if (shown || (code !== 'GL' && document.querySelector('#app canvas'))) return; shown = true;
+    var app = document.getElementById('app');
+    app.innerHTML = '<button class="retry" aria-label="Retry">↻<small>' + code + '</small></button>';
+    app.querySelector('button').onclick = function () { location.reload(); };
+  }
+  window.__load = { done: function () {}, fail: fail };
+  addEventListener('error', function () { setTimeout(function () { fail('ERR'); }, 4000); });
+  setTimeout(function () { fail('LIB'); }, 12000);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js", "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.js": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" } }</script>
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" crossorigin>
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" crossorigin>
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>

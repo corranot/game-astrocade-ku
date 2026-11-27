@@ -78,8 +78,12 @@ none of them. The owner's words, verbatim:
 
 How it fits the existing rules:
 
-- **New games** follow it too: build them in 3D with Three.js to this bar from
-  the start, not only when converting a 2D game.
+- **New games may be 2D or 3D** (owner, 26 Nov). Pick by data and genre: the
+  traffic of 26 Nov showed her 2D one-finger toys far ahead of her 3D games
+  (`production/market/2026-11-26T1800-rub-it-away-audit/`). A 2D game meets the
+  same AAA bar in 2D terms: polished painted art, layered effects, juice, audio,
+  a clean HUD and 60 FPS on mobile. A 3D game is built with Three.js to the bar
+  above. Existing 2D games are not converted to 3D unless the owner asks.
 - **Prototypes too.** Throwaway engine and paper prototypes meet this standard
   as well; the placeholder-art allowance in `.claude/rules/prototype-code.md` no
   longer applies.
@@ -138,10 +142,91 @@ full plan unless they add a new game mode or rework the game.
   plays divided by age). Use genres and mechanics, never a recreation.
 - **Every new rule goes in the repo.** When the owner gives a new standing rule,
   add it to this CLAUDE.md as well, so it never has to be repeated.
+- **Save all research to the repo.** Every research result, market snapshot and
+  report is committed to the repo (via PR, auto-merge OK) without asking first.
 - **Thumbnails are the owner's job.** Larisha makes and sets every game thumbnail
   herself. Don't generate, render, propose or set a thumbnail (no
   `generate_thumbnail`, no `set_thumbnail`, no thumbnail candidate images), even
   when a plan or prompt in the repo lists one.
+- **Always watch the threads.** The coordinator must actively monitor every
+  project thread at all times: check the thread list on every wake, unblock or
+  restart stalled threads, and never let a thread sit unnoticed.
+- **Coordinator is the orchestrator.** The coordinator orchestrates every
+  project thread. All communication between threads and the coordinator
+  (instructions, recommendations, decisions) must always rest on the best
+  recommendation from a discussion and collaboration of a full combined team of
+  top AAA game-studio experts, each speaking to their own expertise. Threads
+  communicate only with the coordinator, and Larisha communicates only with the
+  coordinator.
+- **Coordinator decides for waiting threads.** When a thread waits on an
+  approval, a choice or a review, the coordinator makes that call itself, on
+  the AAA expert team's best recommendation, without asking Larisha.
+- **Always learn from everything.** Learn from every correction, failure,
+  result and piece of feedback: write the lesson down (project memory, and the
+  repo when it is a lasting rule) and apply it from then on.
+- **Astrocade sees only the game.** Everything uploaded to Astrocade (game
+  files, code comments, title, description, tags, wishes/prompts, comments,
+  replies) talks only about that game itself. Never mention or reveal our
+  workflow, repo, rules, agents, tools, skills or process there.
+- **Goal: unlimited, massive plays.** The main goal of every Astrocade game is
+  as many plays as possible, with no ceiling. Always understand and apply the
+  recommendation and distribution patterns from the Astrocade backend digs, so
+  each game gets recommended to large traffic. The playbook is
+  `docs/astrocade-distribution-playbook.md`; read it before every concept,
+  build, update and publish, and refresh it after each new backend dig.
+- **Very fast first load (every game).** A game's initial load must be very
+  fast: aim for a playable first frame within about 2 seconds on a mid-range
+  phone over 4G. Load only what the first frame needs (minified libraries,
+  no unminified builds pulled in by a module's own imports, module preloads
+  to flatten import waterfalls), defer non-critical models, audio and effects
+  until after the first frame, and avoid long blocking shader compiles
+  before the first picture. Measure load time on a throttled phone profile
+  and report it with every build.
+- **The coordinator reviews every thread's work visually.** Before a thread's
+  result goes to the owner, the coordinator looks at the screenshots itself, with
+  the full AAA expert team, to catch the problems nobody asked about. Each thread
+  saves key phone-portrait screenshots (JPG) of its work to the shared project
+  files and to the repo, names them in its report, and waits for the
+  coordinator's visual review and fixes.
+- **HUD laid out on a precise grid.** Every game's HUD UI/UX is neatly structured,
+  with precise positions relative to each other: one spacing grid (8 px), equal
+  safe-area margins, one shared height for pills and buttons, aligned centres,
+  equal gaps, consistent icon and number sizes, button columns on the same
+  margin, and world bubbles or pointers never under the HUD. Check it on small,
+  mid and large phones and a tablet.
+- **Work effectively and efficiently.** Give all review feedback for a round in one
+  batch. Each round runs only the quick checks (unit tests, CI checks, the feed
+  bundle test, a short smoke run and screenshots). Run the full playtest only
+  before a publish or when a change touches gameplay pacing. Run independent
+  steps in parallel.
+- **Share cards use the live thumbnail.** An in-game share calls `lib.share` with a
+  title and text but no `image`. The host's share card then shows the game's
+  current thumbnail, so a new thumbnail appears there with no game update. Pass an
+  image only when the owner asks for a custom card.
+- **Guidance points from the hero to the goal.** Every guide line, trail or arrow
+  starts at the player's character and points toward the current goal, updating
+  live as the character moves. An off-screen edge arrow also points from the
+  character's side toward the goal. Never point from the goal back at the
+  character (no arrow over the goal pointing down at it).
+- **FTUE is mandatory (every game).** Every game has a first-time tutorial as an
+  interactive, flexible spotlight: the screen dims except a soft cutout around the
+  current target (an object, a station or a button), with a short icon-first hint,
+  one step at a time. A step advances when the player does the real action, never
+  on tap-to-continue. The spotlight follows moving targets, fits any screen size
+  and safe area, and never blocks the player. Steps the player already did are
+  skipped, a finished tutorial is saved and never repeats, and it has a skip
+  button. It covers the game's core loop.
+- **Every key moment is cinematic.** Each key moment (first result, first sale,
+  a build or upgrade, a hatch or new friend, a perfect hit, a rare drop, a zone or
+  chapter unlock, a milestone, a surprise event) gets a short camera beat: the
+  camera eases to the moment and frames it, with a brief slow-motion or hit-stop,
+  letterbox bars or a vignette, VFX and an audio sting, then eases back. Beats are
+  0.6 to 2 s, never block input, and run through a priority queue with a cooldown
+  so they never pile up or get annoying in the core loop.
+- **Modular meta-prompts between coordinator and threads.** Every message from
+  the coordinator to a thread is a modular meta-prompt with labeled sections:
+  ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
+  OUTPUT FORMAT, DONE-WHEN. The goal is answers that hit the target exactly.
 
 ## Context Management
 

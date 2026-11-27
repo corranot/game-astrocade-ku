@@ -1,0 +1,2026 @@
+{
+  "seed": 11,
+  "hero": {
+    "speed": 10.0,
+    "accel": 20.0,
+    "carry": 20,
+    "pickEvery": 0.06,
+    "dropEvery": 0.06,
+    "r": 0.45
+  },
+  "world": {
+    "deck": {
+      "x0": -12.16,
+      "x1": 12.16,
+      "z0": -1.2,
+      "z1": 16.5
+    },
+    "meteor": {
+      "x": 0,
+      "y": 1.55,
+      "z": -6.2,
+      "r": 4.3
+    },
+    "mine": {
+      "x": -1.7,
+      "z": -0.35,
+      "r": 1.15
+    },
+    "pile": {
+      "x": -8.32,
+      "z": 3.9,
+      "r": 1.25,
+      "cap": 60
+    },
+    "crate": {
+      "x": -10.24,
+      "z": 7.5,
+      "r": 0.9,
+      "pay": 1
+    },
+    "counter": {
+      "x": -1.92,
+      "z": 10.5,
+      "r": 1.75,
+      "cap": 16
+    },
+    "cash": {
+      "x": 7.04,
+      "z": 5.7,
+      "r": 1.3
+    },
+    "crowd": {
+      "x0": -12.8,
+      "x1": 12.8,
+      "z0": 18.6,
+      "z1": 19.2,
+      "n": 36
+    },
+    "egg": {
+      "x": 1.28,
+      "z": 4.2
+    },
+    "obstacles": [
+      [
+        -5.92,
+        9.9,
+        0.95
+      ],
+      [
+        5.76,
+        9.6,
+        0.9
+      ],
+      [
+        -1.92,
+        10.5,
+        0.6
+      ]
+    ],
+    "polishers": [
+      {
+        "id": "polisher",
+        "x": -5.92,
+        "z": 9.9,
+        "in": [
+          -5.92,
+          8.45
+        ]
+      },
+      {
+        "id": "polisher2",
+        "x": -9.6,
+        "z": 13.05,
+        "in": [
+          -9.6,
+          11.6
+        ],
+        "pad": "conveyor"
+      }
+    ],
+    "polisherR": 1.25,
+    "polisherCap": 30,
+    "stands": [
+      {
+        "id": "stand",
+        "x": 5.76,
+        "z": 9.6,
+        "in": [
+          4.26,
+          9.6
+        ],
+        "spots": [
+          [
+            4.76,
+            11.5
+          ],
+          [
+            5.76,
+            11.7
+          ],
+          [
+            6.76,
+            11.5
+          ]
+        ]
+      },
+      {
+        "id": "stand2",
+        "x": 10.08,
+        "z": 9.9,
+        "in": [
+          10.08,
+          8.45
+        ],
+        "spots": [
+          [
+            9.38,
+            11.7
+          ],
+          [
+            10.38,
+            11.9
+          ],
+          [
+            11.08,
+            11.1
+          ]
+        ],
+        "pad": "stand2"
+      }
+    ],
+    "standR": 1.25,
+    "standCap": 8,
+    "workshop": {
+      "x": 8.96,
+      "z": 1.05,
+      "in": [
+        8.96,
+        2.35
+      ],
+      "r": 1.1,
+      "gemCap": 12,
+      "ringCap": 8
+    },
+    "order": {
+      "x": -2.24,
+      "z": 14.7,
+      "r": 1.1
+    },
+    "keeperHome": {
+      "x": -1.92,
+      "z": 12.6
+    },
+    "laserAt": {
+      "x": 0.7,
+      "z": -0.75
+    },
+    "rigAt": {
+      "x": 2.9,
+      "z": -1
+    },
+    "cart": {
+      "x": 4.8,
+      "z": 15.15,
+      "r": 1.1
+    },
+    "rig2At": {
+      "x": -4.7,
+      "z": -1.0
+    },
+    "jeweler": {
+      "x": 11.2,
+      "z": 4.65
+    },
+    "spread": {
+      "kx": 1.6,
+      "kz": 1.5,
+      "z0": -1.2
+    }
+  },
+  "mining": {
+    "swing": 0.62,
+    "perHit": 1,
+    "carveR": 0.5,
+    "carveD": 0.16,
+    "maxD": 1.4
+  },
+  "glint": {
+    "every": 4.5,
+    "life": 4.2,
+    "chunks": 3,
+    "carveR": 0.85,
+    "carveD": 0.34,
+    "tapPx": 70
+  },
+  "polish": {
+    "per": 3,
+    "time": 0.55
+  },
+  "sell": {
+    "takeLock": 0.35,
+    "pay": 0.8,
+    "spawnEvery": 1.6,
+    "walk": 4.2,
+    "prices": {
+      "gem": 4,
+      "ring": 10
+    }
+  },
+  "coinFlow": {
+    "collectEvery": 0.03,
+    "payStart": 14,
+    "payMax": 140,
+    "payGrow": 1.12
+  },
+  "pads": [
+    {
+      "id": "rig",
+      "icon": "rig",
+      "x": 4.32,
+      "z": 4.2,
+      "price": 25,
+      "after": "firstSale",
+      "obstacle": [
+        2.9,
+        -1,
+        1
+      ]
+    },
+    {
+      "id": "conveyor",
+      "icon": "conveyor",
+      "x": -9.6,
+      "z": 13.05,
+      "price": 60,
+      "obstacle": [
+        -9.6,
+        13.05,
+        0.95
+      ]
+    },
+    {
+      "id": "stand2",
+      "icon": "stand",
+      "x": 10.08,
+      "z": 9.9,
+      "price": 80,
+      "obstacle": [
+        10.08,
+        9.9,
+        0.9
+      ]
+    },
+    {
+      "id": "keeper",
+      "icon": "keeper",
+      "x": 2.08,
+      "z": 14.55,
+      "price": 95
+    },
+    {
+      "id": "road",
+      "icon": "road",
+      "x": -6.08,
+      "z": 14.85,
+      "price": 115
+    },
+    {
+      "id": "workshop",
+      "icon": "ring",
+      "x": 8.96,
+      "z": 1.05,
+      "price": 145,
+      "obstacle": [
+        8.96,
+        1.05,
+        0.8
+      ]
+    },
+    {
+      "id": "laser",
+      "icon": "laser",
+      "x": 0.7,
+      "z": -0.55,
+      "price": 155,
+      "obstacle": [
+        0.7,
+        -0.75,
+        0.55
+      ]
+    },
+    {
+      "id": "ghost",
+      "icon": "cart",
+      "x": 4.8,
+      "z": 15.0,
+      "price": 190
+    },
+    {
+      "id": "rig2",
+      "icon": "rig",
+      "x": -4.3,
+      "z": 0.5,
+      "price": 220,
+      "obstacle": [
+        -4.7,
+        -1.0,
+        0.85
+      ]
+    },
+    {
+      "id": "cable",
+      "icon": "cable",
+      "x": -6.08,
+      "z": 14.85,
+      "price": 250
+    },
+    {
+      "id": "stargaze",
+      "icon": "star",
+      "x": -1.6,
+      "z": 6.9,
+      "price": 265
+    },
+    {
+      "id": "crown",
+      "icon": "crown",
+      "x": 10.88,
+      "z": 4.5,
+      "price": 300,
+      "obstacle": [
+        11.2,
+        4.65,
+        0.6
+      ]
+    },
+    {
+      "id": "neon",
+      "icon": "neon",
+      "x": -10.4,
+      "z": 1.2,
+      "price": 350
+    },
+    {
+      "id": "heart",
+      "icon": "heart",
+      "x": -2.4,
+      "z": 4.05,
+      "price": 420
+    }
+  ],
+  "rig": {
+    "period": 1.3,
+    "chunks": 3,
+    "carveR": 0.62,
+    "carveD": 0.2
+  },
+  "egg": {
+    "dropAt": 22,
+    "every": 62,
+    "hatch": 2.4,
+    "r": 1.6,
+    "carryBonus": 5,
+    "weights": {
+      "common": 5,
+      "shiny": 3,
+      "rare": 2
+    },
+    "pity": 5
+  },
+  "critter": {
+    "follow": 1.4,
+    "spring": 7,
+    "show": 6,
+    "stay": 1.8,
+    "pop": [1.1, 0.7]
+  },
+  "guide": {
+    "cashMin": 6
+  },
+  "camera": {
+    "fov": 44,
+    "yaw": 0,
+    "pitch": 0.66,
+    "width": 17,
+    "lead": 0.9,
+    "follow": 3,
+    "zMin": -7.0,
+    "mineZ": -1.5,
+    "zMid": 4.5,
+    "lean": 1,
+    "mineZoom": 0.88,
+    "punch": 0.9,
+    "cometPitch": 0.18,
+    "followX": 0.85,
+    "zMax": 12,
+    "ahead": 5.5
+  },
+  "tod": {
+    "start": 0,
+    "keys": [
+      {
+        "t": 0,
+        "sky": [
+          "#3a86d6",
+          "#86c0ec",
+          "#f9cf9c",
+          "#f2b882"
+        ],
+        "fog": "#f1cc9e",
+        "fogNear": 80,
+        "fogFar": 190,
+        "sun": "#fff1d6",
+        "sunI": 2.5,
+        "hemiSky": "#fff4e4",
+        "hemiGround": "#b86f45",
+        "hemiI": 1.05,
+        "elev": 1.05,
+        "exp": 0.95,
+        "lamps": 0,
+        "meteor": 1
+      },
+      {
+        "t": 0.5,
+        "sky": [
+          "#6d8fc9",
+          "#e0a7a0",
+          "#f6b97c",
+          "#f7d39a"
+        ],
+        "fog": "#efb98a",
+        "fogNear": 72,
+        "fogFar": 175,
+        "sun": "#ffc387",
+        "sunI": 2.1,
+        "hemiSky": "#ffd9b0",
+        "hemiGround": "#a65e42",
+        "hemiI": 0.95,
+        "elev": 0.42,
+        "exp": 0.95,
+        "lamps": 0.25,
+        "meteor": 1.15
+      },
+      {
+        "t": 1,
+        "sky": [
+          "#1e2350",
+          "#4a3f7e",
+          "#b2648a",
+          "#ef9c78"
+        ],
+        "fog": "#7a5a86",
+        "fogNear": 60,
+        "fogFar": 160,
+        "sun": "#ff9f7a",
+        "sunI": 1.1,
+        "hemiSky": "#8c86d6",
+        "hemiGround": "#5a3a4a",
+        "hemiI": 0.85,
+        "elev": 0.2,
+        "exp": 1.05,
+        "lamps": 1,
+        "meteor": 1.3
+      }
+    ],
+    "byPad": {
+      "stargaze": 0.5,
+      "neon": 0.82,
+      "heart": 1
+    },
+    "ease": 0.04
+  },
+  "quality": {
+    "dpr": [
+      1,
+      1.25,
+      1.5,
+      2
+    ],
+    "shadow": [
+      0,
+      1024,
+      1024,
+      2048
+    ],
+    "shadowEvery1": 2,
+    "crowd": [
+      8,
+      12,
+      16,
+      20
+    ],
+    "dropMs": 19,
+    "warmMs": 2500,
+    "warmLaterMs": 1500,
+    "lateMs": 300,
+    "start": 1,
+    "resMin": 0.7,
+    "resStep": 0.1,
+    "upMs": 15,
+    "upAfter": 8,
+    "window": 2,
+    "max": 2,
+    "maxPx": [
+      450000,
+      700000,
+      950000,
+      1300000
+    ]
+  },
+  "records": {
+    "min": {
+      "gems": 5,
+      "chain": 2,
+      "cpm": 20
+    }
+  },
+  "kindColor": {
+    "chunk": "#8a5cf0",
+    "gem": "#3fb3a3",
+    "ring": "#f6c35a"
+  },
+  "look": {
+    "postTier": 2,
+    "tilt": {
+      "on": true,
+      "tier": 2,
+      "amount": 0.6,
+      "band": 0.34,
+      "soft": 0.3
+    },
+    "contact": 1,
+    "bloom": {
+      "on": true,
+      "threshold": 1.25,
+      "knee": 0.55,
+      "strength": 0.26,
+      "max": 2.2,
+      "samples": 4
+    },
+    "glow": {
+      "meteor": 1.5,
+      "gem": 1.8,
+      "fx": 1.6,
+      "lamp": 2,
+      "lantern": 1.8
+    },
+    "grade": {
+      "vignette": 0.2,
+      "contrast": 1.04,
+      "saturation": 1.06,
+      "warmth": 0.025
+    },
+    "glareMax": 0.02,
+    "rim": 0.32,
+    "silhouette": 9106687,
+    "silhouetteAlpha": 0.9,
+    "silhouetteGrow": 1.12,
+    "nearFade": 0.22,
+    "badgeNear": 8,
+    "badgeMax": 4,
+    "cloudShadow": 0.16,
+    "guideNear": 0.2,
+    "guideSide": 1.8,
+    "trailScale": 2.4,
+    "trailStep": 1.0
+  },
+  "strings": {
+    "en": {
+      "drag": "DRAG TO MOVE",
+      "rig": "DRILL RIG",
+      "rigDone": "IT MINES FOR YOU!",
+      "eggDrop": "AN EGG!",
+      "hatch": "NEW FRIEND!",
+      "pup": "Pebble",
+      "full": "MAX",
+      "perfect": "PERFECT!",
+      "tapGlint": "TAP THE SPARKLE!",
+      "perkCarry": "+5 carry",
+      "perkSpeed": "faster feet",
+      "perkMagnet": "coin magnet",
+      "perkPolish": "faster polish",
+      "perkTourists": "more visitors",
+      "perkSwing": "faster swing",
+      "sparky": "Sparky",
+      "dusty": "Dusty",
+      "glimmer": "Glimmer",
+      "pip": "Pip",
+      "boom": "Boom",
+      "conveyor": "CONVEYOR",
+      "stand2": "NEW STAND",
+      "keeper": "SHOPKEEPER",
+      "road": "ROAD FIXED",
+      "workshop": "RING WORKSHOP",
+      "laser": "LASER CUTTER",
+      "rush": "CRYSTAL RUSH!",
+      "bus": "TOUR BUS!",
+      "thanks": "THANK YOU!",
+      "cont": "CONTINUE",
+      "newGame": "NEW GAME",
+      "sure": "TAP AGAIN",
+      "next": "NEXT",
+      "title": "METEOR GEM WORKS",
+      "ghost": "GHOST TOWN",
+      "ghostGoal": "LIGHT THE GHOST TOWN!",
+      "ghostLit": "A HOUSE LIGHTS UP!",
+      "districtDone": "THE TOWN IS ALIVE!",
+      "rig2": "DRILL RIG 2",
+      "cable": "CABLE CAR",
+      "stargaze": "STARGAZER DECK",
+      "crown": "CROWN JEWELER",
+      "neon": "NEON STREET",
+      "heart": "HEART OF THE METEOR",
+      "finale": "THE HEART!",
+      "comet": "A COMET! CHAPTER 2 IS NEXT",
+      "star": "TOWN STAR!",
+      "hat": "NEW HAT!",
+      "album": "ALBUM",
+      "share": "SHOW A FRIEND",
+      "rec": "NEW RECORD!",
+      "recGems": "{n} gems made",
+      "recChain": "{n} perfect strikes in a row",
+      "recCpm": "{n} coins in a minute",
+      "bragGems": "I made {n} gems in Meteor Gems!",
+      "brag": "My crystal town in Meteor Gems!",
+      "perkTip": "bigger tips",
+      "perkLuck": "more sparkles",
+      "perkBonus": "+1 every sale",
+      "fizz": "Fizz",
+      "nugget": "Nugget",
+      "zephyr": "Zephyr",
+      "twinkle": "Twinkle",
+      "mossy": "Mossy",
+      "nova": "Nova",
+      "soon": "SOON",
+      "chapter1": "CRYSTAL METEOR",
+      "chapter2": "FROST COMET",
+      "rare": "RARE!",
+      "shiny": "SHINY!",
+      "legendary": "LEGENDARY!",
+      "ember": "Ember",
+      "pebblet": "Pebblet",
+      "dune": "Dune",
+      "lumen": "Lumen",
+      "frosty": "Frosty",
+      "cometpup": "Comet Pup",
+      "gift": "WELCOME BACK!",
+      "giftSub": "A gift from the town",
+      "toFrost": "FOLLOW THE COMET!",
+      "toDesert": "BACK TO THE DESERT",
+      "ride": "Hop on the cable car",
+      "awayCoins": "Your town kept selling!",
+      "f_rig": "ICE DRILL",
+      "f_conveyor": "SLED SLIDE",
+      "f_stand2": "SNOW STAND",
+      "f_keeper": "PENGUIN HELPER",
+      "f_cable": "SKI LIFT",
+      "f_workshop": "SNOW GLOBES",
+      "f_stargaze": "HOT COCOA",
+      "f_ghost": "SLEEPY CHALETS",
+      "f_neon": "AURORA LIGHTS",
+      "f_heart": "THE FROST HEART",
+      "f_ghostGoal": "Wake the chalets",
+      "f_title": "FROST COMET",
+      "snowball": "Snowball",
+      "flurry": "Flurry",
+      "icicle": "Icicle",
+      "mitten": "Mitten",
+      "glacier": "Glacier",
+      "puffin": "Puffin Pup",
+      "aurorafox": "Aurora Fox",
+      "polaris": "Polaris",
+      "lava": "Something glows under the far mesa...",
+      "f_ghostLit": "A CHALET WAKES UP!",
+      "f_districtDone": "THE VILLAGE IS AWAKE!",
+      "f_finale": "THE FROST HEART!",
+      "f_comet": "A RED GLOW! CHAPTER 3 SOON",
+      "ft_mine": "MINE HERE",
+      "ft_carry": "PICK UP",
+      "ft_polish": "POLISH",
+      "ft_sell": "SELL HERE",
+      "ft_cash": "GRAB COINS",
+      "ft_buy": "BUILD IT",
+      "ft_hatch": "HATCH IT",
+      "firstGem": "FIRST GEM!",
+      "firstSale": "FIRST SALE!",
+      "tomorrow": "COME BACK TOMORROW",
+      "tomorrowSub": "A gift and an egg will wait for you"
+    },
+    "ar": {
+      "drag": "اسحب للتحرك",
+      "rig": "منصة الحفر",
+      "rigDone": "تحفر من أجلك!",
+      "eggDrop": "بيضة!",
+      "hatch": "صديق جديد!",
+      "pup": "حصوة",
+      "full": "ممتلئ",
+      "perfect": "رائع!",
+      "tapGlint": "المس البريق!",
+      "perkCarry": "+5 حمل",
+      "perkSpeed": "أقدام أسرع",
+      "perkMagnet": "مغناطيس العملات",
+      "perkPolish": "صقل أسرع",
+      "perkTourists": "زوار أكثر",
+      "perkSwing": "ضربة أسرع",
+      "sparky": "بريق",
+      "dusty": "غبار",
+      "glimmer": "لمعة",
+      "pip": "بيب",
+      "boom": "بوم",
+      "conveyor": "الناقل",
+      "stand2": "منصة جديدة",
+      "keeper": "البائع",
+      "road": "الطريق جاهز",
+      "workshop": "ورشة الخواتم",
+      "laser": "قاطع الليزر",
+      "rush": "اندفاع الكريستال!",
+      "bus": "حافلة سياحية!",
+      "thanks": "شكراً!",
+      "cont": "متابعة",
+      "newGame": "لعبة جديدة",
+      "sure": "المس مرة أخرى",
+      "next": "التالي",
+      "title": "METEOR GEM WORKS",
+      "ghost": "مدينة الأشباح",
+      "ghostGoal": "أنر مدينة الأشباح!",
+      "ghostLit": "بيت يضيء!",
+      "districtDone": "المدينة عادت للحياة!",
+      "rig2": "حفّارة 2",
+      "cable": "التلفريك",
+      "stargaze": "منصة النجوم",
+      "crown": "صائغ التيجان",
+      "neon": "شارع النيون",
+      "heart": "قلب النيزك",
+      "finale": "القلب!",
+      "comet": "مذنّب! الفصل 2 قادم",
+      "star": "نجمة المدينة!",
+      "hat": "قبعة جديدة!",
+      "album": "الألبوم",
+      "share": "أرِ صديقك",
+      "rec": "رقم قياسي جديد!",
+      "recGems": "{n} جوهرة مصنوعة",
+      "recChain": "{n} ضربات مثالية متتالية",
+      "recCpm": "{n} عملة في دقيقة",
+      "bragGems": "صنعت {n} جوهرة في Meteor Gems!",
+      "brag": "مدينتي الكريستالية في Meteor Gems!",
+      "perkTip": "بقشيش أكبر",
+      "perkLuck": "لمعات أكثر",
+      "perkBonus": "+1 لكل بيع",
+      "fizz": "فِز",
+      "nugget": "نَغِت",
+      "zephyr": "زفير",
+      "twinkle": "توينكل",
+      "mossy": "موسي",
+      "nova": "نوفا",
+      "soon": "قريبًا",
+      "chapter1": "النيزك الكريستالي",
+      "chapter2": "مذنّب الجليد",
+      "rare": "نادر!",
+      "shiny": "لامع!",
+      "legendary": "أسطوري!",
+      "ember": "جمرة",
+      "pebblet": "حصيّة",
+      "dune": "كثيب",
+      "lumen": "لومن",
+      "frosty": "فروستي",
+      "cometpup": "جرو المذنّب",
+      "gift": "أهلًا بعودتك!",
+      "giftSub": "هدية من البلدة",
+      "toFrost": "اتبع المذنّب!",
+      "toDesert": "عودة إلى الصحراء",
+      "ride": "اركب التلفريك",
+      "awayCoins": "بلدتك واصلت البيع!",
+      "f_rig": "مثقاب الجليد",
+      "f_conveyor": "زلّاجة النقل",
+      "f_stand2": "كشك الثلج",
+      "f_keeper": "البطريق المساعد",
+      "f_cable": "مصعد التزلج",
+      "f_workshop": "كرات الثلج",
+      "f_stargaze": "شوكولاتة ساخنة",
+      "f_ghost": "الأكواخ النائمة",
+      "f_neon": "أضواء الشفق",
+      "f_heart": "قلب الصقيع",
+      "f_ghostGoal": "أيقظ الأكواخ",
+      "f_title": "مذنّب الصقيع",
+      "snowball": "كرة ثلج",
+      "flurry": "زخّة",
+      "icicle": "إبرة جليد",
+      "mitten": "قفّاز",
+      "glacier": "نهر جليد",
+      "puffin": "جرو البفن",
+      "aurorafox": "ثعلب الشفق",
+      "polaris": "بولاريس",
+      "lava": "شيء يتوهّج تحت الهضبة البعيدة...",
+      "f_ghostLit": "كوخ يستيقظ!",
+      "f_districtDone": "القرية استيقظت!",
+      "f_finale": "قلب الصقيع!",
+      "f_comet": "وهج أحمر! الفصل 3 قريبًا",
+      "ft_mine": "احفر هنا",
+      "ft_carry": "التقط",
+      "ft_polish": "لمّع",
+      "ft_sell": "بِع هنا",
+      "ft_cash": "اجمع العملات",
+      "ft_buy": "ابنِ هنا",
+      "ft_hatch": "افقس البيضة",
+      "firstGem": "أول جوهرة!",
+      "firstSale": "أول بيعة!",
+      "tomorrow": "عُد غدًا",
+      "tomorrowSub": "هدية وبيضة بانتظارك"
+    },
+    "es": {
+      "drag": "ARRASTRA PARA MOVER",
+      "rig": "TALADRO",
+      "rigDone": "¡MINA POR TI!",
+      "eggDrop": "¡UN HUEVO!",
+      "hatch": "¡NUEVO AMIGO!",
+      "pup": "Guijarro",
+      "full": "MÁX",
+      "perfect": "¡PERFECTO!",
+      "tapGlint": "¡TOCA EL BRILLO!",
+      "perkCarry": "+5 carga",
+      "perkSpeed": "pies veloces",
+      "perkMagnet": "imán de monedas",
+      "perkPolish": "pulido rápido",
+      "perkTourists": "más visitas",
+      "perkSwing": "golpe rápido",
+      "sparky": "Chispa",
+      "dusty": "Polvito",
+      "glimmer": "Brillito",
+      "pip": "Pip",
+      "boom": "Bum",
+      "conveyor": "CINTA",
+      "stand2": "NUEVO PUESTO",
+      "keeper": "TENDERO",
+      "road": "¡CAMINO LISTO!",
+      "workshop": "TALLER DE ANILLOS",
+      "laser": "LÁSER",
+      "rush": "¡LLUVIA DE CRISTAL!",
+      "bus": "¡AUTOBÚS!",
+      "thanks": "¡GRACIAS!",
+      "cont": "CONTINUAR",
+      "newGame": "NUEVO JUEGO",
+      "sure": "TOCA OTRA VEZ",
+      "next": "SIGUIENTE",
+      "title": "METEOR GEM WORKS",
+      "ghost": "PUEBLO FANTASMA",
+      "ghostGoal": "¡ILUMINA EL PUEBLO FANTASMA!",
+      "ghostLit": "¡UNA CASA SE ILUMINA!",
+      "districtDone": "¡EL PUEBLO REVIVE!",
+      "rig2": "TALADRO 2",
+      "cable": "TELEFÉRICO",
+      "stargaze": "MIRADOR DE ESTRELLAS",
+      "crown": "JOYERO DE CORONAS",
+      "neon": "CALLE DE NEÓN",
+      "heart": "CORAZÓN DEL METEORITO",
+      "finale": "¡EL CORAZÓN!",
+      "comet": "¡UN COMETA! LUEGO EL CAPÍTULO 2",
+      "star": "¡ESTRELLA DEL PUEBLO!",
+      "hat": "¡SOMBRERO NUEVO!",
+      "album": "ÁLBUM",
+      "share": "ENSÉÑALO",
+      "rec": "¡NUEVO RÉCORD!",
+      "recGems": "{n} gemas hechas",
+      "recChain": "{n} golpes perfectos seguidos",
+      "recCpm": "{n} monedas en un minuto",
+      "bragGems": "¡Hice {n} gemas en Meteor Gems!",
+      "brag": "¡Mi pueblo de cristal en Meteor Gems!",
+      "perkTip": "más propinas",
+      "perkLuck": "más destellos",
+      "perkBonus": "+1 por venta",
+      "fizz": "Fizz",
+      "nugget": "Pepita",
+      "zephyr": "Céfiro",
+      "twinkle": "Destello",
+      "mossy": "Musgo",
+      "nova": "Nova",
+      "soon": "PRONTO",
+      "chapter1": "METEORITO DE CRISTAL",
+      "chapter2": "COMETA DE HIELO",
+      "rare": "¡RARO!",
+      "shiny": "¡BRILLANTE!",
+      "legendary": "¡LEGENDARIO!",
+      "ember": "Brasa",
+      "pebblet": "Piedrita",
+      "dune": "Duna",
+      "lumen": "Lumen",
+      "frosty": "Escarcha",
+      "cometpup": "Cometín",
+      "gift": "¡HOLA DE NUEVO!",
+      "giftSub": "Un regalo del pueblo",
+      "toFrost": "¡SIGUE AL COMETA!",
+      "toDesert": "VOLVER AL DESIERTO",
+      "ride": "Sube al teleférico",
+      "awayCoins": "¡Tu pueblo siguió vendiendo!",
+      "f_rig": "TALADRO DE HIELO",
+      "f_conveyor": "TOBOGÁN",
+      "f_stand2": "PUESTO DE NIEVE",
+      "f_keeper": "PINGÜINO AYUDANTE",
+      "f_cable": "TELESILLA",
+      "f_workshop": "BOLAS DE NIEVE",
+      "f_stargaze": "CHOCOLATE CALIENTE",
+      "f_ghost": "CABAÑAS DORMIDAS",
+      "f_neon": "LUCES DE AURORA",
+      "f_heart": "EL CORAZÓN DE HIELO",
+      "f_ghostGoal": "Despierta las cabañas",
+      "f_title": "COMETA DE HIELO",
+      "snowball": "Bolita",
+      "flurry": "Ventisca",
+      "icicle": "Carámbano",
+      "mitten": "Manopla",
+      "glacier": "Glaciar",
+      "puffin": "Frailecillo",
+      "aurorafox": "Zorro Aurora",
+      "polaris": "Polaris",
+      "lava": "Algo brilla bajo la meseta lejana...",
+      "f_ghostLit": "¡UNA CABAÑA DESPIERTA!",
+      "f_districtDone": "¡EL PUEBLO DESPERTÓ!",
+      "f_finale": "¡EL CORAZÓN DE HIELO!",
+      "f_comet": "¡UN BRILLO ROJO! CAPÍTULO 3 PRONTO",
+      "ft_mine": "PICA AQUÍ",
+      "ft_carry": "RECOGE",
+      "ft_polish": "PULE",
+      "ft_sell": "VENDE AQUÍ",
+      "ft_cash": "TOMA MONEDAS",
+      "ft_buy": "CONSTRUYE",
+      "ft_hatch": "ABRE EL HUEVO",
+      "firstGem": "¡PRIMERA GEMA!",
+      "firstSale": "¡PRIMERA VENTA!",
+      "tomorrow": "VUELVE MAÑANA",
+      "tomorrowSub": "Te esperan un regalo y un huevo"
+    },
+    "vi": {
+      "drag": "KÉO ĐỂ DI CHUYỂN",
+      "rig": "GIÀN KHOAN",
+      "rigDone": "NÓ ĐÀO GIÚP BẠN!",
+      "eggDrop": "MỘT QUẢ TRỨNG!",
+      "hatch": "BẠN MỚI!",
+      "pup": "Sỏi",
+      "full": "ĐẦY",
+      "perfect": "HOÀN HẢO!",
+      "tapGlint": "CHẠM VÀO TIA SÁNG!",
+      "perkCarry": "+5 mang",
+      "perkSpeed": "chạy nhanh",
+      "perkMagnet": "nam châm xu",
+      "perkPolish": "mài nhanh",
+      "perkTourists": "thêm khách",
+      "perkSwing": "đào nhanh",
+      "sparky": "Lấp Lánh",
+      "dusty": "Bụi",
+      "glimmer": "Ánh",
+      "pip": "Pip",
+      "boom": "Bùm",
+      "conveyor": "BĂNG CHUYỀN",
+      "stand2": "QUẦY MỚI",
+      "keeper": "NGƯỜI BÁN",
+      "road": "ĐƯỜNG ĐÃ SỬA",
+      "workshop": "XƯỞNG NHẪN",
+      "laser": "MÁY LASER",
+      "rush": "MƯA PHA LÊ!",
+      "bus": "XE DU LỊCH!",
+      "thanks": "CẢM ƠN!",
+      "cont": "TIẾP TỤC",
+      "newGame": "CHƠI MỚI",
+      "sure": "CHẠM LẦN NỮA",
+      "next": "TIẾP",
+      "title": "METEOR GEM WORKS",
+      "ghost": "THỊ TRẤN MA",
+      "ghostGoal": "THẮP SÁNG THỊ TRẤN MA!",
+      "ghostLit": "MỘT NGÔI NHÀ SÁNG ĐÈN!",
+      "districtDone": "THỊ TRẤN SỐNG LẠI!",
+      "rig2": "MÁY KHOAN 2",
+      "cable": "CÁP TREO",
+      "stargaze": "ĐÀI NGẮM SAO",
+      "crown": "THỢ KIM HOÀN",
+      "neon": "PHỐ NEON",
+      "heart": "TRÁI TIM THIÊN THẠCH",
+      "finale": "TRÁI TIM!",
+      "comet": "SAO CHỔI! CHƯƠNG 2 SẮP TỚI",
+      "star": "NGÔI SAO THỊ TRẤN!",
+      "hat": "MŨ MỚI!",
+      "album": "ALBUM",
+      "share": "KHOE BẠN BÈ",
+      "rec": "KỶ LỤC MỚI!",
+      "recGems": "{n} viên ngọc đã làm",
+      "recChain": "{n} cú hoàn hảo liên tiếp",
+      "recCpm": "{n} xu trong một phút",
+      "bragGems": "Mình đã làm {n} viên ngọc trong Meteor Gems!",
+      "brag": "Thị trấn pha lê của mình trong Meteor Gems!",
+      "perkTip": "tiền boa to",
+      "perkLuck": "nhiều lấp lánh",
+      "perkBonus": "+1 mỗi lần bán",
+      "fizz": "Fizz",
+      "nugget": "Cốm",
+      "zephyr": "Gió",
+      "twinkle": "Lấp Lánh",
+      "mossy": "Rêu",
+      "nova": "Nova",
+      "soon": "SẮP CÓ",
+      "chapter1": "THIÊN THẠCH PHA LÊ",
+      "chapter2": "SAO CHỔI BĂNG",
+      "rare": "HIẾM!",
+      "shiny": "LẤP LÁNH!",
+      "legendary": "HUYỀN THOẠI!",
+      "ember": "Than Hồng",
+      "pebblet": "Sỏi Nhỏ",
+      "dune": "Đụn Cát",
+      "lumen": "Lumen",
+      "frosty": "Sương Giá",
+      "cometpup": "Sao Chổi Con",
+      "gift": "CHÀO MỪNG TRỞ LẠI!",
+      "giftSub": "Quà từ thị trấn",
+      "toFrost": "ĐUỔI THEO SAO CHỔI!",
+      "toDesert": "VỀ SA MẠC",
+      "ride": "Lên cáp treo",
+      "awayCoins": "Thị trấn vẫn bán hàng!",
+      "f_rig": "MŨI KHOAN BĂNG",
+      "f_conveyor": "CẦU TRƯỢT",
+      "f_stand2": "QUẦY TUYẾT",
+      "f_keeper": "CHIM CÁNH CỤT",
+      "f_cable": "CÁP TRƯỢT TUYẾT",
+      "f_workshop": "QUẢ CẦU TUYẾT",
+      "f_stargaze": "CA CAO NÓNG",
+      "f_ghost": "NHÀ GỖ NGỦ SAY",
+      "f_neon": "ĐÈN CỰC QUANG",
+      "f_heart": "TRÁI TIM BĂNG",
+      "f_ghostGoal": "Đánh thức nhà gỗ",
+      "f_title": "SAO CHỔI BĂNG",
+      "snowball": "Bông Tuyết",
+      "flurry": "Gió Tuyết",
+      "icicle": "Trụ Băng",
+      "mitten": "Găng Tay",
+      "glacier": "Sông Băng",
+      "puffin": "Hải Âu Con",
+      "aurorafox": "Cáo Cực Quang",
+      "polaris": "Bắc Đẩu",
+      "lava": "Có gì đó phát sáng dưới núi xa...",
+      "f_ghostLit": "MỘT NHÀ GỖ THỨC GIẤC!",
+      "f_districtDone": "LÀNG ĐÃ THỨC DẬY!",
+      "f_finale": "TRÁI TIM BĂNG!",
+      "f_comet": "ÁNH ĐỎ! CHƯƠNG 3 SẮP TỚI",
+      "ft_mine": "ĐÀO Ở ĐÂY",
+      "ft_carry": "NHẶT LÊN",
+      "ft_polish": "ĐÁNH BÓNG",
+      "ft_sell": "BÁN Ở ĐÂY",
+      "ft_cash": "NHẶT XU",
+      "ft_buy": "XÂY NÀO",
+      "ft_hatch": "ẤP TRỨNG",
+      "firstGem": "VIÊN ĐÁ ĐẦU TIÊN!",
+      "firstSale": "LẦN BÁN ĐẦU!",
+      "tomorrow": "MAI QUAY LẠI NHÉ",
+      "tomorrowSub": "Quà và một quả trứng đang chờ bạn"
+    },
+    "hi": {
+      "drag": "चलने के लिए खींचें",
+      "rig": "ड्रिल रिग",
+      "rigDone": "यह आपके लिए खोदता है!",
+      "eggDrop": "एक अंडा!",
+      "hatch": "नया दोस्त!",
+      "pup": "कंकड़",
+      "full": "पूरा",
+      "perfect": "शानदार!",
+      "tapGlint": "चमक को छुओ!",
+      "perkCarry": "+5 भार",
+      "perkSpeed": "तेज़ पैर",
+      "perkMagnet": "सिक्का चुंबक",
+      "perkPolish": "तेज़ पॉलिश",
+      "perkTourists": "ज़्यादा मेहमान",
+      "perkSwing": "तेज़ वार",
+      "sparky": "चमकू",
+      "dusty": "धूलू",
+      "glimmer": "झिलमिल",
+      "pip": "पिप",
+      "boom": "बूम",
+      "conveyor": "कन्वेयर",
+      "stand2": "नया स्टैंड",
+      "keeper": "दुकानदार",
+      "road": "सड़क तैयार",
+      "workshop": "अंगूठी कारख़ाना",
+      "laser": "लेज़र कटर",
+      "rush": "क्रिस्टल बारिश!",
+      "bus": "टूर बस!",
+      "thanks": "धन्यवाद!",
+      "cont": "जारी रखें",
+      "newGame": "नया खेल",
+      "sure": "फिर छुएँ",
+      "next": "अगला",
+      "title": "METEOR GEM WORKS",
+      "ghost": "भूतिया कस्बा",
+      "ghostGoal": "भूतिया कस्बा रोशन करो!",
+      "ghostLit": "एक घर जगमगाया!",
+      "districtDone": "कस्बा जाग उठा!",
+      "rig2": "ड्रिल रिग 2",
+      "cable": "केबल कार",
+      "stargaze": "तारा डेक",
+      "crown": "मुकुट जौहरी",
+      "neon": "नियॉन गली",
+      "heart": "उल्का का दिल",
+      "finale": "दिल!",
+      "comet": "धूमकेतु! अगला अध्याय 2",
+      "star": "कस्बे का तारा!",
+      "hat": "नई टोपी!",
+      "album": "एल्बम",
+      "share": "दोस्त को दिखाओ",
+      "rec": "नया रिकॉर्ड!",
+      "recGems": "{n} रत्न बनाए",
+      "recChain": "लगातार {n} परफेक्ट वार",
+      "recCpm": "एक मिनट में {n} सिक्के",
+      "bragGems": "मैंने Meteor Gems में {n} रत्न बनाए!",
+      "brag": "Meteor Gems में मेरा क्रिस्टल कस्बा!",
+      "perkTip": "बड़ी टिप",
+      "perkLuck": "ज़्यादा चमक",
+      "perkBonus": "हर बिक्री +1",
+      "fizz": "फ़िज़",
+      "nugget": "नगेट",
+      "zephyr": "ज़ेफ़िर",
+      "twinkle": "ट्विंकल",
+      "mossy": "मॉसी",
+      "nova": "नोवा",
+      "soon": "जल्द",
+      "chapter1": "क्रिस्टल उल्का",
+      "chapter2": "बर्फ़ीला धूमकेतु",
+      "rare": "दुर्लभ!",
+      "shiny": "चमकीला!",
+      "legendary": "दिग्गज!",
+      "ember": "अंगारा",
+      "pebblet": "कंकड़ू",
+      "dune": "टीला",
+      "lumen": "ल्यूमेन",
+      "frosty": "फ्रॉस्टी",
+      "cometpup": "धूमकेतु पिल्ला",
+      "gift": "फिर से स्वागत है!",
+      "giftSub": "शहर की ओर से तोहफ़ा",
+      "toFrost": "धूमकेतु के पीछे चलो!",
+      "toDesert": "रेगिस्तान वापस",
+      "ride": "केबल कार में बैठो",
+      "awayCoins": "तुम्हारा शहर बेचता रहा!",
+      "f_rig": "बर्फ़ की ड्रिल",
+      "f_conveyor": "स्लेज फिसलन",
+      "f_stand2": "बर्फ़ की दुकान",
+      "f_keeper": "पेंगुइन मददगार",
+      "f_cable": "स्की लिफ़्ट",
+      "f_workshop": "स्नो ग्लोब",
+      "f_stargaze": "गरम कोको",
+      "f_ghost": "सोते कॉटेज",
+      "f_neon": "ऑरोरा रोशनी",
+      "f_heart": "बर्फ़ का दिल",
+      "f_ghostGoal": "कॉटेज जगाओ",
+      "f_title": "बर्फ़ीला धूमकेतु",
+      "snowball": "स्नोबॉल",
+      "flurry": "फुहार",
+      "icicle": "हिमलट",
+      "mitten": "दस्ताना",
+      "glacier": "हिमनद",
+      "puffin": "पफ़िन पिल्ला",
+      "aurorafox": "ऑरोरा लोमड़ी",
+      "polaris": "ध्रुव",
+      "lava": "दूर पठार के नीचे कुछ चमक रहा है...",
+      "f_ghostLit": "एक कॉटेज जागा!",
+      "f_districtDone": "गाँव जाग गया!",
+      "f_finale": "बर्फ़ का दिल!",
+      "f_comet": "लाल चमक! अध्याय 3 जल्द",
+      "ft_mine": "यहाँ खोदो",
+      "ft_carry": "उठाओ",
+      "ft_polish": "चमकाओ",
+      "ft_sell": "यहाँ बेचो",
+      "ft_cash": "सिक्के लो",
+      "ft_buy": "बनाओ",
+      "ft_hatch": "अंडा फोड़ो",
+      "firstGem": "पहला रत्न!",
+      "firstSale": "पहली बिक्री!",
+      "tomorrow": "कल फिर आना",
+      "tomorrowSub": "एक तोहफ़ा और अंडा इंतज़ार करेंगे"
+    },
+    "bn": {
+      "drag": "চলতে টানো",
+      "rig": "ড্রিল রিগ",
+      "rigDone": "এটা তোমার জন্য খোঁড়ে!",
+      "eggDrop": "একটা ডিম!",
+      "hatch": "নতুন বন্ধু!",
+      "pup": "নুড়ি",
+      "full": "পূর্ণ",
+      "perfect": "দারুণ!",
+      "tapGlint": "ঝিলিক ছোঁও!",
+      "perkCarry": "+5 বহন",
+      "perkSpeed": "দ্রুত পা",
+      "perkMagnet": "মুদ্রা চুম্বক",
+      "perkPolish": "দ্রুত পালিশ",
+      "perkTourists": "বেশি অতিথি",
+      "perkSwing": "দ্রুত আঘাত",
+      "sparky": "ঝিকমিক",
+      "dusty": "ধুলো",
+      "glimmer": "আভা",
+      "pip": "পিপ",
+      "boom": "বুম",
+      "conveyor": "কনভেয়র",
+      "stand2": "নতুন স্টল",
+      "keeper": "দোকানি",
+      "road": "রাস্তা ঠিক",
+      "workshop": "আংটির কারখানা",
+      "laser": "লেজার কাটার",
+      "rush": "স্ফটিক বৃষ্টি!",
+      "bus": "ট্যুর বাস!",
+      "thanks": "ধন্যবাদ!",
+      "cont": "চালিয়ে যাও",
+      "newGame": "নতুন খেলা",
+      "sure": "আবার ছোঁও",
+      "next": "পরের",
+      "title": "METEOR GEM WORKS",
+      "ghost": "ভুতুড়ে শহর",
+      "ghostGoal": "ভুতুড়ে শহর আলোকিত করো!",
+      "ghostLit": "একটা বাড়ি জ্বলে উঠল!",
+      "districtDone": "শহর জেগে উঠেছে!",
+      "rig2": "ড্রিল রিগ ২",
+      "cable": "কেবল কার",
+      "stargaze": "তারা দেখার মঞ্চ",
+      "crown": "মুকুট জহুরি",
+      "neon": "নিয়ন রাস্তা",
+      "heart": "উল্কার হৃদয়",
+      "finale": "হৃদয়!",
+      "comet": "ধূমকেতু! এরপর অধ্যায় ২",
+      "star": "শহরের তারা!",
+      "hat": "নতুন টুপি!",
+      "album": "অ্যালবাম",
+      "share": "বন্ধুকে দেখাও",
+      "rec": "নতুন রেকর্ড!",
+      "recGems": "{n}টি রত্ন বানানো",
+      "recChain": "পরপর {n}টি পারফেক্ট আঘাত",
+      "recCpm": "এক মিনিটে {n} কয়েন",
+      "bragGems": "আমি Meteor Gems-এ {n}টি রত্ন বানিয়েছি!",
+      "brag": "Meteor Gems-এ আমার ক্রিস্টাল শহর!",
+      "perkTip": "বড় বকশিশ",
+      "perkLuck": "বেশি ঝিলিক",
+      "perkBonus": "প্রতি বিক্রিতে +১",
+      "fizz": "ফিজ",
+      "nugget": "নাগেট",
+      "zephyr": "জেফির",
+      "twinkle": "টুইঙ্কল",
+      "mossy": "মসি",
+      "nova": "নোভা",
+      "soon": "শীঘ্রই",
+      "chapter1": "ক্রিস্টাল উল্কা",
+      "chapter2": "বরফের ধূমকেতু",
+      "rare": "বিরল!",
+      "shiny": "ঝকঝকে!",
+      "legendary": "কিংবদন্তি!",
+      "ember": "অঙ্গার",
+      "pebblet": "নুড়িকুচি",
+      "dune": "বালিয়াড়ি",
+      "lumen": "লুমেন",
+      "frosty": "ফ্রস্টি",
+      "cometpup": "ধূমকেতু ছানা",
+      "gift": "আবার স্বাগতম!",
+      "giftSub": "শহরের পক্ষ থেকে উপহার",
+      "toFrost": "ধূমকেতুর পিছু নাও!",
+      "toDesert": "মরুভূমিতে ফেরো",
+      "ride": "কেবল কারে ওঠো",
+      "awayCoins": "তোমার শহর বিক্রি চালিয়ে গেছে!",
+      "f_rig": "বরফের ড্রিল",
+      "f_conveyor": "স্লেজ স্লাইড",
+      "f_stand2": "বরফের দোকান",
+      "f_keeper": "পেঙ্গুইন সহকারী",
+      "f_cable": "স্কি লিফট",
+      "f_workshop": "স্নো গ্লোব",
+      "f_stargaze": "গরম কোকো",
+      "f_ghost": "ঘুমন্ত কুটির",
+      "f_neon": "অরোরা আলো",
+      "f_heart": "বরফের হৃদয়",
+      "f_ghostGoal": "কুটিরগুলো জাগাও",
+      "f_title": "বরফ ধূমকেতু",
+      "snowball": "তুষারবল",
+      "flurry": "ঝিরিঝিরি",
+      "icicle": "বরফকাঠি",
+      "mitten": "দস্তানা",
+      "glacier": "হিমবাহ",
+      "puffin": "পাফিন ছানা",
+      "aurorafox": "অরোরা শেয়াল",
+      "polaris": "ধ্রুবতারা",
+      "lava": "দূরের মালভূমির নিচে কিছু জ্বলছে...",
+      "f_ghostLit": "একটা কুটির জেগেছে!",
+      "f_districtDone": "গ্রাম জেগে উঠেছে!",
+      "f_finale": "বরফের হৃদয়!",
+      "f_comet": "লাল আভা! অধ্যায় ৩ শিগগির",
+      "ft_mine": "এখানে খোঁড়ো",
+      "ft_carry": "তোলো",
+      "ft_polish": "ঝকঝকে করো",
+      "ft_sell": "এখানে বেচো",
+      "ft_cash": "কয়েন নাও",
+      "ft_buy": "বানাও",
+      "ft_hatch": "ডিম ফোটাও",
+      "firstGem": "প্রথম রত্ন!",
+      "firstSale": "প্রথম বিক্রি!",
+      "tomorrow": "কাল আবার এসো",
+      "tomorrowSub": "একটা উপহার আর ডিম অপেক্ষা করবে"
+    },
+    "id": {
+      "drag": "GESER UNTUK JALAN",
+      "rig": "BOR ROBOT",
+      "rigDone": "IA MENAMBANG UNTUKMU!",
+      "eggDrop": "ADA TELUR!",
+      "hatch": "TEMAN BARU!",
+      "pup": "Kerikil",
+      "full": "PENUH",
+      "perfect": "SEMPURNA!",
+      "tapGlint": "KETUK KILAUANNYA!",
+      "perkCarry": "+5 bawa",
+      "perkSpeed": "kaki cepat",
+      "perkMagnet": "magnet koin",
+      "perkPolish": "poles cepat",
+      "perkTourists": "tamu bertambah",
+      "perkSwing": "ayunan cepat",
+      "sparky": "Kilau",
+      "dusty": "Debu",
+      "glimmer": "Kemilau",
+      "pip": "Pip",
+      "boom": "Bum",
+      "conveyor": "KONVEYOR",
+      "stand2": "LAPAK BARU",
+      "keeper": "PENJAGA TOKO",
+      "road": "JALAN DIPERBAIKI",
+      "workshop": "BENGKEL CINCIN",
+      "laser": "PEMOTONG LASER",
+      "rush": "HUJAN KRISTAL!",
+      "bus": "BUS WISATA!",
+      "thanks": "TERIMA KASIH!",
+      "cont": "LANJUTKAN",
+      "newGame": "MAIN BARU",
+      "sure": "KETUK LAGI",
+      "next": "BERIKUTNYA",
+      "title": "METEOR GEM WORKS",
+      "ghost": "KOTA HANTU",
+      "ghostGoal": "TERANGI KOTA HANTU!",
+      "ghostLit": "SEBUAH RUMAH MENYALA!",
+      "districtDone": "KOTA HIDUP LAGI!",
+      "rig2": "BOR ROBOT 2",
+      "cable": "KERETA GANTUNG",
+      "stargaze": "DEK BINTANG",
+      "crown": "PERAJIN MAHKOTA",
+      "neon": "JALAN NEON",
+      "heart": "JANTUNG METEOR",
+      "finale": "JANTUNGNYA!",
+      "comet": "KOMET! LALU BAB 2",
+      "star": "BINTANG KOTA!",
+      "hat": "TOPI BARU!",
+      "album": "ALBUM",
+      "share": "PAMERKAN",
+      "rec": "REKOR BARU!",
+      "recGems": "{n} permata dibuat",
+      "recChain": "{n} pukulan sempurna beruntun",
+      "recCpm": "{n} koin dalam semenit",
+      "bragGems": "Aku membuat {n} permata di Meteor Gems!",
+      "brag": "Kota kristalku di Meteor Gems!",
+      "perkTip": "tip lebih besar",
+      "perkLuck": "kilau lebih sering",
+      "perkBonus": "+1 tiap jual",
+      "fizz": "Fizz",
+      "nugget": "Bongkah",
+      "zephyr": "Angin",
+      "twinkle": "Kerlip",
+      "mossy": "Lumut",
+      "nova": "Nova",
+      "soon": "SEGERA",
+      "chapter1": "METEOR KRISTAL",
+      "chapter2": "KOMET ES",
+      "rare": "LANGKA!",
+      "shiny": "BERKILAU!",
+      "legendary": "LEGENDA!",
+      "ember": "Bara",
+      "pebblet": "Kerikil",
+      "dune": "Bukit Pasir",
+      "lumen": "Lumen",
+      "frosty": "Beku",
+      "cometpup": "Anak Komet",
+      "gift": "SELAMAT DATANG LAGI!",
+      "giftSub": "Hadiah dari kota",
+      "toFrost": "IKUTI KOMETNYA!",
+      "toDesert": "KEMBALI KE GURUN",
+      "ride": "Naik kereta gantung",
+      "awayCoins": "Kotamu tetap berjualan!",
+      "f_rig": "BOR ES",
+      "f_conveyor": "PELUNCUR KERETA SALJU",
+      "f_stand2": "KIOS SALJU",
+      "f_keeper": "PENGUIN PENOLONG",
+      "f_cable": "KURSI GANTUNG SKI",
+      "f_workshop": "BOLA SALJU",
+      "f_stargaze": "COKELAT PANAS",
+      "f_ghost": "PONDOK TERTIDUR",
+      "f_neon": "LAMPU AURORA",
+      "f_heart": "JANTUNG ES",
+      "f_ghostGoal": "Bangunkan pondok",
+      "f_title": "KOMET ES",
+      "snowball": "Bola Salju",
+      "flurry": "Hujan Salju",
+      "icicle": "Es Runcing",
+      "mitten": "Sarung Tangan",
+      "glacier": "Gletser",
+      "puffin": "Anak Puffin",
+      "aurorafox": "Rubah Aurora",
+      "polaris": "Polaris",
+      "lava": "Ada yang menyala di bawah bukit jauh...",
+      "f_ghostLit": "SEBUAH PONDOK BANGUN!",
+      "f_districtDone": "DESA SUDAH BANGUN!",
+      "f_finale": "JANTUNG ES!",
+      "f_comet": "CAHAYA MERAH! BAB 3 SEGERA",
+      "ft_mine": "GALI DI SINI",
+      "ft_carry": "AMBIL",
+      "ft_polish": "GOSOK",
+      "ft_sell": "JUAL DI SINI",
+      "ft_cash": "AMBIL KOIN",
+      "ft_buy": "BANGUN",
+      "ft_hatch": "TETASKAN",
+      "firstGem": "PERMATA PERTAMA!",
+      "firstSale": "PENJUALAN PERTAMA!",
+      "tomorrow": "BALIK LAGI BESOK",
+      "tomorrowSub": "Hadiah dan telur menunggumu"
+    }
+  },
+  "start": {
+    "pile": 9,
+    "counter": 2,
+    "polIn": 3
+  },
+  "title": "Meteor Gem Works",
+  "conveyor": {
+    "every": 0.45
+  },
+  "keeper": {
+    "speed": 8.0,
+    "carry": 4,
+    "pickEvery": 0.15
+  },
+  "workshop": {
+    "per": 2,
+    "time": 0.9
+  },
+  "laser": {
+    "period": 1.3,
+    "chunks": 2,
+    "carveR": 0.7,
+    "carveD": 0.22,
+    "eggK": 0.8
+  },
+  "bus": {
+    "first": 6,
+    "every": 100,
+    "wave": 6,
+    "spawn": 0.35
+  },
+  "order": {
+    "first": 30,
+    "every": 38,
+    "tip": 6,
+    "ringAfter": "workshop",
+    "ringShare": 0.4,
+    "quiet": 24
+  },
+  "rush": {
+    "first": 100,
+    "every": 150,
+    "length": 15,
+    "spawn": 0.22,
+    "max": 26,
+    "coinShare": 0.35,
+    "pickR": 0.95
+  },
+  "critters": [
+    {
+      "id": "pebble",
+      "perk": "carry",
+      "v": 5,
+      "body": "#f0c48c",
+      "shell": "#5ab8ff",
+      "rarity": "common"
+    },
+    {
+      "id": "sparky",
+      "perk": "speed",
+      "v": 0.15,
+      "body": "#f6e2c8",
+      "shell": "#ff8ad8",
+      "rarity": "common"
+    },
+    {
+      "id": "dusty",
+      "perk": "magnet",
+      "v": 1,
+      "body": "#e8a060",
+      "shell": "#ffd35a",
+      "rarity": "common"
+    },
+    {
+      "id": "glimmer",
+      "perk": "polish",
+      "v": 0.7,
+      "body": "#a8d8a0",
+      "shell": "#7ae8b0",
+      "rarity": "shiny"
+    },
+    {
+      "id": "pip",
+      "perk": "tourists",
+      "v": 0.75,
+      "body": "#d8b090",
+      "shell": "#b08cff",
+      "rarity": "shiny"
+    },
+    {
+      "id": "boom",
+      "perk": "swing",
+      "v": 0.8,
+      "body": "#b0a090",
+      "shell": "#ff9a5a",
+      "rarity": "rare"
+    },
+    {
+      "id": "fizz",
+      "perk": "tip",
+      "v": 4,
+      "body": "#f4d0e0",
+      "shell": "#ff6fa8",
+      "rarity": "common"
+    },
+    {
+      "id": "nugget",
+      "perk": "carry",
+      "v": 5,
+      "body": "#e0b878",
+      "shell": "#ffc23a",
+      "rarity": "common"
+    },
+    {
+      "id": "zephyr",
+      "perk": "speed",
+      "v": 0.1,
+      "body": "#d8e8f0",
+      "shell": "#7ad8ff",
+      "rarity": "shiny"
+    },
+    {
+      "id": "twinkle",
+      "perk": "luck",
+      "v": 0.75,
+      "body": "#f0e0f8",
+      "shell": "#c890ff",
+      "rarity": "shiny"
+    },
+    {
+      "id": "mossy",
+      "perk": "magnet",
+      "v": 0.6,
+      "body": "#a8c890",
+      "shell": "#5ae08a",
+      "rarity": "rare"
+    },
+    {
+      "id": "ember",
+      "perk": "tip",
+      "v": 2,
+      "body": "#eca070",
+      "shell": "#ff7a3a",
+      "rarity": "common",
+      "drop": "night"
+    },
+    {
+      "id": "pebblet",
+      "perk": "carry",
+      "v": 3,
+      "body": "#c8c0b8",
+      "shell": "#9ac8ff",
+      "rarity": "common",
+      "drop": "night",
+      "s": 0.85
+    },
+    {
+      "id": "dune",
+      "perk": "magnet",
+      "v": 0.4,
+      "body": "#e8c890",
+      "shell": "#f0a050",
+      "rarity": "common",
+      "drop": "night"
+    },
+    {
+      "id": "lumen",
+      "perk": "polish",
+      "v": 0.9,
+      "body": "#e0e8ff",
+      "shell": "#7af0ff",
+      "rarity": "shiny",
+      "drop": "night"
+    },
+    {
+      "id": "frosty",
+      "perk": "tourists",
+      "v": 0.9,
+      "body": "#f4faff",
+      "shell": "#a8e8ff",
+      "rarity": "shiny",
+      "drop": "night"
+    },
+    {
+      "id": "cometpup",
+      "perk": "swing",
+      "v": 0.9,
+      "body": "#c8b8e8",
+      "shell": "#ff8ad8",
+      "rarity": "rare",
+      "drop": "night",
+      "s": 1.1
+    },
+    {
+      "id": "nova",
+      "perk": "bonus",
+      "v": 1,
+      "body": "#ffe2a0",
+      "shell": "#ffd060",
+      "rarity": "legendary"
+    },
+    {
+      "id": "snowball",
+      "perk": "carry",
+      "v": 3,
+      "body": "#e4e2f2",
+      "shell": "#9fd4ff",
+      "rarity": "common",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "flurry",
+      "perk": "speed",
+      "v": 0.08,
+      "body": "#d6e4f4",
+      "shell": "#c8a8ff",
+      "rarity": "common",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "icicle",
+      "perk": "tip",
+      "v": 2,
+      "body": "#c8d8ee",
+      "shell": "#7ae0ff",
+      "rarity": "common",
+      "area": "frost",
+      "drop": "ch2",
+      "s": 0.9
+    },
+    {
+      "id": "mitten",
+      "perk": "magnet",
+      "v": 0.4,
+      "body": "#e89aa8",
+      "shell": "#ffc0d8",
+      "rarity": "shiny",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "glacier",
+      "perk": "polish",
+      "v": 0.9,
+      "body": "#a8c4e0",
+      "shell": "#5ad0f0",
+      "rarity": "shiny",
+      "area": "frost",
+      "drop": "ch2",
+      "s": 1.1
+    },
+    {
+      "id": "puffin",
+      "perk": "tourists",
+      "v": 0.9,
+      "body": "#4a4a62",
+      "shell": "#ff9a6a",
+      "rarity": "rare",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "aurorafox",
+      "perk": "luck",
+      "v": 0.85,
+      "body": "#f0d8e8",
+      "shell": "#8af0c8",
+      "rarity": "rare",
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "polaris",
+      "perk": "bonus",
+      "v": 3,
+      "body": "#dfe8f8",
+      "shell": "#9ad8ff",
+      "rarity": "legendary",
+      "area": "frost",
+      "drop": "ch2"
+    }
+  ],
+  "save": {
+    "every": 4,
+    "version": 1
+  },
+  "cart": {
+    "cap": 4,
+    "trip": 4,
+    "pay": 6,
+    "lights": 3,
+    "tip": 20
+  },
+  "cable": {
+    "tourists": 0.7,
+    "busWave": 3
+  },
+  "stargaze": {
+    "bonus": 1
+  },
+  "crown": {
+    "every": 6,
+    "pay": 22
+  },
+  "neon": {
+    "tourists": 0.85
+  },
+  "finale": {
+    "rise": 3.5,
+    "crown": 7,
+    "comet": 11,
+    "end": 15,
+    "critter": "nova"
+  },
+  "stars": {
+    "orders": 8,
+    "critters": 7
+  },
+  "hats": [
+    {
+      "id": "cowboy"
+    },
+    {
+      "id": "flower",
+      "stars": 1
+    },
+    {
+      "id": "bunny",
+      "stars": 2
+    },
+    {
+      "id": "astro",
+      "stars": 3
+    },
+    {
+      "id": "top",
+      "hearts": 15
+    },
+    {
+      "id": "crown",
+      "finale": true
+    },
+    {
+      "id": "lamp",
+      "critters": 15,
+      "drop": "night"
+    },
+    {
+      "id": "antenna",
+      "hearts": 25,
+      "drop": "night"
+    },
+    {
+      "id": "bandana",
+      "sold": 1000,
+      "drop": "night"
+    },
+    {
+      "id": "earmuffs",
+      "stars": 1,
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "beanie",
+      "stars": 2,
+      "area": "frost",
+      "drop": "ch2"
+    },
+    {
+      "id": "icecrown",
+      "finale": true,
+      "area": "frost",
+      "drop": "ch2"
+    }
+  ],
+  "share": {
+    "show": 7
+  },
+  "drops": {
+    "night": false,
+    "festival": false,
+    "ch2": false
+  },
+  "festival": {
+    "fireworks": 7,
+    "lampsMin": 0.45
+  },
+  "gift": {
+    "awayH": 8,
+    "base": 30,
+    "perPad": 12,
+    "cap": 240,
+    "eggIn": 3
+  },
+  "travel": {
+    "x": 10.24,
+    "z": 15.45,
+    "r": 0.95,
+    "hold": 0.8
+  },
+  "away": {
+    "perPadMin": 5,
+    "cap": 160
+  },
+  "ch2": {
+    "seed": 23,
+    "scale": 3,
+    "pads": [
+      {
+        "id": "rig",
+        "label": "f_rig",
+        "price": 120
+      },
+      {
+        "id": "conveyor",
+        "label": "f_conveyor",
+        "price": 280
+      },
+      {
+        "id": "stand2",
+        "label": "f_stand2",
+        "price": 380
+      },
+      {
+        "id": "keeper",
+        "label": "f_keeper",
+        "price": 440
+      },
+      {
+        "id": "cable",
+        "label": "f_cable",
+        "price": 545
+      },
+      {
+        "id": "workshop",
+        "label": "f_workshop",
+        "price": 645,
+        "icon": "globe"
+      },
+      {
+        "id": "stargaze",
+        "label": "f_stargaze",
+        "price": 745,
+        "icon": "cocoa"
+      },
+      {
+        "id": "ghost",
+        "label": "f_ghost",
+        "price": 845
+      },
+      {
+        "id": "neon",
+        "label": "f_neon",
+        "price": 975,
+        "icon": "aurora"
+      },
+      {
+        "id": "heart",
+        "label": "f_heart",
+        "price": 1160
+      }
+    ],
+    "finale": {
+      "critter": "polaris"
+    },
+    "stars": {
+      "orders": 6,
+      "critters": 5
+    },
+    "egg": {
+      "dropAt": 18
+    },
+    "rush": {
+      "first": 80
+    },
+    "tod": {
+      "start": 0,
+      "ease": 0.04,
+      "byPad": {
+        "stargaze": 0.5,
+        "neon": 0.85,
+        "heart": 1
+      },
+      "keys": [
+        {
+          "t": 0,
+          "sky": [
+            "#6f9ee0",
+            "#a9c4ee",
+            "#dcd6f0",
+            "#e8dcef"
+          ],
+          "fog": "#d8d6ec",
+          "fogNear": 50,
+          "fogFar": 125,
+          "sun": "#fff4ec",
+          "sunI": 2.0,
+          "hemiSky": "#eef0ff",
+          "hemiGround": "#7a7aa8",
+          "hemiI": 1.0,
+          "elev": 0.95,
+          "exp": 0.86,
+          "lamps": 0,
+          "meteor": 1
+        },
+        {
+          "t": 0.5,
+          "sky": [
+            "#7a86c8",
+            "#c8a0c8",
+            "#f0b8c0",
+            "#f2d0cc"
+          ],
+          "fog": "#dcb8cc",
+          "fogNear": 46,
+          "fogFar": 115,
+          "sun": "#ffc8b0",
+          "sunI": 1.8,
+          "hemiSky": "#f0d4e8",
+          "hemiGround": "#6a5a8a",
+          "hemiI": 0.95,
+          "elev": 0.4,
+          "exp": 0.88,
+          "lamps": 0.3,
+          "meteor": 1.15
+        },
+        {
+          "t": 1,
+          "sky": [
+            "#141a44",
+            "#2c3170",
+            "#5a4a8e",
+            "#8a6aa8"
+          ],
+          "fog": "#4a4a7a",
+          "fogNear": 42,
+          "fogFar": 105,
+          "sun": "#a8b8ff",
+          "sunI": 1.0,
+          "hemiSky": "#8a92e0",
+          "hemiGround": "#3a3456",
+          "hemiI": 0.85,
+          "elev": 0.22,
+          "exp": 1.0,
+          "lamps": 1,
+          "meteor": 1.3
+        }
+      ]
+    },
+    "snow": {
+      "flakes": 520,
+      "h": 14,
+      "fall": 1.1,
+      "size": 0.11,
+      "color": "#cdd0e8",
+      "alpha": 0.7
+    },
+    "look": {
+      "grade": {
+        "warmth": -0.012,
+        "saturation": 1.08
+      }
+    }
+  },
+  "ride": {
+    "swap": 0.7,
+    "sec": 1.9
+  },
+  "ftue": {
+    "r": 1.9,
+    "rMin": 110
+  },
+  "cine": {
+    "gap": 6,
+    "slow": 0.5,
+    "slowK": 0.35,
+    "stop": 0.08,
+    "push": 0.72,
+    "light": 1.6,
+    "tilt": 0.7,
+    "con": 0.1,
+    "vig": 0.12
+  },
+  "tomorrow": {
+    "after": 240
+  }
+}

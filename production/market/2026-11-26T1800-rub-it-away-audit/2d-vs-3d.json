@@ -1,0 +1,557 @@
+{
+ "at": "2026-11-26T17:55Z",
+ "window_hours": 25.1,
+ "baseline": "production/market/2026-11-25T1648-account-audit/my-games.json",
+ "rows": [
+  {
+   "title": "Draw It Alive: Draw the Missing Part",
+   "kind": "2D",
+   "plays": 20705,
+   "per_day": 15342,
+   "age_days": 6.4,
+   "shares": 26,
+   "likes": 154,
+   "kb": 99
+  },
+  {
+   "title": "Soap Carving: Satisfying ASMR",
+   "kind": "2D",
+   "plays": 13475,
+   "per_day": 12328,
+   "age_days": 4.4,
+   "shares": 433,
+   "likes": 136,
+   "kb": 179
+  },
+  {
+   "title": "Rub It Away",
+   "kind": "2D",
+   "plays": 74693,
+   "per_day": 11186,
+   "age_days": 11.4,
+   "shares": 1289,
+   "likes": 1340,
+   "kb": 547
+  },
+  {
+   "title": "Paws & Chaos: Sunbeam Kingdom",
+   "kind": "3D",
+   "plays": 881,
+   "per_day": 672,
+   "age_days": 2.5,
+   "shares": 31,
+   "likes": 7,
+   "kb": 145
+  },
+  {
+   "title": "Reel & Hatch",
+   "kind": "3D",
+   "plays": 37212,
+   "per_day": 663,
+   "age_days": 18.3,
+   "shares": 1012,
+   "likes": 634,
+   "kb": 916
+  },
+  {
+   "title": "Ice Cream Roll Art: DIY ASMR Maker",
+   "kind": "3D",
+   "plays": 1049,
+   "per_day": 490,
+   "age_days": 3.5,
+   "shares": 11,
+   "likes": 14,
+   "kb": 163
+  },
+  {
+   "title": "Grab and Park: Car Tycoon",
+   "kind": "2D",
+   "plays": 25451,
+   "per_day": 447,
+   "age_days": 34.6,
+   "shares": 870,
+   "likes": 327,
+   "kb": 2101
+  },
+  {
+   "title": "Cozy Room Designer: Heart Home",
+   "kind": "2D",
+   "plays": 33438,
+   "per_day": 400,
+   "age_days": 81.8,
+   "shares": 1000,
+   "likes": 501,
+   "kb": 562
+  },
+  {
+   "title": "NEKO ZOOMIES: The Great Toyroom Caper",
+   "kind": "3D",
+   "plays": 446,
+   "per_day": 368,
+   "age_days": 1.5,
+   "shares": 5,
+   "likes": 5,
+   "kb": 137
+  },
+  {
+   "title": "Splash Master #1: Waterpark Dive",
+   "kind": "3D",
+   "plays": 217822,
+   "per_day": 361,
+   "age_days": 109.0,
+   "shares": 7132,
+   "likes": 3675,
+   "kb": 1040
+  },
+  {
+   "title": "Pin & Bloom: Water Puzzle",
+   "kind": "2D",
+   "plays": 2767,
+   "per_day": 307,
+   "age_days": 9.4,
+   "shares": 86,
+   "likes": 33,
+   "kb": 123
+  },
+  {
+   "title": "Hero Bridge Royale: Build & Race",
+   "kind": "3D",
+   "plays": 97512,
+   "per_day": 166,
+   "age_days": 50.8,
+   "shares": 7339,
+   "likes": 1991,
+   "kb": 465
+  },
+  {
+   "title": "Splash Master #2",
+   "kind": "3D",
+   "plays": 153014,
+   "per_day": 137,
+   "age_days": 99.8,
+   "shares": 7774,
+   "likes": 2541,
+   "kb": 1199
+  },
+  {
+   "title": "Blueprint Builder: Cozy House Puzzle",
+   "kind": "3D",
+   "plays": 122218,
+   "per_day": 121,
+   "age_days": 117.9,
+   "shares": 5007,
+   "likes": 1895,
+   "kb": 345
+  },
+  {
+   "title": "3D Date Stylist: Fashion & Romance",
+   "kind": "3D",
+   "plays": 70086,
+   "per_day": 93,
+   "age_days": 44.2,
+   "shares": 2577,
+   "likes": 2533,
+   "kb": 1128
+  },
+  {
+   "title": "Paint Peekaboo: Hide & Seek",
+   "kind": "3D",
+   "plays": 100111,
+   "per_day": 90,
+   "age_days": 33.3,
+   "shares": 3401,
+   "likes": 1555,
+   "kb": 1096
+  },
+  {
+   "title": "Tiptoe & Hatch: Dino Egg Escape",
+   "kind": "3D",
+   "plays": 86577,
+   "per_day": 76,
+   "age_days": 58.6,
+   "shares": 2743,
+   "likes": 1542,
+   "kb": 3035
+  },
+  {
+   "title": "Snip It: Cut to Fix",
+   "kind": "3D",
+   "plays": 135,
+   "per_day": 73,
+   "age_days": 1.5,
+   "shares": 2,
+   "likes": 1,
+   "kb": 161
+  },
+  {
+   "title": "Martabak Master: Street Food Chef",
+   "kind": "2D",
+   "plays": 44789,
+   "per_day": 67,
+   "age_days": 64.8,
+   "shares": 1489,
+   "likes": 949,
+   "kb": 721
+  },
+  {
+   "title": "Dum Biryani: Cooking Simulator",
+   "kind": "3D",
+   "plays": 51885,
+   "per_day": 66,
+   "age_days": 49.3,
+   "shares": 1364,
+   "likes": 678,
+   "kb": 534
+  },
+  {
+   "title": "Toybox Town: Block Tower Mayhem",
+   "kind": "3D",
+   "plays": 26710,
+   "per_day": 51,
+   "age_days": 50.8,
+   "shares": 850,
+   "likes": 469,
+   "kb": 2764
+  },
+  {
+   "title": "Bus Telolet",
+   "kind": "3D",
+   "plays": 72914,
+   "per_day": 48,
+   "age_days": 62.8,
+   "shares": 810,
+   "likes": 963,
+   "kb": 1097
+  },
+  {
+   "title": "Bicep Clash: Arm Wrestling Clicker",
+   "kind": "3D",
+   "plays": 36215,
+   "per_day": 47,
+   "age_days": 109.8,
+   "shares": 770,
+   "likes": 642,
+   "kb": 1748
+  },
+  {
+   "title": "Block Smash Crew: Smash & Destroy Buildings",
+   "kind": "3D",
+   "plays": 115,
+   "per_day": 43,
+   "age_days": 2.5,
+   "shares": 1,
+   "likes": 1,
+   "kb": 421
+  },
+  {
+   "title": "Tame a Dragon: Sky Riders",
+   "kind": "3D",
+   "plays": 3052,
+   "per_day": 34,
+   "age_days": 53.1,
+   "shares": 81,
+   "likes": 65,
+   "kb": 2984
+  },
+  {
+   "title": "RUN! Pet Thief 3D",
+   "kind": "3D",
+   "plays": 113143,
+   "per_day": 34,
+   "age_days": 107.8,
+   "shares": 2492,
+   "likes": 1947,
+   "kb": 2974
+  },
+  {
+   "title": "+1 Mega Hammer: Smash and Grow",
+   "kind": "3D",
+   "plays": 31,
+   "per_day": 30,
+   "age_days": 0.5,
+   "shares": 0,
+   "likes": 2,
+   "kb": 187
+  },
+  {
+   "title": "Megalodon.io: Eat & Evolve",
+   "kind": "3D",
+   "plays": 21665,
+   "per_day": 24,
+   "age_days": 48.1,
+   "shares": 888,
+   "likes": 252,
+   "kb": 499
+  },
+  {
+   "title": "Fizzy Bath Bomb Maker: DIY ASMR",
+   "kind": "2D",
+   "plays": 339,
+   "per_day": 21,
+   "age_days": 8.4,
+   "shares": 9,
+   "likes": 4,
+   "kb": 117
+  },
+  {
+   "title": "Ambulance Rush: City Rescue",
+   "kind": "3D",
+   "plays": 32506,
+   "per_day": 21,
+   "age_days": 67.8,
+   "shares": 290,
+   "likes": 342,
+   "kb": 1008
+  },
+  {
+   "title": "Voxel Wonderland: Sky Island Builder",
+   "kind": "3D",
+   "plays": 21,
+   "per_day": 20,
+   "age_days": 0.5,
+   "shares": 0,
+   "likes": 2,
+   "kb": 162
+  },
+  {
+   "title": "DIY Squishy Studio",
+   "kind": "3D",
+   "plays": 1097,
+   "per_day": 18,
+   "age_days": 33.3,
+   "shares": 24,
+   "likes": 25,
+   "kb": 500
+  },
+  {
+   "title": "Pinata Maker: Smash Party",
+   "kind": "3D",
+   "plays": 202,
+   "per_day": 10,
+   "age_days": 7.4,
+   "shares": 4,
+   "likes": 5,
+   "kb": 160
+  },
+  {
+   "title": "Juice Face Slice: Fruit Frenzy",
+   "kind": "3D",
+   "plays": 321,
+   "per_day": 9,
+   "age_days": 22.9,
+   "shares": 7,
+   "likes": 3,
+   "kb": 451
+  },
+  {
+   "title": "Spooky Squad 3v3",
+   "kind": "3D",
+   "plays": 8365,
+   "per_day": 9,
+   "age_days": 53.2,
+   "shares": 48,
+   "likes": 146,
+   "kb": 988
+  },
+  {
+   "title": "Tiny Town Mayhem: Toybox Sandbox",
+   "kind": "3D",
+   "plays": 9980,
+   "per_day": 7,
+   "age_days": 35.6,
+   "shares": 505,
+   "likes": 237,
+   "kb": 698
+  },
+  {
+   "title": "Punch Tower",
+   "kind": "3D",
+   "plays": 417,
+   "per_day": 6,
+   "age_days": 13.4,
+   "shares": 17,
+   "likes": 3,
+   "kb": 691
+  },
+  {
+   "title": "Sprint Past the Tsunami",
+   "kind": "3D",
+   "plays": 5190,
+   "per_day": 6,
+   "age_days": 61.7,
+   "shares": 62,
+   "likes": 65,
+   "kb": 1090
+  },
+  {
+   "title": "Pet Smile Clinic: Cozy ASMR",
+   "kind": "2D",
+   "plays": 245,
+   "per_day": 5,
+   "age_days": 11.4,
+   "shares": 0,
+   "likes": 4,
+   "kb": 196
+  },
+  {
+   "title": "Asteroid Wars",
+   "kind": "3D",
+   "plays": 179,
+   "per_day": 5,
+   "age_days": 16.2,
+   "shares": 1,
+   "likes": 1,
+   "kb": 307
+  },
+  {
+   "title": "Prop Heist: 3D Prop Hunt",
+   "kind": "3D",
+   "plays": 1788,
+   "per_day": 5,
+   "age_days": 44.0,
+   "shares": 19,
+   "likes": 47,
+   "kb": 2813
+  },
+  {
+   "title": "Pixel Blast",
+   "kind": "2D",
+   "plays": 221,
+   "per_day": 4,
+   "age_days": 15.3,
+   "shares": 1,
+   "likes": 2,
+   "kb": 146
+  },
+  {
+   "title": "Turbo Splash: Water Slide Racer",
+   "kind": "3D",
+   "plays": 269,
+   "per_day": 4,
+   "age_days": 17.3,
+   "shares": 1,
+   "likes": 3,
+   "kb": 875
+  },
+  {
+   "title": "Candy Mine Vacuum: Candy Collector",
+   "kind": "3D",
+   "plays": 2172,
+   "per_day": 4,
+   "age_days": 34.4,
+   "shares": 83,
+   "likes": 23,
+   "kb": 500
+  },
+  {
+   "title": "Toy City Stomp: Giant Monster Smash",
+   "kind": "3D",
+   "plays": 159,
+   "per_day": 3,
+   "age_days": 5.4,
+   "shares": 0,
+   "likes": 2,
+   "kb": 249
+  },
+  {
+   "title": "FLOW STATE",
+   "kind": "3D",
+   "plays": 164,
+   "per_day": 3,
+   "age_days": 16.2,
+   "shares": 2,
+   "likes": 2,
+   "kb": 232
+  },
+  {
+   "title": "Kebab Street Tycoon: Spit Roast Street",
+   "kind": "3D",
+   "plays": 273,
+   "per_day": 3,
+   "age_days": 17.3,
+   "shares": 1,
+   "likes": 4,
+   "kb": 863
+  },
+  {
+   "title": "Giant Snowball Smash",
+   "kind": "3D",
+   "plays": 292,
+   "per_day": 3,
+   "age_days": 22.3,
+   "shares": 12,
+   "likes": 2,
+   "kb": 875
+  },
+  {
+   "title": "Miawdoku: Cat Logic Puzzle",
+   "kind": "3D",
+   "plays": 884,
+   "per_day": 3,
+   "age_days": 48.8,
+   "shares": 13,
+   "likes": 15,
+   "kb": 1996
+  },
+  {
+   "title": "Mega Aura: Kubo\u2019s Schoolyard Adventure",
+   "kind": "3D",
+   "plays": 396,
+   "per_day": 2,
+   "age_days": 31.3,
+   "shares": 8,
+   "likes": 11,
+   "kb": 841
+  },
+  {
+   "title": "Winter Toy-Box: Snowball Arena",
+   "kind": "3D",
+   "plays": 224,
+   "per_day": 1,
+   "age_days": 12.4,
+   "shares": 2,
+   "likes": 3,
+   "kb": 224
+  },
+  {
+   "title": "Aurora Heist: Egg Snatcher",
+   "kind": "3D",
+   "plays": 474,
+   "per_day": 1,
+   "age_days": 12.4,
+   "shares": 10,
+   "likes": 5,
+   "kb": 162
+  },
+  {
+   "title": "Frosty Heist",
+   "kind": "3D",
+   "plays": 218,
+   "per_day": 1,
+   "age_days": 13.2,
+   "shares": 6,
+   "likes": 0,
+   "kb": 136
+  },
+  {
+   "title": "Escape the Hippo Warden: Sneak & Chase",
+   "kind": "3D",
+   "plays": 298,
+   "per_day": 1,
+   "age_days": 19.2,
+   "shares": 4,
+   "likes": 2,
+   "kb": 615
+  },
+  {
+   "title": "Titan Gates: Army Merge Run",
+   "kind": "3D",
+   "plays": 312,
+   "per_day": 1,
+   "age_days": 20.3,
+   "shares": 6,
+   "likes": 4,
+   "kb": 849
+  }
+ ]
+}
