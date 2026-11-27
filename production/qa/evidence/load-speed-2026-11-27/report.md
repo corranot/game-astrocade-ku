@@ -128,3 +128,50 @@ Goal: first playable frame within about 2 s on a mid-range phone over 4G, for ev
 - `sheet-2s-a.jpg`, `sheet-slow-2s.jpg`: what players see at 2 s.
 - `ho.jpg`: feed handover frames.
 - `pair.txt`, `redo.txt`: raw runs.
+
+## Evening pass (27 Nov, 17:30-18:10 UTC): font batch, re-measure, boot order
+
+All publishes below sit in the Astrocade manual review queue until approved (`is_published: false` until then).
+
+**Font batch.** 13 games got their non-Latin font subsets moved from inline data to CDN files (unicode-range keeps them lazy): Splash Master #1, Splash Master #2, Ambulance Rush, Sprint Past the Tsunami, Spooky Squad, Hero Bridge Royale, Megalodon.io, Candy Mine, Mega Aura, Paint Peekaboo, Punch Tower, Tiny Town Mayhem and Titan Gates. Each was saved and published.
+
+**Re-measure of the real fixed builds.** The earlier lab "after" pages lacked the three.core remap, so their numbers were too slow. These are re-measured with it. `hwEst` is the hardware-GPU estimate: first draw at 4x CPU plus 150 ms. Swiftshader does its compile and raster work in the GPU process, so the gap between the first and second frame is not a phone number.
+
+| Game | page gz KB | ready ms | first draw ms | hwEst ms |
+|---|---|---|---|---|
+| Tiptoe & Hatch | 579 | 1354 | 1493 | 1643 |
+| Ambulance Rush | 237 | 699 | 1611 | 1761 |
+| Sprint Past the Tsunami | 486 | 1228 | 1401 | 1551 |
+| Spooky Squad | 375 | 1005 | 1347 | 1497 |
+| Titan Gates | 420 | 943 | 1415 | 1565 |
+| Splash Master #2 | 520 | 1043 | 1888 | 2038 |
+| Splash Master #1 | 528 | 1117 | 2156 | 2306 |
+| Hero Bridge Royale | 169 | 561 | 2522 | 2672 |
+| Megalodon.io | 159 | 548 | 2724 | 2874 |
+| Tame a Dragon | 598 | 1233 | 3297 | 3447 |
+| Candy Mine | 177 | 697 | 3220 | 3370 |
+| RUN! Pet Thief | 604 | 1284 | 3621 | 3771 |
+| Tiny Town Mayhem | 224 | 949 | 3754 | 3904 |
+| DIY Squishy Studio | 283 | 749 | 4113 | 4263 |
+| Toybox Town | 548 | 1260 | 4175 | 4325 |
+| Prop Heist | 421 | 1051 | 4321 | 4471 |
+| Paint Peekaboo | 555 | 1318 | 4721 | 4871 |
+| Mega Aura | 352 | 999 | 4875 | 5025 |
+
+**Why the rest are over 2 s.** It is not bytes any more: the pages are 160-600 KB and ready in 0.5-1.3 s. It is CPU work on the boot path. The Pet Thief timeline (`tools/live-load.js` EVAL of per-task marks, 4x CPU):
+
+- engine 60 ms
+- fonts 290 ms (blocking `document.fonts.load` of the non-Latin subsets)
+- hero decode 200-260 ms
+- world build 680-840 ms
+- shader prewarm 560-650 ms
+
+Showing only visible objects in the prewarm saves almost nothing, because the visible programs dominate. Getting these games under 2 s needs a staged world build: draw sky, ground and hero first, then build the rest behind the start screen. That changes what the opening frames show, so it is a per-game rework, not a safe patch.
+
+**Pet Thief boot order (published).**
+
+- Font subsets the boot needs anyway are preloaded from the first byte (`tools/font_preload.py`).
+- Fonts and the save load start in parallel with the engine import.
+- The prewarm uses `compileAsync`, so the loader keeps animating, and phones with parallel shader compile do not block.
+- Lab: fonts task 290 ms to 13 ms; first draw 3.2-3.5 s to 3.0-3.3 s.
+- Screenshots equivalent (`petthief-boot-before-after-8s.jpg`; the hero outfit is random per run), feed handover clean, unit tests pass.
