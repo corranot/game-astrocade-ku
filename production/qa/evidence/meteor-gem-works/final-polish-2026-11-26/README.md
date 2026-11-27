@@ -32,3 +32,11 @@ Note: some shots show the HUD dimmed because the first-time tutorial is active i
 | Coin pill shows 0 | Legit. Over 60 s of bot play, sampled every 6 s, the HUD equalled the coins held in all 10 samples; it drops to 0-1 right after a pad is paid. | n/a |
 | Hero hard to find | Silhouette parts 12% larger (`look.silhouetteGrow`), alpha 0.9 with a slow 0.8-1.0 pulse. | 11, 12 |
 | Load | Warm-up now creates the glow target first when it will be used, so the first draw never builds a second shader set. The first frame needs 32 shader programs; swiftshader has no parallel compile, so they take about 1.7 s. Throttled 4G profile: three 0.38 s, scene built 2.36-2.56 s, first frame 3.91-4.42 s. No gain this round; 3 s needs fewer material variants (merging the custom-shader materials), a larger refactor. Real-phone time not measured. | n/a |
+
+## Round 3
+
+The "dotted triangle" over the joystick band had two sources:
+- the dithered roof tip of a ghost-town house just above the dissolve band (the tilt blur smeared it grey). The whole house row now dissolves over the last 6% of screen height before the band, then is hidden;
+- a drifting cloud shadow, which near the camera is a large dark wedge. Cloud shadows now fade out below the band (`look.nearFade`).
+
+Shot 13: v2 (left) and v3 (right).
