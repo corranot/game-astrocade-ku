@@ -63,6 +63,8 @@ export function createWorld(canvas, cfg, opts = {}) {
   sun.shadow.camera.left = -16; sun.shadow.camera.right = 16; sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -16; sun.shadow.camera.near = 1; sun.shadow.camera.far = 70;
   sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
   scene.add(sun); scene.add(sun.target);
+  // the hero's lantern: always in the scene (so no shader rebuild when night falls), lit only after dusk
+  const lamp = new THREE.PointLight(0xffb866, 0, cfg.grade.lanternM, 1.4); scene.add(lamp);
   const sunDir = new THREE.Vector3(0.45, 0.75, 0.35).normalize();
 
   // ---- sky
@@ -95,6 +97,10 @@ export function createWorld(canvas, cfg, opts = {}) {
     sh.uniforms.uTime = uTime; sh.uniforms.uGlint = { value: 1 }; terrainMat.userData.sh = sh;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vW; uniform float uTime; uniform float uGlint;\nfloat gh(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }')
+      // wind-carved drifts: long soft ripples that catch the sun and keep a blue trough, plus a fine crust grain, both
+      // fading out with distance so the far field stays calm
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat rf = smoothstep(60.0, 6.0, length(vW - cameraPosition)); float rw = vW.x * 0.9 + vW.z * 0.42 + sin(vW.z * 0.31 + vW.x * 0.17) * 2.2; float rp = sin(rw * 1.9);\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.8, 0.9, 1.06), rf * 0.8 * smoothstep(-0.2, -1.0, rp));\ndiffuseColor.rgb *= 1.0 - rf * 0.05 * gh(floor(vW * 2.5));')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n{ float rc = cos(rw * 1.9) * 1.9 * rf * 0.2; normal = normalize(normal - (viewMatrix * vec4(rc * 0.9, 0.0, rc * 0.42, 0.0)).xyz); }')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ vec3 cell = floor(vW * 9.0); float g = gh(cell + floor(cameraPosition * 1.5)); float sp = step(0.9975, g) * uGlint * smoothstep(40.0, 8.0, length(vW - cameraPosition)); totalEmissiveRadiance += vec3(1.6, 1.75, 2.0) * sp; }');
   };
   const terrain = new THREE.Mesh(tg, terrainMat); terrain.receiveShadow = true; scene.add(terrain);
@@ -163,9 +169,29 @@ export function createWorld(canvas, cfg, opts = {}) {
   const forest = shapes.map((g, k) => { const m = new THREE.InstancedMesh(g, pineMat, trees[k].length); trees[k].forEach((t, i) => m.setMatrixAt(i, t)); m.castShadow = true; m.receiveShadow = false; m.computeBoundingSphere(); scene.add(m); return m; });
 
   // ---- rocks (instanced, snow on top)
-  const rockGeo = (() => { const g = new THREE.IcosahedronGeometry(1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); v.multiplyScalar(1 + L.noise2(v.x * 3 + 5, v.z * 3 + v.y * 2) * 0.18); p.setXYZ(i, v.x, v.y * 0.7, v.z); } g.computeVertexNormals(); return keep(merge([{ g, m: M4(), col: (n) => (n.y > 0.45 ? C('#f2f7ff') : C('#8a94a8')).multiplyScalar(0.8 + 0.2 * n.y) }])); })();
+  const rockGeo = (() => { const g = new THREE.IcosahedronGeometry(1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); v.multiplyScalar(1 + L.noise2(v.x * 3 + 5, v.z * 3 + v.y * 2) * 0.18); p.setXYZ(i, v.x, v.y * 0.7, v.z); } g.computeVertexNormals(); return keep(merge([{ g, m: M4(), col: (n, p) => (n.y > 0.45 ? C('#f2f7ff') : C('#8a94a8').lerp(C('#6c7a96'), 0.5 + 0.5 * Math.sin(p.y * 11 + p.x * 3))).multiplyScalar(0.8 + 0.2 * n.y) }])); })();
   const rockM = []; for (let i = 0; i < 400 && rockM.length < 70; i++) { const x = (R() - 0.5) * 120, z = 60 - R() * 290; let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z)); if (d < -4 || d > 6 || !clearOf(x, z, 3)) continue; const s = 0.6 + R() * 1.6; rockM.push(M4(x, L.terrainH(cfg, x, z) + s * 0.15, z, s, s, s, 0, R() * 6)); }
   const rocks = new THREE.InstancedMesh(rockGeo, keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })), rockM.length); rockM.forEach((m, i) => rocks.setMatrixAt(i, m)); rocks.castShadow = true; rocks.receiveShadow = true; scene.add(rocks);
+
+  // ---- foreground ground cover (instanced, shares the rock material): wind drifts with dry grass, twigs and pebbles
+  // along the path edges and in the open fields, so the near ground has scale cues instead of blank snow
+  const coverGeo = (k) => {
+    const snow = (n) => C('#f2f7ff').lerp(C('#a9c6ec'), Math.max(0, 0.55 - n.y) * 0.9), grass = C(k ? '#d2bf86' : '#c0ae74'), twig = C('#5a4030');
+    const items = [{ g: sph(12), m: M4(0, 0, 0, 1.1, 0.32, 0.7), col: snow }, { g: sph(10), m: M4(0.7, 0, 0.25, 0.6, 0.22, 0.5), col: snow }];
+    for (let i = 0; i < 7; i++) { const a = i * 0.9 + k; items.push({ g: new THREE.ConeGeometry(0.025, 1, 3, 1), m: M4(Math.cos(a) * 0.45, 0.2, Math.sin(a) * 0.3, 1, 0.3 + (i % 3) * 0.1, 1, Math.sin(a) * 0.35, 0, Math.cos(a) * 0.35), col: grass }); }
+    if (k) items.push({ g: new THREE.IcosahedronGeometry(0.28, 0), m: M4(-0.75, 0.08, 0.1, 1, 0.7, 1), col: (n) => (n.y > 0.5 ? C('#f2f7ff') : C('#7a86a0')) });
+    else items.push({ g: new THREE.CylinderGeometry(0.025, 0.035, 1.2, 5), m: M4(-0.3, 0.2, 0.3, 1, 1, 1, 0.2, 0, 1.35), col: twig }, { g: new THREE.CylinderGeometry(0.015, 0.02, 0.45, 4), m: M4(-0.5, 0.28, 0.36, 1, 1, 1, 0.9, 0, 0.6), col: twig });
+    return keep(merge(items));
+  };
+  const R2 = L.rng(cfg.seed + 7), coverM = [[], []];
+  for (let i = 0; i < 3000 && coverM[0].length + coverM[1].length < cfg.world.cover; i++) {
+    const z = 30 - R2() * 220, px = Math.sin(z * 0.045) * 3, edge = R2() < 0.55;
+    const x = edge ? px + (R2() < 0.5 ? -1 : 1) * (3.4 + R2() * 3) : (R2() - 0.5) * 60;
+    let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z));
+    if (d > -2 || !clearOf(x, z, 3.2)) continue;
+    const s = 0.7 + R2() * 0.7; coverM[R2() < 0.6 ? 0 : 1].push(M4(x, L.terrainH(cfg, x, z) - 0.05, z, s, s, s, 0, R2() * 6.28));
+  }
+  coverM.forEach((list, k) => { if (!list.length) return; const m = new THREE.InstancedMesh(coverGeo(k), rocks.material, list.length); list.forEach((t, i) => m.setMatrixAt(i, t)); m.receiveShadow = true; m.computeBoundingSphere(); scene.add(m); });
 
   // ---- props
   const propMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }));
@@ -297,11 +323,11 @@ export function createWorld(canvas, cfg, opts = {}) {
   const blend = (w, key) => { const out = new THREE.Color(0, 0, 0); for (const n in w) if (w[n] > 0) out.add(tmp.copy(C(Array.isArray(cfg.tod[n][key]) ? cfg.tod[n][key][0] : cfg.tod[n][key])).multiplyScalar(w[n])); return out; };
   const blend2 = (w, key, i) => { const out = new THREE.Color(0, 0, 0); for (const n in w) if (w[n] > 0) out.add(tmp.copy(C(cfg.tod[n][key][i])).multiplyScalar(w[n])); return out; };
   const num = (w, key) => { let s = 0; for (const n in w) s += cfg.tod[n][key] * w[n]; return s; };
-  let night = 0;
+  let night = 0, fogK = 1;
   /** Sets light, sky, fog and glow for clock weights w ({ day, dusk, night, dawn }). */
   function setTod(w) {
     skyU.uTop.value.copy(blend2(w, 'sky', 0)); skyU.uHor.value.copy(blend2(w, 'sky', 1));
-    fog.color.copy(blend(w, 'fog')); fog.density = num(w, 'fogD');
+    fog.color.copy(blend(w, 'fog')); fog.density = num(w, 'fogD') * fogK;
     sun.color.copy(blend(w, 'sun')); sun.intensity = num(w, 'sunI');
     hemi.color.copy(blend2(w, 'hemi', 0)); hemi.groundColor.copy(blend2(w, 'hemi', 1)); hemi.intensity = num(w, 'hemiI');
     skyU.uAur.value = num(w, 'aurora'); skyU.uStars.value = w.night + w.dusk * 0.3 + w.dawn * 0.3; night = w.night + w.dusk * 0.4 + w.dawn * 0.3;
@@ -310,6 +336,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     if (w.night > 0.5) sunDir.set(-0.35, 0.7, 0.3).normalize(); // the moon
     skyU.uSunDir.value.copy(sunDir); skyU.uSunCol.value.copy(sun.color).multiplyScalar(w.night > 0.5 ? 0.35 : 1);
     if (glowMat.userData.sh) glowMat.userData.sh.uniforms.uGlowK.value = 0.6 + night * 1.2;
+    lamp.intensity = Math.max(0, night - 0.15) * cfg.grade.lanternI;
   }
 
   // ---- camera
@@ -317,14 +344,20 @@ export function createWorld(canvas, cfg, opts = {}) {
   const shake = { t: 0, a: 0 };
   /**
    * Moves the camera: follow behind the hero, blend `vf` (0..1) toward the viewfinder looking at `aim`, or toward a
-   * cinematic `beat` ({ pos, look, k }). Eased per frame.
+   * cinematic `beat` ({ pos, look, k }). `focus` ({ x, y, z, k }) pulls the follow camera in low and close to frame the
+   * hero with a nearby animal (treat moments). Eased per frame.
    */
-  function updateCamera(dt, hero, vf, aim, fovVf, beat) {
+  function updateCamera(dt, hero, vf, aim, fovVf, beat, focus) {
     const c = cfg.camera;
     const fx = hero.x, fz = hero.z, fy = hero.y;
     const follow = tmpV.set(fx, fy + c.height, fz + c.dist);
     let look = new THREE.Vector3(fx, fy + c.lookUp, fz + c.lookAhead);
     let pos = follow.clone(), fov = c.fov;
+    if (focus && focus.k > 0.001) {
+      const mx = (fx + focus.x) / 2, mz = (fz + focus.z) / 2;
+      pos.lerp(new THREE.Vector3(mx, fy + c.height * c.focusH, Math.max(fz, focus.z) + c.dist * c.focusD), focus.k);
+      look.lerp(new THREE.Vector3(mx, (fy + focus.y) / 2 + 0.6, mz), focus.k);
+    }
     if (vf > 0.001 && aim) {
       const dir = new THREE.Vector3(aim.x - fx, 0, aim.z - fz); const d = dir.length() || 1; dir.divideScalar(d);
       const vp = new THREE.Vector3(fx - dir.x * c.vfDist, fy + c.vfHeight, fz - dir.z * c.vfDist);
@@ -343,6 +376,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     sun.position.set(fx + sunDir.x * 30, fy + sunDir.y * 30, fz + sunDir.z * 30); sun.target.position.set(fx, fy, fz - 3); sun.target.updateMatrixWorld();
     snowU.uOrigin.value.set(fx, fy, fz - 6);
     heroU.value.set(fx, fy + 1.1, fz);
+    lamp.position.set(fx - 0.4, fy + 1.1, fz + 0.5);
   }
   function snapCamera(hero) { camPos.set(hero.x, hero.y + cfg.camera.height, hero.z + cfg.camera.dist); camLook.set(hero.x, hero.y + cfg.camera.lookUp, hero.z + cfg.camera.lookAhead); }
 
@@ -415,7 +449,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   return {
     renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake,
     setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, render, capture, toScreen, openGate, gateShown, stats, dispose,
-    get tier() { return tier; }, get night() { return night; },
+    get tier() { return tier; }, get night() { return night; }, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
   };
 }
