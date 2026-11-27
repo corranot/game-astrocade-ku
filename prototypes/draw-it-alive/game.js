@@ -13,32 +13,37 @@
  * try, 2 with retries, 1 when helped. The next level starts by itself; a tap skips the end of a celebration.
  * Each chapter of five ends on the wall of the player's own pictures, which plays each picture once in turn and
  * then opens the next chapter. Every star is a paint drop for the jar; a full jar gives a surprise box with a
- * sticker the player does not have yet (four sets of six), kept in the sticker book behind the jar. The first
+ * sticker the player does not have yet (five sets of six), kept in the sticker book behind the jar. The first
  * win of a new day gives extra drops; a tap on the padlock opens the next chapter; a tapped picture on the
- * wall is shown large. Levels 21-40 show every scene mirrored.
+ * wall is shown large. A share button (top right) sends the game to a friend and nods once at a peak moment. Levels 26-50 show every scene mirrored.
  *
  * The 720 x 1280 scene is drawn by code (art.js). What never moves is drawn once per level into a
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame. The wall shows
  * cached cards and animates one at a time. Tunable numbers live in game_config.json.
  */
-import { sticker, stick, shape, star, box, blob, dots, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
+import { sticker, stick, shape, star, box, blob, heart, pointAt, dots, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
 import { LEVELS } from './levels.js';
+import { migrateLegacyLevel, stickerChoices } from './progress.js';
 
 const W = 720, H = 1280, STEP = 8, CHAPTER = 5, SET = 6;
 const STICKER_BG = '#CFC2FF'; // behind every sticker (box and book): a lilac no sticker is drawn in, so white and pink ones show
 const DEBUG = location.search.includes('local');
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, WHITE];
-const MUTE = { x: 24, y: 1040, s: 96 }; // sound button, lower left, clear of the swipe edge
-const WALLB = { x: 600, y: 1040, s: 96 }; // button to the wall, lower right
-const JAR = { x: 24, y: 40, s: 110 }; // the paint jar, top left; it opens the sticker book
-const BACK = { x: 312, y: 1110, s: 96 }; // the way back out of the sticker book
+// HUD on one 8 px grid: every button 96 px, 24 px from the sides; the top row 64 px from the top, its centres (y 112)
+// in line with the chapter pips; the bottom row sits on the plain ground above the front grass and flowers
+const MUTE = { x: 24, y: 1064, s: 96 }; // sound button, lower left, clear of the swipe edge
+const WALLB = { x: 600, y: 1064, s: 96 }; // button to the wall, lower right
+const JAR = { x: 24, y: 64, s: 96 }; // the paint jar, top left; it opens the sticker book
+const BACK = { x: 312, y: 1064, s: 96 }; // the way back out of the sticker book
+const SHAREB = { x: 600, y: 64, s: 96 };
+const SKIPB = { x: 312, y: 1064, s: 96 }; // skips the tutorial spotlights; only while one shows // share, top right, mirrors the jar; stays until the player leaves the level
 const LANGB = { x: 140, y: 46, w: 440, h: 96 }; // the language button at the top of the sticker book
 const CARD = { k: 0.4, w: 288, h: 320, top: 280, border: 1.6, pad: 30 }; // a wall card shows the scene at 0.4, cropped from y = 280
 const SKIN = '#FFD8B5';
 const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 
 let cv, g, cfg, mode, raf = 0, last = 0, runs = 0;
-let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [], lang: null, day: 0 }, saveRead = false, muteTouched = false;
+let save = { level: 0, stars: {}, art: {}, muted: false, drops: 0, stickers: [], lang: null, day: 0, progressVersion: 2, ftue: {}, gold: -1 }, saveRead = false, muteTouched = false;
 let view = 'play', wall = null, gift = null, book = null; // 'play' a level, 'wall' the finished pictures, 'box' a surprise box, 'book' the stickers
 let lang = 'en', said = { key: '', t: 0 }; // the language shown; the command on screen and when it appeared
 let jarShown = 0, flyers = [], dropsSince = 0, dropsMerged = false; // drops in the jar as drawn, drops on their way to it, drops earned (less boxes opened) before the stored count was merged
@@ -101,9 +106,21 @@ function beep(freq, len, type = 'sine', vol = 0.1, slide = 0) {
   v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(0.001, t + len);
   o.connect(v).connect(ac.destination); o.start(t); o.stop(t + len);
 }
+let scratchBuffer = null;
 function startAudio() {
-  if (!ac) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ac = new AC(); }
+  if (!ac) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { ac = new AC(); scratchBuffer = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const samples = scratchBuffer.getChannelData(0); for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1; }
+  }
   if (ac && ac.state === 'suspended' && !document.hidden) ac.resume().catch(() => {});
+}
+/** A tiny filtered-noise crayon rasp, synthesized once the player has touched the game. */
+function crayonScratch() {
+  if (!ac || !scratchBuffer || save.muted || ac.state !== 'running') return;
+  const t = ac.currentTime, src = ac.createBufferSource(), filter = ac.createBiquadFilter(), gain = ac.createGain();
+  src.buffer = scratchBuffer; filter.type = 'lowpass'; filter.frequency.setValueAtTime(1500, t);
+  gain.gain.setValueAtTime(0.0001, t); gain.gain.exponentialRampToValueAtTime(0.014, t + 0.006); gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+  src.connect(filter).connect(gain).connect(ac.destination); src.start(t, Math.random() * 0.8, 0.055); src.stop(t + 0.06);
 }
 /** A note sequence; pending notes are dropped when the level or the screen changes. */
 function tune(notes, gap, len, vol) { notes.forEach((f, i) => timers.push(setTimeout(() => beep(f, len, 'triangle', vol), i * gap))); }
@@ -113,7 +130,7 @@ function hush() { for (const t of timers) clearTimeout(t); timers = []; }
 /** State of one scene: the level being played, or a card on the wall. */
 function scene(lv, i) {
   const s = {
-    i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, morph: null, misses: 0, k: 0, partMisses: 0,
+    i, lv, t: 0, won: -1, mood: 'wait', look: null, pen: null, liftAt: 0, morph: null, misses: 0, k: 0, partMisses: 0, quality: 0,
     lines: [], done: [], // the player's line for each part, and the scene time it was drawn
     faded: null, sadFor: 0, assisted: false, stars: 0, starsShown: 0, freeze: 0, cue: 0, did: {}, quiet: false, idle: 0, dotPop: 0, daily: 0,
     get stroke() { return s.lines[0] || null; },
@@ -124,9 +141,11 @@ function scene(lv, i) {
     part(ctx, width, color, k = 0) {
       const line = s.lines[k]; if (!line) return;
       const age = s.done[k] != null ? s.t - s.done[k] : s.won, pop = age < 0.3 ? 1 + Math.sin(age / 0.3 * Math.PI) * 0.25 : 1, c = age < 0.15 ? PEN : color;
-      if (partsOf(lv)[k].closed) return shape(ctx, line, c);
-      stick(ctx, line, width * pop, c);
-      if (colourPass() && quality < 2) { ctx.save(); ctx.globalAlpha = 0.4; ctx.translate(0, -width * 0.18); stick(ctx, line, width * 0.25, WHITE); ctx.restore(); }
+      const glow = s.won >= 0 && colourPass();
+      if (glow) { ctx.save(); ctx.shadowColor = 'rgba(255,46,147,0.42)'; ctx.shadowBlur = 14; }
+      if (partsOf(lv)[k].closed) shape(ctx, line, c); else stick(ctx, line, width * pop, c);
+      if (glow) ctx.restore();
+      if (colourPass() && quality < 2 && !partsOf(lv)[k].closed) { ctx.save(); ctx.globalAlpha = 0.4; ctx.translate(0, -width * 0.18); stick(ctx, line, width * 0.25, WHITE); ctx.restore(); }
     },
   };
   return s;
@@ -170,7 +189,7 @@ const cardAt = (n) => ({ x: 48 + (n % 2) * 336, y: 170 + Math.floor(n / 2) * 360
 /** A card in its white frame with its shadow, at the origin. */
 function frameCard(ctx, c, won) {
   box(ctx, -12, 0, CARD.w + 24, CARD.h + 24, 34, 'rgba(31,42,107,0.25)');
-  box(ctx, -12, -12, CARD.w + 24, CARD.h + 24, 34, WHITE);
+  box(ctx, -12, -12, CARD.w + 24, CARD.h + 24, 34, c.s.i % LEVELS.length === save.gold ? SUNNY : WHITE); // today's picture wears gold
   ctx.save(); box(ctx, 0, 0, CARD.w, CARD.h, 24, c.s.lv.bg); ctx.clip(); cardScene(ctx, c, won); ctx.restore(); // the rounded card is the current path, so it can clip
 }
 
@@ -195,6 +214,7 @@ function cardBack(n) {
 
 /** The wall of chapter c. next is the level the arrow leads to; opens is true when it leads into a new chapter. */
 function openWall(c = 0, next = 0, opens = false) {
+  if (mode === 'play') (save.ftue || (save.ftue = {})).wall = true; // the player has seen the wall
   hush(); view = 'wall'; bits = []; pointerDown = false; press = null; gift = null; book = null;
   if (!wallBack) { wallBack = document.createElement('canvas'); wallBack.width = W; wallBack.height = H; const b = wallBack.getContext('2d'); b.fillStyle = VIOLET; b.fillRect(0, 0, W, H); dots(b); }
   wall = { t: 0, rest: 0, c, next, opens, unlocked: opens ? -1 : 0, turn: -1, started: new Set(), cards: [], big: -1, bigAt: 0 }; // big: the card shown large to show it off
@@ -264,6 +284,7 @@ function drawBig() {
     g.globalAlpha = 0.75; g.fillStyle = VIOLET; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
     g.drawImage(bigImg, Math.round(W / 2 - bigImg.width / 2), Math.round(590 - bigImg.height / 2));
     for (let j = 0; j < 3; j++) sticker(() => star(g, W / 2 + (j - 1) * 110, 1010, 44, j < (save.stars[c.s.i] || 0) ? ORANGE : '#D9CCFF', (j - 1) * 0.18));
+    drawShareButton();
     return;
   }
   bigFor = -1;
@@ -273,6 +294,7 @@ function drawBig() {
   g.save(); g.translate(cx, cy); g.scale(k, k); g.translate(-CARD.w / 2, -CARD.h / 2); frameCard(g, c, a); g.restore();
   for (let j = 0; j < 3; j++) sticker(() => star(g, W / 2 + (j - 1) * 110, 1010 + (1 - grow) * 200, 44, j < (save.stars[c.s.i] || 0) ? ORANGE : '#D9CCFF', (j - 1) * 0.18));
   if (a < 0.3) { g.globalAlpha = 0.85 * (1 - a / 0.3); g.fillStyle = WHITE; g.fillRect(0, 0, W, H); g.globalAlpha = 1; } // the flash
+  drawShareButton();
 }
 
 function drawWall() {
@@ -310,7 +332,10 @@ function drawWall() {
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
   if (wall.big >= 0) drawBig();
-  if (wall.opens && wall.unlocked >= 0 && wall.next % LEVELS.length > 0) banner(T('open').replace('{n}', chapterOf(wall.next) + 1), W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
+  if (wall.opens && wall.unlocked >= 0 && wall.next % LEVELS.length > 0) {
+    const text = wall.next % LEVELS.length === CHAPTER * 4 ? T('snowOpen') : T('open').replace('{n}', chapterOf(wall.next) + 1);
+    banner(text, W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
+  }
 }
 
 // ---------- judging ----------
@@ -369,6 +394,9 @@ function win(pen, from) {
   // sparkles rise off the whole line as it turns into the part
   if (!quality) for (const p of resample(toLevel(line), 24)) bits.push({ x: p[0], y: p[1], vx: (Math.random() - 0.5) * 120, vy: -120 - Math.random() * 160, g: -60, c: WHITE, s: 5, life: 0.5 + Math.random() * 0.5 });
   tune(S.lv.notes, 90, 0.22, 0.1);
+  // A warm rising ta-da; Snowy Day gets a soft, high bell shimmer too.
+  tune([659, 784, 988, 1319], 95, 0.2, 0.045);
+  if (S.i % LEVELS.length >= 20) tune([1047, 1319, 1568, 2093], 125, 0.28, 0.035);
   buzz('success');
   // keep the lines and the stars for the wall and for later scenes; help never replaces the player's own picture
   const n = S.i % LEVELS.length;
@@ -383,7 +411,7 @@ function win(pen, from) {
   // the first win of a new day brings a gift of extra drops; a clock turned back gives nothing
   const td = today();
   if (saveRead && td > save.day) {
-    if (save.day) { S.daily = cfg.dailyDrops; save.drops += S.daily; dropsSince += S.daily; for (let j = 0; j < S.daily; j++) flyers.push({ x: W / 2 + (j - 1) * 80, y: 290, t: -1.7 - j * 0.2 }); }
+    if (save.day) { save.gold = S.i % LEVELS.length; S.daily = cfg.dailyDrops; save.drops += S.daily; dropsSince += S.daily; for (let j = 0; j < S.daily; j++) flyers.push({ x: W / 2 + (j - 1) * 80, y: 290, t: -1.7 - j * 0.2 }); }
     save.day = td;
   }
   persist();
@@ -395,9 +423,11 @@ const onButton = (b, p) => Math.hypot(p[0] - b.x - b.s / 2, p[1] - b.y - b.s / 2
 
 /** What a press at p would trigger, or null for drawing. */
 function pressTarget(p) {
-  if (view === 'wall') return 'wall';
+  if (view === 'wall') return shareShown() && onButton(SHAREB, p) ? 'share' : 'wall';
   if (view === 'box') return 'box';
   if (view === 'book') return 'book';
+  if (!S.lines.length && tour() && tour() !== 'draw' && onButton(SKIPB, p)) return 'skipTour';
+  if (shareShown() && onButton(SHAREB, p)) return 'share';
   if (wallShown() && onButton(WALLB, p)) return 'toWall';
   if (muteShown() && onButton(JAR, p)) return 'jar';
   if (muteShown() && onButton(MUTE, p)) return 'mute';
@@ -409,9 +439,11 @@ function pressTarget(p) {
 function release(p) {
   const pr = press; press = null;
   if (!pr || dist(p, pr.p) > cfg.tapTravel) return;
+  if (pr.what === 'share' && onButton(SHAREB, p)) return shareGame();
   if (pr.what === 'wall') return wallTap(p);
-  if (pr.what === 'toWall' && onButton(WALLB, p)) { const c = wallChapter(); return openWall(c, S.i, false); }
-  if (pr.what === 'jar' && onButton(JAR, p)) return openBook();
+  if (pr.what === 'skipTour' && onButton(SKIPB, p)) { (save.ftue || (save.ftue = {})).skip = true; persist(); return; }
+  if (pr.what === 'toWall' && onButton(WALLB, p)) { if (!(save.ftue || {}).wall) { (save.ftue || (save.ftue = {})).wall = true; persist(); } const c = wallChapter(); return openWall(c, S.i, false); }
+  if (pr.what === 'jar' && onButton(JAR, p)) { if (!(save.ftue || {}).jar) { (save.ftue || (save.ftue = {})).jar = true; persist(); } return openBook(); }
   if (pr.what === 'box') return gift.open < 0 ? popBox() : gift.t - gift.open > cfg.skipAfter * 0.5 ? gift.then() : undefined;
   if (pr.what === 'book') {
     if (p[0] > LANGB.x && p[0] < LANGB.x + LANGB.w && p[1] > LANGB.y && p[1] < LANGB.y + LANGB.h) { const all = Object.keys(cfg.strings); lang = save.lang = all[(all.indexOf(lang) + 1) % all.length]; persist(); beep(760, 0.07); return; }
@@ -439,8 +471,8 @@ function bindInput() {
     S.look = p;
     if (S.pen.length < 600 && dist(p, S.pen[S.pen.length - 1]) >= 4) {
       S.pen.push(p);
-      // the pencil sound climbs as the line gets longer
-      if (S.t - lastTick > 0.06) { lastTick = S.t; beep(420 + Math.min(1.2, pathLen(S.pen) / targetLen) * 520, 0.05, 'sine', 0.035); }
+      // A soft crayon rasp follows the moving line; the existing mute button silences it.
+      if (S.t - lastTick > 0.075) { lastTick = S.t; crayonScratch(); }
     }
   });
   const up = (e) => {
@@ -483,11 +515,8 @@ function finish() {
 // ---------- surprise box and sticker book ----------
 /** A sticker the player does not have: from the first set not yet complete. */
 function pickSticker() {
-  for (let s0 = 0; s0 < STICKERS.length; s0 += SET) {
-    const left = []; for (let id = s0; id < s0 + SET; id++) if (!save.stickers.includes(id)) left.push(id);
-    if (left.length) return left[Math.floor(Math.random() * left.length)];
-  }
-  return -1;
+  const left = stickerChoices(save.stickers, STICKERS.length, SET);
+  return left.length ? left[Math.floor(Math.random() * left.length)] : -1;
 }
 const setDone = (s0) => { for (let id = s0; id < s0 + SET; id++) if (!save.stickers.includes(id)) return false; return true; };
 
@@ -547,8 +576,8 @@ function drawBox() {
 }
 
 /** Book: four panels of one set each, two by two; a panel holds three rows of two. */
-const panelAt = (s) => ({ x: 34 + (s % 2) * 346, y: 200 + Math.floor(s / 2) * 450, w: 306, h: 420 });
-const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 74 : -74), y: p.y + 95 + Math.floor(j / 2) * 125 }; };
+const panelAt = (s) => { const n = Math.min(3, STICKERS.length / SET - Math.floor(s / 3) * 3), w = 212, gap = 20; return { x: (W - n * w - (n - 1) * gap) / 2 + (s % 3) * (w + gap), y: 200 + Math.floor(s / 3) * 450, w, h: 420 }; }; // rows of three, a short last row centred
+const slotAt = (id) => { const p = panelAt(Math.floor(id / SET)), j = id % SET; return { x: p.x + p.w / 2 + (j % 2 ? 52 : -52), y: p.y + 95 + Math.floor(j / 2) * 125 }; };
 
 function openBook() { hush(); S.pen = null; S.liftAt = 0; view = 'book'; press = null; pointerDown = false; book = { t: 0 }; beep(880, 0.1, 'triangle'); }
 
@@ -563,8 +592,8 @@ function drawBook() {
     if (gold) for (const x of [P.x + 34, P.x + P.w - 34]) sticker(() => star(g, x, top + 18, 22, SUNNY, Math.sin(book.t * 3) * 0.3));
     for (let id = s0; id < s0 + SET; id++) {
       const { x, y } = slotAt(id);
-      if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 50);
-      else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 48, 0, 7); g.fill(); g.fillStyle = STICKER_BG; g.beginPath(); g.arc(x, y, 14, 0, 7); g.fill(); }
+      if (save.stickers.includes(id)) STICKERS[id](g, x, y + Math.sin(book.t * 3 + id) * 3, 32);
+      else { g.fillStyle = WHITE; g.beginPath(); g.arc(x, y, 36, 0, 7); g.fill(); g.fillStyle = STICKER_BG; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); }
     }
     let n = 0; for (let id = s0; id < s0 + SET; id++) if (save.stickers.includes(id)) n++;
     box(g, P.x + P.w / 2 - 62, top - 26, 124, 52, 26, gold ? ORANGE : VIOLET); words(n + '/' + SET, P.x + P.w / 2, top + 2, 34, 110, WHITE); // numbers are not mirrored
@@ -580,9 +609,11 @@ function drawBook() {
 }
 
 function update(dt) {
+  updateNudge(dt); updateMusic(dt);
   if (view === 'wall') return updateWall(dt);
   if (view === 'box') return updateBox(dt);
   if (view === 'book') { book.t += dt; return; }
+  S.quality = quality;
   if (S.freeze > 0) { S.freeze -= dt; return; } // a short hold on the hit
   S.t += dt;
   if (!S.pen && S.won < 0) S.idle += dt;
@@ -654,7 +685,7 @@ function drawPips() {
   const n = CHAPTER, gap = 54, x0 = W / 2 - (n - 1) * gap / 2;
   for (let i = 0; i < n; i++) {
     const cur = i === S.i % n, done = i < S.i % n || (cur && S.won >= 0);
-    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 120, cur ? 19 : 13, 0, 7);
+    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 112, cur ? 19 : 13, 0, 7);
     g.fillStyle = done ? WHITE : 'rgba(31,42,107,0.22)'; g.fill(); // levels still to come: a soft navy that shows on every sky
     if (cur) { g.lineWidth = 6; g.strokeStyle = NAVY; g.stroke(); }
   }
@@ -699,24 +730,148 @@ function drawWallButton() {
   g.fillStyle = MINT; g.beginPath(); g.moveTo(x + 28, y + 64); g.lineTo(x + 44, y + 46); g.lineTo(x + 60, y + 64); g.closePath(); g.fill();
 }
 
+/** The share button shows wherever the jar does, from the first win on, and on a picture opened big on the wall. */
+const shareShown = () => mode === 'play' && ((view === 'play' && (muteShown() || S.won >= 0)) || (view === 'wall' && wall.big >= 0));
+let nudge = -1, nudged = false; // the once-a-session nod of the share button at a peak moment (seconds since it began)
+/** Round share button: three linked dots. It pops on every win and nods once a session after a perfect picture. */
+function drawShareButton() {
+  if (!shareShown()) return;
+  const b = SHAREB, cx = b.x + b.s / 2, cy = b.y + b.s / 2, won = view === 'play' ? S.won : -1;
+  let k = won >= 0 && won < 0.45 ? 1 + Math.sin(won / 0.45 * Math.PI) * 0.08 : 1;
+  if (nudge >= 0) k *= 1 + Math.max(0, Math.sin(nudge * 7)) * 0.1 * Math.max(0, 1 - nudge / cfg.shareNudgeSeconds);
+  g.save(); g.translate(cx, cy); g.scale(k, k); g.translate(-cx, -cy);
+  if (nudge >= 0) { g.globalAlpha = Math.max(0, 1 - nudge / cfg.shareNudgeSeconds); g.lineWidth = 8; g.strokeStyle = ORANGE; g.beginPath(); g.arc(cx, cy, b.s / 2 + 6 + (nudge * 30) % 18, 0, 7); g.stroke(); g.globalAlpha = 1; }
+  disc(b);
+  g.strokeStyle = VIOLET; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - 14, cy + 4); g.lineTo(cx + 12, cy - 12); g.moveTo(cx - 14, cy + 4); g.lineTo(cx + 12, cy + 18); g.stroke();
+  for (const [x, y] of [[cx - 16, cy + 4], [cx + 14, cy - 14], [cx + 14, cy + 20]]) { g.fillStyle = SKY; g.beginPath(); g.arc(x, y, 10, 0, 7); g.fill(); }
+  if (nudge >= 0) { const p = Math.min(1, nudge / 0.25); g.save(); g.translate(b.x + 10, b.y + b.s - 10); g.scale(p, p); sticker(() => heart(g, 0, 0, 16, CORAL)); g.restore(); }
+  g.restore();
+}
+/** Advance the share nod; it starts once a session, on a perfect picture from the third level on. */
+function updateNudge(dt) {
+  if (nudge >= 0 && (nudge += dt) > cfg.shareNudgeSeconds) nudge = -1;
+  if (!nudged && view === 'play' && S.won > 1 && S.stars === 3 && S.i >= cfg.shareNudgeFromLevel) { nudged = true; nudge = 0; }
+}
+let sharePending = false;
+/** One-tap share of the game; the host's card shows the game's current picture. */
+function shareGame() {
+  if (sharePending || !lib.share) return;
+  sharePending = true; nudge = -1; setTimeout(() => { sharePending = false; }, 3000); // never a dead button if the sheet never answers beep(880, 0.08, 'triangle'); buzz('tap');
+  Promise.resolve().then(() => lib.share({ text: T('shareText') })).catch(() => {}).finally(() => { sharePending = false; });
+}
+
 function draw() {
   if (view === 'wall') return drawWall();
   if (view === 'book') return drawBook();
   if (view === 'box') { drawBox(); drawJar(); return; }
-  const punch = S.won >= 0 && S.won < 0.3 ? 1 + Math.sin(S.won / 0.3 * Math.PI) * 0.035 : 1;
-  g.setTransform(punch, 0, 0, punch, W / 2 * (1 - punch), H / 2 * (1 - punch));
+  const punch = S.won >= 0 && S.won < 0.3 ? 1 + Math.sin(S.won / 0.3 * Math.PI) * 0.035 : 1, b = beat(), z = punch * (1 + cfg.beatZoom * b);
+  const [fx, fy] = b > 0 ? focus() : [W / 2, H / 2];
+  g.setTransform(z, 0, 0, z, fx * (1 - z), fy * (1 - z));
   g.drawImage(back, 0, 0);
   if (S.flip) { // the scene and its guide in the level's frame
     g.save(); g.translate(W, 0); g.scale(-1, 1); const look = S.look; if (look) S.look = [W - look[0], look[1]];
-    S.lv.live(g, S); drawGuide(); S.look = look; g.restore();
+    S.lv.live(g, S); drawShine(); drawSpot(); drawGuide(); S.look = look; g.restore();
     if (handAt) { hand(handAt[0], handAt[1]); handAt = null; }
-  } else { S.lv.live(g, S); drawGuide(); }
+  } else { S.lv.live(g, S); drawShine(); drawSpot(); drawGuide(); }
   if (S.faded) { const k = S.faded.age / 0.45; g.save(); g.globalAlpha = 1 - k; g.translate(Math.sin(k * 30) * 6, 0); sticker(() => stick(g, S.faded.pts, 22, PEN)); g.restore(); }
-  if (S.pen) sticker(() => stick(g, S.pen, 22, PEN));
+  if (S.pen) {
+    g.save(); g.shadowColor = 'rgba(255,46,147,0.62)'; g.shadowBlur = 16; sticker(() => stick(g, S.pen, 22, PEN)); g.restore();
+    const tip = S.pen[S.pen.length - 1], halo = g.createRadialGradient(tip[0], tip[1], 2, tip[0], tip[1], 26);
+    halo.addColorStop(0, 'rgba(255,255,255,0.85)'); halo.addColorStop(0.35, 'rgba(255,82,177,0.4)'); halo.addColorStop(1, 'rgba(255,82,177,0)');
+    g.fillStyle = halo; g.beginPath(); g.arc(tip[0], tip[1], 26, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.beginPath(); g.moveTo(tip[0] - 15, tip[1]); g.lineTo(tip[0] + 15, tip[1]); g.moveTo(tip[0], tip[1] - 15); g.lineTo(tip[0], tip[1] + 15); g.stroke();
+  }
   for (const b of bits) { g.globalAlpha = Math.min(1, b.life * 3); g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.s, 0, 7); g.fill(); }
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
-  drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawWords();
+  if (b > 0) { // a soft vignette frames the moment
+    const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.72);
+    v.addColorStop(0, 'rgba(31,42,107,0)'); v.addColorStop(1, `rgba(31,42,107,${cfg.beatVignette * b})`); g.fillStyle = v; g.fillRect(0, 0, W, H);
+  }
+  drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawGiftBadge(); drawWords();
+  drawShareButton(); drawHudSpot();
+}
+
+// ---------- the alive moment: a short camera beat on the player's line ----------
+/** 0..1: eases in over 0.35 s after the win, holds, and eases out by beatSeconds. Off on slow phones. */
+function beat() {
+  const w = S.won; if (w < 0 || quality > 0 || w > cfg.beatSeconds) return 0;
+  return Math.min(ease(w / 0.35), 1 - ease((w - cfg.beatSeconds + 0.6) / 0.6));
+}
+/** Middle of the lines the player drew, in the screen's frame, kept far enough in that the zoom never shows an edge. */
+function focus() {
+  let x = 0, y = 0, n = 0; for (const l of S.lines) if (l) for (const p of l) { x += p[0]; y += p[1]; n++; }
+  if (!n) return [W / 2, H / 2]; x /= n; y /= n; if (S.flip) x = W - x;
+  return [Math.max(160, Math.min(W - 160, x)), Math.max(320, Math.min(H - 320, y))];
+}
+/** A bright glint runs along each finished line as it turns into the part. */
+function drawShine() {
+  if (S.won < 0 || S.won > 0.75 || quality > 0) return;
+  const k = ease(S.won / 0.75);
+  for (const l of S.lines) if (l && l.length > 1) {
+    const p = pointAt(l, k), r = 30 * (1 - k * 0.5), h = g.createRadialGradient(p[0], p[1], 2, p[0], p[1], r);
+    h.addColorStop(0, 'rgba(255,255,255,0.95)'); h.addColorStop(0.4, 'rgba(255,240,170,0.6)'); h.addColorStop(1, 'rgba(255,240,170,0)');
+    g.fillStyle = h; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fill();
+  }
+}
+
+// ---------- the daily gift, shown before it is won ----------
+const giftDue = () => saveRead && save.day > 0 && today() > save.day;
+/** A small wrapped gift bobs beside the jar while today's gift is still waiting for the first win. */
+function drawGiftBadge() {
+  if (!giftDue() || !jarShown_() || S.won >= 0) return;
+  const x = JAR.x + JAR.s - 6, y = JAR.y + JAR.s - 10 + Math.sin(S.t * 4) * 4;
+  sticker(() => { box(g, x - 20, y - 14, 40, 32, 7, CORAL); box(g, x - 23, y - 22, 46, 12, 5, CORAL); box(g, x - 5, y - 22, 10, 40, 3, SUNNY); });
+}
+
+// ---------- tutorial spotlights: dim everything but the target; never blocks a touch ----------
+/** The step showing now: 'draw' on the very first level until the first touch; then, once each, the jar and the wall button. */
+function tour() {
+  if (mode !== 'play' || view !== 'play' || S.won >= 0 || S.pen) return null;
+  if (S.i === 0 && save.level === 0 && !touched) return 'draw';
+  const F = save.ftue || (save.ftue = {});
+  if (F.skip || !saveRead || S.t > cfg.spotSeconds) return null;
+  const step = !F.jar && save.stickers.length && jarShown_() ? 'jar' : !F.wall && wallShown() ? 'wall' : null;
+  if (!step) return null;
+  if (spotLevels[step].last !== S.i) { spotLevels[step].last = S.i; spotLevels[step].n++; } // a level that shows it counts once
+  if (spotLevels[step].n > cfg.spotLevels) { F[step] = true; persist(); return null; } // shown on a few levels: done for good, it never nags
+  return step;
+}
+const spotLevels = { jar: { last: -1, n: 0 }, wall: { last: -1, n: 0 } };
+/** Dim with a soft round hole at (x, y), radius r; alpha fades in. */
+function spot(x, y, r, a) {
+  g.save(); g.fillStyle = `rgba(31,42,107,${a})`; g.beginPath(); g.rect(0, 0, W, H); g.arc(x, y, r, 0, Math.PI * 2, true); g.fill('evenodd');
+  g.globalAlpha = a; g.lineWidth = 6; g.strokeStyle = WHITE; g.beginPath(); g.arc(x, y, r + 3 + Math.sin(S.t * 5) * 3, 0, 7); g.stroke(); g.restore();
+}
+/** The first level's spotlight sits in the level's frame, around the part to draw. */
+function drawSpot() {
+  if (tour() !== 'draw') return;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const p of target) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  // the first picture stays bright for a moment (it is also the preview), then the rest dims gently
+  spot((x0 + x1) / 2, (y0 + y1) / 2, Math.max(x1 - x0, y1 - y0) / 2 + 110, cfg.spotDim * cfg.spotFirstDim * Math.max(0, Math.min(1, (S.t - cfg.spotFirstDelay) / 0.6)));
+}
+/** HUD spotlights: the jar after the first sticker, the wall button once a chapter is done; a hand taps it, skip below. */
+function drawHudSpot() {
+  const step = tour(); if (step !== 'jar' && step !== 'wall') return;
+  const b = step === 'jar' ? JAR : WALLB, cx = b.x + b.s / 2, cy = b.y + b.s / 2, a = cfg.spotDim * Math.min(1, S.t / 0.4);
+  spot(cx, cy, b.s / 2 + 22, a);
+  if (step === 'jar') { drawJar(); drawGiftBadge(); } else drawWallButton();
+  const k = (S.t % 1.2) / 1.2, press = k < 0.3 ? Math.sin(k / 0.3 * Math.PI) * 14 : 0;
+  hand(cx + (step === 'jar' ? 18 : -60) + press * 0.5, cy + 22 + press);
+  disc(SKIPB); g.strokeStyle = NAVY; g.lineWidth = 8; g.lineCap = 'round';
+  const sx = SKIPB.x + SKIPB.s / 2, sy = SKIPB.y + SKIPB.s / 2; g.beginPath(); g.moveTo(sx - 16, sy - 16); g.lineTo(sx + 16, sy + 16); g.moveTo(sx + 16, sy - 16); g.lineTo(sx - 16, sy + 16); g.stroke();
+}
+
+// ---------- music: a soft music-box loop under everything, synthesized ----------
+let musicT = 0, musicStep = 0;
+const MUSIC = [523, 659, 784, 659, 587, 698, 880, 698, 523, 659, 784, 1047, 988, 784, 659, 587];
+function updateMusic(dt) {
+  if (!ac || save.muted || ac.state !== 'running' || mode !== 'play') return;
+  if ((musicT += dt) < cfg.musicBeat) return;
+  musicT = 0; const n = MUSIC[musicStep % MUSIC.length];
+  beep(n, cfg.musicBeat * 1.6, 'triangle', cfg.musicVolume);
+  if (musicStep % 4 === 0) beep(n / 4, cfg.musicBeat * 3.5, 'sine', cfg.musicVolume * 1.4);
+  musicStep++;
 }
 
 /** The paint jar: drops of every colour piled up to how full it is; it glows when a box is due. */
@@ -769,7 +924,14 @@ function applySave(st) {
   if (Array.isArray(st.stickers)) for (const id of st.stickers) if (Number.isInteger(id) && id >= 0 && id < STICKERS.length && !save.stickers.includes(id)) save.stickers.push(id);
   if (!dropsMerged && Number.isInteger(st.drops) && st.drops >= 0) { dropsMerged = true; save.drops = Math.max(0, Math.min(99, st.drops + dropsSince)); jarShown = Math.min(cfg.jarDrops, Math.max(0, save.drops - flyers.length)); } // drops still flying land on top
   if (Number.isInteger(st.day) && st.day > save.day && st.day < 30000000) save.day = st.day;
-  if (Number.isInteger(st.level) && st.level > save.level) { save.level = st.level; if (!touched && view === 'play') newLevel(st.level); }
+  if (st.ftue && typeof st.ftue === 'object') for (const k of ['jar', 'wall', 'skip']) if (st.ftue[k] === true) (save.ftue || (save.ftue = {}))[k] = true;
+  if (!(save.gold >= 0) && Number.isInteger(st.gold) && st.gold >= 0 && st.gold < LEVELS.length) save.gold = st.gold;
+  if (Number.isInteger(st.level)) {
+    const incoming = st.progressVersion === 2 ? st.level : migrateLegacyLevel(st.level);
+    if (incoming > save.level) { save.level = incoming; if (!touched && view === 'play') newLevel(incoming); }
+  }
+  // New field is additive: all legacy stars, pictures, stickers, settings and daily state remain merged above.
+  save.progressVersion = 2;
 }
 
 /** Entry point. The host calls this on start and on every reload. */

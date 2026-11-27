@@ -267,6 +267,47 @@ function rock(ctx) {
   front(ctx, MINT, CORAL);
 }
 
+// ---------- chapter 5: snowy day ----------
+const WINTER = '#7CCFF5', ICE = '#8DE1F3', PINE = '#29B989';
+function snowGround(ctx) {
+  dots(ctx);
+  ctx.fillStyle = '#C4E6F8'; ctx.beginPath(); ctx.moveTo(0, 900); ctx.quadraticCurveTo(180, 830, 360, 900); ctx.quadraticCurveTo(530, 820, 720, 890); ctx.lineTo(720, 1280); ctx.lineTo(0, 1280); ctx.fill();
+  ctx.fillStyle = '#E4F5FD'; ctx.beginPath(); ctx.moveTo(0, 980); ctx.quadraticCurveTo(210, 910, 390, 980); ctx.quadraticCurveTo(550, 900, 720, 970); ctx.lineTo(720, 1280); ctx.lineTo(0, 1280); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  for (const [x, y, r] of [[110, 340, 48], [170, 325, 34], [530, 290, 50], [590, 305, 34]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.55, 0, 0, 7); ctx.fill(); }
+}
+function pineTree(ctx, x, y, k = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  sticker(() => { box(ctx, -13, -105, 26, 112, 7, '#A86B46'); shape(ctx, [[0, -300], [88, -155], [-88, -155]], PINE); shape(ctx, [[0, -230], [108, -75], [-108, -75]], '#36C995'); });
+  sticker(() => { blob(ctx, -37, -154, 10, 8, WHITE); blob(ctx, 36, -84, 12, 8, WHITE); blob(ctx, 8, -260, 9, 7, WHITE); }); ctx.restore();
+}
+function snowWeather(ctx, S) {
+  const count = qualitySnowCount(S);
+  ctx.save(); ctx.globalAlpha = 0.76; ctx.fillStyle = WHITE;
+  for (let i = 0; i < count; i++) {
+    const x = (i * 191 + Math.sin(S.t * 0.7 + i * 1.7) * 16 + 720) % 720;
+    const y = (i * 137 + S.t * (26 + i % 5 * 8)) % 1280, r = 2 + i % 3;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    if (i % 7 === 0) { ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y); ctx.moveTo(x, y - 7); ctx.lineTo(x, y + 7); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+// Keep weather particle work bounded on slower phones; the scene has no per-frame allocations beyond this loop.
+const qualitySnowCount = (S) => S.quiet || S.quality >= 2 ? 9 : S.quality === 1 ? 15 : 23;
+function winterLiveWeather(ctx, S) { snowWeather(ctx, S); }
+function snowman(ctx, t, happy, bob = 0) {
+  const y = 0; shadow(ctx, 360, 930, 150);
+  sticker(() => { blob(ctx, 360, 800 + bob, 142, 134, WHITE); blob(ctx, 360, 630 + bob, 105, 102, WHITE); blob(ctx, 360, 492 + bob, 75, 70, WHITE); stick(ctx, [[286, 640 + bob], [222, 600 + bob]], 13, '#9B704D'); stick(ctx, [[434, 640 + bob], [498, 600 + bob]], 13, '#9B704D'); shape(ctx, [[357, 510 + bob], [430, 528 + bob], [359, 542 + bob]], ORANGE); });
+  face(ctx, 360, 484 + bob, 46, happy ? 'happy' : 'wait', t, null);
+  for (let i = 0; i < 3; i++) blob(ctx, 360, 760 + i * 35 + bob, 7, 7, NAVY);
+}
+function penguin(ctx, x, y, rot = 0, happy = true) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  sticker(() => { blob(ctx, 0, -65, 58, 88, NAVY); blob(ctx, 0, -51, 34, 58, WHITE); blob(ctx, -30, -5, 26, 12, ORANGE, -0.12); blob(ctx, 30, -5, 26, 12, ORANGE, 0.12); shape(ctx, [[-10, -118], [0, -104], [10, -118]], ORANGE); });
+  face(ctx, 0, -104, 31, happy ? 'happy' : 'wait', 1, null); ctx.restore();
+}
+function winterScenery(ctx, trees = true) { snowGround(ctx); if (trees) { pineTree(ctx, 90, 930, 0.86); pineTree(ctx, 630, 930, 1.05); } }
+
 export const LEVELS = [
   // 1 -------- a bridge for the chick: one short, level line
   {
@@ -722,6 +763,86 @@ export const LEVELS = [
       chick(ctx, 640, 900 - (w > 1 ? hop(w - 1, 7, 30) : 0), VIOLET, -1, w >= 0 ? 'happy' : 'wait', S.t + 1.3, S.look);
       if (w > 0.6) S.once('pop1', () => S.burst(200, 500, 40));
       if (w > 1.1) S.once('pop2', () => S.burst(520, 480, 40));
+    },
+  },
+  // ======== chapter 5: Snowy Day ========
+  // 21 -------- a scarf for a chilly snowman
+  {
+    bg: WINTER, target: curve([[263, 676], [306, 711], [360, 694], [414, 711], [457, 676]]), notes: [659, 784, 988, 1319],
+    back(ctx) { winterScenery(ctx); },
+    live(ctx, S) {
+      const w = S.won, bob = w >= 0 ? Math.sin(w * 8) * 5 : Math.sin(S.t * 2) * 2;
+      snowman(ctx, S.t, w >= 0, bob);
+      if (S.lines[0]) sticker(() => S.part(ctx, 24, CORAL));
+      if (w > 1.2) S.once('snowman', () => S.burst(360, 630, 28));
+      winterLiveWeather(ctx, S);
+    },
+  },
+  // 22 -------- a sled hill for a sliding penguin
+  {
+    bg: WINTER, target: curve([[150, 790], [255, 860], [370, 872], [495, 824], [610, 710]]), notes: [784, 659, 523, 1047],
+    back(ctx) { winterScenery(ctx); pineTree(ctx, 350, 930, 0.82); },
+    live(ctx, S) {
+      const w = S.won, line = S.lines[0];
+      if (line) sticker(() => S.part(ctx, 34, ICE));
+      let p = [150, 790], rot = 0;
+      if (w >= 0 && line) { const k = ease((w - 0.25) / 2.2); p = pointAt(line, k); const q = pointAt(line, Math.min(1, k + 0.025)); rot = Math.atan2(q[1] - p[1], q[0] - p[0]); }
+      const bob = w >= 0 ? Math.abs(Math.sin(w * 10)) * 5 : 0;
+      ctx.save(); ctx.translate(p[0], p[1] - 68 - bob); ctx.rotate(rot);
+      sticker(() => { stick(ctx, [[-48, 0], [42, 0], [56, -8]], 12, CORAL); stick(ctx, [[-38, 10], [40, 10]], 6, WHITE); });
+      penguin(ctx, 0, 0, 0, w >= 0); ctx.restore();
+      if (w > 1.2) S.once('slide', () => S.burst(p[0], p[1], 24));
+      winterLiveWeather(ctx, S);
+    },
+  },
+  // 23 -------- a chimney so the cozy house can breathe smoke
+  {
+    bg: WINTER, target: [[518, 626], [518, 426]], notes: [523, 659, 784, 1175],
+    back(ctx) {
+      snowGround(ctx);
+      sticker(() => { box(ctx, 175, 630, 370, 285, 28, '#F7B56B'); shape(ctx, [[145, 642], [360, 418], [575, 642]], CORAL); box(ctx, 310, 750, 100, 165, 14, '#A86B46'); box(ctx, 215, 690, 76, 76, 12, SKY); box(ctx, 430, 690, 76, 76, 12, SKY); });
+      stick(ctx, [[150, 638], [360, 415], [570, 638]], 18, WHITE);
+      sticker(() => { blob(ctx, 248, 723, 8, 8, SUNNY); blob(ctx, 468, 723, 8, 8, SUNNY); });
+    },
+    live(ctx, S) {
+      const w = S.won, line = S.lines[0];
+      if (line) {
+        sticker(() => S.part(ctx, 34, ORANGE));
+        const top = line.reduce((a, p) => p[1] < a[1] ? p : a);
+        for (let i = 0; i < 3; i++) { const age = Math.max(0, w - 0.45 - i * 0.3), y = top[1] - age * 105; if (w > 0.4 && age < 1.5) { ctx.save(); ctx.globalAlpha = 1 - age / 1.5; sticker(() => blob(ctx, top[0] + Math.sin(age * 3 + i) * 16, y, 16 + age * 3, 22 + age * 4, WHITE)); ctx.restore(); } }
+      }
+      winterLiveWeather(ctx, S);
+    },
+  },
+  // 24 -------- a string of lights between snowy trees
+  {
+    bg: WINTER, target: curve([[128, 565], [238, 634], [360, 654], [482, 632], [592, 565]]), notes: [659, 784, 988, 1319, 1568],
+    back(ctx) { snowGround(ctx); pineTree(ctx, 112, 940, 1.18); pineTree(ctx, 608, 940, 1.18); pineTree(ctx, 360, 955, 0.7); },
+    live(ctx, S) {
+      const w = S.won, line = S.lines[0];
+      if (line) {
+        sticker(() => S.part(ctx, 9, NAVY));
+        sticker(() => { const cs = [CORAL, SUNNY, SKY, VIOLET, MINT, ORANGE, CORAL]; for (let i = 0; i < 7; i++) { const p = pointAt(line, (i + 0.5) / 7), glow = w >= 0 ? 1 + Math.sin(w * 8 + i) * 0.16 : 1; stick(ctx, [p, [p[0], p[1] + 20]], 5, NAVY); blob(ctx, p[0], p[1] + 29, 13 * glow, 17 * glow, cs[i]); } });
+      }
+      winterLiveWeather(ctx, S);
+    },
+  },
+  // 25 -------- a frozen pond line for a skating duck
+  {
+    bg: WINTER, target: curve([[160, 822], [260, 792], [390, 806], [535, 770]]), notes: [587, 740, 880, 1175, 1568],
+    back(ctx) {
+      snowGround(ctx);
+      ctx.fillStyle = '#8DE1F3'; ctx.beginPath(); ctx.ellipse(355, 910, 270, 155, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = WHITE; ctx.lineWidth = 12; ctx.beginPath(); ctx.ellipse(355, 910, 270, 155, 0, 0, 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.58)'; for (const [x, y, r] of [[210, 890, 28], [430, 960, 36], [535, 865, 22]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.35, -0.15, 0, 7); ctx.fill(); }
+    },
+    live(ctx, S) {
+      const w = S.won, line = S.lines[0]; if (line) sticker(() => S.part(ctx, 20, WHITE));
+      let p = w >= 0 ? [160, 822] : [84, 1045], rot = 0; // waits clear of the start dot
+      if (w >= 0 && line) { const k = ease((w - 0.2) / 2.2); p = pointAt(line, k); const q = pointAt(line, Math.min(1, k + 0.03)); rot = Math.atan2(q[1] - p[1], q[0] - p[0]); }
+      chick(ctx, p[0], p[1] - 12, SUNNY, 1, w >= 0 ? 'happy' : S.mood, S.t, null, rot * 0.22);
+      if (w > 1.5) { ctx.fillStyle = WHITE; for (let i = 0; i < 4; i++) { const q = pointAt(line || target, (w * 0.18 + i / 4) % 1); blob(ctx, q[0], q[1] + 15, 5, 5, WHITE); } }
+      winterLiveWeather(ctx, S);
     },
   },
 ];
