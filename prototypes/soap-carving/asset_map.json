@@ -1,298 +1,298 @@
 {
- "studio_bg": {
-  "animation": null,
-  "aspect_ratio": [
-   1536,
-   1024
-  ],
-  "compression_suggestion": "original",
-  "description": "Top-down flat lay view looking straight down at a bright pastel soap-making workbench. Light honey wooden table fills the whole frame; a big soft mint-green cutting mat with faint grid lines covers the middle of the picture (empty, nothing on it); around the edges only: small glass jars of colorful soap pieces, a folded pink towel, lavender sprigs, daisies, ribbons, a bottle of pink liquid soap, round sponges, little gift boxes, sprinkles of rainbow glitter. Bright cheerful colors, symmetric balanced layout, empty clean centre. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Top-down flat lay view looking straight down at a bright pastel soap-making workbench. Light honey wooden table fills the whole frame; a big soft mint-green cutting mat with faint grid lines covers the middle of the picture (empty, nothing on it); around the edges only: small glass jars of colorful soap pieces, a folded pink towel, lavender sprigs, daisies, ribbons, a bottle of pink liquid soap, round sponges, little gift boxes, sprinkles of rainbow glitter. Bright cheerful colors, symmetric balanced layout, empty clean centre. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "background",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQ39J8DBJ7E8ZAHR2CCXQ_af9b8120-b2cf-429b-824e-fc6f44995fe4_cc6f3767-9bbc-4849-8d33-958eb046df1e.webp"
- },
- "customer_mia": {
-  "animation": null,
-  "aspect_ratio": [
-   988,
-   1300
-  ],
-  "compression_suggestion": "original",
-  "description": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, light skin, curly ginger pigtails with yellow bows, freckles, mint t-shirt. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, light skin, curly ginger pigtails with yellow bows, freckles, mint t-shirt. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "character",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQ5NHBGT2MBQCWR6EZWJK_0e93c8b8-ef69-4ff4-b676-536171438579_b2264dbe-772e-485a-9e20-75b670921cab.webp"
- },
- "customer_omar": {
-  "animation": null,
-  "aspect_ratio": [
-   874,
-   1234
-  ],
-  "compression_suggestion": "original",
-  "description": "Expression sheet, 2x2 grid of the same cute little boy, head and shoulders, front view, warm brown skin, short black curly hair, round orange glasses, sky-blue hoodie. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Expression sheet, 2x2 grid of the same cute little boy, head and shoulders, front view, warm brown skin, short black curly hair, round orange glasses, sky-blue hoodie. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "character",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQ7WPFKEQ2979BNQ6JDYZ_867289a8-64f2-4db5-8829-038dd9ae319e_afd3e1f9-2b24-4984-a1d4-f1f1337791b7.webp"
- },
- "customer_lin": {
-  "animation": null,
-  "aspect_ratio": [
-   959,
-   1334
-  ],
-  "compression_suggestion": "original",
-  "description": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, East Asian, straight black bob hair with a pink flower clip, lavender dress. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, East Asian, straight black bob hair with a pink flower clip, lavender dress. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "character",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQA0TW8XH1M6Z92VB071T_1baedb40-6e51-4d09-9b58-76a264ae7eac_362639e3-a821-4c76-86d2-09e4eb1746d4.webp"
- },
- "customer_grandpa": {
-  "animation": null,
-  "aspect_ratio": [
-   946,
-   1422
-  ],
-  "compression_suggestion": "original",
-  "description": "Expression sheet, 2x2 grid of the same friendly cartoon grandpa, head and shoulders, front view, tan skin, fluffy white hair and big white moustache, rosy cheeks, green knitted sweater. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Expression sheet, 2x2 grid of the same friendly cartoon grandpa, head and shoulders, front view, tan skin, fluffy white hair and big white moustache, rosy cheeks, green knitted sweater. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "character",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQCCPTD5AD08C80B88W4Q_494a374d-faa3-49a4-95d5-7e67950a87ec_29782d0f-0a5a-49ac-8a86-29f60a9cd0b9.webp"
- },
- "tools_sheet": {
-  "animation": null,
-  "aspect_ratio": [
-   1317,
-   900
-  ],
-  "compression_suggestion": "original",
-  "description": "Sprite sheet, 3 columns x 2 rows, six separate soap-crafting tools, each centred in its own cell with empty space around it, all pointing diagonally up-right: 1 a small carving knife with a short silver blade and a pink wooden handle, 2 a soft yellow damp sponge with water drops, 3 a glitter shaker jar with a pink lid, 4 golden tweezers, 5 a spray bottle of water, 6 a little paint brush. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Sprite sheet, 3 columns x 2 rows, six separate soap-crafting tools, each centred in its own cell with empty space around it, all pointing diagonally up-right: 1 a small carving knife with a short silver blade and a pink wooden handle, 2 a soft yellow damp sponge with water drops, 3 a glitter shaker jar with a pink lid, 4 golden tweezers, 5 a spray bottle of water, 6 a little paint brush. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQF2PQPGWH9C164XY8ZBJ_32ea0b0b-f15e-4d2f-9381-8b7509ee001e_eece5c01-8cf9-4c13-b4d2-ca9ae0f985d6.webp"
- },
- "gems_sheet": {
-  "animation": null,
-  "aspect_ratio": [
-   1455,
-   791
-  ],
-  "compression_suggestion": "original",
-  "description": "Sprite sheet, 4 columns x 2 rows, eight separate shiny cut gems, each centred in its own cell with empty space around it, front view: round ruby red, heart pink, star yellow, emerald green square, sapphire blue drop, purple amethyst oval, rainbow opal round, white pearl. Glossy facets, bright sparkles. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Sprite sheet, 4 columns x 2 rows, eight separate shiny cut gems, each centred in its own cell with empty space around it, front view: round ruby red, heart pink, star yellow, emerald green square, sapphire blue drop, purple amethyst oval, rainbow opal round, white pearl. Glossy facets, bright sparkles. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQHFRNADPV158YFBHN38B_9e169cf5-60d6-4734-b76c-f22e66adbe25_0e7b7a65-973c-4284-8ec6-24fe8cfb8eef.webp"
- },
- "charms_sheet": {
-  "animation": null,
-  "aspect_ratio": [
-   1387,
-   779
-  ],
-  "compression_suggestion": "original",
-  "description": "Sprite sheet, 4 columns x 2 rows, eight separate tiny glossy toy charms, each centred in its own cell with empty space around it, front view: yellow rubber duck, golden star, pink heart, green baby dinosaur, red toy car, white kitten, golden crown, pink seashell. Shiny plastic toy look. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Sprite sheet, 4 columns x 2 rows, eight separate tiny glossy toy charms, each centred in its own cell with empty space around it, front view: yellow rubber duck, golden star, pink heart, green baby dinosaur, red toy car, white kitten, golden crown, pink seashell. Shiny plastic toy look. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQKEVNYHPCFMK2SMQT9AB_f7f27c7f-3798-44b3-b5b5-4edf62b4625d_4e94fd9f-1643-4196-8279-59968cb383d3.webp"
- },
- "bath_bowl": {
-  "animation": null,
-  "aspect_ratio": [
-   945,
-   940
-  ],
-  "compression_suggestion": "original",
-  "description": "Top-down view looking straight down into a round white ceramic bath bowl with a thin pastel pink rim, filled with clear light turquoise water with soft caustic light ripples, a few white foam bubbles around the inner edge, empty centre. Single object, centred, round. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Top-down view looking straight down into a round white ceramic bath bowl with a thin pastel pink rim, filled with clear light turquoise water with soft caustic light ripples, a few white foam bubbles around the inner edge, empty centre. Single object, centred, round. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHWJQQYMNQW5GAXXQKYRH6_ad4c9005-ce20-4a47-a20f-cd3668e888f8_f3fd7c24-b326-4b12-9d22-98f7ee2754ac.webp"
- },
- "sfx_carve": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "ASMR close-up of a small knife carving and scraping soft soap, crisp satisfying crunchy shaving sound, several short strokes, no music",
-  "duration_secs": 1.77,
-  "loop": false,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4EQ3WCMXR21E44N0NFWG_ff58eb4a-4171-41b8-91ca-073cd03cf68d_ff07e2ab-8435-4723-b217-9540542aaa14.ogg",
-  "prompt": "ASMR close-up of a small knife carving and scraping soft soap, crisp satisfying crunchy shaving sound, several short strokes, no music",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4EQ3WCMXR21E44N0NFWG_ff58eb4a-4171-41b8-91ca-073cd03cf68d_ff07e2ab-8435-4723-b217-9540542aaa14.mp3"
- },
- "sfx_squeak": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "ASMR wet sponge rubbing a smooth soap bar, soft squeaky foamy bubbly squish, close-up, no music",
-  "duration_secs": 1.93,
-  "loop": false,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4GAA9FMQRHSCABXRTZFB_2f845890-9c83-4316-8cb6-e3feb6476f6b_06830f41-e893-4d5a-a2ae-91e1784fea11.ogg",
-  "prompt": "ASMR wet sponge rubbing a smooth soap bar, soft squeaky foamy bubbly squish, close-up, no music",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4GAA9FMQRHSCABXRTZFB_2f845890-9c83-4316-8cb6-e3feb6476f6b_06830f41-e893-4d5a-a2ae-91e1784fea11.mp3"
- },
- "sfx_plop": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "soap bar dropping into a bowl of water, cute plop splash followed by soft fizzing bubbles, ASMR, no music",
-  "duration_secs": 3,
-  "loop": false,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4HSZ53SZFVMD24BXT7NF_9d1b1130-dc5f-40af-8d13-569032504392_8fa9a4f7-b112-4aae-8888-e049210e73cc.ogg",
-  "prompt": "soap bar dropping into a bowl of water, cute plop splash followed by soft fizzing bubbles, ASMR, no music",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4HSZ53SZFVMD24BXT7NF_9d1b1130-dc5f-40af-8d13-569032504392_8fa9a4f7-b112-4aae-8888-e049210e73cc.mp3"
- },
- "sfx_chop": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "knife chopping a soft block of soap on a wooden cutting board, one clean satisfying thunk, ASMR, no music",
-  "duration_secs": 1.7,
-  "loop": false,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4JRN77P827B5VKSXAF0T_09e6c1e7-2947-4238-8bb5-375669e95a66_c9a18e5c-368e-4dd8-a1c6-114a40c672f7.ogg",
-  "prompt": "knife chopping a soft block of soap on a wooden cutting board, one clean satisfying thunk, ASMR, no music",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4JRN77P827B5VKSXAF0T_09e6c1e7-2947-4238-8bb5-375669e95a66_c9a18e5c-368e-4dd8-a1c6-114a40c672f7.mp3"
- },
- "sfx_pour": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "thick creamy liquid soap pouring from a pot into a silicone mould, smooth glugging pour, ASMR, seamless, no music",
-  "duration_secs": 3,
-  "loop": true,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4KGVRZNQ59XE05C8GGH6_c082bba9-857b-4c76-8680-284e5efe6c16_7236889c-9ac9-4c01-9d7e-da4020792117.ogg",
-  "prompt": "thick creamy liquid soap pouring from a pot into a silicone mould, smooth glugging pour, ASMR, seamless, no music",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4KGVRZNQ59XE05C8GGH6_c082bba9-857b-4c76-8680-284e5efe6c16_7236889c-9ac9-4c01-9d7e-da4020792117.mp3"
- },
- "sfx_glitter": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "shaking a small jar of glitter, delicate rattle with tiny magical twinkles, ASMR, no music",
-  "duration_secs": 1.91,
-  "loop": false,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4MGQ7X95CVY3DMARAH2B_a99e872e-574a-4be1-b224-62fe82a52ca3_6d6ac940-1d43-4506-a690-fc7ffc97d5cb.ogg",
-  "prompt": "shaking a small jar of glitter, delicate rattle with tiny magical twinkles, ASMR, no music",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4MGQ7X95CVY3DMARAH2B_a99e872e-574a-4be1-b224-62fe82a52ca3_6d6ac940-1d43-4506-a690-fc7ffc97d5cb.mp3"
- },
- "sfx_win": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "cheerful magical success fanfare for kids, bright chimes and sparkles rising, short and happy, game reward sound",
-  "duration_secs": 2.08,
-  "loop": false,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4NZYD1RQ3NNB728KQB3Q_34b533f4-78fb-4097-ba89-e55dc75f5ca5_92b3b0e5-dec5-423d-ad90-87aabec34535.ogg",
-  "prompt": "cheerful magical success fanfare for kids, bright chimes and sparkles rising, short and happy, game reward sound",
-  "subtype": "effect",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4NZYD1RQ3NNB728KQB3Q_34b533f4-78fb-4097-ba89-e55dc75f5ca5_92b3b0e5-dec5-423d-ad90-87aabec34535.mp3"
- },
- "music_studio": {
-  "animation": null,
-  "aspect_ratio": null,
-  "compression_suggestion": "original",
-  "description": "cozy cute crafting background music for a kids soap making game, soft ukulele, marimba and gentle glockenspiel, warm lofi groove, relaxed happy, light and not distracting",
-  "duration_secs": 47.995645833333334,
-  "loop": true,
-  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7WX4QGF4SZE9HS22C8XZHA4_1605c741-81ce-4a0e-8246-5b007c02cf9e_3eca6679-8c9a-44ba-b4e7-9d93fa56f536.ogg",
-  "prompt": "cozy cute crafting background music for a kids soap making game, soft ukulele, marimba and gentle glockenspiel, warm lofi groove, relaxed happy, light and not distracting",
-  "subtype": "music",
-  "type": "audio",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7WX4QGF4SZE9HS22C8XZHA4_1605c741-81ce-4a0e-8246-5b007c02cf9e_3eca6679-8c9a-44ba-b4e7-9d93fa56f536.mp3"
- },
- "soap_cube": {
-  "animation": null,
-  "aspect_ratio": [
-   845,
-   866
-  ],
-  "compression_suggestion": "original",
-  "description": "One cube of clear glycerin melt-and-pour soap base, slightly translucent milky white, soft rounded edges, glossy highlights, three-quarter view from above, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "One cube of clear glycerin melt-and-pour soap base, slightly translucent milky white, soft rounded edges, glossy highlights, three-quarter view from above, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WXY0R2ZHRZFDKY7J4ZWTAF_3601665c-c376-433c-9672-353d8036f39c_33270ce2-dcad-4a42-a597-010db7796810.webp"
- },
- "gift_box": {
-  "animation": null,
-  "aspect_ratio": [
-   835,
-   880
-  ],
-  "compression_suggestion": "original",
-  "description": "A cute wrapped gift box, glossy pink box with a shiny golden ribbon and big bow, little sparkles, three-quarter view, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "A cute wrapped gift box, glossy pink box with a shiny golden ribbon and big bow, little sparkles, three-quarter view, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WXY4F3J58EH9HBMAW8QHNQ_72beb32f-9449-44d6-90ba-8561697ab47c_1486cb0e-49f4-4352-a654-bf7d4971e065.webp"
- },
- "pot_flat": {
-  "animation": null,
-  "aspect_ratio": [
-   1005,
-   801
-  ],
-  "compression_suggestion": "original",
-  "description": "Top-down view looking straight down into an empty round mint-green enamel cooking pot, perfectly circular from directly above, glossy white rim, two small round handles on the left and right sides, clean pale blue-grey empty interior, empty centre, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "duration_secs": null,
-  "loop": null,
-  "opus_url": null,
-  "prompt": "Top-down view looking straight down into an empty round mint-green enamel cooking pot, perfectly circular from directly above, glossy white rim, two small round handles on the left and right sides, clean pale blue-grey empty interior, empty centre, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
-  "subtype": "object",
-  "type": "image",
-  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WY36G13BNKM1P7RD4E1EGE_c25503fa-fae6-4579-b823-2d9690f44a86_26590641-29ec-4e7f-ad55-cd62b6cd78f2.webp"
- }
+  "studio_bg": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQ39J8DBJ7E8ZAHR2CCXQ_af9b8120-b2cf-429b-824e-fc6f44995fe4_cc6f3767-9bbc-4849-8d33-958eb046df1e.webp",
+    "type": "image",
+    "prompt": "Top-down flat lay view looking straight down at a bright pastel soap-making workbench. Light honey wooden table fills the whole frame; a big soft mint-green cutting mat with faint grid lines covers the middle of the picture (empty, nothing on it); around the edges only: small glass jars of colorful soap pieces, a folded pink towel, lavender sprigs, daisies, ribbons, a bottle of pink liquid soap, round sponges, little gift boxes, sprinkles of rainbow glitter. Bright cheerful colors, symmetric balanced layout, empty clean centre. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Top-down flat lay view looking straight down at a bright pastel soap-making workbench. Light honey wooden table fills the whole frame; a big soft mint-green cutting mat with faint grid lines covers the middle of the picture (empty, nothing on it); around the edges only: small glass jars of colorful soap pieces, a folded pink towel, lavender sprigs, daisies, ribbons, a bottle of pink liquid soap, round sponges, little gift boxes, sprinkles of rainbow glitter. Bright cheerful colors, symmetric balanced layout, empty clean centre. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "background",
+    "aspect_ratio": [
+      1536,
+      1024
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "customer_mia": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQ5NHBGT2MBQCWR6EZWJK_0e93c8b8-ef69-4ff4-b676-536171438579_b2264dbe-772e-485a-9e20-75b670921cab.webp",
+    "type": "image",
+    "prompt": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, light skin, curly ginger pigtails with yellow bows, freckles, mint t-shirt. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, light skin, curly ginger pigtails with yellow bows, freckles, mint t-shirt. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "character",
+    "aspect_ratio": [
+      988,
+      1300
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "customer_omar": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQ7WPFKEQ2979BNQ6JDYZ_867289a8-64f2-4db5-8829-038dd9ae319e_afd3e1f9-2b24-4984-a1d4-f1f1337791b7.webp",
+    "type": "image",
+    "prompt": "Expression sheet, 2x2 grid of the same cute little boy, head and shoulders, front view, warm brown skin, short black curly hair, round orange glasses, sky-blue hoodie. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Expression sheet, 2x2 grid of the same cute little boy, head and shoulders, front view, warm brown skin, short black curly hair, round orange glasses, sky-blue hoodie. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "character",
+    "aspect_ratio": [
+      874,
+      1234
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "customer_lin": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQA0TW8XH1M6Z92VB071T_1baedb40-6e51-4d09-9b58-76a264ae7eac_362639e3-a821-4c76-86d2-09e4eb1746d4.webp",
+    "type": "image",
+    "prompt": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, East Asian, straight black bob hair with a pink flower clip, lavender dress. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Expression sheet, 2x2 grid of the same cute little girl, head and shoulders, front view, East Asian, straight black bob hair with a pink flower clip, lavender dress. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "character",
+    "aspect_ratio": [
+      959,
+      1334
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "customer_grandpa": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQCCPTD5AD08C80B88W4Q_494a374d-faa3-49a4-95d5-7e67950a87ec_29782d0f-0a5a-49ac-8a86-29f60a9cd0b9.webp",
+    "type": "image",
+    "prompt": "Expression sheet, 2x2 grid of the same friendly cartoon grandpa, head and shoulders, front view, tan skin, fluffy white hair and big white moustache, rosy cheeks, green knitted sweater. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Expression sheet, 2x2 grid of the same friendly cartoon grandpa, head and shoulders, front view, tan skin, fluffy white hair and big white moustache, rosy cheeks, green knitted sweater. Top-left: calm gentle smile. Top-right: big happy laugh. Bottom-left: amazed wow face with sparkling eyes and open mouth. Bottom-right: oops worried face. Each cell separated by empty space. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, big expressive eyes with sparkle highlights, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "character",
+    "aspect_ratio": [
+      946,
+      1422
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "tools_sheet": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQF2PQPGWH9C164XY8ZBJ_32ea0b0b-f15e-4d2f-9381-8b7509ee001e_eece5c01-8cf9-4c13-b4d2-ca9ae0f985d6.webp",
+    "type": "image",
+    "prompt": "Sprite sheet, 3 columns x 2 rows, six separate soap-crafting tools, each centred in its own cell with empty space around it, all pointing diagonally up-right: 1 a small carving knife with a short silver blade and a pink wooden handle, 2 a soft yellow damp sponge with water drops, 3 a glitter shaker jar with a pink lid, 4 golden tweezers, 5 a spray bottle of water, 6 a little paint brush. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Sprite sheet, 3 columns x 2 rows, six separate soap-crafting tools, each centred in its own cell with empty space around it, all pointing diagonally up-right: 1 a small carving knife with a short silver blade and a pink wooden handle, 2 a soft yellow damp sponge with water drops, 3 a glitter shaker jar with a pink lid, 4 golden tweezers, 5 a spray bottle of water, 6 a little paint brush. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1317,
+      900
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "gems_sheet": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQHFRNADPV158YFBHN38B_9e169cf5-60d6-4734-b76c-f22e66adbe25_0e7b7a65-973c-4284-8ec6-24fe8cfb8eef.webp",
+    "type": "image",
+    "prompt": "Sprite sheet, 4 columns x 2 rows, eight separate shiny cut gems, each centred in its own cell with empty space around it, front view: round ruby red, heart pink, star yellow, emerald green square, sapphire blue drop, purple amethyst oval, rainbow opal round, white pearl. Glossy facets, bright sparkles. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Sprite sheet, 4 columns x 2 rows, eight separate shiny cut gems, each centred in its own cell with empty space around it, front view: round ruby red, heart pink, star yellow, emerald green square, sapphire blue drop, purple amethyst oval, rainbow opal round, white pearl. Glossy facets, bright sparkles. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1455,
+      791
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "charms_sheet": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHQKEVNYHPCFMK2SMQT9AB_f7f27c7f-3798-44b3-b5b5-4edf62b4625d_4e94fd9f-1643-4196-8279-59968cb383d3.webp",
+    "type": "image",
+    "prompt": "Sprite sheet, 4 columns x 2 rows, eight separate tiny glossy toy charms, each centred in its own cell with empty space around it, front view: yellow rubber duck, golden star, pink heart, green baby dinosaur, red toy car, white kitten, golden crown, pink seashell. Shiny plastic toy look. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Sprite sheet, 4 columns x 2 rows, eight separate tiny glossy toy charms, each centred in its own cell with empty space around it, front view: yellow rubber duck, golden star, pink heart, green baby dinosaur, red toy car, white kitten, golden crown, pink seashell. Shiny plastic toy look. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1387,
+      779
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "bath_bowl": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WHWJQQYMNQW5GAXXQKYRH6_ad4c9005-ce20-4a47-a20f-cd3668e888f8_f3fd7c24-b326-4b12-9d22-98f7ee2754ac.webp",
+    "type": "image",
+    "prompt": "Top-down view looking straight down into a round white ceramic bath bowl with a thin pastel pink rim, filled with clear light turquoise water with soft caustic light ripples, a few white foam bubbles around the inner edge, empty centre. Single object, centred, round. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Top-down view looking straight down into a round white ceramic bath bowl with a thin pastel pink rim, filled with clear light turquoise water with soft caustic light ripples, a few white foam bubbles around the inner edge, empty centre. Single object, centred, round. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      945,
+      940
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_carve": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4EQ3WCMXR21E44N0NFWG_ff58eb4a-4171-41b8-91ca-073cd03cf68d_ff07e2ab-8435-4723-b217-9540542aaa14.mp3",
+    "type": "audio",
+    "prompt": "ASMR close-up of a small knife carving and scraping soft soap, crisp satisfying crunchy shaving sound, several short strokes, no music",
+    "description": "ASMR close-up of a small knife carving and scraping soft soap, crisp satisfying crunchy shaving sound, several short strokes, no music",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.77,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4EQ3WCMXR21E44N0NFWG_ff58eb4a-4171-41b8-91ca-073cd03cf68d_ff07e2ab-8435-4723-b217-9540542aaa14.ogg",
+    "animation": null
+  },
+  "sfx_squeak": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4GAA9FMQRHSCABXRTZFB_2f845890-9c83-4316-8cb6-e3feb6476f6b_06830f41-e893-4d5a-a2ae-91e1784fea11.mp3",
+    "type": "audio",
+    "prompt": "ASMR wet sponge rubbing a smooth soap bar, soft squeaky foamy bubbly squish, close-up, no music",
+    "description": "ASMR wet sponge rubbing a smooth soap bar, soft squeaky foamy bubbly squish, close-up, no music",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.93,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4GAA9FMQRHSCABXRTZFB_2f845890-9c83-4316-8cb6-e3feb6476f6b_06830f41-e893-4d5a-a2ae-91e1784fea11.ogg",
+    "animation": null
+  },
+  "sfx_plop": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4HSZ53SZFVMD24BXT7NF_9d1b1130-dc5f-40af-8d13-569032504392_8fa9a4f7-b112-4aae-8888-e049210e73cc.mp3",
+    "type": "audio",
+    "prompt": "soap bar dropping into a bowl of water, cute plop splash followed by soft fizzing bubbles, ASMR, no music",
+    "description": "soap bar dropping into a bowl of water, cute plop splash followed by soft fizzing bubbles, ASMR, no music",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 3.0,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4HSZ53SZFVMD24BXT7NF_9d1b1130-dc5f-40af-8d13-569032504392_8fa9a4f7-b112-4aae-8888-e049210e73cc.ogg",
+    "animation": null
+  },
+  "sfx_chop": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4JRN77P827B5VKSXAF0T_09e6c1e7-2947-4238-8bb5-375669e95a66_c9a18e5c-368e-4dd8-a1c6-114a40c672f7.mp3",
+    "type": "audio",
+    "prompt": "knife chopping a soft block of soap on a wooden cutting board, one clean satisfying thunk, ASMR, no music",
+    "description": "knife chopping a soft block of soap on a wooden cutting board, one clean satisfying thunk, ASMR, no music",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.7,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4JRN77P827B5VKSXAF0T_09e6c1e7-2947-4238-8bb5-375669e95a66_c9a18e5c-368e-4dd8-a1c6-114a40c672f7.ogg",
+    "animation": null
+  },
+  "sfx_pour": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4KGVRZNQ59XE05C8GGH6_c082bba9-857b-4c76-8680-284e5efe6c16_7236889c-9ac9-4c01-9d7e-da4020792117.mp3",
+    "type": "audio",
+    "prompt": "thick creamy liquid soap pouring from a pot into a silicone mould, smooth glugging pour, ASMR, seamless, no music",
+    "description": "thick creamy liquid soap pouring from a pot into a silicone mould, smooth glugging pour, ASMR, seamless, no music",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 3.0,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4KGVRZNQ59XE05C8GGH6_c082bba9-857b-4c76-8680-284e5efe6c16_7236889c-9ac9-4c01-9d7e-da4020792117.ogg",
+    "animation": null
+  },
+  "sfx_glitter": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4MGQ7X95CVY3DMARAH2B_a99e872e-574a-4be1-b224-62fe82a52ca3_6d6ac940-1d43-4506-a690-fc7ffc97d5cb.mp3",
+    "type": "audio",
+    "prompt": "shaking a small jar of glitter, delicate rattle with tiny magical twinkles, ASMR, no music",
+    "description": "shaking a small jar of glitter, delicate rattle with tiny magical twinkles, ASMR, no music",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.91,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4MGQ7X95CVY3DMARAH2B_a99e872e-574a-4be1-b224-62fe82a52ca3_6d6ac940-1d43-4506-a690-fc7ffc97d5cb.ogg",
+    "animation": null
+  },
+  "sfx_win": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4NZYD1RQ3NNB728KQB3Q_34b533f4-78fb-4097-ba89-e55dc75f5ca5_92b3b0e5-dec5-423d-ad90-87aabec34535.mp3",
+    "type": "audio",
+    "prompt": "cheerful magical success fanfare for kids, bright chimes and sparkles rising, short and happy, game reward sound",
+    "description": "cheerful magical success fanfare for kids, bright chimes and sparkles rising, short and happy, game reward sound",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.08,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M7WX4NZYD1RQ3NNB728KQB3Q_34b533f4-78fb-4097-ba89-e55dc75f5ca5_92b3b0e5-dec5-423d-ad90-87aabec34535.ogg",
+    "animation": null
+  },
+  "music_studio": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7WX4QGF4SZE9HS22C8XZHA4_1605c741-81ce-4a0e-8246-5b007c02cf9e_3eca6679-8c9a-44ba-b4e7-9d93fa56f536.mp3",
+    "type": "audio",
+    "prompt": "cozy cute crafting background music for a kids soap making game, soft ukulele, marimba and gentle glockenspiel, warm lofi groove, relaxed happy, light and not distracting",
+    "description": "cozy cute crafting background music for a kids soap making game, soft ukulele, marimba and gentle glockenspiel, warm lofi groove, relaxed happy, light and not distracting",
+    "subtype": "music",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 47.995645833333334,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M7WX4QGF4SZE9HS22C8XZHA4_1605c741-81ce-4a0e-8246-5b007c02cf9e_3eca6679-8c9a-44ba-b4e7-9d93fa56f536.ogg",
+    "animation": null
+  },
+  "soap_cube": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WXY0R2ZHRZFDKY7J4ZWTAF_3601665c-c376-433c-9672-353d8036f39c_33270ce2-dcad-4a42-a597-010db7796810.webp",
+    "type": "image",
+    "prompt": "One cube of clear glycerin melt-and-pour soap base, slightly translucent milky white, soft rounded edges, glossy highlights, three-quarter view from above, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "One cube of clear glycerin melt-and-pour soap base, slightly translucent milky white, soft rounded edges, glossy highlights, three-quarter view from above, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      845,
+      866
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "gift_box": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WXY4F3J58EH9HBMAW8QHNQ_72beb32f-9449-44d6-90ba-8561697ab47c_1486cb0e-49f4-4352-a654-bf7d4971e065.webp",
+    "type": "image",
+    "prompt": "A cute wrapped gift box, glossy pink box with a shiny golden ribbon and big bow, little sparkles, three-quarter view, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "A cute wrapped gift box, glossy pink box with a shiny golden ribbon and big bow, little sparkles, three-quarter view, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      835,
+      880
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "pot_flat": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7WY36G13BNKM1P7RD4E1EGE_c25503fa-fae6-4579-b823-2d9690f44a86_26590641-29ec-4e7f-ad55-cd62b6cd78f2.webp",
+    "type": "image",
+    "prompt": "Top-down view looking straight down into an empty round mint-green enamel cooking pot, perfectly circular from directly above, glossy white rim, two small round handles on the left and right sides, clean pale blue-grey empty interior, empty centre, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "description": "Top-down view looking straight down into an empty round mint-green enamel cooking pot, perfectly circular from directly above, glossy white rim, two small round handles on the left and right sides, clean pale blue-grey empty interior, empty centre, single object centred. Soft painted 2D mobile game art, semi-realistic cartoon, smooth airbrushed shading, warm studio lighting, gentle saturated colors, kid-friendly, high detail, no text, no watermark.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1005,
+      801
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  }
 }

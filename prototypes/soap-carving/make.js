@@ -1,4 +1,3 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 /**
  * Making the soap bar before it is carved, seven short steps with a different gesture each:
  * chop the soap base (tap the cubes), add colour (tap the bottles), stir (circles in the pot), pick a scent

@@ -1,4 +1,3 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 /**
  * The soap bar. A grid of cells (1 cell = 1 game pixel) is soap (1) or carved away (0). The wanted shape is a
  * template with a signed distance to its outline (positive inside), which decides what the knife may take:
@@ -283,9 +282,16 @@ export function marbleAlbedo(mb, w, h, seed = 7) {
       const hue = ((y * 0.0042 + f * 0.9) % 1 + 1) % 1, k = hue * 6, i = Math.floor(k), fr = k - i;
       const rgb = [[1, fr, 0], [1 - fr, 1, 0], [0, 1, fr], [0, 1 - fr, 1], [fr, 0, 1], [1, 0, 1 - fr]][i % 6];
       c0 = 150 + rgb[0] * 105; c1 = 150 + rgb[1] * 105; c2 = 150 + rgb[2] * 105;
+    } else if (kind === 'candyCane') { // soft diagonal peppermint-red and cream bands
+      const wave = Math.sin((x + y * 0.68) * 0.055 + f * 0.45), s = Math.max(0, Math.min(1, (wave + 0.12) * 4.2));
+      c0 += (sw[0] - c0) * s; c1 += (sw[1] - c1) * s; c2 += (sw[2] - c2) * s;
     } else {
       const s = Math.max(0, Math.min(1, (g - 0.48) * 4)); // swirl clouds
       c0 += (sw[0] - c0) * s * 0.75; c1 += (sw[1] - c1) * s * 0.75; c2 += (sw[2] - c2) * s * 0.75;
+      if (kind === 'frost') { // a quiet icy sheen and fine crystal flecks
+        const frost = Math.pow(Math.max(0, Math.sin((x * 0.027 - y * 0.02 + f * 1.3) * Math.PI)), 8) * 0.2;
+        c0 += (255 - c0) * frost; c1 += (255 - c1) * frost; c2 += (255 - c2) * frost;
+      }
     }
     // a few soft veins that fade in and out along their length
     const a = Math.sin((x * 0.009 + y * 0.006 + f * 2.6) * Math.PI), fade = Math.max(0, Math.min(1, (fbm(N2, x * 0.02, y * 0.02) - 0.38) * 3.5));

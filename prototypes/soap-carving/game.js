@@ -17,6 +17,7 @@ import { loadSprites, ready, settled, cellCanvas, drawCell, drawCellAt, drawTabl
 import { rng, makeSoap, markDirty, carve, trimRows, carvedShare, sponge, edgeCells, meanRough, takeIslands, islandSprite, shapeScore, sparkleScore, verdict, soapCount, encodeMask, decodeMask, marbleAlbedo, attachPaint, paint, stamp as pressStamp } from './soap.js';
 import { MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide, landAt, fillCentre } from './make.js';
 import { createFx, ribbonShape, strokeCurl } from './fx.js';
+import { orderShape, winterMarble } from './winter.js';
 
 const DEBUG = location.search.includes('local');
 const W = 720, H = 1280, TAU = Math.PI * 2, LANGS = ['en', 'ar', 'es', 'vi', 'hi', 'bn', 'id'];
@@ -30,7 +31,7 @@ const ease = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
 const back3 = (k) => { k = Math.max(0, Math.min(1, k)); const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
 
 let cv, g, cfg, mode, raf = 0, last = 0, runs = 0, base = null, tables = [], ti = 0, fx = null, vig = null, chrome = null, chromeKey = '';
-let save = { n: 0, coins: 0, stars: 0, buys: 0, gifts: 0, giftDue: false, learned: [], owned: { marbles: [], glitters: [], gems: [], stamps: [] }, shelf: [], charms: [], fresh: null, lang: null, muted: false };
+let save = { n: 0, coins: 0, stars: 0, buys: 0, gifts: 0, giftDue: false, learned: [], owned: { marbles: [], glitters: [], gems: [], stamps: [] }, shelf: [], charms: [], fresh: null, lang: null, muted: false, winterSeen: [] };
 let saveRead = false, merged = false, muteTouched = false, touched = false;
 let view = 'play', S = null, lang = 'en', pen = null, penId = null, coinShown = 0, coinPulse = 0, wiggle = null, shake = 0, freeNext = false;
 let coinShake = 0, quality = 0, frameTimes = [], slow = 0, fast = 0, RES = 1, bootT = 0, photoSel = -1, coinsFlying = [];
@@ -165,6 +166,7 @@ const SFX = {
   wow: () => rec('sfx_win') || SFX.wowSynth(),
   wowSynth: () => { tune([523, 659, 784, 1047, 1319], 95, 0.3, 0.09); hiss(0.4, 0.05, 6000, 0.5); },
   charm: () => tune([1047, 1319, 1568, 2093], 70, 0.2, 0.08),
+  winter: () => tune([1175, 1568, 1976], 58, 0.09, 0.035),
   swish: () => hiss(0.22, 0.08, 700 + Math.random() * 300, 0.8),
   crackle: () => { hiss(0.05, 0.09, 5200, 3); hiss(0.04, 0.06, 7000, 3, 'bandpass', 0.05); },
   pour: () => hiss(0.16, 0.08, 1100 + Math.random() * 400, 0.7),
@@ -189,14 +191,17 @@ const MARBLE = (id) => cfg.marbles.find((m) => m.id === id) || cfg.marbles[0];
 const owns = (kind, id) => { const list = cfg[kind], it = list.find((x) => x.id === id); return !!it && (!it.shop || save.owned[kind].includes(id)); };
 const price = () => cfg.priceBase + cfg.priceStep * save.buys;
 const shapeOf = (id) => cfg.shapes.find((s) => s.id === id) || cfg.shapes[0];
+const isWinterShape = (id) => !!(cfg.shapes.find((s) => s.id === id) || {}).winter;
 
 /** The order for soap n: always the same for the same n and the same things owned. */
 function makeOrder(n) {
   const r = rng(1000 + n * 7919), pick = (a) => a[Math.floor(r() * a.length) % a.length];
-  const plain = cfg.marbles.filter((m) => m.id !== 'gold' && owns('marbles', m.id)).map((m) => m.id);
+  const plain = cfg.marbles.filter((m) => m.id !== 'gold' && (n >= cfg.freeAfter || !['frost', 'candy_cane'].includes(m.id)) && owns('marbles', m.id)).map((m) => m.id);
   const golden = n % 4 === 3, freeCarve = freeNext;
-  let marble = golden ? 'gold' : n === 0 ? 'pink' : pick(plain);
-  const shape = freeCarve ? 'free' : n === 0 ? 'heart' : n === 1 ? 'star' : cfg.shapes[(n * 3 + Math.floor(r() * cfg.shapes.length)) % cfg.shapes.length].id;
+  let marble = golden ? 'gold' : n === 0 ? 'pink' : winterMarble(n, cfg.freeAfter) || pick(plain);
+  // Six familiar soaps first; four winter silhouettes then arrive one by one. Free carve uses
+  // them as a guide while retaining its original no-fail, player-made outline.
+  const shape = orderShape(n, freeCarve, cfg.freeAfter, cfg.shapes, (length) => Math.floor(r() * length));
   const o = { n, shape, marble, golden: golden && !freeCarve, customer: cfg.customers[n % cfg.customers.length], charm: null, glitter: null, gem: null, stamp: null, simple: n < 2, free: freeCarve };
   if (n % 5 === 4) { const left = [...Array(8).keys()].filter((c) => !save.charms.includes(c)); o.charm = left.length ? left[Math.floor(r() * left.length) % left.length] : Math.floor(r() * 8) % 8; }
   const f = save.fresh;
@@ -210,6 +215,19 @@ function makeOrder(n) {
 // ---------- shapes ----------
 /** An SVG path (0..100 box) for a shape: its own path, or a star or flower built from [points, inner radius]. */
 function shapeD(sh) {
+  if (sh.snowflake) {
+    const poly = (pts) => 'M' + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L') + ' Z';
+    const out = ['M50 31 C39 31 31 39 31 50 C31 61 39 69 50 69 C61 69 69 61 69 50 C69 39 61 31 50 31 Z'];
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3, ux = Math.cos(a), uy = Math.sin(a), px = -uy, py = ux, half = 7, len = 44;
+      out.push(poly([[50 + px * half, 50 + py * half], [50 + ux * len + px * half, 50 + uy * len + py * half], [50 + ux * len - px * half, 50 + uy * len - py * half], [50 - px * half, 50 - py * half]]));
+      for (const side of [-1, 1]) {
+        const ba = a + side * 0.82, bx = 50 + ux * 25, by = 50 + uy * 25, bux = Math.cos(ba), buy = Math.sin(ba), bpx = -buy, bpy = bux, bl = 17, bh = 4.4;
+        out.push(poly([[bx + bpx * bh, by + bpy * bh], [bx + bux * bl + bpx * bh, by + buy * bl + bpy * bh], [bx + bux * bl - bpx * bh, by + buy * bl - bpy * bh], [bx - bpx * bh, by - bpy * bh]]));
+      }
+    }
+    return out.join(' ');
+  }
   if (sh.d) return sh.d;
   const [n, inner] = sh.star || sh.flower, cx = 50, cy = sh.star ? 53 : 50, Ro = 48, pts = [];
   if (sh.star) { for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, k = i % 2 ? Ro * inner : Ro; pts.push(`${(cx + Math.cos(a) * k).toFixed(1)} ${(cy + Math.sin(a) * k).toFixed(1)}`); } return 'M' + pts.join(' L') + ' Z'; }
@@ -267,6 +285,11 @@ function newOrder(n, enter) {
     charm: o.charm === null ? null : placeCharm(soap, n, o.charm), mood: 'calm', moodT: 0, reveal: null, photo: null, oopsT: 9, pileFade: enter ? 1 : 0, speed: 0, done: false,
   };
   if (isMake(S.k)) S.make = makeState(S);
+  if (isWinterShape(o.shape) && !save.winterSeen.includes(o.shape)) {
+    S.winterNew = true;
+    save.winterSeen.push(o.shape);
+    persist();
+  }
 }
 /** A hidden charm: a point deep in the waste soap, and the cells around it that hide it. */
 function placeCharm(soap, n, id) {
@@ -381,6 +404,7 @@ function finishCarve() {
   if (S.trim) return;
   if (S.dirtyIsl) dropIslands();
   const sh = shapeScore(S.soap); S.score.shape = S.order.free ? 1 : sh.shape;
+  if (isWinterShape(S.order.shape) && !S.winterJingled) { S.winterJingled = true; SFX.winter(); }
   dropRibbon(); pen = null;
   if (S.order.free) { if (S.charm && S.charm.state === 'hidden') popCharm(); nextStep(); return; } // the player's shape stays as carved
   S.trim = { y: -1, t: 0 }; SFX.step();
@@ -485,7 +509,7 @@ function startReveal() {
   S.reveal = { t: 0, coins, small: sm, k, foam, paid: false, stars: 0, bars: 0 };
   // the save, written once per soap
   save.n++; save.coins += coins; save.stars += S.score.stars;
-  const entry = { m: encodeMask(S.soap), mb: S.order.marble, g: S.glitSel, gc: S.glitCount, gems: S.gems.map((gm) => [gm.id, Math.round(gm.x), Math.round(gm.y)]), st: S.stamps.map((q) => [q.id, Math.round(q.x), Math.round(q.y)]), s: S.score.stars, sh: S.order.shape };
+  const entry = { m: encodeMask(S.soap), mb: S.order.marble, g: S.glitSel, gc: S.glitCount, gems: S.gems.map((gm) => [gm.id, Math.round(gm.x), Math.round(gm.y)]), st: S.stamps.map((q) => [q.id, Math.round(q.x), Math.round(q.y)]), s: S.score.stars, sh: S.order.shape, cu: S.order.customer };
   THUMBS.set(entry, thumbFrom(sm));
   save.shelf.unshift(entry); if (save.shelf.length > 12) save.shelf.length = 12;
   if (save.fresh && ((save.fresh.k === 'marbles' && S.order.marble === save.fresh.id) || (save.fresh.k === 'glitters' && S.order.glitter === save.fresh.id) || (save.fresh.k === 'gems' && S.order.gem === save.fresh.id) || (save.fresh.k === 'stamps' && S.order.stamp === save.fresh.id))) save.fresh = null;
@@ -496,6 +520,50 @@ function startReveal() {
   fizz(true);
 }
 const thumbFrom = (src) => { const c = document.createElement('canvas'), k = 150 / Math.max(src.width, src.height); c.width = Math.round(src.width * k); c.height = Math.round(src.height * k); const q = c.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(src, 0, 0, c.width, c.height); return c; };
+/** Build the share artwork only on the player's tap; it contains the finished soap, stars and a smiling customer. */
+function composeShareCard(photo, stars, customer, shape) {
+  if (!photo) return null;
+  const card = document.createElement('canvas'); card.width = 720; card.height = 1080;
+  const old = g; g = card.getContext('2d');
+  try {
+    const bg = g.createLinearGradient(0, 0, 720, 1080); bg.addColorStop(0, '#FFF4E9'); bg.addColorStop(0.52, '#F4FCFF'); bg.addColorStop(1, '#FFE8F3'); g.fillStyle = bg; g.fillRect(0, 0, 720, 1080);
+    roundRect(g, 28, 24, 664, 1032, 48); g.fillStyle = 'rgba(255,255,255,0.7)'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke();
+    const halo = g.createRadialGradient(360, 535, 60, 360, 535, 360); halo.addColorStop(0, 'rgba(255,255,255,0.95)'); halo.addColorStop(1, 'rgba(180,236,255,0)'); g.fillStyle = halo; g.fillRect(30, 240, 660, 600);
+    words(T('shareCard'), 360, 104, 48, 600, PLUM, '#FFFFFF');
+    for (let i = 0; i < 3; i++) { starPath(280 + i * 80, 194, 38); g.fillStyle = i < stars ? '#FFD23F' : 'rgba(255,255,255,0.62)'; g.fill(); g.lineWidth = 5; g.strokeStyle = i < stars ? '#FFFFFF' : 'rgba(74,35,102,0.18)'; g.stroke(); }
+    const scale = Math.min(1.08, 500 / photo.width, 595 / photo.height), pw = photo.width * scale, ph = photo.height * scale;
+    g.save(); g.shadowColor = 'rgba(100,55,95,0.28)'; g.shadowBlur = 34; g.shadowOffsetY = 20; g.drawImage(photo, 360 - pw / 2, 535 - ph / 2, pw, ph); g.restore();
+    if (isWinterShape(shape)) words(T(shape), 360, 842, 34, 560, '#397B9A', '#FFFFFF');
+    const face = cellCanvas('customer_' + customer, MOOD.happy, 190);
+    if (face) g.drawImage(face, 360 - face.width / 2, 950 - face.height / 2);
+    else { glossDisc(g, 360, 950, 62, '#FFD9C2'); words('☺', 360, 950, 62, 120, '#FFFFFF', '#E58F8B'); }
+  } finally { g = old; }
+  return card;
+}
+function sharePhoto(photo, stars, customer, shape) {
+  try {
+    const image = composeShareCard(photo, stars, customer, shape); if (!image) return;
+    const result = lib.share({ image, title: 'Soap Carving: Satisfying ASMR', description: T('shareDesc'), text: T('shareDesc') });
+    if (result && typeof result.catch === 'function') result.catch(() => {});
+  } catch (e) { /* Sharing is optional and never interrupts carving. */ }
+}
+/** A shelf card gets its finished image reconstructed from saved progress only after Share is tapped. */
+function renderShareSoap(e) {
+  if (!e) return null;
+  const b = cfg.bar, mask = decodeMask(e.m, b.w, b.h); if (!mask) return null;
+  const K = { protect: cfg.protect, core: cfg.core, tol: cfg.tol, bevel: cfg.bevel, depth: cfg.depth, margin: cfg.margin, shadowX: cfg.shadowX, shadowY: cfg.shadowY };
+  const soap = makeSoap(b.w, b.h, mask, mask, K), canvas = document.createElement('canvas'), mb = MARBLE(e.mb);
+  for (const [id, x, y] of e.st || []) { const st = cfg.stamps.find((q) => q.id === id); if (st) pressStamp(soap, stampShape(st.shape, cfg.stampSize), cfg.stampSize, x, y); }
+  attachPaint(soap, canvas, albedoOf(mb.id, b.w, b.h), mb.inner);
+  const q = canvas.getContext('2d'), gl = cfg.glitters[e.g] || cfg.glitters[0], rand = rng(e.gc + 5), winter = isWinterShape(e.sh);
+  for (let k = 0, n = Math.min(1800, e.gc * 3); k < n; k++) { const x = Math.floor(rand() * b.w), y = Math.floor(rand() * b.h); if (mask[y * b.w + x]) paintGlitterMark(q, x + cfg.margin, y + cfg.margin, gl.c, 3.5 + rand() * 2.5, winter); }
+  for (const [id, x, y] of e.gems || []) drawCell(q, 'gems_sheet', gemCell(id), x + cfg.margin, y + cfg.margin, 62);
+  return canvas;
+}
+function shareShelfSoap(e) {
+  if (!e) return;
+  sharePhoto(renderShareSoap(e), e.s, e.cu || cfg.customers[0], e.sh);
+}
 const BOWL = { x: 360, y: 566, d: 640 };
 function stepReveal(dt) {
   const rv = S.reveal, t0 = rv.t; rv.t += dt; const t = rv.t;
@@ -548,6 +616,7 @@ const NEXT = { x: 360, y: 1028, r: 56 };
 const phaseList = (k = S.k) => (isMake(k) ? MAKE_STEPS : S.steps.filter((q) => !isMake(q)));
 const stepPos = (k) => { const list = phaseList(k), n = list.length, i = Math.max(0, list.indexOf(k)), sp = Math.min(92, 470 / Math.max(1, n - 1)); return [mx(360 + (i - (n - 1) / 2) * sp), 160]; };
 const GIFTB = () => ({ x: mx(290, 190), y: 34, w: 190, h: 60 });
+const SHAREB = () => ({ x: mx(210, 300), y: 1145, w: 300, h: 100 });
 const slotXY = (row, j) => [mx(72 + j * 115), row ? 1040 : 962];
 const ORDER = () => ({ x: mx(458, 244), y: 206, w: 244, h: 202 });
 const SHELF_CELL = (i) => [mx(30 + (i % 4) * 168, 150), 226 + Math.floor(i / 4) * 182];
@@ -565,13 +634,13 @@ function point(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r
 const tipOf = (p, touch) => (touch && (S.k === 'carve' || S.k === 'smooth') ? [p[0], p[1] - 56] : p);
 function down(p, touch) {
   startAudio(); touched = true; S.idle = 0; S.ribbon = null; // a new touch starts with a clean blade
-  if (view === 'photo') { view = 'shelf'; photoSel = -1; SFX.pick(); return; }
+  if (view === 'photo') { if (inRect(SHAREB(), p)) { shareShelfSoap(save.shelf[photoSel]); return; } view = 'shelf'; photoSel = -1; SFX.pick(); return; }
   if (inDisc(MUTE(), p)) { save.muted = !save.muted; muteTouched = true; if (save.muted) { fizz(false); pourLoop(false); } music(!save.muted); SFX.pick(); persist(); return; }
   if (view === 'gift') return giftTap(); // the gift screen holds every tap until the box is opened and closed
   if (inDisc(SHELFB(), p)) { view = view === 'shelf' ? 'play' : 'shelf'; pen = null; SFX.pick(); return; }
   if (view === 'shelf') return shelfTap(p);
   if (S.enter > 0 || S.trim) return;
-  if (S.k === 'bath') { if (S.reveal.t > 1.5) { SFX.pick(); nextOrder(); } return; }
+  if (S.k === 'bath') { if (S.reveal.t > 3.5 && inRect(SHAREB(), p)) { sharePhoto(S.photo, S.score.stars, S.order.customer, S.order.shape); return; } if (S.reveal.t > 1.5) { SFX.pick(); nextOrder(); } return; }
   if (checkShown() && inDisc(CHECK(), p)) { SFX.pick(); if (S.k === 'carve') finishCarve(); else if (S.k === 'smooth') finishSmooth(); else if (S.k === 'stamp') nextStep(); else finishSparkle(); return; }
   if (isMake(S.k)) { // making: taps on the tray things, or a drag (stir, cool, swipe), or a hold (pour)
     S.used = true; S.stepUsed = true; S.lastAct = S.t;
@@ -634,14 +703,22 @@ function gesture(dt) {
     if (every('tick', 160)) buzz('tick');
   }
 }
+function paintGlitterMark(q, gx, gy, c, z, winter = false) {
+  const st = (ox, oy) => { q.beginPath(); q.moveTo(gx + ox, gy - z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy + z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx - z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy - z + oy); q.fill(); };
+  q.fillStyle = 'rgba(74,35,102,0.28)'; st(1, 1); q.fillStyle = c; st(0, 0);
+  if (winter && ((gx * 13 + gy * 7) % 3 | 0) === 0) {
+    q.save(); q.strokeStyle = 'rgba(235,251,255,0.95)'; q.lineWidth = 1.15; q.lineCap = 'round'; q.beginPath();
+    for (let j = 0; j < 6; j++) { const a = j * Math.PI / 3; q.moveTo(gx + Math.cos(a) * z * 0.34, gy + Math.sin(a) * z * 0.34); q.lineTo(gx + Math.cos(a) * z * 1.18, gy + Math.sin(a) * z * 1.18); }
+    q.stroke(); q.restore();
+  }
+  q.fillStyle = 'rgba(255,255,255,0.95)'; q.fillRect(gx - 0.8, gy - z * 0.6, 1.6, 1.6);
+}
 function landGlitter(x, y, c) {
   if (!S || S.k !== 'sparkle') return;
   const [cx, cy] = barXY(x, y), s = S.soap, i = (cy | 0) * s.w + (cx | 0);
   if (cx >= 0 && cy >= 0 && cx < s.w && cy < s.h && s.m[i] && s.emb[i] < 0.3) { // glitter keeps off the stamped picture
     const q = S.glitLayer.getContext('2d'), gx = cx + cfg.margin, gy = cy + cfg.margin;
-    const z = 3.5 + R() * 3, st = (ox, oy) => { q.beginPath(); q.moveTo(gx + ox, gy - z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy + z + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx - z + ox, gy + oy); q.quadraticCurveTo(gx + ox, gy + oy, gx + ox, gy - z + oy); q.fill(); };
-    q.fillStyle = 'rgba(74,35,102,0.35)'; st(1, 1); q.fillStyle = c; st(0, 0); // a little four-point star with a shadow
-    q.fillStyle = 'rgba(255,255,255,0.95)'; q.fillRect(gx - 0.8, gy - z * 0.6, 1.6, 1.6);
+    paintGlitterMark(q, gx, gy, c, 3.5 + R() * 3, isWinterShape(S.order.shape));
     S.glitCount++; S.added = true; S.stepUsed = true; if (S.specks.length < 1500) S.specks.push([x, y]);
   } else if (R() < 0.25) { const q = fx.pile.getContext('2d'); q.fillStyle = c; q.fillRect(x - 1.5, y - 1.5, 3, 3); }
 }
@@ -1015,6 +1092,7 @@ function drawOrder() {
   if (S.order.gem) { drawCell(g, 'gems_sheet', gemCell(S.order.gem), wx, ry, 38); wx += 44; }
   if (S.order.stamp) { g.save(); g.translate(wx - 15, ry - 15); g.scale(0.3, 0.3); g.fillStyle = '#FF8FC0'; g.fill(pathOf(cfg.stamps.find((x) => x.id === S.order.stamp).shape)); g.restore(); }
   if (S.order.charm !== null && !S.order.free) { g.fillStyle = PINK; words('?', sx + 34, o.y + 30, 30, 40, '#FFFFFF', PINK); }
+  if (S.winterNew) banner(T('new'), sx, o.y + 166, 22, 96, '#FFFFFF', 1, PINK);
   g.restore();
 }
 function drawCheck() { const b = CHECK(), r = b.s / 2, p = 1 + Math.sin(S.t * 6) * 0.05; g.save(); g.translate(b.x + r, b.y + r); g.scale(p, p); glossDisc(g, 0, 0, r, GREEN); g.strokeStyle = '#FFFFFF'; g.lineWidth = 12; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-r * 0.36, 0); g.lineTo(-r * 0.08, r * 0.28); g.lineTo(r * 0.4, -r * 0.3); g.stroke(); g.restore(); }
@@ -1130,6 +1208,14 @@ function drawResult() {
     g.restore();
   }
   if (t > 1.5) { const p = 1 + Math.sin(t * 5) * 0.06; g.save(); g.translate(NEXT.x, NEXT.y); g.scale(p, p); glossDisc(g, 0, 0, NEXT.r, GREEN); g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-14, -22); g.lineTo(24, 0); g.lineTo(-14, 22); g.closePath(); g.fill(); g.restore(); }
+  if (t > 3.5) drawShareButton();
+}
+function drawShareButton() {
+  const b = SHAREB(); glossPill(g, b.x, b.y, b.w, b.h, '#FF5FA2', '#FFFFFF');
+  const cx = b.x + b.w / 2, icx = cx - 70; g.strokeStyle = '#FFFFFF'; g.fillStyle = '#FFFFFF'; g.lineWidth = 6; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(icx - 30, b.y + 50); g.lineTo(icx + 12, b.y + 28); g.moveTo(icx - 30, b.y + 50); g.lineTo(icx + 12, b.y + 72); g.stroke();
+  for (const [x, y] of [[icx - 32, b.y + 50], [icx + 16, b.y + 26], [icx + 16, b.y + 74]]) { g.beginPath(); g.arc(x, y, 9, 0, TAU); g.fill(); }
+  words(T('share'), cx + 45, b.y + 51, 32, 148, '#FFFFFF', PLUM);
 }
 
 // ---------- shelf ----------
@@ -1159,7 +1245,7 @@ function drawShelf() {
     rays(g, 360, 600, 420, S.t, 0.6);
     if (th) g.drawImage(th, 360 - th.width * 1.6, 600 - th.height * 1.6, th.width * 3.2, th.height * 3.2);
     for (let i = 0; i < 3; i++) { starPath(360 + (i - 1) * 100, 960, 42); g.fillStyle = i < e.s ? '#FFD23F' : 'rgba(255,255,255,0.4)'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke(); }
-    return;
+    drawShareButton(); return;
   }
   for (let i = 0; i < 12; i++) {
     const [x, y] = SHELF_CELL(i), e = save.shelf[i];
@@ -1190,6 +1276,13 @@ function cellCanvasMarble(mb) {
   for (let i = 0; i < 88 * 88; i++) { img.data[i * 4] = a[i * 3]; img.data[i * 4 + 1] = a[i * 3 + 1]; img.data[i * 4 + 2] = a[i * 3 + 2]; img.data[i * 4 + 3] = 255; }
   q.putImageData(img, 0, 0);
   const gr = q.createRadialGradient(30, 26, 4, 44, 44, 60); gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(74,35,102,0.25)'); q.fillStyle = gr; q.fillRect(0, 0, 88, 88);
+  if (mb.kind === 'frost') {
+    q.save(); q.globalCompositeOperation = 'screen';
+    const sheen = q.createLinearGradient(8, 68, 74, 12); sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.48, 'rgba(255,255,255,0.28)'); sheen.addColorStop(1, 'rgba(220,250,255,0)');
+    q.strokeStyle = sheen; q.lineWidth = 5; q.beginPath(); q.ellipse(43, 43, 34, 17, -0.55, 0.25, 2.65); q.stroke();
+    q.fillStyle = 'rgba(255,255,255,0.72)'; for (const [x, y, r] of [[22, 26, 2], [63, 37, 1.6], [34, 64, 1.8], [70, 59, 1.2]]) { q.beginPath(); q.arc(x, y, r, 0, TAU); q.fill(); }
+    q.restore();
+  }
   MARB_TH.set(mb.id, c); return c;
 }
 
@@ -1221,7 +1314,7 @@ function cleanEntry(e) {
   if (!(e.sh === 'free' || cfg.shapes.some((s) => s.id === e.sh)) || !Array.isArray(e.gems) || e.gems.length > 3) return null;
   const gems = e.gems.filter((x) => Array.isArray(x) && cfg.gems.some((gm) => gm.id === x[0]) && int(x[1], 0, cfg.bar.w) !== null && int(x[2], 0, cfg.bar.h) !== null).map((x) => [x[0], x[1], x[2]]);
   const st = (Array.isArray(e.st) ? e.st : []).slice(0, cfg.stampMax).filter((x) => Array.isArray(x) && cfg.stamps.some((q) => q.id === x[0]) && int(x[1], 0, cfg.bar.w) !== null && int(x[2], 0, cfg.bar.h) !== null).map((x) => [x[0], x[1], x[2]]);
-  return { m: e.m, mb: e.mb, g: e.g, gc: e.gc, gems, st, s: e.s, sh: e.sh };
+  return { m: e.m, mb: e.mb, g: e.g, gc: e.gc, gems, st, s: e.s, sh: e.sh, cu: cfg.customers.includes(e.cu) ? e.cu : cfg.customers[0] };
 }
 /** Merge the stored save into the current one, once; progress made before it arrived is added on top. */
 function applySave(st) {
@@ -1235,6 +1328,7 @@ function applySave(st) {
   if (Array.isArray(st.shelf)) for (const e of st.shelf.slice(0, 12)) { const c = cleanEntry(e); if (c && save.shelf.length < 12) save.shelf.push(c); }
   if (Array.isArray(st.learned)) for (const k of st.learned) if (FULL.includes(k) && !save.learned.includes(k)) save.learned.push(k);
   if (Array.isArray(st.charms)) for (const c of st.charms) if (int(c, 0, 7) !== null && !save.charms.includes(c)) save.charms.push(c);
+  if (Array.isArray(st.winterSeen)) for (const id of st.winterSeen) if (isWinterShape(id) && !save.winterSeen.includes(id)) save.winterSeen.push(id);
   if (st.fresh && ['marbles', 'glitters', 'gems', 'stamps'].includes(st.fresh.k) && cfg[st.fresh.k].some((x) => x.id === st.fresh.id) && !save.fresh) save.fresh = { k: st.fresh.k, id: st.fresh.id };
   if (!muteTouched && typeof st.muted === 'boolean') save.muted = st.muted;
   if (!save.lang && typeof st.lang === 'string' && cfg.strings[st.lang]) lang = save.lang = st.lang;
@@ -1287,7 +1381,7 @@ window.run = run;
 if (DEBUG) {
   const none = async () => ({});
   const read = window.__slowSave ? () => new Promise((r) => { window.__resolveSave = r; }) : window.__saved ? async () => ({ state: window.__saved }) : none;
-  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : /^(sfx|music)_/.test(id) ? { url: './' + id + '.mp3', type: 'audio' } : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, haptics: { play() {}, start() {}, stop() {} } };
+  window.lib = { showGameParameters() {}, log() {}, getAsset: (id) => (window.__noAssets ? undefined : /^(sfx|music)_/.test(id) ? { url: './' + id + '.mp3', type: 'audio' } : { url: './' + id + '.webp', type: 'image' }), getUserGameState: read, saveUserGameState: (s) => { (window.__writes = window.__writes || []).push(JSON.parse(JSON.stringify(s))); return none(); }, addPlayerScoreToLeaderboard: none, share: async (options) => { window.__shared = options; }, haptics: { play() {}, start() {}, stop() {} } };
   window.__game = {
     get S() { return S; }, get save() { return save; }, set save(v) { save = v; }, get view() { return view; }, set view(v) { view = v; }, get cfg() { return cfg; }, get lang() { return lang; }, setLang(l) { lang = save.lang = l; },
     get quality() { return quality; }, set quality(q) { quality = q; }, get fx() { return fx; }, get pen() { return pen; }, get coinShown() { return coinShown; }, set coinShown(v) { coinShown = v; },

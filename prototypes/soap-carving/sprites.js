@@ -1,4 +1,3 @@
-// PROTOTYPE - NOT FOR PRODUCTION
 /**
  * The painted art: the studio table (seen from above), four customers (each a 2x2 sheet of moods: calm, happy,
  * wow, oops), the tools, the gems, the charms and the bath bowl. Images come from the platform's asset map;
@@ -65,3 +64,4 @@ export function drawBowl(g, x, y, d) {
   g.drawImage(c, Math.round(x - d / 2), Math.round(y - d / 2));
   return true;
 }
+
