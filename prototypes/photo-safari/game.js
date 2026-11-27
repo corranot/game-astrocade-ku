@@ -146,7 +146,7 @@ export function run(mode = 'play') {
   const lookOf = () => { const o = S.outfit && L.item(cfg, S.outfit), c = S.cam && L.item(cfg, S.cam); return { parka: o ? o.parka : cfg.economy.outfit0.parka, hat: o ? o.hat : cfg.economy.outfit0.hat, cam: c ? c.color : cfg.economy.cam0 }; };
 
   // ---- hero
-  const H = buildHero(lookOf()); W.scene.add(H.group);
+  const H = buildHero(lookOf(), mats); W.scene.add(H.group);
   const hero = { x: 0, z: 3, y: 0, vx: 0, vz: 0, yaw: Math.PI, speed: 0, stepD: 0, side: 1, still: 0, breathT: 1, walked: 0 };
   hero.y = L.terrainH(cfg, hero.x, hero.z);
   const applyLook = () => { const l = lookOf(); H.mats.parka.color.set(l.parka); H.mats.hat.color.set(l.hat); H.mats.cam.color.set(l.cam); };
@@ -489,6 +489,10 @@ export function run(mode = 'play') {
       const best = photoOf.get(a.id); if (!best || best.stars <= stars) photoOf.set(a.id, { cv, stars });
       // the animal reacts: hearts and its call
       fx.emit({ pool: 'glow', x: a.x, y: a.y + a.parts.height + 0.3, z: a.z, spread: 0.6, speed: 0.8, up: 1.6, life: 1.4, size: 0.42, color: '#ff8aa8', shape: 'heart', grav: 0.2, drag: 2 }, 3 + stars);
+      // flash beat: a warm ring at the animal's feet and a spray of sparkles; a 3-star shot adds a second, wider ring
+      fx.ring(a.x, a.y + 0.05, a.z, 1.6 + a.parts.radius, '#fff1c4', 0.55);
+      if (stars >= 3) setTimeout(() => alive && fx.ring(a.x, a.y + 0.05, a.z, 3.2 + a.parts.radius, '#ffe48a', 0.7), 120);
+      fx.emit({ pool: 'glow', x: a.x, y: a.y + a.parts.height * 0.6, z: a.z, spread: a.parts.radius + 0.4, speed: 2.2, up: 1.2, life: 0.9, size: 0.16, color: '#fff6d8', shape: 'star', grav: -1.5, drag: 2.5 }, 4 + stars * 3);
       Sound.voice(a.sp); a.voiceT = 4;
       ftueDid('walk'); ftueDid('snap'); if (shot.inPose) ftueDid('pose');
     } else {
@@ -526,8 +530,8 @@ export function run(mode = 'play') {
     if (a && res.newSpecies) {
       const n = Object.keys(S.slots).length + Object.keys(S.rare).length;
       if (a.rare) { beat({ ...beatAt(a, { pri: 5, dur: 2, slow: true, sting: 'rare' }) }); setTimeout(() => toast(T('rare'), name(a.id), 'rare:' + a.id), flyAt); }
-      else if (n <= 8) { beat(beatAt(a, { pri: 3, dur: 1.4, slow: n === 1, sting: 'friend' })); setTimeout(() => toast(T('newFriend'), name(a.id)), flyAt); }
-      else setTimeout(() => toast(T('newFriend'), name(a.id)), flyAt);
+      else if (n <= 8) { beat(beatAt(a, { pri: 3, dur: 1.4, slow: n === 1, sting: 'friend' })); setTimeout(() => toast(T('newFriend')), flyAt); }
+      else setTimeout(() => toast(T('newFriend')), flyAt);
     }
     if (res.half >= 0 && res.page < 0) setTimeout(() => { toast(T('half'), '+' + cfg.economy.halfPage); Sound.sting('page'); }, flyAt + 200);
     if (res.page >= 0) setTimeout(() => { toast(T('page'), T('a_' + cfg.areas[res.page].id), 'page'); Sound.sting('page'); confetti(root.clientWidth / 2, root.clientHeight * 0.3); }, flyAt + 200);
@@ -574,7 +578,8 @@ export function run(mode = 'play') {
     tossCool = 1; Sound.whoosh(); ftueDid('treat');
     const from = V3(hero.x, hero.y + 1.4, hero.z), to = V3(a.x, a.y + 0.3, a.z + 0.9);
     for (let i = 0; i < 10; i++) setTimeout(() => { const k = i / 9; fx.emit({ pool: 'glow', x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k + Math.sin(k * Math.PI) * 2, z: from.z + (to.z - from.z) * k, spread: 0.1, speed: 0.1, life: 0.5, size: 0.25, color: '#ffcf3a', shape: 'star', grav: 0 }, 1); }, i * 40);
-    setTimeout(() => { if (!alive) return; Sound.plop(); fx.emit({ pool: 'soft', x: to.x, y: to.y, z: to.z, spread: 0.5, speed: 1.5, up: 1.5, life: 0.8, size: 0.6, color: '#f4f9ff', alpha: 0.9, grav: -3 }, 10); a.outT = 25; a.nextPose = Math.min(a.nextPose, 2.5); Sound.voice(a.sp); }, 420);
+    setTimeout(() => { if (!alive) return; Sound.plop(); fx.emit({ pool: 'soft', x: to.x, y: to.y, z: to.z, spread: 0.5, speed: 1.5, up: 1.5, life: 0.8, size: 0.6, color: '#f4f9ff', alpha: 0.9, grav: -3 }, 10); fx.ring(to.x, a.y + 0.05, to.z, 1.4, '#ffe9a8', 0.5); fx.emit({ pool: 'glow', x: to.x, y: to.y + 0.1, z: to.z, spread: 0.3, speed: 1.6, up: 1.4, life: 0.7, size: 0.12, color: '#ffcf3a', shape: 'star', grav: -4, drag: 2 }, 8);
+      setTimeout(() => alive && fx.emit({ pool: 'glow', x: a.x, y: a.y + a.parts.height + 0.3, z: a.z, spread: 0.5, speed: 0.7, up: 1.4, life: 1.3, size: 0.36, color: '#ff8aa8', shape: 'heart', grav: 0.2, drag: 2 }, 4), 700); a.outT = 25; a.nextPose = Math.min(a.nextPose, 2.5); Sound.voice(a.sp); }, 420);
   }
 
   // ---- night and the rare visitor
@@ -663,6 +668,9 @@ export function run(mode = 'play') {
     // footprints, snow kicks and steps
     hero.stepD += moved;
     if (hero.stepD > 0.55) { hero.stepD = 0; hero.side = -hero.side; fx.footprint(hero.x, hero.z, hero.yaw, hero.side); fx.emit({ pool: 'soft', x: hero.x, y: hero.y + 0.08, z: hero.z, spread: 0.2, speed: 0.6, up: 0.5, life: 0.5, size: 0.28, color: '#f4f9ff', alpha: 0.7, grav: -2 }, 2); Sound.step(); }
+    // brushing past an edge pine shakes a clump of snow off its lower boughs
+    hero.shakeT = (hero.shakeT || 0) - dt;
+    if (hero.shakeT <= 0 && hero.stepD > 0.3) for (const t of W.trunks) { const dx = t[0] - hero.x, dz = t[1] - hero.z; if (dx * dx + dz * dz < 6.5) { hero.shakeT = 2.5; const y = L.terrainH(cfg, t[0], t[1]); fx.emit({ pool: 'soft', x: t[0], y: y + 2.6, z: t[1], spread: 0.9, speed: 0.4, up: 0, life: 1.2, size: 0.45, color: '#f4f9ff', alpha: 0.85, grav: -5, drag: 0.6 }, 9); fx.emit({ pool: 'glow', x: t[0], y: y + 2.4, z: t[1], spread: 1.2, speed: 0.3, life: 1.6, size: 0.12, color: '#ffffff', shape: 'flake', grav: -0.8, drag: 1 }, 6); Sound.hiss && Sound.ok && Sound.hiss(Sound.ctx.currentTime, 0.35, { f: 2200, g: 0.05 }); break; } }
     hero.breathT -= dt; if (hero.breathT <= 0) { hero.breathT = 2.4; fx.emit({ pool: 'soft', x: hero.x + Math.sin(hero.yaw) * 0.35, y: hero.y + 1.45, z: hero.z + Math.cos(hero.yaw) * 0.35, spread: 0.05, speed: 0.15, vx: Math.sin(hero.yaw) * 0.4, vz: Math.cos(hero.yaw) * 0.4, life: 1.1, size: 0.3, color: '#ffffff', alpha: 0.45, grav: 0.15, drag: 1, grow: 1.6 }, 1); }
     H.group.position.set(hero.x, hero.y, hero.z); H.group.rotation.y = hero.yaw; H.group.visible = vf < 0.55;
     animateHero(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), vf);
