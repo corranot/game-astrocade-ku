@@ -13,9 +13,10 @@
 - Screens: `node prototypes/wonder-sprout/tests/shots.js` (needs Playwright) writes phone-portrait JPGs.
   `tests/quick.js` writes six screens fast while iterating.
 - Garden goals (`m7-garden-goals.js`): one icon-first goal at a time with gem rewards and a gift egg every
-  fourth; `economy.goalGems` sets the base reward. The pacing bot does not model goal rewards yet.
+  sixth (`economy.goalGems`, `goalGrowth`, `goalEggEvery`). The pacing bot plays with goals on, so their
+  rewards are inside the pacing windows.
 
-## Pacing (bot, 3 seeds, 27 Nov tuning)
+## Pacing (bot, 3 seeds, goals on, 27 Nov r3 tuning)
 
-Landmarks at about 0:40-1:45, 1:40-2:45, 3:15-3:50, 5:00-6:20, 7:45-8:40, 10:50-12:05; hero stage 2 at 2:30-5:10,
-stage 3 at 7:35-10:50.
+Landmarks at about 0:35-1:50, 1:55-2:10, 3:00-3:30, 4:25-5:50, 7:30-8:40, 11:15-12:25; hero stage 2 at 2:20-2:35,
+stage 3 at 6:15-7:40; 35-39 garden goals in 15 min.

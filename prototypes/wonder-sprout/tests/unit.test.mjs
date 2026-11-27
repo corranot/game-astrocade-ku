@@ -138,14 +138,14 @@ test('every language has every word; commands stay short', () => {
   assert.equal(detectLang(['ar-EG']), 'ar'); assert.equal(detectLang(['de-DE']), 'en'); assert.equal(fmt(12345), '12K');
 });
 
-test('garden goals cycle through every kind, grow each lap and pay a gift egg every fourth', () => {
+test('garden goals cycle through every kind, grow each lap and pay a gift egg every sixth', () => {
   const first = goalAt(0, E), lap2 = goalAt(GOALS.length, E);
   assert.equal(first.ev, GOALS[0].ev);
   assert.equal(first.n, GOALS[0].n);
   assert.ok(lap2.n > first.n);
   assert.ok(lap2.reward > first.reward);
-  assert.equal(goalAt(3, E).egg, true);
-  assert.equal(goalAt(4, E).egg, false);
+  assert.equal(goalAt(5, E).egg, true);
+  assert.equal(goalAt(3, E).egg, false);
 });
 
 test('saved goal progress survives a reload and bad values are clamped', () => {

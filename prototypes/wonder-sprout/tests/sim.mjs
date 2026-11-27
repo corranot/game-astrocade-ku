@@ -7,6 +7,7 @@ import { EventBus, makeRng, readConfig, freshState } from '../m0-orchestrator.js
 import { createGameplay, isSweet } from '../m3-physics-gameplay.js';
 import { createKingdom } from '../m4-kingdom-critters.js';
 import { createVfx } from '../m5-vfx-kinematics.js';
+import { createGoals } from '../m7-garden-goals.js';
 
 const cfgFile = JSON.parse(fs.readFileSync(new URL('../game_config.json', import.meta.url)));
 globalThis.window = globalThis.window || { lib: { log() {}, saveUserGameState: async () => ({}), addPlayerScoreToLeaderboard: async () => ({}) } };
@@ -18,14 +19,18 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
   const bus = new EventBus(), rng = makeRng(seed), botRng = makeRng(seed * 31 + 1);
   const w = { bus, cfg, rng, state: freshState(0), mode: 'play', pointer: [0, 0], magnet: false, art: {}, saver: { now() {}, soon() {}, tick() {} } };
   w.audio = new Proxy({}, { get: () => () => {} });
+  w.ui = { lang: 'en', ftue: null, logo: 0, open: null, sheet: false, toasts: [] };
   w.gameplay = createGameplay(w); w.kingdom = createKingdom(w); w.vfx = createVfx(w);
-  const log = { landmarks: [], hatches: [], evolves: [], raids: [], rewards: [], heroStages: [], flings: 0, novas: 0 };
+  // garden goals pay gems and gift eggs like in the real game (opts.goals === false turns them off)
+  if (opts.goals !== false) w.goals = createGoals(w);
+  const log = { landmarks: [], hatches: [], evolves: [], raids: [], rewards: [], heroStages: [], flings: 0, novas: 0, goals: [] };
   let T = 0;
   bus.on('landmark:built', (e) => log.landmarks.push(+T.toFixed(1)));
   bus.on('egg:hatch', () => log.hatches.push(+T.toFixed(1)));
   bus.on('evolve', (e) => { log.evolves.push(+T.toFixed(1)); if (e && e.hero) log.heroStages.push(+T.toFixed(1)); });
   bus.on('raid:break', () => log.raids.push(+T.toFixed(1)));
   bus.on('nova', () => log.novas++);
+  bus.on('goal:done', () => log.goals.push(+T.toFixed(1)));
   bus.on('launch', () => { log.flings++; w.state.stats.flings++; });
   for (const ev of ['hit', 'burst', 'nova', 'egg:drop', 'egg:hatch', 'landmark:built']) bus.on(ev, () => log.rewards.push(+T.toFixed(1)));
   w.kingdom.onLoaded(0);
@@ -33,7 +38,7 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
   let nextFling = opts.firstFlingSec ?? 1.2, nextTap = 6, think = 0;
   const flingEvery = opts.flingEvery ?? 3.4, novaSkill = opts.novaSkill ?? 0.35;
   while (T < minutes * 60) {
-    T += dt; G.update(dt); K.update(dt); w.vfx.update(dt);
+    T += dt; G.update(dt); K.update(dt); w.vfx.update(dt); if (w.goals) w.goals.update(dt);
     if (G.hero.mode === 'rest' && T >= nextFling) {
       const ts = G.targets.filter((t) => t.alive && t.type !== 'tree'), extra = G.raid && G.raid.phase === 'stay' ? G.raid.weak.filter((k) => k.hp > 0) : [];
       const pool = extra.length && botRng() < 0.7 ? extra : ts;
@@ -67,5 +72,5 @@ export function simulate(minutes = 15, seed = 7, opts = {}) {
 if (process.argv[1] && process.argv[1].endsWith('sim.mjs')) {
   const r = simulate(+(process.argv[2] || 15), +(process.argv[3] || 7));
   const gaps = []; for (let i = 1; i < r.rewards.length; i++) gaps.push(r.rewards[i] - r.rewards[i - 1]);
-  console.log(JSON.stringify({ hero: r.heroStages, landmarks: r.landmarks, hatches: r.hatches, evolves: r.evolves, raids: r.raids, flings: r.flings, novas: r.novas, gems: r.gems, lifetime: r.lifetime, critters: r.critters, firstRewards: r.rewards.slice(0, 8), maxGapFirstMin: Math.max(...gaps.filter((_, i) => r.rewards[i] < 60)) }, null, 1));
+  console.log(JSON.stringify({ hero: r.heroStages, landmarks: r.landmarks, hatches: r.hatches, evolves: r.evolves, raids: r.raids, goals: r.goals, flings: r.flings, novas: r.novas, gems: r.gems, lifetime: r.lifetime, critters: r.critters, firstRewards: r.rewards.slice(0, 8), maxGapFirstMin: Math.max(...gaps.filter((_, i) => r.rewards[i] < 60)) }, null, 1));
 }
