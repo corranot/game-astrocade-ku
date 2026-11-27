@@ -3,7 +3,7 @@
  * Module 2: procedural Web Audio engine. Every sound is synthesized: sling stretch, impact thump with
  * pentatonic kalimba notes that climb with the combo, harp glissando, hatch heartbeat and shell cracks,
  * evolution fanfare, raid horn and a toggleable music-box loop. One master with music, sfx and ui buses,
- * a limiter, ducking under stings, and at most 24 voices at once.
+ * a limiter, ducking under stings, and at most 32 voices at once.
  */
 import { clamp } from './m0-orchestrator.js';
 
@@ -42,7 +42,7 @@ export function createAudio() {
 
   /** One enveloped oscillator voice. */
   function tone(bus, type, f0, f1, dur, vol, delay = 0, attack = 0.005) {
-    if (!ctx || !on || voices >= 24) return;
+    if (!ctx || !on || voices >= 32) return;
     const t = ctx.currentTime + delay, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -51,13 +51,13 @@ export function createAudio() {
   /** Kalimba / marimba pluck: sine fundamental plus a quick bright partial. */
   function pluck(f, vol, delay = 0, bus = sfx) { tone(bus, 'sine', f, f, 0.6, vol, delay); tone(bus, 'triangle', f * 3.01, f * 3.01, 0.12, vol * 0.35, delay); }
   /** Short filtered noise burst (cracks, whooshes, sparkle). */
-  function noise(dur, vol, freq, q = 1, delay = 0, type = 'bandpass') {
-    if (!ctx || !on || voices >= 24) return;
+  function noise(dur, vol, freq, q = 1, delay = 0, type = 'bandpass', bus = sfx) {
+    if (!ctx || !on || voices >= 32) return;
     const t = ctx.currentTime + delay, len = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len); // audio noise only, never gameplay
     const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     src.buffer = buf; f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.value = vol;
-    src.connect(f); f.connect(g); g.connect(sfx); src.start(t); voices++; src.onended = () => { voices--; };
+    src.connect(f); f.connect(g); g.connect(bus); src.start(t); voices++; src.onended = () => { voices--; };
   }
   const duck = (sec) => { if (!ctx) return; duckUntil = ctx.currentTime + sec; music.gain.setTargetAtTime(0.1, ctx.currentTime, 0.05); };
 
@@ -93,6 +93,8 @@ export function createAudio() {
   A.horn = () => { tone(sfx, 'sawtooth', 196, 196, 0.5, 0.06, 0, 0.05); tone(sfx, 'sawtooth', 294, 294, 0.6, 0.05, 0.35, 0.05); tone(sfx, 'triangle', 392, 392, 0.7, 0.08, 0.35, 0.05); };
   A.pop = () => { tone(sfx, 'sine', 500, 1200, 0.1, 0.25); noise(0.1, 0.15, 3000, 1); };
   A.sting = () => { pluck(PENTA[7], 0.14); pluck(PENTA[4], 0.1, 0.06); };
+  /** Goal done: a bright three-note chime and a soft sparkle. */
+  A.goal = () => { [4, 5, 7].forEach((k, i) => pluck(PENTA[k] * 2, 0.16, i * 0.07)); noise(0.4, 0.06, 7000, 0.6, 0.15, 'highpass'); };
   A.coin = () => { pluck(PENTA[5] * 2, 0.12); pluck(PENTA[7] * 2, 0.1, 0.06); };
 
   /** Schedules the music-box loop a little ahead; call every frame. */
@@ -102,6 +104,8 @@ export function createAudio() {
     if (!musicOn) { nextNote = Math.max(nextNote, ctx.currentTime + 0.1); return; }
     while (nextNote < ctx.currentTime + 0.25) {
       const k = MELODY[step % MELODY.length], d = nextNote - ctx.currentTime;
+      if (d > -0.05 && step % 16 === 0) { const root = [0, 3, 1, 4][(step / 16 | 0) % 4]; for (const iv of [0, 2, 4]) { const f = PENTA[(root + iv) % 8] * 0.25; tone(music, 'sine', f, f, 5.4, 0.035, Math.max(0, d), 0.8); tone(music, 'triangle', f * 1.005, f * 1.005, 5.4, 0.015, Math.max(0, d), 0.8); } }
+      if (d > -0.05 && step % 2 === 0) noise(0.05, 0.02, 9000, 0.7, Math.max(0, d), 'highpass', music);
       if (d > -0.05) { pluck(PENTA[k] * 0.5, 0.16, Math.max(0, d), music); if (step % 4 === 0) tone(music, 'sine', PENTA[(k + 5) % 8] * 0.25, PENTA[(k + 5) % 8] * 0.25, 1.2, 0.05, Math.max(0, d), 0.05); }
       nextNote += step % 8 === 7 ? 0.72 : 0.36; step++;
     }

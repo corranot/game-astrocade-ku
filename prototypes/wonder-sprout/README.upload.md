@@ -38,5 +38,6 @@ Genre: casual, idle, farm, slingshot, creature collector. Ages: young children a
 - `m4-kingdom-critters.js`: gems, landmarks, eggs, hatching, evolution and the leaderboard score.
 - `m5-vfx-kinematics.js`: particles, flying gems, camera moments, critter animation.
 - `m6-kids-portrait-ui.js`: top bar, bottom buttons, drawers, guide hand and language sheet.
+- `m7-garden-goals.js`: small garden goals, one at a time, with gem rewards and gift eggs.
 - `strings.js`: every word in the seven languages.
 - `game_config.json`: all tuning values and the leaderboard setting.

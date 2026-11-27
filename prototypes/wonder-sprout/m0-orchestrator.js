@@ -73,6 +73,7 @@ export function freshState(now) {
     heroId: 1, activeCritterIds: [], nextId: 2,
     bossState: null, weatherEvent: null, rebirthCount: 0,
     stats: { lifetime: 0, flings: 0, crits: 0, hatched: 0, bestCombo: 0, playSec: 0, raids: 0, wood: 0 },
+    quest: { i: 0, p: 0 },
     ftue: { done: 0, skipped: false }, lastSeen: now || 0, giftDay: '', firstDay: now ? dayKey(now) : '', lang: '', sound: true,
   };
 }
@@ -106,6 +107,7 @@ export function validateState(raw, now) {
   s.firstDay = typeof raw.firstDay === 'string' ? raw.firstDay.slice(0, 10) : s.firstDay;
   s.lang = typeof raw.lang === 'string' ? raw.lang.slice(0, 5) : '';
   s.sound = raw.sound !== false;
+  if (raw.quest && typeof raw.quest === 'object') s.quest = { i: int(raw.quest.i, 0, 1e6, 0), p: num(raw.quest.p, 0, 1e9, 0) };
   return s;
 }
 

@@ -23,6 +23,8 @@ function sprout(ctx, x, y, sway) {
   for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(sx * 10, -26, sx * 20, -16); ctx.quadraticCurveTo(sx * 10, -8, 0, -12); ctx.fill(); ctx.stroke(); }
   ctx.restore();
 }
+/** Iris colour per species. */
+const IRIS = { fox: '#B8732E', bunny: '#5D8FD6', dragon: '#2E9E6E', owl: '#C98A1E', unicorn: '#B06CC8' };
 export function createVfx(world) {
   const { bus, cfg, rng } = world, F = cfg.fx;
   const V = { flash: 0, rainbow: 0, trauma: 0, hitstop: 0, timeScale: 1, slowT: 0, cam: { x: W / 2, y: H / 2, z: 1 }, beat: null, beatQ: [], beatReady: 0, bars: 0, time: 0, curtain: 0, pills: { gem: 0, wood: 0 }, rigs: new Map(), firstNova: true };
@@ -71,6 +73,7 @@ export function createVfx(world) {
   // ---------- reactions ----------
   bus.on('hit', (e) => {
     V.impulse(e.by === 'hero' ? world.state.heroId : e.helper, e.type === 'mushroom' ? 0.5 : 0.35);
+    if (e.by === 'hero') { V.rig(world.state.heroId).joy = 0.45; spawn({ kind: 'burst', x: e.x, y: e.y, life: 0.18, max: 0.18, s: 34 + Math.min(30, (e.combo || 0) * 4), rot: rng() * 3, col: e.type === 'mushroom' ? mix(PAL.coral, PAL.gold, 0.5) : PAL.gold }); spawn({ kind: 'flash', x: e.x, y: e.y, life: 0.22, max: 0.22, s: 0.35 }); }
     V.sparks(e.x, e.y, e.type === 'mushroom' ? 5 : 7, e.type === 'geode' ? 'gemTeal' : 'star', 300);
     V.ring(e.x, e.y, 8, 54, 0.3, e.type === 'mushroom' ? PAL.coral : PAL.gold, 4);
     if (e.type === 'tree') { V.petals(e.x, e.y - 70, 4, 80); if (e.by !== 'helper') V.pop(e.x, e.y - 96, '+1', mix(PAL.coral, PAL.gold, 0.5)); }
@@ -78,6 +81,7 @@ export function createVfx(world) {
     if (e.by === 'hero') V.shake(e.type === 'mushroom' ? 0.08 : 0.12);
   });
   bus.on('burst', (e) => {
+    spawn({ kind: 'burst', x: e.x, y: e.y, life: 0.24, max: 0.24, s: 70, rot: rng() * 3, col: e.type === 'pinata' ? PAL.coral : '#7FE0E8' }); spawn({ kind: 'flash', x: e.x, y: e.y, life: 0.3, max: 0.3, s: 0.6 });
     V.shards(e.x, e.y, e.type === 'pinata' ? 18 : 12, e.type === 'pinata' ? ['gem', 'gemCoral', 'gemTeal', 'gemLav'] : ['gemTeal', 'gemLav', 'gemTeal']);
     V.ring(e.x, e.y, 20, 140, 0.45, e.type === 'pinata' ? PAL.coral : PAL.teal, 7); V.sparks(e.x, e.y, 10, 'star', 520);
     if (e.type === 'pinata') V.confetti(e.x, e.y, 30);
@@ -129,7 +133,7 @@ export function createVfx(world) {
   const updRig = (r, dt) => {
     r.v += (-180 * r.sq - 12 * r.v) * dt; r.sq += r.v * dt; r.sq = clamp(r.sq, -0.45, 0.45);
     r.blink -= dt; if (r.blink < 0) { r.eyes = 0; if (r.blink < -0.12) { r.eyes = 1; r.blink = 2 + rng() * 3; } }
-    r.tail += dt; r.pop = Math.max(0, r.pop - dt * 1.6); r.evo = Math.max(0, r.evo - dt * 0.8);
+    r.tail += dt; r.joy = Math.max(0, (r.joy || 0) - dt); r.pop = Math.max(0, r.pop - dt * 1.6); r.evo = Math.max(0, r.evo - dt * 0.8);
   };
   /**
    * Draw one critter at x, y (feet centre). vx, vy give stretch along motion; look is a point the eyes follow.
@@ -156,13 +160,25 @@ export function createVfx(world) {
     const earA = Math.sin(t * 2.4 + c.id) * 0.08 - sq * 0.8;
     put(ctx, parts.ear, hx - 22, hy - 18, 1, 1, -0.32 + earA); put(ctx, parts.ear, hx + 22, hy - 18, 1, 1, 0.32 - earA);
     put(ctx, parts.head, hx, hy);
-    // eyes: blink and follow the look point
+    // face: big glossy eyes that blink and follow the look point; the mood picks the eyes and mouth
     const look = o.look || [x + 60 * r.face, y - 60], lx = clamp((look[0] - x) / 300 * r.face, -1, 1) * 3.5, ly = clamp((look[1] - y + 60) / 300, -1, 1) * 2.5;
-    for (const ex of [-14, 14]) {
-      ctx.fillStyle = PAL.plum; ctx.beginPath(); ctx.ellipse(hx + ex + lx, hy - 4 + ly, 6.5, 8.5 * r.eyes + 0.6, 0, 0, Math.PI * 2); ctx.fill();
-      if (r.eyes > 0.5) { ctx.fillStyle = PAL.cream; ctx.beginPath(); ctx.arc(hx + ex + lx + 2, hy - 7 + ly, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    const mood = r.joy > 0 ? 'joy' : o.fly ? 'whee' : o.pull > 0.15 ? 'focus' : 'calm';
+    const iris = IRIS[c.species] || PAL.teal;
+    for (const ex of [-15, 15]) {
+      const ox = hx + ex + lx, oy = hy - 5 + ly;
+      if (mood === 'joy' || r.eyes < 0.5) { ctx.strokeStyle = PAL.plum; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(ox, oy + 3, 7, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); continue; }
+      const ry = mood === 'focus' ? 6.5 : mood === 'whee' ? 11.5 : 10, rx = mood === 'whee' ? 9 : 8;
+      ctx.fillStyle = PAL.plum; ctx.beginPath(); ctx.ellipse(ox, oy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+      const ig = ctx.createLinearGradient(0, oy - ry, 0, oy + ry); ig.addColorStop(0, PAL.plum); ig.addColorStop(1, iris);
+      ctx.fillStyle = ig; ctx.beginPath(); ctx.ellipse(ox, oy + 1, rx * 0.78, ry * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = PAL.cream; ctx.beginPath(); ctx.arc(ox + 2.6, oy - ry * 0.38, rx * 0.36, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ox - 2.6, oy + ry * 0.4, rx * 0.16, 0, Math.PI * 2); ctx.fill();
+      if (mood === 'focus') { ctx.strokeStyle = PAL.plum; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ox - 9, oy - 12 + (ex < 0 ? -2 : 2) * 0); ctx.lineTo(ox + 9, oy - 12 + (ex < 0 ? 3 : -3)); ctx.stroke(); }
     }
-    if (o.happy) { ctx.strokeStyle = PAL.plum; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(hx, hy + 8, 6, 0.2, Math.PI - 0.2); ctx.stroke(); }
+    ctx.strokeStyle = PAL.plum; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+    if (mood === 'whee' || mood === 'joy') { ctx.fillStyle = mix(PAL.coral, PAL.plum, 0.35); ctx.beginPath(); ctx.ellipse(hx, hy + 12, mood === 'whee' ? 6 : 8, mood === 'whee' ? 7.5 : 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = PAL.coral; ctx.beginPath(); ctx.ellipse(hx, hy + 15, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill(); }
+    else if (mood === 'focus') { ctx.beginPath(); ctx.moveTo(hx - 5, hy + 11); ctx.lineTo(hx + 5, hy + 10); ctx.stroke(); }
+    else if (o.happy) { ctx.beginPath(); ctx.arc(hx, hy + 8, 6, 0.2, Math.PI - 0.2); ctx.stroke(); }
     if (stage === 2) sprout(ctx, hx, hy - 34, Math.sin(t * 2.2 + c.id) * 0.12);
     if (stage >= 3) put(ctx, parts.crown, hx, hy - 30, 0.85, 0.85, Math.sin(t * 2) * 0.05);
     ctx.restore();
@@ -293,7 +309,8 @@ export function createVfx(world) {
       else if (p.kind === 'conf') { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = Math.min(1, u * 3); ctx.fillStyle = p.col; ctx.fillRect(-5, -3 * Math.abs(Math.cos(p.rot * 2)) - 1, 10, 6 * Math.abs(Math.cos(p.rot * 2)) + 2); ctx.restore(); }
       else if (p.kind === 'dust') { ctx.save(); ctx.globalAlpha = u * 0.6; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * (1.6 - u), 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
       else if (p.kind === 'text') { ctx.save(); const s = p.s * (1 + (1 - u) * 0.2) * (u > 0.85 ? 1 + (u - 0.85) * 3 : 1); ctx.translate(p.x, p.y); ctx.scale(s, s); ctx.globalAlpha = Math.min(1, u * 3); ctx.font = '900 40px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 9; ctx.strokeStyle = PAL.plum; ctx.strokeText(p.text, 0, 0); ctx.fillStyle = p.col; ctx.fillText(p.text, 0, 0); ctx.restore(); }
-      else if (p.kind === 'flash') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; put(ctx, A.glow, p.x, p.y, 6 * (1.2 - u), 6 * (1.2 - u), 0, u); ctx.restore(); }
+      else if (p.kind === 'flash') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; put(ctx, A.glow, p.x, p.y, 6 * p.s * (1.2 - u), 6 * p.s * (1.2 - u), 0, u); ctx.restore(); }
+      else if (p.kind === 'burst') { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); const R = p.s * (0.6 + (1 - u) * 0.7); ctx.globalAlpha = Math.min(1, u * 2); ctx.fillStyle = p.col; ctx.beginPath(); for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, rr = k % 2 ? R * 0.45 : R; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.fillStyle = PAL.cream; ctx.beginPath(); ctx.arc(0, 0, R * 0.32, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
       else if (p.kind === 'pillar') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createLinearGradient(p.x - 60, 0, p.x + 60, 0); gr.addColorStop(0, rgba(PAL.gold, 0)); gr.addColorStop(0.5, rgba(mix(PAL.gold, PAL.cream, 0.5), 0.55 * Math.sin(u * Math.PI))); gr.addColorStop(1, rgba(PAL.gold, 0)); ctx.fillStyle = gr; ctx.fillRect(p.x - 60, 0, 120, p.y + 20); ctx.restore(); }
     }
   };
@@ -324,6 +341,23 @@ export function createVfx(world) {
     [PAL.coral, PAL.gold, mix(PAL.gold, PAL.sage, 0.5), PAL.teal, PAL.lav].forEach((c, i) => { ctx.strokeStyle = c; ctx.lineWidth = 13; ctx.beginPath(); ctx.arc(cx, cy, r0 - i * 12, a0, a1); ctx.stroke(); });
     ctx.restore();
     if (k < 1 && art().star) { const a = a0; put(ctx, art().star, cx + Math.cos(a) * (r0 - 24), cy + Math.sin(a) * (r0 - 24), 0.9, 0.9, t * 6, 1); }
+  };
+  /** Rainbow ribbon behind the flying hero: a tapering band through its last positions, with sparkles. */
+  const trail = [];
+  V.drawTrail = (ctx, h, t) => {
+    if (h.mode === 'fly') { trail.push([h.x, h.y - 6]); if (trail.length > 16) trail.shift(); } else if (trail.length) trail.shift();
+    if (trail.length < 3) return;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const cols = [PAL.coral, PAL.gold, '#8FD36B', '#6CC6EA', PAL.lav];
+    for (let b = 0; b < cols.length; b++) {
+      const off = (b - 2) * 6;
+      for (let i = 1; i < trail.length; i++) {
+        const u = i / trail.length, [x0, y0] = trail[i - 1], [x1, y1] = trail[i], n = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / n * off * u, ny = (x1 - x0) / n * off * u;
+        ctx.globalAlpha = 0.75 * u; ctx.strokeStyle = cols[b]; ctx.lineWidth = 7 * u + 1; ctx.beginPath(); ctx.moveTo(x0 + nx, y0 + ny); ctx.lineTo(x1 + nx, y1 + ny); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    if (art().star && trail.length > 4 && h.mode === 'fly' && (V.time * 60 | 0) % 2 === 0) spawn({ x: trail[0][0] + (rng() - 0.5) * 20, y: trail[0][1] + (rng() - 0.5) * 20, vy: 30, drag: 2, life: 0.5, max: 0.5, s: 0.4, vr: 4, sp: 'star' });
   };
   V.liveCount = () => live;
   return V;
