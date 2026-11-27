@@ -232,6 +232,29 @@ full plan unless they add a new game mode or rework the game.
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
   OUTPUT FORMAT, DONE-WHEN. The goal is answers that hit the target exactly.
 
+## Three.js Game Skills
+
+Six `threejs-*` skills in `.claude/skills/` are adapted from
+[majidmanzarpour/threejs-game-skills](https://github.com/majidmanzarpour/threejs-game-skills)
+(MIT, adopted 27 Nov). They sit beside `caveman`, `ponytail` and `leanrea` and
+never replace them; on any conflict this file and `.claude/rules/` win. Load the
+one a task needs, and only the reference rows that task touches:
+
+- `threejs-gameplay-systems`: design brief, core-loop contract, level plan, game feel.
+- `threejs-aaa-graphics-builder`: authored models, material kits, lighting, budgets,
+  and the 10-category visual scorecard (used in every visual review).
+- `threejs-aaa-vfx-builder`: layered event VFX with 5-beat timing inside a mobile budget.
+- `threejs-game-ui-designer`: HUD, menus, overlays, touch UI (the HUD grid rule wins).
+- `threejs-debug-profiler`: root-cause triage and measured profiling.
+- `threejs-qa-release`: the quick QA round, reading `feed.gpu` and `feed.pixels`
+  from `tools/astrocade-bundle-test.js`.
+
+Not adopted: the upstream director (the coordinator and this file own routing),
+the Vite/TypeScript scaffold (Astrocade bundles plain JS modules and the load
+budget rules out its defaults), and the Tripo, Gemini and ElevenLabs generators
+(paid keys; the Astrocade MCP already generates images, music and sound).
+They are adapted once, not synced: the daily auto-sync does not touch them.
+
 ## Context Management
 
 Read `.claude/docs/context-management.md` on demand — it is a reference, not
