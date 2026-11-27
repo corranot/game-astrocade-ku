@@ -135,6 +135,7 @@ body{display:flex;align-items:center;justify-content:center}
 .hand{position:absolute;width:calc(var(--u)*84px);height:calc(var(--u)*84px);translate:-30% -10%;pointer-events:none;animation:tapf 1s ease-in-out infinite}
 .hand[hidden]{display:none}
 .hand.drag{animation:drag 1.6s ease-in-out infinite}
+.hand.swipe{animation:swipe 1.4s ease-in-out infinite}
 .skip{position:absolute;top:calc(var(--st) + var(--h) + var(--g));left:var(--sl);height:var(--h);padding:0 calc(var(--u)*32px);border-radius:calc(var(--u)*44px);font-size:calc(var(--u)*36px);color:#fff}
 [dir=rtl] .skip{left:auto;right:var(--sr)}
 .skip[hidden]{display:none}
@@ -203,6 +204,7 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes iris{0%{opacity:0;--r:80%}40%{opacity:1}100%{opacity:0}}
 @keyframes edgep{to{scale:1.15}}
 @keyframes tapf{0%,100%{transform:scale(1)}40%{transform:scale(.78)}}
+@keyframes swipe{0%,15%{transform:translate(calc(var(--u)*60px),0);opacity:0}30%{opacity:1}85%{transform:translate(calc(var(--u)*-90px),0);opacity:1}100%{transform:translate(calc(var(--u)*-90px),0);opacity:0}}
 @keyframes drag{0%,100%{transform:translate(calc(var(--u)*-50px),0)}50%{transform:translate(calc(var(--u)*50px),calc(var(--u)*-60px))}}
 @keyframes sheetIn{from{transform:translateY(60%)}}
 /* today's list is short: the sheet hugs its rows instead of leaving half a page empty */

@@ -413,7 +413,7 @@ export function run(mode = 'play') {
     input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
     if (input.look) {
       if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) { input.drag = true; input.lx = e.clientX; input.ly = e.clientY; }
-      if (input.drag) { const lk = cfg.camera.look, k = lk.radPerPx / unit(); view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (e.clientX - input.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (e.clientY - input.ly) * k)); view.idle = 0; input.lx = e.clientX; input.ly = e.clientY; }
+      if (input.drag) { const lk = cfg.camera.look, k = lk.radPerPx / unit(); view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (e.clientX - input.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (e.clientY - input.ly) * k)); view.idle = 0; input.lx = e.clientX; input.ly = e.clientY; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; } }
       return;
     }
     if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) {
@@ -784,7 +784,21 @@ export function run(mode = 'play') {
       // the snap hint sits beside the shutter, below the viewfinder brackets, never over the frame
       if (ftue === 'snap' && vf > 0.4) { const rtl = root.dir === 'rtl', side = tgt[2] / 0.62 / 2 + 16 * u + coach.offsetWidth / 2; coach.style.left = (tgt[0] + (rtl ? side : -side)) + 'px'; coach.style.top = (tgt[1] - coach.offsetHeight / 2) + 'px'; }
       hand.hidden = !handOn; hand.classList.toggle('drag', handDrag); if (handOn) { hand.style.left = (handDrag ? tgt[0] : tgt[0]) + 'px'; hand.style.top = (handDrag ? tgt[1] + 60 * u : tgt[1]) + 'px'; }
-    } else { coach.hidden = true; hand.hidden = true; coachKey = ''; }
+    } else if (lookHint(dt)) {
+      // one-time swipe-to-look hint after the tutorial: a hand sweeps across the right half, no dimming
+      const key = 'look'; if (key !== coachKey) { coachKey = key; coach.innerHTML = ICON.hand + `<b class="out">${T('look')}</b>`; }
+      coach.hidden = false; const x = rr.width * 0.72, y = rr.height * 0.4, half = coach.offsetWidth / 2 + 24 * u;
+      coach.style.left = Math.max(half, Math.min(rr.width - half, x)) + 'px'; coach.style.top = (y - 150 * u) + 'px';
+      hand.hidden = false; hand.classList.remove('drag'); hand.classList.add('swipe'); hand.style.left = x + 'px'; hand.style.top = y + 'px';
+    } else { coach.hidden = true; hand.hidden = true; hand.classList.remove('swipe'); coachKey = ''; }
+  }
+  let lookHintT = 0;
+  /** True while the one-time swipe hint shows: after the tutorial, in free walking, until the first look swipe. */
+  function lookHint(dt) {
+    if (!play || bot || !S.ftueDone || (S.hints & 4) || vf > 0.05 || bookOpen || beats.cur || !$('card').hidden) { lookHintT = Math.min(lookHintT, cfg.camera.look.hintAfterS); return false; }
+    lookHintT += dt; const lk = cfg.camera.look;
+    if (lookHintT > lk.hintAfterS + lk.hintMaxS) { S.hints |= 4; dirty = true; return false; } // shown long enough: never again
+    return lookHintT > lk.hintAfterS;
   }
 
   // ---- viewfinder HUD, pose cues, treat button
