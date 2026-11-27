@@ -276,7 +276,8 @@ function snowGround(ctx) {
   ctx.fillStyle = 'rgba(255,255,255,0.72)';
   for (const [x, y, r] of [[110, 340, 48], [170, 325, 34], [530, 290, 50], [590, 305, 34]]) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.55, 0, 0, 7); ctx.fill(); }
 }
-function pineTree(ctx, x, y, k = 1) {
+/** A snowy pine; also drawn by the game beside the scene on wide screens. */
+export function pineTree(ctx, x, y, k = 1) {
   ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
   sticker(() => { box(ctx, -13, -105, 26, 112, 7, '#A86B46'); shape(ctx, [[0, -300], [88, -155], [-88, -155]], PINE); shape(ctx, [[0, -230], [108, -75], [-108, -75]], '#36C995'); });
   sticker(() => { blob(ctx, -37, -154, 10, 8, WHITE); blob(ctx, 36, -84, 12, 8, WHITE); blob(ctx, 8, -260, 9, 7, WHITE); }); ctx.restore();
