@@ -74,6 +74,7 @@ const HTML = `
   <button id="mute" class="rnd glass mute" aria-label="sound">${SPK}</button>
   <button id="bookB" class="rnd glass bookB" aria-label="book">${ICON.book}<em class="out">!</em></button>
   <div id="edge" class="edge" hidden><i></i></div>
+  <button id="nightB" class="treat glass nightb" aria-label="night" hidden>${ICON.moon}</button>
   <button id="treat" class="treat glass" aria-label="treat" hidden><canvas width="96" height="96"></canvas><span class="lock"></span></button>
   <button id="shutter" class="shutter" aria-label="snap">${ICON.cam}</button>
   <div id="stick" class="stick" hidden><i></i></div>
@@ -378,6 +379,8 @@ export function run(mode = 'play') {
       list.insertAdjacentHTML('beforeend', `<div class="rq ${q.done ? 'done' : ''}">${ico}<span>${txt}</span><i>${q.done ? '✓' : '+' + cfg.economy.request}</i></div>`);
     }
     RP.appendChild(list);
+    // what tomorrow brings: a reason to come back (no streak, nothing lost by missing a day)
+    RP.insertAdjacentHTML('beforeend', `<div class="rq soon">${ICON.moon}<span>${T('tomorrow')}</span><i>✦</i></div>`);
     const reqLeft = S.req.filter((q) => !q.done).length; tabs[2].innerHTML = T('req') + (reqLeft ? `<em>${reqLeft}</em>` : '');
     for (const b of tabs) b.classList.toggle('on', b.dataset.t === bookTab);
     root.querySelectorAll('.pane').forEach((p) => { p.hidden = p.dataset.p !== bookTab; });
@@ -436,16 +439,30 @@ export function run(mode = 'play') {
   const onBlur = () => { input.keys.clear(); }; addEventListener('blur', onBlur); // a key released in another window never sends keyup
   $('shutter').addEventListener('click', () => { gesture(); snap(); });
   $('treat').addEventListener('click', () => { gesture(); toss(); });
+  // "wait for night": once every day animal is done, the clock runs fast to nightfall instead of making the player wait
+  let skipTo = null, nightLeftT = 0, nightLeft = false, nightHinted = false;
+  $('nightB').addEventListener('click', () => {
+    gesture(); if (skipTo !== null) return;
+    const day = cfg.clock.dayS, ph = cfg.clock.phases, at = ph[0][1] + ph[1][1], base = Math.floor(S.clock / day) * day;
+    skipTo = base + at + 1 + (((S.clock % day) + day) % day >= at ? day : 0); Sound.whoosh(); Sound.shimmer(); buzz('snap');
+  });
+  function onlyNightLeft() {
+    const dayLeft = animals.some((a) => !a.rare && !a.sp.night && a.sp.area < S.open && ((S.slots[a.id] | 0) & 7) !== 7 && (!a.sp.shy || L.treatOwned(S, a.sp.shy)));
+    return !dayLeft && cfg.species.some((s) => s.night && s.area < S.open && ((S.slots[s.id] | 0) & 7) !== 7);
+  }
   var logoT = 4; // var: toast() may hide the logo before this line runs
   function hideLogo() { const l = $("logo"); if (l) l.classList.add("gone"); logoT = 0; }
 
   // ---- the viewfinder target: the nearest present animal in range
   let vf = 0, aim = null, aimA = null, vfFov = cfg.camera.vfFov, focusK = 0, focusAt = null;
   function nearest(range) {
-    let best = null, bd = range;
+    let best = null, bd = 1e9;
     for (const a of animals) {
       if (!a.present || a.hide > 0.5 || !a.parts.group.visible) continue;
-      const d = Math.hypot(a.x - hero.x, a.z - hero.z); if (d < bd) { bd = d; best = a; }
+      const d = Math.hypot(a.x - hero.x, a.z - hero.z); if (d >= range) continue;
+      // an animal that still has an empty slot wins over a nearer one whose page is already full
+      const full = a.rare ? !!S.rare[a.id] : ((S.slots[a.id] | 0) & 7) === 7, k = d + (full ? cfg.photo.fullPenaltyM : 0);
+      if (k < bd) { bd = k; best = a; }
     }
     return best;
   }
@@ -457,7 +474,7 @@ export function run(mode = 'play') {
     return Math.max(ln.fov, Math.min(cfg.photo.maxFov, v));
   };
   const photoFrom = (a) => { const dx = a.x - hero.x, dz = a.z - hero.z, d = Math.hypot(dx, dz) || 1; return V3(hero.x - dx / d * cfg.camera.vfDist, hero.y + cfg.camera.vfHeight, hero.z - dz / d * cfg.camera.vfDist); };
-  const inPose = (a) => (a.pose && a.poseT >= 0) || (S.owned.includes('slow') && clockT - a.poseEnd < cfg.photo.poseWindowSlowS - cfg.photo.poseWindowS);
+  const inPose = (a) => (a.pose && a.poseT >= 0) || clockT - a.poseEnd < cfg.photo.poseGraceS + (S.owned.includes('slow') ? cfg.photo.poseWindowSlowS - cfg.photo.poseWindowS : 0); // a short grace after the pose: small hands react late
   /** What a photo of `a` would score now. */
   function shotOf(a) {
     const from = photoFrom(a), cy = a.y + a.parts.centerY, d = Math.hypot(a.x - from.x, cy - from.y, a.z - from.z), fov = fovFor(a, d);
@@ -473,9 +490,11 @@ export function run(mode = 'play') {
   let cardBusy = 0, clockT = 0, snapCool = 0;
   // the card keeps the screen's horizontal framing (the card is wider than a portrait screen)
   const cardFov = (v) => 2 * Math.atan(Math.tan(narrow(v) * Math.PI / 360) / (cfg.photo.w / cfg.photo.h)) * 180 / Math.PI;
+  /** A short phone buzz where the device allows it (tuned in config; silent when muted). */
+  const buzz = (k) => { try { if (!Sound.muted && navigator.vibrate) navigator.vibrate(cfg.feel.buzz[k]); } catch (e) { /* not supported */ } };
   function snap() {
     if (!play || bookOpen || snapCool > 0) return;
-    snapCool = 0.45; Sound.shutter();
+    snapCool = 0.45; Sound.shutter(); buzz('snap');
     $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
     $('iris').classList.remove('go'); void $('iris').offsetWidth; $('iris').classList.add('go');
     $('shutter').classList.remove('bump'); void $('shutter').offsetWidth; $('shutter').classList.add('bump');
@@ -501,6 +520,8 @@ export function run(mode = 'play') {
       res = L.applyPhoto(cfg, S, { id: null, stars: 1, now: Date.now() });
     }
     showCard(cv, a, stars, res);
+    // a posed night photo stuck at 2 stars: say once what would make it 3
+    if (shot && shot.night && shot.inPose && shot.framed && !S.owned.includes('flash') && !ui.flashHint) { ui.flashHint = true; setTimeout(() => toast(T('flashHint'), T('i_flash')), 2600); }
     soon();
   }
   function showCard(cv, a, stars, res) {
@@ -529,6 +550,7 @@ export function run(mode = 'play') {
     // the moments this photo made
     if (a && res.newSpecies) {
       const n = Object.keys(S.slots).length + Object.keys(S.rare).length;
+      buzz(a.rare ? 'big' : 'friend');
       if (a.rare) { beat({ ...beatAt(a, { pri: 5, dur: 2, slow: true, sting: 'rare' }) }); setTimeout(() => toast(T('rare'), name(a.id), 'rare:' + a.id), flyAt); }
       else if (n <= 8) { beat(beatAt(a, { pri: 3, dur: 1.4, slow: n === 1, sting: 'friend' })); setTimeout(() => toast(T('newFriend')), flyAt); }
       else setTimeout(() => toast(T('newFriend')), flyAt);
@@ -551,15 +573,16 @@ export function run(mode = 'play') {
     const gp = V3(0, L.terrainH(cfg, 0, g.z), g.z);
     // the camera frames the gate, the shards burst, then it rises and glides through toward the new place
     const glide = (t) => { const k = Math.max(0, Math.min(1, (t - 1.2) / 1.5)); return k * k * (3 - 2 * k); };
-    beat({ pri: 6, dur: 3.2, bars: true, slow: false, sting: null, fov: 48, clear: true,
-      pos: (t = 0) => V3(gp.x + 2.8, gp.y + 2.0, gp.z + 12).lerp(V3(gp.x + 0.8, gp.y + 2.6, gp.z + 3), glide(t)),
-      look: (t = 0) => V3(gp.x, gp.y + 2.6, gp.z).lerp(V3(gp.x, gp.y + 2.9, gp.z - 18), glide(t)),
+    // it opens wide, from above the path, so the wall, the way to it and the new place beyond all read together
+    beat({ pri: 6, dur: 3.2, bars: true, slow: false, sting: null, fov: 52, clear: true,
+      pos: (t = 0) => V3(gp.x + 3.5, gp.y + 6.2, gp.z + 17).lerp(V3(gp.x + 0.8, gp.y + 2.8, gp.z + 3), glide(t)),
+      look: (t = 0) => V3(gp.x, gp.y + 1.2, gp.z - 7).lerp(V3(gp.x, gp.y + 2.9, gp.z - 18), glide(t)),
       start: () => setTimeout(() => {
         if (!alive) return;
-        W.openGate(i - 1); Sound.crack(); W.shake.t = 0.4; W.shake.a = 0.12;
-        fx.debris(gp.x, gp.y + 0.5, gp.z, 18, 3.5); fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8); fx.ring(gp.x, gp.y, gp.z, 4, '#ffffff', 0.5);
-        fx.emit({ pool: 'glow', x: gp.x, y: gp.y + 1.5, z: gp.z, spread: 6, speed: 3, up: 3, life: 1.6, size: 0.22, color: '#bff7ff', shape: 'flake', grav: -1 }, 40);
-        fx.emit({ pool: 'soft', x: gp.x, y: gp.y + 0.3, z: gp.z, spread: 4, speed: 1.5, up: 0.3, life: 1.2, size: 0.8, color: '#dceafb', alpha: 0.35, grav: 0.3, drag: 2, grow: 1 }, 10);
+        W.openGate(i - 1); Sound.crack(); buzz('big'); W.shake.t = 0.4; W.shake.a = 0.12;
+        fx.debris(gp.x, gp.y + 0.5, gp.z, 9, 4); fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8);
+        fx.emit({ pool: 'glow', x: gp.x, y: gp.y + 1.5, z: gp.z, spread: 4, speed: 2.4, up: 2.4, life: 1.2, size: 0.22, color: '#bff7ff', shape: 'flake', grav: -1 }, 14);
+        fx.emit({ pool: 'soft', x: gp.x, y: gp.y + 0.3, z: gp.z, spread: 4, speed: 1.5, up: 0.3, life: 1.2, size: 0.8, color: '#dceafb', alpha: 0.35, grav: 0.3, drag: 2, grow: 1 }, 6);
         toast(T('area'), T('a_' + cfg.areas[i].id), 'area');
       }, 900) });
   }
@@ -609,12 +632,16 @@ export function run(mode = 'play') {
         if (a.state === 'walk') {
           const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), spd = (a.flee > 0 ? 3.2 : 1.1) * (sp.scale || 1);
           if (d < 0.15) { a.state = 'idle'; a.stT = 1.5 + R() * 3; }
-          else { a.x += dx / d * Math.min(d, spd * dt); a.z += dz / d * Math.min(d, spd * dt); a.yaw += angleDiff(Math.atan2(dx, dz), a.yaw) * Math.min(1, dt * 6); }
+          else { const st = Math.min(d, spd * dt), n = L.slide(cfg, 3, a.x, a.z, dx / d * st, dz / d * st); if (n[0] === a.x && n[1] === a.z) a.state = 'idle'; a.x = n[0]; a.z = n[1]; a.yaw += angleDiff(Math.atan2(dx, dz), a.yaw) * Math.min(1, dt * 6); }
         }
       } else a.state = 'idle';
       // personal space: an animal never walks into the lens (the hero pushes it gently back)
-      { const ps = cfg.photo.personalM + a.parts.radius, dx = a.x - hero.x, dz = a.z - hero.z, d = Math.hypot(dx, dz) || 1;
-        if (d < ps && sp.type !== 'whale') { const k = Math.min(ps - d, 2.5 * dt); a.x += dx / d * k; a.z += dz / d * k; if (a.state === 'walk' && ((a.tx - hero.x) * dx + (a.tz - hero.z) * dz) < 0) a.state = 'idle'; } }
+      { const ps = cfg.photo.personalM + a.parts.radius, dx = (a.x - hero.x) || 0.01, dz = a.z - hero.z, d = Math.hypot(dx, dz);
+        if (d < ps && sp.type !== 'whale') { const k = Math.min(ps - d, 2.5 * dt), n = L.slide(cfg, 3, a.x, a.z, dx / d * k, dz / d * k), left = k - Math.hypot(n[0] - a.x, n[1] - a.z); a.x = n[0]; a.z = n[1]; // never pushed off the valley floor, out of the hero's reach
+          if (left > 0.01) { const h = L.slide(cfg, S.open, hero.x, hero.z, -dx / d * left, -dz / d * left); hero.x = h[0]; hero.z = h[1]; } // backed against the edge: the hero steps back instead
+          if (a.state === 'walk' && ((a.tx - hero.x) * dx + (a.tz - hero.z) * dz) < 0) a.state = 'idle'; }
+        // a whale in its ice hole cannot move: the hero stops at the edge instead, so the photo still frames it
+        else if (d < ps && a.present && a.hide < 0.5) { const k = Math.min(ps - d, 4 * dt), n = L.slide(cfg, S.open, hero.x, hero.z, -dx / d * k, -dz / d * k); hero.x = n[0]; hero.z = n[1]; } }
       a.walk += ((a.state === 'walk' ? 1 : 0) - a.walk) * Math.min(1, dt * 6);
       // look at the hero when near
       const wantLook = dh < 9 && !a.pose ? Math.max(-1, Math.min(1, angleDiff(Math.atan2(hero.x - a.x, hero.z - a.z), a.yaw))) : 0;
@@ -631,7 +658,7 @@ export function run(mode = 'play') {
         if (a.pose === 'slide') { a.x += Math.sin(a.yaw) * dt * 3.2; a.z += Math.cos(a.yaw) * dt * 3.2; if (!L.walkable(cfg, 3, a.x, a.z)) { a.x -= Math.sin(a.yaw) * dt * 3.2; a.z -= Math.cos(a.yaw) * dt * 3.2; } if (R() < 0.5) fx.emit({ pool: 'soft', x: a.x, y: a.y + 0.1, z: a.z, spread: 0.3, speed: 0.8, up: 0.8, life: 0.6, size: 0.35, color: '#f4f9ff', alpha: 0.8, grav: -2 }, 1); }
         if (a.pose === 'sneeze' && p > 0.6 && !a.sneezed) { a.sneezed = true; const hx = a.x + Math.sin(a.yaw) * 1.2, hz = a.z + Math.cos(a.yaw) * 1.2; fx.emit({ pool: 'soft', x: hx, y: a.y + a.parts.headY * (sp.scale || 1), z: hz, spread: 0.3, speed: 2.4, life: 0.9, size: 0.6, color: '#f4f9ff', alpha: 0.9, grav: -0.5, grow: 1 }, 14); Sound.hiss && Sound.ok && Sound.hiss(Sound.ctx.currentTime, 0.2, { f: 3000, g: 0.1 }); }
         if ((a.pose === 'hop' || a.pose === 'jump') && p > 0.92 && !a.landed) { a.landed = true; fx.emit({ pool: 'soft', x: a.x, y: a.y + (a.pose === 'jump' ? 0 : 0.05), z: a.z, spread: 0.6, speed: 1.6, up: 0.8, life: 0.7, size: 0.5, color: a.pose === 'jump' ? '#bfeaff' : '#f4f9ff', alpha: 0.85, grav: -3 }, 10); if (a.pose === 'jump') fx.ring(a.x, a.y - 0.1, a.z, 2.6, '#bfeaff', 0.7); }
-        if (p >= 1) { a.pose = null; a.poseEnd = clockT; a.landed = false; const pe = cfg.photo.poseEveryS; a.nextPose = pe[0] + R() * (pe[1] - pe[0]); }
+        if (p >= 1) { a.pose = null; a.poseEnd = clockT; a.landed = false; const want = !a.rare && (((S.slots[a.id] | 0) & 6) !== 6), pe = want && dh < L.lens(cfg, S).range ? cfg.photo.poseEveryNearS : cfg.photo.poseEveryS; a.nextPose = pe[0] + R() * (pe[1] - pe[0]); } // poses come sooner while someone waits for one
       }
       // voices now and then, blinks
       a.voiceT -= dt; if (a.voiceT <= 0 && dh < 12 && play) { a.voiceT = 6 + R() * 8; Sound.voice(sp); }
@@ -687,16 +714,20 @@ export function run(mode = 'play') {
     if (ftue === 'walk' || ftue === 'snap') return fox ? { x: fox.x, z: fox.z, y: fox.y, a: fox } : null;
     if (ftue === 'treat') return hare ? { x: hare.x, z: hare.z, y: hare.y, a: hare } : null;
     if (ftue === 'pose') { const a = animals.find((q) => q.cue || q.pose) || nearest(18); return a ? { x: a.x, z: a.z, y: a.y, a } : null; }
-    if (ftue === 'gate') { if (S.open < 2) return null; const g = cfg.gates[S.entered - 1]; return g ? { x: 0, z: g.z - 2, y: 0, gate: true } : null; }
+    if (ftue === 'gate') { if (S.open < 2) return null; const g = cfg.gates[S.entered - 1]; return g ? { x: 0, z: g.z - cfg.camera.gateInM, y: 0, gate: true } : null; }
     return null;
   }
   function guide() {
     const ft = ftueTarget();
     const rare = animals.find((a) => a.rare);
     const rareGoal = rare && S.rareDay !== S.day && rare.present && L.walkable(cfg, S.open, rare.x, rare.z) ? { x: rare.x, z: rare.z, y: rare.y, rare: true } : null;
-    const gateGoal = S.entered < S.open ? { x: 0, z: cfg.gates[S.entered - 1].z - 3, y: 0, gate: true } : null;
-    const list = animals.filter((a) => !a.rare).map((a) => ({ id: a.id, x: a.x, z: a.z, y: a.y, avail: a.present && a.sp.area < S.open && (!a.sp.shy || L.treatOwned(S, a.sp.shy)) }));
-    return L.guideTarget(S, { hero: [hero.x, hero.z], ftue: ft, rare: rareGoal, gate: gateGoal, animals: list });
+    const gateGoal = S.entered < S.open ? { x: 0, z: cfg.gates[S.entered - 1].z - cfg.camera.gateInM, y: 0, gate: true } : null;
+    const list = animals.filter((a) => !a.rare).map((a) => ({ id: a.id, x: a.x, z: a.z, y: a.y, night: !!a.sp.night, avail: a.present && a.sp.area < S.open && (!a.sp.shy || L.treatOwned(S, a.sp.shy)) }));
+    const noStar = L.clockAt(cfg, S.clock).night && !S.owned.includes('flash') && cfg.photo.nightCapNoFlash < 3;
+    const goal = L.guideTarget(S, { hero: [hero.x, hero.z], ftue: ft, rare: rareGoal, gate: gateGoal, animals: list, noStar });
+    if (!goal || ft) return goal;
+    const via = L.routeVia(cfg, [hero.x, hero.z], goal); // through the gate when the goal is in another area
+    return via === goal ? goal : { ...via, y: 0, gate: true, rare: goal.rare };
   }
   function updateGuide(t, goal) {
     const near = goal && Math.hypot(goal.x - hero.x, goal.z - hero.z) < (goal.gate ? 3 : L.lens(cfg, S).range * 0.8);
@@ -773,6 +804,10 @@ export function run(mode = 'play') {
       if (tb.dataset.k !== sh.sp.shy + L.treatOwned(S, sh.sp.shy)) { tb.dataset.k = sh.sp.shy + L.treatOwned(S, sh.sp.shy); drawIcon(tb.querySelector('canvas'), sh.sp.shy); tb.classList.toggle('need', !L.treatOwned(S, sh.sp.shy)); const it = L.item(cfg, sh.sp.shy); tb.querySelector('.lock').innerHTML = it ? `${it.price}` : ''; }
       tb.hidden = false; tb.classList.toggle('glow', L.treatOwned(S, sh.sp.shy));
     } else { tb.hidden = true; tb.dataset.k = ''; }
+    nightLeftT -= 0.1; if (nightLeftT <= 0) { nightLeftT = 1; nightLeft = onlyNightLeft(); }
+    const nb = $('nightB'), wantNight = !sh && play && S.ftueDone && !beats.cur && W.night < 0.3 && skipTo === null && nightLeft;
+    if (wantNight && nb.hidden && !nightHinted) { nightHinted = true; toast(T('nightB')); }
+    nb.hidden = !wantNight;
     // the day clock arc on the stamps pill
     const cl = L.clockAt(cfg, S.clock), day = cfg.clock.dayS, k = ((S.clock % day) + day) % day / day;
     $('clockArc').setAttribute('stroke-dashoffset', String(157 * (1 - k))); $('clockArc').setAttribute('stroke', cl.night ? '#cfd8ff' : cl.name === 'dusk' ? '#ffb070' : '#ffcf3a');
@@ -815,6 +850,7 @@ export function run(mode = 'play') {
     const b = stepBeats(rdt);
     const dt = rdt * timeScale; t += dt; clockT += dt;
     if (play || mode === 'edit') S.clock += dt;
+    if (skipTo !== null) { S.clock = Math.min(skipTo, S.clock + rdt * cfg.clock.skipRate); if (S.clock >= skipTo) skipTo = null; }
     if (play) playT += rdt;
     // day clock and light
     const cl = L.clockAt(cfg, S.clock); W.setTod(cl.w); W.uTime.value = t; mats.night.value = W.night; mats.lamp.value.copy(W.lamp.value); H.mats.lamp.color.setRGB(0.55 + W.night * 2.4, 0.42 + W.night * 1.5, 0.25 + W.night * 0.6);
@@ -851,7 +887,7 @@ export function run(mode = 'play') {
     if (bookAutoClose > 0) { bookAutoClose -= rdt; if (bookAutoClose <= 0 && bookOpen) closeBook(); }
     if (mailPending && loaded && play && !bookOpen) { mailT -= rdt; if (mailT <= 0) { mailPending = false; S.mailDay = S.day; S.flakes += cfg.economy.mail; toast(T('morning'), `${T('mail')} +${cfg.economy.mail} · ${name(rareId)}`); Sound.sting('friend'); soon(); } }
     if (play && loaded) { saveT += rdt; if (saveT >= cfg.save.everyS && dirty) saveNow(); }
-    Sound.update(W.night);
+    Sound.update(W.night, L.areaAt(cfg, hero.x, hero.z));
     // a new calendar day while playing
     if (play && loaded && (Math.floor(t) % 30 === 0) && L.dateKey(Date.now()) !== S.day) { if (L.rollDay(cfg, S, L.dateKey(Date.now())).mail) mailPending = true; rareId = L.dailyRare(cfg, S.day); placeRare(); sawRare = false; soon(); }
     // adaptive quality
@@ -882,9 +918,11 @@ export function run(mode = 'play') {
     frames() { const n = Math.min(ftN, ftRing.length), a = Array.from(ftRing.slice(0, n)).sort((p, q) => p - q), at = (k) => Math.round(a[Math.min(n - 1, Math.floor(n * k))] * 10) / 10; const js = Array.from(jsRing.slice(0, n)).sort((p, q) => p - q); return { n, p50: at(0.5), p95: at(0.95), max: at(1), js50: Math.round(js[Math.floor(n / 2)] * 10) / 10, fps: Math.round(fpsV), tier: quality.tier, start: tier0, changes: tierLog.slice() }; },
     tp(x, z) { hero.x = x; hero.z = z; hero.vx = hero.vz = 0; input.target = null; W.snapCamera(hero); },
     walkTo(x, z) { input.target = [x, z]; },
+    buy(id) { if (!L.buy(cfg, S, id)) return false; applyLook(); hud(); return true; }, night: () => W.night, get card() { return !$('card').hidden; },
     clock(s) { S.clock = s; }, give(n) { S.flakes += n; },
     stamp(ids) { for (const id of ids) L.applyPhoto(cfg, S, { id, stars: 3, inPose: true }); },
     skipFtue() { S.ftueDone = true; ftue = null; hideLogo(); },
+    shot(id) { const a = animals.find((q) => q.id === id); if (!a) return null; const r = shotOf(a); return { stars: r.stars, framed: r.framed, inPose: r.inPose, fov: r.fov, d: Math.hypot(a.x - hero.x, a.z - hero.z), ax: a.x, az: a.z, cover: L.coverage(Math.hypot(a.x - r.from.x, a.y + a.parts.centerY - r.from.y, a.z - r.from.z), a.parts.radius, narrow(r.fov)), occ: L.occluded(W.trunks, r.from.x, r.from.z, a.x, a.z) }; },
     poseNow(id) { const a = animals.find((q) => q.id === id); if (a) a.nextPose = 0.01; },
     screenOf(x, y, z) { const s = W.toScreen(x, y, z); return toPx(s[0], s[1]); },
     pause() { cancelAnimationFrame(raf); raf = -1; },

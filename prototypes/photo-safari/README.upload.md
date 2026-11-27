@@ -10,7 +10,7 @@ their favourite treat. Photos pay snowflakes, which buy treats, zoom lenses, a n
 outfits. Stamps in the book open new places: Pine Meadow, the Frozen Lake and the Crystal Caves, 24 animals in all.
 
 The day turns to dusk and then an aurora night, when night animals come out. Every day brings a rare visitor and
-three small photo requests.
+three small photo requests. When only night animals are left to find, tap the moon button to wait for night.
 
 ## Controls
 

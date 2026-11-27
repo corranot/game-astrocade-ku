@@ -46,9 +46,10 @@ export const Sound = {
     s.start(t, Math.random() * 0.5); s.stop(t + d + 0.05);
   },
   /** Called every frame: schedules the next music beats and follows the night. */
-  update(night) {
+  /** Per frame: night (0..1) and the area Pip stands in (0 meadow, 1 lake, 2 caves) shape the music layers. */
+  update(night, area = 0) {
     if (!this.ok) return;
-    const c = this.ctx; this.nightK += (night - this.nightK) * 0.02;
+    const c = this.ctx; this.nightK += (night - this.nightK) * 0.02; this.area = area;
     this.wind.f.frequency.value = 420 + Math.sin(c.currentTime * 0.3) * 160; this.wind.g.gain.value = 0.25 + Math.sin(c.currentTime * 0.17) * 0.12 + this.nightK * 0.1;
     const spb = 60 / 76 / 2; // eighth notes
     while (this.nextBeat < c.currentTime + 0.25) { this.musicBeat(this.nextBeat, this.beat++); this.nextBeat += spb; }
@@ -68,6 +69,11 @@ export const Sound = {
     if (step === 0 || step === 4) this.tone(midi(root - 24 + (step === 4 ? 7 : 0)), t, 0.5, { type: 'triangle', g: 0.09 * (1 - n * 0.6), bus: 'music', q: 900 });
     if (step === 0) for (const k of [0, 4, 7]) this.tone(midi(root - 12 + k), t, 3.2, { type: 'sine', g: 0.025 + n * 0.02, bus: 'music', a: 0.8, verb: 0.3 });
     if (n > 0.3 && step % 2 === 1) this.tone(midi(91 + PENTA[(i * 3) % 5]), t, 1.2, { type: 'sine', g: 0.015 * n, bus: 'music', verb: 1 });
+    // area layers: glassy ice bells over the lake, low echoing plinks and drips in the caves
+    if (this.area === 1 && step === 6 && bar % 2 === 1) for (let k = 0; k < 3; k++) this.tone(midi(88 + PENTA[(bar + k * 2) % 5]), t + k * 0.11, 1.4, { type: 'sine', g: 0.03, bus: 'music', verb: 0.9 });
+    if (this.area === 1 && step === 2) this.tone(midi(root - 12 + 7), t, 1.8, { type: 'triangle', g: 0.02, bus: 'music', a: 0.3, q: 1200 });
+    if (this.area === 2 && (step === 3 || step === 7) && (i * 7) % 3 === 0) this.tone(midi(72 + PENTA[(i * 5) % 5]), t, 0.25, { type: 'sine', g: 0.05, bus: 'music', verb: 1, slide: 0.92 });
+    if (this.area === 2 && step === 0) this.tone(midi(root - 36 + 12), t, 3.5, { type: 'sine', g: 0.05, bus: 'music', a: 0.6, verb: 0.6 });
   },
   step() { if (!this.ok) return; const t = this.ctx.currentTime; this.hiss(t, 0.09, { f: 1400 + Math.random() * 600, type: 'bandpass', g: 0.12, Q: 0.8 }); this.hiss(t + 0.01, 0.06, { f: 4000, type: 'highpass', g: 0.03 }); },
   shutter() {

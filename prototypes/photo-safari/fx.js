@@ -68,7 +68,7 @@ export function createFx(scene, cfg, cap = 500) {
   /** Bursts `n` ice chunks from (x, y, z). */
   function debris(x, y, z, n = 24, width = 4) {
     let k = 0;
-    for (const d of dS) { if (d.on || k >= n) continue; k++; d.on = true; d.t = 0; d.s = 0.45 + Math.random() * 0.8; d.p.set(x + (Math.random() - 0.5) * width * 2, y + Math.random() * 3, z + (Math.random() - 0.5) * 1.2); d.v.set((Math.random() - 0.5) * 6, 3 + Math.random() * 5, (Math.random() - 0.75) * 5); d.w.set(Math.random() * 9, Math.random() * 9, Math.random() * 9); }
+    for (const d of dS) { if (d.on || k >= n) continue; k++; d.on = true; d.t = 0; d.s = 0.9 + Math.random() * 0.6; d.p.set(x + ((k - 0.5) / n - 0.5) * width * 2, y + 0.5 + Math.random() * 2, z + (Math.random() - 0.5) * 0.6); d.v.set((d.p.x - x) * 0.6, 2.5 + Math.random() * 2.5, -1.5 - Math.random() * 2.5); d.w.set(Math.random() * 9, Math.random() * 9, Math.random() * 9); }
   }
 
   // ---- footprints
@@ -128,8 +128,8 @@ export function createFx(scene, cfg, cap = 500) {
       const d = dS[i]; if (!d.on) continue; anyDeb = true; d.t += dt;
       d.v.y -= 16 * dt; d.p.addScaledVector(d.v, dt); const gy = L.terrainH(cfg, d.p.x, d.p.z) + 0.1; if (d.p.y < gy) { d.p.y = gy; d.v.y *= -0.3; d.v.x *= 0.5; d.v.z *= 0.5; d.w.multiplyScalar(0.4); }
       d.r.set(d.r.x + d.w.x * dt, d.r.y + d.w.y * dt, d.r.z + d.w.z * dt);
-      const s = d.s * Math.min(1, Math.max(0, (3.4 - d.t) / 0.6));
-      if (d.t > 3.4) { d.on = false; deb.setMatrixAt(i, hide); continue; }
+      const s = d.s * Math.min(1, Math.max(0, (2.2 - d.t) / 0.5));
+      if (d.t > 2.2) { d.on = false; deb.setMatrixAt(i, hide); continue; }
       dm.compose(d.p, dq.setFromEuler(d.r), dv.set(s, s, s)); deb.setMatrixAt(i, dm);
     }
     if (anyDeb) deb.instanceMatrix.needsUpdate = true;

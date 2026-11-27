@@ -25,8 +25,8 @@ export function areaDist(a, x, z) {
   return (Math.sqrt(dx * dx + dz * dz) - 1) * Math.min(a.r[0], a.r[1]);
 }
 
-/** Distance from the corridor through gate g (negative inside a 10 m wide, 16 m long strip). */
-export function gateDist(g, x, z) { return Math.max(Math.abs(x) - 5, Math.abs(z - g.z) - 8); }
+/** Distance from the corridor through gate g (negative inside a 10 m wide, 20 m long strip that overlaps both areas). */
+export function gateDist(g, x, z) { return Math.max(Math.abs(x) - 5, Math.abs(z - g.z) - 10); }
 
 /** Index of the area at (x, z), or -1 outside every area. */
 export function areaAt(cfg, x, z) {
@@ -180,7 +180,8 @@ export function applyPhoto(cfg, S, shot) {
   let mul = 1;
   if (rare) {
     if (!S.rare[shot.id]) { S.rare[shot.id] = 1; out.filled.push('rare'); out.newSpecies = true; }
-    out.rare = true; S.rareDay = S.day; mul = e.rareMul;
+    // the big bonus is for today's first photo of the visitor; later shots of it pay like any repeat
+    out.rare = true; mul = S.rareDay !== S.day ? e.rareMul : e.repeatK; S.rareDay = S.day;
   } else {
     const b = S.slots[shot.id] | 0;
     let nb = b | 1; if (shot.inPose) nb |= 2; if (shot.stars >= 3) nb |= 4;
@@ -188,7 +189,7 @@ export function applyPhoto(cfg, S, shot) {
     if ((nb & 2) && !(b & 2)) out.filled.push('pose');
     if ((nb & 4) && !(b & 4)) out.filled.push('star');
     S.slots[shot.id] = nb;
-    if (out.filled.length) mul = e.firstSlotMul;
+    mul = out.filled.length ? e.firstSlotMul : e.repeatK; // a repeat of a slot already filled pays a little
     // half pages (4 species) and pages (one area) complete when every species in them has its first photo
     const sp = speciesById(cfg, shot.id);
     if (sp && out.newSpecies) {
@@ -198,7 +199,7 @@ export function applyPhoto(cfg, S, shot) {
       if (!S.pages.includes(sp.area) && list.every((s) => S.slots[s.id] & 1)) { S.pages.push(sp.area); out.page = sp.area; out.flakes += e.page; }
     }
   }
-  out.flakes += e.photo[shot.stars] * mul;
+  out.flakes += Math.max(1, Math.round(e.photo[shot.stars] * mul));
   S.req.forEach((q, i) => {
     if (q.done) return;
     const ok = (q.type === 'species' && q.arg === shot.id) || (q.type === 'stars3' && shot.stars >= 3) || (q.type === 'night' && shot.night)
@@ -325,13 +326,30 @@ export function guideTarget(S, ctx) {
   if (ctx.rare) return ctx.rare;
   if (ctx.gate) return ctx.gate;
   let best = null, bd = 1e9;
+  // night visitors only come out for a short while, so while one still has an empty slot it goes first
+  // at night without the flash a photo tops out at 2 stars, so the 3-star slot cannot be filled now and does not count
+  const done = (a) => ((S.slots[a.id] | 0) | (ctx.noStar ? 4 : 0)) & 7;
+  const nightLeft = ctx.animals.some((a) => a.avail && a.night && done(a) !== 7);
   for (const a of ctx.animals) {
     if (!a.avail) continue;
-    const full = ((S.slots[a.id] | 0) & 7) === 7;
-    const d = Math.hypot(a.x - ctx.hero[0], a.z - ctx.hero[1]) + (full ? 200 : 0);
+    const full = done(a) === 7;
+    const d = Math.hypot(a.x - ctx.hero[0], a.z - ctx.hero[1]) + (full ? 200 : 0) + (nightLeft && !a.night ? 150 : 0);
     if (d < bd) { bd = d; best = a; }
   }
   return best;
+}
+
+/**
+ * Areas join only through the gate corridors, so a goal in another area is reached through the gate between.
+ * Returns the goal itself, or a waypoint { x, z, via: true }: the corridor mouth on the hero's side, then (once
+ * inside the corridor) a point just inside the next area.
+ */
+export function routeVia(cfg, hero, goal) {
+  const [hx, hz] = hero, dir = goal.z < hz ? -1 : 1;
+  const g = cfg.gates.filter((q) => (q.z - hz) * dir > -8 && (goal.z - q.z) * dir > 0).sort((a, b) => (a.z - b.z) * dir)[0];
+  if (!g || Math.abs(goal.z - hz) < 1) return goal;
+  const inCorr = Math.abs(hx) < 4.5 && Math.abs(hz - g.z) < 8;
+  return inCorr ? { x: 0, z: g.z + dir * 9, via: true } : { x: 0, z: g.z - dir * 7, via: true };
 }
 
 /**

@@ -106,7 +106,7 @@ No menu, no end and no text wall before 60 s (playbook §10 item 1).
 | Toss a treat | Tap the treat button (bottom left, 112 px): throws toward the shy animal nearest the frame centre | T |
 | Book | Tap the book button (right column under sound) | B |
 
-- No pinch, no two-finger gestures, no precise timing needed (the pose window is 1.6 s, generous).
+- No pinch, no two-finger gestures, no precise timing needed (the pose window is 2.0 s plus a 0.5 s grace, and animals pose every 4-7 s while the hero waits nearby).
 - Touch handlers never stop propagation before `document` (gestures are counted there, playbook §7.2).
 - Haptics are off on web, so every action has a visual and sound confirmation (§7, §8).
 
@@ -138,7 +138,7 @@ v1: 3 areas × 8 = **24 species**, 4 rare visitors. Full game after U2: **40 spe
 Stars = 1 + framing (0 to 1) + pose (0 to 1), rounded down, max 3.
 - Framing: the animal's screen box covers 18% to 60% of the frame and its centre is within 25% of the frame
   centre → 1. Anything visible → at least 1★.
-- Pose: the shutter fell inside the 1.6 s pose window → 1. The pose icon over the animal tells the player when.
+- Pose: the shutter fell inside the 2.0 s pose window (+0.5 s grace) → 1. The pose icon over the animal tells the player when.
 - Occlusion over 50% (a tree in front) gives a gentle "peek" photo that still counts as Hello.
 All thresholds in `game_config.json`.
 
@@ -188,6 +188,12 @@ lets players pick "stay at night" later.
 Pacing targets (tuned by the bot playtest, ±25%): first purchase at ~60 s; area 2 at ~4 min; first night at
 ~4.5 min; area 3 at ~10 min; 50% of v1 stamps at ~25 min across sessions; v1 book complete at ~90 min over 4 to
 6 days (enough to bridge to U1 on day 3 and U2 on day 6).
+
+Round 8 measurement (27 Nov, real-clock kid bot, `retention-bot.js`): area 2 at 1.5-2.5 min, first night at
+~4.6 min, area 3 at ~4.5-7 min, book complete at ~13 min. That is much faster than the targets above, but
+the bot knows where every animal is. The day is 210 s and the night 90 s, and a "wait for night" button
+appears once only night visitors are left. Watch the live completion rate; if the book is finished in the
+first session, U1 (a second chapter) moves forward.
 
 ## 5. Retention targets and how each feature drives them
 
@@ -441,7 +447,7 @@ Larisha (or the coordinator, if she delegates) publishes; we never set the thumb
 | 24 animals × poses at full polish | High | Critter kit: one part library + data table; poses are tweens; areas 4 and 5 are updates |
 | Day-0 traffic below ~10K/day | High | Not under our control (dig §7); win the first 40 s and p_sig, publish fast, updates every 3 days |
 | Load time with Three.js | Medium | Meteor Gems import-map fix, deferred areas, async shader compile, splash |
-| Rating feels unfair to kids | Medium | Min 1★, generous 1.6 s pose window, pose cue icon, slow shutter unlock |
+| Rating feels unfair to kids | Medium | Min 1★, generous 2.0 s pose window + 0.5 s grace, pose cue icon, slow shutter unlock |
 | Camera framing in portrait | Medium | Pitch 0.38, corner and post-cinematic frame tests every round |
 | Night too dark on cheap screens | Low | Grade night toward indigo, not black; emissive lanterns; contrast check |
 | Scope creep (cabin, multiplayer) | Low | Cabin photo wall only in U3; no multiplayer |

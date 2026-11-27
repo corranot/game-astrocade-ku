@@ -168,6 +168,7 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
   // ---- the HUD on four screens: equal margins, one pill height, one top row, brackets inside the HUD
   for (const [w, h] of [[360, 640], [390, 844], [430, 932], [768, 1024]]) {
     const { page, errors } = await open(w, h, '', saved);
+    await ev(page, () => __game.buildAll()); // the animals and scenery build after the first frame
     await ev(page, () => { const f = __game.animals.find((a) => a.id === 'owl'); __game.tp(f.x, f.z + 6); }); await step(page, 60);
     const r = await ev(page, () => {
       // layout boxes without CSS transforms (the ready shutter pulses in scale)

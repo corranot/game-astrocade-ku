@@ -44,7 +44,7 @@ test('slots fill once, pay double the first time, and stamps count them', () => 
   assert.equal(L.stamps(S), 3);
   const f = S.flakes, r3 = L.applyPhoto(c, S, { id: 'fox', stars: 3, inPose: true });
   assert.deepEqual(r3.filled, []); assert.equal(S.flakes - f, r3.flakes);
-  assert.ok(r3.flakes >= c.economy.photo[3]);
+  assert.equal(r3.flakes, Math.round(c.economy.photo[3] * c.economy.repeatK)); // a repeat pays the repeat rate
 });
 
 test('half page and page complete pay once', () => {
@@ -60,7 +60,7 @@ test('areas open at 10 and 25 stamps, reported once', () => {
   const c = cfg(), S = L.createState(c); const opened = [];
   for (const s of c.species) for (const st of [1, 3]) { const r = L.applyPhoto(c, S, { id: s.id, stars: st, inPose: st === 3 }); if (r.opened >= 0) opened.push([r.opened, L.stamps(S)]); }
   assert.deepEqual(opened.map((o) => o[0]), [1, 2]);
-  assert.ok(opened[0][1] >= 10 && opened[0][1] < 13); assert.ok(opened[1][1] >= 25 && opened[1][1] < 28);
+  assert.ok(opened[0][1] >= c.areas[1].unlock && opened[0][1] < c.areas[1].unlock + 3); assert.ok(opened[1][1] >= c.areas[2].unlock && opened[1][1] < c.areas[2].unlock + 3);
 });
 
 test('pacing: area 1 alone can open the lake (8 species x 3 slots >= 10)', () => {
@@ -110,12 +110,13 @@ test('new day: requests roll, mail only for a returning player', () => {
   S.photos = 3; assert.deepEqual(L.rollDay(c, S, KEY + 1), { newDay: true, mail: true });
 });
 
-test('day clock: day, dusk, night, dawn in 6 minutes; first night near 4.5 minutes', () => {
+test('day clock: day, dusk, night, dawn in 6 minutes; first night after day + dusk', () => {
   const c = cfg();
   assert.equal(L.clockAt(c, 0).name, 'day');
   let first = -1; for (let t = 0; t < 600; t++) if (L.clockAt(c, c.clock.startS + t).night) { first = t; break; }
-  assert.ok(first >= 255 && first <= 285, 'first night at ' + first + ' s');
-  const w = L.clockAt(c, 239).w; assert.ok(Math.abs(w.day + w.dusk - 1) < 1e-9 && w.dusk > 0, 'blends into dusk');
+  const ph = c.clock.phases, due = ph[0][1] + ph[1][1] - c.clock.startS;
+  assert.ok(Math.abs(first - due) <= 15 && first >= 200, 'first night at ' + first + ' s');
+  const w = L.clockAt(c, ph[0][1] - 1).w; assert.ok(Math.abs(w.day + w.dusk - 1) < 1e-9 && w.dusk > 0, 'blends into dusk');
 });
 
 test('save round trip keeps progress; bad fields fall back without throwing', () => {
@@ -204,4 +205,45 @@ test('config: every string key exists in all 7 languages; every species has a na
   for (const s of [...c.species, ...c.rares]) assert.ok(c.strings.en['s_' + s.id], s.id);
   for (const r of c.rares) assert.ok(L.speciesById(c, r.base), r.id + ' base');
   assert.equal(c.species.length, 24);
+});
+
+test('repeat photos pay little: the rare bonus is once a day, a filled slot pays the repeat rate', () => {
+  const c = cfg(), S = L.createState(c); S.day = 20261127; const r = c.rares[0].id;
+  const first = L.applyPhoto(c, S, { id: r, stars: 3 }).flakes, again = L.applyPhoto(c, S, { id: r, stars: 3 }).flakes;
+  assert.equal(first, c.economy.photo[3] * c.economy.rareMul); assert.ok(again < first / 5);
+  const sp = c.species[0].id; L.applyPhoto(c, S, { id: sp, stars: 3, inPose: true });
+  assert.equal(L.applyPhoto(c, S, { id: sp, stars: 3, inPose: true }).flakes, Math.round(c.economy.photo[3] * c.economy.repeatK));
+});
+
+test('a goal in another area is reached through the gate corridor', () => {
+  const c = cfg(), g = c.gates[0];
+  const goal = { x: 14, z: -26 }; // meadow
+  assert.equal(L.routeVia(c, [1, -20], goal), goal); // same area: straight there
+  const w1 = L.routeVia(c, [15, -50], goal); assert.ok(w1.via && w1.x === 0 && w1.z < g.z); // lake side mouth first
+  const w2 = L.routeVia(c, [0, g.z - 6], goal); assert.ok(w2.via && w2.z > g.z); // then through into the meadow
+  const w3 = L.routeVia(c, [0, 0], { x: 0, z: -150 }); assert.ok(w3.via && w3.z > c.gates[0].z); // two gates away: the first gate
+});
+
+test('corridor exits never pinch: a hero at the edge of a gate mouth can walk out toward any goal', () => {
+  const c = cfg();
+  for (const g of c.gates) for (const dir of [-1, 1]) for (const x of [-4.4, 0, 4.4]) for (const tx of [-25, 25]) {
+    let p = [x, g.z + dir * 7.5]; const goal = [tx, g.z + dir * 22];
+    for (let i = 0; i < 200; i++) { const dx = goal[0] - p[0], dz = goal[1] - p[1], d = Math.hypot(dx, dz); if (d < 1) break; p = L.slide(c, 3, p[0], p[1], dx / d * 0.2, dz / d * 0.2); }
+    assert.ok(Math.hypot(goal[0] - p[0], goal[1] - p[1]) < 8, `gate ${g.z} dir ${dir} from x ${x} to ${tx}: stopped at ${p.map((v) => v.toFixed(1))}`);
+  }
+});
+
+test('guide: at night an unfinished night visitor goes before a nearer day animal', () => {
+  const S = L.createState(cfg());
+  const animals = [{ id: 'fox', x: 2, z: 0, avail: true }, { id: 'ermine', x: 30, z: 0, avail: true, night: true }];
+  assert.equal(L.guideTarget(S, { hero: [0, 0], animals }).id, 'ermine');
+  S.slots.ermine = 7; assert.equal(L.guideTarget(S, { hero: [0, 0], animals }).id, 'fox');
+});
+
+test('guide: at night without the flash a visitor missing only its 3-star photo is not a goal', () => {
+  const S = L.createState(cfg());
+  const animals = [{ id: 'fox', x: 2, z: 0, avail: true }, { id: 'ermine', x: 30, z: 0, avail: true, night: true }];
+  S.slots.ermine = 3; S.slots.fox = 1;
+  assert.equal(L.guideTarget(S, { hero: [0, 0], animals, noStar: true }).id, 'fox');
+  assert.equal(L.guideTarget(S, { hero: [0, 0], animals, noStar: false }).id, 'ermine');
 });

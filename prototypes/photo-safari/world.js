@@ -61,7 +61,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x9cb4d8, 1.05); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff4e2, 2.3); sun.castShadow = true;
   sun.shadow.camera.left = -16; sun.shadow.camera.right = 16; sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -16; sun.shadow.camera.near = 1; sun.shadow.camera.far = 70;
-  sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03; sun.shadow.intensity = cfg.grade.shadowI; // a lighter, bluer shadow so big tree shapes don't read as flat holes
+  sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03; sun.shadow.intensity = cfg.grade.shadowI; sun.shadow.radius = cfg.grade.shadowR; // a lighter, bluer shadow so big tree shapes don't read as flat holes
   scene.add(sun); scene.add(sun.target);
   // the hero's lantern: a warm pool of light on the snow around Pip after dusk, drawn in the terrain shader (a real
   // point light would add a light loop to every shader and slow the first frame)
@@ -100,8 +100,8 @@ export function createWorld(canvas, cfg, opts = {}) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vW; uniform float uTime; uniform float uGlint; uniform vec4 uLamp; uniform float uLampR;\nfloat gh(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }')
       // wind-carved drifts: long soft ripples that catch the sun and keep a blue trough, plus a fine crust grain, both
       // fading out with distance so the far field stays calm
-      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat rf = smoothstep(60.0, 6.0, length(vW - cameraPosition)); float rw = vW.x * 0.9 + vW.z * 0.42 + sin(vW.z * 0.31 + vW.x * 0.17) * 2.2; float rp = sin(rw * 1.9);\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.8, 0.9, 1.06), rf * 0.8 * smoothstep(-0.2, -1.0, rp));\ndiffuseColor.rgb *= 1.0 - rf * 0.05 * gh(floor(vW * 2.5));')
-      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n{ float rc = cos(rw * 1.9) * 1.9 * rf * 0.2; normal = normalize(normal - (viewMatrix * vec4(rc * 0.9, 0.0, rc * 0.42, 0.0)).xyz); }')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat rf = smoothstep(60.0, 6.0, length(vW - cameraPosition)); float rw = vW.x * 0.9 + vW.z * 0.42 + sin(vW.z * 0.31 + vW.x * 0.17) * 2.2; float rp = sin(rw * 1.9); rf *= 0.35 + 0.65 * smoothstep(-0.3, 0.8, sin(vW.x * 0.07 + vW.z * 0.11 + sin(vW.z * 0.05) * 2.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.84, 0.92, 1.05), rf * 0.5 * smoothstep(-0.2, -1.0, rp));\ndiffuseColor.rgb *= 1.0 - rf * 0.05 * gh(floor(vW * 2.5));')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n{ float rc = cos(rw * 1.9) * 1.9 * rf * 0.1; normal = normalize(normal - (viewMatrix * vec4(rc * 0.9, 0.0, rc * 0.42, 0.0)).xyz); }')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ vec3 cell = floor(vW * 9.0); float g = gh(cell + floor(cameraPosition * 1.5)); float sp = step(0.9975, g) * uGlint * smoothstep(40.0, 8.0, length(vW - cameraPosition)); totalEmissiveRadiance += vec3(1.6, 1.75, 2.0) * sp; }\n{ float ld = 1.0 - clamp(length(vW - uLamp.xyz) / uLampR, 0.0, 1.0); totalEmissiveRadiance += diffuseColor.rgb * vec3(1.0, 0.62, 0.3) * uLamp.w * 0.06 * ld * ld; }');
   };
   const terrain = new THREE.Mesh(tg, terrainMat); terrain.receiveShadow = true; scene.add(terrain);
@@ -143,7 +143,8 @@ export function createWorld(canvas, cfg, opts = {}) {
  vWp = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
  { vec3 ip = (modelMatrix * instanceMatrix * vec4(0.0, 2.5, 0.0, 1.0)).xyz, sg = uHero - cameraPosition;
    float tt = clamp(dot(ip - cameraPosition, sg) / max(dot(sg, sg), 1e-3), 0.0, 1.0);
-   vSee = (1.0 - smoothstep(uSeeR * 0.8, uSeeR * 1.6, length(ip - (cameraPosition + sg * tt)))) * step(tt, 0.97); }
+   vSee = (1.0 - smoothstep(uSeeR * 0.8, uSeeR * 1.6, length(ip - (cameraPosition + sg * tt)))) * step(tt, 0.97);
+   vSee = max(vSee, 1.0 - smoothstep(4.5, 7.5, length(ip.xz - cameraPosition.xz)) * step(cameraPosition.y, ip.y + 1.5)); }
 #else
  vWp = (modelMatrix * vec4(transformed, 1.0)).xyz; vSee = 0.0;
 #endif`);
@@ -240,6 +241,53 @@ export function createWorld(canvas, cfg, opts = {}) {
     return m;
   };
   const W = C('#f4f9ff');
+  // ---- mid-field dressing: snowy shrubs with red berries and fallen logs (instanced, one draw each), so open fields
+  // have shapes at middle distance; a few stand in the first frame, the rest build after it
+  const drift = (n) => C('#f2f7ff').lerp(C('#a9c6ec'), Math.max(0, 0.55 - n.y) * 0.9);
+  const shrubGeo = keep(merge([
+    ...[[0, 0.35, 0, 0.75, 0.55, 0.7], [0.55, 0.25, 0.2, 0.5, 0.4, 0.5], [-0.5, 0.22, -0.15, 0.5, 0.38, 0.45], [0.1, 0.62, -0.1, 0.45, 0.36, 0.45]].map(([x, y, z, a, b, c], i) => ({ g: sph(7), m: M4(x, y, z, a, b, c), col: (n) => C(i % 2 ? '#2f6b5a' : '#3a7564').multiplyScalar(0.7 + 0.3 * Math.max(0, n.y)) })),
+    ...[[0, 0.78, 0, 0.6, 0.2, 0.55], [0.55, 0.55, 0.2, 0.42, 0.14, 0.4], [-0.5, 0.5, -0.15, 0.4, 0.13, 0.36]].map(([x, y, z, a, b, c]) => ({ g: sph(7), m: M4(x, y, z, a, b, c), col: (n) => W.clone().lerp(C('#b4c8e6'), Math.max(0, -n.y) * 0.8) })),
+    ...[0, 1, 2, 3, 4].map((i) => ({ g: sph(4), m: M4(Math.cos(i * 1.4) * 0.62, 0.36 + (i % 2) * 0.12, Math.sin(i * 1.4) * 0.55, 0.07, 0.07, 0.07), col: C('#d8443a') })),
+    { g: sph(9), m: M4(0, 0, 0, 1.25, 0.25, 1.05), col: drift },
+  ]));
+  const logGeo = keep(merge([
+    { g: new THREE.CylinderGeometry(0.28, 0.32, 3.2, 9), m: M4(0, 0.26, 0, 1, 1, 1, 0, 0, Math.PI / 2), col: (n) => C('#6a4630').multiplyScalar(0.75 + 0.25 * Math.max(0, n.y)) },
+    ...[-1, 1].map((sx) => ({ g: new THREE.CircleGeometry(0.27, 9), m: M4(sx * 1.61, 0.26, 0, 1, 1, 1, 0, sx * Math.PI / 2, 0), col: C('#c9a074') })),
+    { g: sph(8), m: M4(0, 0.5, 0, 1.5, 0.11, 0.24), col: W },
+    { g: new THREE.CylinderGeometry(0.05, 0.08, 0.8, 5), m: M4(0.6, 0.6, 0.12, 1, 1, 1, 0.5, 0, -0.6), col: C('#5a4030') },
+    { g: sph(9), m: M4(-1.2, 0.05, 0.35, 0.8, 0.25, 0.6), col: drift }, { g: sph(9), m: M4(1.1, 0.05, -0.35, 0.7, 0.22, 0.5), col: drift },
+  ]));
+  const dress = (geo, list) => { if (!list.length) return; const m = new THREE.InstancedMesh(geo, rocks.material, list.length); list.forEach((t, i) => m.setMatrixAt(i, t)); m.castShadow = true; m.receiveShadow = true; m.computeBoundingSphere(); scene.add(m); };
+  const shrubAt = ([x, z, s = 1]) => M4(x, L.terrainH(cfg, x, z) - 0.05, z, s, s, s, 0, x * 1.7 + z);
+  const logAt = ([x, z, yaw]) => M4(x, L.terrainH(cfg, x, z) - 0.04, z, 1, 1, 1, 0, yaw);
+  dress(shrubGeo, cfg.world.startShrubs.map(shrubAt)); dress(logGeo, cfg.world.startLogs.map(logAt));
+  /** Builds after the first frame: shrubs and logs across the fields, and the frozen streams with snowy banks. */
+  const dressFields = () => {
+    const R3 = L.rng(cfg.seed + 11), sh = cfg.world.shrubAt.map(shrubAt);
+    for (let i = 0; i < 2000 && sh.length < cfg.world.shrubs; i++) {
+      const a = cfg.areas[Math.floor(R3() * cfg.areas.length)], t = R3() * 6.283, k = 0.35 + R3() * 0.5, x = a.c[0] + Math.sin(t) * a.r[0] * k, z = a.c[1] + Math.cos(t) * a.r[1] * k;
+      if (!clearOf(x, z, 7) || Math.abs(x - Math.sin(z * 0.045) * 3) < 5) continue; // clear of homes, so no shrub blocks a photo
+      sh.push(shrubAt([x, z, 0.7 + R3() * 0.5]));
+    }
+    dress(shrubGeo, sh); dress(logGeo, cfg.world.logs.map(logAt));
+    const ice = keep(new THREE.MeshStandardMaterial({ color: 0x9fd6ee, roughness: 0.1, metalness: 0.05, emissive: 0x1d5a80, emissiveIntensity: 0.3, side: THREE.DoubleSide }));
+    // a ribbon that follows the ground: the ice down the middle, laid over a wider snow lip so its edges stay soft
+    const ribbon = (curve, n, wk, lift, col) => {
+      const pos = [], nor = [], cl = [], idx = [];
+      for (let i = 0; i <= n; i++) {
+        const p = curve.getPointAt(i / n), tg = curve.getTangentAt(i / n), w = cfg.world.streamW * wk * (0.85 + 0.25 * Math.sin(i * 0.7)), nx = -tg.z * w / 2, nz = tg.x * w / 2;
+        for (const sx of [-1, 1]) { const x = p.x + nx * sx, z = p.z + nz * sx; pos.push(x, L.terrainH(cfg, x, z) + lift, z); nor.push(0, 1, 0); cl.push(col.r, col.g, col.b); }
+        if (i < n) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+      }
+      const g = keep(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); g.setIndex(idx);
+      return g;
+    };
+    for (const pts of cfg.world.streams) {
+      const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z))), n = Math.ceil(curve.getLength() / 0.8);
+      const lip = new THREE.Mesh(ribbon(curve, n, 1.7, 0.07, C('#eef5ff')), propMat); lip.receiveShadow = true; scene.add(lip);
+      const m = new THREE.Mesh(ribbon(curve, n, 1, 0.12, C('#ffffff')), ice); m.receiveShadow = true; scene.add(m);
+    }
+  };
   // snowman
   place([{ g: sph(), m: M4(0, 0.6, 0, 0.7, 0.62, 0.7), col: W }, { g: sph(), m: M4(0, 1.45, 0, 0.5, 0.46, 0.5), col: W }, { g: sph(), m: M4(0, 2.1, 0, 0.36, 0.34, 0.36), col: W },
     { g: new THREE.ConeGeometry(0.07, 0.42, 8), m: M4(0, 2.1, 0.5, 1, 1, 1, Math.PI / 2), col: C('#ff8a2e') },
@@ -387,7 +435,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     sun.color.copy(blend(w, 'sun')); sun.intensity = num(w, 'sunI');
     hemi.color.copy(blend2(w, 'hemi', 0)); hemi.groundColor.copy(blend2(w, 'hemi', 1)); hemi.intensity = num(w, 'hemiI');
     skyU.uAur.value = num(w, 'aurora'); skyU.uStars.value = w.night + w.dusk * 0.3 + w.dawn * 0.3; night = w.night + w.dusk * 0.4 + w.dawn * 0.3;
-    const sunUp = 0.75 - w.dusk * 0.55 - w.night * 0.2 - w.dawn * 0.5;
+    const sunUp = cfg.grade.sunUp - w.dusk * 0.55 - w.night * 0.2 - w.dawn * 0.5;
     sunDir.set(0.45 - w.dusk * 0.5, Math.max(0.12, sunUp), 0.35).normalize();
     if (w.night > 0.5) sunDir.set(-0.35, 0.7, 0.3).normalize(); // the moon
     skyU.uSunDir.value.copy(sunDir); skyU.uSunCol.value.copy(sun.color).multiplyScalar(w.night > 0.5 ? 0.35 : 1);
@@ -504,7 +552,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
     renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake,
-    setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); },
+    setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
     get tier() { return tier; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
   };
