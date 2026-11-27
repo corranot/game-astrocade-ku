@@ -84,14 +84,14 @@ content wish Larisha sent to Astra (18:27–18:44 UTC) that was never published:
 | Game | Live (served) version | Draft waiting | Draft runs? | Share in draft |
 |---|---|---|---|---|
 | Reel & Hatch | 22 Nov | New sea + limited event + rare-catch share (26 Nov "continue") | Yes, title and beach (`shots/REEL-draft-*`) | sends `image: canvas` |
-| Pin & Bloom | 22 Nov | Snow Garden, levels 41–60, snow melts to water (26 Nov "continue") | Yes, opens at Level 41 (`shots/PIN-draft-*`) | none |
+| Pin & Bloom | 22 Nov | Snow Garden, levels 41–60, snow melts to water (26 Nov "continue") | Yes, opens at Level 41 (`shots/PIN-draft-*`) | sends `image` (`src/app.js`; first search missed it) |
 | Paws & Chaos | 25 Nov 17:01 (bounce fix) | Funny first 5 s, first golden fish in 30 s | Yes (`shots/PAWS-draft-play.jpg`) | sends `image` |
 | Ice Cream Roll Art | 21 Nov | One-tap share of the finished cup + winter flavours | Yes (`shots/ICE-draft-play.jpg`) | sends `image` |
 | NEKO ZOOMIES | 24 Nov | First MEGA ZOOMIES within 30 s | not opened | sends `image` |
 | Grab and Park | 22 Nov | Extra effects, sounds and a share moment | not opened | sends `image` (`share_card.js`) |
 
 Our standing rule: in-game share passes a title and text only, so the share card shows the live thumbnail.
-All five shares above pass `image`. Fix: drop the `image` field (one line each) before publishing.
+All six shares above pass `image`. Fix: drop the `image` field (one line each) before publishing.
 
 ## Problems, ranked
 
@@ -143,3 +143,32 @@ back), deleting anything, or touching the 17 dead games.
 
 Next step for whoever picks this up: pull each draft, remove `image` from `lib.share`, save the draft, test
 the feed handover, then hand to Larisha to publish. Larisha publishes; nothing here was published.
+
+## Fix round (27 Nov 08:05–08:25 UTC)
+
+Saved as private drafts through the Astrocade MCP. Nothing was published and no thumbnail was touched.
+Screenshots: `fixes/`. Checks: `fixes/verify.js` (draft folder served locally, host `lib` stubbed,
+`run('edit')` then `run('play')`, a tap, at 390×844, 360×640 and 768×1024), the repo's
+`tools/astrocade-bundle-test.js`, the game's own unit tests, and the saved draft opened on astrocade.com in
+Larisha's signed-in Chrome.
+
+| Game | Change | Draft version | Checked | Ready to publish |
+|---|---|---|---|---|
+| Reel & Hatch | rare-catch share sends title + text, no image (`js/88_event_ui.js` and built `game.js`) | `01M8E08YG6Q0PMNE747M58XV9D` | 22 unit test files pass; bundle test: started, no errors, tap reaches host; handover at 3 sizes, 0 errors | Yes |
+| Pin & Bloom | garden share sends title + text, no image (`src/app.js`); the in-game garden card stays | `01M8E0FTE0EDX7Y5TBZXF2HTX9` | unit test (60 levels) pass; handover at 3 sizes, 0 errors | Yes |
+| Paws & Chaos | share sends title + text, no image | `01M8E0GN1WH409YBEY4FW2JZV4` | diff against the pre-fix draft is that one line; syntax check; draft plays on astrocade.com | Yes |
+| NEKO ZOOMIES | share sends title + text, no image | `01M8E0GPS902R1AAVC7Q7M3G4R` | draft plays on astrocade.com | Yes |
+| Ice Cream Roll Art | share sends title + description, no image | `01M8E0GRE1NNF5MSBWXSBJSTTT` | draft plays on astrocade.com | Yes |
+| Grab and Park | share sends title + text, no image (`share_card.js`) | `01M8E0GVGD5YW2MMHFH76CFFD6` | draft plays on astrocade.com | Yes |
+| +1 Mega Hammer | opening fly-in runs on real time and the save wait drops from 1.2 to 0.8 s | `01M8E0RMWKPHENKPD2KYEH04J1` | see below; logic tests pass; draft plays on astrocade.com | Yes |
+| Voxel Wonderland | title-screen subtitle "Sky Realms" changed to "Sky Island Builder" in all 7 languages, plus the page title | `01M8E0WT5YW2AP3PR9MTM2K9WB` | title fits at 360×640, 390×844 and 768×1024, English and Indonesian; 0 errors | Yes |
+
+**Mega Hammer, what was wrong:** the intro was already tap-skippable after 0.25 s and 3.5 s long, but it
+advanced on frame time capped at 0.05 s per frame. On a slow device the 3.5 s intro stretched: at about 6 fps
+(headless renderer) it had covered only 2.9 s of intro after 18 s of real time (`fixes/MH-before-9.jpg`).
+After the fix the same run reaches play about 5 s after `run('play')` even at 6 fps, and well under that at
+normal phone frame rates (`fixes/MH-after-9.jpg`). Same change in the repo: `prototypes/plus-one-mega-hammer/game.js`.
+
+Not covered: the share buttons on Paws, NEKO, Ice Cream and Grab were not pressed in a local harness, because
+those games open their share card only late in play. Each change only removes the `image` field from one
+object literal.
