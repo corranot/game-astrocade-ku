@@ -508,7 +508,7 @@ export function createScene(canvas, cfg, random) {
   // house, uLit[i] blends it from its ghost colour to its real one, swaps boards for bunting and lights the windows)
   const GH = [[-4.6, 19.7, 0.08, 3.8, 3.6, 0xe8a27a, PAL.cream, PAL.terraDark], [0.2, 20.1, 0, 4.2, 4.4, 0x7ab8b0, PAL.cream, PAL.woodDark], [4.9, 19.7, -0.08, 3.8, 3.8, 0xe6c56a, PAL.woodDark, PAL.red]];
   for (const g of GH) { g[0] = sx(g[0]); g[1] = sz(g[1]); }
-  const ghostU = { uLit: { value: [0, 0, 0] }, uWin: { value: 0 }, uFade: { value: LK.nearFade ?? 0.22 } };
+  const ghostU = { uLit: { value: [0, 0, 0] }, uWin: { value: 0 }, uFade: { value: LK.nearFade ?? 0.22 }, uGone: { value: 0 } };
   const ghostMat = K(mat.clone());
   ghostMat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, ghostU);
@@ -518,7 +518,7 @@ export function createScene(canvas, cfg, random) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat gk = int(aIdx + 0.5) == 0 ? uLit[0] : int(aIdx + 0.5) == 1 ? uLit[1] : uLit[2]; float hide = aKind > 1.5 ? step(gk, 0.5) : aKind > 0.5 ? step(0.5, gk) : 0.0; transformed.y -= hide * 60.0;');
     // near the camera the houses would fill the joystick band at the bottom of the frame: there they dissolve with a
     // 4x4 ordered dither (no transparency sort, same draw), a short dissolved edge, nothing below it
-    s.fragmentShader = 'uniform float uWin; uniform float uFade; varying float vK; varying float vWin; varying vec4 vClip;\n' + s.fragmentShader.replace('void main() {', 'void main() {\nif (uFade > 0.0) { float sy = vClip.y / vClip.w * 0.5 + 0.5; float f = clamp((uFade - sy) / 0.05, 0.0, 1.0); ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0)); const float bm[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.); if (f > (bm[q.x + q.y * 4] + 0.5) / 16.0) discard; }').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.72, 0.38) * vWin * vK * uWin;');
+    s.fragmentShader = 'uniform float uWin; uniform float uFade; uniform float uGone; varying float vK; varying float vWin; varying vec4 vClip;\n' + s.fragmentShader.replace('void main() {', 'void main() {\nif (uFade > 0.0) { float sy = vClip.y / vClip.w * 0.5 + 0.5; float f = max(clamp((uFade - sy) / 0.05, 0.0, 1.0), uGone); ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0)); const float bm[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.); if (f > (bm[q.x + q.y * 4] + 0.5) / 16.0) discard; }').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.72, 0.38) * vWin * vK * uWin;');
   };
   const ghostTown = mesh(M.buildGhostTown(GH), ghostMat, false);
   const ghostFx = { k: [0, 0, 0], to: [0, 0, 0] };
@@ -707,6 +707,13 @@ export function createScene(canvas, cfg, random) {
   cloudShadowTex.colorSpace = THREE.NoColorSpace; cloudShadowTex.wrapS = cloudShadowTex.wrapT = THREE.RepeatWrapping; cloudShadowTex.repeat.set(2.2, 2.2);
   const cloudShadow = new THREE.Mesh(K(new THREE.PlaneGeometry(170, 170).rotateX(-Math.PI / 2)), K(new THREE.MeshBasicMaterial({ color: FROST ? 0x3a3f6a : 0x5a2e1a, alphaMap: cloudShadowTex, transparent: true, opacity: LK.cloudShadow, depthWrite: false })));
   cloudShadow.position.set(0, 0.21, 0); cloudShadow.renderOrder = 1; scene.add(cloudShadow);
+  // close to the camera a cloud shadow is a big dark wedge over the joystick band: it fades out there, like the ghost town
+  cloudShadow.material.onBeforeCompile = (sh) => {
+    sh.uniforms.uFade = ghostU.uFade;
+    sh.vertexShader = 'varying vec4 vClip;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvClip = gl_Position;');
+    sh.fragmentShader = 'uniform float uFade; varying vec4 vClip;\n' + sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= smoothstep(uFade, uFade + 0.12, vClip.y / vClip.w * 0.5 + 0.5);');
+  };
+
   // ---- birds circling high over the town (one instanced draw; wings flap by tilting each bird's two halves)
   const birdGeo = K(M.merge([-1, 1].map((sd) => M.paint(M.at(new THREE.BoxGeometry(0.9, 0.05, 0.28), sd * 0.42, 0, 0, 0, 0, sd * 0.25), FROST ? 0x4a4f78 : 0x5a3a3a))));
   const birds = new THREE.InstancedMesh(birdGeo, mat, 7); birds.frustumCulled = false; birds.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(birds);
@@ -1051,6 +1058,9 @@ export function createScene(canvas, cfg, random) {
 
   /** Per frame: hat, mine cart, ghost town lights, gondolas, neon, the finale's heart and comet, night fireflies. */
   function m3Update(S, dt) {
+    // as the house row nears the dissolve band the whole row dissolves quickly, then is dropped (no dithered roof tip
+    // left over the joystick, which the tilt blur would smear into a grey shadow)
+    if (ghostU.uFade.value > 0) { let top = 0; for (const g of GH) top = Math.max(top, 1 - toScreen(g[0], g[4] + 2.4, g[1])[1]); const gone = Math.min(1, Math.max(0, (ghostU.uFade.value + 0.06 - top) / 0.06)); ghostU.uGone.value = gone; ghostTown.visible = gone < 1; }
     silMat.opacity = (LK.silhouetteAlpha ?? 0.62) * (0.8 + 0.2 * Math.sin(tAll * 5)); // a slow pulse draws the eye to the hidden hero
     if (S.hat !== hatOn && hatGeos[S.hat]) { hatOn = S.hat; hatMesh.geometry = hatGeos[S.hat]; for (const [m, o] of heroSil) o.geometry = m.geometry; }
     // mine cart: waits at its stop (gems ride in it), rolls along the rail to the next dark house, then comes back
