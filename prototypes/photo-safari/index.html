@@ -196,6 +196,8 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes tapf{0%,100%{transform:scale(1)}40%{transform:scale(.78)}}
 @keyframes drag{0%,100%{transform:translate(calc(var(--u)*-50px),0)}50%{transform:translate(calc(var(--u)*50px),calc(var(--u)*-60px))}}
 @keyframes sheetIn{from{transform:translateY(60%)}}
+/* today's list is short: the sheet hugs its rows instead of leaving half a page empty */
+.sheet.fit{height:auto;max-height:84%;padding-bottom:calc(var(--sb) + var(--u)*32px)}
 @media (prefers-reduced-motion: reduce){#app::before,.shutter.ready,.bookB.dot em,.treat.glow,.edge i,.hand,.toast,.tick,.coach,.bub,.sheet,.card.shake{animation:none}}
 </style>
 </head>
