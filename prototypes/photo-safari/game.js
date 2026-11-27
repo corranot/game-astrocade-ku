@@ -272,7 +272,7 @@ export function run(mode = 'play') {
     b.k = b.t < e ? b.t / e : b.t > d - e ? Math.max(0, (d - b.t) / e) : 1; b.k = b.k * b.k * (3 - 2 * b.k);
     if (b.slow && b.t > e && b.t < e + 0.45) timeScale = cfg.beats.slowMo;
     if (b.t >= d) { beats.cur = null; beats.cool = cfg.beats.cooldownS; $('cine').classList.remove('on'); return null; }
-    return { pos: b.pos(b.t), look: b.look(b.t), fov: b.fov || 40, k: b.k };
+    return { pos: b.pos(b.t), look: b.look(b.t), fov: b.fov || 40, k: b.k, clear: !!b.clear };
   }
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   const beatAt = (a, opts = {}) => ({ pri: opts.pri || 2, dur: opts.dur || 1.6, bars: true, slow: !!opts.slow, sting: opts.sting, fov: 40,
@@ -420,7 +420,7 @@ export function run(mode = 'play') {
   function hideLogo() { const l = $("logo"); if (l) l.classList.add("gone"); logoT = 0; }
 
   // ---- the viewfinder target: the nearest present animal in range
-  let vf = 0, aim = null, aimA = null, vfFov = cfg.camera.vfFov;
+  let vf = 0, aim = null, aimA = null, vfFov = cfg.camera.vfFov, focusK = 0, focusAt = null;
   function nearest(range) {
     let best = null, bd = range;
     for (const a of animals) {
@@ -527,9 +527,9 @@ export function run(mode = 'play') {
     const gp = V3(0, L.terrainH(cfg, 0, g.z), g.z);
     // the camera frames the gate, the shards burst, then it rises and glides through toward the new place
     const glide = (t) => { const k = Math.max(0, Math.min(1, (t - 1.2) / 1.5)); return k * k * (3 - 2 * k); };
-    beat({ pri: 6, dur: 3.2, bars: true, slow: false, sting: null, fov: 48,
+    beat({ pri: 6, dur: 3.2, bars: true, slow: false, sting: null, fov: 48, clear: true,
       pos: (t = 0) => V3(gp.x + 2.8, gp.y + 3.2, gp.z + 12).lerp(V3(gp.x + 1, gp.y + 4, gp.z + 1), glide(t)),
-      look: (t = 0) => V3(gp.x, gp.y + 1.8, gp.z).lerp(V3(gp.x, gp.y + 0.5, gp.z - 18), glide(t)),
+      look: (t = 0) => V3(gp.x, gp.y + 1.8, gp.z).lerp(V3(gp.x, gp.y + 2.4, gp.z - 18), glide(t)),
       start: () => setTimeout(() => {
         if (!alive) return;
         W.openGate(i - 1); Sound.crack(); W.shake.t = 0.4; W.shake.a = 0.12;
@@ -789,7 +789,7 @@ export function run(mode = 'play') {
     if (play || mode === 'edit') S.clock += dt;
     if (play) playT += rdt;
     // day clock and light
-    const cl = L.clockAt(cfg, S.clock); W.setTod(cl.w); W.uTime.value = t;
+    const cl = L.clockAt(cfg, S.clock); W.setTod(cl.w); W.uTime.value = t; mats.night.value = W.night; H.mats.lamp.emissiveIntensity = 0.2 + W.night * 3;
     if (cl.night && !wasNight && play && !nightSeen) { nightSeen = true; beat({ pri: 1, dur: 2, bars: true, sting: 'night', fov: 50, pos: () => V3(hero.x, hero.y + 2.5, hero.z + 6), look: () => V3(hero.x, hero.y + 6, hero.z - 26) }); toast(T('night')); }
     wasNight = cl.night;
     // simulation
@@ -800,7 +800,11 @@ export function run(mode = 'play') {
     const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen ? 1 : 0;
     vf += (wantVf - vf) * Math.min(1, rdt / cfg.camera.vfEase * 2.2); if (vf < 0.01) vf = 0;
     if (a) { aimA = a; aim = V3(a.x, a.y + a.parts.centerY, a.z); vfFov = fovFor(a, Math.hypot(a.x - hero.x, a.z - hero.z)); } else if (vf === 0) { aimA = null; aim = null; }
-    W.updateCamera(rdt, hero, vf, aim, vfFov, b);
+    // treat moments: a shy animal close by pulls the camera in so both read at a glance
+    const shy = vf < 0.05 && !bookOpen ? shyNear() : null;
+    focusK += ((shy ? 1 : 0) - focusK) * Math.min(1, rdt * 2.5); if (shy) focusAt = shy;
+    W.fogK = 1 - (b && b.clear ? cfg.beats.clearFog * b.k : 0); // the unlock beat looks across the valley: thin the haze
+    W.updateCamera(rdt, hero, vf, aim, vfFov, b, focusAt && focusK > 0.001 ? { x: focusAt.x, y: focusAt.y, z: focusAt.z, k: focusK * (1 - vf) } : null);
     // the rare visitor's first sighting
     const rare = animals.find((q) => q.rare);
     if (rare && !sawRare && play && rare.parts.group.visible && Math.hypot(rare.x - hero.x, rare.z - hero.z) < 20 && S.rareDay !== S.day) { sawRare = true; beat(beatAt(rare, { pri: 4, dur: 1.6, sting: 'rare' })); Sound.shimmer(); }

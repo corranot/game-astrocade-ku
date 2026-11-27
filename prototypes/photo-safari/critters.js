@@ -47,16 +47,20 @@ function fur(main, belly, opt = {}) {
   };
 }
 
-/** Shared materials: soft fur with a rim light that reads as fluff, glossy eyes, an emissive variant for rare visitors. */
+/**
+ * Shared materials: soft fur with a rim light that reads as fluff (lighter on the back, cooler underneath), glossy eyes,
+ * an emissive variant for rare visitors. `night` (0..1) adds a moonlit edge so animals read against the night snow.
+ */
 export function critterMaterials() {
+  const night = { value: 0 };
   const rim = (mat, strength, glow = 0) => {
     mat.onBeforeCompile = (sh) => {
-      sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow };
+      sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow }; sh.uniforms.uNight = night;
       // pale fur gets a cool blue-grey edge so white animals keep their outline on snow; the rim light stays soft on
       // them, and the glow of a rare visitor is a warm gold edge instead of a white blow-out
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow;')
-        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat fr0 = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 1.8);\nfloat pale = smoothstep(0.62, 0.9, dot(diffuseColor.rgb, vec3(0.333)));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.62, 0.84), fr0 * pale * 0.85);')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * fr * uRim * (1.0 - 0.75 * pale) + mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.42), 0.5) * uGlow * (0.15 + fr * 0.9);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow; uniform float uNight;')
+        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat fr0 = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 1.8);\nfloat pale = smoothstep(0.62, 0.9, dot(diffuseColor.rgb, vec3(0.333)));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.62, 0.84), fr0 * pale * 0.85);\nfloat upF = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));\ndiffuseColor.rgb *= mix(vec3(0.8, 0.84, 0.94), vec3(1.04, 1.02, 0.98), smoothstep(-0.7, 0.8, upF));')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * fr * uRim * (1.0 - 0.75 * pale) + vec3(0.55, 0.7, 1.0) * fr * uNight * 0.6 + mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.42), 0.5) * uGlow * (0.15 + fr * 0.9);');
       mat.userData.sh = sh;
     };
     return mat;
@@ -65,7 +69,7 @@ export function critterMaterials() {
   const glow = rim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0 }), 1.2, 0.9);
   const eye = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0 });
   const mouth = new THREE.MeshStandardMaterial({ color: 0x8a2c3a, roughness: 0.7 });
-  return { fur, glow, eye, mouth };
+  return { fur, glow, eye, mouth, night };
 }
 
 /** Eyes (dark, glossy, two catchlights), merged into one mesh. Positioned on a head of radius r at the front. */
@@ -281,7 +285,15 @@ export function buildHero(look) {
     { g: new THREE.BoxGeometry(1, 1, 1), m: M4(0.16, 0.12, 0.125, 0.1, 0.06, 0.01), col: C('#fff8ef') },
     { g: new THREE.BoxGeometry(1, 1, 1), m: M4(-0.15, 0.19, 0, 0.12, 0.05, 0.1), col: C('#e8513a') },
   ]), matCam, cam);
-  return { group, inner, head, hat, pom, arms, legs, cam, parka, mats: { parka: matParka, hat: matHat, cam: matCam }, pomV: 0, pomY: 0 };
+  // a small lantern on the belt: dark by day, a warm glow at night (world.js adds its light)
+  const lantern = new THREE.Group(); lantern.position.set(-0.4, 0.62, 0.12); inner.add(lantern);
+  add(merge([
+    { g: cyl(8), m: M4(0, 0.13, 0, 0.07, 0.04, 0.07), col: C('#3a2c22') },
+    { g: cyl(8), m: M4(0, -0.11, 0, 0.09, 0.03, 0.09), col: C('#3a2c22') },
+  ]), matSkin, lantern);
+  const matLamp = new THREE.MeshStandardMaterial({ color: 0xffe2b0, roughness: 0.3, emissive: 0xffa040, emissiveIntensity: 0.2 });
+  add(sph(10).scale(0.075, 0.1, 0.075), matLamp, lantern);
+  return { group, inner, head, hat, pom, arms, legs, cam, parka, lantern, mats: { parka: matParka, hat: matHat, cam: matCam, lamp: matLamp }, pomV: 0, pomY: 0 };
 }
 
 /** Hero animation: walk cycle, breathing, the pom-pom on a spring, the camera raised as `vf` goes 0..1. */
@@ -292,6 +304,7 @@ export function animateHero(H, t, dt, walk, vf) {
   H.arms[0].rotation.set(-sw * 0.5 * (1 - vf) - vf * 1.3, 0, 0.1 - vf * 0.25); H.arms[1].rotation.set(sw * 0.5 * (1 - vf) - vf * 1.3, 0, -0.1 + vf * 0.25);
   H.cam.position.set(0, 0.98 + vf * 0.45, 0.42 + vf * 0.02);
   H.head.rotation.x = -vf * 0.12;
+  H.lantern.rotation.z = sw * 0.35;
   // pom-pom spring
   const target = -H.inner.position.y * 3;
   H.pomV += ((target - H.pomY) * 120 - H.pomV * 9) * dt; H.pomY += H.pomV * dt;
