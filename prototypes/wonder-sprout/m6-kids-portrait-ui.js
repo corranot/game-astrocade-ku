@@ -85,7 +85,9 @@ export function createUI(world) {
     const hatch = (k.eggReady() ? 1 : 0) || (s.eggs.length === 0 && s.starGems >= E.eggCost.meadow ? 1 : 0);
     const kingdom = (!s.planted && s.activeLandmark < 6) || (k.activeNeeds() && s.starGems >= 50);
     const evo = s.critters.some((c) => k.canEvolve(c));
-    return [hatch, kingdom, evo];
+    // at most one badge, on the most useful next action: a ready egg, then an evolution, then the kingdom
+    const best = hatch && k.eggReady() ? 0 : evo ? 2 : kingdom ? 1 : hatch ? 0 : -1;
+    return [best === 0, best === 1, best === 2];
   };
   // ---------- layout ----------
   const dockRect = (i) => ({ x: mir(DOCK.x0 + i * (DOCK.w + DOCK.gap), DOCK.w), y: DOCK.top, w: DOCK.w, h: DOCK.bh });
@@ -199,9 +201,11 @@ export function createUI(world) {
     const g = { x: mir(HUD.gem.x, HUD.gem.w), y: HUD.y, w: HUD.gem.w, h: HUD.h }; R.gemPill = g;
     pill(ctx, g.x, g.y, g.w, g.h, V.pills.gem); gemIcon(ctx, g.x + 40, g.y + 36, 1.7); text(ctx, fmt(s.starGems), g.x + 76, g.y + 38, 34, PAL.cream, 900, 'left', g.w - 92);
     const w = { x: mir(HUD.wood.x, HUD.wood.w), y: HUD.y, w: HUD.wood.w, h: HUD.h }; R.woodPill = w;
-    // the wood counter appears (springing in) with the first wood; before that its slot stays empty
-    const wk = spring(U.woodIn, s.stats.wood > 0 || s.magicWood >= 1 ? 1 : 0, 1 / 60);
-    if (wk > 0.02) { ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(wk, wk); ctx.translate(-w.x - w.w / 2, -w.y - w.h / 2); pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore(); }
+    // fixed slot: the wood pill is always there so the row never jumps; it pops when the first wood lands
+    const wk = spring(U.woodIn, s.stats.wood > 0 || s.magicWood >= 1 ? 1 : 0, 1 / 60), pop = 1 + Math.max(0, Math.sin(Math.min(1, wk) * Math.PI)) * 0.08;
+    ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(pop, pop); ctx.translate(-w.x - w.w / 2, -w.y - w.h / 2);
+    pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); ctx.globalAlpha = 0.45 + 0.55 * clamp(wk, 0, 1);
+    if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore();
     const k = { x: mir(HUD.track.x, HUD.track.w), y: HUD.y, w: HUD.track.w, h: HUD.h }; R.track = k;
     pill(ctx, k.x, k.y, k.w, k.h, 0);
     ctx.save(); ctx.strokeStyle = rgba(PAL.cream, 0.5); ctx.lineWidth = 4; ctx.setLineDash([4, 8]); ctx.beginPath(); ctx.moveTo(k.x + 44, k.y + 36); ctx.lineTo(k.x + k.w - 44, k.y + 36); ctx.stroke(); ctx.restore();
@@ -276,19 +280,19 @@ export function createUI(world) {
     ctx.restore();
   };
   U.drawToasts = (ctx, t) => {
-    const y = HUD.y + HUD.h + 16 + 60;
+    const y = HUD.y + HUD.h + 16 + 60; // toast top sits 16 px under the HUD row (120 px tall)
     for (const o of U.toasts.slice(0, 1)) {
       const u = o.t / o.dur, inK = clamp(o.t / 0.35, 0, 1), outK = clamp((o.dur - o.t) / 0.3, 0, 1), k = Math.min(easeOutBack(inK), outK);
       if (k <= 0) continue;
       ctx.save(); ctx.translate(W / 2, y); ctx.scale(k, k); ctx.globalAlpha = Math.min(1, outK * 1.5);
-      const w = 416, h = o.sub ? 120 : 96;
+      const w = 448, h = 120; // one fixed toast size and spot for every message
       rr(ctx, -w / 2, -h / 2, w, h, 44); ctx.fillStyle = rgba(PAL.plum, 0.82); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.85); ctx.stroke();
       const ix = -w / 2 + 60, A_ = A();
       if (o.critter) world.vfx.drawCritter(ctx, o.critter, ix, 40, { size: 0.72, happy: true, idle: true });
       else if (o.icon === 'gem') put(ctx, A_.gem, ix, 0, 2.2, 2.2, Math.sin(t * 3) * 0.2);
       else if (o.icon === 'giftEgg' && A_.eggs) put(ctx, A_.eggs.gift, ix, 34, 0.85);
       else if (o.icon && A_[o.icon]) put(ctx, A_[o.icon], ix, o.icon === 'airship' ? 0 : 50, o.icon === 'airship' ? 0.3 : 0.48, o.icon === 'airship' ? 0.3 : 0.48);
-      const tx = o.share ? 0 : 44, tw = o.share ? 180 : 260;
+      const tx = o.share ? 16 : 52, tw = o.share ? 200 : 280;
       text(ctx, o.text, tx, o.sub ? -20 : 0, 40, PAL.gold, 900, 'center', tw);
       if (o.sub) text(ctx, o.sub, tx, 28, 28, PAL.cream, 800, 'center', tw);
       o.shareRect = null;

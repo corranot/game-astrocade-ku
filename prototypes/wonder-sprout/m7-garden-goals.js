@@ -2,7 +2,7 @@
 /**
  * Module 7: garden goals. One small goal at a time, icon-first (no words to read): pop mushrooms, crack
  * crystals, hit SUPER NOVAs, reach a combo, gather gems or wood, break the pinata, hatch an egg. Each goal
- * pays star gems that fly to the counter; every fourth pays a gift egg. Goals grow a little each lap, so there
+ * pays star gems that fly to the counter; every sixth pays a gift egg. Goals grow a little each lap, so there
  * is always a next thing a minute away. The chip sits under the gem counter and hides during the tutorial,
  * toasts and drawers so it never covers anything.
  */
@@ -19,7 +19,8 @@ export const GOALS = [
 export function goalAt(i, E) {
   const g = GOALS[i % GOALS.length], lap = Math.floor(i / GOALS.length);
   const n = g.ev === 'combo' ? g.n + lap : g.ev === 'hatch' || g.ev === 'pinata' ? g.n : Math.round(g.n * (1 + lap * 0.5));
-  return { ...g, n, reward: Math.round((E.goalGems || 60) * (1 + i * 0.15)), egg: (i + 1) % 4 === 0 };
+  const every = E.goalEggEvery || 6;
+  return { ...g, n, reward: Math.round((E.goalGems || 20) * (1 + i * (E.goalGrowth ?? 0.04))), egg: (i + 1) % every === 0 };
 }
 
 export function createGoals(world) {

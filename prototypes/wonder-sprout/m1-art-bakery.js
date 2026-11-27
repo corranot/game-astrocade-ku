@@ -28,6 +28,44 @@ function mk(w, h, s) {
 /** Sprite record: canvas plus its logical size and anchor (ax, ay in 0..1). */
 function sprite(w, h, s, ax, ay, draw) { const o = mk(w, h, s); draw(o.g, w, h); return { img: o.c, w, h, ax, ay }; }
 
+/** Shared paint-tooth texture: soft light and dark mottling plus fine speckle, tiled over baked surfaces. */
+let TOOTH = null;
+function tooth() {
+  if (TOOTH) return TOOTH;
+  const n = 192, o = mk(n, n, 1), g = o.g, rng = makeRng(31);
+  for (let i = 0; i < 70; i++) {
+    const x = rng() * n, y = rng() * n, r = 10 + rng() * 34, lt = rng() < 0.5;
+    for (const dx of [-n, 0, n]) for (const dy of [-n, 0, n]) { const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); gr.addColorStop(0, lt ? 'rgba(255,248,228,0.5)' : 'rgba(35,31,58,0.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2); }
+  }
+  const img = g.getImageData(0, 0, n, n), d = img.data;
+  for (let i = 0; i < d.length; i += 4) if (rng() < 0.18) { const v = rng() < 0.5; d[i] = v ? 255 : 35; d[i + 1] = v ? 248 : 31; d[i + 2] = v ? 228 : 58; d[i + 3] = Math.max(d[i + 3], 40 + rng() * 60 | 0); }
+  g.putImageData(img, 0, 0);
+  return (TOOTH = o.c);
+}
+/**
+ * Painterly finish on a baked sprite, in its own pixels: a soft top-light to bottom-shade volume gradient,
+ * tiled paint tooth, a warm rim light on the upper-left edges and a cool sky bounce on the lower-right edges.
+ * Only touches pixels the sprite already has (source-atop), so silhouettes stay crisp.
+ */
+function finish(sp, o = {}) {
+  const c = sp.img, w = c.width, h = c.height, g = c.getContext('2d'), k = w / sp.w;
+  const { grain = 0.16, shade = 0.22, lit = 0.14, rimA = 0.55, bounce = 0.3, rimPx = 3 } = o;
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop';
+  const vg = g.createLinearGradient(0, 0, 0, h); vg.addColorStop(0, rgba(PAL.cream, lit)); vg.addColorStop(0.45, rgba(PAL.cream, 0)); vg.addColorStop(1, rgba(PAL.plum, shade)); g.fillStyle = vg; g.fillRect(0, 0, w, h);
+  g.globalAlpha = grain; g.fillStyle = g.createPattern(tooth(), 'repeat'); g.fillRect(0, 0, w, h);
+  g.restore();
+  // rims: the silhouette minus itself shifted leaves a thin crescent along one side
+  const px = Math.max(2, rimPx * k);
+  const band = (dx, dy, col, a) => {
+    const t = document.createElement('canvas'); t.width = w; t.height = h; const tg = t.getContext('2d');
+    tg.drawImage(c, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = col; tg.fillRect(0, 0, w, h);
+    tg.globalCompositeOperation = 'destination-out'; tg.drawImage(c, dx, dy);
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = a; g.globalCompositeOperation = 'source-atop'; g.drawImage(t, 0, 0); g.restore();
+  };
+  if (rimA > 0) band(px, px, '#FFF4D6', rimA);
+  if (bounce > 0) band(-px, -px, SUN.water, bounce);
+  return sp;
+}
 /** Draw a sprite at x, y (its anchor) with optional scale, rotation and alpha. */
 export function put(ctx, sp, x, y, sx = 1, sy = sx, rot = 0, alpha = 1) {
   if (!sp) return;
@@ -504,21 +542,21 @@ export function createBakery(bgScale) {
   const now = (key, fn) => { art[key] = fn(); art.ready[key] = true; };
   // first frame: sky, terrace, hero, sling, targets
   now('sky', () => bakeSky(bgScale, wp));
-  now('terrace', () => bakeTerrace(bgScale, wp));
-  now('hills', () => bakeHills(bgScale, wp));
+  now('terrace', () => finish(bakeTerrace(bgScale, wp), { grain: 0.12, shade: 0.12, lit: 0.06, rimA: 0.5, bounce: 0, rimPx: 3 }));
+  now('hills', () => finish(bakeHills(bgScale, wp), { grain: 0.1, shade: 0.1, lit: 0.05, rimA: 0.35, bounce: 0, rimPx: 3 }));
   now('critters', () => ({ fox: bakeCritterParts(S2, 'fox') }));
   now('sling', () => bakeSling(S2));
-  now('mushroom', () => [bakeMushroom(S2, PAL.coral), bakeMushroom(S2, PAL.lav), bakeMushroom(S2, PAL.teal)]);
-  now('geode', () => bakeGeode(S2, PAL.teal));
+  now('mushroom', () => [PAL.coral, PAL.lav, PAL.teal].map((c) => finish(bakeMushroom(S2, c), { rimPx: 2.5 })));
+  now('geode', () => finish(bakeGeode(S2, PAL.teal), { grain: 0.1, rimPx: 2.5 }));
   now('gem', () => bakeGem(S2, PAL.gold));
   now('glow', () => bakeGlow(S2, light(PAL.gold, 0.3), 40));
   // after the first frame, in idle slices
   later('clouds', () => [bakeCloud(bgScale, 1, 300, 110), bakeCloud(bgScale, 2, 220, 90), bakeCloud(bgScale, 3, 360, 120)]);
-  later('far', () => [bakeFarIsland(bgScale, 5, 250, wp.far, 0.05, true), bakeFarIsland(bgScale, 6, 180, wp.far, 0.3, false), bakeFarIsland(bgScale, 7, 130, wp.far, 0.5, true), bakeFarIsland(bgScale, 8, 90, wp.far, 0.62, false)]);
+  later('far', () => [bakeFarIsland(bgScale, 5, 250, wp.far, 0.05, true), bakeFarIsland(bgScale, 6, 180, wp.far, 0.3, false), bakeFarIsland(bgScale, 7, 130, wp.far, 0.5, true), bakeFarIsland(bgScale, 8, 90, wp.far, 0.62, false)].map((sp, i) => finish(sp, { grain: 0.14 - i * 0.03, shade: 0.16, lit: 0.08, rimA: 0.6 - i * 0.12, bounce: 0.25, rimPx: 2 })));
   later('grass', () => [bakeGrass(S2, 11, wp.hillB), bakeGrass(S2, 12, mix(wp.hillB, PAL.teal, 0.25)), bakeGrass(S2, 13, light(wp.hillB, 0.1))]);
   later('flowers', () => wp.flowers.map((c) => bakeFlower(S2, c)));
-  later('tree', () => bakeTree(S2));
-  later('pinata', () => bakePinata(S2));
+  later('tree', () => finish(bakeTree(S2), { rimPx: 2.5 }));
+  later('pinata', () => finish(bakePinata(S2), { grain: 0.12, rimPx: 2.5 }));
   later('log', () => bakeLog(S2));
   later('gemTeal', () => bakeGem(S2, PAL.teal));
   later('gemLav', () => bakeGem(S2, PAL.lav));
@@ -530,10 +568,10 @@ export function createBakery(bgScale) {
   later('glowCoral', () => bakeGlow(S2, light(PAL.coral, 0.3), 30));
   later('leaves', () => [bakeLeaf(bgScale, false, mix(PAL.sage, PAL.teal, 0.4)), bakeLeaf(bgScale, true, mix(PAL.teal, PAL.sage, 0.3))]);
   later('grain', () => bakeGrain(1));
-  later('nest', () => bakeNest(S2));
+  later('nest', () => finish(bakeNest(S2), { grain: 0.14 }));
   later('eggs', () => ({ meadow: bakeEgg(S2, 'meadow'), coral: bakeEgg(S2, 'coral'), royal: bakeEgg(S2, 'royal'), gift: bakeEgg(S2, 'gift') }));
-  later('pedestal', () => bakePedestal(S2));
-  for (let i = 0; i < 6; i++) later('landmark' + i, () => bakeLandmark(S2, i));
+  later('pedestal', () => finish(bakePedestal(S2), { grain: 0.12 }));
+  for (let i = 0; i < 6; i++) later('landmark' + i, () => finish(bakeLandmark(S2, i), { grain: 0.12, shade: 0.18, rimPx: 2.5 }));
   later('wheel', () => bakeWheel(S2));
   later('cabins', () => [PAL.coral, PAL.teal, PAL.lav, PAL.gold].map((c) => bakeCabin(S2, c)));
   later('bunny', () => { art.critters.bunny = bakeCritterParts(S2, 'bunny'); return true; });
