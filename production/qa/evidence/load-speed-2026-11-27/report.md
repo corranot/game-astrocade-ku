@@ -175,3 +175,36 @@ Showing only visible objects in the prewarm saves almost nothing, because the vi
 - The prewarm uses `compileAsync`, so the loader keeps animating, and phones with parallel shader compile do not block.
 - Lab: fonts task 290 ms to 13 ms; first draw 3.2-3.5 s to 3.0-3.3 s.
 - Screenshots equivalent (`petthief-boot-before-after-8s.jpg`; the hero outfit is random per run), feed handover clean, unit tests pass.
+
+## Night pass: boot-order and staged builds (local, published only after each game's review clears)
+
+Lab fix first: `tools/live-load.js` answered `USER_GAME_STATE_GET` with `{}`. The Astrocade lib returns
+`response.data`, so games that check `r.success` / `r.state` treated it as a failed read and waited out their
+save timeout (2.5 s). It now answers `{data:{success:true,state:null}}` (a new player). All 17 games were
+re-measured; Paint Peekaboo is really ~3.1 s (not 4.9), Squishy 2.4, Mega Aura 4.1.
+
+First draw, median of 3 runs, 4x CPU, 4G, swiftshader (hwEst = first + 150 ms):
+
+| Game | Before | After | Change |
+|---|---|---|---|
+| Splash Master #1 | 2132 | 2096 | First draw is under an opaque branded loader, so staging the world shows nothing earlier. Tap-ready (all load tasks done) 3.0-3.35 s -> 2.2-2.36 s: hero decode starts with the engine download, the cloud-save request starts at boot, `compileAsync`, Bengali font preload, the bar finishes in a few frames once loaded (`boot_s1.py`). |
+| Paint Peekaboo | 2891 | 2626 | Voxel mesher 2x faster with byte-identical output (checked on all 16 looks), shop-only looks built after the first frame (`boot_pp.py`). |
+| Hero Bridge Royale | 2405 | 2131 | Sound synthesis and the refresh-rate probe run after the title; music starts when its loops are ready, also after an early tap (`boot_hb.py`). |
+| Megalodon.io | 2617 | 2346 | Save request at boot; SFX synthesis after the title (the audio layer already handles late readiness) (`boot_mg.py`). |
+| Toybox Town | 4021 | 3795 | Fonts, save, physics and hero decode overlap; `compileAsync` (`boot_tb.py`). Capped by the 1.5 MB physics engine download (base64 text, the CDN does not compress it): physics is ready at ~2.9 s on 4G. Reaching 2 s needs the prop/physics build moved after the first frame. |
+
+Bugs found and fixed on the way:
+- **Paint Peekaboo**: when a slow phone's watchdog lowers the effect tier, `setFxTier` disposes the shadow map,
+  but `shadowMap.autoUpdate` is off and the renderer was never told to redraw it. The whole world vanished
+  (sky only) behind the title. Reproduced by forcing the tier; one line (`REND.r.shadowMap.needsUpdate = true`)
+  fixes it. Ambulance Rush and Spooky Squad use the same pattern and were checked: not affected.
+- **Hero Bridge Royale**: in the feed handover (edit, then play), a second `run()` after boot changed nothing.
+  When boot finished before the switch, the title kept "EDITOR MODE" on a disabled play button. The faster
+  boot exposed it; `run()` now refreshes the play button and editor badge.
+
+Checked per game: 8 s screenshot before / after / feed handover (`*-before-boot-handover-8s.jpg`), no game
+errors, game tests pass (Splash #1 4, Toybox 1, Megalodon 1; Paint Peekaboo and Hero Bridge have none), Hero
+Bridge music + SFX after a tap.
+
+Not done yet (CPU-bound world builds, need per-game staging): Tiny Town (town build 0.57 s + shop/park/mini
+0.45 s; a rounded-box geometry cache gave nothing and was dropped), Dragon, Candy Mine, Prop Heist, Mega Aura.
