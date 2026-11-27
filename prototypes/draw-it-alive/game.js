@@ -31,11 +31,11 @@ const DEBUG = location.search.includes('local');
 const CONFETTI = [SUNNY, CORAL, MINT, VIOLET, SKY, WHITE];
 // HUD on one 8 px grid: every button 96 px, 24 px from the sides; the top row 64 px from the top, its centres (y 112)
 // in line with the chapter pips; the bottom row sits on the plain ground above the front grass and flowers
-const MUTE = { x: 24, y: 1064, s: 96 }; // sound button, lower left, clear of the swipe edge
+const MUTE = { x: 600, y: 64, s: 96 }; // sound button, top right corner, on the top row with the jar and share
 const WALLB = { x: 600, y: 1064, s: 96 }; // button to the wall, lower right
 const JAR = { x: 24, y: 64, s: 96 }; // the paint jar, top left; it opens the sticker book
 const BACK = { x: 312, y: 1064, s: 96 }; // the way back out of the sticker book
-const SHAREB = { x: 600, y: 64, s: 96 };
+const SHAREB = { x: 480, y: 64, s: 96 }; // left of the sound button, one 24 px gap
 const SKIPB = { x: 312, y: 1064, s: 96 }; // skips the tutorial spotlights; only while one shows // share, top right, mirrors the jar; stays until the player leaves the level
 const LANGB = { x: 140, y: 46, w: 440, h: 96 }; // the language button at the top of the sticker book
 const CARD = { k: 0.4, w: 288, h: 320, top: 280, border: 1.6, pad: 30 }; // a wall card shows the scene at 0.4, cropped from y = 280
@@ -90,7 +90,7 @@ function drawWords() {
     if (said.key !== key) said = { key, t: S.t };
     banner(T(key), W / 2, 200, 46, 560, key === 'miss' ? CORAL : NAVY, popIn(S.t - said.t));
   } else if (S.daily && S.won > 1.5) banner(T('daily'), W / 2, 196, 52, 560, CORAL, popIn(S.won - 1.5));
-  else if (S.won > 0.4) banner(T('p' + S.stars), W / 2, 196, 52, 520, ORANGE, popIn(S.won - 0.4));
+  else if (S.won > starsDone()) banner(T('p' + S.stars), W / 2, 196, 52, 520, ORANGE, popIn(S.won - starsDone()));
 }
 
 // ---------- host calls that must never stop the game ----------
@@ -335,7 +335,7 @@ function drawWall() {
   if (wall.opens && wall.unlocked >= 0 && wall.next % LEVELS.length > 0) {
     const text = wall.next % LEVELS.length === CHAPTER * 4 ? T('snowOpen') : T('open').replace('{n}', chapterOf(wall.next) + 1);
     banner(text, W / 2, 84, 46, 600, VIOLET, popIn(wall.t - wall.unlocked));
-  }
+  } else if (wall.big < 0) drawAlbum(W / 2, 84); // the long goal: pictures alive so far
 }
 
 // ---------- judging ----------
@@ -682,13 +682,36 @@ function drawGuide() {
 
 /** Progress pips at the top: one per level, the current one larger. */
 function drawPips() {
-  const n = CHAPTER, gap = 54, x0 = W / 2 - (n - 1) * gap / 2;
+  const n = CHAPTER, gap = 44, x0 = W / 2 - (n - 1) * gap / 2;
   for (let i = 0; i < n; i++) {
     const cur = i === S.i % n, done = i < S.i % n || (cur && S.won >= 0);
-    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 112, cur ? 19 : 13, 0, 7);
+    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 112, cur ? 18 : 12, 0, 7);
     g.fillStyle = done ? WHITE : 'rgba(31,42,107,0.22)'; g.fill(); // levels still to come: a soft navy that shows on every sky
     if (cur) { g.lineWidth = 6; g.strokeStyle = NAVY; g.stroke(); }
   }
+}
+
+/** Seconds after the win when the last earned star has popped; the praise waits for it, so it always matches. */
+const starsDone = () => 0.5 + Math.max(1, S.stars) * 0.25;
+
+/** Pictures brought to life so far, out of all of them: the long goal, shown on every win and on the wall. */
+const aliveCount = () => { let n = 0; for (let i = 0; i < LEVELS.length; i++) if (drawnAll(i)) n++; return n; };
+/** A pill with a little framed picture and "n / total"; the number pops when it has just gone up. */
+function drawAlbum(cx, cy, pop = 1) {
+  const n = aliveCount(), str = n + ' / ' + LEVELS.length, w = 208, h = 64;
+  g.save(); g.translate(cx, cy); g.scale(pop, pop);
+  box(g, -w / 2, -h / 2 + 5, w, h, h / 2, 'rgba(31,42,107,0.22)');
+  box(g, -w / 2, -h / 2, w, h, h / 2, WHITE);
+  box(g, -w / 2 + 16, -18, 44, 36, 8, VIOLET);
+  g.fillStyle = SUNNY; g.beginPath(); g.arc(-w / 2 + 46, -7, 6, 0, 7); g.fill();
+  g.fillStyle = MINT; g.beginPath(); g.moveTo(-w / 2 + 20, 16); g.lineTo(-w / 2 + 34, 0); g.lineTo(-w / 2 + 48, 16); g.closePath(); g.fill();
+  words(str, 28, 2, 36, w - 80, NAVY);
+  g.restore();
+}
+/** On a win: the album count slides in under the stars once they have popped. */
+function drawAlbumOnWin() {
+  const t = S.won - starsDone() - 0.2; if (t < 0) return;
+  drawAlbum(W / 2, 424, popIn(t));
 }
 
 /** Up to three stars, popping in one by one. */
@@ -788,7 +811,7 @@ function draw() {
     const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.72);
     v.addColorStop(0, 'rgba(31,42,107,0)'); v.addColorStop(1, `rgba(31,42,107,${cfg.beatVignette * b})`); g.fillStyle = v; g.fillRect(0, 0, W, H);
   }
-  drawStars(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawGiftBadge(); drawWords();
+  drawStars(); drawAlbumOnWin(); drawPips(); drawMute(); drawWallButton(); drawJar(); drawGiftBadge(); drawWords();
   drawShareButton(); drawHudSpot();
 }
 
@@ -903,11 +926,53 @@ function watchSpeed(dt) {
   // shortcut: no step renders the canvas at a lower resolution; add one if real phones still drop below 40 FPS
 }
 
+// ---------- backdrop: the scene's sky and ground carried out to the screen's edges on any shape of screen ----------
+let bg = null, bgFor = '';
+/** Most common colour in each of n slices of a strip of pixels, as an n-pixel strip. */
+function edgeStrip(src, sx, sy, sw, sh, n) {
+  const d = src.getContext('2d').getImageData(sx, sy, sw, sh).data, len = d.length / 4, out = new ImageData(n, 1);
+  for (let b = 0; b < n; b++) {
+    const count = new Map(); let best = 0, top = 0;
+    for (let k = Math.floor(b * len / n); k < Math.floor((b + 1) * len / n); k++) { const c = ((d[k * 4] >> 3) << 10) | ((d[k * 4 + 1] >> 3) << 5) | (d[k * 4 + 2] >> 3), v = (count.get(c) || 0) + 1; count.set(c, v); if (v > top) { top = v; best = k; } }
+    out.data.set([d[best * 4], d[best * 4 + 1], d[best * 4 + 2], 255], b * 4);
+  }
+  const t = document.createElement('canvas'); t.width = n; t.height = 1; t.getContext('2d').putImageData(out, 0, 0); return t;
+}
+/** Repaint the backdrop when the scene, the screen or the window changes; stretched edge colours, softly blended. */
+function paintBackdrop() {
+  if (!bg) return;
+  const src = view === 'play' ? back : cv, w = innerWidth, h = innerHeight;
+  const key = view + '|' + (view === 'play' ? S.i : wall ? wall.c : '') + '|' + w + 'x' + h;
+  if (key === bgFor) return; bgFor = key;
+  bg.width = w; bg.height = h; const c = bg.getContext('2d'), r = cv.getBoundingClientRect(), n = cfg.backdropSlices;
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  if (r.top > 0.5) { // tall screen: sky above, ground below
+    c.drawImage(edgeStrip(src, 0, 0, W, 2, n), 0, 0, n, 1, r.left, 0, r.width, r.top + 1);
+    c.drawImage(edgeStrip(src, 0, H - 120, W, 120, 1), 0, 0, 1, 1, r.left, r.bottom - 1, r.width, h - r.bottom + 1); // one ground colour, never streaks of flowers
+  }
+  if (r.left > 0.5) { // wide screen: the same sky and ground carried out to each side
+    // each side carries on its own edge, band by band, but only as sky or ground: a sun, a tree or a flower cut by
+    // the edge keeps the colour of the band above it, so nothing smears sideways
+    const px = (t) => t.getContext('2d').getImageData(0, 0, 1, 1).data, sky = px(edgeStrip(src, 0, 0, W, 2, 1)), ground = px(edgeStrip(src, 0, H - 120, W, 120, 1));
+    const near = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 24, bands = n * 4, bh = H / bands;
+    for (const [sx, x0, x1] of [[0, 0, r.left + 1], [W - 24, r.right - 1, w]]) {
+      let cur = sky; // starts as sky at the top
+      const v = document.createElement('canvas'); v.width = 1; v.height = bands; const vc = v.getContext('2d'), out = vc.createImageData(1, bands);
+      for (let k = 0; k < bands; k++) {
+        const m = px(edgeStrip(src, sx, Math.floor(k * bh), 24, Math.max(1, Math.floor(bh)), 1));
+        if (near(m, sky) || near(m, ground)) cur = m;
+        out.data.set([cur[0], cur[1], cur[2], 255], k * 4);
+      }
+      vc.putImageData(out, 0, 0); c.drawImage(v, 0, 0, 1, bands, x0, r.top, x1 - x0, r.height);
+    }
+  }
+}
+
 function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (dt > 0 && dt < 0.25) watchSpeed(dt);
-  update(dt); draw();
+  update(dt); draw(); paintBackdrop();
   if (DEBUG) window.__frames = (window.__frames || 0) + 1;
 }
 
@@ -939,7 +1004,9 @@ function run(m) {
   const me = ++runs; // a reply that belongs to an earlier run is ignored
   mode = m; cfg = window.gameConfig;
   cv = document.getElementById('game') || document.body.appendChild(Object.assign(document.createElement('canvas'), { id: 'game' }));
-  cv.width = W; cv.height = H; cv.style.touchAction = 'none';
+  cv.width = W; cv.height = H; cv.style.touchAction = 'none'; cv.style.position = 'relative'; cv.style.zIndex = '1';
+  if (!bg) { bg = document.getElementById('backdrop') || document.body.appendChild(Object.assign(document.createElement('canvas'), { id: 'backdrop' })); bg.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none'; addEventListener('resize', () => { bgFor = ''; }); }
+  bgFor = '';
   g = cv.getContext('2d', { alpha: false });
   const slider = (key, min, max, step) => ({ key, type: 'slider', min, max, step });
   try {
