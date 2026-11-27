@@ -17,7 +17,7 @@ const server = http.createServer((q, r) => { let u = q.url.split('?')[0]; if (u 
   await pg.waitForTimeout(1000);
   const edit = await pg.evaluate(() => ({ mode: __ws.mode, enabled: __ws.gameplay.enabled, flings: __ws.state.stats.flings }));
   await pg.waitForTimeout(1200);
-  const box = await pg.evaluate(() => { const r = document.getElementById('c').getBoundingClientRect(); return { x: r.left, y: r.top, k: r.width / 720 }; });
+  const box = await pg.evaluate(() => { const r = document.getElementById('c').getBoundingClientRect(), v = __ws.VIEW, k = r.width / v.w; return { x: r.left + v.dx * k, y: r.top + v.dy * k, k }; });
   const h = await pg.evaluate(() => ({ x: __ws.gameplay.hero.x, y: __ws.gameplay.hero.y }));
   await pg.mouse.move(box.x + h.x * box.k, box.y + h.y * box.k); await pg.mouse.down();
   for (let i = 1; i <= 10; i++) await pg.mouse.move(box.x + h.x * box.k, box.y + (h.y + i * 15) * box.k);

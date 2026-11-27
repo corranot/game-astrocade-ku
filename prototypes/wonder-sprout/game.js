@@ -12,7 +12,7 @@
  * and maps game events to sound and vibration. Everything is drawn by code; there are no image, font or
  * audio files. Tunable numbers live in game_config.json.
  */
-import { W, H, LAYOUT, EventBus, makeRng, readConfig, freshState, validateState, makeSaver, loadSaved, fitCanvas, toStage, frameDt, makeQuality, guessTier, warn } from './m0-orchestrator.js';
+import { W, H, VIEW, LAYOUT, EventBus, makeRng, readConfig, freshState, validateState, makeSaver, loadSaved, fitCanvas, toStage, frameDt, makeQuality, guessTier, warn } from './m0-orchestrator.js';
 import { createBakery, drawBackdrop, drawTerrace, drawForeground, drawGrain } from './m1-art-bakery.js';
 import { createAudio } from './m2-audio-engine.js';
 import { createGameplay } from './m3-physics-gameplay.js';
@@ -27,7 +27,7 @@ const DEFAULTS = {
   economy: { landmarkGems: 240, landmarkWood: 3, landmarkGrowth: 1.85, toLandmarkShare: 0.65, gemsPerHit: { mushroom: 1, geode: 3, tree: 1, pinata: 2, raid: 4 }, woodPerTreeHit: 1, geodeHp: 3, geodeBurst: 8, pinataHp: 5, pinataBurst: 18, pinataEggChance: 0.12, respawnSec: { geode: 3.5, pinata: 7 }, eggCost: { meadow: 300, coral: 1200 }, incubateSec: 5, hatchTaps: 3, evolveBase: 900, evolveGrowth: 2.3, stageMult: [1, 1.7, 2.8], helperEverySec: [4.2, 3.2, 2.4], helperGems: 2, honeyEverySec: 6, ferrisGemsPerSec: 0.8, observatoryPower: 1.15, observatoryCrit: 1.4, offlineCapHours: 8, offlineShare: 0.25, maxCritters: 12, maxEggs: 6 },
   raid: { firstSec: 75, everySec: 75, staySec: 22, weakHp: 3, burstGems: 50 },
   fx: { hitstopMs: 45, shake: 1, beatCooldownSec: 8, particleCap: [180, 350, 600] },
-  quality: { scale: [0.8, 1, 1.25], downFps: 50, upFps: 58, upAfterSec: 10 },
+  quality: { scale: [0.8, 1, 1.25], downFps: 45, upFps: 58, upAfterSec: 10 },
 };
 
 let world = null;
@@ -65,9 +65,9 @@ function build() {
   const w = { bus, cfg, rng: makeRng((Date.now() ^ 0x5eed) >>> 0), state: freshState(Date.now()), mode: 'play', pointer: [360, 700], magnet: false, canvas, ctx };
   w.saver = makeSaver(() => w.state, clock);
   w.quality = makeQuality(cfg.quality, guessTier());
-  const resize = () => { const s = w.quality.scale; canvas.width = Math.round(W * s); canvas.height = Math.round(H * s); fitCanvas(canvas); };
+  const resize = () => { const s = w.quality.scale; fitCanvas(canvas); canvas.width = Math.round(VIEW.w * s); canvas.height = Math.round(VIEW.h * s); };
   resize();
-  w.art = createBakery(w.quality.scale);
+  w.art = createBakery(w.quality.scale); w.art.lite = w.quality.tier === 0;
   w.audio = createAudio(); w.audio.setOn(w.state.sound);
   w.gameplay = createGameplay(w);
   w.kingdom = createKingdom(w);
@@ -75,7 +75,7 @@ function build() {
   w.ui = createUI(w);
   wireEvents(w);
   wireInput(w);
-  addEventListener('resize', () => fitCanvas(canvas));
+  addEventListener('resize', () => resize());
   document.addEventListener('visibilitychange', () => { if (document.hidden) w.saver.now(); });
   w.resize = resize;
   // saved progress arrives a moment later; the island is playable meanwhile
@@ -156,7 +156,8 @@ function wireInput(w) {
 function frame(w, now) {
   const raw = w.last ? (now - w.last) / 1000 : 0; w.last = now;
   const dt = frameDt(raw);
-  if (w.quality.sample(raw > 0 && raw < 1 ? raw : 0)) { w.resize(); w.art.rescale(w.quality.scale); w.vfx.setTier(w.quality.tier); }
+  // FPS watchdog: a lower tier renders smaller, caps particles and drops grain and far parallax layers
+  if (w.quality.sample(raw > 0 && raw < 1 ? raw : 0)) { w.resize(); w.art.rescale(w.quality.scale); w.vfx.setTier(w.quality.tier); w.art.lite = w.quality.tier === 0; }
   const V = w.vfx;
   let wdt = dt;
   if (V.hitstop > 0) { V.hitstop -= dt; wdt = 0; } else wdt = dt * V.timeScale;
@@ -175,11 +176,12 @@ function frame(w, now) {
 }
 
 function render(w, t) {
-  const { ctx, art, gameplay: G, kingdom: K, vfx: V, ui: U, state: s } = w, sc = w.canvas.width / W;
+  const { ctx, art, gameplay: G, kingdom: K, vfx: V, ui: U, state: s } = w, sc = w.canvas.width / VIEW.w;
   const px = (G.hero.x - LAYOUT.slingX) / 360;
-  ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.setTransform(sc, 0, 0, sc, VIEW.dx * sc, VIEW.dy * sc);
   ctx.save(); V.applyCamera(ctx);
   drawBackdrop(ctx, art, t, px);
+  V.drawRainbow(ctx, t);
   K.drawLandmarks(ctx, art, t);
   drawTerrace(ctx, art, t, px);
   U.drawWorldMarks(ctx, t, V);
@@ -218,7 +220,7 @@ function run(mode) {
       requestAnimationFrame(loop);
       const card = document.getElementById('boot'); if (card) requestAnimationFrame(() => { card.style.opacity = '0'; setTimeout(() => card.remove(), 300); });
       // dev:start
-      window.__ws = world;
+      window.__ws = world; world.VIEW = VIEW;
       if ('__load' in window) window.__load = { done() {} };
       // dev:end
     } else refreshConfig(world.cfg);

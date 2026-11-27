@@ -6,7 +6,7 @@
  * first-time spotlight tutorial (dim + soft cutout, icon-first hint, advances only on the real action,
  * follows moving targets, skippable, saved). Text comes from strings.js in the device language.
  */
-import { W, H, LAYOUT, HUD, HUD_TARGET, DOCK, clamp, lerp, easeOutBack } from './m0-orchestrator.js';
+import { W, H, VIEW, LAYOUT, HUD, HUD_TARGET, DOCK, clamp, lerp, easeOutBack } from './m0-orchestrator.js';
 import { put, PAL, rgba, mix, LANDMARK_X, LANDMARK_BASE } from './m1-art-bakery.js';
 import { STR, LANGS, LANG_NAMES, detectLang } from './strings.js';
 
@@ -18,6 +18,8 @@ export function spring(s, target, dt, k = 260, d = 22) { s.v += ((target - s.x) 
 /** FTUE step ids in order, saved as a bitmask. */
 export const FTUE = ['fling', 'nova', 'hatch', 'plant', 'evolve'];
 /** First FTUE step that is not done and whose condition holds, or null when skipped/finished. */
+/** Point on a quadratic curve. */
+function bezQ(a, b, c, u) { const v = 1 - u; return [v * v * a[0] + 2 * v * u * b[0] + u * u * c[0], v * v * a[1] + 2 * v * u * b[1] + u * u * c[1]]; }
 export function nextFtue(done, skipped, conds) { if (skipped) return null; for (let i = 0; i < FTUE.length; i++) if (!(done & (1 << i)) && conds[i]()) return i; return null; }
 
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
@@ -25,7 +27,7 @@ const inR = (p, r) => r && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <
 
 export function createUI(world) {
   const { bus } = world;
-  const U = { open: null, drawer: { x: 0, v: 0 }, sheet: false, sheetS: { x: 0, v: 0 }, toasts: [], press: {}, ftue: null, ftueT: 0, logo: 1, logoGone: false, rects: {}, lang: 'en', sessionT: 0, lastShare: -99 };
+  const U = { woodIn: { x: 0, v: 0 }, open: null, drawer: { x: 0, v: 0 }, sheet: false, sheetS: { x: 0, v: 0 }, toasts: [], press: {}, ftue: null, ftueT: 0, logo: 1, logoGone: false, rects: {}, lang: 'en', sessionT: 0, lastShare: -99 };
   const S = () => world.state, K = () => world.kingdom, A = () => world.art;
   U.T = (k) => (STR[U.lang] && STR[U.lang][k]) || STR.en[k];
   U.setLang = (l) => {
@@ -194,7 +196,9 @@ export function createUI(world) {
     const g = { x: mir(HUD.gem.x, HUD.gem.w), y: HUD.y, w: HUD.gem.w, h: HUD.h }; R.gemPill = g;
     pill(ctx, g.x, g.y, g.w, g.h, V.pills.gem); gemIcon(ctx, g.x + 40, g.y + 36, 1.7); text(ctx, fmt(s.starGems), g.x + 76, g.y + 38, 34, PAL.cream, 900, 'left', g.w - 92);
     const w = { x: mir(HUD.wood.x, HUD.wood.w), y: HUD.y, w: HUD.wood.w, h: HUD.h }; R.woodPill = w;
-    pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88);
+    // the wood counter appears (springing in) with the first wood; before that its slot stays empty
+    const wk = spring(U.woodIn, s.stats.wood > 0 || s.magicWood >= 1 ? 1 : 0, 1 / 60);
+    if (wk > 0.02) { ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(wk, wk); ctx.translate(-w.x - w.w / 2, -w.y - w.h / 2); pill(ctx, w.x, w.y, w.w, w.h, V.pills.wood); if (A().log) put(ctx, A().log, w.x + 40, w.y + 36, 1.6); text(ctx, fmt(s.magicWood), w.x + 72, w.y + 38, 34, PAL.cream, 900, 'left', w.w - 88); ctx.restore(); }
     const k = { x: mir(HUD.track.x, HUD.track.w), y: HUD.y, w: HUD.track.w, h: HUD.h }; R.track = k;
     pill(ctx, k.x, k.y, k.w, k.h, 0);
     ctx.save(); ctx.strokeStyle = rgba(PAL.cream, 0.5); ctx.lineWidth = 4; ctx.setLineDash([4, 8]); ctx.beginPath(); ctx.moveTo(k.x + 44, k.y + 36); ctx.lineTo(k.x + k.w - 44, k.y + 36); ctx.stroke(); ctx.restore();
@@ -231,7 +235,7 @@ export function createUI(world) {
   U.drawLogo = (ctx, t) => {
     if (U.logo <= 0) return;
     ctx.save(); ctx.globalAlpha = U.logo; const b = Math.sin(t * 2) * 4;
-    ctx.translate(W / 2, 214 + b); ctx.rotate(-0.03);
+    ctx.translate(W / 2, 214 - VIEW.dy * 0.45 + b); ctx.rotate(-0.03);
     text(ctx, 'Wonder', 0, -44, 92, PAL.gold); text(ctx, 'Sprout', 0, 44, 92, mix(PAL.gold, PAL.cream, 0.45));
     text(ctx, 'Royal Sky-Garden', 0, 116, 30, PAL.cream, 800);
     ctx.restore();
@@ -279,15 +283,27 @@ export function createUI(world) {
     ctx.save(); ctx.globalAlpha = a;
     const pulse = 1 + Math.sin(t * 4) * 0.05, r = tg.r * pulse;
     const g = ctx.createRadialGradient(tg.x, tg.y, r * 0.78, tg.x, tg.y, r * 1.25); g.addColorStop(0, rgba(PAL.velvet, 0)); g.addColorStop(1, rgba(PAL.velvet, i === 0 ? 0.22 : 0.36));
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = g; ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h);
     ctx.strokeStyle = rgba(PAL.gold, 0.85); ctx.lineWidth = 4; ctx.setLineDash([10, 10]); ctx.lineDashOffset = -t * 30; ctx.beginPath(); ctx.arc(tg.x, tg.y, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     const G = world.gameplay, h = G.hero;
     if (i === 0) {
       // ghost finger pulls back from the hero, then the dotted path flies from the hero toward a crystal
-      const cyc = (t * 0.7) % 1, pull = Math.min(1, cyc / 0.55), fx = h.x, fy = h.y + pull * 120;
-      const goal = G.targets.find((k) => k.alive && k.type === 'pinata') || G.targets.find((k) => k.alive);
-      if (goal && cyc > 0.55) { const u = (cyc - 0.55) / 0.45; for (let k = 0; k < 8; k++) { const q = k / 8; if (q > u) break; ctx.fillStyle = k % 2 ? PAL.cream : PAL.gold; ctx.beginPath(); ctx.arc(lerp(h.x, goal.x, q), lerp(h.y - 30, goal.y, q), 7, 0, Math.PI * 2); ctx.fill(); } }
-      if (cyc <= 0.6) drawFinger(ctx, fx + 40, fy + 10);
+      // the hand grabs the hero and pulls straight DOWN; the dotted aim arc grows from the hero to the
+      // nearest crystal as it pulls, then a spark runs along it on release
+      const cyc = (t * 0.6) % 1, pull = Math.min(1, cyc / 0.5), e = pull * pull * (3 - 2 * pull), fy = h.y - 20 + e * 130;
+      const goal = G.targets.filter((k) => k.alive && k.type === 'geode').sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0] || G.targets.find((k) => k.alive && k.type === 'pinata');
+      if (goal) {
+        const p0 = [h.x, h.y - 40], p2 = [goal.x, goal.y], p1 = [(p0[0] + p2[0]) / 2, Math.min(p0[1], p2[1]) - 110];
+        const shown = cyc < 0.5 ? e : 1, N = 12;
+        for (let k = 1; k <= N; k++) { const q = k / N; if (q > shown + 1e-6) break; const pt = bezQ(p0, p1, p2, q); ctx.fillStyle = k % 2 ? PAL.cream : PAL.gold; ctx.strokeStyle = PAL.plum; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(pt[0], pt[1], 6 + q * 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+        if (cyc >= 0.5) { const u = (cyc - 0.5) / 0.5, pt = bezQ(p0, p1, p2, u); ctx.fillStyle = PAL.gold; ctx.shadowColor = PAL.gold; ctx.shadowBlur = 18; ctx.beginPath(); ctx.arc(pt[0], pt[1], 12, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; }
+      }
+      if (cyc < 0.55) {
+        // down chevrons under the hero show the pull direction
+        ctx.strokeStyle = rgba(PAL.cream, 0.5 + 0.5 * e); ctx.lineWidth = 7; ctx.lineCap = 'round';
+        for (let k = 0; k < 2; k++) { const y = h.y + 74 + k * 26; ctx.beginPath(); ctx.moveTo(h.x - 18, y); ctx.lineTo(h.x, y + 14); ctx.lineTo(h.x + 18, y); ctx.stroke(); }
+        drawFinger(ctx, h.x + 22, fy + 26);
+      }
     } else if (i === 1 && tg.ring) {
       // the guide flows from the hero to the crystal; the finger taps when the ring meets the core
       ctx.strokeStyle = rgba(PAL.gold, 0.8); ctx.lineWidth = 5; ctx.setLineDash([4, 14]); ctx.lineDashOffset = -t * 40; ctx.beginPath(); ctx.moveTo(h.x, h.y - 40); ctx.lineTo(tg.x, tg.y + tg.ring.r); ctx.stroke(); ctx.setLineDash([]);
@@ -320,7 +336,7 @@ export function createUI(world) {
   U.drawDrawer = (ctx, t) => {
     if (U.drawer.x < 0.01 && !U.open) return;
     const y0 = drawerY(), R = U.rects, s = S(), k = K(), E = world.cfg.economy, A_ = A();
-    ctx.save(); ctx.fillStyle = rgba(PAL.velvet, 0.45 * clamp(U.drawer.x, 0, 1)); ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.fillStyle = rgba(PAL.velvet, 0.45 * clamp(U.drawer.x, 0, 1)); ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h);
     rr(ctx, 16, y0, W - 32, H - y0 + 60, 44); const g = ctx.createLinearGradient(0, y0, 0, H); g.addColorStop(0, mix(PAL.plum, PAL.lav, 0.32)); g.addColorStop(1, PAL.plum); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = rgba(PAL.gold, 0.7); ctx.stroke();
     rr(ctx, W / 2 - 50, y0 + 14, 100, 10, 5); ctx.fillStyle = rgba(PAL.cream, 0.4); ctx.fill();
     R.close = { x: mir(W - 120, 96), y: y0 + 24, w: 96, h: 96 };
@@ -376,7 +392,7 @@ export function createUI(world) {
   U.drawSheet = (ctx) => {
     if (U.sheetS.x < 0.01 && !U.sheet) return;
     const k = clamp(U.sheetS.x, 0, 1.1), R = U.rects;
-    ctx.save(); ctx.fillStyle = rgba(PAL.velvet, 0.5 * Math.min(1, k)); ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.fillStyle = rgba(PAL.velvet, 0.5 * Math.min(1, k)); ctx.fillRect(-VIEW.dx, -VIEW.dy, VIEW.w, VIEW.h);
     ctx.translate(W / 2, 640); ctx.scale(k, k); ctx.translate(-W / 2, -640);
     rr(ctx, 64, 260, W - 128, 760, 44); ctx.fillStyle = mix(PAL.plum, PAL.lav, 0.25); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = PAL.gold; ctx.stroke();
     text(ctx, '🌐 ' + U.T('lang'), W / 2, 316, 34, PAL.gold, 900, 'center', 400);
