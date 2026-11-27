@@ -52,15 +52,15 @@ function fur(main, belly, opt = {}) {
  * an emissive variant for rare visitors. `night` (0..1) adds a moonlit edge so animals read against the night snow.
  */
 export function critterMaterials() {
-  const night = { value: 0 };
+  const night = { value: 0 }, lamp = { value: new THREE.Vector4() };
   const rim = (mat, strength, glow = 0) => {
     mat.onBeforeCompile = (sh) => {
-      sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow }; sh.uniforms.uNight = night;
+      sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow }; sh.uniforms.uNight = night; sh.uniforms.uLamp = lamp;
       // pale fur gets a cool blue-grey edge so white animals keep their outline on snow; the rim light stays soft on
       // them, and the glow of a rare visitor is a warm gold edge instead of a white blow-out
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow; uniform float uNight;')
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow; uniform float uNight; uniform vec4 uLamp;')
         .replace('#include <color_fragment>', '#include <color_fragment>\nfloat fr0 = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 1.8);\nfloat pale = smoothstep(0.62, 0.9, dot(diffuseColor.rgb, vec3(0.333)));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.62, 0.84), fr0 * pale * 0.85);\nfloat upF = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));\ndiffuseColor.rgb *= mix(vec3(0.8, 0.84, 0.94), vec3(1.04, 1.02, 0.98), smoothstep(-0.7, 0.8, upF));')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * fr * uRim * (1.0 - 0.75 * pale) + vec3(0.55, 0.7, 1.0) * fr * uNight * 0.6 + mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.42), 0.5) * uGlow * (0.15 + fr * 0.9);');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * fr * uRim * (1.0 - 0.75 * pale) + vec3(0.55, 0.7, 1.0) * fr * uNight * 0.6 + diffuseColor.rgb * vec3(1.0, 0.62, 0.3) * uLamp.w * 0.05 * pow(1.0 - clamp(length(-vViewPosition - (viewMatrix * vec4(uLamp.xyz + vec3(0.0, 1.0, 0.0), 1.0)).xyz) / 10.0, 0.0, 1.0), 2.0) + mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.42), 0.5) * uGlow * (0.15 + fr * 0.9);');
       mat.userData.sh = sh;
     };
     return mat;
@@ -69,7 +69,7 @@ export function critterMaterials() {
   const glow = rim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0 }), 1.2, 0.9);
   const eye = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0 });
   const mouth = new THREE.MeshStandardMaterial({ color: 0x8a2c3a, roughness: 0.7 });
-  return { fur, glow, eye, mouth, night };
+  return { fur, glow, eye, mouth, night, lamp };
 }
 
 /** Eyes (dark, glossy, two catchlights), merged into one mesh. Positioned on a head of radius r at the front. */
@@ -291,7 +291,7 @@ export function buildHero(look) {
     { g: cyl(8), m: M4(0, 0.13, 0, 0.07, 0.04, 0.07), col: C('#3a2c22') },
     { g: cyl(8), m: M4(0, -0.11, 0, 0.09, 0.03, 0.09), col: C('#3a2c22') },
   ]), matSkin, lantern);
-  const matLamp = new THREE.MeshStandardMaterial({ color: 0xffe2b0, roughness: 0.3, emissive: 0xffa040, emissiveIntensity: 0.2 });
+  const matLamp = new THREE.MeshBasicMaterial({ color: 0x8a6a40 }); // brightened by the game as night falls
   add(sph(10).scale(0.075, 0.1, 0.075), matLamp, lantern);
   return { group, inner, head, hat, pom, arms, legs, cam, parka, lantern, mats: { parka: matParka, hat: matHat, cam: matCam, lamp: matLamp }, pomV: 0, pomY: 0 };
 }

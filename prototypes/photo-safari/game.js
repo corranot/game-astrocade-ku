@@ -168,7 +168,26 @@ export function run(mode = 'play') {
   // only the animals the first frame shows are built now (nearest first); the rest build one per frame after it
   { const d = (sp) => Math.hypot(sp.home[0] - hero.x, sp.home[1] - hero.z);
     const order = cfg.species.slice().sort((p, q) => (p.area - q.area) || (d(p) - d(q)));
-    order.forEach((sp, i) => (i < cfg.quality.bootAnimals ? (f) => f() : (f) => buildQueue.push(f))(() => makeAnimal(sp, sp, false))); }
+    order.forEach((sp, i) => (i < cfg.quality.bootAnimals ? (f) => f() : (f) => buildQueue.push(f))(() => makeAnimal(sp, sp, false)));
+    buildQueue.push(() => W.buildGround()); } // ground cover after the animals
+  // tier 0 has no shadow map: soft blob shadows ground Pip and the animals instead (one instanced quad, built after
+  // the first frame)
+  let blobs = null;
+  buildQueue.push(() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'), gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
+    const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
+    blobs = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), color: cfg.grade.blob, transparent: true, opacity: cfg.grade.blobA, depthWrite: false }), 40);
+    blobs.frustumCulled = false; blobs.renderOrder = 1; W.scene.add(blobs);
+  });
+  const blobM = new THREE.Matrix4(), blobQ = new THREE.Quaternion(), blobP = new THREE.Vector3(), blobS = new THREE.Vector3();
+  function updateBlobs() {
+    if (!blobs) return; blobs.visible = W.tier === 0; if (!blobs.visible) return;
+    let n = 0; const put = (x, z, r) => { blobP.set(x, L.terrainH(cfg, x, z) + 0.03, z); blobS.set(r, 1, r); blobs.setMatrixAt(n++, blobM.compose(blobP, blobQ, blobS)); };
+    put(hero.x, hero.z, 1.3);
+    for (const a of animals) if (n < 40 && a.parts.group.visible && Math.hypot(a.x - hero.x, a.z - hero.z) < 40) put(a.x, a.z, a.parts.radius * 2.6);
+    blobs.count = n; blobs.instanceMatrix.needsUpdate = true;
+  }
   const placeRare = () => {
     for (const a of animals.filter((q) => q.rare)) { W.scene.remove(a.parts.group); animals.splice(animals.indexOf(a), 1); }
     const r = L.rareById(cfg, rareId), base = speciesOf(r.base);
@@ -362,6 +381,7 @@ export function run(mode = 'play') {
     const reqLeft = S.req.filter((q) => !q.done).length; tabs[2].innerHTML = T('req') + (reqLeft ? `<em>${reqLeft}</em>` : '');
     for (const b of tabs) b.classList.toggle('on', b.dataset.t === bookTab);
     root.querySelectorAll('.pane').forEach((p) => { p.hidden = p.dataset.p !== bookTab; });
+    root.querySelector('.sheet').classList.toggle('fit', bookTab === 'req'); // today's short list: the sheet hugs it
   }
   function openBook(tab) { if (tab) bookTab = tab; bookOpen = true; $('book').hidden = false; buildBook(); Sound.whoosh(); ftueDid('book'); ui.bookDot = false; $('bookB').classList.remove('dot'); }
   function closeBook() { bookOpen = false; $('book').hidden = true; bookAutoClose = 0; }
@@ -528,8 +548,8 @@ export function run(mode = 'play') {
     // the camera frames the gate, the shards burst, then it rises and glides through toward the new place
     const glide = (t) => { const k = Math.max(0, Math.min(1, (t - 1.2) / 1.5)); return k * k * (3 - 2 * k); };
     beat({ pri: 6, dur: 3.2, bars: true, slow: false, sting: null, fov: 48, clear: true,
-      pos: (t = 0) => V3(gp.x + 2.8, gp.y + 3.2, gp.z + 12).lerp(V3(gp.x + 1, gp.y + 4, gp.z + 1), glide(t)),
-      look: (t = 0) => V3(gp.x, gp.y + 1.8, gp.z).lerp(V3(gp.x, gp.y + 2.4, gp.z - 18), glide(t)),
+      pos: (t = 0) => V3(gp.x + 2.8, gp.y + 2.0, gp.z + 12).lerp(V3(gp.x + 0.8, gp.y + 2.6, gp.z + 3), glide(t)),
+      look: (t = 0) => V3(gp.x, gp.y + 2.6, gp.z).lerp(V3(gp.x, gp.y + 2.9, gp.z - 18), glide(t)),
       start: () => setTimeout(() => {
         if (!alive) return;
         W.openGate(i - 1); Sound.crack(); W.shake.t = 0.4; W.shake.a = 0.12;
@@ -723,7 +743,7 @@ export function run(mode = 'play') {
   function updateHud(dt) {
     hud();
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
-    if (aimA && vf > 0.3) {
+    if (aimA && vf > 0.3 && !beats.cur) { // no focus pill during a cinematic beat
       // the focus pill sits under the animal's feet, never on it
       const s = W.toScreen(aimA.x, aimA.y, aimA.z), [px, py0] = toPx(s[0], s[1]), py = Math.min(py0 + 24 * unit(), rootRect().height - 300 * unit());
       const sh = shotOf(aimA);
@@ -789,12 +809,13 @@ export function run(mode = 'play') {
     if (play || mode === 'edit') S.clock += dt;
     if (play) playT += rdt;
     // day clock and light
-    const cl = L.clockAt(cfg, S.clock); W.setTod(cl.w); W.uTime.value = t; mats.night.value = W.night; H.mats.lamp.emissiveIntensity = 0.2 + W.night * 3;
+    const cl = L.clockAt(cfg, S.clock); W.setTod(cl.w); W.uTime.value = t; mats.night.value = W.night; mats.lamp.value.copy(W.lamp.value); H.mats.lamp.color.setRGB(0.55 + W.night * 2.4, 0.42 + W.night * 1.5, 0.25 + W.night * 0.6);
     if (cl.night && !wasNight && play && !nightSeen) { nightSeen = true; beat({ pri: 1, dur: 2, bars: true, sting: 'night', fov: 50, pos: () => V3(hero.x, hero.y + 2.5, hero.z + 6), look: () => V3(hero.x, hero.y + 6, hero.z - 26) }); toast(T('night')); }
     wasNight = cl.night;
     // simulation
     updateHero(dt, t);
     updateAnimals(dt, t, cl.w);
+    updateBlobs();
     // viewfinder
     const a = nearest(L.lens(cfg, S).range);
     const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen ? 1 : 0;
