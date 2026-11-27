@@ -10,3 +10,9 @@ slow 4G 3.16-3.35 s; 247 kB transferred.
 
 The Astrocade draft pulled back through the MCP is byte-identical to the upload set and passes
 `tools/astrocade-bundle-test.js` (started, no errors, moves before touch, tap changes the screen).
+
+## Round 2 (visual review, 27 Nov)
+
+`r2/`: warmer grade, printed-photo look, vignette instead of letterbox bars, full-screen world (tablets too), focus pill
+under the animal, ~60% framing, hero and first fox spotlit together. Playtest all passed; HUD grid equal at all 4 sizes.
+Load 4G first frame 2.26-2.33 s. The re-saved draft pulled via the MCP is byte-identical and passes the bundle test.
