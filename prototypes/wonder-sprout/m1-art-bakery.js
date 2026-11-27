@@ -583,6 +583,16 @@ export function createBakery(bgScale) {
     return art.queue.length;
   };
   /** Bake everything still queued (edit mode, tests). */
+  /** Gold-leaf copy of a landmark for the Golden Garden, baked the first time it is needed. */
+  art.gold = (i) => {
+    const key = 'landmarkGold' + i; if (art[key] || !art['landmark' + i]) return art[key];
+    const sp = art['landmark' + i], c = document.createElement('canvas'); c.width = sp.img.width; c.height = sp.img.height;
+    const g = c.getContext('2d'); g.drawImage(sp.img, 0, 0);
+    g.globalCompositeOperation = 'multiply'; const gr = g.createLinearGradient(0, 0, 0, c.height); gr.addColorStop(0, '#FFF6C8'); gr.addColorStop(0.55, '#FFD45C'); gr.addColorStop(1, '#E0A23A'); g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'screen'; g.fillStyle = 'rgba(120,80,0,0.28)'; g.fillRect(0, 0, c.width, c.height); const sh = g.createLinearGradient(0, 0, c.width, c.height); sh.addColorStop(0.22, 'rgba(255,250,220,0)'); sh.addColorStop(0.4, 'rgba(255,250,220,0.75)'); sh.addColorStop(0.5, 'rgba(255,250,220,0)'); sh.addColorStop(0.66, 'rgba(255,250,220,0)'); sh.addColorStop(0.72, 'rgba(255,250,220,0.45)'); sh.addColorStop(0.78, 'rgba(255,250,220,0)'); g.fillStyle = sh; g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(sp.img, 0, 0);
+    return (art[key] = { img: c, w: sp.w, h: sp.h, ax: sp.ax, ay: sp.ay });
+  };
   art.finish = () => { while (art.queue.length) art.pump(1000); };
   /** Re-bake the full-screen layers at a new quality scale. */
   art.rescale = (sc) => { art.bgScale = sc; art.sky = bakeSky(sc, wp); art.terrace = bakeTerrace(sc, wp); art.hills = bakeHills(sc, wp); };

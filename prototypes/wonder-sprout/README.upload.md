@@ -14,10 +14,11 @@ Genre: casual, idle, farm, slingshot, creature collector. Ages: young children a
 4. Tap an egg in the nest three times to hatch a new friend. Friends play in the garden and collect gems too.
 5. Tap the glowing critter button to evolve your hero into a bigger, stronger form.
 6. Sky pirates fly in now and then: hit their three glowing lanterns before they get away for a big treat.
+7. Once all six landmarks stand, keep collecting gems to turn them gold one by one: the Golden Garden.
 
 ## What is inside
 
-- One floating island (Sunlit Meadow) with six landmarks to grow.
+- One floating island (Sunlit Meadow) with six landmarks to grow, then gild gold.
 - Three critters to hatch and evolve through three forms: Puff-Fox, Cloud-Bunny and Sprout-Dragon.
 - Eggs from the piñata, the nest shop, sky pirates and a morning gift egg each new day.
 - A "Garden Stars" leaderboard for every gem you have ever collected.
@@ -35,7 +36,7 @@ Genre: casual, idle, farm, slingshot, creature collector. Ages: young children a
 - `m1-art-bakery.js`: every picture is painted in code once into sprites (sky, island, landmarks, critters).
 - `m2-audio-engine.js`: music box tune and every sound, made with Web Audio.
 - `m3-physics-gameplay.js`: slingshot, bouncing, targets, gold-ring timing, helpers and sky pirates.
-- `m4-kingdom-critters.js`: gems, landmarks, eggs, hatching, evolution and the leaderboard score.
+- `m4-kingdom-critters.js`: gems, landmarks, the Golden Garden, eggs, hatching, evolution and the leaderboard score.
 - `m5-vfx-kinematics.js`: particles, flying gems, camera moments, critter animation.
 - `m6-kids-portrait-ui.js`: top bar, bottom buttons, drawers, guide hand and language sheet.
 - `m7-garden-goals.js`: small garden goals, one at a time, with gem rewards and gift eggs.

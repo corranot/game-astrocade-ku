@@ -14,6 +14,8 @@ const TIER = { fox: 1, bunny: 1, dragon: 1.3, owl: 1.6, unicorn: 2 };
 
 // ---------- pure formulas (unit tested) ----------
 /** Landmark n (0-based) costs gemsBase * growth^n gems and woodBase * growth^n wood. */
+/** Gems and wood to gild the g-th landmark gold once the island is complete (Golden Garden). */
+export function gildCost(g, E) { const k = (E.gildBase || 1) * Math.pow(E.gildGrowth || 1.3, g), c = landmarkCost(5, E); return { gems: Math.round(c.gems * k), wood: Math.round(c.wood * k) }; }
 export function landmarkCost(i, E) { const k = Math.pow(E.landmarkGrowth, i); return { gems: Math.round(E.landmarkGems * k), wood: Math.round(E.landmarkWood * k) }; }
 /** Stage s to s+1 costs evolveBase * evolveGrowth^(s-1) * species tier; Infinity at stage 3. */
 export function evolveCost(stage, species, E) { return stage >= 3 ? Infinity : Math.round(E.evolveBase * Math.pow(E.evolveGrowth, stage - 1) * (TIER[species] || 1)); }
@@ -33,19 +35,29 @@ export function comboBonus(combo) { return clamp(1 + Math.max(0, combo - 2) * 0.
 
 export function createKingdom(world) {
   const { bus, cfg, rng } = world, E = cfg.economy;
-  const K = { anim: [0, 0, 0, 0, 0, 0], eggWob: 0, eggPop: 0, honeyT: 0, ferrisT: 0, wheelA: 0, plantT: 0, lastBoard: -1, boardT: 0, hatchFx: 0 };
+  const K = { anim: [0, 0, 0, 0, 0, 0], goldAnim: [0, 0, 0, 0, 0, 0], eggWob: 0, eggPop: 0, honeyT: 0, ferrisT: 0, wheelA: 0, plantT: 0, lastBoard: -1, boardT: 0, hatchFx: 0 };
   const S = () => world.state;
   const built = (i) => S().landmarks[i].built;
   K.built = built;
   K.critter = (id) => S().critters.find((c) => c.id === id);
   K.hero = () => K.critter(S().heroId) || S().critters[0];
-  K.mult = () => E.stageMult[K.hero().stage - 1] * (1 + S().rebirthCount);
+  K.mult = () => E.stageMult[K.hero().stage - 1] * (1 + S().rebirthCount) * (1 + (E.gildBonus || 0) * S().gold);
+  /** The landmark being gilded once all six are built, or -1. */
+  K.goldTarget = () => { const s = S(); return s.activeLandmark >= 6 && s.gold < 6 ? s.gold : -1; };
+  /** The landmark index gems fly to right now (building or gilding), or -1. */
+  K.target = () => { const s = S(); return s.activeLandmark < 6 ? (s.planted ? s.activeLandmark : -1) : K.goldTarget(); };
   K.cost = (i) => landmarkCost(i, E);
   K.activeNeeds = () => {
-    const s = S(), i = s.activeLandmark; if (i >= 6 || !s.planted) return null;
+    const s = S(), i = s.activeLandmark;
+    if (i >= 6) { const g = K.goldTarget(); if (g < 0) return null; const c = gildCost(g, E), f = s.goldFill; return { i: g, gems: Math.max(0, c.gems - f.gems), wood: Math.max(0, c.wood - f.wood), gild: true }; }
+    if (!s.planted) return null;
     const c = K.cost(i), l = s.landmarks[i]; return { i, gems: Math.max(0, c.gems - l.gems), wood: Math.max(0, c.wood - l.wood) };
   };
-  K.progress = (i) => { const c = K.cost(i), l = S().landmarks[i]; return clamp((l.gems + l.wood * 10) / (c.gems + c.wood * 10), 0, 1); };
+  K.progress = (i) => {
+    const s = S();
+    if (s.activeLandmark >= 6) { if (i !== K.goldTarget()) return i < s.gold ? 1 : 0; const c = gildCost(i, E), f = s.goldFill; return clamp((f.gems + f.wood * 10) / (c.gems + c.wood * 10), 0, 1); }
+    const c = K.cost(i), l = s.landmarks[i]; return clamp((l.gems + l.wood * 10) / (c.gems + c.wood * 10), 0, 1);
+  };
   /** Where the next orb of a kind should fly: the active pedestal while it still needs it, else the HUD. */
   let toggle = 0;
   const dest = (kind) => {
@@ -90,11 +102,11 @@ export function createKingdom(world) {
     if (o.dest === 'landmark') {
       const need = K.activeNeeds();
       if (need) {
-        const l = s.landmarks[need.i], c = K.cost(need.i);
+        const l = need.gild ? s.goldFill : s.landmarks[need.i], c = need.gild ? gildCost(need.i, E) : K.cost(need.i);
         if (o.kind === 'wood') { const take = Math.min(o.value, need.wood); l.wood += take; s.magicWood += o.value - take; }
         else { const take = Math.min(o.value, need.gems); l.gems += take; s.starGems += o.value - take; }
         bus.emit('landmark:progress', { i: need.i, p: K.progress(need.i) });
-        if (l.gems >= c.gems && l.wood >= c.wood) K.build(need.i);
+        if (l.gems >= c.gems && l.wood >= c.wood) { if (need.gild) K.gild(need.i); else K.build(need.i); }
         return;
       }
     }
@@ -106,6 +118,13 @@ export function createKingdom(world) {
     s.landmarks[i].built = true; s.activeLandmark = i + 1; s.planted = i + 1 < 6 ? false : true; K.anim[i] = 0.0001; K.plantT = 0;
     bus.emit('landmark:built', { i, x: LANDMARK_X[i], y: LANDMARK_BASE - 70 });
     K.applyEffects(); K.submitScore(true);
+  };
+  /** Gild landmark i gold (Golden Garden): a bigger gem multiplier and a gold-leaf makeover. */
+  K.gild = (i) => {
+    const s = S(); if (i !== K.goldTarget()) return;
+    s.gold = i + 1; s.goldFill = { gems: 0, wood: 0 }; K.goldAnim[i] = 0.0001;
+    bus.emit('landmark:gild', { i, n: s.gold, x: LANDMARK_X[i], y: LANDMARK_BASE - 70 });
+    K.submitScore(true);
   };
   /** Choose the next landmark to plant (Kingdom drawer). */
   K.plant = () => { const s = S(); if (s.planted || s.activeLandmark >= 6) return false; s.planted = true; bus.emit('landmark:planted', { i: s.activeLandmark, x: LANDMARK_X[s.activeLandmark], y: LANDMARK_BASE - 40 }); return true; };
@@ -189,7 +208,7 @@ export function createKingdom(world) {
   // ---------- frame ----------
   K.update = (dt) => {
     const s = S();
-    for (let i = 0; i < 6; i++) if (K.anim[i] > 0 && K.anim[i] < 2) K.anim[i] += dt;
+    for (let i = 0; i < 6; i++) { if (K.anim[i] > 0 && K.anim[i] < 2) K.anim[i] += dt; if (K.goldAnim[i] > 0 && K.goldAnim[i] < 2) K.goldAnim[i] += dt; }
     K.eggWob = Math.max(0, K.eggWob - dt * 2.2); K.eggPop = Math.max(0, K.eggPop - dt * 1.5);
     if (s.eggs[0]) s.eggs[0].warm += dt;
     if (world.mode !== 'play') return;
@@ -226,11 +245,28 @@ export function createKingdom(world) {
         continue;
       }
       if (!sp) continue;
-      const a = K.anim[i];
+      const a = K.anim[i], gold = i < s.gold && art.gold ? art.gold(i) : null, ga = K.goldAnim[i];
+      if (gold && art.glow) put(ctx, art.glow, x, y - 70, 1.9, 1.9, 0, 0.3 + 0.12 * Math.sin(t * 2 + i));
       ctx.save(); ctx.translate(x, y - 10); ctx.scale(1.16, 1.16);
-      if (a > 0 && a < 1.2) K.drawPopup(ctx, sp, 0, 0, a); else put(ctx, sp, 0, 0, 1, 1 + Math.sin(t * 1.3 + i) * 0.006);
+      if (a > 0 && a < 1.2) K.drawPopup(ctx, sp, 0, 0, a);
+      else {
+        const sq = 1 + Math.sin(t * 1.3 + i) * 0.006 + (ga > 0 && ga < 0.6 ? Math.sin(ga / 0.6 * Math.PI) * 0.12 : 0);
+        put(ctx, gold || sp, 0, 0, 1, sq);
+      }
       K.drawLive(ctx, art, i, 0, 0, t);
       ctx.restore();
+      if (gold && art.star) for (let k = 0; k < 3; k++) { const u = (t * 0.35 + k / 3 + i * 0.17) % 1; put(ctx, art.star, x - 40 + ((k * 37 + i * 23) % 80), y - 40 - u * 120, 0.5 + Math.sin(u * Math.PI) * 0.4, 0.5 + Math.sin(u * Math.PI) * 0.4, t + k, Math.sin(u * Math.PI)); }
+      if (i === K.goldTarget()) {
+        // gilding meter: a small gold ring badge above the landmark, filling as gems arrive
+        const p = K.progress(i), cx = x, cy = y - 196, r = 24;
+        if (art.glow) put(ctx, art.glow, cx, cy, 0.9, 0.9, 0, 0.35 + 0.2 * Math.sin(t * 4));
+        ctx.save(); ctx.lineCap = 'round';
+        ctx.fillStyle = rgba(PAL.plum, 0.8); ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = rgba(PAL.cream, 0.3); ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        if (p > 0) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke(); }
+        ctx.restore();
+        if (art.star) put(ctx, art.star, cx, cy, 1.1 + 0.08 * Math.sin(t * 5), 1.1 + 0.08 * Math.sin(t * 5), 0, 1);
+      }
     }
   };
   /** Three-tier origami unfold: each third of the sprite hinges up from its bottom, staggered. */

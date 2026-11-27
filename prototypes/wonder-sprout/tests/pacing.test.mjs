@@ -19,3 +19,12 @@ for (const seed of [7, 11, 23]) {
     assert.ok(r.rewards[0] <= 3 && Math.max(...gaps) <= 8, 'a reward every few seconds in the first minute');
   });
 }
+
+test('after the island is done, the golden garden keeps a milestone every few minutes', () => {
+  for (const rush of [false, true]) {
+    const r = simulate(30, 7, { rush });
+    assert.ok(r.gilds.length >= 3, 'at least three gilds in 30 min (rush ' + rush + '): ' + r.gilds);
+    assert.ok(r.gilds[0] >= r.landmarks[5] && r.gilds[0] - r.landmarks[5] <= 300, 'first gild within 5 min of the last landmark: ' + r.gilds[0]);
+    for (let i = 1; i < r.gilds.length; i++) assert.ok(r.gilds[i] - r.gilds[i - 1] >= 120, 'gilds are spaced at least 2 min apart');
+  }
+});

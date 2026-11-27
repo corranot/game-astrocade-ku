@@ -74,7 +74,8 @@ export function freshState(now) {
     bossState: null, weatherEvent: null, rebirthCount: 0,
     stats: { lifetime: 0, flings: 0, crits: 0, hatched: 0, bestCombo: 0, playSec: 0, raids: 0, wood: 0 },
     quest: { i: 0, p: 0 },
-    ftue: { done: 0, skipped: false }, lastSeen: now || 0, giftDay: '', firstDay: now ? dayKey(now) : '', lang: '', sound: true,
+    gold: 0, goldFill: { gems: 0, wood: 0 }, tmrwDay: '',
+    ftue: { done: 0, skipped: false }, lastSeen: now || 0, giftDay: '', firstDay: now ? dayKey(now) : '', lang: '', sound: true, musicOff: false,
   };
 }
 
@@ -106,7 +107,10 @@ export function validateState(raw, now) {
   s.giftDay = typeof raw.giftDay === 'string' ? raw.giftDay.slice(0, 10) : '';
   s.firstDay = typeof raw.firstDay === 'string' ? raw.firstDay.slice(0, 10) : s.firstDay;
   s.lang = typeof raw.lang === 'string' ? raw.lang.slice(0, 5) : '';
-  s.sound = raw.sound !== false;
+  s.sound = raw.sound !== false; s.musicOff = raw.musicOff === true;
+  s.gold = int(raw.gold, 0, 6, 0);
+  if (raw.goldFill && typeof raw.goldFill === 'object') s.goldFill = { gems: num(raw.goldFill.gems, 0, 1e12, 0), wood: num(raw.goldFill.wood, 0, 1e9, 0) };
+  s.tmrwDay = typeof raw.tmrwDay === 'string' ? raw.tmrwDay.slice(0, 10) : '';
   if (raw.quest && typeof raw.quest === 'object') s.quest = { i: int(raw.quest.i, 0, 1e6, 0), p: num(raw.quest.p, 0, 1e9, 0) };
   return s;
 }

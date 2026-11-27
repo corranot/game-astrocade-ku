@@ -52,7 +52,7 @@ export function createVfx(world) {
   // ---------- orbs ----------
   const orbs = [], MAXO = 160;
   const destPos = (o) => {
-    if (o.dest === 'landmark') { const i = world.state.activeLandmark; return i < 6 ? [LANDMARK_X[i], LANDMARK_BASE - 70] : HUD_TARGET.gem; }
+    if (o.dest === 'landmark') { const i = world.kingdom.target(); return i >= 0 ? [LANDMARK_X[i], LANDMARK_BASE - (world.state.activeLandmark >= 6 ? 196 : 70)] : HUD_TARGET.gem; }
     return HUD_TARGET[o.kind] || HUD_TARGET.gem;
   };
   bus.on('orb', (e) => {
@@ -122,6 +122,12 @@ export function createVfx(world) {
   bus.on('raid:weak', (e) => { V.shards(e.x, e.y, 10, ['gemCoral', 'gem', 'gemLav']); V.ring(e.x, e.y, 10, 110, 0.4, PAL.coral, 6); V.shake(0.25); V.stop(30); });
   bus.on('raid:hit', (e) => { V.sparks(e.x, e.y, 8, 'star', 300); V.shake(0.1); });
   bus.on('raid:break', (e) => { V.stop(F.hitstopMs); V.shake(0.7); V.confetti(e.x, e.y, 70); V.shards(e.x, e.y, 26, ['gem', 'gemCoral', 'gemTeal', 'gemLav']); for (let k = 0; k < 4; k++) setTimeout(() => V.firework(e.x - 150 + k * 100, e.y - 40 + (k % 2) * 40), k * 160); V.queueBeat({ x: e.x, y: e.y, pri: 4, dur: 1.4, zoom: 1.12, slow: 0.3, bars: true }); });
+  bus.on('landmark:gild', (e) => {
+    V.queueBeat({ x: e.x, y: e.y - 30, pri: 5, dur: 1.5, zoom: 1.16, slow: 0.3, bars: true });
+    V.ring(e.x, e.y - 20, 20, 190, 0.7, PAL.gold, 9); V.sparks(e.x, e.y - 40, 34, 'star', 460, 1); V.confetti(e.x, e.y, 30); V.shake(0.3);
+    for (let k = 0; k < 2; k++) setTimeout(() => V.firework(e.x + (k ? 60 : -60), e.y - 90), 260 + k * 240);
+    if (e.n >= 6) setTimeout(() => { V.flash = 1; V.queueBeat({ x: 380, y: 300, pri: 6, dur: 2, zoom: 1.06, slow: 0, bars: true }); }, 1600);
+  });
   // island complete: a short golden flash, then the rainbow bridge to the next island draws itself across
   // the sky while the camera frames it
   bus.on('world:done', () => { V.flash = 1; V.rainbow = 0.0001; V.beatReady = 0; V.queueBeat({ x: 380, y: 300, pri: 6, dur: 2.2, zoom: 1.06, slow: 0, bars: true }); V.sparks(645, 300, 14, 'star', 360); });

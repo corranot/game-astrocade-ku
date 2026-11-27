@@ -16,6 +16,10 @@
   sixth (`economy.goalGems`, `goalGrowth`, `goalEggEvery`). The pacing bot plays with goals on, so their
   rewards are inside the pacing windows.
 
+- Golden Garden (`m4-kingdom-critters.js`): once all six landmarks stand, gems flow into gilding them gold one by
+  one (`gildBase`, `gildGrowth`, `gildBonus`); each gold landmark raises the gem multiplier. Bot: a gild every 4 to
+  6 minutes from about 12 to 40 minutes. A once-a-day "gift egg tomorrow" toast promises the daily gift egg.
+
 ## Pacing (bot, 3 seeds, goals on, 27 Nov r3 tuning)
 
 Landmarks at about 0:35-1:50, 1:55-2:10, 3:00-3:30, 4:25-5:50, 7:30-8:40, 11:15-12:25; hero stage 2 at 2:20-2:35,

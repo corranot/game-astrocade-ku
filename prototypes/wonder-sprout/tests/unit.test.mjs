@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import { classifyTouch, launchVelocity, aimAssist, isSweet, ringScale, stepBody, collide } from '../m3-physics-gameplay.js';
-import { landmarkCost, evolveCost, rollSpecies, offlineGems, gardenStars, comboBonus } from '../m4-kingdom-critters.js';
+import { landmarkCost, gildCost, evolveCost, rollSpecies, offlineGems, gardenStars, comboBonus } from '../m4-kingdom-critters.js';
 import { validateState, freshState, readConfig, frameDt, makeRng, SCHEMA_VERSION } from '../m0-orchestrator.js';
 import { nextFtue, FTUE, fmt } from '../m6-kids-portrait-ui.js';
 import { pickBeat } from '../m5-vfx-kinematics.js';
@@ -152,4 +152,23 @@ test('saved goal progress survives a reload and bad values are clamped', () => {
   const s = freshState(1000); s.quest = { i: 5, p: 3 };
   assert.deepEqual(validateState(JSON.parse(JSON.stringify(s)), 1000).quest, { i: 5, p: 3 });
   assert.deepEqual(validateState({ ...s, quest: { i: -4, p: 'x' } }, 1000).quest, { i: 0, p: 0 });
+});
+
+test('golden garden costs grow past the last landmark and saved gold progress is clamped', () => {
+  assert.ok(gildCost(0, E).gems >= landmarkCost(5, E).gems);
+  assert.ok(gildCost(5, E).gems > gildCost(0, E).gems);
+  const s = freshState(1000); s.gold = 3; s.goldFill = { gems: 50, wood: 2 };
+  const back = validateState(JSON.parse(JSON.stringify(s)), 1000);
+  assert.equal(back.gold, 3); assert.deepEqual(back.goldFill, { gems: 50, wood: 2 });
+  assert.equal(validateState({ ...s, gold: 99, goldFill: 'x' }, 1000).gold, 6);
+});
+
+test('every language has the golden garden and tomorrow lines', () => {
+  for (const l of LANGS) for (const k of ['goldGo', 'golden', 'goldDone', 'tomorrow']) assert.ok(STR[l][k], l + ' ' + k);
+});
+
+test('the music-off choice survives a reload', () => {
+  const s = freshState(1000); s.musicOff = true;
+  assert.equal(validateState(JSON.parse(JSON.stringify(s)), 1000).musicOff, true);
+  assert.equal(validateState(freshState(1000), 1000).musicOff, false);
 });
