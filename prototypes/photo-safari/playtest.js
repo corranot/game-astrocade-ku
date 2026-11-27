@@ -197,12 +197,19 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
   // ---- swipe-to-look: a drag on the right side turns the view, the stick then walks relative to it, the view drifts back
   {
     const { page, errors } = await open(390, 844, '&tod=day', saved);
-    await ev(page, () => { __game.buildAll(); __game.tp(1, -30); }); await step(page, 90); // an open stretch of path: no viewfinder
+    await ev(page, () => { __game.skipFtue(); __game.S.hints &= ~4; __game.buildAll(); __game.tp(1, -30); }); await step(page, 90); // an open stretch of path: no viewfinder; hint re-armed for this check
     await shoot(page, '23-look-before');
+    await ev(page, () => __game.animals.forEach((a) => { a.x0h = a.x; a.x += 400; })); // nobody wanders into view: the hint only shows in free walking
+    await step(page, 60 * 4);
+    const hint = () => ev(page, () => { const h = document.getElementById('hand'); return !h.hidden && h.classList.contains('swipe'); });
+    check(await hint(), 'after the tutorial a one-time hand shows the swipe to look');
+    await shoot(page, '24-look-hint');
+    await ev(page, () => __game.animals.forEach((a) => { a.x = a.x0h; }));
     const h0 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z }));
     const drag = async (x0, y0, dx, dy, n = 8) => { await page.mouse.move(x0, y0); await page.mouse.down(); for (let i = 1; i <= n; i++) { await page.mouse.move(x0 + dx * i / n, y0 + dy * i / n); await step(page, 2); } return async () => page.mouse.up(); };
     const up1 = await drag(300, 420, 90, 20); await up1(); await step(page, 40);
     const lk = await ev(page, () => __game.look());
+    check(!(await hint()), 'the first look swipe dismisses the hint');
     check(lk.yaw < -0.5 && lk.yaw > -1.29 && lk.el > 0, `a right-side swipe turns and tilts the view (yaw ${lk.yaw.toFixed(2)}, tilt ${lk.el.toFixed(2)})`);
     check(Math.hypot((await ev(page, () => __game.hero.x)) - h0.x, (await ev(page, () => __game.hero.z)) - h0.z) < 0.2, 'a look swipe does not move the hero');
     await shoot(page, '23-swipe-look');
