@@ -27,7 +27,6 @@
   "boxShowSeconds": 2.6,
   "shareNudgeSeconds": 2.4,
   "shareNudgeFromLevel": 2,
-  "backdropSlices": 12,
   "beatZoom": 0.07,
   "beatSeconds": 1.9,
   "beatVignette": 0.32,

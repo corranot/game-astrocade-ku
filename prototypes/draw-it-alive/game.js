@@ -682,12 +682,12 @@ function drawGuide() {
 
 /** Progress pips at the top: one per level, the current one larger. */
 function drawPips() {
-  const n = CHAPTER, gap = 44, x0 = W / 2 - (n - 1) * gap / 2;
+  const n = CHAPTER, gap = 36, x0 = W / 2 - (n - 1) * gap / 2;
   for (let i = 0; i < n; i++) {
     const cur = i === S.i % n, done = i < S.i % n || (cur && S.won >= 0);
-    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 112, cur ? 18 : 12, 0, 7);
+    g.beginPath(); g.arc(rtl() ? W - x0 - i * gap : x0 + i * gap, 112, cur ? 15 : 10, 0, 7);
     g.fillStyle = done ? WHITE : 'rgba(31,42,107,0.22)'; g.fill(); // levels still to come: a soft navy that shows on every sky
-    if (cur) { g.lineWidth = 6; g.strokeStyle = NAVY; g.stroke(); }
+    if (cur) { g.lineWidth = 5; g.strokeStyle = NAVY; g.stroke(); }
   }
 }
 
@@ -938,33 +938,24 @@ function edgeStrip(src, sx, sy, sw, sh, n) {
   }
   const t = document.createElement('canvas'); t.width = n; t.height = 1; t.getContext('2d').putImageData(out, 0, 0); return t;
 }
-/** Repaint the backdrop when the scene, the screen or the window changes; stretched edge colours, softly blended. */
+/** Repaint the backdrop when the scene, the screen or the window changes. The scene's own painting is mirrored out
+ *  past its edges (sky above, scenery to the sides), so the seam is invisible and nothing is stretched; below the
+ *  scene the ground carries on as one flat colour, so flowers are never shown upside down. */
 function paintBackdrop() {
   if (!bg) return;
-  const src = view === 'play' ? back : cv, w = innerWidth, h = innerHeight;
+  const scene = view === 'play' ? back : view === 'wall' ? wallBack : null, src = scene || cv, w = innerWidth, h = innerHeight;
   const key = view + '|' + (view === 'play' ? S.i : wall ? wall.c : '') + '|' + w + 'x' + h;
   if (key === bgFor) return; bgFor = key;
-  bg.width = w; bg.height = h; const c = bg.getContext('2d'), r = cv.getBoundingClientRect(), n = cfg.backdropSlices;
-  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-  if (r.top > 0.5) { // tall screen: sky above, ground below
-    c.drawImage(edgeStrip(src, 0, 0, W, 2, n), 0, 0, n, 1, r.left, 0, r.width, r.top + 1);
-    c.drawImage(edgeStrip(src, 0, H - 120, W, 120, 1), 0, 0, 1, 1, r.left, r.bottom - 1, r.width, h - r.bottom + 1); // one ground colour, never streaks of flowers
+  bg.width = w; bg.height = h; const c = bg.getContext('2d'), r = cv.getBoundingClientRect(), k = r.width / W;
+  if (!scene) { c.drawImage(edgeStrip(src, 0, 0, 24, H, 1), 0, 0, 1, 1, 0, 0, w, h); return; } // book and box: their panel colour
+  c.drawImage(edgeStrip(src, 0, H - 120, W, 120, 1), 0, 0, 1, 1, 0, 0, w, h); // ground everywhere first
+  const sw = Math.min(W, Math.ceil(r.left / k) + 2), sh = Math.min(H, Math.ceil(r.top / k) + 2);
+  if (r.left > 0.5) { // wide screen: each side is the scene's own edge, mirrored
+    c.save(); c.translate(r.left, r.top); c.scale(-k, k); c.drawImage(src, 0, 0, sw, H, 0, 0, sw, H); c.restore();
+    c.save(); c.translate(r.right, r.top); c.scale(-k, k); c.drawImage(src, W - sw, 0, sw, H, -sw, 0, sw, H); c.restore();
   }
-  if (r.left > 0.5) { // wide screen: the same sky and ground carried out to each side
-    // each side carries on its own edge, band by band, but only as sky or ground: a sun, a tree or a flower cut by
-    // the edge keeps the colour of the band above it, so nothing smears sideways
-    const px = (t) => t.getContext('2d').getImageData(0, 0, 1, 1).data, sky = px(edgeStrip(src, 0, 0, W, 2, 1)), ground = px(edgeStrip(src, 0, H - 120, W, 120, 1));
-    const near = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 24, bands = n * 4, bh = H / bands;
-    for (const [sx, x0, x1] of [[0, 0, r.left + 1], [W - 24, r.right - 1, w]]) {
-      let cur = sky; // starts as sky at the top
-      const v = document.createElement('canvas'); v.width = 1; v.height = bands; const vc = v.getContext('2d'), out = vc.createImageData(1, bands);
-      for (let k = 0; k < bands; k++) {
-        const m = px(edgeStrip(src, sx, Math.floor(k * bh), 24, Math.max(1, Math.floor(bh)), 1));
-        if (near(m, sky) || near(m, ground)) cur = m;
-        out.data.set([cur[0], cur[1], cur[2], 255], k * 4);
-      }
-      vc.putImageData(out, 0, 0); c.drawImage(v, 0, 0, 1, bands, x0, r.top, x1 - x0, r.height);
-    }
+  if (r.top > 0.5) { // tall screen: the sky mirrored upwards; the ground below stays the flat colour painted above
+    c.save(); c.translate(r.left, r.top); c.scale(k, -k); c.drawImage(src, 0, 0, W, sh, 0, 0, W, sh); c.restore();
   }
 }
 
