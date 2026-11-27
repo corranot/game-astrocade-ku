@@ -1,0 +1,35 @@
+{
+ "errors": [],
+ "firstFrameMs": 2364,
+ "bootDoneMs": 4820,
+ "idleFrame": {
+  "p50": 16.7,
+  "p90": 16.7
+ },
+ "handover": {
+  "n": 0,
+  "step": "carve",
+  "shape": "heart"
+ },
+ "order1Ms": 17362,
+ "share": {
+  "title": "Soap Carving: Satisfying ASMR",
+  "text": "I made this soap in Soap Carving!",
+  "hasImage": true,
+  "w": 720,
+  "h": 1080
+ },
+ "makeSteps": [
+  "chop",
+  "color",
+  "stir",
+  "scent",
+  "pour",
+  "cool",
+  "pop"
+ ],
+ "order7": {
+  "step": "chop",
+  "shape": "snowman"
+ }
+}

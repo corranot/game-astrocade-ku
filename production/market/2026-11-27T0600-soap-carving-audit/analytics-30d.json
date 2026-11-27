@@ -1,0 +1,10 @@
+{"read_utc":"2026-11-27T05:50","source":"Studio > Analytics, JSON the page loaded (/v3/analytics, numDays=30)",
+ "stats":{"playCount":17965,"likeCount":177,"commentsCount":4},
+ "public_page":{"shares":555,"firstPublished":"2026-11-22T08:36:38Z","servedVersionId":"01M7XRFM6N9MK3RFKX5924F3SY","hasLeaderboard":true},
+ "daily":{"11/22":[190,161],"11/23":[114,95],"11/24":[138,109],"11/25":[289,249],"11/26":[15217,12497],"11/27 (to ~05:45 UTC)":[2169,1823]},
+ "duration_buckets":{"0s":894,"0-10s":860,"10-30s":2311,"30-60s":3040,"1-2m":5182,"2-5m":5056,"5-10m":1355,"10m+":301},
+ "p50_s":90.98,"p75_s":159.96,
+ "ttfi_buckets":{"0-5s":5527,"5-10s":3656,"10-15s":2845,"15-30s":2851,"30-60s":360,"60s+":17},"ttfi_median_s":7.72,
+ "fps":{"0-20":154,"20-40":1282,"40+":14901},
+ "ctr_avg":0.6669,"zero_interaction_rate":0.05,
+ "asset_median_load_ms":{"bath_bowl":889,"pot_flat":808,"studio_bg":800,"gift_box":798,"soap_cube":766,"charms_sheet":722,"gems_sheet":688,"customer_grandpa":645,"tools_sheet":620,"customer_lin":546,"customer_omar":430,"customer_mia":315,"music_studio":224}}
