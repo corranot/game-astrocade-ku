@@ -1,0 +1,26 @@
+{
+  "settings": { "music": true, "effects": true, "haptics": true },
+  "physics": {
+    "critterRadius": 34, "maxPull": 170, "launchPower": 13.5, "maxSpeed": 2300, "drag": 0.62, "restSpeed": 70, "friction": 260,
+    "wallBounce": 0.82, "bumperBoost": 1.18, "bumperMin": 900, "substep": 0.008333, "hitboxScale": 1.45,
+    "assistDeg": 6, "assistConeDeg": 20, "tapMovePx": 14, "tapMs": 220, "returnSec": 0.45
+  },
+  "rhythm": { "period": 2.6, "ringStart": 2.3, "window": 0.13, "critMult": 5 },
+  "economy": {
+    "_formula": "landmark n costs gemsBase * growth^(n-1) gems and woodBase * growth^(n-1) wood (plan section 4)",
+    "landmarkGems": 240, "landmarkWood": 3, "landmarkGrowth": 1.85, "toLandmarkShare": 0.65,
+    "gemsPerHit": { "mushroom": 1, "geode": 3, "tree": 1, "pinata": 2, "raid": 4 },
+    "woodPerTreeHit": 1, "geodeHp": 3, "geodeBurst": 8, "pinataHp": 5, "pinataBurst": 18, "pinataEggChance": 0.12,
+    "respawnSec": { "geode": 3.5, "pinata": 7 },
+    "eggCost": { "meadow": 300, "coral": 1200 }, "incubateSec": 5, "hatchTaps": 3,
+    "_evolveFormula": "stage s to s+1 costs evolveBase * evolveGrowth^(s-1) * species tier",
+    "evolveBase": 900, "evolveGrowth": 2.3,
+    "stageMult": [1, 1.7, 2.8], "helperEverySec": [4.2, 3.2, 2.4], "helperGems": 2,
+    "honeyEverySec": 6, "ferrisGemsPerSec": 0.8, "observatoryPower": 1.15, "observatoryCrit": 1.4,
+    "offlineCapHours": 8, "offlineShare": 0.25, "maxCritters": 12, "maxEggs": 6
+  },
+  "raid": { "firstSec": 75, "everySec": 75, "staySec": 22, "weakHp": 3, "burstGems": 50 },
+  "fx": { "hitstopMs": 45, "shake": 1, "beatCooldownSec": 8, "particleCap": [180, 350, 600] },
+  "quality": { "scale": [0.8, 1, 1.25], "downFps": 50, "upFps": 58, "upAfterSec": 10 },
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
