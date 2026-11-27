@@ -66,10 +66,10 @@ function words(str, x, y, size, maxW, color, stroke) {
   g.fillStyle = color; g.fillText(str, x, y); g.direction = 'ltr';
 }
 /** A glossy white pill with words, centred on (x, y); pop scales it for a bounce. */
-function banner(str, x, y, size, maxW, color = PLUM, pop = 1, base = '#FFFFFF') {
+function banner(str, x, y, size, maxW, color = PLUM, pop = 1, base = '#FFFFFF', fixW = 0) {
   g.save(); g.translate(x, y); g.scale(pop, pop);
   g.font = `800 ${size}px ${FONT}`;
-  const w = Math.min(maxW, g.measureText(str).width) + 60, h = size + 32;
+  const w = fixW || Math.min(maxW, g.measureText(str).width) + 60, h = size + 32;
   glossPill(g, -w / 2, -h / 2, w, h, base, '#FF9CC8');
   words(str, 0, 3, size, maxW, color);
   g.restore();
@@ -95,7 +95,7 @@ function loadFonts() {
 }
 
 // ---------- first-time spotlight: the table dims except what to touch next; it moves on when the player does it ----------
-const SKIPB = () => ({ x: mx(24, 96), y: 312, s: 96 }); // under the prompt, clear of the lit area
+const SKIPB = () => ({ x: mx(24, 96), y: 296, s: 96 }); // second row of the top grid, under the prompt's left edge
 /** The hole of the spotlight for the current step, or null when there is nothing to teach. */
 function spotRect() {
   if (mode !== 'play' || view !== 'play' || save.ftue || !S || S.enter > 0 || S.trim || S.k === 'bath') return null;
@@ -677,14 +677,14 @@ function giftTap() {
 // the top row sits on one 8 px grid: 16 px margins and gaps all round, every pill and button 96 tall, centred on y 64
 const MUTE = () => ({ x: mx(608, 96), y: 16 - OFF, s: 96 }), SHELFB = () => ({ x: mx(496, 96), y: 16 - OFF, s: 96 });
 const CHECK = () => ({ x: mx(564, 112), y: 740, s: 112 });
-const NEXT = { x: 360, y: 1028, r: 56 };
+const NEXT = { x: 360, y: 1028, r: 56 }; // the result row's centre line (y 1028): share | next | peek
 /** The icons of the current part of the recipe (making, or finishing) and where step k's icon sits. */
 const phaseList = (k = S.k) => S.steps.filter((q) => isMake(q) === isMake(k));
 const stepPos = (k) => { const list = phaseList(k), n = list.length, i = Math.max(0, list.indexOf(k)), sp = Math.min(92, 470 / Math.max(1, n - 1)); return [mx(360 + (i - (n - 1) / 2) * sp), 160]; };
 const GIFTB = () => ({ x: mx(248, 232), y: 16 - OFF, w: 232, h: 96 });
-const SHAREB = () => (view === 'photo' ? { x: 240, y: 984, w: 240, h: 84 } : { x: mx(24, 240), y: 988, w: 240, h: 84 }); // beside the big next button (centred under a shelf photo), above the bottom 15%
+const SHAREB = () => (view === 'photo' ? { x: 240, y: 984, w: 240, h: 84 } : { x: mx(24, 240), y: 986, w: 240, h: 84 }); // beside the big next button (centred under a shelf photo), above the bottom 15%
 const slotXY = (row, j) => [mx(72 + j * 115), row ? 1040 : 962];
-const ORDER = () => ({ x: mx(452, 244), y: 206, w: 244, h: 202 });
+const ORDER = () => ({ x: mx(480, 216), y: 208, w: 216, h: 176 }); // right column of the top grid, clear of the board
 const SHELF_CELL = (i) => [mx(30 + (i % 4) * 168, 150), 226 + Math.floor(i / 4) * 182];
 const SHOP_XY = (j) => [mx(150 + j * 140), 932];
 const LANGB = () => ({ x: mx(30, 300), y: 1000, w: 300, h: 84 }), FREEB = () => ({ x: mx(390, 300), y: 1000, w: 300, h: 84 });
@@ -1147,31 +1147,32 @@ function drawGift() {
 function drawPrompt() {
   const key = S.trim ? 'carve' : S.k, age = S.t - (S.promptAt || 0);
   if (S.promptKey !== key) { S.promptKey = key; S.promptAt = S.t; }
-  const oops = S.oopsT < 1.1, txt = oops ? T('oops') : T(key === 'carve' && S.order.free ? 'carveFree' : key), cx = mx(232);
-  banner(txt, cx, 262 + (oops ? Math.sin(S.oopsT * 30) * 3 : 0), 36, 380, oops ? '#E0245E' : PLUM, popIn(oops ? S.oopsT : age));
-  if (S.order.golden && (S.k === 'carve' || isMake(S.k))) banner(T('golden'), cx, 352, 28, 360, '#B87400', 1, '#FFF4C2');
-  else if (S.k === 'sparkle' && S.gemSel >= 0) banner(T('gem'), cx, 352, 28, 360, PLUM, 1);
+  const oops = S.oopsT < 1.1, txt = oops ? T('oops') : T(key === 'carve' && S.order.free ? 'carveFree' : key), cx = mx(244);
+  banner(txt, cx, 248 + (oops ? Math.sin(S.oopsT * 30) * 3 : 0), 36, 380, oops ? '#E0245E' : PLUM, popIn(oops ? S.oopsT : age), '#FFFFFF', 440); // one fixed pill: its left edge is the skip's
+  const sk = !!spotRect(), bx = sk ? mx(300) : cx, bw = sk ? 268 : 380; // second row: beside the skip when it shows
+  if (S.order.golden && (S.k === 'carve' || isMake(S.k))) banner(T('golden'), bx, 344, 28, bw - 60, '#B87400', 1, '#FFF4C2', bw);
+  else if (S.k === 'sparkle' && S.gemSel >= 0) banner(T('gem'), bx, 344, 28, bw - 60, PLUM, 1, '#FFFFFF', bw);
 }
 function drawOrder() {
   const o = ORDER(), k = S.enter > 0 ? back3(1 - S.enter / 0.7) : 1, ox = (1 - k) * (rtl() ? -320 : 320);
   g.save(); g.translate(ox, 0);
   panel(g, o.x, o.y, o.w, o.h, 30);
-  const face = cellCanvas('customer_' + S.order.customer, MOOD[S.mood] ?? 0, 150);
-  const px = rtl() ? o.x + o.w - 78 : o.x + 78;
-  if (face) { g.save(); roundRect(g, px - 68, o.y + 14, 136, 150, 22); g.clip(); g.drawImage(face, Math.round(px - face.width / 2), o.y + 12); g.restore(); }
-  else glossDisc(g, px, o.y + 90, 56, '#FFD9C2');
+  const face = cellCanvas('customer_' + S.order.customer, MOOD[S.mood] ?? 0, 124);
+  const px = rtl() ? o.x + o.w - 70 : o.x + 70;
+  if (face) { g.save(); roundRect(g, px - 58, o.y + 12, 116, 116, 22); g.clip(); g.drawImage(face, Math.round(px - face.width / 2), o.y + 10); g.restore(); }
+  else glossDisc(g, px, o.y + 70, 50, '#FFD9C2');
   // what they want: the shape in the soap's colour
-  const sx = rtl() ? o.x + 60 : o.x + o.w - 60, sy = o.y + 82, mb = MARBLE(S.order.marble);
-  g.save(); g.translate(sx - 40, sy - 40); g.scale(0.8, 0.8); g.fillStyle = mb.kind === 'layers' ? '#FFB3E0' : mb.base; g.fill(pathOf(S.order.shape)); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke(pathOf(S.order.shape)); g.restore();
+  const sx = rtl() ? o.x + 48 : o.x + o.w - 48, sy = o.y + 70, mb = MARBLE(S.order.marble);
+  g.save(); g.translate(sx - 32, sy - 32); g.scale(0.64, 0.64); g.fillStyle = mb.kind === 'layers' ? '#FFB3E0' : mb.base; g.fill(pathOf(S.order.shape)); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke(pathOf(S.order.shape)); g.restore();
   // reward and wishes
-  const ry = o.y + o.h - 30; coinIcon(px - 28, ry, 18);
+  const ry = o.y + o.h - 26; coinIcon(px - 28, ry, 18);
   g.font = `800 30px ${FONT}`; g.fillStyle = PLUM; g.textAlign = 'left'; g.textBaseline = 'middle'; g.direction = 'ltr'; g.fillText(String(S.order.free ? cfg.coinPerStar : cfg.coinPerStar * 3 * (S.order.golden ? 2 : 1)), px - 4, ry + 2);
   let wx = sx - 26;
   if (S.order.glitter) { const gl = cfg.glitters.find((x) => x.id === S.order.glitter); glossDisc(g, wx, ry, 17, gl.c); wx += 44; }
   if (S.order.gem) { drawCell(g, 'gems_sheet', gemCell(S.order.gem), wx, ry, 38); wx += 44; }
   if (S.order.stamp) { g.save(); g.translate(wx - 15, ry - 15); g.scale(0.3, 0.3); g.fillStyle = '#FF8FC0'; g.fill(pathOf(cfg.stamps.find((x) => x.id === S.order.stamp).shape)); g.restore(); }
-  if (S.order.charm !== null && !S.order.free) { g.fillStyle = PINK; words('?', sx + 34, o.y + 30, 30, 40, '#FFFFFF', PINK); }
-  if (S.winterNew) banner(T('new'), sx, o.y + 166, 22, 96, '#FFFFFF', 1, PINK);
+  if (S.order.charm !== null && !S.order.free) { g.fillStyle = PINK; words('?', sx + 26, o.y + 26, 30, 40, '#FFFFFF', PINK); }
+  if (S.winterNew) banner(T('new'), sx, o.y + 118, 22, 80, '#FFFFFF', 1, PINK);
   g.restore();
 }
 function drawCheck() { const b = CHECK(), r = b.s / 2, p = 1 + Math.sin(S.t * 6) * 0.05; g.save(); g.translate(b.x + r, b.y + r); g.scale(p, p); glossDisc(g, 0, 0, r, GREEN); g.strokeStyle = '#FFFFFF'; g.lineWidth = 12; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-r * 0.36, 0); g.lineTo(-r * 0.08, r * 0.28); g.lineTo(r * 0.4, -r * 0.3); g.stroke(); g.restore(); }
@@ -1195,11 +1196,26 @@ function priceTag(x, y) { glossPill(g, x - 40, y - 15, 80, 30, '#FFFFFF', '#FFC9
 // ---------- helper hand ----------
 const handShown = () => mode === 'play' && view === 'play' && S.k !== 'bath' && S.enter <= 0 && !S.trim && !pen && ((!S.stepUsed && !save.learned.includes(S.k)) || S.idle > cfg.idleHand);
 /** Where the hand is now: it acts out the current step's gesture on a loop. */
+/** Points just outside the shape's line, in order round it, on the stretch that still has soap (null: none left). */
+function traceOf(S) {
+  const sp = S.soap, off = cfg.knifeR + 10;
+  if (!S.trace) {
+    const pts = []; let cx = 0, cy = 0;
+    for (let y = 4; y < sp.h - 4; y += 4) for (let x = 4; x < sp.w - 4; x += 4) { const d = sp.sd[y * sp.w + x]; if (Math.abs(d + off) < 2.5) { pts.push([x, y]); cx += x; cy += y; } }
+    if (!pts.length) return (S.trace = []), null;
+    cx /= pts.length; cy /= pts.length;
+    S.trace = pts.map(([x, y]) => [x, y, (Math.atan2(y - cy, x - cx) + Math.PI * 2.5) % (Math.PI * 2)]).sort((a, c) => a[2] - c[2]); // from the top, clockwise
+  }
+  const left = S.trace.filter(([x, y]) => sp.m[y * sp.w + x]);
+  return left.length > 6 ? left.slice(0, Math.max(6, Math.round(S.trace.length * 0.35))) : null;
+}
 function handAt() {
   const b = cfg.bar, t = (S.t % 1.6) / 1.6, f = S.fit;
   if (isMake(S.k)) return makeHand(S, t);
   if (S.k === 'stamp') return [b.x + b.w / 2 + Math.sin(t * TAU) * 40, b.y + b.h * 0.45];
-  if (S.k === 'carve') { // a stroke across the soap above the shape, where there is still soap
+  if (S.k === 'carve') { // trace just outside the dashed line where soap is left, so the knife shows the cut
+    const tr = traceOf(S);
+    if (tr) { const p = tr[Math.min(tr.length - 1, Math.floor(ease(t) * tr.length))]; return [b.x + p[0], b.y + p[1]]; }
     let y = b.y + Math.max(24, f.oy * 0.5);
     for (let yy = 16; yy < b.h - 16; yy += 12) { const row = yy * b.w; let n = 0; for (let x = 10; x < b.w - 10; x += 8) if (S.soap.m[row + x] && S.soap.sd[row + x] < -cfg.knifeR) n++; if (n > 6) { y = b.y + yy; break; } }
     return [b.x + 30 + (b.w - 60) * ease(t), y];
@@ -1250,7 +1266,7 @@ function drawResult() {
   }
   // the customer and the three bars
   if (t > 0.9) {
-    const k = ease((t - 0.9) / 0.4), y0 = 856 + (1 - k) * 300;
+    const k = ease((t - 0.9) / 0.4), y0 = 832 + (1 - k) * 300; // ends at 950, the button row starts below it
     panel(g, 20, y0, 680, 118, 30);
     const face = cellCanvas('customer_' + S.order.customer, MOOD[S.mood] ?? 0, 170), fxp = mx(24, 120);
     if (face) { g.save(); roundRect(g, fxp, y0 - 46, 120, 160, 24); g.clip(); g.drawImage(face, Math.round(fxp + 60 - face.width / 2), y0 - 50); g.restore(); } // the customer leans up out of the panel
@@ -1287,7 +1303,7 @@ function drawResult() {
     }
   }
   if (t > 1.5) { // a peek at the next order: its shape in its colour, gold when it is a golden soap
-    const no = makeOrder(save.n), nx = mx(470, 150), ny = 990, mb = MARBLE(no.marble), pop = popIn(t - 1.5);
+    const no = makeOrder(save.n), nx = mx(546, 150), ny = 983, mb = MARBLE(no.marble), pop = popIn(t - 1.5);
     g.save(); g.translate(nx + 75, ny + 45); g.scale(pop, pop); glossPill(g, -75, -40, 150, 80, no.golden ? '#FFE27A' : '#FFFFFF', '#FF9CC8');
     if (no.shape !== 'free') { g.save(); g.translate(-62, -24); g.scale(0.48, 0.48); g.fillStyle = mb.kind === 'layers' ? '#FFB3E0' : mb.base; g.fill(pathOf(no.shape)); g.lineWidth = 6; g.strokeStyle = '#FFFFFF'; g.stroke(pathOf(no.shape)); g.restore(); }
     words(`${save.made.length}/${cfg.shapes.length}`, no.shape === 'free' ? 0 : 26, 3, 30, 84, PLUM); // shapes made so far: the long goal
@@ -1399,7 +1415,9 @@ function frame(now) {
   const gdt = dt * stepCine(dt);
   if (DEBUG) { const a = performance.now(); update(gdt); const b = performance.now(); draw(); const c = performance.now(); const p = (window.__prof = window.__prof || { u: 0, d: 0, n: 0 }); p.u += b - a; p.d += c - b; p.n++; window.__frames = (window.__frames || 0) + 1; }
   else { update(gdt); draw(); }
+  if (!drawn) { drawn = true; document.body.style.backgroundImage = 'none'; } // the canvas now shows the table: drop the page's stand-in
 }
+let drawn = false;
 
 // ---------- save ----------
 const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);

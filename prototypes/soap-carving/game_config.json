@@ -271,7 +271,7 @@
  ],
  "strings": {
   "en": {
-   "carve": "Carve outside the line!",
+   "carve": "Carve away the outside!",
    "smooth": "Rub it smooth!",
    "sparkle": "Add sparkles!",
    "bath": "Bath time!",
@@ -316,7 +316,7 @@
    "tomorrow": "Come back tomorrow for a gift!"
   },
   "ar": {
-   "carve": "انحت خارج الخط!",
+   "carve": "انحت ما حول الشكل!",
    "smooth": "افركه حتى ينعم!",
    "sparkle": "أضف اللمعان!",
    "bath": "وقت الحمام!",
@@ -361,7 +361,7 @@
    "tomorrow": "عد غدًا لتحصل على هدية!"
   },
   "es": {
-   "carve": "¡Talla fuera de la línea!",
+   "carve": "¡Talla todo lo de fuera!",
    "smooth": "¡Frótalo suave!",
    "sparkle": "¡Pon brillitos!",
    "bath": "¡Hora del baño!",
@@ -406,7 +406,7 @@
    "tomorrow": "¡Vuelve mañana por un regalo!"
   },
   "vi": {
-   "carve": "Khắc ngoài đường kẻ!",
+   "carve": "Gọt bỏ phần bên ngoài!",
    "smooth": "Chà cho mịn!",
    "sparkle": "Thêm kim tuyến!",
    "bath": "Giờ tắm rồi!",
@@ -451,7 +451,7 @@
    "tomorrow": "Mai quay lại nhận quà nhé!"
   },
   "hi": {
-   "carve": "रेखा के बाहर काटो!",
+   "carve": "बाहर का हिस्सा काट दो!",
    "smooth": "रगड़कर चिकना करो!",
    "sparkle": "चमक लगाओ!",
    "bath": "नहाने का समय!",
@@ -496,7 +496,7 @@
    "tomorrow": "कल फिर आओ, तोहफ़ा मिलेगा!"
   },
   "bn": {
-   "carve": "দাগের বাইরে কাটো!",
+   "carve": "বাইরের অংশ কেটে ফেলো!",
    "smooth": "ঘষে মসৃণ করো!",
    "sparkle": "ঝিকিমিকি দাও!",
    "bath": "গোসলের সময়!",
@@ -541,7 +541,7 @@
    "tomorrow": "কাল আবার এসো, উপহার পাবে!"
   },
   "id": {
-   "carve": "Ukir di luar garis!",
+   "carve": "Kikis bagian luarnya!",
    "smooth": "Gosok sampai halus!",
    "sparkle": "Tambah gliter!",
    "bath": "Waktunya mandi!",
