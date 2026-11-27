@@ -52,8 +52,11 @@ export function critterMaterials() {
   const rim = (mat, strength, glow = 0) => {
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uRim = { value: strength }; sh.uniforms.uGlow = { value: glow };
+      // pale fur gets a cool blue-grey edge so white animals keep their outline on snow; the rim light stays soft on
+      // them, and the glow of a rare visitor is a warm gold edge instead of a white blow-out
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uRim; uniform float uGlow;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * (fr * uRim + uGlow);');
+        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat fr0 = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 1.8);\nfloat pale = smoothstep(0.62, 0.9, dot(diffuseColor.rgb, vec3(0.333)));\ndiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.62, 0.84), fr0 * pale * 0.85);')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat fr = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);\ntotalEmissiveRadiance += diffuseColor.rgb * fr * uRim * (1.0 - 0.75 * pale) + mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.42), 0.5) * uGlow * (0.15 + fr * 0.9);');
       mat.userData.sh = sh;
     };
     return mat;

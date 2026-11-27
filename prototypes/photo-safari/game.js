@@ -272,7 +272,7 @@ export function run(mode = 'play') {
     b.k = b.t < e ? b.t / e : b.t > d - e ? Math.max(0, (d - b.t) / e) : 1; b.k = b.k * b.k * (3 - 2 * b.k);
     if (b.slow && b.t > e && b.t < e + 0.45) timeScale = cfg.beats.slowMo;
     if (b.t >= d) { beats.cur = null; beats.cool = cfg.beats.cooldownS; $('cine').classList.remove('on'); return null; }
-    return { pos: b.pos(), look: b.look(), fov: b.fov || 40, k: b.k };
+    return { pos: b.pos(b.t), look: b.look(b.t), fov: b.fov || 40, k: b.k };
   }
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   const beatAt = (a, opts = {}) => ({ pri: opts.pri || 2, dur: opts.dur || 1.6, bars: true, slow: !!opts.slow, sting: opts.sting, fov: 40,
@@ -525,14 +525,17 @@ export function run(mode = 'play') {
   function openArea(i) {
     const g = cfg.gates.find((q) => q.area === i); if (!g) return;
     const gp = V3(0, L.terrainH(cfg, 0, g.z), g.z);
-    beat({ pri: 6, dur: 2.8, bars: true, slow: false, sting: null, fov: 44,
-      pos: () => V3(gp.x + 3.5, gp.y + 3.6, gp.z + 11), look: () => V3(gp.x, gp.y + 1.8, gp.z),
+    // the camera frames the gate, the shards burst, then it rises and glides through toward the new place
+    const glide = (t) => { const k = Math.max(0, Math.min(1, (t - 1.2) / 1.5)); return k * k * (3 - 2 * k); };
+    beat({ pri: 6, dur: 3.2, bars: true, slow: false, sting: null, fov: 48,
+      pos: (t = 0) => V3(gp.x + 2.8, gp.y + 3.2, gp.z + 12).lerp(V3(gp.x + 1, gp.y + 4, gp.z + 1), glide(t)),
+      look: (t = 0) => V3(gp.x, gp.y + 1.8, gp.z).lerp(V3(gp.x, gp.y + 0.5, gp.z - 18), glide(t)),
       start: () => setTimeout(() => {
         if (!alive) return;
         W.openGate(i - 1); Sound.crack(); W.shake.t = 0.4; W.shake.a = 0.12;
-        fx.debris(gp.x, gp.y + 0.5, gp.z, 30, 4.5); fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8); fx.ring(gp.x, gp.y, gp.z, 4, '#ffffff', 0.5);
+        fx.debris(gp.x, gp.y + 0.5, gp.z, 18, 3.5); fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8); fx.ring(gp.x, gp.y, gp.z, 4, '#ffffff', 0.5);
         fx.emit({ pool: 'glow', x: gp.x, y: gp.y + 1.5, z: gp.z, spread: 6, speed: 3, up: 3, life: 1.6, size: 0.22, color: '#bff7ff', shape: 'flake', grav: -1 }, 40);
-        fx.emit({ pool: 'soft', x: gp.x, y: gp.y + 0.6, z: gp.z, spread: 8, speed: 2, up: 1, life: 1.6, size: 1.4, color: '#f4f9ff', alpha: 0.8, grav: 0.3, drag: 2, grow: 1.5 }, 26);
+        fx.emit({ pool: 'soft', x: gp.x, y: gp.y + 0.3, z: gp.z, spread: 4, speed: 1.5, up: 0.3, life: 1.2, size: 0.8, color: '#dceafb', alpha: 0.35, grav: 0.3, drag: 2, grow: 1 }, 10);
         toast(T('area'), T('a_' + cfg.areas[i].id), 'area');
       }, 900) });
   }
@@ -700,6 +703,8 @@ export function run(mode = 'play') {
       else if (ftue === 'gate') { const f = ftueTarget(); if (f) { tgt = world(f.x, L.terrainH(cfg, f.x, f.z) + 1.5, f.z, 160); hint = T('gate'); icon = ICON.map; } }
     }
     spot.classList.toggle('on', !!tgt);
+    // while the viewfinder is up the subject stays bright: the snap step dims the rest only lightly
+    spot.classList.toggle('lite', ftue === 'snap' && vf > 0.4);
     $('skip').hidden = !on;
     if (tgt) {
       spot.style.setProperty('--x', tgt[0] + 'px'); spot.style.setProperty('--y', tgt[1] + 'px'); spot.style.setProperty('--r', Math.max(60 * u, tgt[2]) + 'px');
@@ -707,6 +712,8 @@ export function run(mode = 'play') {
       coach.hidden = false;
       const cy = tgt[1] - tgt[2] - 110 * u; const y = cy < 230 * u || ftue === 'walk' ? tgt[1] + tgt[2] + 30 * u : cy;
       const half = coach.offsetWidth / 2 + 24 * u; coach.style.left = Math.max(half, Math.min(rr.width - half, tgt[0])) + 'px'; coach.style.top = Math.min(rr.height - 360 * u, y) + 'px';
+      // the snap hint sits beside the shutter, below the viewfinder brackets, never over the frame
+      if (ftue === 'snap' && vf > 0.4) { const rtl = root.dir === 'rtl', side = tgt[2] / 0.62 / 2 + 16 * u + coach.offsetWidth / 2; coach.style.left = (tgt[0] + (rtl ? side : -side)) + 'px'; coach.style.top = (tgt[1] - coach.offsetHeight / 2) + 'px'; }
       hand.hidden = !handOn; hand.classList.toggle('drag', handDrag); if (handOn) { hand.style.left = (handDrag ? tgt[0] : tgt[0]) + 'px'; hand.style.top = (handDrag ? tgt[1] + 60 * u : tgt[1]) + 'px'; }
     } else { coach.hidden = true; hand.hidden = true; coachKey = ''; }
   }
