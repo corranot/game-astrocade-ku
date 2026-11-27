@@ -72,7 +72,7 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     await shoot(page, '02-ftue-snap-viewfinder');
     const sb = await page.locator('#shutter').boundingBox();
     await page.mouse.click(sb.x + sb.width / 2, sb.y + sb.height / 2);
-    await step(page, 30);
+    await step(page, 30); await settle(page, 1200);
     check(await ev(page, () => __game.S.photos) >= 1, 'a real tap on the shutter takes a photo');
     await shoot(page, '03-photo-develops');
     await settle(page);
@@ -105,7 +105,7 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     await step(page, 40);
     await shoot(page, '11-pose-cue');
     for (let i = 0; i < 10 && !(await ev(page, () => { const a = __game.animals.find((q) => q.id === 'hare'); return a.pose && a.poseT >= 0; })); i++) await step(page, 6);
-    await ev(page, () => __game.snap()); await step(page, 24);
+    await ev(page, () => __game.snap()); await step(page, 24); await settle(page, 1300);
     await shoot(page, '12-pose-photo');
     await settle(page);
     const st = await ev(page, () => ({ photos: __game.S.photos, flakes: __game.S.flakes, slots: JSON.stringify(__game.S.slots) }));
@@ -113,7 +113,11 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     // the area unlock cinematic
     await ev(page, () => { __game.skipFtue(); __game.stamp(['owl', 'penguin', 'reindeer', 'squirrel', 'ermine', 'lynx', 'hare', 'fox']); });
     await settle(page);
-    await ev(page, () => __game.openArea(1)); await step(page, 12); await page.waitForTimeout(400); await step(page, 30);
+    await ev(page, () => __game.openArea(1));
+    for (let i = 0; i < 60 && !(await ev(page, () => !!__game.beat)); i++) await step(page, 10);
+    await step(page, 40);
+    await shoot(page, '13-cinematic-area-gate');
+    await page.waitForTimeout(900); await step(page, 20);
     await shoot(page, '13-cinematic-area-unlock');
     await step(page, 200);
     check(await ev(page, () => __game.vf > 0.5) || await heroOnScreen(page), 'the hero is framed again after the cinematic (or the viewfinder is up)');

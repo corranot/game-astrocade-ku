@@ -366,6 +366,16 @@ export function createWorld(canvas, cfg, opts = {}) {
     renderer.readRenderTargetPixels(rtPl, 0, 0, pw, ph, pixels); renderer.setRenderTarget(null); renderer.toneMapping = tm;
     const cv = document.createElement('canvas'); cv.width = pw; cv.height = ph; const g = cv.getContext('2d'), img = g.createImageData(pw, ph);
     for (let y = 0; y < ph; y++) img.data.set(pixels.subarray((ph - 1 - y) * pw * 4, (ph - y) * pw * 4), y * pw * 4);
+    // a printed photo: more contrast and colour than the screen, a touch warm, soft corners
+    if (!studio) {
+      const P = cfg.photo, d = img.data, k = P.printContrast, sat = P.printSat;
+      for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) {
+        const i = (y * pw + x) * 4, vx = x / pw - 0.5, vy = y / ph - 0.5, vig = 1 - P.printVignette * (vx * vx + vy * vy) * 2;
+        let r = d[i], gg = d[i + 1], b = d[i + 2]; const l = 0.299 * r + 0.587 * gg + 0.114 * b;
+        r = l + (r - l) * sat; gg = l + (gg - l) * sat; b = l + (b - l) * sat;
+        d[i] = Math.max(0, Math.min(255, ((r - 128) * k + 128) * vig * 1.03)); d[i + 1] = Math.max(0, Math.min(255, ((gg - 128) * k + 128) * vig)); d[i + 2] = Math.max(0, Math.min(255, ((b - 128) * k + 128) * vig * 0.97));
+      }
+    }
     g.putImageData(img, 0, 0);
     return cv;
   }

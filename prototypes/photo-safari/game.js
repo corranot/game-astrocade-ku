@@ -147,7 +147,7 @@ export function run(mode = 'play') {
 
   // ---- hero
   const H = buildHero(lookOf()); W.scene.add(H.group);
-  const hero = { x: 0, z: 3, y: 0, vx: 0, vz: 0, yaw: Math.PI, speed: 0, stepD: 0, side: 1, still: 0, breathT: 1 };
+  const hero = { x: 0, z: 3, y: 0, vx: 0, vz: 0, yaw: Math.PI, speed: 0, stepD: 0, side: 1, still: 0, breathT: 1, walked: 0 };
   hero.y = L.terrainH(cfg, hero.x, hero.z);
   const applyLook = () => { const l = lookOf(); H.mats.parka.color.set(l.parka); H.mats.hat.color.set(l.hat); H.mats.cam.color.set(l.cam); };
 
@@ -199,7 +199,7 @@ export function run(mode = 'play') {
   let tickT = 0;
   function tick(html) { if (!alive) return; const el = $('tick'); el.innerHTML = html; el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; tickT = 2.4; }
   const toPx = (sx, sy) => { const r = root.getBoundingClientRect(); return [sx * r.width, sy * r.height]; };
-  const unit = () => root.getBoundingClientRect().width / 720;
+  const unit = () => { const r = root.getBoundingClientRect(); return Math.min(r.width, r.height * 9 / 16) / 720; }; // phone-sized HUD on any screen; the world fills it
   const layoutU = () => { root.style.setProperty('--u', String(unit())); };
   layoutU();
   // flying snowflakes from a screen point into the counter
@@ -427,7 +427,7 @@ export function run(mode = 'play') {
   /** Smart zoom: the vertical fov that frames `a` at about photo.aimCover of the narrow side, never tighter than the lens allows. */
   const narrow = (v) => { const asp = W.camera.aspect || 1; return asp >= 1 ? v : 2 * Math.atan(Math.tan(v * Math.PI / 360) * asp) * 180 / Math.PI; };
   const fovFor = (a, d) => {
-    const ln = L.lens(cfg, S), asp = Math.min(1, W.camera.aspect || 1), th = 2 * Math.atan(a.parts.radius / Math.max(0.5, d)) / cfg.photo.aimCover;
+    const ln = L.lens(cfg, S), asp = Math.min(1, W.camera.aspect || 1), th = 2 * Math.atan(a.parts.radius * cfg.photo.frameR / Math.max(0.5, d)) / cfg.photo.aimCover; // frameR: a side-on body with its tail is wider than its radius
     const v = 2 * Math.atan(Math.tan(th / 2) / asp) * 180 / Math.PI;
     return Math.max(ln.fov, Math.min(cfg.photo.maxFov, v));
   };
@@ -484,7 +484,7 @@ export function run(mode = 'play') {
     Sound.develop();
     cardBusy = (a ? 2.2 : 1.4) + (res.newSpecies ? 0.3 : 0);
     const t0 = performance.now(), devMs = cfg.photo.developS * 1000;
-    const dev = () => { const k = Math.min(1, (performance.now() - t0) / devMs); ph.style.setProperty('--dev', String(1 - k * k)); if (k < 1 && alive) requestAnimationFrame(dev); };
+    const dev = () => { const k = Math.min(1, (performance.now() - t0) / devMs); ph.style.setProperty('--dev', String((1 - k) * (1 - k))); if (k < 1 && alive) requestAnimationFrame(dev); };
     requestAnimationFrame(dev);
     setTimeout(() => { card.classList.add('shake'); }, 60);
     if (a) st.querySelectorAll('svg').forEach((s, i) => { if (i < stars) setTimeout(() => { s.classList.add('on'); Sound.star(i + (stars >= 3 ? 2 : 0)); if (i === stars - 1 && stars >= 3) { const r = card.getBoundingClientRect(), rr = root.getBoundingClientRect(); confetti(r.left - rr.left + r.width / 2, r.top - rr.top + r.height * 0.4); } }, 600 + i * 220); });
@@ -630,6 +630,7 @@ export function run(mode = 'play') {
     hero.x = nx; hero.z = nz; hero.y = L.terrainH(cfg, hero.x, hero.z);
     if (hero.speed > 0.4) { hero.yaw += angleDiff(Math.atan2(hero.vx, hero.vz), hero.yaw) * Math.min(1, dt * 10); hero.still = 0; }
     else { hero.still += dt; if (aimA && vf > 0.3) hero.yaw += angleDiff(Math.atan2(aimA.x - hero.x, aimA.z - hero.z), hero.yaw) * Math.min(1, dt * 6); }
+    hero.walked += moved;
     if (input.target && moved < 1e-4 && hero.still > 0.4) input.target = null;
     // footprints, snow kicks and steps
     hero.stepD += moved;
@@ -684,7 +685,9 @@ export function run(mode = 'play') {
     const elC = (id) => { const b = $(id).getBoundingClientRect(); return [b.left - rr.left + b.width / 2, b.top - rr.top + b.height / 2, b.width * 0.62]; };
     const world = (x, y, z, r) => { const s = W.toScreen(x, y, z); return s[2] && s[0] > 0.06 && s[0] < 0.94 && s[1] > 0.1 && s[1] < 0.9 ? [s[0] * rr.width, s[1] * rr.height, r * u] : null; };
     if (on) {
-      if (ftue === 'walk') { const f = ftueTarget(); tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('walk'); icon = ICON.hand; handOn = true; handDrag = true; if (f && f.a && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
+      if (ftue === 'walk') { const f = ftueTarget(); tgt = world(hero.x, hero.y + 1, hero.z, 150);
+        // the cutout holds both the hero and the first animal, so the opening shows who to walk to
+        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('walk'); icon = ICON.hand; handOn = true; handDrag = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
       else if (ftue === 'snap') { if (vf > 0.4) { tgt = elC('shutter'); hint = T('snap'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); handOn = true; } else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('walk'); icon = ICON.hand; } }
       else if (ftue === 'book') { if (S.photos >= 1 && $('card').hidden) { tgt = elC('bookB'); hint = T('book'); icon = ICON.book; handOn = true; } }
       else if (ftue === 'treat') { const sh = shyNear(); if (sh && sh.id === 'hare') { tgt = elC('treat'); hint = T('treat'); handOn = true; icon = ''; } else { const f = ftueTarget(); if (f && Math.hypot(f.x - hero.x, f.z - hero.z) < 25) { tgt = world(f.x, f.y + 0.5, f.z, 120); hint = T('walk'); icon = ICON.hand; } } }
@@ -697,7 +700,7 @@ export function run(mode = 'play') {
       spot.style.setProperty('--x', tgt[0] + 'px'); spot.style.setProperty('--y', tgt[1] + 'px'); spot.style.setProperty('--r', Math.max(60 * u, tgt[2]) + 'px');
       const key = hint + icon; if (key !== coachKey) { coachKey = key; coach.innerHTML = icon + `<b class="out">${hint}</b>`; }
       coach.hidden = false;
-      const cy = tgt[1] - tgt[2] - 110 * u; const y = cy < 230 * u ? tgt[1] + tgt[2] + 30 * u : cy;
+      const cy = tgt[1] - tgt[2] - 110 * u; const y = cy < 230 * u || ftue === 'walk' ? tgt[1] + tgt[2] + 30 * u : cy;
       const half = coach.offsetWidth / 2 + 24 * u; coach.style.left = Math.max(half, Math.min(rr.width - half, tgt[0])) + 'px'; coach.style.top = Math.min(rr.height - 360 * u, y) + 'px';
       hand.hidden = !handOn; hand.classList.toggle('drag', handDrag); if (handOn) { hand.style.left = (handDrag ? tgt[0] : tgt[0]) + 'px'; hand.style.top = (handDrag ? tgt[1] + 60 * u : tgt[1]) + 'px'; }
     } else { coach.hidden = true; hand.hidden = true; coachKey = ''; }
@@ -709,7 +712,8 @@ export function run(mode = 'play') {
     hud();
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
     if (aimA && vf > 0.3) {
-      const s = W.toScreen(aimA.x, aimA.y + aimA.parts.centerY, aimA.z), [px, py] = toPx(s[0], s[1]);
+      // the focus pill sits under the animal's feet, never on it
+      const s = W.toScreen(aimA.x, aimA.y, aimA.z), [px, py0] = toPx(s[0], s[1]), py = Math.min(py0 + 24 * unit(), root.getBoundingClientRect().height - 300 * unit());
       const sh = shotOf(aimA);
       focus.classList.add('on'); focus.classList.toggle('ok', sh.framed); focus.style.left = px + 'px'; focus.style.top = py + 'px';
       dots.forEach((d, i) => d.classList.toggle('on', i < sh.stars));
