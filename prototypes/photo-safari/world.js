@@ -454,8 +454,9 @@ export function createWorld(canvas, cfg, opts = {}) {
   function updateCamera(dt, hero, vf, aim, fovVf, beat, focus) {
     const c = cfg.camera;
     const fx = hero.x, fz = hero.z, fy = hero.y;
-    const follow = tmpV.set(fx, fy + c.height, fz + c.dist);
-    let look = new THREE.Vector3(fx, fy + c.lookUp, fz + c.lookAhead);
+    const [ox, oy, oz, ax, az] = orbit();
+    const follow = tmpV.set(fx + ox, fy + oy, fz + oz);
+    let look = new THREE.Vector3(fx + ax, fy + c.lookUp, fz + az);
     let pos = follow.clone(), fov = c.fov;
     if (focus && focus.k > 0.001) {
       const mx = (fx + focus.x) / 2, mz = (fz + focus.z) / 2;
@@ -482,7 +483,17 @@ export function createWorld(canvas, cfg, opts = {}) {
     heroU.value.set(fx, fy + 1.1, fz);
     lampU.value.set(fx - 0.4, fy, fz + 0.5, lampU.value.w);
   }
-  function snapCamera(hero) { camPos.set(hero.x, hero.y + cfg.camera.height, hero.z + cfg.camera.dist); camLook.set(hero.x, hero.y + cfg.camera.lookUp, hero.z + cfg.camera.lookAhead); }
+  // swipe-to-look: yaw orbits the follow camera around the hero, el tilts it (radians, 0 = the authored view)
+  const lookRot = { yaw: 0, el: 0 };
+  /** Sets the player's look offset; the follow camera orbits the hero by it. */
+  function setLook(yaw, el) { lookRot.yaw = yaw; lookRot.el = el; }
+  /** Follow offset [x, y, z] and look-ahead [x, z] after the player's yaw and tilt. */
+  function orbit() {
+    const c = cfg.camera, r = Math.hypot(c.height, c.dist), e = Math.atan2(c.height, c.dist) + lookRot.el;
+    const h = Math.sin(e) * r, d = Math.cos(e) * r, sy = Math.sin(lookRot.yaw), cy = Math.cos(lookRot.yaw);
+    return [sy * d, h, cy * d, sy * c.lookAhead, cy * c.lookAhead];
+  }
+  function snapCamera(hero) { const [ox, oy, oz, ax, az] = orbit(); camPos.set(hero.x + ox, hero.y + oy, hero.z + oz); camLook.set(hero.x + ax, hero.y + cfg.camera.lookUp, hero.z + az); }
 
   // ---- render
   const sceneInfo = { calls: 0, tris: 0 };
@@ -552,7 +563,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
     renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake,
-    setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
+    setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, setLook, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
     get tier() { return tier; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
   };

@@ -2,7 +2,7 @@
   "seed": 20261127,
   "save": { "version": 1, "everyS": 8 },
   "hero": { "speed": 5.2, "radius": 0.5, "tapMaxPx": 12, "tapMaxMs": 220, "stickMaxPx": 70, "ftueWalkM": 2 },
-  "camera": { "fov": 56, "dist": 9, "height": 7, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2, "gateInM": 9, "focusH": 0.5, "focusD": 0.62 },
+  "camera": { "fov": 56, "dist": 9, "height": 7, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2, "gateInM": 9, "focusH": 0.5, "focusD": 0.62, "look": { "zone": 0.5, "radPerPx": 0.005, "yawMax": 1.3, "elUp": 0.3, "elDown": 0.22, "ease": 12, "recenterS": 6, "recenterRate": 0.8 } },
   "photo": { "range": 9, "rangeZoom2": 14, "rangeZoom3": 19, "fovZoom2": 26, "fovZoom3": 18, "aimCover": 0.6, "frameR": 1.7, "printContrast": 1.18, "printSat": 1.4, "printVignette": 0.35, "maxFov": 72, "personalM": 4.5, "minCover": 0.2, "maxCover": 0.8, "poseWindowS": 2.0, "poseWindowSlowS": 3.0, "poseCueS": 0.8, "poseEveryS": [7, 12], "poseEveryNearS": [4, 7], "poseGraceS": 0.5, "fullPenaltyM": 8, "nightCapNoFlash": 2, "sceneryPerMin": 3, "developS": 0.8, "w": 256, "h": 320 },
   "feel": { "buzz": { "snap": 12, "friend": [18, 40, 18], "big": [30, 50, 60] } },
   "economy": {

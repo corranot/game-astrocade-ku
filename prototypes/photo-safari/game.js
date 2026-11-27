@@ -395,7 +395,9 @@ export function run(mode = 'play') {
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); soon(); });
 
   // ---- input: drag anywhere for a floating stick, tap the snow to walk there
-  const input = { id: null, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0, drag: false, keys: new Set(), target: null };
+  // a drag that starts on the right side of the screen looks around (swipe-to-look) instead of moving
+  const input = { id: null, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0, drag: false, keys: new Set(), target: null, look: false, lx: 0, ly: 0 };
+  const view = { yaw: 0, el: 0, tYaw: 0, tEl: 0, idle: 0 };
   let firstGesture = false;
   const gesture = () => { if (!firstGesture) { firstGesture = true; hideLogo(); } Sound.unlock(); };
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
@@ -403,11 +405,17 @@ export function run(mode = 'play') {
     if (!play || bot || e.target.closest('button') || bookOpen) return;
     gesture(); if (input.id !== null) return;
     try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
-    input.id = e.pointerId; input.x0 = e.clientX; input.y0 = e.clientY; input.t0 = performance.now(); input.dx = input.dy = 0; input.drag = false;
+    input.id = e.pointerId; input.x0 = input.lx = e.clientX; input.y0 = input.ly = e.clientY; input.t0 = performance.now(); input.dx = input.dy = 0; input.drag = false;
+    const r = rootRect(); input.look = e.clientX - r.left > r.width * (1 - cfg.camera.look.zone);
   }
   function onMove(e) {
     if (e.pointerId !== input.id) return;
     input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
+    if (input.look) {
+      if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) { input.drag = true; input.lx = e.clientX; input.ly = e.clientY; }
+      if (input.drag) { const lk = cfg.camera.look, k = lk.radPerPx / unit(); view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (e.clientX - input.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (e.clientY - input.ly) * k)); view.idle = 0; input.lx = e.clientX; input.ly = e.clientY; }
+      return;
+    }
     if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) {
       input.drag = true; input.target = null; const r = rootRect(), s = $('stick'); s.hidden = false; s.style.left = (input.x0 - r.left) + 'px'; s.style.top = (input.y0 - r.top) + 'px';
     }
@@ -421,7 +429,7 @@ export function run(mode = 'play') {
       ray.setFromCamera(ndc, W.camera); plane.constant = -hero.y;
       if (ray.ray.intersectPlane(plane, hit)) { input.target = [hit.x, hit.z]; fx.ring(hit.x, L.terrainH(cfg, hit.x, hit.z), hit.z, 0.9, '#bff7ff', 0.45); }
     }
-    input.id = null; input.drag = false; input.dx = input.dy = 0; $('stick').hidden = true;
+    input.id = null; input.drag = false; input.look = false; input.dx = input.dy = 0; $('stick').hidden = true;
   }
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
   const onKey = (e) => {
@@ -674,10 +682,12 @@ export function run(mode = 'play') {
 
   function updateHero(dt, t) {
     let mx = 0, mz = 0;
-    if (input.drag) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy); if (l > 4) { const k = Math.min(1, l / m); mx = input.dx / l * k; mz = input.dy / l * k; } }
+    const stick = input.drag && !input.look;
+    if (stick) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy); if (l > 4) { const k = Math.min(1, l / m); mx = input.dx / l * k; mz = input.dy / l * k; } }
     const K = input.keys; const kx = (K.has('d') || K.has('arrowright') ? 1 : 0) - (K.has('a') || K.has('arrowleft') ? 1 : 0), kz = (K.has('s') || K.has('arrowdown') ? 1 : 0) - (K.has('w') || K.has('arrowup') ? 1 : 0);
     if (kx || kz) { const l = Math.hypot(kx, kz); mx = kx / l; mz = kz / l; input.target = null; }
-    if (input.drag) input.target = null;
+    if (mx || mz) { const c = Math.cos(view.yaw), sn = Math.sin(view.yaw), rx = mx * c + mz * sn; mz = -mx * sn + mz * c; mx = rx; } // screen-relative under the player's look yaw
+    if (stick) input.target = null;
     if (!mx && !mz && input.target) { const dx = input.target[0] - hero.x, dz = input.target[1] - hero.z, d = Math.hypot(dx, dz); if (d < 0.35) input.target = null; else { const k = Math.min(1, d / 1.2); mx = dx / d * k; mz = dz / d * k; } }
     // dev:start
     if (bot) [mx, mz] = botMove();
@@ -870,6 +880,11 @@ export function run(mode = 'play') {
     const shy = vf < 0.05 && !bookOpen ? shyNear() : null;
     focusK += ((shy ? 1 : 0) - focusK) * Math.min(1, rdt * 2.5); if (shy) focusAt = shy;
     W.fogK = 1 - (b && b.clear ? cfg.beats.clearFog * b.k : 0); // the unlock beat looks across the valley: thin the haze
+    { // swipe-to-look: ease toward the target, drift back to the authored view after a quiet spell
+      const lk = cfg.camera.look; view.idle += rdt;
+      if (view.idle > lk.recenterS && !(input.look && input.drag)) { const d = Math.exp(-rdt * lk.recenterRate); view.tYaw *= d; view.tEl *= d; }
+      const k = 1 - Math.exp(-rdt * lk.ease); view.yaw += (view.tYaw - view.yaw) * k; view.el += (view.tEl - view.el) * k; W.setLook(view.yaw, view.el);
+    }
     W.updateCamera(rdt, hero, vf, aim, vfFov, b, focusAt && focusK > 0.001 ? { x: focusAt.x, y: focusAt.y, z: focusAt.z, k: focusK * (1 - vf) } : null);
     // the rare visitor's first sighting
     const rare = animals.find((q) => q.rare);
@@ -926,6 +941,7 @@ export function run(mode = 'play') {
     shot(id) { const a = animals.find((q) => q.id === id); if (!a) return null; const r = shotOf(a); return { stars: r.stars, framed: r.framed, inPose: r.inPose, fov: r.fov, d: Math.hypot(a.x - hero.x, a.z - hero.z), ax: a.x, az: a.z, cover: L.coverage(Math.hypot(a.x - r.from.x, a.y + a.parts.centerY - r.from.y, a.z - r.from.z), a.parts.radius, narrow(r.fov)), occ: L.occluded(W.trunks, r.from.x, r.from.z, a.x, a.z) }; },
     poseNow(id) { const a = animals.find((q) => q.id === id); if (a) a.nextPose = 0.01; },
     screenOf(x, y, z) { const s = W.toScreen(x, y, z); return toPx(s[0], s[1]); },
+    look() { return { ...view }; },
     pause() { cancelAnimationFrame(raf); raf = -1; },
     /** Steps n frames of 1/60 s by hand (paused tests); draws only the last one. */
     step(n = 1) { for (let i = 0; i < n; i++) frame(last + 1000 / 60, true, i === n - 1); },
