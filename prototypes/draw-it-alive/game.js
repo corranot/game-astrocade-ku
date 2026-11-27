@@ -21,8 +21,8 @@
  * back layer; only the moving pieces, the stroke and the particles are drawn each frame. The wall shows
  * cached cards and animates one at a time. Tunable numbers live in game_config.json.
  */
-import { sticker, stick, shape, star, box, blob, heart, pointAt, dots, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
-import { LEVELS } from './levels.js';
+import { sticker, stick, shape, star, box, blob, heart, pointAt, dots, tuft, bloom, GRASS, borderScale, colourPass, resample, chaikin, pathLen, dist, upTo, STICKERS, WHITE, PEN, NAVY, SUNNY, CORAL, MINT, VIOLET, SKY, ORANGE } from './art.js';
+import { LEVELS, pineTree } from './levels.js';
 import { migrateLegacyLevel, stickerChoices } from './progress.js';
 
 const W = 720, H = 1280, STEP = 8, CHAPTER = 5, SET = 6;
@@ -938,6 +938,45 @@ function edgeStrip(src, sx, sy, sw, sh, n) {
   }
   const t = document.createElement('canvas'); t.width = n; t.height = 1; t.getContext('2d').putImageData(out, 0, 0); return t;
 }
+/** Background colour of each row at one edge of the scene: the edge pixel when that colour fills a good share of
+ *  its row and reaches the other edge too (sky, hills, ground), else the colour of the row above, so an object cut by the edge is never carried on. */
+function edgeProfile(src, x) {
+  const d = src.getContext('2d').getImageData(0, 0, W, H).data, out = new Uint8ClampedArray(H * 4), q = (k) => (d[k] << 16) | (d[k + 1] << 8) | d[k + 2]; // exact colours: backgrounds are flat fills
+  let cur = [d[x * 4], d[x * 4 + 1], d[x * 4 + 2]];
+  for (let y = 0; y < H; y++) {
+    const e = (y * W + x) * 4, want = q(e); let same = 0;
+    for (let i = 0; i < W; i += 8) if (q((y * W + i) * 4) === want) same++;
+    // a band runs edge to edge (a sun or a tree touches one edge only) and fills a good share of its row
+    if (q((y * W + W - 1 - x) * 4) === want && same >= W / 8 * cfg.backdropRowShare) cur = [d[e], d[e + 1], d[e + 2]];
+    out.set([cur[0], cur[1], cur[2], 255], y * 4);
+  }
+  const t = document.createElement('canvas'); t.width = 1; t.height = H; t.getContext('2d').putImageData(new ImageData(out, 1, H), 0, 0); return t;
+}
+/** Each side of a wide screen: the scene's sky, hill and ground bands carried straight out, then a little fresh
+ *  decor of the same kind (a cloud, grass, flowers, or snowy pines in the snow chapter). */
+function paintSides(c, src, r, k, decor) {
+  c.imageSmoothingEnabled = false;
+  const sw = r.left / k + 2, ground = H - 1;
+  for (const [x, at] of [[0, -sw], [W - 1, W]]) c.drawImage(edgeProfile(src, x), 0, 0, 1, H, r.left + at * k, r.top, sw * k, r.height);
+  c.imageSmoothingEnabled = true;
+  if (!decor) return;
+  // the horizon: the first row from the top whose band colour is the ground's
+  const prof = edgeProfile(src, 0).getContext('2d').getImageData(0, 0, 1, H).data, gnd = prof.slice(ground * 4, ground * 4 + 3);
+  let hz = H - 200; for (let y = 200; y < H; y++) { const e = y * 4; if (Math.abs(prof[e] - gnd[0]) + Math.abs(prof[e + 1] - gnd[1]) + Math.abs(prof[e + 2] - gnd[2]) < 12) { hz = y; break; } }
+  const snow = chapterOf(S.i) === 4, was = g; g = c; // the scenery helpers draw on the context passed to them
+  c.save(); c.translate(r.left, r.top); c.scale(k, k);
+  for (const side of [-1, 1]) {
+    const mid = side < 0 ? -sw / 2 : W + sw / 2;
+    sticker(() => { blob(c, mid - 14, 300, 40, 20, WHITE); blob(c, mid + 16, 288, 30, 22, WHITE); });
+    if (snow) pineTree(c, mid, hz + 40, Math.min(0.6, sw / 230));
+    else {
+      sticker(() => { tuft(c, mid - 26, hz, GRASS); tuft(c, mid + 30, hz + 4, GRASS); });
+      sticker(() => { bloom(c, mid - 10, hz + 150, 14, side < 0 ? SUNNY : CORAL); bloom(c, mid + 22, hz + 330, 12, side < 0 ? CORAL : SUNNY); });
+    }
+  }
+  c.restore(); g = was;
+}
+
 /** Repaint the backdrop when the scene, the screen or the window changes. The scene's own painting is mirrored out
  *  past its edges (sky above, scenery to the sides), so the seam is invisible and nothing is stretched; below the
  *  scene the ground carries on as one flat colour, so flowers are never shown upside down. */
@@ -950,10 +989,7 @@ function paintBackdrop() {
   if (!scene) { c.drawImage(edgeStrip(src, 0, 0, 24, H, 1), 0, 0, 1, 1, 0, 0, w, h); return; } // book and box: their panel colour
   c.drawImage(edgeStrip(src, 0, H - 120, W, 120, 1), 0, 0, 1, 1, 0, 0, w, h); // ground everywhere first
   const sw = Math.min(W, Math.ceil(r.left / k) + 2), sh = Math.min(H, Math.ceil(r.top / k) + 2);
-  if (r.left > 0.5) { // wide screen: each side is the scene's own edge, mirrored
-    c.save(); c.translate(r.left, r.top); c.scale(-k, k); c.drawImage(src, 0, 0, sw, H, 0, 0, sw, H); c.restore();
-    c.save(); c.translate(r.right, r.top); c.scale(-k, k); c.drawImage(src, W - sw, 0, sw, H, -sw, 0, sw, H); c.restore();
-  }
+  if (r.left > 0.5) paintSides(c, src, r, k, view === 'play'); // wide screen: background bands and fresh decor, never the level's objects
   if (r.top > 0.5) { // tall screen: the sky mirrored upwards; the ground below stays the flat colour painted above
     c.save(); c.translate(r.left, r.top); c.scale(k, -k); c.drawImage(src, 0, 0, W, sh, 0, 0, W, sh); c.restore();
   }
