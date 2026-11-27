@@ -13,7 +13,7 @@
  * Arabic right to left; the globe on the shelf screen changes it). Tunable numbers live in game_config.json.
  */
 import { PLUM, PINK, GREEN, tint, glossDisc, glossPill, panel, rays, vignette, roundRect } from './ui.js';
-import { loadSprites, loadRest, previewIn, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
+import { loadSprites, loadRest, loadedN, previewIn, ready, settled, cellCanvas, drawCell, drawCellAt, drawTable, drawBowl } from './sprites.js';
 import { rng, makeSoap, markDirty, carve, trimRows, carvedShare, sponge, edgeCells, meanRough, takeIslands, islandSprite, shapeScore, sparkleScore, verdict, soapCount, encodeMask, decodeMask, marbleAlbedo, attachPaint, paint, stamp as pressStamp } from './soap.js';
 import { POT, MAKE_STEPS, initMake, isMake, makeState, makeTray, makeDown, makeMove, makeUp, makeUpdate, makeProgress, drawMake, drawMakeTray, drawMakeTool, makeHand, perfectAge, makeStop, fillShare, potSide, landAt, fillCentre } from './make.js';
 import { createFx, ribbonShape, strokeCurl } from './fx.js';
@@ -102,7 +102,7 @@ function spotRect() {
   if (S.stepUsed || save.learned.includes(S.k)) return null;
   const b = cfg.bar, pad = 28; let x0 = b.x - pad, y0 = b.y - pad, x1 = b.x + b.w + pad, y1 = b.y + b.h + pad;
   if (isMake(S.k)) { const ps = potSide(); x0 = Math.min(x0, POT.x - POT.r - pad, ps.x - ps.r - 8); x1 = Math.max(x1, POT.x + POT.r + pad, ps.x + ps.r + 8); y0 = Math.min(y0, POT.y - POT.r - pad, ps.y - ps.r - 8); y1 = Math.max(y1, POT.y + POT.r + pad); }
-  if (trayShown()) y1 = 1090; // the tray of glitter, gems, cubes or flowers is part of the lesson
+  if (trayShown()) { y1 = 1090; x0 = 8; x1 = W - 8; } // the tray of glitter, gems, cubes or flowers is part of the lesson
   return { x: Math.max(8, x0), y: y0, w: Math.min(W - 8, x1) - Math.max(8, x0), h: y1 - y0 };
 }
 const spotOn = () => !!spotRect() || (!save.ftue && mode === 'play' && view === 'play' && S && S.k === 'bath' && S.reveal && S.reveal.t > 1.5);
@@ -121,6 +121,7 @@ function drawSpot() {
 function drawSpotTop() {
   if (!spotOn()) return;
   if (S.k === 'bath') { const p = (S.t * 1.2) % 1; g.strokeStyle = `rgba(255,255,255,${1 - p})`; g.lineWidth = 8; g.beginPath(); g.arc(NEXT.x, NEXT.y, NEXT.r + 10 + p * 40, 0, TAU); g.stroke(); }
+  if (S.k === 'bath') return;
   const b = SKIPB(); glossDisc(g, b.x + b.s / 2, b.y + b.s / 2, b.s / 2, '#FFFFFF', '#FF9CC8');
   g.fillStyle = PLUM; for (const dx of [-14, 8]) { const x = b.x + b.s / 2 + dx; g.beginPath(); g.moveTo(x - 8, b.y + b.s / 2 - 16); g.lineTo(x + 10, b.y + b.s / 2); g.lineTo(x - 8, b.y + b.s / 2 + 16); g.closePath(); g.fill(); } // skip: two arrows, no words
 }
@@ -132,7 +133,7 @@ const cineQ = [];
 /** Ask for the beat kind (cfg.cine) at world point (x, y). */
 function beat(kind, x, y) {
   const c = cfg.cine[kind]; if (!c || reduced()) return;
-  if (cineCool > 0 && !c.always) return;
+  if ((cineCool > 0 || cine) && !c.always) return;
   cineQ.push({ kind, x, y, ...c, t: 0 }); cineQ.sort((a, b) => b.prio - a.prio);
 }
 /** Real-time step of the beat; returns the factor game time runs at (below 1 during a slow-down). */
@@ -150,6 +151,7 @@ function cineCamera() {
   const k = cineK(); if (!k) return;
   const z = 1 + (cine.zoom - 1) * k, fx0 = 360 + (cine.x - 360) * k, fy0 = 640 + (cine.y - 640) * k; // the focus slides to the centre as it zooms
   g.translate(360, 640); g.scale(z, z); g.translate(-fx0, -fy0);
+  return true;
 }
 function cineVignette() {
   const k = cineK(); if (!k) return;
@@ -700,7 +702,7 @@ function down(p, touch) {
   startAudio(); touched = true; S.idle = 0; S.ribbon = null; // a new touch starts with a clean blade
   if (view === 'photo') { if (inRect(SHAREB(), p)) { shareGame(); return; } view = 'shelf'; photoSel = -1; SFX.pick(); return; }
   if (inDisc(MUTE(), p)) { save.muted = !save.muted; muteTouched = true; if (save.muted) { fizz(false); pourLoop(false); } music(!save.muted); SFX.pick(); persist(); return; }
-  if (spotOn() && inDisc(SKIPB(), p)) { save.ftue = true; SFX.pick(); persist(); return; } // skip the lesson
+  if (spotRect() && inDisc(SKIPB(), p)) { save.ftue = true; SFX.pick(); persist(); return; } // skip the lesson
   if (view === 'gift') return giftTap(); // the gift screen holds every tap until the box is opened and closed
   if (inDisc(SHELFB(), p)) { view = view === 'shelf' ? 'play' : 'shelf'; pen = null; SFX.pick(); return; }
   if (view === 'shelf') return shelfTap(p);
@@ -904,10 +906,10 @@ function drawBack() {
 }
 function draw() {
   g.setTransform(RES, 0, 0, RES, 0, 0);
-  if (OFF) { if (!ext) makeBase(); g.drawImage(ext, 0, 0); } // the table above and below the game
+  if (!ext) makeBase(); g.drawImage(ext, 0, 0); // the table above and below the game, and under a moving camera
   g.setTransform(RES, 0, 0, RES, 0, OFF * RES);
   if (shake > 0 && !reduced()) { const k = shake * shake * 10; g.translate((R() - 0.5) * k, (R() - 0.5) * k); }
-  cineCamera();
+  if (cineCamera()) g.drawImage(ext, 0, -OFF); // a camera off centre shows past the game's edges
   drawBack();
   if (!S) return;
   if (S.k === 'bath') drawBath();
@@ -1059,7 +1061,7 @@ function drawHud() {
 /** HUD, step row, prompt and order card: drawn into one layer, again only when what they show changes. */
 function drawChrome() {
   const live = S.enter > 0 || S.oopsT < 1.1 || S.t - (S.promptAt || 0) < 0.4 || coinPulse > 0 || wiggle || coinsFlying.length || view !== 'play' || S.k === 'bath';
-  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue, ready('gift_box')].join('|'); // a sprite that arrives redraws the layer
+  const key = [lang, view, S.n, S.k, !!S.trim, S.mood, Math.floor(coinShown), save.muted, S.gemSel >= 0, S.promptKey, save.shelf.length, save.n, save.giftDue, loadedN(), document.fonts ? document.fonts.status : ''].join('|'); // a sprite that arrives redraws the layer
   drawHud(); // the top row sits at the screen edge, outside the cached layer
   if (live) { if (view === 'play' && S.k !== 'bath') { drawSteps(); drawPrompt(); drawOrder(); } chromeKey = ''; return; }
   if (key !== chromeKey) {
@@ -1376,7 +1378,7 @@ function setRes(k) { if (k === RES) return; RES = k; cv.width = Math.round(W * k
 function fit() {
   const ar = innerHeight / Math.max(1, innerWidth), hv = Math.round(Math.min(cfg.maxHeight, Math.max(H, W * ar)) / 2) * 2;
   if (hv !== HV || !cv.style.width) {
-    HV = hv; OFF = (HV - H) / 2; ext = null; if (base) { makeBase(); if (tables) for (const c of tables) freshTable(c); } chromeKey = '';
+    HV = hv; OFF = (HV - H) / 2; ext = null; if (base) makeBase(); chromeKey = ''; // the shavings pile stays as it is
     cv.width = Math.round(W * RES); cv.height = Math.round(HV * RES);
   }
   cv.style.cssText = `display:block;width:min(100vw,calc(100vh*${W}/${HV}));height:min(100vh,calc(100vw*${HV}/${W}));touch-action:none;margin:auto`;

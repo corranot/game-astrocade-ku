@@ -25,6 +25,8 @@ export function loadSprites(sprites, first = [], preview = '') {
   if (preview && !PREV) { PREV = new Image(); PREV.src = preview; }
   for (const id of first) want(id);
 }
+/** How many images have arrived: a change redraws cached layers that used stand-ins. */
+export const loadedN = () => Object.values(IMG).reduce((n, im) => n + (im.complete && im.naturalWidth > 0 ? 1 : 0), 0);
 /** Whether the tiny table preview has decoded. */
 export const previewIn = () => !!(PREV && PREV.complete && PREV.naturalWidth);
 /** Load every other image. Safe to call again. */

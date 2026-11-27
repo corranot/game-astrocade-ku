@@ -998,7 +998,7 @@
    "sting": true
   },
   "charm": {
-   "zoom": 1.12,
+   "zoom": 1.0,
    "dur": 1.0,
    "ease": 0.25,
    "slow": 0.12,

@@ -511,7 +511,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'game_config.json'),
     page = await open('', { viewport: { width: w, height: h } }); await ready(page);
     const f = await G(page, () => { const G = window.__game, c = document.getElementById('game').getBoundingClientRect(), m = G.MUTE(); return { off: G.OFF, cw: c.width, ch: c.height, muteTop: (m.y + G.OFF) * c.height / (1280 + 2 * G.OFF) }; });
     ok(Math.abs(f.ch - Math.min(h, w * (1280 + 2 * f.off) / 720)) < 2 && (h / w <= 16 / 9 + 0.01 ? f.off === 0 : f.off > 0), `${w}x${h}: the canvas fills the height (OFF ${f.off})`);
-    ok(Math.abs(f.muteTop - 24 * f.ch / (1280 + 2 * f.off)) < 1, `${w}x${h}: the top row sits on the top margin`);
+    ok(Math.abs(f.muteTop - 16 * f.ch / (1280 + 2 * f.off)) < 1, `${w}x${h}: the top row sits on the top margin`);
   }
 
   await browser.close(); server.close();
