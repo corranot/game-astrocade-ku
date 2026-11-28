@@ -6,6 +6,8 @@
 export const T = { OUT: 0, GRASS: 1, BED: 2, PATH: 3, WATER: 4, SOLID: 5, SOIL: 6 };
 export const H = { CUT: 0, TALL: 170, EXTRA: 255 };
 export const GATE_HALF_M = 1.7;
+/** Half the width of Buzzy's body, in metres: what must fit between the gate posts. */
+export const BODY_M = 0.75;
 
 /** Seeded generator (mulberry32). Returns a function giving numbers in [0, 1). */
 export function rng(seed) {
@@ -246,7 +248,7 @@ export function cutSweep(cfg, g, x0, z0, x1, z1, ang, width, ahead = 0.45) {
 
 /** True when a mower of radius `rad` cannot stand at (x, z): fence, solid or water. Gaps: the north gate when open, the south entry always. */
 export function blocked(g, x, z, rad, gateOpen) {
-  const inGap = Math.abs(x - g.w / 2) < GATE_HALF_M - rad * 0.6;
+  const inGap = Math.abs(x - g.w / 2) < GATE_HALF_M - Math.min(rad, BODY_M);
   if (x < rad || x > g.w - rad) return true;
   if (z < rad && !(gateOpen && inGap)) return true;
   if (z > g.d - rad && !inGap) return true;
@@ -256,6 +258,21 @@ export function blocked(g, x, z, rad, gateOpen) {
 export function clearAt(g, x, z) {
   const c = Math.floor(x / g.cell), r = Math.floor(z / g.cell); if (c < 0 || r < 0 || c >= g.cols || r >= g.rows) return 99;
   return g.clear[r * g.cols + c] - g.cell * 0.5;
+}
+/**
+ * How the cutting deck must tuck in so that neither front corner pokes through a fence, a rock or the pond: it
+ * first springs narrower (k, 1 = full width), then slides back under the body (pull, metres). `hw` is half the
+ * deck width, `front` how far ahead of the body's centre the corners sit, `steps` the widths and `pulls` the
+ * slides to try in order. Returns { k, pull, poke } with `poke` = metres still outside (0 when it fits).
+ */
+export function deckFit(g, x, z, ang, hw, steps, front, pulls = [0]) {
+  const fx = -Math.sin(ang), fz = -Math.cos(ang); let k = 1, pull = 0, poke = 0;
+  if (z < -0.5 || z > g.d + 0.5) return { k, pull, poke };
+  for (pull of pulls) for (k of steps) { poke = 0;
+    for (const sd of [-1, 1]) { const f = front - pull, cx = x + fx * f + fz * sd * hw * k, cz = z + fz * f - fx * sd * hw * k, gap = Math.abs(cx - g.w / 2) < GATE_HALF_M;
+      poke = Math.max(poke, -cx, cx - g.w, gap ? 0 : Math.max(-cz, cz - g.d), cx >= 0 && cx <= g.w && cz >= 0 && cz <= g.d ? -clearAt(g, cx, cz) : 0); }
+    if (poke <= 0) return { k, pull, poke: 0 }; }
+  return { k, pull, poke };
 }
 /** Moves a point by (dx, dz), sliding along whatever blocks it. Returns the new { x, z, hit }. */
 export function slide(g, x, z, dx, dz, rad, gateOpen) {

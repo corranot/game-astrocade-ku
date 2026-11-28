@@ -47,7 +47,7 @@ export function run(mode = 'play') {
 
   // ---- state
   const S = { save: L.newSave(cfg), slots: new Map(), cuts: {}, cur: 0, kart: { x: 0, z: 0, ang: 0, vx: 0, vz: 0, speed: 0, turn: 0 }, flow: L.newFlow(), t: 0, stick: { on: false, id: -1, ox: 0, oy: 0, sx: 0, sy: 0, dx: 0, dz: 0, mag: 0, moved: 0, t0: 0 }, keys: {}, cutting: 0, fresh: 0, frames: 0, ms: 16, slow: 0, fast: 0,
-    shown: 0, squash: 1, bootQ: [], bale: { m2: 0, fs: 0, wet: 0 }, bales: [], ents: [], riders: [], noProg: 0, guide: null, guideT: 0, m2Note: 0, lastReward: 0, scale: 1, loaded: false, late: false, dirty: false, saveT: 0, moved: 0, puffT: 0, idle: 0, firstBale: false, hat: null, orn: null, touched: false, events: [], milestone: 0, pads: [], sheet: null, clock: { last: 0, kinds: {} } };
+    shown: 0, squash: 1, pull: 0, bootQ: [], bale: { m2: 0, fs: 0, wet: 0 }, bales: [], ents: [], riders: [], noProg: 0, guide: null, guideT: 0, m2Note: 0, lastReward: 0, scale: 1, loaded: false, late: false, dirty: false, saveT: 0, moved: 0, puffT: 0, idle: 0, firstBale: false, hat: null, orn: null, touched: false, events: [], milestone: 0, pads: [], sheet: null, clock: { last: 0, kinds: {} } };
   // the Garden of the Day is one more garden at the far end of the lane, new each day; the lane map opens it early
   const today = L.ymdOf(new Date()), DAILY = cfg.gardens.length; cfg.gardens.push(L.dailyRecipe(cfg, today));
   const dOf = (n) => (cfg.gardens[n].daily ? cfg.gardens[n].district : L.districtOf(n)), nbOf = (n) => cfg.gardens[n].nb || cfg.gardens[n].id;
@@ -98,8 +98,8 @@ export function run(mode = 'play') {
   const disposeTree = (o) => o.traverse((m) => { if (m.geometry) m.geometry.dispose(); if (m.material && m.material.userData.own) m.material.dispose(); });
   const cellCut = (g, x, z) => { const c = clamp(Math.floor(x / g.cell), 0, g.cols - 1), r = clamp(Math.floor(z / g.cell), 0, g.rows - 1); return g.mask[(r * g.cols + c) * 4] === L.H.CUT && g.mask[(r * g.cols + c) * 4 + 3] > 0; };
   /** Cuts a small round of grass at a garden-local point (a sheep's bite). Returns the cells cut; the grass feeds the bale. */
-  function cutAt(s, lx, lz, w) {
-    const c = L.cutSweep(cfg, s.g, lx, lz, lx, lz, 0, w, 0); if (c.rect) s.lawn.dirty();
+  function cutAt(s, lx, lz, w, px = lx, pz = lz) {
+    const c = L.cutSweep(cfg, s.g, px, pz, lx, lz, px === lx && pz === lz ? 0 : Math.atan2(px - lx, pz - lz), w, 0); if (c.rect) s.lawn.dirty();
     if (c.cut > 0) { const m2 = c.cut * s.g.cell * s.g.cell; S.save.m2 += m2; S.bale.m2 += m2; if (s === cur()) { const st = L.starsFor(cfg, s.g); for (let k = s.stars + 1; k <= st; k++) { s.stars = k; onStar(s, k); } ui.setProgress(L.coverage(s.g), L.percent(s.g), s.stars); } }
     return c.cut;
   }
@@ -122,8 +122,10 @@ export function run(mode = 'play') {
   function enter(n, atStart) {
     const first = S.cur !== n || atStart; S.cur = n; const s = slot(n);
     if (atStart) { S.kart.x = s.ox + s.g.start.x; S.kart.z = s.oz + s.g.start.z; S.kart.ang = 0; S.kart.vx = S.kart.vz = 0; }
+    // a new player's first picture: Buzzy has already cut a short stripe and turned round to say hello, face to the camera
+    if (atStart && n === 0 && S.save.ftue === 0 && s.g.cutCount === 0) { const h = cfg.ftue.hello, gx = s.g.start.x, gz = s.g.start.z; L.cutSweep(cfg, s.g, gx, gz + 0.9, gx, gz - h.stripeM, 0, deckW(), 0); s.lawn.dirty(); S.kart.z -= h.stripeM; S.kart.ang = h.faceRad; }
     if (n > S.save.cur && n !== DAILY && rec(n - 1).stars > 0) S.save.cur = n;
-    world.setDistrict(dOf(n), 1); audio.setDistrict(dOf(n)); buzzy.setDeck(deckW());
+    world.setDistrict(dOf(n), 1); audio.setDistrict(dOf(n)); buzzy.setDeck(deckW()); if (S.life) S.life.setDusk(dOf(n) === 2);
     for (const k of [...S.slots.keys()]) if (k < n - 1 || k > n + 1) drop(k);
     if (first) { S.flow.ribbon = false; S.touched = false; S.milestone = Math.floor(L.coverage(s.g) * 4); s.nbMode = s.stars > 0 ? 'dance' : 'wave'; if (play && S.loaded && s.stars === 0 && n > 0) greet(s); }
     refreshHud();
@@ -279,7 +281,8 @@ export function run(mode = 'play') {
   function party(s) {
     if (s.party) return; const d = dOf(s.n), first = !S.save.parties.includes(d), THREE_ = THREE;
     const ids = cfg.gardens.map((q, i) => (!q.daily && L.districtOf(i) === d && i !== s.n ? q.id : null)).filter(Boolean), nbs = [];
-    ids.forEach((id, i) => { const m = Cast.buildNeighbour(world, id), a = (i + 0.5) / ids.length * Math.PI; m.group.position.set(Math.cos(a) * 3.1, 0, s.oz - 6.4 - Math.sin(a) * 2.4); m.group.rotation.y = Math.atan2(-m.group.position.x * 0.3, 1); m.group.scale.setScalar(0.01); world.scene.add(m.group); nbs.push(m); });
+    // guests line the lane's sides, outside where Buzzy can drive
+    ids.forEach((id, i) => { const m = Cast.buildNeighbour(world, id), side = i % 2 ? 1 : -1; m.group.position.set(s.ox + s.g.w / 2 + side * (LANE_HALF_W + 0.75), 0, s.oz - 3.4 - (i >> 1) * 2.1); m.group.rotation.y = -side * 0.9; m.group.scale.setScalar(0.01); world.scene.add(m.group); nbs.push(m); });
     const flags = [], cols = ['#e9795b', '#f6c443', '#8fc6d8', '#f1b9c8', '#7cc25a'];
     for (const [z, x0, x1] of [[s.oz - 0.05, -L.GATE_HALF_M, L.GATE_HALF_M], [s.oz - 4.6, -3.6, 3.6], [s.oz - 9.2, -3.6, 3.6]]) {
       const n = Math.round((x1 - x0) / 0.42); for (let i = 0; i < n; i++) { const k = (i + 0.5) / n, x = lerp(x0, x1, k) + s.ox + s.g.w / 2, y = 2.25 - Math.sin(k * Math.PI) * 0.45; flags.push(Kit.paint(Kit.xf(new THREE_.ConeGeometry(0.16, 0.34, 3), [x, y - 0.17, z], [Math.PI, 0, 0], [1, 1, 0.12]), cols[i % 5])); }
@@ -289,6 +292,7 @@ export function run(mode = 'play') {
     s.party = { nbs, bunting, t: 0, pops: first ? 16 : 8, next: 0.4 };
     audio.sfx('party'); reward('party');
     director.play({ id: 'party', pri: 5, len: 2.0, at: () => ({ x: s.ox + s.g.w / 2, z: s.oz - 5 }), dist: camDist() * 1.1, pitch: 0.95, bars: true, force: true });
+    if (canShare) later(() => { const c = ui.chip(ICONS.share, 6); c.style.pointerEvents = 'auto'; c.addEventListener('pointerdown', (e) => { e.stopPropagation(); shareIt(T('share').replace('{g}', T('g_' + s.g.id))); }, { once: true }); }, 2600);
     if (first) { S.save.parties.push(d); later(() => { award(cfg.economy.partyCoins[Math.min(d, cfg.economy.partyCoins.length - 1)], s.ox + s.g.w / 2, 1.5, s.oz - 5); ui.chip(`${ICONS.star}${ICONS.star}${ICONS.star}`, 3); }, 1200); persist(); }
   }
   /** Runs a party: the guests pop in and dance, the fireworks pop one by one. */
@@ -312,7 +316,11 @@ export function run(mode = 'play') {
     persist();
   }
   const canShare = play && hasLib && typeof lib.share === 'function';
+  /** Sends the lifetime square metres mown to the leaderboard, quietly; nothing competitive shows in the HUD. */
+  function board() { if (!play || !hasLib || !S.loaded || typeof lib.addPlayerScoreToLeaderboard !== 'function') return; try { Promise.resolve(lib.addPlayerScoreToLeaderboard(Math.round(S.save.m2))).catch(() => {}); } catch (e) { /* no board on this host */ } }
+  const shareIt = (text) => { audio.sfx('click'); Promise.resolve().then(() => lib.share({ title: T('title'), text })).catch(() => {}); };
   function slip(s) {
+    board();
     const r = rec(s.n), pct = L.percent(s.g), tip = [1, 2, 3].filter((k) => k <= s.stars).reduce((a, k) => a + L.tip(cfg, s.g, k), 0);
     ui.receipt({ face: face(s.n), name: T('g_' + s.g.id), pct, stars: s.stars, ribbons: r.rib, tip, onStar: () => audio.sfx('star'), share: canShare && s.stars === 3 ? () => { audio.sfx('click'); Promise.resolve().then(() => lib.share({ title: T('title'), text: T('share').replace('{g}', T('g_' + s.g.id)) })).catch(() => {}); } : null }, 3.2);
     S.slipAt = S.t; audio.sfx('rustle');
@@ -344,8 +352,8 @@ export function run(mode = 'play') {
   function ftueNext(n) { if (S.save.ftue < n) { S.save.ftue = n; audio.sfx('ribbon'); if (n >= 7) { S.save.ftueDone = true; ui.showSkip(false); } } }
   function ftueTarget() {
     if (!play || S.save.ftueDone || S.sheet) return null; const s = cur(), kt = S.kart, f = S.save.ftue, u = ui.unit();
-    if (f === 0) { const p = toScreen(kt.x, 0.6, kt.z - 1); return { x: p.x, y: p.y, r: 250 * u, hint: S.stick.on ? null : 'thumb', hx: p.x, hy: p.y + 330 * u, dim: 0.4, world: null }; }
-    if (f === 1) { const p = toScreen(kt.x, 0.5, kt.z - 1.2); return { x: p.x, y: p.y, r: 330 * u, dim: 0.3 }; }
+    if (f === 0) { const p = toScreen(kt.x, 0.6, kt.z - 1); return { x: p.x, y: p.y, r: 250 * u, hint: S.stick.on ? null : 'thumb', hx: p.x, hy: p.y + 330 * u, dim: cfg.ftue.dimFirst, world: null }; }
+    if (f === 1) { const p = toScreen(kt.x, 0.5, kt.z - 1.2); return { x: p.x, y: p.y, r: 330 * u, dim: cfg.ftue.dimFirst }; }
     if (f === 2) { const b = S.bales.find((q) => q.state === 'rest'); if (!b) return null; const p = toScreen(b.x, 0.4, b.z); return { x: p.x, y: p.y, r: 120 * u, hint: 'ring', dim: 0.4, world: b, on: p.on }; }
     if (f === 3) { const fd = s.g.finds.find((q) => q.kind === 'friend' && !q.found); if (!fd) { if (!S.ents.length) S.save.ftue = 4; return null; } if (L.coverage(s.g) < 0.3) return null; const w = { x: s.ox + fd.x, z: s.oz + fd.z }, p = toScreen(w.x, 0.4, w.z); return { x: p.x, y: p.y, r: 120 * u, hint: 'ring', dim: 0.35, world: w, on: p.on }; }
     if (f === 4) { if (!s.gateOpen || S.cur > 0) { if (S.cur > 0) S.save.ftue = 5; return null; } const w = { x: s.dress.gate.x, z: s.dress.gate.z }, p = toScreen(w.x, 0.6, w.z); return { x: p.x, y: p.y, r: 170 * u, dim: 0.3, world: w, on: p.on }; }
@@ -409,7 +417,7 @@ export function run(mode = 'play') {
 
   // ---- collision: the garden's own rule inside the fence, a wide lane outside, the gaps at the fence lines
   function blockedAt(s, lx, lz) {
-    const g = s.g, rad = K.radiusM, off = Math.abs(lx - g.w / 2), inGap = off < L.GATE_HALF_M - rad * 0.6, last = s.n === cfg.gardens.length - 1;
+    const g = s.g, rad = K.radiusM, off = Math.abs(lx - g.w / 2), inGap = off < L.GATE_HALF_M - K.bodyM, last = s.n === cfg.gardens.length - 1;
     if (lz < -rad) return off > LANE_HALF_W - rad || lz < (last ? -LANE_M / 2 : -LANE_M - 1);
     if (lz > g.d + rad) return off > LANE_HALF_W - rad || lz > g.d + (s.n === 0 || (s.n === DAILY && S.save.cur < DAILY - 1) ? 3 : LANE_M + 1);
     if (lz < rad) return !(inGap && s.gateOpen);
@@ -476,7 +484,7 @@ export function run(mode = 'play') {
     for (const b of s.dress.beds) { const inx = Math.abs(kt.x - b.x) < b.w / 2 + 0.3 && Math.abs(kt.z - b.z) < b.d / 2 + 0.3; if (inx && b.bow < 0.2) { if (!S.touched) audio.sfx('oops'); S.touched = true; fx.burst('petal', b.x, 0.4, b.z, 6, { spread: 0.5 }); } b.bow = inx ? 1 : Math.max(0, b.bow - dt / 2); b.mesh.scale.y = 1 - 0.6 * ease(b.bow); }
     // gate, grow wave, finale at the gate
     if (s.gateOpen && s.gateT < 1) { s.gateT = Math.min(1, s.gateT + dt / 0.8); const e = s.gateT; s.dress.gate.set(1 - Math.pow(1 - e, 3) + Math.sin(e * Math.PI) * 0.12); }
-    for (const q of S.slots.values()) { if (q.grow < 1) { q.grow = Math.min(1, q.grow + dt / 1.4); q.lawn.setGrow(ease(q.grow)); } if (q.bloom >= 0 && q.bloom < 1.2) { q.bloom = Math.min(1.2, q.bloom + dt / 1.6 * 1.2); q.lawn.setBloom(q.bloom); } }
+    for (const q of S.slots.values()) { q.dress.tick(S.t); if (q.grow < 1) { q.grow = Math.min(1, q.grow + dt / 1.4); q.lawn.setGrow(ease(q.grow)); } if (q.bloom >= 0 && q.bloom < 1.2) { q.bloom = Math.min(1.2, q.bloom + dt / 1.6 * 1.2); q.lawn.setBloom(q.bloom); } }
     if (s.gateOpen && !s.finale && lz < 0.6 && Math.abs(lx - g.w / 2) < L.GATE_HALF_M) finale(s);
     if (S.save.ftue === 4 && S.cur === 0 && lz < -0.5) ftueNext(5);
     if (ui.receiptOpen() && S.t - S.slipAt > 0.8 && wm > 0.3) ui.receipt(null);
@@ -517,17 +525,17 @@ export function run(mode = 'play') {
     step(dt);
     const kt = S.kart; buzzy.group.position.set(kt.x, 0, kt.z); buzzy.group.rotation.y = kt.ang;
     { // the deck springs narrower when a corner would poke through a fence or a rock
-      const s = cur(), gg = s.g, lx = kt.x - s.ox, lz = kt.z - s.oz, fxn = -Math.sin(kt.ang), fzn = -Math.cos(kt.ang), hw = deckW() / 2; let k = 1;
-      if (lz > -0.5 && lz < gg.d + 0.5) for (k of K.squashSteps) { let ok = true; for (const sd of [-1, 1]) { const cx = lx + fxn * 0.95 + fzn * sd * hw * k, cz = lz + fzn * 0.95 - fxn * sd * hw * k, gap = Math.abs(cx - gg.w / 2) < L.GATE_HALF_M; if (cx < 0.1 || cx > gg.w - 0.1 || ((cz < 0.1 || cz > gg.d - 0.1) && !gap) || L.clearAt(gg, cx, cz) < 0.05) ok = false; } if (ok) break; }
-      S.squash += (k - S.squash) * Math.min(1, real * 14); buzzy.setSquash(S.squash);
+      const s = cur(), f = L.deckFit(s.g, kt.x - s.ox, kt.z - s.oz, kt.ang, deckW() / 2, K.squashSteps, K.deckFrontM, K.squashPulls), e = Math.min(1, real * 14);
+      S.squash += (f.k - S.squash) * e; S.pull += (f.pull - S.pull) * e; buzzy.setSquash(S.squash, S.pull);
     }
     buzzy.update(dt, S.t, { speed: kt.speed, turn: kt.turn, cutting: S.cutting, flow: S.flow.v, wave: S.wave > 0 ? Math.min(1, S.wave * 3) : 0, fill: clamp(S.bale.m2 / L.upValue(cfg, 'baler', S.save.up.baler), 0, 1), idle: S.idle });
     for (const r of S.riders) { r.f.update(S.t + r.k * 1.7 || S.t); if (r.f.fly) { const a = S.t * 1.1 + r.k * 2.1; r.f.group.position.set(Math.cos(a) * 1.0, 1.5 + Math.sin(a * 1.7) * 0.2, Math.sin(a) * 1.0); r.f.group.rotation.y = -a; } else r.f.group.position.y = S.jump > 0 ? Math.sin((0.5 - S.jump) / 0.5 * Math.PI) * 0.25 : 0; }
     for (const s of S.slots.values()) {
       s.lawn.update(S.t, kt.x, kt.z, clamp(kt.speed / 2, 0.35, 1));
       s.nbT += dt; if (s.nbMode === 'cheer' && s.nbT > 2) { s.nbMode = s.finale ? 'run' : 'wave'; s.nbT = 0; }
-      if (s.nbMode === 'run') { const tx = s.ox + s.g.w / 2 + 1.2, tz = s.oz + Math.min(4, s.g.d * 0.4), p = s.nb.group.position, d = Math.hypot(tx - p.x, tz - p.z); if (d < 0.2) { s.nbMode = 'dance'; } else { const sp = Math.min(d, 3.2 * dt); p.x += (tx - p.x) / d * sp; p.z += (tz - p.z) / d * sp; s.nb.group.rotation.y = Math.atan2(tx - p.x, tz - p.z); } }
+      if (s.nbMode === 'run') { const tx = s.ox + s.g.w / 2 + L.GATE_HALF_M + 1.0, tz = s.oz + 1.5, p = s.nb.group.position, d = Math.hypot(tx - p.x, tz - p.z); if (d < 0.2) { s.nbMode = 'dance'; } else { const sp = Math.min(d, 3.2 * dt); p.x += (tx - p.x) / d * sp; p.z += (tz - p.z) / d * sp; s.nb.group.rotation.y = Math.atan2(tx - p.x, tz - p.z); } }
       else if (s.nbMode !== 'dance') s.nb.group.rotation.y = Math.atan2(kt.x - s.nb.group.position.x, kt.z - s.nb.group.position.z) * 0.6;
+      { const p = s.nb.group.position, d = Math.hypot(p.x - kt.x, p.z - kt.z), keep = K.radiusM + 0.45; if (d < keep && d > 0.01) { p.x += (p.x - kt.x) / d * (keep - d); p.z += (p.z - kt.z) / d * (keep - d); } } // a neighbour steps out of Buzzy's way, never through it
       s.nb.update(dt, S.t, s.nbMode); if (s.party) stepParty(s, dt);
     }
     if (dOf(S.cur) === 2) cur().lawn.setLamp(kt.x - Math.sin(kt.ang) * 2.2, kt.z - Math.cos(kt.ang) * 2.2, 4.2, 1);
@@ -571,7 +579,7 @@ export function run(mode = 'play') {
   // a fast first picture: boot on the lightest tier (no shadow pass, no post targets, fewer blades), then step up
   if (!qs.has('tier')) world.setTier(0);
   newDay();
-  S.bootQ.push(() => { S.life = createLife(world, Cast, cfg.quality.butterflies); });
+  S.bootQ.push(() => { S.life = createLife(world, Cast, cfg.quality.butterflies); S.life.setDusk(dOf(S.cur) === 2); });
   enter(S.save.cur, true); dressBuzzy(); fx.setTier(world.tier);
   ui.resize(root.clientWidth || 360, root.clientHeight || 640); ui.setCoins(0); refreshHud();
   world.follow(S.kart.x, S.kart.z, 0, 0, camDist(), 0, true);
