@@ -230,3 +230,37 @@ These are projections, not player data.
 Sign-off by discipline: Creative yes; Art yes (Lantern pools noted); Retention yes on projection; Audio
 unchanged since M1 (no new stings for the district props); UX yes; QA yes for logic, no-clip, bundle and load,
 open on phone FPS.
+
+## M5 (28 Nov 2026): M4 review fixes and the private draft
+
+Private draft created (not published, no thumbnail touched): game `01M8GVJ830TW5T0VFCA38YYH9C`, version
+`01M8GVMW41X36GXT047D6WMG39`.
+
+Review fixes:
+
+- **Faces in the HUD sheet**: the follow camera was right (yaw 45); the capture harness drove straight away from it.
+  The harness now drives toward the camera, and Nilo also glances toward the camera (`camera.glanceK`, `glanceMax`),
+  holding his side when driving straight away so the head never flips.
+- **Lantern**: brighter cut and stripe tones, and a soft glow under Buzzy (`comfort.heroGlowM`, `heroGlowK`) so the
+  hero always reads in the tall teal grass.
+- **Windmill**: stripe contrast raised to match Clover. Price chips are placed against Nilo's projected screen box
+  and keep an 8 px gap from each other, so a chip never sits on the hero.
+- **Arrow glyph**: it was the guide arrow; it is now a styled coral arrow with a cream outline that bobs, pointing
+  from the hero to the goal.
+- **Hidden FPS readout**: tap the progress bar five times within two seconds; a small chip at the bottom left shows
+  `fps · low · q` (average, slowest recent, quality tier). Five taps again hides it.
+
+Fresh-eyes bug hunt (fixed in this pass): the daily garden had no music key or tempo (sound broke there); a
+mid-line comment swallowed the lawn's wind, push and stripe settings; a late save from an earlier day could bring
+yesterday's daily stars into today; lane lamps and party guests overlapped the cottage and the neighbour in
+Lantern; the finale posted the score twice; a find under a sheep's bite now reveals at once; the hero glow is
+disposed on destroy. Left as is: the deck front can poke about 0.2 m through a closed gate.
+
+Checks on the build pulled back from the draft: 17 files byte-identical to the upload set; bundle test 308 KB,
+`fail []`, no errors, start 1.3 s; load time on 4G 1.70 and 1.94 s to playable (slow 4G 3.3 to 3.5 s); 14 unit tests
+pass including the no-clip sweep; lint and CI checks pass.
+
+Sheets: `production/qa/evidence/mow-mow-meadow/m5-sheet-*.jpg` and `/mnt/project-files/new-sim/m5/`.
+
+Still open: phone FPS (to be read from the hidden readout on a real phone), the glow pass on real hardware, a child
+playtest.

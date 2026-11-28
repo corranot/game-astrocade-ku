@@ -47,7 +47,7 @@ export function run(mode = 'play') {
 
   // ---- state
   const S = { save: L.newSave(cfg), slots: new Map(), cuts: {}, cur: 0, kart: { x: 0, z: 0, ang: 0, vx: 0, vz: 0, speed: 0, turn: 0 }, flow: L.newFlow(), t: 0, stick: { on: false, id: -1, ox: 0, oy: 0, sx: 0, sy: 0, dx: 0, dz: 0, mag: 0, moved: 0, t0: 0 }, keys: {}, cutting: 0, fresh: 0, frames: 0, ms: 16, slow: 0, fast: 0,
-    shown: 0, squash: 1, pull: 0, bootQ: [], bale: { m2: 0, fs: 0, wet: 0 }, bales: [], ents: [], riders: [], noProg: 0, guide: null, guideT: 0, m2Note: 0, lastReward: 0, scale: 1, loaded: false, late: false, dirty: false, saveT: 0, moved: 0, puffT: 0, idle: 0, firstBale: false, hat: null, orn: null, touched: false, events: [], milestone: 0, pads: [], sheet: null, clock: { last: 0, kinds: {} } };
+    shown: 0, squash: 1, pull: 0, glance: 0, bootQ: [], bale: { m2: 0, fs: 0, wet: 0 }, bales: [], ents: [], riders: [], noProg: 0, guide: null, guideT: 0, m2Note: 0, lastReward: 0, scale: 1, loaded: false, late: false, dirty: false, saveT: 0, moved: 0, puffT: 0, idle: 0, firstBale: false, hat: null, orn: null, touched: false, events: [], milestone: 0, pads: [], sheet: null, clock: { last: 0, kinds: {} } };
   // the Garden of the Day is one more garden at the far end of the lane, new each day; the lane map opens it early
   const today = L.ymdOf(new Date()), DAILY = cfg.gardens.length; cfg.gardens.push(L.dailyRecipe(cfg, today));
   const dOf = (n) => (cfg.gardens[n].daily ? cfg.gardens[n].district : L.districtOf(n)), nbOf = (n) => cfg.gardens[n].nb || cfg.gardens[n].id;
@@ -100,13 +100,20 @@ export function run(mode = 'play') {
   /** Cuts a small round of grass at a garden-local point (a sheep's bite). Returns the cells cut; the grass feeds the bale. */
   function cutAt(s, lx, lz, w, px = lx, pz = lz) {
     const c = L.cutSweep(cfg, s.g, px, pz, lx, lz, px === lx && pz === lz ? 0 : Math.atan2(px - lx, pz - lz), w, 0); if (c.rect) s.lawn.dirty();
-    if (c.cut > 0) { const m2 = c.cut * s.g.cell * s.g.cell; S.save.m2 += m2; S.bale.m2 += m2; if (s === cur()) { const st = L.starsFor(cfg, s.g); for (let k = s.stars + 1; k <= st; k++) { s.stars = k; onStar(s, k); } ui.setProgress(L.coverage(s.g), L.percent(s.g), s.stars); } }
+    if (c.cut > 0) { for (const f of s.g.finds) if (!f.found && cellCut(s.g, f.x, f.z)) reveal(s, f); const m2 = c.cut * s.g.cell * s.g.cell; S.save.m2 += m2; S.bale.m2 += m2; if (s === cur()) { const st = L.starsFor(cfg, s.g); for (let k = s.stars + 1; k <= st; k++) { s.stars = k; onStar(s, k); } ui.setProgress(L.coverage(s.g), L.percent(s.g), s.stars); } }
     return c.cut;
   }
   const toyCtx = { world, cfg, L, fx, audio, S, award: (...a) => award(...a), reward: (k) => reward(k), reveal: (s, f) => reveal(s, f), cellCut: (g, x, z) => cellCut(g, x, z), cutAt, reach: () => L.baleReach(cfg, S.save.up.baler) };
   const TRAILS = { petals: ['petal'], daisies: ['petal', '#f1e6cf'], leaves: ['leaf'], bubbles: ['drop', '#c4e8f5'], stars: ['spark'], hearts: ['petal', '#e2533c'] };
   const TINTS = { classic: null, mint: ['#9fd8a8', '#7cc08e'], clover: ['#7fc86a', '#5fae52'], goldtip: ['#b5cc5a', '#8fb04a'], lilac: ['#a8c898', '#8fb0a8'], sunset: ['#c8c070', '#a8a058'] };
 
+  // a hidden frame-rate readout: five quick taps on the progress bar show or hide it (frames per second, the slowest frame of the last second, the quality tier)
+  const perf = { on: false, n: 0, sum: 0, worst: 0, taps: [], el: null };
+  if (play) { ui.E.prog.style.pointerEvents = 'auto'; const onTap = () => { const now = performance.now(); perf.taps = perf.taps.filter((t) => now - t < 2000); perf.taps.push(now); if (perf.taps.length < 5) return; perf.taps = []; perf.on = !perf.on;
+    if (!perf.el) { perf.el = document.createElement('div'); perf.el.className = 'chip paper'; perf.el.style.cssText = 'position:absolute;left:calc(var(--m));bottom:calc(var(--m));pointer-events:none;font-variant-numeric:tabular-nums'; ui.el.appendChild(perf.el); }
+    perf.el.textContent = '… fps'; perf.el.style.display = perf.on ? '' : 'none'; perf.n = 0; perf.sum = 0; perf.worst = 0; }; ui.E.prog.addEventListener('pointerdown', onTap); offs.push(() => ui.E.prog.removeEventListener('pointerdown', onTap)); }
+  // at dusk a soft warm glow travels with Buzzy, so the hero always reads against the dark grass
+  const heroGlow = (() => { const q = new THREE.PlaneGeometry(cfg.comfort.heroGlowM, cfg.comfort.heroGlowM), uv = q.getAttribute('uv'), col = new Float32Array(uv.count * 3); for (let i = 0; i < uv.count; i++) { col[i * 3] = uv.getX(i); col[i * 3 + 1] = uv.getY(i); } q.setAttribute('color', new THREE.BufferAttribute(col, 3)); const mat = world.M.pool.clone(); mat.uniforms.uK.value = cfg.comfort.heroGlowK; const m = new THREE.Mesh(q, mat); m.rotation.x = -Math.PI / 2; m.renderOrder = 3; m.visible = false; world.scene.add(m); return m; })();
   const southLane = lanePiece(world, 0, 4.4, 0.6, cfg.districts[0]); // the way in to the first garden
   const buzzy = buildBuzzy(world, { paint: S.save.use.paint, lazy: true }); S.bootQ.push(() => { buzzy.seat(); wear(S.save.wear); }); world.scene.add(buzzy.group);
   const deckW = () => L.upValue(cfg, 'deck', S.save.up.deck), topSpeed = () => L.upValue(cfg, 'engine', S.save.up.engine) * (S.flow.v >= 1 ? cfg.flow.speedMul : 1);
@@ -152,7 +159,11 @@ export function run(mode = 'play') {
     if (S.save.gardens[DAILY]) S.save.gardens[DAILY] = { stars: 0, best: 0, rib: [] }; if (S.save.cutFor === DAILY) { S.save.cut = null; S.save.cutFor = -1; }
   }
   function applySave(raw, late) {
-    S.save = late ? L.mergeSave(cfg, S.save, raw) : L.cleanSave(cfg, raw); S.shown = S.save.coins; newDay();
+    const mine = S.save && S.save.gardens ? S.save.gardens[DAILY] : null, old = late && !(raw && raw.daily && raw.daily.ymd === today);
+    S.save = late ? L.mergeSave(cfg, S.save, raw) : L.cleanSave(cfg, raw);
+    // a late save from an earlier day must not bring yesterday's daily stars into today
+    if (old && S.save.gardens[DAILY]) S.save.gardens[DAILY] = mine || { stars: 0, best: 0, rib: [] };
+    S.shown = S.save.coins; newDay();
     const at = S.save.cut && S.save.cutFor >= 0 ? S.save.cutFor : S.save.cur, hasCut = !!(S.save.cut && S.save.cutFor >= 0), done = S.save.gardens[at] && S.save.gardens[at].stars > 0;
     if (!late && (at !== S.cur || hasCut || done)) { // the first read, before the player has moved: rebuild the lane at the saved garden with its saved lawn (a new player keeps the lane already built)
       for (const k of [...S.slots.keys()]) dropQuiet(k); S.cuts = {}; if (hasCut) S.cuts[at] = S.save.cut;
@@ -282,7 +293,7 @@ export function run(mode = 'play') {
     if (s.party) return; const d = dOf(s.n), first = !S.save.parties.includes(d), THREE_ = THREE;
     const ids = cfg.gardens.map((q, i) => (!q.daily && L.districtOf(i) === d && i !== s.n ? q.id : null)).filter(Boolean), nbs = [];
     // guests line the lane's sides, outside where Buzzy can drive
-    ids.forEach((id, i) => { const m = Cast.buildNeighbour(world, id), side = i % 2 ? 1 : -1; m.group.position.set(s.ox + s.g.w / 2 + side * (LANE_HALF_W + 0.75), 0, s.oz - 3.4 - (i >> 1) * 2.1); m.group.rotation.y = -side * 0.9; m.group.scale.setScalar(0.01); world.scene.add(m.group); nbs.push(m); });
+    ids.forEach((id, i) => { const m = Cast.buildNeighbour(world, id), side = i % 2 ? -1 : 1; m.group.position.set(s.ox + s.g.w / 2 + side * (LANE_HALF_W + 0.75), 0, s.oz - (side < 0 ? 6.4 : 3.4) - (i >> 1) * 2.1); m.group.rotation.y = -side * 0.9; m.group.scale.setScalar(0.01); world.scene.add(m.group); nbs.push(m); });
     const flags = [], cols = ['#e9795b', '#f6c443', '#8fc6d8', '#f1b9c8', '#7cc25a'];
     for (const [z, x0, x1] of [[s.oz - 0.05, -L.GATE_HALF_M, L.GATE_HALF_M], [s.oz - 4.6, -3.6, 3.6], [s.oz - 9.2, -3.6, 3.6]]) {
       const n = Math.round((x1 - x0) / 0.42); for (let i = 0; i < n; i++) { const k = (i + 0.5) / n, x = lerp(x0, x1, k) + s.ox + s.g.w / 2, y = 2.25 - Math.sin(k * Math.PI) * 0.45; flags.push(Kit.paint(Kit.xf(new THREE_.ConeGeometry(0.16, 0.34, 3), [x, y - 0.17, z], [Math.PI, 0, 0], [1, 1, 0.12]), cols[i % 5])); }
@@ -312,7 +323,7 @@ export function run(mode = 'play') {
     if (cam) director.play({ id: 'finale', pri: 3, len: 1.6, at: () => ({ x: s.ox + g.w / 2, z: s.oz + g.d * 0.45 }), dist: Math.max(camDist() * 1.15, g.d * 1.05), pitch: 1.05, force: true });
     if (s.n > 0) slip(s);
     if (L.PARTY_AFTER.includes(s.n)) party(s);
-    if (hasLib && lib.addPlayerScoreToLeaderboard && play) { try { Promise.resolve(lib.addPlayerScoreToLeaderboard(Math.floor(S.save.m2))).catch(() => {}); } catch (e) { /* guests cannot post */ } }
+    if (s.n === 0) board();
     persist();
   }
   const canShare = play && hasLib && typeof lib.share === 'function';
@@ -500,7 +511,7 @@ export function run(mode = 'play') {
     S.saveT += dt; if (S.saveT > cfg.save.everyS && S.cutting > 0.1) { S.saveT = 0; persist(); }
   }
 
-  // ---- edit mode (the feed card): Buzzy mows a tidy zigzag by itself
+  // ---- edit mode (the preview card): Buzzy mows a tidy zigzag by itself
   const demo = { dir: -1, shift: 0 };
   function demoDrive() { const s = cur(), lz = S.kart.z - s.oz, lx = S.kart.x - s.ox; if (demo.shift > 0) { S.auto = { dx: lx > s.g.w - 1.5 ? -0.7 : 0.7, dz: 0 }; demo.shift--; } else { S.auto = { dx: 0, dz: demo.dir * 0.7 }; if ((demo.dir < 0 && lz < 1.3) || (demo.dir > 0 && lz > s.g.d - 1.3)) { demo.dir = -demo.dir; demo.shift = 40; } } }
 
@@ -528,7 +539,8 @@ export function run(mode = 'play') {
       const s = cur(), f = L.deckFit(s.g, kt.x - s.ox, kt.z - s.oz, kt.ang, deckW() / 2, K.squashSteps, K.deckFrontM, K.squashPulls), e = Math.min(1, real * 14);
       S.squash += (f.k - S.squash) * e; S.pull += (f.pull - S.pull) * e; buzzy.setSquash(S.squash, S.pull);
     }
-    buzzy.update(dt, S.t, { speed: kt.speed, turn: kt.turn, cutting: S.cutting, flow: S.flow.v, wave: S.wave > 0 ? Math.min(1, S.wave * 3) : 0, fill: clamp(S.bale.m2 / L.upValue(cfg, 'baler', S.save.up.baler), 0, 1), idle: S.idle });
+    { const fxk = -Math.sin(kt.ang), fzk = -Math.cos(kt.ang), cxk = Math.sin(world.yaw), czk = Math.cos(world.yaw), rel = Math.atan2(fxk * czk - fzk * cxk, fxk * cxk + fzk * czk); S.glance += (clamp((Math.abs(rel) > 2.6 && S.glance ? Math.sign(S.glance) * Math.abs(rel) : rel) * cfg.camera.glanceK, -cfg.camera.glanceMax, cfg.camera.glanceMax) - S.glance) * Math.min(1, real * 4); }
+    buzzy.update(dt, S.t, { glance: S.glance, speed: kt.speed, turn: kt.turn, cutting: S.cutting, flow: S.flow.v, wave: S.wave > 0 ? Math.min(1, S.wave * 3) : 0, fill: clamp(S.bale.m2 / L.upValue(cfg, 'baler', S.save.up.baler), 0, 1), idle: S.idle });
     for (const r of S.riders) { r.f.update(S.t + r.k * 1.7 || S.t); if (r.f.fly) { const a = S.t * 1.1 + r.k * 2.1; r.f.group.position.set(Math.cos(a) * 1.0, 1.5 + Math.sin(a * 1.7) * 0.2, Math.sin(a) * 1.0); r.f.group.rotation.y = -a; } else r.f.group.position.y = S.jump > 0 ? Math.sin((0.5 - S.jump) / 0.5 * Math.PI) * 0.25 : 0; }
     for (const s of S.slots.values()) {
       s.lawn.update(S.t, kt.x, kt.z, clamp(kt.speed / 2, 0.35, 1), beat && beat.dist > camDist() ? clamp(camDist() / beat.dist, cfg.lawn.wideMin, 1) : 1);
@@ -538,6 +550,7 @@ export function run(mode = 'play') {
       { const p = s.nb.group.position, d = Math.hypot(p.x - kt.x, p.z - kt.z), keep = K.radiusM + 0.45; if (d < keep && d > 0.01) { p.x += (p.x - kt.x) / d * (keep - d); p.z += (p.z - kt.z) / d * (keep - d); } } // a neighbour steps out of Buzzy's way, never through it
       s.nb.update(dt, S.t, s.nbMode); if (s.party) stepParty(s, dt);
     }
+    heroGlow.visible = dOf(S.cur) === 2; if (heroGlow.visible) heroGlow.position.set(kt.x, 0.35, kt.z);
     if (dOf(S.cur) === 2) cur().lawn.setLamp(kt.x - Math.sin(kt.ang) * 2.2, kt.z - Math.cos(kt.ang) * 2.2, 4.2, 1);
     const top = topSpeed();
     // dev:start
@@ -557,11 +570,12 @@ export function run(mode = 'play') {
       // price labels over the pads in view
       // price labels never sit under the two HUD rows, the button column or off the side
       // each price chip sits above its own pad; it lifts above Nilo when the hero stands there and keeps a gap from the other chips
-      let li = 0; const placed = [], hero = toScreen(kt.x, 0.9, kt.z), cw = 104 * ui.unit(), ch = 44 * ui.unit(); if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 110 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 110 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.classList.toggle('no', !p.can); } el.style.display = 'flex'; if (Math.abs(q.x - hero.x) < cw * 0.5 + 70 * ui.unit() && Math.abs(q.y - hero.y) < ch * 0.5 + 100 * ui.unit()) q.y = hero.y - 100 * ui.unit() - ch; for (let pass = 0; pass < 3; pass++) for (const o of placed) if (Math.abs(q.x - o.x) < cw + 8 && Math.abs(q.y - o.y) < ch + 8) q.y = o.y - ch - 8; placed.push({ x: q.x, y: q.y }); el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
+      let li = 0; const placed = [], hero = toScreen(kt.x, 0.9, kt.z), cw = 104 * ui.unit(), ch = 44 * ui.unit(), heroTop = toScreen(kt.x, 2.3, kt.z).y, heroBot = toScreen(kt.x, 0, kt.z).y, heroW = Math.abs(heroBot - heroTop) * 0.75; if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 110 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 110 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.classList.toggle('no', !p.can); } el.style.display = 'flex'; if (Math.abs(q.x - hero.x) < cw * 0.5 + heroW && q.y > heroTop - ch && q.y < heroBot + ch) q.y = heroTop - ch; for (let pass = 0; pass < 3; pass++) for (const o of placed) if (Math.abs(q.x - o.x) < cw + 8 && Math.abs(q.y - o.y) < ch + 8) q.y = o.y - ch - 8; placed.push({ x: q.x, y: q.y }); el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
       for (; li < padLabels.length; li++) padLabels[li].style.display = 'none';
     }
     // adaptive quality: step down after a slow stretch, up after a long smooth one
     S.ms += (raw * 1000 - S.ms) * 0.05; S.frames++; world.smoothFrame(raw < 0.03);
+    if (perf.on) { perf.n++; perf.sum += raw; perf.worst = Math.max(perf.worst, raw); if (perf.sum >= 1) { perf.el.textContent = `${Math.round(perf.n / perf.sum)} fps · low ${Math.round(1 / perf.worst)} · q${world.tier + 1}`; perf.n = 0; perf.sum = 0; perf.worst = 0; } }
     const Q = cfg.quality, bud = Q.budgetMs[world.tier];
     if (S.frames >= 1 && S.bootQ.length) S.bootQ.shift()();
     if (S.frames === Q.bootFrames && !S.fixTier) setTier(Q.start);
@@ -592,7 +606,7 @@ export function run(mode = 'play') {
       if (dead.v) return; if (play && S.loaded && S.moved > 0.5) persist();
       dead.v = true; cancelAnimationFrame(raf); for (const f of offs) f(); for (const id of timers) clearTimeout(id);
       for (const k of [...S.slots.keys()]) drop(k); for (const b of S.bales) { world.scene.remove(b.m); b.m.geometry.dispose(); }
-      world.scene.remove(southLane); southLane.geometry.dispose();
+      world.scene.remove(southLane); southLane.geometry.dispose(); world.scene.remove(heroGlow); heroGlow.geometry.dispose(); heroGlow.material.dispose();
       for (const m of dots) world.scene.remove(m); dotGeo.dispose(); dotMat.dispose();
       if (S.life) S.life.dispose(); fx.dispose(); audio.destroy(); ui.destroy(); world.destroy(); if (window.__mm === api) window.__mm = null;
     },

@@ -101,7 +101,7 @@ export function buildBuzzy(world, look = {}) {
       popT = Math.max(0, popT - dt); const sw = hopBase * (0.86 + 0.26 * (s.fill || 0)) * (1 - Math.sin(popT / 0.3 * Math.PI) * 0.25); hopper.scale.set(sw, sw, sw);
       if ((s.flow || 0) >= 1) body.position.x = Math.sin(t * 47) * 0.004; else body.position.x = 0;
       blinkT -= dt; if (blinkT < -0.12) blinkT = 2 + Math.random() * 3; const droop = Math.min(0.55, Math.max(0, ((s.idle || 0) - 6) * 0.3)), lid = blinkT < 0 ? 1 : droop; for (const l of lids) l.scale.y = Math.max(0.01, lid);
-      if (chibi) animateChibi(chibi, t, dt, { pose: 'drive', poseW: 1, seat: true, wave: s.wave || 0, look: -(s.turn || 0) * 0.6 });
+      if (chibi) animateChibi(chibi, t, dt, { pose: 'drive', poseW: 1, seat: true, wave: s.wave || 0, look: -(s.turn || 0) * 0.4 + (s.glance || 0) }); // Nilo glances toward the camera, so the face reads even when driving away
       if (chibi) { chibi.bones.spine2.rotation.z += lean * 0.8; chibi.bones.upperArmL.rotation.x += (s.turn || 0) * 0.18; chibi.bones.upperArmR.rotation.x -= (s.turn || 0) * 0.18; }
     },
   };
