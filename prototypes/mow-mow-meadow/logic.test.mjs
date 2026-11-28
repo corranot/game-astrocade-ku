@@ -136,6 +136,23 @@ test('every blade of grass can be cut: each grass cell is within deck reach of a
   }
 });
 
+test('each garden has the new idea its recipe promises', () => {
+  const c = cfg();
+  for (let n = 0; n < c.gardens.length; n++) {
+    const g = garden(c, n), f = c.gardens[n].f, id = c.gardens[n].id;
+    if (f.includes('pond')) assert.ok(g.pond && g.pond.rx > 1, 'pond in ' + id);
+    if (f.includes('beds')) assert.ok(g.beds.length >= 1, 'beds in ' + id);
+    if (f.includes('orchard')) assert.ok(g.props.filter((p) => p.kind === 'tree').length >= 3, 'trees in ' + id);
+    if (f.includes('molehills')) assert.ok(g.molehills.length >= 4, 'molehills in ' + id);
+    if (f.includes('sprinklers')) assert.ok(g.sprinklers.length >= 2, 'sprinklers in ' + id);
+    if (f.includes('mushrooms')) assert.ok(g.rings.length >= 2, 'mushroom rings in ' + id);
+    if (f.includes('fountain')) assert.ok(g.props.some((p) => p.kind === 'fountain'), 'fountain in ' + id);
+    if (f.includes('terraces')) assert.ok(g.props.filter((p) => p.kind === 'wall').length >= 4, 'walls in ' + id);
+    if (f.includes('maze')) { let extra = 0; for (let i = 0; i < g.type.length; i++) if (g.mask[i * 4] === L.H.EXTRA) extra++; assert.ok(extra > g.grassCount * 0.2, 'extra-tall maze in ' + id); }
+    if (f.some((k) => k.startsWith('pattern:'))) assert.ok(g.pattern, 'pattern in ' + id);
+  }
+});
+
 test('the daily garden is the same all day and differs between days', () => {
   const c = cfg(), a = L.dailyRecipe(c, 20261128), b = L.dailyRecipe(c, 20261128), d = L.dailyRecipe(c, 20261129);
   assert.deepEqual(a, b);

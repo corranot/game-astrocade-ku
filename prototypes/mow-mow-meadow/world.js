@@ -22,9 +22,9 @@ export function createWorld(canvas, cfg, opts = {}) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#d8f0ec'); scene.fog = new THREE.Fog('#d8f0ec', 34, 78);
   const camera = new THREE.PerspectiveCamera(C.fov, 0.5, 1, 140);
-  const hemi = new THREE.HemisphereLight(0xcfeaff, 0x7fb35a, 1.0); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff1d2, 2.1); sun.castShadow = true; scene.add(sun, sun.target);
-  const sc = sun.shadow.camera; sc.left = -15; sc.right = 15; sc.top = 20; sc.bottom = -14; sc.near = 1; sc.far = 80; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3; sun.shadow.intensity = 0.62;
+  const hemi = new THREE.HemisphereLight(0xcfeaff, 0x7fb35a, 1.25); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff1d2, 2.3); sun.castShadow = true; scene.add(sun, sun.target);
+  const sc = sun.shadow.camera; sc.left = -15; sc.right = 15; sc.top = 20; sc.bottom = -14; sc.near = 1; sc.far = 80; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3; sun.shadow.intensity = 0.5;
   const sunDir = new THREE.Vector3();
 
   // shared materials: matte paint, glossy enamel, leaves that sway, emissive glints (the only thing that blooms)
@@ -89,19 +89,20 @@ export function createWorld(canvas, cfg, opts = {}) {
   renderer.info.autoReset = false;
 
   // ---- camera: fixed direction, follows a target with look-ahead
-  const pitch = C.pitchDeg * Math.PI / 180, camT = new THREE.Vector3(), camAhead = new THREE.Vector3(); let camDist = C.dist[0], shake = 0;
+  const pitch = C.pitchDeg * Math.PI / 180, yaw0 = C.yawDeg * Math.PI / 180, camT = new THREE.Vector3(), camAhead = new THREE.Vector3(); let camDist = C.dist[0], shake = 0;
   const cam = { x: 0, z: 0, dist: C.dist[0], override: null };
   function follow(x, z, ax, az, dist, dt, snap) {
     const k = snap ? 1 : 1 - Math.exp(-C.ease * dt), ka = snap ? 1 : 1 - Math.exp(-dt / C.aheadEaseS);
     camAhead.x += (ax * C.aheadM - camAhead.x) * ka; camAhead.z += (az * C.aheadM - camAhead.z) * ka;
     camT.x += (x + camAhead.x - camT.x) * k; camT.z += (z + camAhead.z - camT.z) * k; camDist += (dist - camDist) * k;
-    placeCamera(camT.x, camT.z, camDist, pitch, 0);
+    placeCamera(camT.x, camT.z, camDist, pitch, yaw0);
   }
   function placeCamera(x, z, dist, p, yaw, lift = 0) {
     // the hero sits below the middle of a portrait frame: aim a little north of it
     const up = dist * (C.heroY - 0.5) * 0.62, sx = shake ? (Math.sin(timeU.value * 53) + Math.sin(timeU.value * 31)) * shake * 0.004 : 0;
-    camera.position.set(x + Math.sin(yaw) * Math.cos(p) * dist + sx, Math.sin(p) * dist + lift, z - up + Math.cos(yaw) * Math.cos(p) * dist);
-    camera.lookAt(x, lift * 0.3, z - up);
+    const tx = x - Math.sin(yaw) * up, tz = z - Math.cos(yaw) * up; // "north of it" along the view, so the three-quarter angle keeps the same framing
+    camera.position.set(tx + Math.sin(yaw) * Math.cos(p) * dist + sx, Math.sin(p) * dist + lift, tz + Math.cos(yaw) * Math.cos(p) * dist);
+    camera.lookAt(tx, lift * 0.3, tz);
     sun.target.position.set(x, 0, z - 4); sun.position.copy(sun.target.position).addScaledVector(sunDir, 40);
     cam.x = x; cam.z = z; cam.dist = dist;
   }
@@ -116,7 +117,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)).normalize();
     sun.color.copy(mix(p.sunCol, d.sunCol)); hemi.color.copy(mix(p.hemi[0], d.hemi[0])); hemi.groundColor.copy(mix(p.hemi[1], d.hemi[1]));
     const fog = mix(p.fog, d.fog); scene.fog.color.copy(fog); scene.background.copy(fog);
-    const dusk = i === 2 ? t : look.i === 2 ? 1 - t : 0; sun.intensity = 2.1 - 1.2 * dusk; hemi.intensity = 1.0 - 0.15 * dusk;
+    const dusk = i === 2 ? t : look.i === 2 ? 1 - t : 0; sun.intensity = 2.3 - 0.5 * dusk; hemi.intensity = 1.25;
     compMat.uniforms.uGrade.value.set(p.grade[0] + (d.grade[0] - p.grade[0]) * t, p.grade[1] + (d.grade[1] - p.grade[1]) * t, p.grade[2] + (d.grade[2] - p.grade[2]) * t);
     M.ground.color.copy(mix(p.grass[3], d.grass[3])).multiplyScalar(0.82);
   }
@@ -131,7 +132,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   }
   setTier(tier);
   return { THREE, renderer, scene, camera, sun, hemi, M, far, timeU, resize, render, setTier, follow, placeCamera, setShake, setDistrict, info, destroy, cam, compMat,
-    get tier() { return tier; }, smoothFrame(ok) { smooth = ok ? smooth + 1 : 0; }, pitch };
+    get tier() { return tier; }, smoothFrame(ok) { smooth = ok ? smooth + 1 : 0; }, pitch, yaw: yaw0 };
 }
 
 // ---------------------------------------------------------------- garden dressing
@@ -191,10 +192,6 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
   // fence: four sides, a gap for the gate in the north and for the way in at the south
   geos.push(...fenceRun(x0, z0, gx - gh, z0), ...fenceRun(gx + gh, z0, x1, z0), ...fenceRun(x0, z1, gx - gh, z1), ...fenceRun(gx + gh, z1, x1, z1), ...fenceRun(x0, z0, x0, z1), ...fenceRun(x1, z0, x1, z1));
   for (const [px, pz] of [[gx - gh, z0], [gx + gh, z0], [gx - gh, z1], [gx + gh, z1], [x0, z0], [x1, z0], [x0, z1], [x1, z1]]) geos.push(...post(px, pz));
-  // cottage beside the lane, north-west of the gate, facing south; a mailbox and a path stone row to the gate
-  geos.push(xf(cottageGeo(CREAM, district === 1 ? '#c98a4e' : district === 2 ? '#7a6fb5' : CORAL), [gx - gh - 4.6, 0, z0 - 3.4]));
-  for (let i = 0; i < 5; i++) geos.push(paint(xf(slab(0.34, 0.28, 0.05), [gx - gh - 4.4 + i * 0.75, 0, z0 - 1.2 + Math.sin(i) * 0.15]), STONE, '#ddd6c8'));
-  geos.push(paint(xf(rbox(0.08, 0.8, 0.08, 0.02, 1), [gx - 3.95, 0, z0 - 0.8]), WOOD), paint(xf(rbox(0.3, 0.2, 0.42, 0.08, 2), [gx - 3.95, 0.8, z0 - 0.8]), '#e2533c', '#f08a6c'));
   // props inside the garden
   const trees = [];
   for (const p of g.props) {
@@ -221,27 +218,46 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
     for (let i = 0; i < 4; i++) { const a = R() * 6.28, r = R() * 0.6; leafG.push(paint(xf(slab(0.22, 0.22, 0.02, 10), [wx + Math.cos(a) * p.rx * r, 0.07, wz + Math.sin(a) * p.rz * r]), '#4f9a43', '#7cc25a')); }
     for (let i = 0; i < 7; i++) { const a = 3.6 + R() * 1.2; leafG.push(paint(xf(cyl(0.02, 0.012, 0.7 + R() * 0.4, 4), [wx + Math.cos(a) * (p.rx - 0.1), 0, wz + Math.sin(a) * (p.rz - 0.1)], [0.1 * (R() - 0.5), 0, 0.1 * (R() - 0.5)]), '#4f9a43', '#9bd060')); }
   }
-  // outside the fence: hedges and trees on both sides, so the frame is never empty
-  for (const side of [-1, 1]) for (let z = z0 - 2; z < z1 + 2; z += 3.2 + R() * 1.5) {
-    const x = (side < 0 ? x0 : x1) + side * (1.6 + R() * 1.2);
-    if (R() < 0.55) { const [t, l] = treeGeo(R, 1.25 + R() * 0.5, leafC, district === 0); geos.push(xf(t, [x, 0, z])); leafG.push(xf(l, [x, 0, z])); } else leafG.push(xf(bushGeo(R, leafC), [x, 0, z], [0, 0, 0], 1.6));
-    if (R() < 0.5) { const [t, l] = treeGeo(R, 1.6 + R() * 0.6, leafC, false); geos.push(xf(t, [x + side * (3 + R() * 3), 0, z + R() * 2])); leafG.push(xf(l, [x + side * (3 + R() * 3), 0, z + R() * 2])); }
-  }
-  // wild tufts and flowers on the meadow around the fence and along the lane
-  for (let i = 0; i < 150; i++) {
-    const side = R() < 0.5 ? -1 : 1, lane = R() < 0.3, x = lane ? gx + side * (3.9 + R() * 2.5) : (side < 0 ? x0 - 0.5 - R() * 7 : x1 + 0.5 + R() * 7), z = lane ? (R() < 0.5 ? z0 - 0.6 - R() * 9 : z1 + 0.6 + R() * 5) : z0 - 3 + R() * (g.d + 6);
-    if (R() < 0.6) smallG.push(xf(tuftGeo(R, leafC), [x, 0, z], [0, R() * 6, 0], 0.7 + R() * 0.7)); else smallG.push(xf(flowerGeo(FLOWERS[Math.floor(R() * 6)], 0.22 + R() * 0.18), [x, 0, z], [0, R() * 6, 0]));
-  }
   const solid = mesh(merge(geos), M.matte); group.add(solid);
-  const leaves = mesh(merge(leafG), M.leaf); group.add(leaves);
-  group.add(mesh(merge(smallG), M.leaf, false));
+  if (leafG.length) group.add(mesh(merge(leafG), M.leaf));
+  /** Builds what the first picture can do without (the cottage, trees, hedges and wild plants outside the fence). Call once. */
+  let finished = false;
+  function finish() {
+    if (finished) return; finished = true; const geos = [], leafG = [];
+    // cottage beside the lane, north-west of the gate, facing south; a mailbox and a path stone row to the gate
+    geos.push(xf(cottageGeo(CREAM, district === 1 ? '#c98a4e' : district === 2 ? '#7a6fb5' : CORAL), [gx - gh - 4.6, 0, z0 - 3.4]));
+    for (let i = 0; i < 5; i++) geos.push(paint(xf(slab(0.34, 0.28, 0.05), [gx - gh - 4.4 + i * 0.75, 0, z0 - 1.2 + Math.sin(i) * 0.15]), STONE, '#ddd6c8'));
+    geos.push(paint(xf(rbox(0.08, 0.8, 0.08, 0.02, 1), [gx - 3.95, 0, z0 - 0.8]), WOOD), paint(xf(rbox(0.3, 0.2, 0.42, 0.08, 2), [gx - 3.95, 0.8, z0 - 0.8]), '#e2533c', '#f08a6c'));
+    // outside the fence: hedges and trees on both sides, so the frame is never empty
+    for (const side of [-1, 1]) for (let z = z0 - 2; z < z1 + 2; z += 3.2 + R() * 1.5) {
+      const x = (side < 0 ? x0 : x1) + side * (1.6 + R() * 1.2);
+      if (R() < 0.55) { const [t, l] = treeGeo(R, 1.25 + R() * 0.5, leafC, district === 0); geos.push(xf(t, [x, 0, z])); leafG.push(xf(l, [x, 0, z])); } else leafG.push(xf(bushGeo(R, leafC), [x, 0, z], [0, 0, 0], 1.6));
+      if (R() < 0.5) { const [t, l] = treeGeo(R, 1.6 + R() * 0.6, leafC, false); geos.push(xf(t, [x + side * (3 + R() * 3), 0, z + R() * 2])); leafG.push(xf(l, [x + side * (3 + R() * 3), 0, z + R() * 2])); }
+    }
+    // wild tufts and flowers on the meadow around the fence and along the lane
+    for (let i = 0; i < 150; i++) {
+      const side = R() < 0.5 ? -1 : 1, lane = R() < 0.3, x = lane ? gx + side * (3.9 + R() * 2.5) : (side < 0 ? x0 - 0.5 - R() * 7 : x1 + 0.5 + R() * 7), z = lane ? (R() < 0.5 ? z0 - 0.6 - R() * 9 : z1 + 0.6 + R() * 5) : z0 - 3 + R() * (g.d + 6);
+      if (R() < 0.6) smallG.push(xf(tuftGeo(R, leafC), [x, 0, z], [0, R() * 6, 0], 0.7 + R() * 0.7)); else smallG.push(xf(flowerGeo(FLOWERS[Math.floor(R() * 6)], 0.22 + R() * 0.18), [x, 0, z], [0, R() * 6, 0]));
+    }
+    // the village around: more cottages set back from the lane, a laundry line by the neighbour's door, tall trees behind
+    const roofs = district === 1 ? ['#c98a4e', '#b5653a', '#d9a05a'] : district === 2 ? ['#7a6fb5', '#5f6aa8', '#8a5fa0'] : [CORAL, '#e0a04a', '#5fa3b5'];
+    for (const side of [-1, 1]) for (let z = z1 - 2 - R() * 3, k = 0; z > z0 - 8; z -= 11 + R() * 5, k++) {
+      const x = (side < 0 ? x0 - 11 - R() * 3 : x1 + 11 + R() * 3);
+      geos.push(xf(cottageGeo(k % 2 ? '#f3e6cf' : CREAM, roofs[Math.floor(R() * 3)]), [x, 0, z], [0, side < 0 ? 0.5 : -0.5, 0], 0.9 + R() * 0.25));
+      for (let i = 0; i < 3; i++) { const [t, l] = treeGeo(R, 1.7 + R() * 0.9, leafC, false), tx = x + side * (4 + R() * 6), tz = z - 4 + R() * 9; geos.push(xf(t, [tx, 0, tz])); leafG.push(xf(l, [tx, 0, tz])); }
+    }
+    { const lx = gx - gh - 7.6, lz = z0 - 1.5, cloth = ['#f6f1e4', '#e9795b', '#8fc6d8', '#f6c443', '#f1b9c8'];
+      geos.push(paint(xf(cyl(0.035, 0.03, 1.7, 5), [lx, 0, lz]), WOOD), paint(xf(cyl(0.035, 0.03, 1.7, 5), [lx + 2.6, 0, lz]), WOOD), paint(xf(rbox(2.6, 0.015, 0.015, 0.005, 1), [lx + 1.3, 1.62, lz]), '#f6f1e4'));
+      for (let i = 0; i < 5; i++) leafG.push(paint(xf(rbox(0.34 + (i % 2) * 0.1, 0.5 - (i % 3) * 0.1, 0.02, 0.008, 1), [lx + 0.35 + i * 0.48, 1.62 - (0.5 - (i % 3) * 0.1), lz]), cloth[i], '#ffffff')); } // on the leaf material, so the washing moves in the breeze
+    group.add(mesh(merge(geos), M.matte), mesh(merge(leafG), M.leaf), mesh(merge(smallG), M.leaf, false));
+  }
 
   // the gate: two leaves on hinges at the posts, closed until 90%
   const leafGeo = () => { const out = []; for (let i = 0; i < 7; i++) out.push(xf(picket(0.6 + Math.sin(i / 6 * Math.PI) * 0.22), [0.14 + i * 0.22, 0, 0])); out.push(paint(xf(rbox(1.55, 0.06, 0.05, 0.015, 1), [0.8, 0.22, 0]), '#e4d6ba'), paint(xf(rbox(1.55, 0.06, 0.05, 0.015, 1), [0.8, 0.5, 0]), '#e4d6ba')); return merge(out); };
   const gl = mesh(leafGeo(), M.matte), gr = mesh(leafGeo(), M.matte); gl.position.set(gx - gh + 0.1, 0, z0); gr.position.set(gx + gh - 0.1, 0, z0); gr.scale.x = -1; group.add(gl, gr);
   const gate = { l: gl, r: gr, t: 0, x: gx, z: z0, set(t) { this.t = t; gl.rotation.y = t * 1.75; gr.rotation.y = -t * 1.75; } };
   world.scene.add(group);
-  return { group, gate, beds, trees, pond, D, dispose() { world.scene.remove(group); group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); } };
+  return { group, gate, beds, trees, pond, D, finish, dispose() { world.scene.remove(group); group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); } };
 }
 
 /** The lane between two gardens: a soft path from one gate to the next and stepping stones. Returns a mesh. */

@@ -22,9 +22,9 @@ export function openAlbum(G, first) {
   ui.sheet('album', [{ id: 'friends', icon: 'paw' }, { id: 'toys', icon: 'toy' }, { id: 'hats', icon: 'hat' }, { id: 'stickers', icon: 'ribbon' }, { id: 'map', icon: 'map' }], (body, tab, redraw) => {
     const jobs = [];
     if (tab === 'friends') {
-      head(body, 'paw', T('friends'), `${sv.neighbours.length + sv.friends.length}/${cfg.gardens.length + cfg.friends.length}`);
+      head(body, 'paw', T('friends'), `${sv.neighbours.length + sv.friends.length}/${cfg.gardens.length - 1 + cfg.friends.length}`);
       const grid = el('div', 'grid'); body.appendChild(grid);
-      for (const g of cfg.gardens) { const has = sv.neighbours.includes(g.id), c = el('div', 'cell' + (has ? '' : ' no')); grid.appendChild(c); jobs.push([c, () => pic(G, 'n_' + g.id, () => Cast.buildNeighbour(world, g.id), { yaw: 0.3, pitch: 0.12 })]); }
+      for (const g of cfg.gardens.filter((x) => !x.daily)) { const has = sv.neighbours.includes(g.id), c = el('div', 'cell' + (has ? '' : ' no')); grid.appendChild(c); jobs.push([c, () => pic(G, 'n_' + g.id, () => Cast.buildNeighbour(world, g.id), { yaw: 0.3, pitch: 0.12 })]); }
       for (const id of cfg.friends) {
         const has = sv.friends.includes(id), c = el('button', 'cell' + (has ? '' : ' no') + (sv.ride.includes(id) ? ' use' : '')); grid.appendChild(c); jobs.push([c, () => pic(G, 'f_' + id, () => Cast.buildFriend(world, id), { yaw: 0.6, pitch: 0.5 })]);
         if (has) tap(c, () => { sv.ride = sv.ride.includes(id) ? sv.ride.filter((x) => x !== id) : [...sv.ride, id].slice(-3); G.syncRiders(); G.audio.sfx('pop'); G.persist(); redraw(); });
@@ -51,11 +51,10 @@ export function openAlbum(G, first) {
       head(body, 'map', T('map'));
       const lane = el('div', 'lane'); body.appendChild(lane);
       for (const [n, g] of cfg.gardens.entries()) {
-        const r = sv.gardens[n] || { stars: 0 }, open = n <= sv.cur, b = el('button', 'badge' + (open ? '' : ' no') + (n === S.cur ? ' cur' : ''), `<div class="st">${[0, 1, 2].map((i) => ICONS.star.replace('<svg', `<svg class="${i < r.stars ? 'on' : ''}"`)).join('')}</div><small></small>`);
+        const r = sv.gardens[n] || { stars: 0 }, open = g.daily ? sv.cur >= cfg.economy.dailyFromGarden : n <= sv.cur, b = el('button', 'badge' + (open ? '' : ' no') + (n === S.cur ? ' cur' : '') + (g.daily ? ' day' : ''), `<div class="st">${[0, 1, 2].map((i) => ICONS.star.replace('<svg', `<svg class="${i < r.stars ? 'on' : ''}"`)).join('')}</div><small></small>`);
         b.querySelector('small').textContent = T('g_' + g.id); lane.appendChild(b); jobs.push([b, () => (open ? G.face(n) : el('i', '', `<span style="display:block;width:calc(var(--u)*96);height:calc(var(--u)*96);padding:calc(var(--u)*24);box-sizing:border-box;opacity:.5">${ICONS.lock}</span>`))]);
         if (open) tap(b, () => G.travel(n, r.stars > 0 && r.stars < 3 && n !== S.cur));
       }
-      if (G.daily) G.daily(body, el, tap);
     }
     lazy(G, jobs);
   }, first);
