@@ -17,6 +17,7 @@ Make game UI intentional, readable, responsive and specific to the genre.
 - No paid asset APIs. Generated art and audio come from the Astrocade MCP tools (`generate_image`, `generate_music`, `generate_sound_effect`) or are procedural.
 - The HUD grid rule in `CLAUDE.md` wins: one 8 px grid, equal safe-area margins, one shared pill/button height, aligned centres, equal gaps, world bubbles never under the HUD. Check 360x640, 390x844, 430x932 and 768x1024.
 - The FTUE spotlight and share-card rules in `CLAUDE.md` apply to every UI pass.
+- The text-label rule in `CLAUDE.md` applies to every UI pass: each icon, button, goal, pickup, guide and tutorial step gets a short localized label or sentence, and one goal line says what to do now.
 
 ## Reference
 

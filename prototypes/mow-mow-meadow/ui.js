@@ -2,7 +2,8 @@
 // HUD and overlays, drawn as garden stationery (cream paper, dark teal ink, coral for the one thing to press).
 // Grid in 720-wide design units (--u): margin 32 plus the safe area, one height of 80 for every pill and button,
 // gaps of 16, icons 48, one number size. Top row: coin pill, progress pill, then the button column on the same
-// margin. Nothing sits in the bottom half during play. The layer ignores touches except on its buttons.
+// margin. Every pill and button carries a short caption (24 units) under it, and the row under the top row holds
+// the goal line: one sentence that says what to do now. Nothing sits in the bottom half during play. The layer ignores touches except on its buttons.
 
 const I = {
   coin: '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#f6b93b" stroke="#b97f1c" stroke-width="4"/><circle cx="24" cy="24" r="12" fill="none" stroke="#fbe08e" stroke-width="4"/><path d="M24 15c-5 3-5 12 0 18 5-6 5-15 0-18z" fill="#fff3c4"/></svg>',
@@ -35,7 +36,7 @@ const I = {
 export const ICONS = I;
 
 const CSS = `
-#app{--u:.5px;--ink:#1f4f4a;--paper:#fff6e3;--edge:#e9d7ad;--coral:#e9795b;--gold:#f6b93b;--leaf:#7cc25a;--m:calc(var(--u)*32);--h:calc(var(--u)*80);--g:calc(var(--u)*16);
+#app{--u:.5px;--ink:#1f4f4a;--paper:#fff6e3;--edge:#e9d7ad;--coral:#e9795b;--gold:#f6b93b;--leaf:#7cc25a;--m:calc(var(--u)*32);--h:calc(var(--u)*80);--g:calc(var(--u)*16);--cap:calc(var(--u)*24);
  --st:calc(var(--m) + env(safe-area-inset-top,0px));--sb:calc(var(--m) + env(safe-area-inset-bottom,0px));--sl:calc(var(--m) + env(safe-area-inset-left,0px));--sr:calc(var(--m) + env(safe-area-inset-right,0px));
  font-family:"Baloo 2","Arial Rounded MT Bold","Nunito","Varela Round","Noto Sans","Noto Sans Arabic","Noto Sans Devanagari","Noto Sans Bengali",system-ui,sans-serif;font-weight:800;color:var(--ink)}
 .hud{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -43,7 +44,7 @@ const CSS = `
 .hud svg{display:block}
 .paper{background:linear-gradient(#fffaf0,var(--paper));border:calc(var(--u)*4) solid var(--edge);box-shadow:0 calc(var(--u)*6) 0 rgba(31,79,74,.28),0 calc(var(--u)*12) calc(var(--u)*24) rgba(31,79,74,.18);box-sizing:border-box}
 .row{position:absolute;top:var(--st);left:50%;width:min(100%,calc(var(--u)*720));transform:translateX(-50%);height:var(--h);box-sizing:border-box;padding:0 var(--sr) 0 var(--sl);display:flex;gap:var(--g);align-items:flex-start}
-.pill{height:var(--h);border-radius:calc(var(--u)*40);display:flex;align-items:center;gap:calc(var(--u)*8);padding:0 calc(var(--u)*20) 0 calc(var(--u)*12);flex:none}
+.pill{position:relative;height:var(--h);border-radius:calc(var(--u)*40);display:flex;align-items:center;gap:calc(var(--u)*8);padding:0 calc(var(--u)*20) 0 calc(var(--u)*12);flex:none}
 .pill>svg,.pill>i{width:calc(var(--u)*48);height:calc(var(--u)*48);flex:none}
 .num{font-size:calc(var(--u)*38);line-height:1;font-variant-numeric:tabular-nums;direction:ltr;letter-spacing:0}
 .coins{min-width:calc(var(--u)*168)}
@@ -55,7 +56,8 @@ const CSS = `
 .bar i svg{width:100%;height:100%}
 .bar i.on{fill:var(--gold);stroke:#b97f1c;animation:stamp .45s ease-out}
 .pct{min-width:calc(var(--u)*88);text-align:end}
-.col{display:flex;flex-direction:column;gap:var(--g);flex:none}
+.col{display:flex;flex-direction:column;gap:calc(var(--g) + var(--cap));flex:none}
+.cap{position:absolute;top:100%;left:50%;transform:translateX(-50%);height:var(--cap);font-size:calc(var(--u)*24);line-height:var(--cap);white-space:nowrap;color:#fff6e3;-webkit-text-stroke:calc(var(--u)*6) var(--ink);paint-order:stroke fill;pointer-events:none}
 .btn{width:var(--h);height:var(--h);border-radius:50%;display:grid;place-items:center;position:relative;transition:transform .08s,opacity .2s}
 .btn svg{width:calc(var(--u)*48);height:calc(var(--u)*48)}
 .btn:active{transform:translateY(calc(var(--u)*4))}
@@ -63,9 +65,12 @@ const CSS = `
 .btn em{position:absolute;top:calc(var(--u)*-6);inset-inline-end:calc(var(--u)*-6);width:calc(var(--u)*24);height:calc(var(--u)*24);border-radius:50%;background:var(--coral);border:calc(var(--u)*4) solid var(--paper);display:none}
 .btn.dot em{display:block;animation:pulse 1.2s ease-in-out infinite}
 .mute .x{display:none}.mute.off .w{display:none}.mute.off .x{display:block}
-.skip{position:absolute;top:calc(var(--st) + var(--h) + var(--g));inset-inline-start:var(--sl)}
-.row2{position:absolute;top:calc(var(--st) + var(--h) + var(--g));left:50%;transform:translateX(-50%);max-width:calc(100% - var(--h)*2 - var(--g)*2 - var(--sl) - var(--sr));pointer-events:none}
-.chip{height:var(--h);border-radius:calc(var(--u)*40);display:flex;align-items:center;gap:calc(var(--u)*12);padding:0 calc(var(--u)*24) 0 calc(var(--u)*12);font-size:calc(var(--u)*30);white-space:nowrap;animation:drop .22s cubic-bezier(.3,1.5,.5,1)}
+.skip{position:absolute;top:calc(var(--st) + var(--h) + var(--cap) + var(--g));inset-inline-start:var(--sl)}
+.row2{position:absolute;top:calc(var(--st) + var(--h) + var(--cap) + var(--g));left:50%;transform:translateX(-50%);width:max-content;max-width:min(calc(100% - var(--h)*2 - var(--g)*2 - var(--sl) - var(--sr)),calc(var(--u)*464));pointer-events:none}
+.goal{min-height:calc(var(--u)*56);border-radius:calc(var(--u)*28);padding:calc(var(--u)*4) calc(var(--u)*24);font-size:calc(var(--u)*26);line-height:1.2;text-align:center;display:flex;align-items:center;justify-content:center;border-width:calc(var(--u)*3)}
+.goal:empty,.row2.busy .goal{display:none}
+.goal.bump{animation:bump .3s ease-out}
+.chip{min-height:var(--h);border-radius:calc(var(--u)*40);display:flex;align-items:center;gap:calc(var(--u)*12);padding:calc(var(--u)*4) calc(var(--u)*24) calc(var(--u)*4) calc(var(--u)*12);font-size:calc(var(--u)*26);line-height:1.2;box-sizing:border-box;animation:drop .22s cubic-bezier(.3,1.5,.5,1)}
 .chip.out{animation:lift .16s ease-in forwards}
 .chip canvas,.chip svg{width:calc(var(--u)*56);height:calc(var(--u)*56);flex:none}
 .stick{position:absolute;width:calc(var(--u)*176);height:calc(var(--u)*176);margin:calc(var(--u)*-88);border-radius:50%;border:calc(var(--u)*5) solid rgba(255,246,227,.75);background:rgba(31,79,74,.14);box-sizing:border-box;opacity:0;transition:opacity .12s}
@@ -90,6 +95,7 @@ const CSS = `
 .padl .kind{display:flex;align-items:center;justify-content:center;width:calc(var(--u)*44);height:calc(var(--u)*44);border-radius:50%;background:var(--ink,#3d4a3a);color:#fff8e6}
 .padl .kind svg{width:calc(var(--u)*30);height:calc(var(--u)*30)}
 .padl .num{font-size:calc(var(--u)*30)}
+.padl .pn{font-size:calc(var(--u)*24);white-space:nowrap;margin-inline-end:calc(var(--u)*6)}
 .padl.no{opacity:.75;filter:saturate(.4)}
 .arrow{position:absolute;left:0;top:0;width:calc(var(--u)*88);height:calc(var(--u)*88);margin:calc(var(--u)*-44);display:none}
 .arrow.on{display:block}
@@ -101,8 +107,11 @@ const CSS = `
 .sheet.on{transform:translate(-50%,0)}
 .sheet .head{display:flex;align-items:center;gap:var(--g);padding:var(--g) var(--m);flex:none}
 .sheet .tabs{display:flex;gap:var(--g);flex:1}
-.tab{width:var(--h);height:var(--h);border-radius:50%;display:grid;place-items:center;background:#f0e3c2;opacity:.7}
-.tab svg{width:calc(var(--u)*48);height:calc(var(--u)*48)}
+.sheet .tabs{gap:calc(var(--u)*8)}
+.tab{flex:1;min-width:0;height:var(--h);border-radius:calc(var(--u)*24);display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0e3c2;opacity:.75}
+.tab svg{width:calc(var(--u)*40);height:calc(var(--u)*40)}
+.tab small{font-size:calc(var(--u)*20);line-height:1.2;white-space:nowrap}
+.note{font-size:calc(var(--u)*24);line-height:1.3;opacity:.7;margin:0 0 var(--g)}
 .tab.on{background:var(--coral);color:#fff6e3;opacity:1}
 .sheet .body{overflow-y:auto;overflow-x:hidden;padding:0 var(--m) var(--m);flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .sheet h3{margin:var(--g) 0 calc(var(--u)*8);font-size:calc(var(--u)*30);line-height:1.5;display:flex;align-items:center;gap:calc(var(--u)*8)}
@@ -114,19 +123,24 @@ const CSS = `
 .cell.new{border-color:var(--coral)}
 .cell.use{border-color:var(--ink)}
 .cell.gold{background:linear-gradient(135deg,#ffe9a8,#f6c95a)}
-.cell small{position:absolute;left:0;right:0;bottom:calc(var(--u)*4);text-align:center;font-size:calc(var(--u)*22);line-height:1.2;direction:ltr}
+.cell small{position:absolute;left:0;right:0;bottom:0;padding:calc(var(--u)*2) calc(var(--u)*4);text-align:center;font-size:calc(var(--u)*20);line-height:1.15;background:rgba(255,246,227,.88);overflow-wrap:anywhere}
 .cell .tag{position:absolute;inset-inline-end:calc(var(--u)*6);top:calc(var(--u)*6);width:calc(var(--u)*32);height:calc(var(--u)*32)}
 .cell .tag svg{width:100%;height:100%}
 .card{display:flex;align-items:center;gap:var(--g);padding:calc(var(--u)*12) calc(var(--u)*16);border-radius:calc(var(--u)*28);background:#f3e7c8;margin-bottom:var(--g);min-height:calc(var(--u)*112);box-sizing:border-box}
 .card .ic{width:var(--h);height:var(--h);border-radius:50%;background:var(--paper);display:grid;place-items:center;flex:none}
 .card .ic svg{width:calc(var(--u)*48);height:calc(var(--u)*48)}
 .card .mid{flex:1;min-width:0}
-.card .nm{font-size:calc(var(--u)*30);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .nm{font-size:calc(var(--u)*30);line-height:1.2;overflow-wrap:anywhere}
+.card .fx{font-size:calc(var(--u)*22);line-height:1.3;opacity:.7}
+.card .rbn{display:flex;gap:calc(var(--u)*16);margin-top:calc(var(--u)*4);color:var(--coral)}
+.card .rbn span{display:flex;align-items:center;gap:calc(var(--u)*4);font-size:calc(var(--u)*20);color:var(--ink)}
+.card .rbn svg{width:calc(var(--u)*32);height:calc(var(--u)*32);color:var(--coral)}
 .pips{display:flex;gap:calc(var(--u)*6);margin-top:calc(var(--u)*8)}
 .pips i{width:calc(var(--u)*24);height:calc(var(--u)*16);border-radius:calc(var(--u)*8);background:#dccfa8}
 .pips i.on{background:var(--leaf)}
 .buy{height:var(--h);min-width:calc(var(--u)*176);border-radius:calc(var(--u)*40);background:var(--coral);color:#fff6e3;display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*8);padding:0 calc(var(--u)*20);box-shadow:0 calc(var(--u)*6) 0 #b9553c;flex:none;box-sizing:border-box}
 .buy svg{width:calc(var(--u)*40);height:calc(var(--u)*40)}
+.buy small{font-size:calc(var(--u)*24)}
 .buy:active{transform:translateY(calc(var(--u)*4));box-shadow:0 calc(var(--u)*2) 0 #b9553c}
 .buy.no{background:#cfc4a4;box-shadow:0 calc(var(--u)*6) 0 #a89d80;color:#6f6a55}
 .buy.done{background:var(--leaf);box-shadow:0 calc(var(--u)*6) 0 #5a9a3e}
@@ -135,8 +149,10 @@ const CSS = `
 .sw button.use{border-color:var(--ink)}
 .sw button small{background:rgba(255,246,227,.92);border-radius:calc(var(--u)*14);padding:0 calc(var(--u)*10);margin-bottom:calc(var(--u)*6);font-size:calc(var(--u)*24);line-height:1.5;display:flex;align-items:center;gap:calc(var(--u)*4);direction:ltr}
 .sw button small svg{width:calc(var(--u)*24);height:calc(var(--u)*24)}
-.set{display:flex;gap:var(--g);flex-wrap:wrap}
-.set .tab{opacity:1}.set .tab.off{opacity:.45}
+.set{display:grid;grid-template-columns:1fr 1fr;gap:var(--g)}
+.set button{height:var(--h);border-radius:calc(var(--u)*40);background:var(--coral);color:#fff6e3;display:flex;align-items:center;gap:calc(var(--u)*8);padding:0 calc(var(--u)*16);font-size:calc(var(--u)*24);line-height:1.15;text-align:start;min-width:0}
+.set button.off{background:#e3d7b6;color:var(--ink)}
+.set button svg{width:calc(var(--u)*40);height:calc(var(--u)*40);flex:none}
 .langs{display:flex;gap:calc(var(--u)*8);flex-wrap:wrap;margin-top:var(--g)}
 .langs button{height:calc(var(--u)*64);padding:0 calc(var(--u)*20);border-radius:calc(var(--u)*32);background:#f0e3c2;font-size:calc(var(--u)*26)}
 .langs button.on{background:var(--ink);color:#fff6e3}
@@ -150,22 +166,24 @@ const CSS = `
 .badge .st svg{width:calc(var(--u)*28);height:calc(var(--u)*28);fill:#fff6e3;stroke:#b9c59a}
 .badge .st svg.on{fill:var(--gold);stroke:#b97f1c}
 .badge small{font-size:calc(var(--u)*22);line-height:1.3;text-align:center}
-.rcpt{position:absolute;left:50%;top:calc(var(--st) + var(--h) + var(--g));width:min(calc(100% - var(--sl) - var(--sr)),calc(var(--u)*520));transform:translate(-50%,-140%) rotate(-1.5deg);transition:transform .22s cubic-bezier(.3,1.35,.5,1);border-radius:calc(var(--u)*28);padding:calc(var(--u)*16) calc(var(--u)*24);display:flex;align-items:center;gap:var(--g);pointer-events:none}
+.rcpt{position:absolute;left:50%;top:calc(var(--st) + var(--h) + var(--g));width:min(calc(100% - var(--sl) - var(--sr)),calc(var(--u)*656));transform:translate(-50%,-140%) rotate(-1.5deg);transition:transform .22s cubic-bezier(.3,1.35,.5,1);border-radius:calc(var(--u)*28);padding:calc(var(--u)*16) calc(var(--u)*24);display:flex;align-items:center;gap:var(--g);pointer-events:none}
 .rcpt.on{transform:translate(-50%,0) rotate(-1.5deg)}
 .rcpt:not(.on){visibility:hidden;transition:transform .16s ease-in,visibility 0s .16s}
 .rcpt canvas{width:calc(var(--u)*112);height:calc(var(--u)*112);flex:none;border-radius:50%;background:#f3e7c8}
 .rcpt .mid{flex:1;min-width:0}
 .rcpt .big{font-size:calc(var(--u)*64);line-height:1;direction:ltr;font-variant-numeric:tabular-nums}
-.rcpt .nm{font-size:calc(var(--u)*26);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.75}
+.rcpt .nm{font-size:calc(var(--u)*26);line-height:1.2;opacity:.75;overflow-wrap:anywhere}
 .rcpt .stars{display:flex;gap:calc(var(--u)*4);margin-top:calc(var(--u)*4)}
 .rcpt .stars svg{width:calc(var(--u)*48);height:calc(var(--u)*48);fill:#f3e7c8;stroke:#d5c79d}
 .rcpt .stars svg.on{fill:var(--gold);stroke:#b97f1c;animation:stamp .45s ease-out}
 .rcpt .rb{display:flex;gap:calc(var(--u)*4);color:var(--coral)}
 .rcpt .rb svg{width:calc(var(--u)*40);height:calc(var(--u)*40)}
 .rcpt .side{display:flex;flex-direction:column;align-items:flex-end;gap:calc(var(--u)*8);flex:none}
-.rcpt .tip{display:flex;align-items:center;gap:calc(var(--u)*6);font-size:calc(var(--u)*38);direction:ltr}
+.rcpt .tip{display:flex;align-items:center;gap:calc(var(--u)*6);font-size:calc(var(--u)*38)}
+.rcpt .tip small,.rcpt .rb small{font-size:calc(var(--u)*22);color:var(--ink);opacity:.75}
+.rcpt .rb{align-items:center}
 .rcpt .tip svg{width:calc(var(--u)*40);height:calc(var(--u)*40)}
-.rcpt button{pointer-events:auto;width:var(--h);height:var(--h);border-radius:50%;background:var(--coral);color:#fff6e3;display:grid;place-items:center}
+.rcpt button{pointer-events:auto;height:var(--h);border-radius:calc(var(--u)*40);padding:0 calc(var(--u)*20);background:var(--coral);color:#fff6e3;display:flex;align-items:center;gap:calc(var(--u)*8);font-size:calc(var(--u)*26)}
 .rcpt button svg{width:calc(var(--u)*44);height:calc(var(--u)*44)}
 .wipe{position:absolute;inset:0;background:radial-gradient(circle at 20% 30%,#8ccb62 0 12%,transparent 13%),radial-gradient(circle at 70% 60%,#74b84e 0 14%,transparent 15%),#7cc25a;transform:translateX(-105%);pointer-events:none}
 .wipe.go{animation:wipe .9s ease-in-out}
@@ -198,22 +216,22 @@ export function createUI(root, cfg, on) {
   <div class="spot"></div><div class="barsT"></div><div class="barsB"></div>
   <div class="stick"><i></i></div><div class="pulse"></div><div class="arrow"><svg viewBox="0 0 64 64"><path d="M32 5l23 27H42v14a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8V32H9z" fill="#e9795b" stroke="#fff6e3" stroke-width="6" stroke-linejoin="round"/></svg></div><div class="hint">${I.hand}</div>
   <div class="row">
-    <div class="pill paper coins">${I.coin}<span class="num">0</span></div>
-    <div class="pill paper prog"><div class="bar"><b></b><i style="left:50%">${I.star}</i><i style="left:75%">${I.star}</i><i style="left:100%">${I.star}</i></div><span class="num pct">0%</span></div>
-    <div class="col"><button class="btn paper mute" aria-label="Sound">${I.snd}</button><button class="btn paper album" aria-label="Album" hidden>${I.book}<em></em></button><button class="btn paper shop" aria-label="Workshop" hidden>${I.tool}<em></em></button></div>
+    <div class="pill paper coins">${I.coin}<span class="num">0</span><small class="cap" data-k="c_coins"></small></div>
+    <div class="pill paper prog"><div class="bar"><b></b><i style="left:50%">${I.star}</i><i style="left:75%">${I.star}</i><i style="left:100%">${I.star}</i></div><span class="num pct">0%</span><small class="cap" data-k="c_mown"></small></div>
+    <div class="col"><button class="btn paper mute" aria-label="Sound">${I.snd}<small class="cap" data-k="b_sound"></small></button><button class="btn paper album" aria-label="Album" hidden>${I.book}<em></em><small class="cap" data-k="b_album"></small></button><button class="btn paper shop" aria-label="Workshop" hidden>${I.tool}<em></em><small class="cap" data-k="b_shop"></small></button></div>
   </div>
-  <button class="btn paper skip" aria-label="Skip" hidden>${I.x}</button>
-  <div class="row2"></div>
+  <button class="btn paper skip" aria-label="Skip" hidden>${I.x}<small class="cap" data-k="b_skip"></small></button>
+  <div class="row2"><div class="goal paper"></div><div class="chips"></div></div>
   <div class="rcpt paper"></div>
   <div class="dimmer"></div>
   <div class="sheet paper"><div class="head"><div class="tabs"></div><button class="btn paper close" aria-label="Close">${I.x}</button></div><div class="body"></div></div>
   <div class="wipe"></div>`;
-  const $ = (s) => hud.querySelector(s), E = { coins: $('.coins'), coinN: $('.coins .num'), prog: $('.prog'), fill: $('.bar b'), stars: [...hud.querySelectorAll('.bar i')], pct: $('.pct'), mute: $('.mute'), album: $('.album'), shop: $('.shop'), skip: $('.skip'), stick: $('.stick'), knob: $('.stick i'), spot: $('.spot'), hint: $('.hint'), pulse: $('.pulse'), arrow: $('.arrow'), bt: $('.barsT'), bb: $('.barsB'), row2: $('.row2'), rcpt: $('.rcpt'), dim: $('.dimmer'), sheet: $('.sheet'), tabs: $('.sheet .tabs'), body: $('.sheet .body'), wipe: $('.wipe') };
+  const $ = (s) => hud.querySelector(s), E = { coins: $('.coins'), coinN: $('.coins .num'), prog: $('.prog'), fill: $('.bar b'), stars: [...hud.querySelectorAll('.bar i')], pct: $('.pct'), mute: $('.mute'), album: $('.album'), shop: $('.shop'), skip: $('.skip'), stick: $('.stick'), knob: $('.stick i'), spot: $('.spot'), hint: $('.hint'), pulse: $('.pulse'), arrow: $('.arrow'), bt: $('.barsT'), bb: $('.barsB'), row2: $('.row2'), goal: $('.goal'), chips: $('.chips'), rcpt: $('.rcpt'), dim: $('.dimmer'), sheet: $('.sheet'), tabs: $('.sheet .tabs'), body: $('.sheet .body'), wipe: $('.wipe') };
   const tap = (el, fn) => el.addEventListener('click', (e) => { e.stopPropagation(); fn(e); });
   tap(E.mute, () => on.mute()); tap(E.album, () => on.album()); tap(E.shop, () => on.shop()); tap(E.skip, () => on.skip()); tap($('.close'), () => api.closeSheet()); tap(E.dim, () => api.closeSheet());
   // flying coins: a small pool, animated with the Web Animations API (no per-frame DOM writes)
   const flies = []; for (let i = 0; i < 14; i++) { const f = document.createElement('div'); f.className = 'fly'; f.innerHTML = I.coin; hud.appendChild(f); flies.push({ el: f, busy: false }); }
-  let u = 0.5, shown = { coins: -1, pct: -1, stars: -1, fill: -1 }, chipT = null, sheetName = null, rcptT = null, lastSpot = '';
+  let u = 0.5, shown = { coins: -1, pct: -1, stars: -1, fill: -1 }, chipT = null, goalText = '', sheetName = null, rcptT = null, lastSpot = '';
   const bump = (el) => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
 
   const api = {
@@ -246,9 +264,13 @@ export function createUI(root, cfg, on) {
       for (; k < n; k++) each && each(k); // more coins than the pool: they count at once
     },
     /** A short "+N" in ink that rises from (x, y). */
-    floatText(x, y, html) { const d = document.createElement('div'); d.className = 'ft'; d.innerHTML = html; d.style.left = x + 'px'; d.style.top = Math.max(y, (32 + 80 + 16 + 40) * u) + 'px'; hud.appendChild(d); setTimeout(() => d.remove(), 950); },
+    floatText(x, y, html) { const d = document.createElement('div'); d.className = 'ft'; d.innerHTML = html; d.style.left = x + 'px'; d.style.top = Math.max(y, (32 + 80 + 24 + 16 + 40) * u) + 'px'; hud.appendChild(d); setTimeout(() => d.remove(), 950); },
     /** A chip under the top row for `secs` seconds (a request, a find, a ribbon). */
-    chip(html, secs = 2.4) { clearTimeout(chipT); E.row2.innerHTML = `<div class="chip paper">${html}</div>`; const c = E.row2.firstChild; chipT = setTimeout(() => { c.classList.add('out'); setTimeout(() => { if (E.row2.firstChild === c) E.row2.innerHTML = ''; }, 170); }, secs * 1000); return c; },
+    chip(html, secs = 2.4) { clearTimeout(chipT); E.chips.innerHTML = `<div class="chip paper">${html}</div>`; E.row2.classList.add('busy'); const c = E.chips.firstChild; chipT = setTimeout(() => { c.classList.add('out'); setTimeout(() => { if (E.chips.firstChild === c) { E.chips.innerHTML = ''; E.row2.classList.remove('busy'); } }, 170); }, secs * 1000); return c; },
+    /** The goal line under the top row: one short sentence that says what to do now. An empty text hides it. */
+    goal(text) { if (text === goalText) return; goalText = text; E.goal.textContent = text; if (text) bump(E.goal); },
+    /** Fills every caption from the string table (`T` maps a key to the current language). */
+    setText(T) { for (const n of hud.querySelectorAll('[data-k]')) n.textContent = T(n.dataset.k); },
     bars(w) { const s = `scaleY(${w.toFixed(3)})`; if (E.bt.style.transform !== s) { E.bt.style.transform = s; E.bb.style.transform = s; } },
     /** The FTUE spotlight: a soft cutout at (x, y) radius r (stage pixels), with a hint: 'thumb', 'ring' or none. */
     spot(s) {
@@ -263,7 +285,8 @@ export function createUI(root, cfg, on) {
     /** The receipt slip: { face (canvas), name, pct, stars, ribbons: [..], tip, share: fn|null }. Folds away by itself. */
     receipt(d, secs = 3) {
       clearTimeout(rcptT); if (!d) { E.rcpt.classList.remove('on'); return; }
-      E.rcpt.innerHTML = `<div class="mid"><div class="nm"></div><div class="big">${d.pct}%</div><div class="stars">${[0, 1, 2].map(() => I.star).join('')}</div></div><div class="side"><div class="rb">${(d.ribbons || []).map(() => I.ribbon).join('')}</div><div class="tip">${I.coin}<span>+${d.tip}</span></div>${d.share ? `<button aria-label="Share">${I.share}</button>` : ''}</div>`;
+      E.rcpt.innerHTML = `<div class="mid"><div class="nm"></div><div class="big">${d.pct}%</div><div class="stars">${[0, 1, 2].map(() => I.star).join('')}</div></div><div class="side"><div class="rb">${(d.ribbons || []).map(() => I.ribbon).join('')}</div><div class="tip"><small class="tl"></small>${I.coin}<span dir="ltr">+${d.tip}</span></div>${d.share ? `<button aria-label="Share">${I.share}<span class="sl"></span></button>` : ''}</div>`;
+      E.rcpt.querySelector('.tl').textContent = d.tipLabel || ''; if (d.share) E.rcpt.querySelector('.sl').textContent = d.shareLabel || ''; if ((d.ribbons || []).length && d.ribLabel) { const rl = document.createElement('small'); rl.textContent = d.ribLabel; E.rcpt.querySelector('.rb').prepend(rl); }
       E.rcpt.querySelector('.nm').textContent = d.name; if (d.face) E.rcpt.prepend(d.face);
       if (d.share) tap(E.rcpt.querySelector('button'), d.share);
       E.rcpt.classList.add('on'); const st = [...E.rcpt.querySelectorAll('.stars svg')];
@@ -271,9 +294,9 @@ export function createUI(root, cfg, on) {
       rcptT = setTimeout(() => E.rcpt.classList.remove('on'), secs * 1000);
     },
     receiptOpen: () => E.rcpt.classList.contains('on'),
-    /** Opens a bottom sheet: tabs = [{ icon, id }], `fill(body, tabId)` draws a tab's content. */
+    /** Opens a bottom sheet: tabs = [{ icon, id, label }], `fill(body, tabId)` draws a tab's content. */
     sheet(name, tabs, fill, first) {
-      sheetName = name; E.tabs.innerHTML = tabs.map((t) => `<button class="tab" data-t="${t.id}" aria-label="${t.id}">${I[t.icon]}</button>`).join('');
+      sheetName = name; E.tabs.innerHTML = tabs.map((t) => `<button class="tab" data-t="${t.id}" aria-label="${t.id}">${I[t.icon]}<small></small></button>`).join(''); [...E.tabs.children].forEach((b, i) => { b.lastChild.textContent = tabs[i].label || ''; });
       const pick = (id) => { [...E.tabs.children].forEach((b) => b.classList.toggle('on', b.dataset.t === id)); E.body.innerHTML = ''; E.body.scrollTop = 0; fill(E.body, id, () => pick(id)); };
       [...E.tabs.children].forEach((b) => tap(b, () => { on.click && on.click(); pick(b.dataset.t); }));
       pick(first || tabs[0].id); E.sheet.classList.add('on'); E.dim.classList.add('on'); on.sheet && on.sheet(name, true);
