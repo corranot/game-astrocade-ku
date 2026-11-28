@@ -1,0 +1,42 @@
+# Owner analytics, Studio > Analytics (/v3/analytics, numDays=30), read 28 Nov 06:55-07:05 UTC in the owner's signed-in Chrome. Read only.
+# Page said "Last Updated: 1:50 PM" (browser local time). 11/28 is a partial day.
+# account: day:all/significant
+account 11/17:7419/6148 11/18:17492/13775 11/19:10121/8133 11/20:8524/6884 11/21:8333/6808 11/22:10523/8631 11/23:13062/10635 11/24:16427/13084 11/25:14618/11720 11/26:50364/40715 11/27:75958/60122 11/28:17313/13919
+account_stats playCount=1595439 comments=1626 likes=26882
+# game lifetime_plays likes daily(11/22..11/28 partial)
+Meteor Gems 82 2 0/0/0/0/2/49/22
+Mega Hammer Royale 65 1 0/0/0/0/0/36/14
++1 Mega Hammer 77 2 0/0/0/0/31/27/10
+Voxel Wonderland 68 2 0/0/0/0/19/25/7
+Snip It 217 1 0/0/0/66/66/52/15
+NEKO ZOOMIES 1251 11 0/0/0/62/430/598/166
+Paws & Chaos 2542 19 0/0/133/37/815/1239/333
+Block Smash Crew 264 3 0/2/33/28/47/80/40
+Ice Cream Roll Art 3111 27 0/146/177/232/515/1762/288
+Soap Carving 44562 440 190/114/138/289/15223/24571/4270
+Draw It Alive 61178 515 925/853/978/1818/18367/29812/7982
+Fizzy Bath Bomb 448 7 20/16/12/13/23/59/28
+Pin & Bloom 3409 40 147/309/608/690/242/493/111
+Rub It Away 91814 1614 5583/7405/9889/8411/11371/12419/2652
+Reel & Hatch 38575 655 656/1564/1694/1131/589/829/440
+Paint Peekaboo 100333 1558 106/119/86/56/93/172/28
+Grab and Park 26294 336 1417/1053/985/460/480/597/141
+3D Date Stylist 70299 2535 50/39/60/39/119/162/25
+Dum Biryani 52098 684 141/44/42/28/72/134/75
+Hero Bridge Royale 97600 1991 9/25/29/11/189/53/17
+Toybox Town 26936 471 127/168/142/124/38/162/54
+Tame a Dragon 3231 68 5/9/22/38/36/145/26
+Tiptoe & Hatch 86747 1545 86/81/79/89/77/126/30
+Bus Telolet 72988 963 21/22/30/21/48/56/16
+Martabak Master 44964 951 40/39/70/40/72/128/30
+Cozy Room Designer 34295 512 349/464/500/313/439/627/136
+Splash Master #2 153343 2543 49/68/89/80/161/248/43
+RUN! Pet Thief 3D 113222 1949 16/18/25/20/38/60/10
+Splash Master #1 218750 3685 209/221/308/282/407/648/201
+Bicep Clash 36347 644 59/32/45/53/43/107/14
+Blueprint Builder 122458 1898 160/39/77/41/143/182/27
+Turbo Splash 321 3 0/3/8/1/4/35/10
+# 7-day quality (numDays=7): game p50_s p75_s over5min_% under10s_% ttfi_median_s avgCtr ctr_daily_%(11/22..11/28)
+Draw It Alive 90 195 13.4 10.3 2.8 0.611 67/68/70/68/60/60/56
+Soap Carving 75 146 7.7 10.0 7.5 0.644 65/63/54/68/67/63/60
+Rub It Away 91 182 11.0 11.2 1.9 0.552 58/58/58/59/53/53/53
