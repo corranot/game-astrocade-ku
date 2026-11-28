@@ -77,8 +77,8 @@ body{display:flex;align-items:center;justify-content:center}
 .vf i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-radius:0 calc(var(--u)*18px) 0 0}
 .vf i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-radius:0 0 0 calc(var(--u)*18px)}
 .vf i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-radius:0 0 calc(var(--u)*18px) 0}
-.focus{position:absolute;translate:-50% 0;height:calc(var(--u)*52px);padding:0 calc(var(--u)*16px);border-radius:calc(var(--u)*26px);background:rgba(26,33,71,.55);border:calc(var(--u)*4px) dashed rgba(255,255,255,.85);display:flex;align-items:center;transition:border-color .15s,opacity .15s;opacity:0;pointer-events:none}
-.focus.on{opacity:1}
+.focus{position:absolute;translate:-50% 0;height:calc(var(--u)*52px);padding:0 calc(var(--u)*16px);border-radius:calc(var(--u)*26px);background:rgba(26,33,71,.55);border:calc(var(--u)*4px) dashed rgba(255,255,255,.85);display:flex;align-items:center;transition:border-color .15s;opacity:0;pointer-events:none}
+.focus.on{opacity:1;transition:border-color .15s,opacity .15s}
 .focus.ok{border-style:solid;border-color:var(--mint);box-shadow:0 0 calc(var(--u)*18px) rgba(92,242,199,.6)}
 .dots{display:flex;gap:calc(var(--u)*8px)}
 .dots s{width:calc(var(--u)*24px);height:calc(var(--u)*24px);border-radius:50%;background:rgba(26,33,71,.5);box-shadow:0 0 0 calc(var(--u)*3px) #fff}

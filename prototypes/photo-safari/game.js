@@ -871,13 +871,13 @@ export function run(mode = 'play') {
     hero.shakeT = (hero.shakeT || 0) - dt;
     if (hero.shakeT <= 0 && hero.stepD > 0.3) for (const t of W.trunks) { const dx = t[0] - hero.x, dz = t[1] - hero.z; if (dx * dx + dz * dz < 6.5) { hero.shakeT = 2.5; const y = L.terrainH(cfg, t[0], t[1]); fx.emit({ pool: 'soft', x: t[0], y: y + 2.6, z: t[1], spread: 0.9, speed: 0.4, up: 0, life: 1.2, size: 0.45, color: '#f4f9ff', alpha: 0.85, grav: -5, drag: 0.6 }, 9); fx.emit({ pool: 'glow', x: t[0], y: y + 2.4, z: t[1], spread: 1.2, speed: 0.3, life: 1.6, size: 0.12, color: '#ffffff', shape: 'flake', grav: -0.8, drag: 1 }, 6); Sound.hiss && Sound.ok && Sound.hiss(Sound.ctx.currentTime, 0.35, { f: 2200, g: 0.05 }); break; } }
     hero.breathT -= dt; if (hero.breathT <= 0) { hero.breathT = 2.4; fx.emit({ pool: 'soft', x: hero.x + Math.sin(hero.yaw) * 0.35, y: hero.y + 1.45, z: hero.z + Math.cos(hero.yaw) * 0.35, spread: 0.05, speed: 0.15, vx: Math.sin(hero.yaw) * 0.4, vz: Math.cos(hero.yaw) * 0.4, life: 1.1, size: 0.3, color: '#ffffff', alpha: 0.45, grav: 0.15, drag: 1, grow: 1.6 }, 1); }
-    H.group.position.set(hero.x, hero.y, hero.z); H.group.rotation.y = hero.yaw; { const cp = W.camera.position; H.group.visible = vf < 0.55 && Math.hypot(cp.x - hero.x, cp.y - hero.y - 1, cp.z - hero.z) > cfg.camera.heroHideM; } // the lens never passes through Pip while the viewfinder eases in or out
+    H.group.position.set(hero.x, hero.y, hero.z); H.group.rotation.y = hero.yaw; { const cp = W.camera.position; H.group.visible = vf < cfg.camera.heroOffVf && Math.hypot(cp.x - hero.x, cp.y - hero.y - 1, cp.z - hero.z) > cfg.camera.heroHideM; } // the lens never passes through Pip while the viewfinder eases in or out
     // Pip glances at the nearest animal, and fidgets when left standing (rub the mitts, stamp, check the camera)
     { let best = 10, ang = 0; for (const a of animals) { if (!a.parts.group.visible) continue; const d = Math.hypot(a.x - hero.x, a.z - hero.z); if (d < best) { best = d; ang = angleDiff(Math.atan2(a.x - hero.x, a.z - hero.z), hero.yaw); } }
       const want = best < 10 && Math.abs(ang) < 1.6 ? Math.max(-0.8, Math.min(0.8, ang)) : 0; hero.look = (hero.look || 0) + (want - (hero.look || 0)) * Math.min(1, dt * 4);
       if (hero.still > LF.heroIdleAfterS && !bot) { if (hero.idle) { hero.idle.p += dt / LF.idleS; if (hero.idle.p >= 1) { hero.idle = null; hero.idleT = span(LF.heroIdleEveryS); } } else { hero.idleT = (hero.idleT || 0) - dt; if (hero.idleT <= 0) hero.idle = { k: ['warm', 'stamp', 'peek'][Math.floor(CR() * 3)], p: 0 }; } }
       else { hero.idle = null; hero.idleT = 0; } }
-    if (animatePip) animatePip(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), heroPose ? heroPose.vf : vf, hero.look, heroPose ? heroPose.idle : hero.idle);
+    if (animatePip) { H.wave = heroPose && heroPose.wave || 0; animatePip(H, t, dt, heroPose && heroPose.walk != null ? heroPose.walk : Math.min(1, hero.speed / cfg.hero.speed), heroPose ? heroPose.vf : vf, hero.look, heroPose ? heroPose.idle : hero.idle); }
     // walking into a newly opened area
     const ar = L.areaAt(cfg, hero.x, hero.z);
     if (ar >= S.entered) { S.entered = ar + 1; ftueDid('gate'); toast(T('a_' + cfg.areas[ar].id)); Sound.sting('area'); soon(); }
@@ -977,7 +977,7 @@ export function run(mode = 'play') {
     hud(dt);
     $('stick').hidden = !(play && !bot && loaded && !bookOpen); // the walk stick waits in its corner whenever the valley is in play
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
-    if (aimA && vf > 0.3 && !beats.cur) { // no focus pill during a cinematic beat
+    if (aimA && vf >= cfg.camera.heroOffVf && !beats.cur) { // no focus pill during a cinematic beat, and only once Pip has stepped out of view (never over the hero)
       // the focus pill sits under the animal's feet, never on it
       const s = W.toScreen(aimA.x, aimA.y, aimA.z), [px, py0] = toPx(s[0], s[1]), py = Math.min(py0 + 24 * unit(), rootRect().height - 300 * unit());
       const sh = shotOf(aimA);
@@ -1116,7 +1116,7 @@ export function run(mode = 'play') {
   };
   // dev:start
   api.debug = {
-    get H() { return H; }, pose(p) { heroPose = p; }, // test hook: hold a hero pose { vf, idle } for close-ups
+    get H() { return H; }, pose(p) { heroPose = p; }, // test hook: hold a hero pose { vf, idle, walk, wave } for close-ups
     get S() { return S; }, get hero() { return hero; }, get animals() { return animals; }, get ftue() { return ftue; }, get vf() { return vf; }, get beat() { return beats.cur; }, get loaded() { return loaded; },
     W, fx, snap, toss, openBook, closeBook, saveNow, hideLogo, openArea, guide, stats: () => W.stats(), fps: () => fpsV, tier: () => quality.tier,
     // the self-check: frame-time spread of the last 240 frames, the tier now and every change the loop made
