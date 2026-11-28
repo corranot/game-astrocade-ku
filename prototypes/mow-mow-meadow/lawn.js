@@ -4,9 +4,15 @@
 import { H } from './logic.js';
 
 const COMMON = `
-uniform sampler2D uMask; uniform vec4 uRect; uniform float uTime; uniform vec3 uKart; uniform vec3 uRoot; uniform vec3 uTip; uniform vec3 uLight; uniform vec3 uDark; uniform float uGrow; uniform vec4 uLamp; uniform float uBloom;
+uniform sampler2D uMask; uniform vec4 uRect; uniform float uTime; uniform vec3 uKart; uniform vec3 uRoot; uniform vec3 uTip; uniform vec3 uLight; uniform vec3 uDark; uniform float uGrow; uniform vec4 uLamp; uniform float uBloom; uniform vec2 uStripe;
 vec2 maskUv(vec2 xz) { return (xz - uRect.xy) / uRect.zw; }
 float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+// stripe tone of cut grass: the direction it was mown, crossed with the mower's own lanes so that a single pass already
+// shows light and dark bands, and combed into tidy wide stripes by the finale wave (groom)
+float stripeTone(float g, vec2 xz, float groom) {
+  float lane = smoothstep(0.38, 0.62, abs(fract(xz.x / uStripe.x + 0.25) - 0.5) * 2.0), tidy = smoothstep(0.42, 0.58, abs(fract(xz.x / 2.6) - 0.5) * 2.0);
+  return mix(mix(g, lane, uStripe.y), tidy, groom);
+}
 `;
 
 /** Shared lawn uniforms for one garden. */
@@ -14,19 +20,19 @@ function uniforms(THREE, tex, g, ox, oz, pal) {
   const c = (h) => new THREE.Color(h);
   return { uMask: { value: tex }, uRect: { value: new THREE.Vector4(ox, oz, g.w, g.d) }, uTime: { value: 0 }, uKart: { value: new THREE.Vector3(0, 0, -99) },
     uRoot: { value: c(pal[0]) }, uTip: { value: c(pal[1]) }, uLight: { value: c(pal[2]) }, uDark: { value: c(pal[3]) }, uGrow: { value: 1 }, uBloom: { value: -1 },
-    uLamp: { value: new THREE.Vector4(0, 0, 0, 0) }, uTall: { value: 1.18 }, uCut: { value: 0.07 }, uWind: { value: new THREE.Vector2(0.09, 1.3) }, uPush: { value: 1.1 } };
+    uLamp: { value: new THREE.Vector4(0, 0, 0, 0) }, uTall: { value: 1.18 }, uCut: { value: 0.07 }, uWind: { value: new THREE.Vector2(0.09, 1.3) }, uPush: { value: 1.1 }, uStripe: { value: new THREE.Vector2(1.3, 0.4) } };
 }
 
 /**
  * Builds the lawn of garden `g` with its north-west corner at world (ox, oz).
  * Returns { group, update(dt, t, kart), dirty(rect), setTier(n), setBloom(v), setGrow(v), setLamp(x, z, on), dispose() }.
  */
-export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
+export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R, bladeH = 1) {
   const L = cfg.lawn, group = new THREE.Group();
   const tex = new THREE.DataTexture(g.mask, g.cols, g.rows, THREE.RGBAFormat, THREE.UnsignedByteType);
   tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
   const U = uniforms(THREE, tex, g, ox, oz, pal);
-  U.uCut.value = L.cutM; U.uTall.value = L.extraTallM - L.cutM; U.uWind.value.set(L.windAmp, L.windSpeed); U.uPush.value = L.pushM;
+  U.uCut.value = L.cutM; U.uTall.value = (L.extraTallM - L.cutM) * bladeH; // each district's grass stands a little taller or shorter U.uWind.value.set(L.windAmp, L.windSpeed); U.uPush.value = L.pushM; U.uStripe.value.set(L.stripeLaneM, L.stripeK);
   const share = (sh) => { for (const k in U) sh.uniforms[k] = U[k]; };
 
   // ---- ground: stripes from the cut direction, a dark root colour under tall grass, a darker band at the cut edge
@@ -37,12 +43,12 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;' + COMMON).replace('#include <color_fragment>', `
       vec4 m = texture2D(uMask, maskUv(vXZ));
       float groom = clamp((uBloom - m.b) * 6.0, 0.0, 1.0) * 0.85; // the finale wave combs the lawn into tidy stripes
-      float tone = mix(m.g, smoothstep(0.42, 0.58, abs(fract(vXZ.x / 2.6) - 0.5) * 2.0), groom), ns = abs(tone * 2.0 - 1.0);
+      float tone = stripeTone(m.g, vXZ, groom), ns = abs(tone * 2.0 - 1.0);
       float n = hash21(floor(vXZ * 22.0)) * 0.5 + hash21(floor(vXZ * 61.0)) * 0.5;
       float streak = mix(hash21(floor(vec2(vXZ.y * 34.0, vXZ.x * 3.0))), hash21(floor(vec2(vXZ.x * 34.0, vXZ.y * 3.0))), ns);
       float fine = mix(hash21(floor(vec2(vXZ.y * 90.0, vXZ.x * 9.0))), hash21(floor(vec2(vXZ.x * 90.0, vXZ.y * 9.0))), ns);
       float sheen = 0.5 + 0.5 * sin(vXZ.x * 0.7 + vXZ.y * 1.1 + uTime * 0.25);
-      vec3 cut = mix(uDark, uLight, smoothstep(0.2, 0.8, tone)) * (0.9 + 0.08 * n + 0.07 * streak + 0.08 * fine) * (1.0 + 0.05 * sheen + 0.06 * groom);
+      vec3 cut = mix(uDark, uLight, smoothstep(0.2, 0.8, tone)) * (0.9 + 0.08 * n + 0.07 * streak + 0.08 * fine) * (1.0 + 0.09 * sheen * tone + 0.06 * groom);
       vec3 tall = uRoot * (0.62 + 0.2 * n);
       float h = smoothstep(0.05, 0.45, m.r);
       vec3 col = mix(cut, tall, h);
@@ -96,7 +102,7 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
       transformed.z -= (m.g * 2.0 - 1.0) * isCut * 0.05 * y;
       transformed.xz += (vec2(r2, r1) - 0.5) * 0.3 * hgt * y2;
       float groom = clamp((uBloom - m.b) * 6.0, 0.0, 1.0) * 0.85;
-      float tone = mix(m.g, smoothstep(0.42, 0.58, abs(fract(base.x / 2.6) - 0.5) * 2.0), groom);
+      float tone = stripeTone(m.g, base, groom);
       vec3 cutCol = mix(uDark, uLight, smoothstep(0.2, 0.8, tone)) * (0.94 + 0.16 * r2) * (1.0 + 0.06 * groom);
       vec3 tallCol = mix(uRoot * 0.75, uTip * (0.86 + 0.28 * r1), y);
       vCol = mix(tallCol, cutCol, isCut);
@@ -138,10 +144,10 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
     group, g, ox, oz, uniforms: U, blades,
     /** Marks the mask changed; it is uploaded once on the next update. */
     dirty() { dirtyFlag = true; },
-    update(t, kx, kz, moving) {
+    update(t, kx, kz, moving, wide = 1) {
       U.uTime.value = t; U.uKart.value.set(kx, kz, moving); if (dirtyFlag) { tex.needsUpdate = true; dirtyFlag = false; }
       // fewer blades far from Buzzy: a far tile is small on a phone screen, and this keeps big gardens inside the triangle budget
-      const base = L.bladesPerM2[curTier] / per;
+      const base = L.bladesPerM2[curTier] / per * wide; // `wide` < 1 while a camera beat pulls far back
       for (const tl of tiles) { const d = Math.hypot(tl.cx - kx, tl.cz - kz), share = Math.min(1, Math.max(L.farShare, L.lodK - d / L.lodM)); tl.geo.instanceCount = Math.max(1, Math.round(tl.n * base * share)); }
     },
     setTier(k) { curTier = k; },

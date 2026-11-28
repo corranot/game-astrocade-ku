@@ -158,3 +158,75 @@ Scorecard (0 to 10 per frame):
 Open for M4: glow pass evidence (the bloom pass waits for 30 smooth frames and never switches on in software
 GL), round fireflies, larger lanterns, the three-star pull-back triangle spike, a measured mid-phone FPS number,
 the full 10-minute bot run.
+
+## M4 (28 Nov 2026): M3 review fixes and the final package
+
+Evidence: `production/qa/evidence/mow-mow-meadow/m4-*.jpg` (contact sheets for Clover, Windmill, Lantern and the
+HUD, the daily garden, and 10 frames).
+
+M3 review fixes:
+
+- District identity, all from `game_config.json` (`districts[i]`): grass palette and blade height, fence, lane,
+  houses and roofs, foliage, sky, sun and fill.
+  - Clover Lane: morning, green lawn, white picket fence, coral roofs. Mechanics: ducklings, molehills, apples.
+  - Windmill Hill: golden afternoon, tall wheat-gold grass that cuts to lime, open wooden rail fence, haystacks,
+    the mill with turning sails. Mechanic: the sheep flock that mows beside Buzzy.
+  - Lantern Lake: dusk, teal grass, plum fence, violet lane, large warm lanterns each with a pool of light,
+    fireflies, Buzzy's headlamp on the grass. Mechanics: sprinklers and glowing mushroom rings.
+  - Daily garden: a festival, pink-tipped grass that cuts to mint, blossom trees, bunting all along the fence.
+- Stripes everywhere: the cut tone is crossed with 1.3 m mower lanes, so a single pass mid-garden already shows
+  light and dark bands with sheen; the finale still combs them into wide tidy stripes.
+- Camera: yaw 45, pitch 40 (an isometric three-quarter view). Mowing along any fence shows Buzzy and Nilo from
+  the side, never straight from behind. HUD sheet re-shot from this build.
+- Price chips sit above their own pad, lift above Nilo when the hero stands there, and keep an 8 px gap.
+- During a far camera pull-back the grass thins (`lawn.wideMin`), so the three-star beat no longer spikes.
+
+Final package:
+
+| Check | Result |
+|---|---|
+| `node --test logic.test.mjs` | 14 pass |
+| No-clip sweep | 72,000 poses in 12 gardens with the widest deck: body never closer than 0.15 m to a fence, rock, tree or pond; deck corners outside in 0 poses |
+| lint, `ci-checks.sh` | pass |
+| `node tools/astrocade-bundle-test.js` | 305 KB, no failures (includes the feed handover case) |
+| `node tools/load-time.js` (4G) | first frame 1.59 and 1.90 s |
+| Bot session (new save, path-planning bot, 14 min of game time) | no page error; first bale and first friend inside 12 s; garden 2 at 0.5 min, 3 at 1.2, 4 at 2.2, 5 at 3.7, 6 at 5.6, 7 at 7.9, 8 at 10.1, 9 at 12.5; still mowing garden 9 at 14 min with 3 gardens, the daily garden and every replay left. The bot drives perfect lanes without pausing; a child is expected to take two to three times as long |
+| Game logic cost | 0.04 ms per step on this machine (0.16 ms at 4x CPU throttle) |
+| Render counts (software GL) | middle tier 160k to 200k triangles, 35 to 50 draw calls; high tier 250k (Clover) to 390k (Lantern), 80 to 130 calls |
+
+Not measured: frames per second on a phone GPU. This container renders in software (about 2 to 7 FPS at any
+quality, which says nothing about a phone). A real number needs the game on a device: either a draft on
+Astrocade opened on a phone or Chromebook, or the folder served to a phone. Until then the evidence is the
+counts above and the adaptive quality tiers.
+
+Scorecard (0 to 10 per frame):
+
+| Frame | Score |
+|---|---|
+| First frame, 360x640 | 8.5 |
+| Clover play, finished garden, party | 8.5 |
+| Windmill play and lane | 8.5 |
+| Lantern play | 8 |
+| Lantern lane and pools | 8 |
+| Daily garden | 8.5 |
+| HUD at four sizes, Arabic, album, shop | 8.5 |
+
+Honest list, still plain or unproven:
+
+- Phone FPS is unmeasured (above).
+- The glow pass (bloom on lanterns, sparkles and flowers) only switches on after 30 smooth frames, so no
+  screenshot here shows it; it needs the same device check.
+- Lantern lamp posts are bleached below the light pool; the pool is a flat overlay, not real light.
+- The bot buys upgrades in a fixed order, so the economy late in the run (2,300 coins unspent at 14 min) is
+  not tuned by play.
+- No human child has played it yet; session length is projected from the bot.
+
+Players' Choice estimate (formula: retention x 15 + share of sessions over 300 s x 10 + 0.033 x p50 + 0.01 x p75):
+with the bot's pace doubled for a child, a session that plays District 1 runs 11 to 17 minutes. Taking a
+cautious p50 of 300 s, p75 of 700 s, 45% of sessions over 300 s and 10% return: 1.5 + 4.5 + 9.9 + 7.0 = 22.9.
+A weak case (p50 180, p75 420, 30%, 6%) gives 14.0; a strong case (p50 420, p75 900, 55%, 14%) gives 30.5.
+These are projections, not player data.
+
+Sign-off by discipline: Creative yes; Art yes (Lantern pools noted); Retention yes on projection; Audio
+unchanged since M1 (no new stings for the district props); UX yes; QA yes for logic, no-clip, bundle and load,
+open on phone FPS.

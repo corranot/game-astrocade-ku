@@ -77,8 +77,8 @@ export function run(mode = 'play') {
     if (S.cuts[n]) L.unpackCut(g, S.cuts[n]); else if (sr && sr.stars > 0 && !(S.replay && S.replay[n])) L.unpackCut(g, '0.' + g.grassCount.toString(36)); // finished earlier: shown mown
     for (const f of g.finds) if (cellCut(g, f.x, f.z)) f.found = true;
     const tint = TINTS[S.save.use.tint], pal = tint ? [cfg.districts[d].grass[0], cfg.districts[d].grass[1], tint[0], tint[1]] : cfg.districts[d].grass;
-    const lawn = createLawn(THREE, g, cfg, ox, oz, pal, world.tier, L.rng(g.seed + 99)); world.scene.add(lawn.group);
-    const dress = dressGarden(world, g, ox, oz, cfg, d), lane = lanePiece(world, 0, oz, oz - LANE_M);
+    const lawn = createLawn(THREE, g, cfg, ox, oz, pal, world.tier, L.rng(g.seed + 99), cfg.districts[d].bladeH); world.scene.add(lawn.group);
+    const dress = dressGarden(world, g, ox, oz, cfg, d), lane = lanePiece(world, 0, oz, oz - LANE_M, cfg.districts[d]);
     if (S.frames > 0) dress.finish(); else S.bootQ.push(() => dress.finish()); // the first picture comes first; scenery outside the fence follows a frame later
     const nb = Cast.buildNeighbour(world, nbOf(n)); nb.group.position.set(4.05, 0, oz - 1.3); nb.group.rotation.y = -0.35; world.scene.add(nb.group);
     const st = L.starsFor(cfg, g), s = { n, g, ox, oz, lawn, dress, lane, nb, nbMode: 'wave', nbT: 0, gateOpen: st > 0, gateT: st > 0 ? 1 : 0, stars: st, grow: 1, bloom: st > 0 && S.cuts[n] ? 1.2 : -1, finale: st > 0 && !!S.cuts[n], pads: [], box: null };
@@ -107,7 +107,7 @@ export function run(mode = 'play') {
   const TRAILS = { petals: ['petal'], daisies: ['petal', '#f1e6cf'], leaves: ['leaf'], bubbles: ['drop', '#c4e8f5'], stars: ['spark'], hearts: ['petal', '#e2533c'] };
   const TINTS = { classic: null, mint: ['#9fd8a8', '#7cc08e'], clover: ['#7fc86a', '#5fae52'], goldtip: ['#b5cc5a', '#8fb04a'], lilac: ['#a8c898', '#8fb0a8'], sunset: ['#c8c070', '#a8a058'] };
 
-  const southLane = lanePiece(world, 0, 4.4, 0.6); // the way in to the first garden
+  const southLane = lanePiece(world, 0, 4.4, 0.6, cfg.districts[0]); // the way in to the first garden
   const buzzy = buildBuzzy(world, { paint: S.save.use.paint, lazy: true }); S.bootQ.push(() => { buzzy.seat(); wear(S.save.wear); }); world.scene.add(buzzy.group);
   const deckW = () => L.upValue(cfg, 'deck', S.save.up.deck), topSpeed = () => L.upValue(cfg, 'engine', S.save.up.engine) * (S.flow.v >= 1 ? cfg.flow.speedMul : 1);
   const cur = () => S.slots.get(S.cur), rec = (n) => S.save.gardens[n] || (S.save.gardens[n] = { stars: 0, best: 0, rib: [] });
@@ -531,7 +531,7 @@ export function run(mode = 'play') {
     buzzy.update(dt, S.t, { speed: kt.speed, turn: kt.turn, cutting: S.cutting, flow: S.flow.v, wave: S.wave > 0 ? Math.min(1, S.wave * 3) : 0, fill: clamp(S.bale.m2 / L.upValue(cfg, 'baler', S.save.up.baler), 0, 1), idle: S.idle });
     for (const r of S.riders) { r.f.update(S.t + r.k * 1.7 || S.t); if (r.f.fly) { const a = S.t * 1.1 + r.k * 2.1; r.f.group.position.set(Math.cos(a) * 1.0, 1.5 + Math.sin(a * 1.7) * 0.2, Math.sin(a) * 1.0); r.f.group.rotation.y = -a; } else r.f.group.position.y = S.jump > 0 ? Math.sin((0.5 - S.jump) / 0.5 * Math.PI) * 0.25 : 0; }
     for (const s of S.slots.values()) {
-      s.lawn.update(S.t, kt.x, kt.z, clamp(kt.speed / 2, 0.35, 1));
+      s.lawn.update(S.t, kt.x, kt.z, clamp(kt.speed / 2, 0.35, 1), beat && beat.dist > camDist() ? clamp(camDist() / beat.dist, cfg.lawn.wideMin, 1) : 1);
       s.nbT += dt; if (s.nbMode === 'cheer' && s.nbT > 2) { s.nbMode = s.finale ? 'run' : 'wave'; s.nbT = 0; }
       if (s.nbMode === 'run') { const tx = s.ox + s.g.w / 2 + L.GATE_HALF_M + 1.0, tz = s.oz + 1.5, p = s.nb.group.position, d = Math.hypot(tx - p.x, tz - p.z); if (d < 0.2) { s.nbMode = 'dance'; } else { const sp = Math.min(d, 3.2 * dt); p.x += (tx - p.x) / d * sp; p.z += (tz - p.z) / d * sp; s.nb.group.rotation.y = Math.atan2(tx - p.x, tz - p.z); } }
       else if (s.nbMode !== 'dance') s.nb.group.rotation.y = Math.atan2(kt.x - s.nb.group.position.x, kt.z - s.nb.group.position.z) * 0.6;
@@ -556,7 +556,8 @@ export function run(mode = 'play') {
       const ft = ftueTarget(); ui.spot(ft && (ft.on !== false) ? ft : null); ui.showSkip(!S.save.ftueDone && S.save.ftue > 0 && S.save.ftue < 7); stepGuide(dt, ft);
       // price labels over the pads in view
       // price labels never sit under the two HUD rows, the button column or off the side
-      let li = 0; if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 110 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 110 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.classList.toggle('no', !p.can); } el.style.display = 'flex'; el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
+      // each price chip sits above its own pad; it lifts above Nilo when the hero stands there and keeps a gap from the other chips
+      let li = 0; const placed = [], hero = toScreen(kt.x, 0.9, kt.z), cw = 104 * ui.unit(), ch = 44 * ui.unit(); if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 110 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 110 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.classList.toggle('no', !p.can); } el.style.display = 'flex'; if (Math.abs(q.x - hero.x) < cw * 0.5 + 70 * ui.unit() && Math.abs(q.y - hero.y) < ch * 0.5 + 100 * ui.unit()) q.y = hero.y - 100 * ui.unit() - ch; for (let pass = 0; pass < 3; pass++) for (const o of placed) if (Math.abs(q.x - o.x) < cw + 8 && Math.abs(q.y - o.y) < ch + 8) q.y = o.y - ch - 8; placed.push({ x: q.x, y: q.y }); el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
       for (; li < padLabels.length; li++) padLabels[li].style.display = 'none';
     }
     // adaptive quality: step down after a slow stretch, up after a long smooth one
@@ -597,7 +598,7 @@ export function run(mode = 'play') {
     },
   };
   // dev:start
-  window.__game = Object.assign(G, { step, setTier, slot: cur, director, toScreen, popBale, reveal, onStar, blockedAt, enter, ftueTarget, snapshot, cutAt });
+  window.__game = Object.assign(G, { step, setTier, slot: cur, director, toScreen, popBale, reveal, onStar, blockedAt, enter, ftueTarget, snapshot, cutAt, buyBest() { if (cur().gateOpen) for (const k of ['deck', 'engine', 'baler']) if (S.save.up[k] < cfg.upgrades.levels && buy(k, true)) return k; return null; } });
   if (qs.has('tier')) { S.fixTier = true; setTier(+qs.get('tier')); }
   // dev:end
   window.__mm = api;
