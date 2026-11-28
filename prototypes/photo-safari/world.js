@@ -109,9 +109,12 @@ export function createWorld(canvas, cfg, opts = {}) {
   // ---- lake ice and the fishing hole
   const lake = cfg.areas[1].lake;
   const iceMat = keep(new THREE.MeshStandardMaterial({ color: 0xa8dcf0, roughness: 0.18, metalness: 0.05, transparent: true, opacity: 0.92 }));
+  // under the ice: a few fish shadows glide in slow loops, and now and then a crack runs bright across the ice
+  const crackU = { value: new THREE.Vector3(0.5, 0.5, -99) }, fishN = (cfg.alive && cfg.alive.fishN) || 0, lakeR = lake[2] + 1.2;
   iceMat.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nfloat ih(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 15731.7); }')
-      .replace('#include <color_fragment>', '#include <color_fragment>\n{ vec2 q = vUvI * 22.0; vec2 f = fract(q) - 0.5; float cr = smoothstep(0.03, 0.0, abs(f.x + (ih(floor(q)) - 0.5) * 0.4)) + smoothstep(0.03, 0.0, abs(f.y)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.97, 1.0), clamp(cr, 0.0, 1.0) * 0.35); float r = length(vUvI - 0.5); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.45, 0.68, 0.86), smoothstep(0.2, 0.5, r) * 0.0 + smoothstep(0.3, 0.0, r) * 0.25); }');
+    sh.uniforms.uTime = uTime; sh.uniforms.uCrack = crackU;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uTime; uniform vec3 uCrack;\nfloat ih(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 15731.7); }')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n{ vec2 q = vUvI * 22.0; vec2 f = fract(q) - 0.5; float cr = smoothstep(0.03, 0.0, abs(f.x + (ih(floor(q)) - 0.5) * 0.4)) + smoothstep(0.03, 0.0, abs(f.y)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.97, 1.0), clamp(cr, 0.0, 1.0) * 0.35); float r = length(vUvI - 0.5); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.45, 0.68, 0.86), smoothstep(0.2, 0.5, r) * 0.0 + smoothstep(0.3, 0.0, r) * 0.25); for (int k = 0; k < ' + fishN + '; k++) { float fk = float(k), dir = mod(fk, 2.0) * 2.0 - 1.0, a = uTime * (0.1 + fk * 0.025) * dir + fk * 1.7, rr = 0.13 + 0.07 * fk; vec2 c = 0.5 + rr * vec2(cos(a), sin(a)), tg = vec2(-sin(a), cos(a)) * dir, d = vUvI - c; float al = dot(d, tg), sd = dot(d, vec2(-tg.y, tg.x)); float body = smoothstep(1.0, 0.4, length(vec2(al / 0.036, sd / 0.013))), tail = smoothstep(1.0, 0.3, length(vec2((al + 0.04) / 0.011, sd / 0.012))); diffuseColor.rgb *= 1.0 - (body + tail * 0.7) * 0.4; } float ck = exp(-max(0.0, uTime - uCrack.z) * 0.7) * step(uCrack.z, uTime), cd = length(vUvI - uCrack.xy); diffuseColor.rgb += vec3(0.55, 0.85, 1.0) * clamp(cr, 0.0, 1.0) * ck * smoothstep(cd - 0.01, cd + 0.01, (uTime - uCrack.z) * 0.35) * smoothstep(0.22, 0.0, cd) * 3.0; }');
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vUvI;').replace('#include <uv_vertex>', '#include <uv_vertex>\nvUvI = uv;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vUvI;');
   };
@@ -606,7 +609,7 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
-    renderer, scene, camera, uTime, uGust, uPush, tops, trunks, chimney, lanterns, perch, gates, shake, propMat,
+    renderer, scene, camera, uTime, uGust, uPush, tops, iceCrack: (x, z) => crackU.value.set(0.5 + (x - lake[0]) / (2 * lakeR), 0.5 - (z - lake[1]) / (2 * lakeR), uTime.value), trunks, chimney, lanterns, perch, gates, shake, propMat,
     setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, setLook, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
     get tier() { return tier; }, get pull() { return pull; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },

@@ -200,7 +200,7 @@ export function buildCritter(sp, mats, look = sp) {
 /**
  * Per-frame animation of an animal. st = { t (s), walk (0..1 speed), pose (name or null), p (0..1 pose progress),
  * blink (0..1), look (yaw of the head, rad), hide (0..1 sunk into the snow), tilt (0..1 curious head tilt),
- * idle (null or { k: 'sniff'|'shake'|'scan', p: 0..1 }: a small idle between poses) }.
+ * idle (null or { k: 'sniff'|'shake'|'scan'|'flick'|'play', p: 0..1 }: a small idle between poses) }.
  */
 export function animateCritter(a, sp, st) {
   const { t, walk = 0, p = 0 } = st, pose = st.pose;
@@ -220,7 +220,9 @@ export function animateCritter(a, sp, st) {
   if (st.idle && !pose) { const q = st.idle.p, u = Math.sin(Math.PI * q);
     if (st.idle.k === 'sniff') { h.rotation.x += 0.5 * u + Math.sin(q * 60) * 0.04 * u; b.scale.z *= 1 + 0.04 * u; }
     else if (st.idle.k === 'shake') { inn.rotation.z = Math.sin(q * 45) * 0.22 * u; h.rotation.z += Math.sin(q * 45 + 1) * 0.3 * u; }
-    else if (st.idle.k === 'scan') h.rotation.y += Math.sin(q * Math.PI * 2) * 0.9; }
+    else if (st.idle.k === 'scan') h.rotation.y += Math.sin(q * Math.PI * 2) * 0.9;
+    else if (st.idle.k === 'flick') { h.rotation.z += Math.sin(q * Math.PI * 6) * 0.1 * u; h.rotation.x += Math.sin(q * Math.PI * 6 + 1) * 0.05 * u; } // a quick twitch of the head and ears
+    else if (st.idle.k === 'play') { inn.position.y = Math.abs(Math.sin(q * Math.PI * 4)) * 0.28 * u; b.scale.y *= 1 + Math.sin(q * Math.PI * 8) * 0.05 * u; h.rotation.x += Math.sin(q * Math.PI * 8) * 0.15 * u; if (a.tail) a.tail.rotation.y += Math.sin(q * 40) * 0.5 * u; } }
   const up = Math.sin(Math.PI * p);
   switch (pose) {
     case 'yawn': h.rotation.x = -0.55 * up; a.mouth.visible = p > 0.15 && p < 0.85; a.mouth.scale.setScalar(0.4 + up); b.scale.y *= 1 + 0.08 * up; a.eyes.scale.y = up > 0.4 ? 0.15 : 1; break;
