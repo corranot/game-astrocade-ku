@@ -21,7 +21,11 @@ export const DEFAULT_LOOK = {
   mitts: null, // colour, or null for bare hands
   hat: null, // { style: 'beanie', color, cuff, pom }
   coat: null, // { color, trim, quilt }
+  build: 'chibi', // 'chibi' (the owner's silhouette: head ~40% of height, wider than the shoulders) | 'tall'
 };
+
+/** Proportion presets: body height scale, head scale, mitten scale. */
+export const BUILDS = { chibi: { body: 0.8, head: 1.25, hand: 1.22 }, tall: { body: 1, head: 1, hand: 1 } };
 
 // bind pose (mesh space, feet at y 0); arms hang a little outward
 const BONES = [ // name, parent, x, y, z
@@ -88,7 +92,7 @@ const ao = (n, k = 0.22) => 1 - k + k * sat(n.y * 0.5 + 0.65);
  * Merges skinned parts into one geometry (position, normal, color, skinIndex, skinWeight) in mesh space using the
  * bones' bind matrices.
  */
-function mergeSkinned(parts, bind) {
+function mergeSkinned(parts, bind, sy = 1) {
   let nv = 0, ni = 0;
   for (const p of parts) { nv += p.geo.attributes.position.count; ni += icount(p.geo); }
   const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4), idx = new Uint32Array(ni);
@@ -99,8 +103,9 @@ function mergeSkinned(parts, bind) {
     for (let i = 0; i < P.count; i++) {
       v.fromBufferAttribute(P, i); n.fromBufferAttribute(N, i);
       const c = p.color(v, n); col.set([c.r, c.g, c.b], (vo + i) * 3);
-      w.copy(v).applyMatrix4(M); pos.set([w.x, w.y, w.z], (vo + i) * 3);
-      const ww = p.weights(v, w); for (let k = 0; k < ww.length; k++) { si[(vo + i) * 4 + k] = ww[k][0]; sw[(vo + i) * 4 + k] = ww[k][1]; }
+      const ww = p.weights(v);
+      w.copy(v); w.y *= sy; w.applyMatrix4(M); pos.set([w.x, w.y, w.z], (vo + i) * 3); // shorter builds squash the body
+      n.y /= sy; for (let k = 0; k < ww.length; k++) { si[(vo + i) * 4 + k] = ww[k][0]; sw[(vo + i) * 4 + k] = ww[k][1]; }
       n.applyMatrix3(nm).normalize(); nor.set([n.x, n.y, n.z], (vo + i) * 3);
     }
     for (let i = 0; i < icount(g); i++) idx[io + i] = (g.index ? g.index.getX(i) : i) + vo;
@@ -286,7 +291,8 @@ export function buildChibi(look = {}) {
   const L = mergeLook(look), mats = chibiMaterials();
   const group = new THREE.Group();
   const bones = {}, list = [];
-  for (const [name, parent, x, y, z] of BONES) { const b = new THREE.Bone(); b.name = name; b.position.set(x, y, z); list.push(b); bones[name] = b; if (parent >= 0) list[parent].add(b); }
+  const PR = BUILDS[L.build] || BUILDS.chibi;
+  for (const [name, parent, x, y, z] of BONES) { const b = new THREE.Bone(); b.name = name; b.position.set(x, y * PR.body, z); list.push(b); bones[name] = b; if (parent >= 0) list[parent].add(b); }
   bones.armL.rotation.z = ARM_REST; bones.armR.rotation.z = -ARM_REST;
   list[0].updateMatrixWorld(true);
   const bind = list.map((b) => b.matrixWorld.clone());
@@ -326,7 +332,7 @@ export function buildChibi(look = {}) {
       return c.clone().multiplyScalar(ao(n));
     }));
   }
-  const geo = mergeSkinned(parts, bind);
+  const geo = mergeSkinned(parts, bind, PR.body);
   const mesh = new THREE.SkinnedMesh(geo, mats.body); mesh.castShadow = true; mesh.frustumCulled = false;
   mesh.add(list[0]);
   const skeleton = new THREE.Skeleton(list); mesh.bind(skeleton);
@@ -352,7 +358,7 @@ export function buildChibi(look = {}) {
       cparts.push(part(sl, iArm[s], (v) => { const t = sstep(0.05, -0.06, v.y); return [[3, 1 - t], [iArm[s], t]]; }, (v, n) => quilt(v.y * 0.8, cc).multiplyScalar(ao(n, 0.16))));
       cparts.push(part(new THREE.TorusGeometry(0.062, 0.022, 8, 18).rotateX(Math.PI / 2).translate(0, -0.265, 0), iArm[s], () => [[iArm[s], 1]], (v, n) => trim.clone().multiplyScalar(ao(n, 0.15)))); // cuff
     }
-    const cm = new THREE.SkinnedMesh(mergeSkinned(cparts, bind), mats.body); cm.castShadow = true; cm.frustumCulled = false;
+    const cm = new THREE.SkinnedMesh(mergeSkinned(cparts, bind, PR.body), mats.body); cm.castShadow = true; cm.frustumCulled = false;
     cm.bind(skeleton, mesh.bindMatrix); group.add(cm); meshes.push(cm);
   }
 
@@ -368,6 +374,8 @@ export function buildChibi(look = {}) {
     pom = new THREE.Group(); pom.position.copy(hp.pomAt); bones.head.add(pom);
     const pm = new THREE.Mesh(hp.pomG, mats.body); pm.castShadow = true; pom.add(pm); meshes.push(pm);
   }
+  // bigger head and mittens: scaled on their bones after binding, so the face, hair and hat all follow
+  bones.head.scale.setScalar(PR.head); bones.handL.scale.setScalar(PR.hand); bones.handR.scale.setScalar(PR.hand);
   const tris = meshes.reduce((a, m) => a + m.geometry.index.count / 3, 0);
   const rest = {}; for (const b of list) rest[b.name] = { p: b.position.clone(), r: b.rotation.clone() };
   return { group, mesh, skeleton, bones, head, eyes, pom, rest, look: L, pomV: 0, pomY: 0, stats: { draws: meshes.length, tris, bones: list.length } };
