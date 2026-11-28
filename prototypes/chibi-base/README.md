@@ -20,7 +20,9 @@ inside the mobile budget, with no external assets.
 - `attach(c, 'chest' | 'handR' | ..., object)`: props on bones (Pip's camera rides `chest`).
 - Look slots (`DEFAULT_LOOK`): `skin`, `blush`, `eyes {color,size}`, `mouth smile|open|cat`,
   `hair {style bob|short|pigtails|none, color}`, `top {color, sleeve 0..1}`, `bottom {color, length 0..1}`, `shoes`,
-  `mitts`, `hat {style beanie, color, cuff, pom}`, `coat {color, trim, quilt}`.
+  `mitts`, `hat {style beanie, color, cuff, pom}`, `coat {color, trim, quilt}`, `build chibi|tall`.
+- `build: 'chibi'` (default) matches the owner's silhouette: head about 40% of the height and wider than the
+  shoulders (body x0.8, head x1.25, mittens x1.22, scaled on bones). `'tall'` keeps the longer first proportions.
 
 ## Build
 - One skinned body mesh (torso, neck, arms, mitten hands with thumbs, legs, rounded feet) on 12 bones

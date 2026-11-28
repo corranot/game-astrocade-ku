@@ -53,6 +53,7 @@ const LOOKS = [
   { skin: '#8d5a3c', blush: '#d06a5a', hair: { style: 'pigtails', color: '#1e1410' }, eyes: { color: '#6a3a1a', size: 1.12 }, mouth: 'cat', top: { color: '#c58cff', sleeve: 0.9 }, bottom: { color: '#ffffff', length: 0.25 }, shoes: '#7a4a32', mitts: null },
   { skin: '#ffe2cc', hair: { style: 'bob', color: '#f2c86a' }, eyes: { color: '#3a8a5a', size: 0.95 }, top: { color: '#6ad0b0', sleeve: 1 }, bottom: { color: '#2f3a58', length: 0.85 }, shoes: '#2a2a35', mitts: '#ff8fb0', hat: { style: 'beanie', color: '#ff8fb0', pom: '#ffffff' } },
   { skin: '#ffd9bf', hair: { style: 'none' }, top: null, bottom: null, shoes: '#ffd9bf', mitts: null },
+  { build: 'tall' },
 ];
 
 const cells = []; // { scene, cam, x, y, w, h, tick }
@@ -63,7 +64,7 @@ function cell(x, y, w, h, chars, view, label) {
   cam.position.set(view.pos[0], view.pos[1], view.pos[2]); cam.lookAt(view.look[0], view.look[1], view.look[2]);
   cells.push({ sc, cam, x, y, w, h });
 }
-const orbit = (a, d = 5.2, y = 1.05, ty = 0.92) => ({ pos: [Math.sin(a) * d, y, Math.cos(a) * d], look: [0, ty, 0] });
+const orbit = (a, d = 5.2, y = 1.05, ty = 0.98) => ({ pos: [Math.sin(a) * d, y, Math.cos(a) * d], look: [0, ty, 0] });
 const anims = [];
 const chibi = (look, st = {}, extra) => { const c = buildChibi(look); if (extra) extra(c); anims.push([c, st]); return c; };
 
@@ -83,7 +84,7 @@ if (shot === 'turn' || shot === 'pip') {
   });
 } else if (shot === 'looks') {
   const w = W / LOOKS.length;
-  LOOKS.forEach((l, i) => { const c = chibi(l, {}); cell(i * w, 0, w, H, [[c.group, 0]], orbit(0.35), ['default', 'short', 'pigtails', 'beanie', 'bare base'][i]); });
+  LOOKS.forEach((l, i) => { const c = chibi(l, {}); cell(i * w, 0, w, H, [[c.group, 0]], orbit(0.35), ['default', 'short', 'pigtails', 'beanie', 'bare base', 'tall build'][i]); });
 } else if (shot === 'anim') {
   const w = W / 4, sts = [{ t: 0 }, { walk: 1, t: 0.17 }, { walk: 1, t: 0.52 }, { wave: 1, t: 1.1 }];
   sts.forEach((s, i) => { const c = chibi(PIP, s, pipCamera); c.blinkOff = 1; cell(i * w, 0, w, H, [[c.group, 0]], orbit(0.5), ['idle', 'walk A', 'walk B', 'wave'][i]); });
