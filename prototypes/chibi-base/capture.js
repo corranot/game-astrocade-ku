@@ -9,10 +9,11 @@ const server = http.createServer((q, s) => {
   const f = path.join(root, decodeURIComponent(q.url.split('?')[0]));
   fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'content-type': types[path.extname(f)] || 'text/plain' }); s.end(d); });
 }).listen(0);
-const SHOTS = [['turn', 1600, 700], ['pip', 1600, 700], ['compare', 1600, 700], ['looks', 2100, 700], ['anim', 1600, 700], ['phone', 390, 844], ['hands', 1600, 500], ['stress', 2000, 700]];
+const SHOTS = [['turn', 1600, 700], ['pip', 1600, 700], ['compare', 1600, 700], ['looks', 2100, 700], ['anim', 1600, 700], ['phone', 390, 844], ['hands', 2000, 500], ['stress', 2000, 700]];
+const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  for (const [shot, w, h] of SHOTS) {
+  for (const [shot, w, h] of SHOTS.filter(([s]) => !only || only.includes(s))) {
     const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
     page.on('pageerror', (e) => console.error(shot, e.message)); page.on('console', (m) => m.type() === 'error' && console.error(shot, m.text()));
     await page.goto(`http://localhost:${server.address().port}/chibi-base/index.html?shot=${shot}`);

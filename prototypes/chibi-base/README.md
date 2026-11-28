@@ -31,11 +31,16 @@ inside the mobile budget, with no external assets.
   twist applies first.
 - `LIMITS` holds each joint's human range of motion (left side; right mirrors). `clampToLimits` runs every frame
   after animation and poses, so nothing bends past anatomy (elbows and knees bend one way only).
-- Skin weights blend over each joint (shoulder cap to clavicle, soft elbow and knee, ankle, ball of the foot);
-  the forearm twist bone carries half the wrist roll, spread along the forearm, so turning the wrist does not
-  pinch the sleeve. `groundFeet` keeps the lowest foot on the floor in every pose.
-- Mitten: palm and finger mass as one shape, the thumb a lobe sunk into it high on the body side near the wrist,
-  and a soft knit cuff when mitts are worn.
+- Skin weights blend over each joint (shoulder cap to clavicle, soft elbow and knee, ankle, ball of the foot).
+- Wrist and thumb (fixed 28 Nov): the rest pose is the neutral human stance, palms facing the thighs and thumbs
+  pointing forward on the radial side. Pronation and supination are the forearm twist bone (the radius rolling over
+  the ulna); the hand hangs from it, and the skin blends from the elbow (no roll) to the wrist (full roll), so the
+  sleeve never pinches. The wrist itself never rolls: it flexes toward the palm (70 deg) and extends (80 deg), and
+  deviates toward the thumb (20 deg) or the little finger (30 deg). The thumb's CMC joint sits at the base of the
+  palm on the radial side and flexes toward the palm; the finger mass curls toward the palm only. The `hands` shot
+  checks the outer side, front and 3/4 at rest, the walk swing and the wave (supinated, palm out). `groundFeet` keeps the lowest foot on the floor in every pose.
+- Mitten: palm and finger mass as one shape, flat side to the thigh, the thumb a lobe at the base of the palm on
+  the front (radial) edge, angled down and toward the palm, and a soft knit cuff when mitts are worn.
 - Profiles traced from the silhouette and resampled on a smooth curve; clothes are vertex colours with a stitch
   line at each edge; the coat is the body profile inflated with stitched quilt channels, a fluffy collar, cuffs and
   a zip. Head, ears, nose, mouth and blush are one mesh; eyes are one glossy mesh that blinks; hair is a shell whose

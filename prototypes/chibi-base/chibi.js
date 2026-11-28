@@ -1,6 +1,6 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Chibi base: a reusable, code-built 3D chibi (big round head, small body, mitten hands, short legs), matching the
-// owner's base silhouette. One skinned body mesh (skin and painted clothes as vertex colours) on a 12-bone skeleton,
+// round toy silhouette. One skinned body mesh (skin and painted clothes as vertex colours) on a 31-bone skeleton,
 // rigid face/hair/hat parts on the head bone, and optional puffy coat layers that share the skeleton.
 // Origin on the ground between the feet, facing +z, about 1.8 units tall (head top). No textures, no assets.
 // THREE is read from the global only inside functions (never at import), like the other game modules.
@@ -21,14 +21,16 @@ export const DEFAULT_LOOK = {
   mitts: null, // colour, or null for bare hands
   hat: null, // { style: 'beanie', color, cuff, pom }
   coat: null, // { color, trim, quilt }
-  build: 'chibi', // 'chibi' (the owner's silhouette: head ~40% of height, wider than the shoulders) | 'tall'
+  build: 'chibi', // 'chibi' (head ~40% of height, wider than the shoulders) | 'tall'
 };
 
 /** Proportion presets: body height scale, head scale, mitten scale. */
 export const BUILDS = { chibi: { body: 0.8, head: 1.25, hand: 1.22 }, tall: { body: 1, head: 1, hand: 1 } };
 
 // Anatomical skeleton at chibi scale (31 bones). Bind pose in mesh space, feet at y 0, facing +z, arms hanging a
-// little outward with the palms facing back (thumbs forward on the body side). L = the character's left = +x.
+// little outward in the neutral rest: palms face the thighs, thumbs point forward on the radial side. L = the
+// character's left = +x. The hand hangs from the forearm twist bone, so pronation and supination (the radius rolling
+// over the ulna) turn the hand; the wrist itself only flexes, extends and deviates.
 // name, parent, x, y, z (y is scaled by the build's body factor)
 const BONES = [
   ['root', -1, 0, 0, 0], ['pelvis', 0, 0, 0.6, 0], ['spine1', 1, 0, 0.1, 0], ['spine2', 2, 0, 0.12, 0], ['spine3', 3, 0, 0.12, 0],
@@ -36,10 +38,10 @@ const BONES = [
   ['clavicleL', 4, 0.03, 0.07, 0], ['clavicleR', 4, -0.03, 0.07, 0], // sternoclavicular joint
   ['upperArmL', 7, 0.135, 0.015, 0], ['upperArmR', 8, -0.135, 0.015, 0], // glenohumeral (shoulder) ball joint
   ['forearmL', 9, 0, -0.155, 0], ['forearmR', 10, 0, -0.155, 0], // elbow hinge
-  ['forearmTwistL', 11, 0, -0.075, 0], ['forearmTwistR', 12, 0, -0.075, 0], // radius/ulna roll, carries half the wrist roll
-  ['handL', 11, 0, -0.145, 0], ['handR', 12, 0, -0.145, 0], // wrist
-  ['thumb1L', 15, -0.032, -0.018, 0.02], ['thumb1R', 16, 0.032, -0.018, 0.02], // thumb CMC saddle joint
-  ['thumb2L', 17, -0.02, -0.028, 0.012], ['thumb2R', 18, 0.02, -0.028, 0.012], // thumb MCP/IP hinge
+  ['forearmTwistL', 11, 0, -0.075, 0], ['forearmTwistR', 12, 0, -0.075, 0], // radius over ulna: pronation and supination; carries the hand
+  ['handL', 13, 0, -0.07, 0], ['handR', 14, 0, -0.07, 0], // wrist (radiocarpal), carried by the forearm roll
+  ['thumb1L', 15, -0.012, -0.02, 0.036], ['thumb1R', 16, 0.012, -0.02, 0.036], // thumb CMC saddle: base of the palm, radial (front) side
+  ['thumb2L', 17, -0.01, -0.03, 0.016], ['thumb2R', 18, 0.01, -0.03, 0.016], // thumb MCP/IP hinge
   ['fingersL', 15, 0, -0.075, 0], ['fingersR', 16, 0, -0.075, 0], // the mitten's finger mass bends at the knuckles
   ['thighL', 1, 0.115, 0, 0], ['thighR', 1, -0.115, 0, 0], // hip ball joint
   ['shinL', 23, 0, -0.29, 0], ['shinR', 24, 0, -0.29, 0], // knee hinge
@@ -60,11 +62,11 @@ export const LIMITS = {
   clavicle: { x: [-0.25, 0.25], y: [-0.3, 0.3], z: [-0.15, 0.6] }, // elevation, protraction
   upperArm: { x: [-3.1, 1.0], y: [-1.6, 1.6], z: [-0.45, 3.0] }, // 180 flexion, 60 extension, 180 abduction, 90 rotation
   forearm: { x: [-2.6, 0], y: [0, 0], z: [0, 0] }, // elbow: 150 deg flexion, no hyperextension
-  forearmTwist: { x: [0, 0], y: [-1.4, 1.4], z: [0, 0] }, // pronation / supination
-  hand: { x: [-1.2, 1.4], y: [-1.4, 1.4], z: [-0.35, 0.55] }, // wrist extension / flexion (toward the palm), deviation
+  forearmTwist: { x: [0, 0], y: [-1.5, 1.4], z: [0, 0] }, // from neutral: pronation (y < 0, palm turns back) 85 deg, supination (y > 0, palm forward) 80 deg
+  hand: { x: [-0.35, 0.52], y: [0, 0], z: [-1.22, 1.4] }, // wrist: flexion toward the palm (z < 0) 70 deg, extension 80 deg; radial deviation (x < 0, thumb side) 20 deg, ulnar 30 deg; it never rolls
   thumb1: { x: [-0.6, 0.6], y: [-0.3, 0.3], z: [-0.6, 0.6] }, // CMC: flexion/extension and abduction/adduction
-  thumb2: { x: [0, 1.2], y: [0, 0], z: [0, 0] },
-  fingers: { x: [-0.2, 1.6], y: [0, 0], z: [0, 0] }, // curl toward the palm
+  thumb2: { x: [0, 0], y: [0, 0], z: [-1.2, 0] }, // flexes toward the palm only
+  fingers: { x: [0, 0], y: [0, 0], z: [-1.6, 0.2] }, // knuckles curl toward the palm (z < 0) only
   thigh: { x: [-2.1, 0.5], y: [-0.7, 0.7], z: [-0.5, 0.8] }, // 120 flexion, 30 extension, 45 abduction
   shin: { x: [0, 2.4], y: [0, 0], z: [0, 0] }, // knee: 135 deg flexion, no hyperextension
   foot: { x: [-0.35, 0.8], y: [-0.2, 0.2], z: [-0.35, 0.35] }, // 20 dorsiflexion, 45 plantarflexion, inversion/eversion
@@ -384,10 +386,10 @@ export function buildChibi(look = {}) {
     const mc = (v, n) => mitt.clone().multiplyScalar(ao(n, 0.18));
     // mitten: palm and finger mass in one shape; the thumb is a lobe sunk deep into it, high on the body side near the
     // wrist and angled forward, so it reads as part of the mitten (no stuck-on ball)
-    const mittG = ell(0.07, 0.082, 0.056, 30).translate(0, -0.066, 0.004);
+    const mittG = ell(0.056, 0.082, 0.07, 30).translate(0, -0.066, -0.004); // flat side to the thigh, the thumb edge forward
     parts.push(part(mittG, hd, (v) => { const f = sstep(-0.06, -0.095, v.y); return norm4([[hd, 1 - f], [fg, f]]); }, mc));
-    const t1 = new THREE.Vector3(-sx * 0.032, -0.018, 0.02);
-    const thumb = deform(ell(1, 1, 1, 18), (p) => { const d = p.clone().normalize(); return new THREE.Vector3(d.x * 0.033, d.y * 0.05 * (d.y < 0 ? 1 : 0.8), d.z * 0.034); }).applyMatrix4(M4(-sx * 0.042, -0.042, 0.024, 0.5, 0, -sx * 0.42));
+    const t1 = new THREE.Vector3(-sx * 0.012, -0.02, 0.036);
+    const thumb = deform(ell(1, 1, 1, 18), (p) => { const d = p.clone().normalize(); return new THREE.Vector3(d.x * 0.033, d.y * 0.05 * (d.y < 0 ? 1 : 0.8), d.z * 0.034); }).applyMatrix4(M4(-sx * 0.016, -0.05, 0.05, -0.5, 0, -sx * 0.25));
     parts.push(part(thumb, hd, (v) => { const d = v.distanceTo(t1), k = sstep(0.02, 0.05, d); return norm4([[hd, 0.4 * (1 - sstep(0, 0.025, d))], [th1, 1 - k], [th2, k]]); }, mc));
     if (L.mitts) parts.push(part(new THREE.TorusGeometry(0.058, 0.012, 8, 22).scale(1, 1, 0.9).rotateX(Math.PI / 2).translate(0, -0.004, 0.004), hd, () => [[hd, 0.6], [13 + s, 0.4]], (v, n) => mitt.clone().multiplyScalar(ao(n, 0.15) * (Math.sin(Math.atan2(v.x, v.z) * 16) > 0 ? 0.97 : 0.88)))); // knit cuff over the wrist
     // leg: hip, a soft knee, ankle, and the toes bending at the ball of the foot
@@ -476,7 +478,7 @@ export function animateChibi(c, t, dt, s = {}) {
   B.neck.rotation.y = (s.look || 0) * 0.5; B.head.rotation.y = (s.look || 0) * 0.35;
   for (const [k, m] of sides) {
     B['upperArm' + k].rotation.z = m * (ARM_REST + 0.04 * Math.sin(t * 2.2));
-    B['forearm' + k].rotation.x = -0.18; B['fingers' + k].rotation.x = 0.25; B['thumb1' + k].rotation.x = -0.1;
+    B['forearm' + k].rotation.x = -0.18; B['fingers' + k].rotation.z = -m * 0.25; B['thumb2' + k].rotation.z = -m * 0.2;
   }
   // walk: hips flex and extend, the knee folds in swing and straightens at heel strike, the ankle rolls heel to toe,
   // arms swing opposite with a little more elbow bend going forward, the torso counter-rotates
@@ -499,13 +501,11 @@ export function animateChibi(c, t, dt, s = {}) {
     const w = wave, osc = Math.sin(t * 9);
     B.upperArmR.rotation.set(0, -1.57 * w, -ARM_REST - (1.25 - ARM_REST) * w);
     B.forearmR.rotation.x = -0.18 * (1 - w) - (1.0 + 0.3 * osc) * w;
-    B.forearmTwistR.rotation.y = 0.5 * w; B.handR.rotation.set(0, 1.0 * w, 0.25 * Math.sin(t * 9 + 0.8) * w);
-    B.fingersR.rotation.x = 0.1; // no shrug: a raised clavicle lifts the mitten into the head
+    B.forearmTwistR.rotation.y = -1.2 * w; B.handR.rotation.z = 0.25 * Math.sin(t * 9 + 0.8) * w; // supinate so the palm faces out; the wrist only flexes and extends
+    B.fingersR.rotation.z = 0.1; // no shrug: a raised clavicle lifts the mitten into the head
     B.spine3.rotation.z -= 0.06 * w; B.neck.rotation.z -= 0.2 * w; // lean the big head away from the waving mitten
   }
   if (pw > 0) POSES[s.pose] && POSES[s.pose](B, pw, t);
-  // the forearm twist bone takes half the wrist's roll, so the forearm skin turns gradually
-  for (const [k] of sides) { B['forearmTwist' + k].rotation.y += B['hand' + k].rotation.y * 0.5; }
   clampToLimits(c);
   groundFeet(c);
   // blink every few seconds
@@ -522,9 +522,9 @@ export function animateChibi(c, t, dt, s = {}) {
 /** Test and showcase poses on top of idle (the clamp afterwards keeps them anatomical). */
 export const POSES = {
   // armsUp is a cheering V: the big head leaves no room straight up
-  armsUp: (B, w) => { for (const [k, m] of [['L', 1], ['R', -1]]) { B['upperArm' + k].rotation.z = m * (ARM_REST + (1.85 - ARM_REST) * w); B['upperArm' + k].rotation.x = -0.2 * w; B['forearm' + k].rotation.x = -0.15; B['fingers' + k].rotation.x = 0; } B.spine3.rotation.x -= 0.1 * w; B.neck.rotation.x = -0.25 * w; },
+  armsUp: (B, w) => { for (const [k, m] of [['L', 1], ['R', -1]]) { B['upperArm' + k].rotation.z = m * (ARM_REST + (1.85 - ARM_REST) * w); B['upperArm' + k].rotation.x = -0.2 * w; B['forearm' + k].rotation.x = -0.15; B['fingers' + k].rotation.z = 0; } B.spine3.rotation.x -= 0.1 * w; B.neck.rotation.x = -0.25 * w; },
   squat: (B, w) => { for (const [k, m] of [['L', 1], ['R', -1]]) { B['thigh' + k].rotation.x = -1.7 * w; B['thigh' + k].rotation.z = m * 0.25 * w; B['shin' + k].rotation.x = 2.1 * w; B['foot' + k].rotation.x = -0.35 * w; B['upperArm' + k].rotation.x = -1.3 * w; B['forearm' + k].rotation.x = -0.4 * w; } B.spine1.rotation.x = 0.4 * w; B.spine2.rotation.x = 0.2 * w; B.neck.rotation.x = -0.4 * w; B.pelvis.rotation.x = 0.0; },
-  reach: (B, w) => { B.upperArmR.rotation.x = -1.5 * w; B.upperArmR.rotation.z = -0.15 * w; B.clavicleR.rotation.y = 0.25 * w; B.forearmR.rotation.x = -0.05; B.fingersR.rotation.x = 0; B.spine2.rotation.y = 0.25 * w; B.spine3.rotation.y = 0.2 * w; B.spine1.rotation.x = 0.2 * w; B.thighL.rotation.x = 0.3 * w; B.footL.rotation.x = 0.4 * w; B.thighR.rotation.x = -0.25 * w; B.shinR.rotation.x = 0.3 * w; },
+  reach: (B, w) => { B.upperArmR.rotation.x = -1.5 * w; B.upperArmR.rotation.z = -0.15 * w; B.clavicleR.rotation.y = 0.25 * w; B.forearmR.rotation.x = -0.05; B.fingersR.rotation.z = 0; B.spine2.rotation.y = 0.25 * w; B.spine3.rotation.y = 0.2 * w; B.spine1.rotation.x = 0.2 * w; B.thighL.rotation.x = 0.3 * w; B.footL.rotation.x = 0.4 * w; B.thighR.rotation.x = -0.25 * w; B.shinR.rotation.x = 0.3 * w; },
   lookAround: (B, w, t) => { B.neck.rotation.y = 1.2 * w; B.head.rotation.y = 0.8 * w; B.head.rotation.x = -0.25 * w; B.spine3.rotation.y = 0.3 * w; B.neck.rotation.z = 0.2 * w; }, // beyond the neck's range on purpose: the clamp must hold it
 };
 

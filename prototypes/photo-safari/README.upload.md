@@ -25,7 +25,10 @@ three small photo requests. When only night animals are left to find, tap the mo
 - `game.js`: `run(mode)`, the loop, input, HUD, photos, the book and shop, the tutorial, moments and saving.
 - `logic.js`: the rules (no 3D, no page): areas, the clock, photo stars, rewards, stamps, the shop, daily visitors.
 - `world.js`: the 3D valley, lighting, sky with aurora, falling snow, the glow pass and quality levels.
-- `critters.js`: every animal and the photographer, built from rounded, vertex-coloured parts, with their poses.
+- `critters.js`: every animal, built from rounded, vertex-coloured parts, with their poses.
+- `chibi.js`: the photographer's body: one skinned mesh on a 31-bone skeleton with joint limits, face, hair and hat.
+- `pip.js`: the photographer dressed in the chosen outfit, with the camera and lantern, and the walk, idle and
+  camera-raise animation.
 - `fx.js`: pooled particles, rings, debris, footprints and the paw-print trail.
 - `audio.js`: sounds and a music box made in code.
 - `game_config.json`: all tuning values and the strings in 7 languages.

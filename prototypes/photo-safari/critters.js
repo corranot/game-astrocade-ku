@@ -1,5 +1,5 @@
 // PROTOTYPE - NOT FOR PRODUCTION
-// The critter kit: every animal and the hero are built in code from rounded parts with vertex colours (belly
+// The critter kit: every animal is built in code from rounded parts with vertex colours (belly
 // gradient, baked occlusion, spots), merged per moving part so one animal is a handful of draw calls.
 // Animals face +z in their own frame. THREE is read from the global only inside functions (never at import).
 
@@ -242,88 +242,3 @@ export function animateCritter(a, sp, st) {
   if (st.hide > 0) { inn.position.y -= st.hide * a.height * 0.85; }
 }
 
-/** The hero: Pip in a quilted puffer parka, a pom-pom hat, mittens, boots and a big instant camera. */
-export function buildHero(look, mats) {
-  const soft = (m, r, q) => (mats ? mats.make(m, r, 0, q) : m);
-  const group = new THREE.Group(), inner = new THREE.Group(); group.add(inner);
-  // parka and hat share the fur program (no extra shader compile): stitched quilt channels on the parka, knit grain on the hat
-  const matParka = soft(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, color: look.parka }), 0.3, 1);
-  const matHat = soft(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, color: look.hat }), 0.3, 0);
-  const matSkin = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 });
-  const matCam = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, color: look.cam });
-  const matEye = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12 });
-  const add = (g, m, p = inner) => { const me = new THREE.Mesh(g, m); me.castShadow = true; p.add(me); return me; };
-  const W = C('#ffffff'), shade = (n) => W.clone().multiplyScalar(0.8 + 0.2 * Math.max(0, n.y * 0.5 + 0.6));
-  // quilted parka: three puffy rings and a hood ring
-  const parka = add(merge([
-    { g: sph(18), m: M4(0, 0.62, 0, 0.42, 0.36, 0.36), col: shade },
-    { g: sph(18), m: M4(0, 0.92, 0, 0.4, 0.22, 0.34), col: shade },
-    { g: sph(18), m: M4(0, 1.12, 0, 0.35, 0.18, 0.3), col: shade },
-    { g: new THREE.TorusGeometry(0.27, 0.075, 8, 20), m: M4(0, 1.27, 0.02, 1, 1, 1, Math.PI / 2), col: C('#fff8ef') },
-    { g: cyl(10), m: M4(0, 0.85, 0.36, 0.035, 0.6, 0.02), col: C('#fff8ef') }, // zip line
-  ]), matParka);
-  const arms = [];
-  for (const sx of [-1, 1]) {
-    const ap = new THREE.Group(); ap.position.set(sx * 0.42, 1.08, 0); inner.add(ap); arms.push(ap);
-    add(merge([{ g: sph(12), m: M4(sx * 0.04, -0.2, 0.06, 0.14, 0.26, 0.14, 0.3), col: shade }]), matParka, ap);
-    add(merge([{ g: sph(10), m: M4(sx * 0.04, -0.44, 0.16, 0.12, 0.11, 0.12), col: W }]), matHat, ap); // mitten
-  }
-  const legs = [];
-  for (const sx of [-1, 1]) {
-    const lp = new THREE.Group(); lp.position.set(sx * 0.17, 0.36, 0); inner.add(lp); legs.push(lp);
-    add(merge([{ g: cyl(8), m: M4(0, -0.14, 0, 0.12, 0.22, 0.12), col: C('#3a4a6a') }, { g: sph(10), m: M4(0, -0.3, 0.06, 0.15, 0.1, 0.2), col: C('#6a3e2a') }]), matSkin, lp);
-  }
-  const head = new THREE.Group(); head.position.set(0, 1.5, 0); inner.add(head);
-  add(merge([
-    { g: sph(20), m: M4(0, 0, 0, 0.3, 0.29, 0.29), col: C('#ffd9bf') },
-    { g: sph(8), m: M4(-0.17, -0.07, 0.22, 0.07, 0.045, 0.03), col: C('#ff9a9a') },
-    { g: sph(8), m: M4(0.17, -0.07, 0.22, 0.07, 0.045, 0.03), col: C('#ff9a9a') },
-    { g: sph(8), m: M4(0, -0.02, 0.29, 0.04, 0.035, 0.03), col: C('#f4b090') },
-  ]), matSkin, head);
-  add(eyes(0.3, 0.36, 0.06, 0.17), matEye, head);
-  // knit hat with a fold and a big pom-pom
-  const hat = add(merge([
-    { g: new THREE.SphereGeometry(1, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), m: M4(0, 0.04, -0.01, 0.32, 0.36, 0.32), col: (n, p) => W.clone().multiplyScalar(Math.sin(Math.atan2(p.x, p.z) * 9) > 0 ? 1 : 0.86) },
-    { g: new THREE.TorusGeometry(0.3, 0.06, 8, 22), m: M4(0, 0.07, -0.01, 1, 1, 1, Math.PI / 2), col: W.clone().multiplyScalar(0.92) },
-  ]), matHat, head);
-  const pom = new THREE.Group(); pom.position.set(0, 0.44, -0.02); head.add(pom);
-  add(merge([{ g: sph(12), m: M4(0, 0, 0, 0.13, 0.13, 0.13), col: (n) => C('#fff4e6').multiplyScalar(0.9 + 0.1 * n.y) }]), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), pom);
-  // the camera, held in front at chest height (raised to the eye in viewfinder mode)
-  const cam = new THREE.Group(); cam.position.set(0, 0.98, 0.42); inner.add(cam);
-  add(merge([
-    { g: new THREE.BoxGeometry(1, 1, 1, 2, 2, 2), m: M4(0, 0, 0, 0.5, 0.34, 0.24), col: W },
-    { g: cyl(16), m: M4(0, -0.01, 0.16, 0.12, 0.1, 0.12, Math.PI / 2), col: C('#2b2f38') },
-    { g: cyl(16), m: M4(0, -0.01, 0.215, 0.085, 0.02, 0.085, Math.PI / 2), col: C('#6ab8ff') },
-    { g: new THREE.BoxGeometry(1, 1, 1), m: M4(0.16, 0.12, 0.125, 0.1, 0.06, 0.01), col: C('#fff8ef') },
-    { g: new THREE.BoxGeometry(1, 1, 1), m: M4(-0.15, 0.19, 0, 0.12, 0.05, 0.1), col: C('#e8513a') },
-  ]), matCam, cam);
-  // a small lantern on the belt: dark by day, a warm glow at night (world.js adds its light)
-  const lantern = new THREE.Group(); lantern.position.set(-0.4, 0.62, 0.12); inner.add(lantern);
-  add(merge([
-    { g: cyl(8), m: M4(0, 0.13, 0, 0.07, 0.04, 0.07), col: C('#3a2c22') },
-    { g: cyl(8), m: M4(0, -0.11, 0, 0.09, 0.03, 0.09), col: C('#3a2c22') },
-  ]), matSkin, lantern);
-  const matLamp = new THREE.MeshBasicMaterial({ color: 0x8a6a40 }); // brightened by the game as night falls
-  add(sph(10).scale(0.075, 0.1, 0.075), matLamp, lantern);
-  return { group, inner, head, hat, pom, arms, legs, cam, parka, lantern, mats: { parka: matParka, hat: matHat, cam: matCam, lamp: matLamp }, pomV: 0, pomY: 0 };
-}
-
-/** Hero animation: walk cycle, breathing, the pom-pom on a spring, the camera raised as `vf` goes 0..1. */
-export function animateHero(H, t, dt, walk, vf, look = 0, idle = null) {
-  const sw = Math.sin(t * 10) * walk;
-  H.inner.position.y = Math.abs(Math.sin(t * 10)) * 0.07 * walk + Math.sin(t * 2.2) * 0.01;
-  H.legs[0].rotation.x = sw * 0.8; H.legs[1].rotation.x = -sw * 0.8;
-  H.arms[0].rotation.set(-sw * 0.5 * (1 - vf) - vf * 1.3, 0, 0.1 - vf * 0.25); H.arms[1].rotation.set(sw * 0.5 * (1 - vf) - vf * 1.3, 0, -0.1 + vf * 0.25);
-  H.cam.position.set(0, 0.98 + vf * 0.45, 0.42 + vf * 0.02);
-  H.head.rotation.x = -vf * 0.12; H.head.rotation.y = look * (1 - vf);
-  // idles while standing: rub the mitts, stamp the boots, peek at the camera screen
-  if (idle && walk < 0.05 && vf < 0.05) { const q = idle.p, u = Math.sin(Math.PI * q);
-    if (idle.k === 'warm') { const r = Math.sin(q * 40) * 0.15 * u; H.arms[0].rotation.set(-1.25 * u + r, 0, 0.1 - 0.55 * u); H.arms[1].rotation.set(-1.25 * u - r, 0, -0.1 + 0.55 * u); H.head.rotation.x += 0.15 * u; }
-    else if (idle.k === 'stamp') { const s = Math.sin(q * Math.PI * 4); H.legs[0].rotation.x = Math.max(0, s) * -0.5 * u; H.legs[1].rotation.x = Math.max(0, -s) * -0.5 * u; H.inner.position.y += Math.abs(s) * 0.03 * u; }
-    else if (idle.k === 'peek') { H.arms[0].rotation.x = -0.9 * u; H.arms[1].rotation.x = -0.9 * u; H.cam.position.y += 0.25 * u; H.head.rotation.x += 0.35 * u; } }
-  H.lantern.rotation.z = sw * 0.35;
-  // pom-pom spring
-  const target = -H.inner.position.y * 3;
-  H.pomV += ((target - H.pomY) * 120 - H.pomV * 9) * dt; H.pomY += H.pomV * dt;
-  H.pom.position.y = 0.44 + H.pomY * 0.05; H.pom.rotation.x = H.pomY * 0.2;
-}
