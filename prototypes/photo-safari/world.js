@@ -547,8 +547,9 @@ export function createWorld(canvas, cfg, opts = {}) {
   const rtPh = new THREE.WebGLRenderTarget(pw, ph, { type: hdrType, samples: 0 }), rtPl = new THREE.WebGLRenderTarget(pw, ph);
   const photoCam = new THREE.PerspectiveCamera(40, pw / ph, 0.3, 300);
   const pixels = new Uint8Array(pw * ph * 4);
-  /** Renders the view from `from` looking at `at` with `fov` into a new canvas. */
-  function capture(from, at, fov, studio = null) {
+  /** Renders the view from `from` looking at `at` with `fov` into a new canvas. `focus` ({ p: subject centre, k: 0..1 of the half
+   * height }) keeps that much around the subject sharp and softens the rest like a shallow lens. */
+  function capture(from, at, fov, studio = null, focus = null) {
     photoCam.position.copy(from); photoCam.fov = fov; photoCam.aspect = pw / ph; photoCam.updateProjectionMatrix(); photoCam.lookAt(at);
     const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
     renderer.setRenderTarget(rtPh); renderer.render(studio || scene, photoCam);
@@ -567,6 +568,21 @@ export function createWorld(canvas, cfg, opts = {}) {
       }
     }
     g.putImageData(img, 0, 0);
+    // a shallow lens and a soft flash: the background melts away from the subject and highlights bloom gently.
+    // Phones without canvas filters keep the plain print.
+    const D = cfg.photo.depth;
+    if (!studio && D && typeof g.filter === 'string') {
+      const b = document.createElement('canvas'); b.width = pw; b.height = ph; const bg = b.getContext('2d');
+      if (focus) {
+        bg.filter = `blur(${D.blurPx}px)`; bg.drawImage(cv, 0, 0); bg.filter = 'none';
+        const q = focus.p.clone().project(photoCam), cx = (q.x + 1) / 2 * pw, cy = (1 - q.y) / 2 * ph;
+        const r0 = ph * 0.5 * focus.k, gr = bg.createRadialGradient(cx, cy, r0, cx, cy, r0 + ph * D.featherK);
+        gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); bg.globalCompositeOperation = 'destination-in'; bg.fillStyle = gr; bg.fillRect(0, 0, pw, ph);
+        g.drawImage(b, 0, 0); bg.globalCompositeOperation = 'source-over'; bg.clearRect(0, 0, pw, ph);
+      }
+      bg.filter = `blur(${D.glowPx}px) brightness(${D.glowBright})`; bg.drawImage(cv, 0, 0); bg.filter = 'none';
+      g.globalCompositeOperation = 'screen'; g.globalAlpha = D.glow; g.drawImage(b, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    }
     return cv;
   }
 
@@ -590,7 +606,7 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
-    renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake,
+    renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake, propMat,
     setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, setLook, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
     get tier() { return tier; }, get pull() { return pull; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },

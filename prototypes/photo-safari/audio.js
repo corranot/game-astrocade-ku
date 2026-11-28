@@ -19,6 +19,8 @@ export const Sound = {
     const comp = c.createDynamicsCompressor(); comp.threshold.value = -12; comp.ratio.value = 4; comp.connect(c.destination);
     this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : 0.85; this.master.connect(comp);
     for (const [k, v] of [['music', 0.32], ['sfx', 0.9], ['voice', 0.7], ['ui', 0.6], ['amb', 0.25]]) { const g = c.createGain(); g.gain.value = v; g.connect(this.master); this.bus[k] = g; }
+    // the music passes one more gain that dips while the viewfinder is up, so animal calls and the shutter read clearly
+    this.lens = c.createGain(); this.lens.connect(this.master); this.bus.music.disconnect(); this.bus.music.connect(this.lens);
     // a short reverb for the music box and chimes
     const len = c.sampleRate * 1.6, ir = c.createBuffer(2, len, c.sampleRate);
     for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
@@ -30,6 +32,8 @@ export const Sound = {
     this.nextBeat = c.currentTime + 0.2; this.ok = true;
   },
   setMuted(m) { this.muted = m; if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.85, this.ctx.currentTime, 0.05); },
+  /** Music level under the viewfinder: k 0 (lens down) .. 1 (lens up) dips it to cfg's share. */
+  lensDuck(k, to = 0.3) { if (!this.ok || !this.lens) return; const v = 1 - (1 - to) * (k > 0.5 ? 1 : 0); if (v !== this.lensV) { this.lensV = v; this.lens.gain.setTargetAtTime(v, this.ctx.currentTime, 0.25); } },
   /** Ducks the music under a sting. */
   duck(s = 0.6) { if (!this.ok) return; const g = this.bus.music.gain, t = this.ctx.currentTime; g.cancelScheduledValues(t); g.setTargetAtTime(0.32 * 0.6, t, 0.03); g.setTargetAtTime(0.32, t + s, 0.4); },
   tone(f, t, d, { type = 'sine', g = 0.2, bus = 'sfx', a = 0.005, verb = 0, slide = 0, q = 0 } = {}) {
@@ -89,16 +93,20 @@ export const Sound = {
   whoosh() { if (!this.ok) return; const t = this.ctx.currentTime; this.hiss(t, 0.35, { f: 600, to: 2400, g: 0.12, Q: 1.5 }); },
   plop() { if (!this.ok) return; const t = this.ctx.currentTime; this.tone(260, t, 0.16, { g: 0.16, slide: 0.5 }); this.hiss(t, 0.1, { f: 900, g: 0.1 }); },
   /** An animal call by body family: squeak, hoot, honk, bleat or purr, pitch varied ±10%. */
-  voice(sp) {
+  voice(sp, pan = 0, vol = 1) {
     if (!this.ok) return; const t = this.ctx.currentTime, r = 0.9 + Math.random() * 0.2, s = 1 / (sp.scale || 1);
+    // each call goes through its own panner and level: animals to the left sound from the left, far ones softer
+    { const c = this.ctx, g = c.createGain(); g.gain.value = vol; g.connect(this.bus.voice); let out = g;
+      if (c.createStereoPanner) { const pn = c.createStereoPanner(); pn.pan.value = Math.max(-1, Math.min(1, pan)); pn.connect(g); out = pn; }
+      this.bus.vp = out; setTimeout(() => { try { out.disconnect(); if (out !== g) g.disconnect(); } catch (e) { /* gone */ } }, 3000); }
     const fam = sp.type === 'bird' ? (sp.id.includes('owl') ? 'hoot' : 'chirp') : sp.type === 'biped' ? 'honk' : sp.type === 'seal' || sp.type === 'whale' ? 'bark' : sp.id === 'goat' || sp.id === 'reindeer' || sp.id === 'moose' ? 'bleat' : (sp.body[0] < 0.35 ? 'squeak' : 'purr');
-    if (fam === 'squeak') { this.tone(1400 * r * s, t, 0.12, { g: 0.08, slide: 1.4, bus: 'voice' }); this.tone(1700 * r * s, t + 0.13, 0.1, { g: 0.06, slide: 1.3, bus: 'voice' }); }
-    if (fam === 'chirp') for (let i = 0; i < 3; i++) this.tone(2400 * r, t + i * 0.07, 0.06, { g: 0.05, slide: 1.3, bus: 'voice' });
-    if (fam === 'hoot') { this.tone(420 * r, t, 0.3, { g: 0.12, bus: 'voice', a: 0.05, verb: 0.4 }); this.tone(380 * r, t + 0.35, 0.45, { g: 0.12, bus: 'voice', a: 0.05, verb: 0.4 }); }
-    if (fam === 'honk') { this.tone(520 * r, t, 0.16, { type: 'sawtooth', g: 0.04, q: 1500, bus: 'voice', slide: 1.2 }); this.tone(560 * r, t + 0.18, 0.14, { type: 'sawtooth', g: 0.035, q: 1500, bus: 'voice' }); }
-    if (fam === 'bark') { this.tone(300 * r * s, t, 0.18, { type: 'sawtooth', g: 0.05, q: 900, bus: 'voice', slide: 1.3 }); }
-    if (fam === 'bleat') this.tone(360 * r * s, t, 0.4, { type: 'sawtooth', g: 0.04, q: 1300, bus: 'voice' });
-    if (fam === 'purr') for (let i = 0; i < 4; i++) this.tone(140 * r * s, t + i * 0.06, 0.07, { type: 'triangle', g: 0.07, bus: 'voice', q: 600 });
+    if (fam === 'squeak') { this.tone(1400 * r * s, t, 0.12, { g: 0.08, slide: 1.4, bus: 'vp' }); this.tone(1700 * r * s, t + 0.13, 0.1, { g: 0.06, slide: 1.3, bus: 'vp' }); }
+    if (fam === 'chirp') for (let i = 0; i < 3; i++) this.tone(2400 * r, t + i * 0.07, 0.06, { g: 0.05, slide: 1.3, bus: 'vp' });
+    if (fam === 'hoot') { this.tone(420 * r, t, 0.3, { g: 0.12, bus: 'vp', a: 0.05, verb: 0.4 }); this.tone(380 * r, t + 0.35, 0.45, { g: 0.12, bus: 'vp', a: 0.05, verb: 0.4 }); }
+    if (fam === 'honk') { this.tone(520 * r, t, 0.16, { type: 'sawtooth', g: 0.04, q: 1500, bus: 'vp', slide: 1.2 }); this.tone(560 * r, t + 0.18, 0.14, { type: 'sawtooth', g: 0.035, q: 1500, bus: 'vp' }); }
+    if (fam === 'bark') { this.tone(300 * r * s, t, 0.18, { type: 'sawtooth', g: 0.05, q: 900, bus: 'vp', slide: 1.3 }); }
+    if (fam === 'bleat') this.tone(360 * r * s, t, 0.4, { type: 'sawtooth', g: 0.04, q: 1300, bus: 'vp' });
+    if (fam === 'purr') for (let i = 0; i < 4; i++) this.tone(140 * r * s, t + i * 0.06, 0.07, { type: 'triangle', g: 0.07, bus: 'vp', q: 600 });
   },
   crack() { if (!this.ok) return; const t = this.ctx.currentTime; this.duck(1.2); for (let i = 0; i < 5; i++) this.hiss(t + i * 0.05, 0.12, { f: 3000 - i * 300, g: 0.25, Q: 3 }); this.tone(60, t, 1.2, { type: 'sine', g: 0.4, slide: 0.6 }); for (const k of [0, 4, 7, 12]) this.tone(midi(72 + k), t + 0.4, 1.8, { g: 0.06, verb: 0.8, bus: 'ui' }); },
   shimmer() { if (!this.ok) return; const t = this.ctx.currentTime; for (let i = 0; i < 8; i++) this.tone(midi(84 + PENTA[i % 5] + (i > 4 ? 12 : 0)), t + i * 0.06, 1.1, { g: 0.05, verb: 0.9, bus: 'ui' }); },

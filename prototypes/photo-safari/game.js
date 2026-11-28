@@ -5,7 +5,7 @@
 // Progress saves through lib.saveUserGameState. All tuning values are in game_config.json.
 import * as L from './logic.js';
 import { createWorld } from './world.js';
-import { buildCritter, animateCritter, critterMaterials, buildHero, animateHero } from './critters.js';
+import { buildCritter, animateCritter, critterMaterials, buildHero, animateHero, merge } from './critters.js';
 import { createFx } from './fx.js';
 import { Sound } from './audio.js';
 
@@ -167,12 +167,61 @@ export function run(mode = 'play') {
     W.scene.add(parts.group); animals.push(a); return a;
   }
   const speciesOf = (id) => L.speciesById(cfg, id);
-  const buildQueue = []; let booted = false;
+  const buildQueue = []; let booted = false, frameN = 0;
   // only the animals the first frame shows are built now (nearest first); the rest build one per frame after it
   { const d = (sp) => Math.hypot(sp.home[0] - hero.x, sp.home[1] - hero.z);
     const order = cfg.species.slice().sort((p, q) => (p.area - q.area) || (d(p) - d(q)));
     order.forEach((sp, i) => (i < cfg.quality.bootAnimals ? (f) => f() : (f) => buildQueue.push(f))(() => makeAnimal(sp, sp, false)));
     buildQueue.push(() => W.buildGround()); } // ground cover after the animals
+  // ---- Hoot's request board near the start (Hoot perches on it and hops when a request is done) and the friends board
+  // by the cabin, where every new friend's photo gets pinned. Built after the first frame.
+  const boards = { hoot: null, hootSp: null, hop: 0, cv: null, tex: null, drawn: new Set() };
+  buildQueue.push(() => {
+    const B = cfg.world.boards, q = new THREE.Quaternion(), e = new THREE.Euler();
+    const M = (x, y, z, rz = 0, ry = 0) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), q.setFromEuler(e.set(0, ry, rz)), new THREE.Vector3(1, 1, 1));
+    const C3 = (h) => new THREE.Color(h), wood = C3('#8a5e3c'), dark = C3('#5a3a24'), snow = C3('#f4f9ff');
+    const box = (w, h, d, x, y, z, col, rz = 0, ry = 0) => ({ g: new THREE.BoxGeometry(w, h, d), m: M(x, y, z, rz, ry), col });
+    /** A post-and-plank board w wide with a panel ph tall and a snowy roof; returns [items, roof top y]. */
+    const board = (w, ph) => { const top = 0.7 + ph + 0.12; return [[box(0.16, top, 0.16, -w / 2, top / 2, 0, dark), box(0.16, top, 0.16, w / 2, top / 2, 0, dark), box(w + 0.1, ph, 0.1, 0, 0.7 + ph / 2, 0, wood),
+      box(w + 0.6, 0.14, 0.62, 0, top + 0.07, 0.04, (n) => (n.y > 0.5 ? snow : dark))], top + 0.14]; };
+    const add = (items, at) => { const y = L.terrainH(cfg, at[0], at[1]), m = new THREE.Mesh(merge(items), W.propMat); m.position.set(at[0], y, at[1]); m.rotation.y = at[2]; m.castShadow = true; W.scene.add(m); return m; };
+    // Hoot's board: three paper notes with red pins
+    const [rb, rTop] = board(1.5, 1.05), paper = C3('#fff6e6'), pin = C3('#e8513a');
+    [[-0.45, 1.3, 0.08], [0.05, 1.42, -0.06], [0.48, 1.25, 0.1]].forEach(([x, y, r]) => { rb.push(box(0.4, 0.48, 0.02, x, y, 0.07, paper, r)); rb.push(box(0.07, 0.07, 0.05, x, y + 0.18, 0.09, pin)); });
+    add(rb, B.req);
+    const owl = speciesOf('owl'); boards.hootSp = { ...owl, id: 'hoot', main: '#c8a878', belly: '#f2e6cc', scale: 0.62, perch: 0 };
+    const hp = buildCritter(boards.hootSp, mats); hp.phase = 0; W.scene.add(hp.group);
+    boards.hoot = { parts: hp, x: B.req[0], z: B.req[1], y: L.terrainH(cfg, B.req[0], B.req[1]) + rTop, yaw: B.req[2], blink: 0, blinkT: 2 };
+    // the friends board: one photo sheet (an atlas canvas) under the roof
+    const [fb, fTop] = board(2.6, 1.7); add(fb, B.friends); void fTop;
+    const P = cfg.world.boardPhotos; boards.cv = document.createElement('canvas'); boards.cv.width = P.cols * P.cellW; boards.cv.height = P.rows * P.cellH;
+    const g = boards.cv.getContext('2d'); g.fillStyle = '#c9a77a'; g.fillRect(0, 0, boards.cv.width, boards.cv.height);
+    boards.tex = new THREE.CanvasTexture(boards.cv); boards.tex.colorSpace = THREE.SRGBColorSpace;
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(2.45, 1.55), new THREE.MeshBasicMaterial({ map: boards.tex, color: 0xe8e8e8 }));
+    const fy = L.terrainH(cfg, B.friends[0], B.friends[1]) + 0.7 + 0.85, fr = B.friends[2];
+    sheet.position.set(B.friends[0] + Math.sin(fr) * 0.07, fy, B.friends[1] + Math.cos(fr) * 0.07); sheet.rotation.y = fr; W.scene.add(sheet);
+  });
+  /** Pins one more friend's photo on the cabin board (one per call, so loading a big book never stalls a frame). */
+  function pinNext() {
+    if (!boards.cv) return; const P = cfg.world.boardPhotos;
+    const id = cfg.species.map((q2) => q2.id).find((k) => (S.slots[k] & 1) && !boards.drawn.has(k)); if (!id || boards.drawn.size >= P.cols * P.rows) return;
+    const i = boards.drawn.size, cx = (i % P.cols) * P.cellW, cy = Math.floor(i / P.cols) * P.cellH, g = boards.cv.getContext('2d'), src = (photoOf.get(id) || {}).cv || portrait(id, true);
+    g.save(); g.translate(cx + P.cellW / 2, cy + P.cellH / 2); g.rotate(((i * 37) % 9 - 4) * 0.012);
+    g.fillStyle = 'rgba(40,24,10,.25)'; g.fillRect(-P.cellW * 0.4 + 3, -P.cellH * 0.42 + 4, P.cellW * 0.8, P.cellH * 0.84);
+    g.fillStyle = '#fffaf0'; g.fillRect(-P.cellW * 0.4, -P.cellH * 0.42, P.cellW * 0.8, P.cellH * 0.84);
+    g.drawImage(src, -P.cellW * 0.34, -P.cellH * 0.37, P.cellW * 0.68, P.cellH * 0.62);
+    g.fillStyle = '#e8513a'; g.beginPath(); g.arc(0, -P.cellH * 0.39, 5, 0, 7); g.fill(); g.restore();
+    boards.drawn.add(id); boards.tex.needsUpdate = true;
+  }
+  /** Hoot: blinks, turns to Pip when close, hops twice when a request is done. */
+  function updateHoot(dt, t) {
+    const h = boards.hoot; if (!h) return;
+    h.blinkT -= dt; if (h.blinkT <= 0) { h.blink = 0.15; h.blinkT = 2 + Math.random() * 3; } h.blink = Math.max(0, h.blink - dt);
+    const d = Math.hypot(hero.x - h.x, hero.z - h.z); if (d < 14) h.yaw += angleDiff(Math.atan2(hero.x - h.x, hero.z - h.z), h.yaw) * Math.min(1, dt * 3);
+    boards.hop = Math.max(0, boards.hop - dt * 1.4); const k = 1 - boards.hop, up = boards.hop > 0 ? Math.abs(Math.sin(k * Math.PI * 2)) * 0.4 : 0;
+    h.parts.group.position.set(h.x, h.y + up, h.z); h.parts.group.rotation.y = h.yaw;
+    animateCritter(h.parts, boards.hootSp, { t, walk: up > 0.05 ? 1 : 0, pose: null, p: 0, blink: h.blink > 0 ? 1 : 0, look: 0, hide: 0 });
+  }
   // tier 0 has no shadow map: soft blob shadows ground Pip and the animals instead (one instanced quad, built after
   // the first frame)
   let blobs = null;
@@ -304,6 +353,11 @@ export function run(mode = 'play') {
     return { pos: b.pos(b.t), look: b.look(b.t), fov: b.fov || 40, k: b.k, clear: !!b.clear };
   }
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  /** Where an animal sounds from: [pan -1..1 by the camera's left and right, level by distance from the hero]. */
+  function earOf(a) {
+    const m = W.camera.matrixWorld.elements, cp = W.camera.position, dx = a.x - cp.x, dz = a.z - cp.z, d = Math.hypot(dx, dz) || 1;
+    const au = cfg.audio || {}; return [(dx * m[0] + dz * m[2]) / d * (au.panWidth || 0.8), Math.max(au.farVol || 0.3, Math.min(1, 1 - Math.hypot(a.x - hero.x, a.z - hero.z) / (au.farM || 16)))];
+  }
   const beatAt = (a, opts = {}) => ({ pri: opts.pri || 2, dur: opts.dur || 1.6, bars: true, slow: !!opts.slow, sting: opts.sting, fov: 40,
     pos: () => { const dx = hero.x - a.x, dz = hero.z - a.z, d = Math.hypot(dx, dz) || 1, r = 3 + a.parts.radius * 6; return V3(a.x + dx / d * r + 1.4, a.y + 1.2 + a.parts.height * 0.8, a.z + dz / d * r); },
     look: () => V3(a.x, a.y + a.parts.centerY, a.z) });
@@ -536,7 +590,8 @@ export function run(mode = 'play') {
     let res, cv, stars = 1, shot = null;
     if (a) {
       shot = shotOf(a); stars = shot.stars;
-      cv = W.capture(shot.from, shot.at, cardFov(shot.fov));
+      { const f = cardFov(shot.fov), d = shot.from.distanceTo(shot.at) || 1, fr = (a.parts.radius * 1.4) / (d * Math.tan(f * Math.PI / 360));
+        cv = W.capture(shot.from, shot.at, f, null, { p: V3(a.x, a.y + a.parts.centerY, a.z), k: Math.max(0.3, Math.min(0.85, fr)) }); }
       res = L.applyPhoto(cfg, S, { id: a.id, stars, inPose: shot.inPose, night: shot.night, area: L.areaAt(cfg, hero.x, hero.z), others: shot.others, now: Date.now() });
       const best = photoOf.get(a.id); if (!best || best.stars <= stars) photoOf.set(a.id, { cv, stars });
       // the animal reacts: hearts and its call
@@ -545,7 +600,7 @@ export function run(mode = 'play') {
       fx.ring(a.x, a.y + 0.05, a.z, 1.6 + a.parts.radius, '#fff1c4', 0.55);
       if (stars >= 3) setTimeout(() => alive && fx.ring(a.x, a.y + 0.05, a.z, 3.2 + a.parts.radius, '#ffe48a', 0.7), 120);
       fx.emit({ pool: 'glow', x: a.x, y: a.y + a.parts.height * 0.6, z: a.z, spread: a.parts.radius + 0.4, speed: 2.2, up: 1.2, life: 0.9, size: 0.16, color: '#fff6d8', shape: 'star', grav: -1.5, drag: 2.5 }, 4 + stars * 3);
-      Sound.voice(a.sp); a.voiceT = 4;
+      Sound.voice(a.sp, ...earOf(a)); a.voiceT = 4;
       ftueDid('walk'); ftueDid('snap'); if (shot.inPose) ftueDid('pose');
     } else {
       const fwd = V3(hero.x + Math.sin(hero.yaw) * 8, hero.y + 1.6, hero.z + Math.cos(hero.yaw) * 8);
@@ -592,6 +647,7 @@ export function run(mode = 'play') {
     if (res.page >= 0) setTimeout(() => { toast(T('page'), T('a_' + cfg.areas[res.page].id), 'page'); Sound.sting('page'); confetti(root.clientWidth / 2, root.clientHeight * 0.3); }, flyAt + 200);
     // the whole book done: tease the next chapter (after the page toast, from the queue)
     if (res.page >= 0 && S.pages.length >= cfg.areas.length) setTimeout(() => { toast(T('ch2') + ' · ' + T('soon'), T('ch2Sub')); }, flyAt + 400);
+    if (res.requests.length) { boards.hop = 1; if (boards.hoot) setTimeout(() => alive && Sound.voice(boards.hootSp, ...earOf(boards.hoot)), 300); }
     if (res.requests.length) setTimeout(() => tick(`${ICON.star.replace('<svg', '<svg width="40" height="40"')} ✓ +${cfg.economy.request}`), flyAt + 400);
     if (res.opened >= 0) setTimeout(() => openArea(res.opened), flyAt + 600);
   }
@@ -696,7 +752,7 @@ export function run(mode = 'play') {
         if (p >= 1) { a.pose = null; a.poseEnd = clockT; a.landed = false; const want = !a.rare && (((S.slots[a.id] | 0) & 6) !== 6), pe = want && dh < L.lens(cfg, S).range ? cfg.photo.poseEveryNearS : cfg.photo.poseEveryS; a.nextPose = pe[0] + R() * (pe[1] - pe[0]); } // poses come sooner while someone waits for one
       }
       // voices now and then, blinks
-      a.voiceT -= dt; if (a.voiceT <= 0 && dh < 12 && play) { a.voiceT = 6 + R() * 8; Sound.voice(sp); }
+      a.voiceT -= dt; if (a.voiceT <= 0 && dh < 12 && play) { a.voiceT = 6 + R() * 8; Sound.voice(sp, ...earOf(a)); }
       a.blinkT -= dt; if (a.blinkT <= 0) { a.blink = 0.12; a.blinkT = 2.5 + R() * 3; } a.blink = Math.max(0, a.blink - dt);
       // place and animate
       a.y = sp.type === 'whale' ? 0 : L.terrainH(cfg, a.x, a.z) + a.perch;
@@ -919,7 +975,7 @@ export function run(mode = 'play') {
     // viewfinder
     const a = nearest(L.lens(cfg, S).range);
     const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen && !look.drag ? 1 : 0; // a look swipe lowers the lens; it comes back up when the swipe ends
-    vf += (wantVf - vf) * Math.min(1, rdt / cfg.camera.vfEase * 2.2); if (vf < 0.01) vf = 0;
+    vf += (wantVf - vf) * Math.min(1, rdt / cfg.camera.vfEase * 2.2); if (vf < 0.01) vf = 0; Sound.lensDuck(vf, (cfg.audio || {}).lensMusic);
     if (a) { aimA = a; aim = V3(a.x, a.y + a.parts.centerY, a.z); vfFov = fovFor(a, Math.hypot(a.x - hero.x, a.z - hero.z)); } else if (vf === 0) { aimA = null; aim = null; }
     // treat moments: a shy animal close by pulls the camera in so both read at a glance
     const shy = vf < 0.05 && !bookOpen ? shyNear() : null;
@@ -934,6 +990,7 @@ export function run(mode = 'play') {
     const rare = animals.find((q) => q.rare);
     // never in the opening seconds or the tutorial: the player first gets the hero and the valley, then the rare, facing them
     if (rare && !sawRare && play && loaded && !ftueOn() && realT > cfg.feel.rareBeatAfterS && rare.parts.group.visible && Math.hypot(rare.x - hero.x, rare.z - hero.z) < 20 && S.rareDay !== S.day) { sawRare = true; rare.yaw = Math.atan2(hero.x - rare.x, hero.z - rare.z); rare.state = 'idle'; rare.stT = Math.max(rare.stT || 0, 2); beat(beatAt(rare, { pri: 4, dur: 1.6, sting: 'rare' })); Sound.shimmer(); }
+    updateHoot(rdt, t); if ((frameN = (frameN || 0) + 1) % 12 === 0) pinNext();
     // chimney smoke and world details
     if (Math.hypot(W.chimney.x - hero.x, W.chimney.z - hero.z) < 45 && R() < 0.12) fx.emit({ pool: 'soft', x: W.chimney.x, y: W.chimney.y, z: W.chimney.z, spread: 0.2, speed: 0.2, up: 0.9, life: 3, size: 0.8, color: '#e6ecf4', alpha: 0.55, grav: 0.1, drag: 0.6, grow: 2 }, 1);
     fx.update(dt);
@@ -979,6 +1036,7 @@ export function run(mode = 'play') {
     frames() { const n = Math.min(ftN, ftRing.length), a = Array.from(ftRing.slice(0, n)).sort((p, q) => p - q), at = (k) => Math.round(a[Math.min(n - 1, Math.floor(n * k))] * 10) / 10; const js = Array.from(jsRing.slice(0, n)).sort((p, q) => p - q); return { n, p50: at(0.5), p95: at(0.95), max: at(1), js50: Math.round(js[Math.floor(n / 2)] * 10) / 10, fps: Math.round(fpsV), tier: quality.tier, start: tier0, changes: tierLog.slice() }; },
     tp(x, z) { hero.x = x; hero.z = z; hero.vx = hero.vz = 0; input.target = null; W.snapCamera(hero); },
     walkTo(x, z) { input.target = [x, z]; },
+    get boards() { return boards; },
     buy(id) { if (!L.buy(cfg, S, id)) return false; applyLook(); hud(); return true; }, night: () => W.night, get card() { return !$('card').hidden; },
     clock(s) { S.clock = s; }, give(n) { S.flakes += n; },
     stamp(ids) { for (const id of ids) L.applyPhoto(cfg, S, { id, stars: 3, inPose: true }); },

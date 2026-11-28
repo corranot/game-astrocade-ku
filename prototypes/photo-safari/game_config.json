@@ -1,10 +1,11 @@
 {
   "seed": 20261127,
   "save": { "version": 1, "everyS": 8 },
+  "audio": { "panWidth": 0.8, "farVol": 0.3, "farM": 16, "lensMusic": 0.3 },
   "controls": { "walkZone": { "w": 0.5, "h": 0.5 } },
   "hero": { "speed": 5.2, "radius": 0.5, "tapMaxPx": 12, "tapMaxMs": 220, "stickMaxPx": 70, "ftueWalkM": 2 },
   "camera": { "fov": 56, "dist": 9, "height": 7, "lookAhead": -3.2, "lookUp": 0.6, "follow": 6, "vfDist": 0.6, "vfHeight": 1.5, "vfFov": 40, "vfEase": 0.35, "seeThroughM": 3.2, "heroHideM": 2.4, "gateInM": 9, "focusH": 0.5, "focusD": 0.62, "look": { "radPerPx": 0.006, "elUp": 0.62, "elDown": 0.5, "ease": 12, "hintAfterS": 4, "hintMaxS": 8 }, "minDistM": 3.4, "liftMax": 0.45 },
-  "photo": { "range": 9, "rangeZoom2": 14, "rangeZoom3": 19, "fovZoom2": 26, "fovZoom3": 18, "aimCover": 0.6, "frameR": 1.7, "printContrast": 1.18, "printSat": 1.4, "printVignette": 0.35, "maxFov": 72, "personalM": 4.5, "minCover": 0.2, "maxCover": 0.8, "poseWindowS": 2.0, "poseWindowSlowS": 3.0, "poseCueS": 0.8, "poseEveryS": [7, 12], "poseEveryNearS": [4, 7], "poseGraceS": 0.5, "fullPenaltyM": 8, "nightCapNoFlash": 2, "sceneryPerMin": 3, "developS": 0.8, "w": 256, "h": 320 },
+  "photo": { "range": 9, "rangeZoom2": 14, "rangeZoom3": 19, "fovZoom2": 26, "fovZoom3": 18, "aimCover": 0.6, "frameR": 1.7, "printContrast": 1.18, "printSat": 1.4, "printVignette": 0.35, "depth": { "blurPx": 3, "featherK": 0.35, "glowPx": 6, "glowBright": 1.15, "glow": 0.22 }, "maxFov": 72, "personalM": 4.5, "minCover": 0.2, "maxCover": 0.8, "poseWindowS": 2.0, "poseWindowSlowS": 3.0, "poseCueS": 0.8, "poseEveryS": [7, 12], "poseEveryNearS": [4, 7], "poseGraceS": 0.5, "fullPenaltyM": 8, "nightCapNoFlash": 2, "sceneryPerMin": 3, "developS": 0.8, "w": 256, "h": 320 },
   "feel": { "rareBeatAfterS": 4, "logoS": 2.5, "buzz": { "snap": 12, "friend": [18, 40, 18], "big": [30, 50, 60] } },
   "economy": {
     "photo": [0, 5, 12, 25], "firstSlotMul": 2, "rareMul": 5, "repeatK": 0.4, "halfPage": 50, "page": 150, "request": 60, "mail": 150, "scenery": 2,
@@ -37,7 +38,7 @@
   "clock": { "dayS": 360, "phases": [["day", 210], ["dusk", 40], ["night", 90], ["dawn", 20]], "startS": 10, "skipRate": 90 },
   "daily": { "requests": 3, "rareCount": 4 },
   "beats": { "cooldownS": 8, "slowMo": 0.3, "clearFog": 0.65 },
-  "world": { "cover": 300, "shrubs": 68, "streamW": 1.4,
+  "world": { "boards": { "req": [-6.5, -5, 0.45], "friends": [-14.5, 15.5, 1.2] }, "boardPhotos": { "cols": 4, "rows": 3, "cellW": 96, "cellH": 112 }, "cover": 300, "shrubs": 68, "streamW": 1.4,
     "startShrubs": [[2.1, 1.8, 0.6], [3.2, -5.5, 0.95]], "startLogs": [[2.8, -11.5, 0.25]],
     "shrubAt": [[-27, -2, 1.1], [-22, 9, 0.9], [25, -2, 1.0], [30, -12, 0.9], [22, -14, 0.8], [23, -104, 1.0], [30, -95, 0.9], [27.5, -104, 1.0], [30.5, -100.5, 0.8]],
     "logs": [[-23, 0, 0.8], [-31, 12, 2.0], [23, -5, 0.3], [31, -15, 1.2], [21, -92, 0.6], [29, -106, 1.9], [25.5, -108, 0.2], [-26, -80, 1.1], [-23, 18, 0.4], [21, 17, 2.6], [-28, -14, 1.5], [27, 6, 0.9], [-24, -96, 2.2], [24, -70, 0.7]],
