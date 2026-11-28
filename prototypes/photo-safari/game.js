@@ -550,6 +550,8 @@ export function run(mode = 'play') {
     for (const a of animals) {
       if (!a.present || a.hide > 0.5 || !a.parts.group.visible) continue;
       const d = Math.hypot(a.x - hero.x, a.z - hero.z); if (d >= range) continue;
+      // never aim through a hill or a rock: the lens would fill with snow
+      if (!W.seeLine(hero.x, hero.y + cfg.camera.vfHeight, hero.z, a.x, Math.max(a.y + a.parts.centerY, L.terrainH(cfg, a.x, a.z) + 0.6), a.z)) continue;
       // an animal that still has an empty slot wins over a nearer one whose page is already full
       const full = a.rare ? !!S.rare[a.id] : ((S.slots[a.id] | 0) & 7) === 7, k = d + (full ? cfg.photo.fullPenaltyM : 0);
       if (k < bd) { bd = k; best = a; }
@@ -923,7 +925,7 @@ export function run(mode = 'play') {
     if (on) {
       if (ftue === 'walk') { const f = ftueTarget(); tgt = world(hero.x, hero.y + 1, hero.z, 150);
         // the cutout holds both the hero and the first animal, so the opening shows who to walk to
-        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
+        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range)) ftueDid('walk'); } // any friend in range will do: the rare visitor can stand nearer than the fox
       else if (ftue === 'snap') { if (vf > 0.4) { tgt = elC('shutter'); hint = T('snap'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); handOn = true; } else if (hero.speed >= 0.6 && nearest(L.lens(cfg, S).range)) { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('still'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); } // in range but still walking: aiming needs a stop
       else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; } }
       else if (ftue === 'book') { if (S.photos >= 1 && $('card').hidden) { tgt = elC('bookB'); hint = T('book'); icon = ICON.book; handOn = true; } }
