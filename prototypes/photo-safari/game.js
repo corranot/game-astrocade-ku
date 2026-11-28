@@ -465,7 +465,7 @@ export function run(mode = 'play') {
   $('bookB').addEventListener('click', () => { Sound.unlock(); if (bookOpen) closeBook(); else { openBook(); if (ftueT >= 0 && S.photos <= 2) bookAutoClose = 3; } });
   $('book').querySelector('.close').addEventListener('click', () => { Sound.pop(); closeBook(); });
   $('book').addEventListener('pointerdown', (e) => { bookAutoClose = 0; if (e.target === $('book')) closeBook(); });
-  const turnPage = () => { for (const p of root.querySelectorAll('.pane')) if (!p.hidden) { p.classList.remove('turn'); void p.offsetWidth; p.classList.add('turn'); } };
+  let turnT = 0; const turnPage = () => { clearTimeout(turnT); for (const p of root.querySelectorAll('.pane')) if (!p.hidden) { p.classList.remove('turn'); void p.offsetWidth; p.classList.add('turn'); } turnT = setTimeout(() => { for (const p of root.querySelectorAll('.pane.turn')) p.classList.remove('turn'); }, 700); }; // the cards pop in once; a later rebuild of the page must not pop them again
   for (const b of tabs) b.addEventListener('click', () => { bookTab = b.dataset.t; Sound.pop(); buzz('tap'); buildBook(); turnPage(); });
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); soon(); });
 
@@ -755,7 +755,9 @@ export function run(mode = 'play') {
     updateFlock(dt, t); pairPlay(dt);
     // the lake ice: a crack runs with a creak now and then while Pip is on or near the lake
     amb.crackT = (amb.crackT == null ? span(LF.crackEveryS) : amb.crackT) - dt;
-    if (amb.crackT <= 0) { amb.crackT = span(LF.crackEveryS); const lk = cfg.areas[1].lake, d = Math.hypot(hero.x - lk[0], hero.z - lk[1]); if (d < lk[2] + 10) { const a = CR() * 6.28, r = CR() * lk[2] * 0.8; W.iceCrack(lk[0] + Math.cos(a) * r, lk[1] + Math.sin(a) * r); if (play) Sound.amb('creak', Math.max(-0.8, Math.min(0.8, (lk[0] - hero.x) / 15))); } }
+    if (amb.crackT <= 0) { amb.crackT = span(LF.crackEveryS); const lk = cfg.areas[1].lake, d = Math.hypot(hero.x - lk[0], hero.z - lk[1]); if (d < lk[2] + 10) { const fw = W.camera.getWorldDirection(fwd).setY(0).normalize(), ah = LF.crackAheadM[0] + CR() * (LF.crackAheadM[1] - LF.crackAheadM[0]); // crack where the player is looking, on the ice
+        let cx = hero.x + fw.x * ah + (CR() - 0.5) * 2, cz = hero.z + fw.z * ah + (CR() - 0.5) * 2; const cd = Math.hypot(cx - lk[0], cz - lk[1]), cm = lk[2] * 0.8; if (cd > cm) { cx = lk[0] + (cx - lk[0]) * cm / cd; cz = lk[1] + (cz - lk[1]) * cm / cd; }
+        W.iceCrack(cx, cz); fx.emit({ pool: 'glow', x: cx, y: L.terrainH(cfg, cx, cz) + 0.15, z: cz, spread: 0.6, speed: 2.2, up: 1.6, life: 0.8, size: 0.14, color: '#d8f4ff', shape: 'flake', grav: -5, drag: 1.5 }, 10); shake(0.08, 0.02); if (play) Sound.amb('creak', Math.max(-0.8, Math.min(0.8, (lk[0] - hero.x) / 15))); } }
   }
 
   // now and then two idle neighbours face each other and bounce in place: play that never moves them, so pose and

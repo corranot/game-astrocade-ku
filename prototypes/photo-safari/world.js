@@ -114,7 +114,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   iceMat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = uTime; sh.uniforms.uCrack = crackU;
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uTime; uniform vec3 uCrack;\nfloat ih(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 15731.7); }')
-      .replace('#include <color_fragment>', '#include <color_fragment>\n{ vec2 q = vUvI * 22.0; vec2 f = fract(q) - 0.5; float cr = smoothstep(0.03, 0.0, abs(f.x + (ih(floor(q)) - 0.5) * 0.4)) + smoothstep(0.03, 0.0, abs(f.y)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.97, 1.0), clamp(cr, 0.0, 1.0) * 0.35); float r = length(vUvI - 0.5); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.45, 0.68, 0.86), smoothstep(0.2, 0.5, r) * 0.0 + smoothstep(0.3, 0.0, r) * 0.25); for (int k = 0; k < ' + fishN + '; k++) { float fk = float(k), dir = mod(fk, 2.0) * 2.0 - 1.0, a = uTime * (0.1 + fk * 0.025) * dir + fk * 1.7, rr = 0.13 + 0.07 * fk; vec2 c = 0.5 + rr * vec2(cos(a), sin(a)), tg = vec2(-sin(a), cos(a)) * dir, d = vUvI - c; float al = dot(d, tg), sd = dot(d, vec2(-tg.y, tg.x)); float body = smoothstep(1.0, 0.4, length(vec2(al / 0.068, sd / 0.024))), tail = smoothstep(1.0, 0.3, length(vec2((al + 0.076) / 0.02, sd / 0.021))); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.14, 0.28, 0.4), clamp(body + tail * 0.8, 0.0, 1.0) * 0.7); } float ck = exp(-max(0.0, uTime - uCrack.z - 1.5) * 0.5) * step(uCrack.z, uTime), cd = length(vUvI - uCrack.xy), cw = smoothstep(0.075, 0.015, abs(f.x + (ih(floor(q)) - 0.5) * 0.4)) + smoothstep(0.075, 0.015, abs(f.y)), cm = clamp(cw, 0.0, 1.0) * ck * smoothstep(cd - 0.01, cd + 0.01, (uTime - uCrack.z) * 0.35) * smoothstep(0.22, 0.04, cd); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.08, 0.26, 0.44), cm * 0.85); }');
+      .replace('#include <color_fragment>', '#include <color_fragment>\n{ vec2 q = vUvI * 22.0; vec2 f = fract(q) - 0.5; float cr = smoothstep(0.03, 0.0, abs(f.x + (ih(floor(q)) - 0.5) * 0.4)) + smoothstep(0.03, 0.0, abs(f.y)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.97, 1.0), clamp(cr, 0.0, 1.0) * 0.35); float r = length(vUvI - 0.5); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.45, 0.68, 0.86), smoothstep(0.2, 0.5, r) * 0.0 + smoothstep(0.3, 0.0, r) * 0.25); for (int k = 0; k < ' + fishN + '; k++) { float fk = float(k), dir = mod(fk, 2.0) * 2.0 - 1.0, a = uTime * (0.1 + fk * 0.025) * dir + fk * 1.7, rr = 0.13 + 0.07 * fk; vec2 c = 0.5 + rr * vec2(cos(a), sin(a)), tg = vec2(-sin(a), cos(a)) * dir, d = vUvI - c; float al = dot(d, tg), sd = dot(d, vec2(-tg.y, tg.x)); float body = smoothstep(1.0, 0.4, length(vec2(al / 0.068, sd / 0.024))), tail = smoothstep(1.0, 0.3, length(vec2((al + 0.076) / 0.02, sd / 0.021))); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.14, 0.28, 0.4), clamp(body + tail * 0.8, 0.0, 1.0) * 0.7); } float ck = exp(-max(0.0, uTime - uCrack.z - 1.5) * 0.5) * step(uCrack.z, uTime), cd = length(vUvI - uCrack.xy), cw = smoothstep(0.1, 0.03, abs(f.x + (ih(floor(q)) - 0.5) * 0.4)) + smoothstep(0.1, 0.03, abs(f.y)), cm = clamp(cw, 0.0, 1.0) * ck * smoothstep(cd - 0.01, cd + 0.01, (uTime - uCrack.z) * 0.45) * smoothstep(0.17, 0.03, cd); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.2, 0.38), cm * 0.92); }');
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vUvI;').replace('#include <uv_vertex>', '#include <uv_vertex>\nvUvI = uv;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vUvI;');
   };
@@ -182,6 +182,15 @@ export function createWorld(canvas, cfg, opts = {}) {
   const rockS = []; // [x, z, size] per rock, for the camera's line of sight
   const rockM = []; for (let i = 0; i < 400 && rockM.length < 70; i++) { const x = (R() - 0.5) * 120, z = 60 - R() * 290; let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z)); if (d < -4 || d > 6 || !clearOf(x, z, 3)) continue; const s = 0.6 + R() * 1.6; rockM.push(M4(x, L.terrainH(cfg, x, z) + s * 0.15, z, s, s, s, 0, R() * 6)); rockS.push([x, z, s]); }
   const rocks = new THREE.InstancedMesh(rockGeo, keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })), rockM.length); rockM.forEach((m, i) => rocks.setMatrixAt(i, m)); rocks.castShadow = true; rocks.receiveShadow = true; scene.add(rocks);
+  // a prop right in front of the lens (low look angles, a lamp post under the camera) dithers away instead of filling
+  // the frame with a dark shape
+  const nearFade = (mat) => { mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vNear;').replace('#include <project_vertex>', '#include <project_vertex>\n vNear = -mvPosition.z;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vNear;').replace('void main() {', `void main() {
+ { vec2 q = mod(floor(gl_FragCoord.xy), 4.0); float bay = (mod(q.x + q.y * 2.0, 4.0) * 4.0 + mod(q.x * 3.0 + q.y, 4.0)) / 16.0;
+   if (1.0 - smoothstep(${cfg.camera.nearFadeM[0].toFixed(2)}, ${cfg.camera.nearFadeM[1].toFixed(2)}, vNear) > bay + 0.03) discard; }`);
+  }; };
+  nearFade(rocks.material);
 
   // ground cover, fences and tracks: same material as the rocks (no new shader), built after the first frame
   const buildGround = () => {
@@ -234,7 +243,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   };
 
   // ---- props
-  const propMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }));
+  const propMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })); nearFade(propMat);
   const glowMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, emissive: 0xffffff, emissiveIntensity: 1 }));
   glowMat.onBeforeCompile = (sh) => { sh.uniforms.uGlowK = { value: 1 }; glowMat.userData.sh = sh; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uGlowK;').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance = vColor.rgb * uGlowK * 3.0;'); };
   const props = [], glows = [];
@@ -311,13 +320,13 @@ export function createWorld(canvas, cfg, opts = {}) {
   place(cabin, -19, 21, 0.35, cabinGlow);
   const chimney = new THREE.Vector3(-19 + 1.2 * Math.cos(0.35) - 0.6 * Math.sin(0.35), L.terrainH(cfg, -19, 21) + 4.7, 21 - 1.2 * Math.sin(0.35) - 0.6 * Math.cos(0.35));
   // lanterns along the path
-  const lanterns = [];
+  const lanterns = [], lampMeshes = []; // [post, bulb] per lantern: hidden while the camera stands right at one
   for (let z = 16; z > -186; z -= 13) {
     const x = Math.sin(z * 0.045) * 3 + (Math.round(z / 13) % 2 ? 2.4 : -2.4);
     if (!L.walkable(cfg, 3, x, z) || cfg.gates.some((g) => Math.abs(g.z - z) < 6)) continue;
-    place([{ g: new THREE.CylinderGeometry(0.06, 0.08, 1.8, 6), m: M4(0, 0.9, 0), col: C('#3a2c22') }, { g: new THREE.ConeGeometry(0.28, 0.25, 6), m: M4(0, 2.05, 0), col: C('#3a2c22') }], x, z, 0,
+    const lm = place([{ g: new THREE.CylinderGeometry(0.06, 0.08, 1.8, 6), m: M4(0, 0.9, 0), col: C('#3a2c22') }, { g: new THREE.ConeGeometry(0.28, 0.25, 6), m: M4(0, 2.05, 0), col: C('#3a2c22') }], x, z, 0,
       [{ g: sph(10), m: M4(0, 1.82, 0, 0.17, 0.2, 0.17), col: C('#ffb347') }]);
-    lanterns.push([x, z]);
+    lanterns.push([x, z]); lampMeshes.push([lm, glows[glows.length - 1]]);
   }
   // stumps and branches the birds sit on, mounds the shy ones hide in
   const perch = {};
@@ -490,6 +499,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     // keep the camera above the ground
     const gy = L.terrainH(cfg, camPos.x, camPos.z) + 1.2; if (camPos.y < gy) camPos.y = gy;
     camera.position.copy(camPos);
+    for (const [m, g] of lampMeshes) { const near = Math.hypot(m.position.x - camPos.x, m.position.y + 1.9 - camPos.y, m.position.z - camPos.z) < cfg.camera.lampHideM; m.visible = !near; if (g) g.visible = !near; }
     if (shake.t > 0) { shake.t -= dt; const s = shake.a * Math.max(0, shake.t) * 4; camera.position.x += Math.sin(shake.t * 61) * s; camera.position.y += Math.sin(shake.t * 47 + 1) * s; }
     camera.lookAt(camLook);
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
