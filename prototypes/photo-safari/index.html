@@ -212,6 +212,16 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes bump{40%{transform:scale(1.15)}}
 @keyframes pulse{50%{transform:scale(1.08)}}
 @keyframes popIn{from{transform:scale(.3)}}
+/* life in the HUD: buttons squash under the thumb, the shutter breathes, book pages slide in with their cards */
+.rnd,.pill,.treat,.tabs button,.it button{transition:scale .12s ease-out}
+.rnd:active,.treat:active,.tabs button:active,.it button:active{scale:.9}
+.shutter:not(.ready):not(.bump){animation:breathe 3.2s ease-in-out infinite}
+@keyframes breathe{50%{scale:1.035}}
+.pane.turn{animation:paneIn .28s cubic-bezier(.2,1,.4,1)}
+@keyframes paneIn{from{opacity:0;translate:calc(var(--u)*48px) 0}}
+.pane.turn .grid>*,.pane.turn .items>*{animation:popIn .32s cubic-bezier(.2,1.6,.4,1) backwards}
+.pane.turn .grid>:nth-child(2),.pane.turn .items>:nth-child(2){animation-delay:.03s}.pane.turn .grid>:nth-child(3),.pane.turn .items>:nth-child(3){animation-delay:.06s}
+.pane.turn .grid>:nth-child(4),.pane.turn .items>:nth-child(4){animation-delay:.09s}.pane.turn .grid>:nth-child(n+5),.pane.turn .items>:nth-child(n+5){animation-delay:.12s}
 @keyframes ban{from{transform:translateY(calc(var(--u)*-50px)) scale(.6);opacity:0}}
 @keyframes shake{0%,100%{rotate:0deg}20%{rotate:-4deg}40%{rotate:3deg}60%{rotate:-2deg}80%{rotate:1deg}}
 @keyframes flash{0%{opacity:.12}100%{opacity:0}}
@@ -225,7 +235,7 @@ body{display:flex;align-items:center;justify-content:center}
 .sheet.fit{height:auto;max-height:84%;padding-bottom:calc(var(--sb) + var(--u)*32px)}
 /* landscape screens: the book stays a portrait-width sheet, so cards and buttons keep their proportions */
 @media (min-aspect-ratio:1/1){.sheet{max-width:calc(var(--u)*1000px)}}
-@media (prefers-reduced-motion: reduce){#app::before,.shutter.ready,.bookB.dot em,.treat.glow,.edge i,.hand,.toast,.tick,.coach,.bub,.sheet,.card.shake{animation:none}}
+@media (prefers-reduced-motion: reduce){#app::before,.shutter,.pane.turn,.pane.turn .grid>*,.pane.turn .items>*,.shutter.ready,.bookB.dot em,.treat.glow,.edge i,.hand,.toast,.tick,.coach,.bub,.sheet,.card.shake{animation:none}}
 </style>
 </head>
 <body>

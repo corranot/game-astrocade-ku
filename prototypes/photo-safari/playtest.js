@@ -279,6 +279,13 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
         for (const dy of [300, -300]) { const u3 = await drag(250, 420, 0, dy); await step(page, 30); if (await heroOnScreen(page) && await ev(page, () => __game.W.camera.position.distanceTo({ x: __game.hero.x, y: __game.hero.y + 1, z: __game.hero.z }) > 2.6)) ok++; await up2c(u3); }
         await ev(page, () => __game.animals.forEach((q) => { q.x = q.x0h; })); }
       check(ok === spots.length * 2, `at the valley edge and by a closed gate, high and low tilts keep the hero in view (${ok}/${spots.length * 2})`); }
+    // the treat close-up beside a hiding animal frames the pair without pushing the hero off a narrow screen
+    { await ev(page, () => { __game.tp(-6, -14); __game.W.snapCamera(__game.hero); }); await step(page, 150);
+      check(await heroOnScreen(page), 'the treat close-up by a hiding animal keeps the hero framed'); }
+    // life: gusts, a passing flock and small idles run without errors and leave the gameplay roll untouched
+    { const g = await ev(page, () => { const a = __game.amb; a.next = 0; a.flockT = 0; return 1; }); await step(page, 120);
+      const st = await ev(page, () => ({ g: __game.amb.g, flock: !!(__game.amb.flock && __game.amb.flock.on) }));
+      check(g && st.g > 0.2 && st.flock, `a wind gust blows and a flock passes (gust ${st.g.toFixed(2)}, flock ${st.flock})`); }
     check(errors.length === 0, `swipe-to-look: no page errors (${errors.slice(0, 3).join(' | ')})`);
     await page.close();
   }

@@ -54,7 +54,7 @@ export const Sound = {
   update(night, area = 0) {
     if (!this.ok) return;
     const c = this.ctx; this.nightK += (night - this.nightK) * 0.02; this.area = area;
-    this.wind.f.frequency.value = 420 + Math.sin(c.currentTime * 0.3) * 160; this.wind.g.gain.value = 0.25 + Math.sin(c.currentTime * 0.17) * 0.12 + this.nightK * 0.1;
+    this.wind.f.frequency.value = 420 + Math.sin(c.currentTime * 0.3) * 160; this.wind.g.gain.value = 0.25 + Math.sin(c.currentTime * 0.17) * 0.12 + this.nightK * 0.1 + (this.gk = (this.gk || 0) + ((this.gustUntil > c.currentTime ? 0.35 : 0) - (this.gk || 0)) * 0.04);
     const spb = 60 / 76 / 2; // eighth notes
     while (this.nextBeat < c.currentTime + 0.25) { this.musicBeat(this.nextBeat, this.beat++); this.nextBeat += spb; }
   },
@@ -108,6 +108,23 @@ export const Sound = {
     if (fam === 'bleat') this.tone(360 * r * s, t, 0.4, { type: 'sawtooth', g: 0.04, q: 1300, bus: 'vp' });
     if (fam === 'purr') for (let i = 0; i < 4; i++) this.tone(140 * r * s, t + i * 0.06, 0.07, { type: 'triangle', g: 0.07, bus: 'vp', q: 600 });
   },
+  /** A distant ambient one-shot through its own panner on the ambience bus: chirp (meadow), creak (lake ice), drip (caves), hoot (night). */
+  amb(kind, pan = 0) {
+    if (!this.ok) return; const c = this.ctx, t = c.currentTime, r = 0.9 + Math.random() * 0.2, g = c.createGain(); g.gain.value = 1; g.connect(this.bus.amb); let out = g;
+    if (c.createStereoPanner) { const pn = c.createStereoPanner(); pn.pan.value = Math.max(-1, Math.min(1, pan)); pn.connect(g); out = pn; }
+    this.bus.ap = out; setTimeout(() => { try { out.disconnect(); if (out !== g) g.disconnect(); } catch (e) { /* gone */ } }, 3000);
+    if (kind === 'chirp') { const n = 2 + Math.floor(Math.random() * 3); for (let i = 0; i < n; i++) this.tone(3000 * r + i * 120, t + i * 0.09, 0.07, { g: 0.09, slide: 1.25, bus: 'ap', verb: 0.3 }); }
+    if (kind === 'creak') { this.tone(70 * r, t, 1.1, { type: 'sawtooth', g: 0.12, q: 380, slide: 1.6, a: 0.25, bus: 'ap', verb: 0.6 }); this.hiss(t + 0.1, 0.6, { f: 900, to: 300, g: 0.05, Q: 4, bus: 'ap' }); }
+    if (kind === 'drip') { this.tone(1500 * r, t, 0.12, { g: 0.12, slide: 0.55, bus: 'ap', verb: 1 }); }
+    if (kind === 'hoot') { this.tone(400 * r, t, 0.35, { g: 0.07, a: 0.06, bus: 'ap', verb: 0.8 }); this.tone(360 * r, t + 0.42, 0.5, { g: 0.07, a: 0.06, bus: 'ap', verb: 0.8 }); }
+  },
+  /** A wind gust: the wind bed swells and a soft whoosh of snow passes by over d seconds. */
+  gust(d = 2.5) {
+    if (!this.ok) return; const t = this.ctx.currentTime; this.gustUntil = t + d;
+    this.hiss(t, d, { f: 500, to: 1400, g: 0.05, Q: 0.7, bus: 'amb' });
+  },
+  /** A soft UI tick for buttons and tabs. */
+  tick() { if (!this.ok) return; const t = this.ctx.currentTime; this.tone(1100, t, 0.05, { g: 0.06, bus: 'ui', type: 'triangle' }); },
   crack() { if (!this.ok) return; const t = this.ctx.currentTime; this.duck(1.2); for (let i = 0; i < 5; i++) this.hiss(t + i * 0.05, 0.12, { f: 3000 - i * 300, g: 0.25, Q: 3 }); this.tone(60, t, 1.2, { type: 'sine', g: 0.4, slide: 0.6 }); for (const k of [0, 4, 7, 12]) this.tone(midi(72 + k), t + 0.4, 1.8, { g: 0.06, verb: 0.8, bus: 'ui' }); },
   shimmer() { if (!this.ok) return; const t = this.ctx.currentTime; for (let i = 0; i < 8; i++) this.tone(midi(84 + PENTA[i % 5] + (i > 4 ? 12 : 0)), t + i * 0.06, 1.1, { g: 0.05, verb: 0.9, bus: 'ui' }); },
   /** Stings for key moments. */

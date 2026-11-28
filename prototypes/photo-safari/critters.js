@@ -199,7 +199,8 @@ export function buildCritter(sp, mats, look = sp) {
 
 /**
  * Per-frame animation of an animal. st = { t (s), walk (0..1 speed), pose (name or null), p (0..1 pose progress),
- * blink (0..1), look (yaw of the head, rad), hide (0..1 sunk into the snow) }.
+ * blink (0..1), look (yaw of the head, rad), hide (0..1 sunk into the snow), tilt (0..1 curious head tilt),
+ * idle (null or { k: 'sniff'|'shake'|'scan', p: 0..1 }: a small idle between poses) }.
  */
 export function animateCritter(a, sp, st) {
   const { t, walk = 0, p = 0 } = st, pose = st.pose;
@@ -215,6 +216,11 @@ export function animateCritter(a, sp, st) {
   if (a.tail) a.tail.rotation.set(Math.sin(t * 1.3) * 0.08, Math.sin(t * 3.1 + a.phase) * (0.25 + walk * 0.3), 0);
   a.eyes.scale.y = st.blink > 0 ? 0.12 : 1;
   a.mouth.visible = false;
+  if (st.tilt) h.rotation.z += st.tilt * 0.32 * (a.phase > 3 ? 1 : -1);
+  if (st.idle && !pose) { const q = st.idle.p, u = Math.sin(Math.PI * q);
+    if (st.idle.k === 'sniff') { h.rotation.x += 0.5 * u + Math.sin(q * 60) * 0.04 * u; b.scale.z *= 1 + 0.04 * u; }
+    else if (st.idle.k === 'shake') { inn.rotation.z = Math.sin(q * 45) * 0.22 * u; h.rotation.z += Math.sin(q * 45 + 1) * 0.3 * u; }
+    else if (st.idle.k === 'scan') h.rotation.y += Math.sin(q * Math.PI * 2) * 0.9; }
   const up = Math.sin(Math.PI * p);
   switch (pose) {
     case 'yawn': h.rotation.x = -0.55 * up; a.mouth.visible = p > 0.15 && p < 0.85; a.mouth.scale.setScalar(0.4 + up); b.scale.y *= 1 + 0.08 * up; a.eyes.scale.y = up > 0.4 ? 0.15 : 1; break;
@@ -301,13 +307,18 @@ export function buildHero(look, mats) {
 }
 
 /** Hero animation: walk cycle, breathing, the pom-pom on a spring, the camera raised as `vf` goes 0..1. */
-export function animateHero(H, t, dt, walk, vf) {
+export function animateHero(H, t, dt, walk, vf, look = 0, idle = null) {
   const sw = Math.sin(t * 10) * walk;
   H.inner.position.y = Math.abs(Math.sin(t * 10)) * 0.07 * walk + Math.sin(t * 2.2) * 0.01;
   H.legs[0].rotation.x = sw * 0.8; H.legs[1].rotation.x = -sw * 0.8;
   H.arms[0].rotation.set(-sw * 0.5 * (1 - vf) - vf * 1.3, 0, 0.1 - vf * 0.25); H.arms[1].rotation.set(sw * 0.5 * (1 - vf) - vf * 1.3, 0, -0.1 + vf * 0.25);
   H.cam.position.set(0, 0.98 + vf * 0.45, 0.42 + vf * 0.02);
-  H.head.rotation.x = -vf * 0.12;
+  H.head.rotation.x = -vf * 0.12; H.head.rotation.y = look * (1 - vf);
+  // idles while standing: rub the mitts, stamp the boots, peek at the camera screen
+  if (idle && walk < 0.05 && vf < 0.05) { const q = idle.p, u = Math.sin(Math.PI * q);
+    if (idle.k === 'warm') { const r = Math.sin(q * 40) * 0.15 * u; H.arms[0].rotation.set(-1.25 * u + r, 0, 0.1 - 0.55 * u); H.arms[1].rotation.set(-1.25 * u - r, 0, -0.1 + 0.55 * u); H.head.rotation.x += 0.15 * u; }
+    else if (idle.k === 'stamp') { const s = Math.sin(q * Math.PI * 4); H.legs[0].rotation.x = Math.max(0, s) * -0.5 * u; H.legs[1].rotation.x = Math.max(0, -s) * -0.5 * u; H.inner.position.y += Math.abs(s) * 0.03 * u; }
+    else if (idle.k === 'peek') { H.arms[0].rotation.x = -0.9 * u; H.arms[1].rotation.x = -0.9 * u; H.cam.position.y += 0.25 * u; H.head.rotation.x += 0.35 * u; } }
   H.lantern.rotation.z = sw * 0.35;
   // pom-pom spring
   const target = -H.inner.position.y * 3;

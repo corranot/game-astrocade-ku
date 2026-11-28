@@ -252,9 +252,11 @@ export function run(mode = 'play') {
   const ui = { flakes: -1, stamps: -1, bookDot: false };
   const pill = (id, v) => { const el = $(id + 'N'); if (el.textContent !== String(v)) { el.textContent = v; $(id).classList.remove('bump'); void $(id).offsetWidth; $(id).classList.add('bump'); } };
   const totalStamps = cfg.species.length * 3;
-  const hud = () => {
+  const hud = (dt = 1 / 60) => {
     const st = L.stamps(S);
-    if (Math.floor(S.flakes) !== ui.flakes) { ui.flakes = Math.floor(S.flakes); pill('flakes', ui.flakes); }
+    { const f = Math.floor(S.flakes); if (f !== ui.flakes) { // the counter rolls up to a gain and snaps on a spend or a load
+      if (ui.flakes < 0 || f < ui.flakes) ui.flakes = f; else { if (!ui.rolling) { ui.rolling = true; $('flakes').classList.remove('bump'); void $('flakes').offsetWidth; $('flakes').classList.add('bump'); } ui.flakes = Math.min(f, ui.flakes + Math.max(1, Math.ceil((f - ui.flakes) * Math.min(1, dt * 8)))); }
+      $('flakesN').textContent = ui.flakes; } else ui.rolling = false; }
     if (st !== ui.stamps) { ui.stamps = st; pill('stamps', `${st}/${totalStamps}`); }
   };
   const muteUI = () => $('mute').classList.toggle('off', Sound.muted);
@@ -463,7 +465,8 @@ export function run(mode = 'play') {
   $('bookB').addEventListener('click', () => { Sound.unlock(); if (bookOpen) closeBook(); else { openBook(); if (ftueT >= 0 && S.photos <= 2) bookAutoClose = 3; } });
   $('book').querySelector('.close').addEventListener('click', () => { Sound.pop(); closeBook(); });
   $('book').addEventListener('pointerdown', (e) => { bookAutoClose = 0; if (e.target === $('book')) closeBook(); });
-  for (const b of tabs) b.addEventListener('click', () => { bookTab = b.dataset.t; Sound.pop(); buildBook(); });
+  const turnPage = () => { for (const p of root.querySelectorAll('.pane')) if (!p.hidden) { p.classList.remove('turn'); void p.offsetWidth; p.classList.add('turn'); } };
+  for (const b of tabs) b.addEventListener('click', () => { bookTab = b.dataset.t; Sound.pop(); buzz('tap'); buildBook(); turnPage(); });
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); soon(); });
 
   // ---- input: the walk stick lives in the bottom-left zone (bottom-right in right-to-left languages); a drag anywhere
@@ -701,6 +704,55 @@ export function run(mode = 'play') {
 
   // ---- per-frame updates
   const bubs = []; for (let i = 0; i < 3; i++) { const b = document.createElement('div'); b.className = 'bub'; b.hidden = true; $('bubs').appendChild(b); bubs.push(b); }
+  // ---- life: wind gusts, snow puffs off the pines, a passing flock, distant sounds and idles. Cosmetic only, so it
+  // draws from its own random stream and never shifts the seeded gameplay rolls.
+  let cs = 9173; const CR = () => (cs = (cs * 16807) % 2147483647) / 2147483647;
+  const LF = cfg.alive, span = (r) => r[0] + CR() * (r[1] - r[0]);
+  const amb = { next: span(LF.gustEveryS), gT: 0, g: 0, puffT: 3, sndT: span(LF.ambEveryS), flockT: span(LF.flockEveryS), flock: null };
+  buildQueue.push(() => { // a small flock far overhead: instanced bodies and wings, two draws
+    const n = LF.flockN, m = new THREE.MeshBasicMaterial({ color: '#4a5576', side: THREE.DoubleSide });
+    const body = new THREE.SphereGeometry(0.1, 6, 4); body.scale(1, 0.8, 2.2);
+    const wing = new THREE.BufferGeometry(); wing.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, -0.08, 0.85, 0.04, -0.1, 0.3, 0.02, 0.16, 0, 0, 0.14, 0, 0, -0.08, 0.3, 0.02, 0.16]), 3));
+    const bm = new THREE.InstancedMesh(body, m, n), wm = new THREE.InstancedMesh(wing, m, n * 2); bm.frustumCulled = false; wm.frustumCulled = false; bm.visible = false; wm.visible = false; W.scene.add(bm, wm);
+    amb.flock = { bm, wm, on: false, t: 0, x: 0, z: 0, y: 0, dx: 0, dz: 0, off: Array.from({ length: n }, (_, i) => [(i % 2 ? 1 : -1) * Math.ceil(i / 2) * 1.3, -Math.ceil(i / 2) * 1.1, CR() * 6]) };
+  });
+  const fe = new THREE.Euler(0, 0, 0, 'YXZ'), fq = new THREE.Quaternion(), fm = new THREE.Matrix4(), fv = new THREE.Vector3(), fs = new THREE.Vector3(1, 1, 1), fsl = new THREE.Vector3(-1, 1, 1), fwd = new THREE.Vector3();
+  function updateFlock(dt, t) {
+    const F = amb.flock; if (!F) return;
+    if (!F.on) {
+      amb.flockT -= dt; if (amb.flockT > 0 || W.night > 0.3) return;
+      amb.flockT = span(LF.flockEveryS); W.camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+      const dir = CR() < 0.5 ? 1 : -1; F.dx = fwd.z * dir; F.dz = -fwd.x * dir; // across the view
+      F.x = hero.x + fwd.x * LF.flockAheadM - F.dx * LF.flockSpeed * LF.flockS / 2; F.z = hero.z + fwd.z * LF.flockAheadM - F.dz * LF.flockSpeed * LF.flockS / 2; F.y = hero.y + LF.flockUpM;
+      F.on = true; F.t = 0; F.bm.visible = true; F.wm.visible = true; if (play) Sound.amb('chirp', -dir * 0.6); return;
+    }
+    F.t += dt; if (F.t > LF.flockS) { F.on = false; F.bm.visible = false; F.wm.visible = false; return; }
+    const yaw = Math.atan2(F.dx, F.dz), rx = F.dz, rz = -F.dx, cx = F.x + F.dx * LF.flockSpeed * F.t, cz = F.z + F.dz * LF.flockSpeed * F.t;
+    F.off.forEach(([ox, oz, ph], i) => {
+      fv.set(cx + rx * ox + F.dx * oz, F.y + Math.sin(t * 1.7 + ph) * 0.35, cz + rz * ox + F.dz * oz);
+      fe.set(0, yaw, 0); fq.setFromEuler(fe); fm.compose(fv, fq, fs); F.bm.setMatrixAt(i, fm);
+      const flap = Math.sin(t * 11 + ph) * 0.7 * (Math.sin(t * 0.8 + ph) > -0.4 ? 1 : 0.15);
+      fe.set(0, yaw, flap); fq.setFromEuler(fe); fm.compose(fv, fq, fs); F.wm.setMatrixAt(i * 2, fm);
+      fe.set(0, yaw, -flap); fq.setFromEuler(fe); fm.compose(fv, fq, fsl); F.wm.setMatrixAt(i * 2 + 1, fm);
+    });
+    F.bm.instanceMatrix.needsUpdate = true; F.wm.instanceMatrix.needsUpdate = true;
+  }
+  function updateLife(dt, t) {
+    // a gust now and then: the pines lean, the falling snow streams sideways, powder skims the ground, the wind swells
+    amb.next -= dt; if (amb.next <= 0) { amb.next = span(LF.gustEveryS); amb.gT = LF.gustS; if (play) Sound.gust(LF.gustS); }
+    amb.gT = Math.max(0, amb.gT - dt); const want = amb.gT > 0 ? Math.sin(Math.PI * (1 - amb.gT / LF.gustS)) : 0;
+    amb.g += (want - amb.g) * Math.min(1, dt * 2); W.uGust.value = amb.g; W.uPush.value += amb.g * LF.pushMps * dt;
+    if (amb.g > 0.25 && CR() < amb.g * LF.streaksPerS * dt) { const z = hero.z + (CR() - 0.5) * 14, x = hero.x - 7 + CR() * 6; fx.emit({ pool: 'soft', x, y: L.terrainH(cfg, x, z) + 0.2 + CR() * 0.4, z, spread: 1.4, speed: 0.2, vx: 4 + amb.g * 3, up: 0.05, life: 1.6, size: 0.28, color: '#ffffff', alpha: 0.22, grav: 0, drag: 0.1, grow: 0.8 }, 3); }
+    // a clump of snow slips off a pine near the hero (more often in a gust)
+    amb.puffT -= dt * (1 + amb.g * 5);
+    if (amb.puffT <= 0) { amb.puffT = LF.puffEveryS * (0.5 + CR());
+      for (let k = 0; k < 16; k++) { const tp = W.tops[Math.floor(CR() * W.tops.length)], d = Math.hypot(tp[0] - hero.x, tp[2] - hero.z); if (d > 4 && d < 24) { fx.emit({ pool: 'soft', x: tp[0], y: tp[1], z: tp[2], spread: 0.9 * tp[3], speed: 0.3, vx: amb.g * 2, up: -0.3, life: 1.8, size: 0.55, color: '#f6faff', alpha: 0.8, grav: -1.4, drag: 0.8, grow: 0.8 }, 12); break; } } }
+    // distant sounds of the place: birds in the meadow, the lake ice creaking, drips in the caves, an owl at night
+    amb.sndT -= dt; if (amb.sndT <= 0) { amb.sndT = span(LF.ambEveryS); const ar = L.areaAt(cfg, hero.x, hero.z), night = W.night > 0.5;
+      if (play) Sound.amb(night && (ar === 0 || CR() < 0.5) ? 'hoot' : ['chirp', 'creak', 'drip'][ar] || 'chirp', CR() * 1.6 - 0.8); }
+    updateFlock(dt, t);
+  }
+
   function updateAnimals(dt, t, cw) {
     const night = cw.night > 0.5 || (cw.dusk > 0.6 && L.clockAt(cfg, S.clock).k > 0.8);
     const slowWin = cfg.photo.poseWindowS;
@@ -757,7 +809,13 @@ export function run(mode = 'play') {
       // place and animate
       a.y = sp.type === 'whale' ? 0 : L.terrainH(cfg, a.x, a.z) + a.perch;
       a.parts.group.position.set(a.x, a.y, a.z); a.parts.group.rotation.y = a.yaw;
-      animateCritter(a.parts, sp, { t, walk: a.walk, pose: a.pose, p: a.pose ? Math.min(1, a.poseT / slowWin) : 0, blink: a.blink, look: a.look, hide: sp.shy ? a.hide : 0 });
+      // small idles between poses (sniff the snow, shake it off, look around) and a curious tilt when Pip stands close
+      if (!a.pose && !a.cue && a.state === 'idle' && a.hide < 0.3 && sp.type !== 'whale') {
+        if (a.idle) { a.idle.p += dt / LF.idleS; if (a.idle.k === 'shake' && !a.idle.puff && a.idle.p > 0.3) { a.idle.puff = 1; fx.emit({ pool: 'soft', x: a.x, y: a.y + a.parts.height * 0.6 * (sp.scale || 1), z: a.z, spread: (a.parts.radius || 0.4) * 1.2, speed: 1.2, up: 0.6, life: 0.7, size: 0.3, color: '#f6faff', alpha: 0.8, grav: -3 }, 10); } if (a.idle.p >= 1) a.idle = null; }
+        else { a.idleT = (a.idleT == null ? span(LF.idleEveryS) : a.idleT) - dt; if (a.idleT <= 0 && dh < 30) { a.idleT = span(LF.idleEveryS); a.idle = { k: ['sniff', 'shake', 'scan'][Math.floor(CR() * 3)], p: 0 }; } }
+      } else a.idle = null;
+      a.tilt = (a.tilt || 0) + ((dh < 7 && hero.still > 0.6 && !a.pose ? 1 : 0) - (a.tilt || 0)) * Math.min(1, dt * 3);
+      animateCritter(a.parts, sp, { t, walk: a.walk, pose: a.pose, p: a.pose ? Math.min(1, a.poseT / slowWin) : 0, blink: a.blink, look: a.look, hide: sp.shy ? a.hide : 0, tilt: a.tilt, idle: a.idle });
       // the rare visitor shimmers
       if (a.rare && dh < 45) { a.glowT -= dt; if (a.glowT <= 0) { a.glowT = 0.12; fx.emit({ pool: 'glow', x: a.x, y: a.y + 0.2, z: a.z, spread: 1.4, speed: 0.2, up: 1.6, life: 1.4, size: 0.16, color: '#ffe48a', shape: 'star', grav: 0.6, drag: 1 }, 1); } }
     }
@@ -793,7 +851,12 @@ export function run(mode = 'play') {
     if (hero.shakeT <= 0 && hero.stepD > 0.3) for (const t of W.trunks) { const dx = t[0] - hero.x, dz = t[1] - hero.z; if (dx * dx + dz * dz < 6.5) { hero.shakeT = 2.5; const y = L.terrainH(cfg, t[0], t[1]); fx.emit({ pool: 'soft', x: t[0], y: y + 2.6, z: t[1], spread: 0.9, speed: 0.4, up: 0, life: 1.2, size: 0.45, color: '#f4f9ff', alpha: 0.85, grav: -5, drag: 0.6 }, 9); fx.emit({ pool: 'glow', x: t[0], y: y + 2.4, z: t[1], spread: 1.2, speed: 0.3, life: 1.6, size: 0.12, color: '#ffffff', shape: 'flake', grav: -0.8, drag: 1 }, 6); Sound.hiss && Sound.ok && Sound.hiss(Sound.ctx.currentTime, 0.35, { f: 2200, g: 0.05 }); break; } }
     hero.breathT -= dt; if (hero.breathT <= 0) { hero.breathT = 2.4; fx.emit({ pool: 'soft', x: hero.x + Math.sin(hero.yaw) * 0.35, y: hero.y + 1.45, z: hero.z + Math.cos(hero.yaw) * 0.35, spread: 0.05, speed: 0.15, vx: Math.sin(hero.yaw) * 0.4, vz: Math.cos(hero.yaw) * 0.4, life: 1.1, size: 0.3, color: '#ffffff', alpha: 0.45, grav: 0.15, drag: 1, grow: 1.6 }, 1); }
     H.group.position.set(hero.x, hero.y, hero.z); H.group.rotation.y = hero.yaw; { const cp = W.camera.position; H.group.visible = vf < 0.55 && Math.hypot(cp.x - hero.x, cp.y - hero.y - 1, cp.z - hero.z) > cfg.camera.heroHideM; } // the lens never passes through Pip while the viewfinder eases in or out
-    animateHero(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), vf);
+    // Pip glances at the nearest animal, and fidgets when left standing (rub the mitts, stamp, check the camera)
+    { let best = 10, ang = 0; for (const a of animals) { if (!a.parts.group.visible) continue; const d = Math.hypot(a.x - hero.x, a.z - hero.z); if (d < best) { best = d; ang = angleDiff(Math.atan2(a.x - hero.x, a.z - hero.z), hero.yaw); } }
+      const want = best < 10 && Math.abs(ang) < 1.6 ? Math.max(-0.8, Math.min(0.8, ang)) : 0; hero.look = (hero.look || 0) + (want - (hero.look || 0)) * Math.min(1, dt * 4);
+      if (hero.still > LF.heroIdleAfterS && !bot) { if (hero.idle) { hero.idle.p += dt / LF.idleS; if (hero.idle.p >= 1) { hero.idle = null; hero.idleT = span(LF.heroIdleEveryS); } } else { hero.idleT = (hero.idleT || 0) - dt; if (hero.idleT <= 0) hero.idle = { k: ['warm', 'stamp', 'peek'][Math.floor(CR() * 3)], p: 0 }; } }
+      else { hero.idle = null; hero.idleT = 0; } }
+    animateHero(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), vf, hero.look, hero.idle);
     // walking into a newly opened area
     const ar = L.areaAt(cfg, hero.x, hero.z);
     if (ar >= S.entered) { S.entered = ar + 1; ftueDid('gate'); toast(T('a_' + cfg.areas[ar].id)); Sound.sting('area'); soon(); }
@@ -890,7 +953,7 @@ export function run(mode = 'play') {
   // ---- viewfinder HUD, pose cues, treat button
   const focus = $('focus'), dots = focus.querySelectorAll('s');
   function updateHud(dt) {
-    hud();
+    hud(dt);
     $('stick').hidden = !(play && !bot && loaded && !bookOpen); // the walk stick waits in its corner whenever the valley is in play
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
     if (aimA && vf > 0.3 && !beats.cur) { // no focus pill during a cinematic beat
@@ -993,6 +1056,7 @@ export function run(mode = 'play') {
     updateHoot(rdt, t); if ((frameN = (frameN || 0) + 1) % 12 === 0) pinNext();
     // chimney smoke and world details
     if (Math.hypot(W.chimney.x - hero.x, W.chimney.z - hero.z) < 45 && R() < 0.12) fx.emit({ pool: 'soft', x: W.chimney.x, y: W.chimney.y, z: W.chimney.z, spread: 0.2, speed: 0.2, up: 0.9, life: 3, size: 0.8, color: '#e6ecf4', alpha: 0.55, grav: 0.1, drag: 0.6, grow: 2 }, 1);
+    updateLife(dt, t);
     fx.update(dt);
     // deferred builds, one per frame
     if (buildQueue.length && booted) buildQueue.shift()();
@@ -1036,7 +1100,7 @@ export function run(mode = 'play') {
     frames() { const n = Math.min(ftN, ftRing.length), a = Array.from(ftRing.slice(0, n)).sort((p, q) => p - q), at = (k) => Math.round(a[Math.min(n - 1, Math.floor(n * k))] * 10) / 10; const js = Array.from(jsRing.slice(0, n)).sort((p, q) => p - q); return { n, p50: at(0.5), p95: at(0.95), max: at(1), js50: Math.round(js[Math.floor(n / 2)] * 10) / 10, fps: Math.round(fpsV), tier: quality.tier, start: tier0, changes: tierLog.slice() }; },
     tp(x, z) { hero.x = x; hero.z = z; hero.vx = hero.vz = 0; input.target = null; W.snapCamera(hero); },
     walkTo(x, z) { input.target = [x, z]; },
-    get boards() { return boards; },
+    get boards() { return boards; }, get amb() { return amb; },
     buy(id) { if (!L.buy(cfg, S, id)) return false; applyLook(); hud(); return true; }, night: () => W.night, get card() { return !$('card').hidden; },
     clock(s) { S.clock = s; }, give(n) { S.flakes += n; },
     stamp(ids) { for (const id of ids) L.applyPhoto(cfg, S, { id, stars: 3, inPose: true }); },
