@@ -5,7 +5,7 @@
 // Progress saves through lib.saveUserGameState. All tuning values are in game_config.json.
 import * as L from './logic.js';
 import { createWorld } from './world.js';
-import { buildCritter, animateCritter, critterMaterials, buildHero, animateHero } from './critters.js';
+import { buildCritter, animateCritter, critterMaterials, buildHero, animateHero, merge } from './critters.js';
 import { createFx } from './fx.js';
 import { Sound } from './audio.js';
 
@@ -79,7 +79,7 @@ const HTML = `
   <button id="nightB" class="treat glass nightb" aria-label="night" hidden>${ICON.moon}</button>
   <button id="treat" class="treat glass" aria-label="treat" hidden><canvas width="96" height="96"></canvas><span class="lock"></span></button>
   <button id="shutter" class="shutter" aria-label="snap">${ICON.cam}</button>
-  <div id="stick" class="stick" hidden><i></i></div>
+  <div id="stick" class="stick rest" hidden><i></i></div>
   <div id="logo" class="logo out"></div>
   <div id="toast" class="toast" hidden><b class="out"></b><span class="out"></span><button id="share" class="share out" hidden>${ICON.share}<b></b></button></div>
   <div id="tick" class="tick glass" hidden></div>
@@ -167,12 +167,61 @@ export function run(mode = 'play') {
     W.scene.add(parts.group); animals.push(a); return a;
   }
   const speciesOf = (id) => L.speciesById(cfg, id);
-  const buildQueue = []; let booted = false;
+  const buildQueue = []; let booted = false, frameN = 0;
   // only the animals the first frame shows are built now (nearest first); the rest build one per frame after it
   { const d = (sp) => Math.hypot(sp.home[0] - hero.x, sp.home[1] - hero.z);
     const order = cfg.species.slice().sort((p, q) => (p.area - q.area) || (d(p) - d(q)));
     order.forEach((sp, i) => (i < cfg.quality.bootAnimals ? (f) => f() : (f) => buildQueue.push(f))(() => makeAnimal(sp, sp, false)));
     buildQueue.push(() => W.buildGround()); } // ground cover after the animals
+  // ---- Hoot's request board near the start (Hoot perches on it and hops when a request is done) and the friends board
+  // by the cabin, where every new friend's photo gets pinned. Built after the first frame.
+  const boards = { hoot: null, hootSp: null, hop: 0, cv: null, tex: null, drawn: new Set() };
+  buildQueue.push(() => {
+    const B = cfg.world.boards, q = new THREE.Quaternion(), e = new THREE.Euler();
+    const M = (x, y, z, rz = 0, ry = 0) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), q.setFromEuler(e.set(0, ry, rz)), new THREE.Vector3(1, 1, 1));
+    const C3 = (h) => new THREE.Color(h), wood = C3('#8a5e3c'), dark = C3('#5a3a24'), snow = C3('#f4f9ff');
+    const box = (w, h, d, x, y, z, col, rz = 0, ry = 0) => ({ g: new THREE.BoxGeometry(w, h, d), m: M(x, y, z, rz, ry), col });
+    /** A post-and-plank board w wide with a panel ph tall and a snowy roof; returns [items, roof top y]. */
+    const board = (w, ph) => { const top = 0.7 + ph + 0.12; return [[box(0.16, top, 0.16, -w / 2, top / 2, 0, dark), box(0.16, top, 0.16, w / 2, top / 2, 0, dark), box(w + 0.1, ph, 0.1, 0, 0.7 + ph / 2, 0, wood),
+      box(w + 0.6, 0.14, 0.62, 0, top + 0.07, 0.04, (n) => (n.y > 0.5 ? snow : dark))], top + 0.14]; };
+    const add = (items, at) => { const y = L.terrainH(cfg, at[0], at[1]), m = new THREE.Mesh(merge(items), W.propMat); m.position.set(at[0], y, at[1]); m.rotation.y = at[2]; m.castShadow = true; W.scene.add(m); return m; };
+    // Hoot's board: three paper notes with red pins
+    const [rb, rTop] = board(1.5, 1.05), paper = C3('#fff6e6'), pin = C3('#e8513a');
+    [[-0.45, 1.3, 0.08], [0.05, 1.42, -0.06], [0.48, 1.25, 0.1]].forEach(([x, y, r]) => { rb.push(box(0.4, 0.48, 0.02, x, y, 0.07, paper, r)); rb.push(box(0.07, 0.07, 0.05, x, y + 0.18, 0.09, pin)); });
+    add(rb, B.req);
+    const owl = speciesOf('owl'); boards.hootSp = { ...owl, id: 'hoot', main: '#c8a878', belly: '#f2e6cc', scale: 0.62, perch: 0 };
+    const hp = buildCritter(boards.hootSp, mats); hp.phase = 0; W.scene.add(hp.group);
+    boards.hoot = { parts: hp, x: B.req[0], z: B.req[1], y: L.terrainH(cfg, B.req[0], B.req[1]) + rTop, yaw: B.req[2], blink: 0, blinkT: 2 };
+    // the friends board: one photo sheet (an atlas canvas) under the roof
+    const [fb, fTop] = board(2.6, 1.7); add(fb, B.friends); void fTop;
+    const P = cfg.world.boardPhotos; boards.cv = document.createElement('canvas'); boards.cv.width = P.cols * P.cellW; boards.cv.height = P.rows * P.cellH;
+    const g = boards.cv.getContext('2d'); g.fillStyle = '#c9a77a'; g.fillRect(0, 0, boards.cv.width, boards.cv.height);
+    boards.tex = new THREE.CanvasTexture(boards.cv); boards.tex.colorSpace = THREE.SRGBColorSpace;
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(2.45, 1.55), new THREE.MeshBasicMaterial({ map: boards.tex, color: 0xe8e8e8 }));
+    const fy = L.terrainH(cfg, B.friends[0], B.friends[1]) + 0.7 + 0.85, fr = B.friends[2];
+    sheet.position.set(B.friends[0] + Math.sin(fr) * 0.07, fy, B.friends[1] + Math.cos(fr) * 0.07); sheet.rotation.y = fr; W.scene.add(sheet);
+  });
+  /** Pins one more friend's photo on the cabin board (one per call, so loading a big book never stalls a frame). */
+  function pinNext() {
+    if (!boards.cv) return; const P = cfg.world.boardPhotos;
+    const id = cfg.species.map((q2) => q2.id).find((k) => (S.slots[k] & 1) && !boards.drawn.has(k)); if (!id || boards.drawn.size >= P.cols * P.rows) return;
+    const i = boards.drawn.size, cx = (i % P.cols) * P.cellW, cy = Math.floor(i / P.cols) * P.cellH, g = boards.cv.getContext('2d'), src = (photoOf.get(id) || {}).cv || portrait(id, true);
+    g.save(); g.translate(cx + P.cellW / 2, cy + P.cellH / 2); g.rotate(((i * 37) % 9 - 4) * 0.012);
+    g.fillStyle = 'rgba(40,24,10,.25)'; g.fillRect(-P.cellW * 0.4 + 3, -P.cellH * 0.42 + 4, P.cellW * 0.8, P.cellH * 0.84);
+    g.fillStyle = '#fffaf0'; g.fillRect(-P.cellW * 0.4, -P.cellH * 0.42, P.cellW * 0.8, P.cellH * 0.84);
+    g.drawImage(src, -P.cellW * 0.34, -P.cellH * 0.37, P.cellW * 0.68, P.cellH * 0.62);
+    g.fillStyle = '#e8513a'; g.beginPath(); g.arc(0, -P.cellH * 0.39, 5, 0, 7); g.fill(); g.restore();
+    boards.drawn.add(id); boards.tex.needsUpdate = true;
+  }
+  /** Hoot: blinks, turns to Pip when close, hops twice when a request is done. */
+  function updateHoot(dt, t) {
+    const h = boards.hoot; if (!h) return;
+    h.blinkT -= dt; if (h.blinkT <= 0) { h.blink = 0.15; h.blinkT = 2 + Math.random() * 3; } h.blink = Math.max(0, h.blink - dt);
+    const d = Math.hypot(hero.x - h.x, hero.z - h.z); if (d < 14) h.yaw += angleDiff(Math.atan2(hero.x - h.x, hero.z - h.z), h.yaw) * Math.min(1, dt * 3);
+    boards.hop = Math.max(0, boards.hop - dt * 1.4); const k = 1 - boards.hop, up = boards.hop > 0 ? Math.abs(Math.sin(k * Math.PI * 2)) * 0.4 : 0;
+    h.parts.group.position.set(h.x, h.y + up, h.z); h.parts.group.rotation.y = h.yaw;
+    animateCritter(h.parts, boards.hootSp, { t, walk: up > 0.05 ? 1 : 0, pose: null, p: 0, blink: h.blink > 0 ? 1 : 0, look: 0, hide: 0 });
+  }
   // tier 0 has no shadow map: soft blob shadows ground Pip and the animals instead (one instanced quad, built after
   // the first frame)
   let blobs = null;
@@ -304,6 +353,11 @@ export function run(mode = 'play') {
     return { pos: b.pos(b.t), look: b.look(b.t), fov: b.fov || 40, k: b.k, clear: !!b.clear };
   }
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  /** Where an animal sounds from: [pan -1..1 by the camera's left and right, level by distance from the hero]. */
+  function earOf(a) {
+    const m = W.camera.matrixWorld.elements, cp = W.camera.position, dx = a.x - cp.x, dz = a.z - cp.z, d = Math.hypot(dx, dz) || 1;
+    const au = cfg.audio || {}; return [(dx * m[0] + dz * m[2]) / d * (au.panWidth || 0.8), Math.max(au.farVol || 0.3, Math.min(1, 1 - Math.hypot(a.x - hero.x, a.z - hero.z) / (au.farM || 16)))];
+  }
   const beatAt = (a, opts = {}) => ({ pri: opts.pri || 2, dur: opts.dur || 1.6, bars: true, slow: !!opts.slow, sting: opts.sting, fov: 40,
     pos: () => { const dx = hero.x - a.x, dz = hero.z - a.z, d = Math.hypot(dx, dz) || 1, r = 3 + a.parts.radius * 6; return V3(a.x + dx / d * r + 1.4, a.y + 1.2 + a.parts.height * 0.8, a.z + dz / d * r); },
     look: () => V3(a.x, a.y + a.parts.centerY, a.z) });
@@ -359,6 +413,8 @@ export function run(mode = 'play') {
     });
     const rp = document.createElement('div'); rp.className = 'page'; rp.innerHTML = `<h3>${T('rare')}</h3>`; const rg = document.createElement('div'); rg.className = 'grid';
     for (const r of cfg.rares) rg.appendChild(cardFor(r.id, S.rare[r.id] ? 1 : 0, ICON.star)); rp.appendChild(rg); P.appendChild(rp);
+    // the next chapter waits at the back of the book: a closed page, no date
+    const ch = document.createElement('div'); ch.className = 'page ch2'; ch.innerHTML = `<div class="ch2c">${ICON.book}<b class="out">${T('ch2')}</b><em>${T('soon')}</em><span>${T('ch2Sub')}</span></div>`; P.appendChild(ch);
     // shop
     const SP = root.querySelector('[data-p=shop]'); SP.innerHTML = '<div class="items"></div>'; const items = SP.firstChild;
     for (const it of cfg.economy.shop) {
@@ -410,74 +466,49 @@ export function run(mode = 'play') {
   for (const b of tabs) b.addEventListener('click', () => { bookTab = b.dataset.t; Sound.pop(); buildBook(); });
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); soon(); });
 
-  // ---- input: drag anywhere for a floating stick, tap the snow to walk there
-  // a drag that starts on the right side of the screen looks around (swipe-to-look) instead of moving
-  const input = { id: null, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0, drag: false, keys: new Set(), target: null, look: false, lx: 0, ly: 0 };
-  const view = { yaw: 0, el: 0, tYaw: 0, tEl: 0, idle: 0 };
+  // ---- input: the walk stick lives in the bottom-left zone (bottom-right in right-to-left languages); a drag anywhere
+  // else swipes the camera freely around the hero. One thumb walks, the other looks, in either order.
+  const input = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, drag: false, keys: new Set(), target: null };
+  const look = { id: null, x0: 0, y0: 0, lx: 0, ly: 0, drag: false };
+  const view = { yaw: 0, el: 0, tYaw: 0, tEl: 0 };
   let firstGesture = false;
   const gesture = () => { if (!firstGesture) { firstGesture = true; hideLogo(); } Sound.unlock(); };
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
-  // a second finger on the look side while the first one walks turns the view too (two thumbs: walk and look)
-  const look2 = { id: null, x0: 0, y0: 0, lx: 0, ly: 0, drag: false };
-  /** Turns the view by a finger's move since its last position (st carries lx/ly). */
-  function lookBy(st, x, y) {
+  /** Turns the view by the look finger's move since its last position: yaw is free all the way round, tilt is limited. */
+  function lookBy(x, y) {
     const lk = cfg.camera.look, k = lk.radPerPx / unit();
-    view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (x - st.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (y - st.ly) * k));
-    view.idle = 0; st.lx = x; st.ly = y; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; }
+    view.tYaw -= (x - look.lx) * k; view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (y - look.ly) * k));
+    look.lx = x; look.ly = y; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; }
   }
-  const inLookZone = (x) => { const r = rootRect(); return x - r.left > r.width * (1 - cfg.camera.look.zone); };
+  /** Is this point inside the walk zone (bottom-left, mirrored for right-to-left)? */
+  const inWalkZone = (x, y) => { const r = rootRect(), z = cfg.controls.walkZone, fx = (x - r.left) / r.width; return (root.dir === 'rtl' ? 1 - fx : fx) < z.w && (y - r.top) / r.height > 1 - z.h; };
+  /** Shows the stick under the walking finger at (x, y), or back at rest in its corner (placed by the stylesheet). */
+  function placeStick(x, y, on) { const s = $('stick'); s.style.left = on ? x + 'px' : ''; s.style.top = on ? y + 'px' : ''; s.classList.toggle('rest', !on); if (!on) s.firstChild.style.transform = ''; }
   function onDown(e) {
     if (!play || bot || e.target.closest('button') || bookOpen) return;
     gesture();
-    if (input.id !== null) {
-      if (e.pointerId === input.id || look2.id !== null) return;
-      const side = inLookZone(e.clientX);
-      if (!input.look && side) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ } Object.assign(look2, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false }); }
-      // the first finger looks and this one lands on the walk side: the first keeps looking as the second finger, this one walks
-      else if (input.look && !side) { Object.assign(look2, { id: input.id, x0: input.x0, y0: input.y0, lx: input.lx, ly: input.ly, drag: input.drag }); grab(e, false); }
-      return;
+    if (input.id === null && inWalkZone(e.clientX, e.clientY)) {
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
+      Object.assign(input, { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, drag: true, target: null });
+      const r = rootRect(); placeStick(e.clientX - r.left, e.clientY - r.top, true);
+    } else if (look.id === null) {
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
+      Object.assign(look, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false });
     }
-    grab(e, inLookZone(e.clientX));
-  }
-  /** Makes this pointer the main finger: a walk stick or, on the look side, a swipe. */
-  function grab(e, look) {
-    try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
-    input.id = e.pointerId; input.x0 = input.lx = e.clientX; input.y0 = input.ly = e.clientY; input.t0 = performance.now(); input.dx = input.dy = 0; input.drag = false;
-    input.look = look;
   }
   function onMove(e) {
-    if (e.pointerId === look2.id) {
-      if (!look2.drag && Math.hypot(e.clientX - look2.x0, e.clientY - look2.y0) >= cfg.hero.tapMaxPx * unit() * 1.5) { look2.drag = true; look2.lx = e.clientX; look2.ly = e.clientY; }
-      if (look2.drag) lookBy(look2, e.clientX, e.clientY);
-      return;
+    if (e.pointerId === look.id) {
+      if (!look.drag && Math.hypot(e.clientX - look.x0, e.clientY - look.y0) >= cfg.hero.tapMaxPx * unit()) { look.drag = true; look.lx = e.clientX; look.ly = e.clientY; }
+      if (look.drag) lookBy(e.clientX, e.clientY);
+    } else if (e.pointerId === input.id) {
+      input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
+      const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy), k = l > m ? m / l : 1; $('stick').firstChild.style.transform = `translate(${input.dx * k}px,${input.dy * k}px)`;
     }
-    if (e.pointerId !== input.id) return;
-    input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
-    if (input.look) {
-      if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) { input.drag = true; input.lx = e.clientX; input.ly = e.clientY; }
-      if (input.drag) lookBy(input, e.clientX, e.clientY);
-      return;
-    }
-    if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) {
-      input.drag = true; input.target = null; const r = rootRect(), s = $('stick'); s.hidden = false; s.style.left = (input.x0 - r.left) + 'px'; s.style.top = (input.y0 - r.top) + 'px';
-    }
-    if (input.drag) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy), k = l > m ? m / l : 1; $('stick').firstChild.style.transform = `translate(${input.dx * k}px,${input.dy * k}px)`; }
   }
   function onUp(e) {
-    if (e.pointerId === look2.id) { look2.id = null; look2.drag = false; return; }
-    if (e.pointerId !== input.id) return;
-    const kind = L.tapOrDrag(cfg, Math.hypot(input.dx, input.dy) / unit(), performance.now() - input.t0);
-    if (kind === 'tap' && !input.drag) {
-      const r = rootRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      ray.setFromCamera(ndc, W.camera); plane.constant = -hero.y;
-      if (ray.ray.intersectPlane(plane, hit)) { input.target = [hit.x, hit.z]; fx.ring(hit.x, L.terrainH(cfg, hit.x, hit.z), hit.z, 0.9, '#bff7ff', 0.45); }
-    }
-    const l = look2.id !== null ? { ...look2 } : null;
-    releaseFingers();
-    // the walking thumb lifted while the other still looks: that finger carries on looking as the main one (never a tap)
-    if (l) Object.assign(input, { id: l.id, x0: l.x0, y0: l.y0, lx: l.lx, ly: l.ly, drag: l.drag, look: true, t0: -1e9 });
+    if (e.pointerId === look.id) { look.id = null; look.drag = false; }
+    else if (e.pointerId === input.id) { input.id = null; input.drag = false; input.dx = input.dy = 0; placeStick(0, 0, false); }
   }
-  function releaseFingers() { input.id = null; input.drag = false; input.look = false; input.dx = input.dy = 0; look2.id = null; look2.drag = false; const st = $('stick'); if (st) st.hidden = true; }
+  function releaseFingers() { input.id = null; input.drag = false; input.dx = input.dy = 0; look.id = null; look.drag = false; placeStick(0, 0, false); }
   root.addEventListener('contextmenu', (e) => e.preventDefault()); // a long press never opens the browser menu
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
   const onKey = (e) => {
@@ -559,7 +590,8 @@ export function run(mode = 'play') {
     let res, cv, stars = 1, shot = null;
     if (a) {
       shot = shotOf(a); stars = shot.stars;
-      cv = W.capture(shot.from, shot.at, cardFov(shot.fov));
+      { const f = cardFov(shot.fov), d = shot.from.distanceTo(shot.at) || 1, fr = (a.parts.radius * 1.4) / (d * Math.tan(f * Math.PI / 360));
+        cv = W.capture(shot.from, shot.at, f, null, { p: V3(a.x, a.y + a.parts.centerY, a.z), k: Math.max(0.3, Math.min(0.85, fr)) }); }
       res = L.applyPhoto(cfg, S, { id: a.id, stars, inPose: shot.inPose, night: shot.night, area: L.areaAt(cfg, hero.x, hero.z), others: shot.others, now: Date.now() });
       const best = photoOf.get(a.id); if (!best || best.stars <= stars) photoOf.set(a.id, { cv, stars });
       // the animal reacts: hearts and its call
@@ -568,7 +600,7 @@ export function run(mode = 'play') {
       fx.ring(a.x, a.y + 0.05, a.z, 1.6 + a.parts.radius, '#fff1c4', 0.55);
       if (stars >= 3) setTimeout(() => alive && fx.ring(a.x, a.y + 0.05, a.z, 3.2 + a.parts.radius, '#ffe48a', 0.7), 120);
       fx.emit({ pool: 'glow', x: a.x, y: a.y + a.parts.height * 0.6, z: a.z, spread: a.parts.radius + 0.4, speed: 2.2, up: 1.2, life: 0.9, size: 0.16, color: '#fff6d8', shape: 'star', grav: -1.5, drag: 2.5 }, 4 + stars * 3);
-      Sound.voice(a.sp); a.voiceT = 4;
+      Sound.voice(a.sp, ...earOf(a)); a.voiceT = 4;
       ftueDid('walk'); ftueDid('snap'); if (shot.inPose) ftueDid('pose');
     } else {
       const fwd = V3(hero.x + Math.sin(hero.yaw) * 8, hero.y + 1.6, hero.z + Math.cos(hero.yaw) * 8);
@@ -613,6 +645,9 @@ export function run(mode = 'play') {
     }
     if (res.half >= 0 && res.page < 0) setTimeout(() => { toast(T('half'), '+' + cfg.economy.halfPage); Sound.sting('page'); }, flyAt + 200);
     if (res.page >= 0) setTimeout(() => { toast(T('page'), T('a_' + cfg.areas[res.page].id), 'page'); Sound.sting('page'); confetti(root.clientWidth / 2, root.clientHeight * 0.3); }, flyAt + 200);
+    // the whole book done: tease the next chapter (after the page toast, from the queue)
+    if (res.page >= 0 && S.pages.length >= cfg.areas.length) setTimeout(() => { toast(T('ch2') + ' · ' + T('soon'), T('ch2Sub')); }, flyAt + 400);
+    if (res.requests.length) { boards.hop = 1; if (boards.hoot) setTimeout(() => alive && Sound.voice(boards.hootSp, ...earOf(boards.hoot)), 300); }
     if (res.requests.length) setTimeout(() => tick(`${ICON.star.replace('<svg', '<svg width="40" height="40"')} ✓ +${cfg.economy.request}`), flyAt + 400);
     if (res.opened >= 0) setTimeout(() => openArea(res.opened), flyAt + 600);
   }
@@ -717,7 +752,7 @@ export function run(mode = 'play') {
         if (p >= 1) { a.pose = null; a.poseEnd = clockT; a.landed = false; const want = !a.rare && (((S.slots[a.id] | 0) & 6) !== 6), pe = want && dh < L.lens(cfg, S).range ? cfg.photo.poseEveryNearS : cfg.photo.poseEveryS; a.nextPose = pe[0] + R() * (pe[1] - pe[0]); } // poses come sooner while someone waits for one
       }
       // voices now and then, blinks
-      a.voiceT -= dt; if (a.voiceT <= 0 && dh < 12 && play) { a.voiceT = 6 + R() * 8; Sound.voice(sp); }
+      a.voiceT -= dt; if (a.voiceT <= 0 && dh < 12 && play) { a.voiceT = 6 + R() * 8; Sound.voice(sp, ...earOf(a)); }
       a.blinkT -= dt; if (a.blinkT <= 0) { a.blink = 0.12; a.blinkT = 2.5 + R() * 3; } a.blink = Math.max(0, a.blink - dt);
       // place and animate
       a.y = sp.type === 'whale' ? 0 : L.terrainH(cfg, a.x, a.z) + a.perch;
@@ -730,7 +765,7 @@ export function run(mode = 'play') {
 
   function updateHero(dt, t) {
     let mx = 0, mz = 0;
-    const stick = input.drag && !input.look;
+    const stick = input.drag;
     if (stick) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy); if (l > 4) { const k = Math.min(1, l / m); mx = input.dx / l * k; mz = input.dy / l * k; } }
     const K = input.keys; const kx = (K.has('d') || K.has('arrowright') ? 1 : 0) - (K.has('a') || K.has('arrowleft') ? 1 : 0), kz = (K.has('s') || K.has('arrowdown') ? 1 : 0) - (K.has('w') || K.has('arrowup') ? 1 : 0);
     if (kx || kz) { const l = Math.hypot(kx, kz); mx = kx / l; mz = kz / l; input.target = null; }
@@ -805,16 +840,16 @@ export function run(mode = 'play') {
   function updateSpot(dt) {
     const on = ftueOn() && !bookOpen && !beats.cur && $('card').hidden;
     ftueT += dt;
-    let tgt = null, hint = '', icon = '', handOn = false, handDrag = false;
+    let tgt = null, hint = '', icon = '', handOn = false, handDrag = false, atStick = false;
     const rr = rootRect(), u = unit();
     const elC = (id) => { const b = $(id).getBoundingClientRect(); return [b.left - rr.left + b.width / 2, b.top - rr.top + b.height / 2, b.width * 0.62]; };
     const world = (x, y, z, r) => { const s = W.toScreen(x, y, z); return s[2] && s[0] > 0.06 && s[0] < 0.94 && s[1] > 0.1 && s[1] < 0.9 ? [s[0] * rr.width, s[1] * rr.height, r * u] : null; };
     if (on) {
       if (ftue === 'walk') { const f = ftueTarget(); tgt = world(hero.x, hero.y + 1, hero.z, 150);
         // the cutout holds both the hero and the first animal, so the opening shows who to walk to
-        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('walk'); icon = ICON.hand; handOn = true; handDrag = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
+        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
       else if (ftue === 'snap') { if (vf > 0.4) { tgt = elC('shutter'); hint = T('snap'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); handOn = true; } else if (hero.speed >= 0.6 && nearest(L.lens(cfg, S).range)) { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('still'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); } // in range but still walking: aiming needs a stop
-      else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('walk'); icon = ICON.hand; } }
+      else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; } }
       else if (ftue === 'book') { if (S.photos >= 1 && $('card').hidden) { tgt = elC('bookB'); hint = T('book'); icon = ICON.book; handOn = true; } }
       else if (ftue === 'treat') { const sh = shyNear(); if (sh && sh.id === 'hare') { tgt = elC('treat'); hint = T('treat'); handOn = true; icon = ''; } else { const f = ftueTarget(); if (f && Math.hypot(f.x - hero.x, f.z - hero.z) < 25) { tgt = world(f.x, f.y + 0.5, f.z, 120); hint = T('walk'); icon = ICON.hand; } } }
       else if (ftue === 'pose') { const f = ftueTarget(); if (f && f.a && Math.hypot(f.x - hero.x, f.z - hero.z) < L.lens(cfg, S).range && (f.a.cue || f.a.pose)) { tgt = world(f.x, f.y + f.a.parts.centerY, f.z, 140); hint = T('pose'); icon = ICON.pose; } }
@@ -833,6 +868,8 @@ export function run(mode = 'play') {
       // the snap hint sits beside the shutter, below the viewfinder brackets, never over the frame
       if (ftue === 'snap' && vf > 0.4) { const rtl = root.dir === 'rtl', side = tgt[2] / 0.62 / 2 + 16 * u + coach.offsetWidth / 2; coach.style.left = (tgt[0] + (rtl ? side : -side)) + 'px'; coach.style.top = (tgt[1] - coach.offsetHeight / 2) + 'px'; }
       hand.hidden = !handOn; hand.classList.toggle('drag', handDrag); if (handOn) { hand.style.left = (handDrag ? tgt[0] : tgt[0]) + 'px'; hand.style.top = (handDrag ? tgt[1] + 60 * u : tgt[1]) + 'px'; }
+      // walking is taught on the stick itself: the hand drags it in its corner and the hint sits just above it
+      if (atStick && !$('stick').hidden) { const st = elC('stick'); hand.style.left = st[0] + 'px'; hand.style.top = st[1] + 'px'; coach.style.left = Math.max(coach.offsetWidth / 2 + 24 * u, Math.min(rr.width - coach.offsetWidth / 2 - 24 * u, st[0])) + 'px'; coach.style.top = (st[1] - 120 * u - coach.offsetHeight) + 'px'; }
     } else if (lookHint(dt)) {
       // one-time swipe-to-look hint after the tutorial: a hand sweeps across the right half, no dimming
       const key = 'look'; if (key !== coachKey) { coachKey = key; coach.innerHTML = ICON.hand + `<b class="out">${T('look')}</b>`; }
@@ -854,6 +891,7 @@ export function run(mode = 'play') {
   const focus = $('focus'), dots = focus.querySelectorAll('s');
   function updateHud(dt) {
     hud();
+    $('stick').hidden = !(play && !bot && loaded && !bookOpen); // the walk stick waits in its corner whenever the valley is in play
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
     if (aimA && vf > 0.3 && !beats.cur) { // no focus pill during a cinematic beat
       // the focus pill sits under the animal's feet, never on it
@@ -936,16 +974,15 @@ export function run(mode = 'play') {
     updateBlobs();
     // viewfinder
     const a = nearest(L.lens(cfg, S).range);
-    const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen ? 1 : 0;
-    vf += (wantVf - vf) * Math.min(1, rdt / cfg.camera.vfEase * 2.2); if (vf < 0.01) vf = 0;
+    const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen && !look.drag ? 1 : 0; // a look swipe lowers the lens; it comes back up when the swipe ends
+    vf += (wantVf - vf) * Math.min(1, rdt / cfg.camera.vfEase * 2.2); if (vf < 0.01) vf = 0; Sound.lensDuck(vf, (cfg.audio || {}).lensMusic);
     if (a) { aimA = a; aim = V3(a.x, a.y + a.parts.centerY, a.z); vfFov = fovFor(a, Math.hypot(a.x - hero.x, a.z - hero.z)); } else if (vf === 0) { aimA = null; aim = null; }
     // treat moments: a shy animal close by pulls the camera in so both read at a glance
     const shy = vf < 0.05 && !bookOpen ? shyNear() : null;
     focusK += ((shy ? 1 : 0) - focusK) * Math.min(1, rdt * 2.5); if (shy) focusAt = shy;
     W.fogK = 1 - (b && b.clear ? cfg.beats.clearFog * b.k : 0); // the unlock beat looks across the valley: thin the haze
-    { // swipe-to-look: ease toward the target, drift back to the authored view after a quiet spell
-      const lk = cfg.camera.look; view.idle += rdt;
-      if (view.idle > lk.recenterS && !(input.look && input.drag)) { const d = Math.exp(-rdt * lk.recenterRate); view.tYaw *= d; view.tEl *= d; }
+    { // swipe-to-look: ease toward the target; the view stays where the player leaves it
+      const lk = cfg.camera.look;
       const k = 1 - Math.exp(-rdt * lk.ease); view.yaw += (view.tYaw - view.yaw) * k; view.el += (view.tEl - view.el) * k; W.setLook(view.yaw, view.el);
     }
     W.updateCamera(rdt, hero, vf, aim, vfFov, b, focusAt && focusK > 0.001 ? { x: focusAt.x, y: focusAt.y, z: focusAt.z, k: focusK * (1 - vf) } : null);
@@ -953,6 +990,7 @@ export function run(mode = 'play') {
     const rare = animals.find((q) => q.rare);
     // never in the opening seconds or the tutorial: the player first gets the hero and the valley, then the rare, facing them
     if (rare && !sawRare && play && loaded && !ftueOn() && realT > cfg.feel.rareBeatAfterS && rare.parts.group.visible && Math.hypot(rare.x - hero.x, rare.z - hero.z) < 20 && S.rareDay !== S.day) { sawRare = true; rare.yaw = Math.atan2(hero.x - rare.x, hero.z - rare.z); rare.state = 'idle'; rare.stT = Math.max(rare.stT || 0, 2); beat(beatAt(rare, { pri: 4, dur: 1.6, sting: 'rare' })); Sound.shimmer(); }
+    updateHoot(rdt, t); if ((frameN = (frameN || 0) + 1) % 12 === 0) pinNext();
     // chimney smoke and world details
     if (Math.hypot(W.chimney.x - hero.x, W.chimney.z - hero.z) < 45 && R() < 0.12) fx.emit({ pool: 'soft', x: W.chimney.x, y: W.chimney.y, z: W.chimney.z, spread: 0.2, speed: 0.2, up: 0.9, life: 3, size: 0.8, color: '#e6ecf4', alpha: 0.55, grav: 0.1, drag: 0.6, grow: 2 }, 1);
     fx.update(dt);
@@ -998,6 +1036,7 @@ export function run(mode = 'play') {
     frames() { const n = Math.min(ftN, ftRing.length), a = Array.from(ftRing.slice(0, n)).sort((p, q) => p - q), at = (k) => Math.round(a[Math.min(n - 1, Math.floor(n * k))] * 10) / 10; const js = Array.from(jsRing.slice(0, n)).sort((p, q) => p - q); return { n, p50: at(0.5), p95: at(0.95), max: at(1), js50: Math.round(js[Math.floor(n / 2)] * 10) / 10, fps: Math.round(fpsV), tier: quality.tier, start: tier0, changes: tierLog.slice() }; },
     tp(x, z) { hero.x = x; hero.z = z; hero.vx = hero.vz = 0; input.target = null; W.snapCamera(hero); },
     walkTo(x, z) { input.target = [x, z]; },
+    get boards() { return boards; },
     buy(id) { if (!L.buy(cfg, S, id)) return false; applyLook(); hud(); return true; }, night: () => W.night, get card() { return !$('card').hidden; },
     clock(s) { S.clock = s; }, give(n) { S.flakes += n; },
     stamp(ids) { for (const id of ids) L.applyPhoto(cfg, S, { id, stars: 3, inPose: true }); },

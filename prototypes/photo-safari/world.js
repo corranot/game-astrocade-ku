@@ -176,7 +176,8 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   // ---- rocks (instanced, snow on top)
   const rockGeo = (() => { const g = new THREE.IcosahedronGeometry(1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); v.multiplyScalar(1 + L.noise2(v.x * 3 + 5, v.z * 3 + v.y * 2) * 0.18); p.setXYZ(i, v.x, v.y * 0.7, v.z); } g.computeVertexNormals(); return keep(merge([{ g, m: M4(), col: (n, p) => (n.y > 0.45 ? C('#f2f7ff') : C('#8a94a8').lerp(C('#6c7a96'), 0.5 + 0.5 * Math.sin(p.y * 11 + p.x * 3))).multiplyScalar(0.8 + 0.2 * n.y) }])); })();
-  const rockM = []; for (let i = 0; i < 400 && rockM.length < 70; i++) { const x = (R() - 0.5) * 120, z = 60 - R() * 290; let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z)); if (d < -4 || d > 6 || !clearOf(x, z, 3)) continue; const s = 0.6 + R() * 1.6; rockM.push(M4(x, L.terrainH(cfg, x, z) + s * 0.15, z, s, s, s, 0, R() * 6)); }
+  const rockS = []; // [x, z, size] per rock, for the camera's line of sight
+  const rockM = []; for (let i = 0; i < 400 && rockM.length < 70; i++) { const x = (R() - 0.5) * 120, z = 60 - R() * 290; let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z)); if (d < -4 || d > 6 || !clearOf(x, z, 3)) continue; const s = 0.6 + R() * 1.6; rockM.push(M4(x, L.terrainH(cfg, x, z) + s * 0.15, z, s, s, s, 0, R() * 6)); rockS.push([x, z, s]); }
   const rocks = new THREE.InstancedMesh(rockGeo, keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })), rockM.length); rockM.forEach((m, i) => rocks.setMatrixAt(i, m)); rocks.castShadow = true; rocks.receiveShadow = true; scene.add(rocks);
 
   // ground cover, fences and tracks: same material as the rocks (no new shader), built after the first frame
@@ -454,13 +455,25 @@ export function createWorld(canvas, cfg, opts = {}) {
   function updateCamera(dt, hero, vf, aim, fovVf, beat, focus) {
     const c = cfg.camera;
     const fx = hero.x, fz = hero.z, fy = hero.y;
-    const [ox, oy, oz, ax, az] = orbit();
+    // a look swipe turns the eased camera with it, so a fast spin orbits the hero instead of cutting through it
+    const dYaw = lookRot.yaw - lastYaw; lastYaw = lookRot.yaw;
+    if (dYaw) for (const v of [camPos, camLook]) { const rx = v.x - fx, rz = v.z - fz, cs = Math.cos(dYaw), sn = Math.sin(dYaw); v.x = fx + rx * cs + rz * sn; v.z = fz - rx * sn + rz * cs; }
+    // hills, rocks, lamps and closed ice gates between the hero and the camera first lift it (up to liftMax), then pull
+    // it in (fast in, slow out) never closer than minDistM, so the hero always stays in view
+    let want = 0, cf = 0;
+    for (let e = 0; e <= c.liftMax + 1e-6; e += c.liftMax / 3) { const o = orbit(e); cf = clearFrac(fx, fy, fz, o[0], o[1], o[2]); want = e; if (cf > 0.85) break; }
+    lift += (want - lift) * (1 - Math.exp(-dt * (want > lift ? 10 : 2)));
+    let [ox, oy, oz, ax, az] = orbit(lift);
+    { const r = Math.hypot(ox, oy, oz), cl = Math.max(Math.min(1, c.minDistM / r), clearFrac(fx, fy, fz, ox, oy, oz));
+      pull += (cl - pull) * (1 - Math.exp(-dt * (cl < pull ? 14 : 2.5))); ox *= pull; oy *= pull; oz *= pull; }
     const follow = tmpV.set(fx + ox, fy + oy, fz + oz);
     let look = new THREE.Vector3(fx + ax, fy + c.lookUp, fz + az);
     let pos = follow.clone(), fov = c.fov;
     if (focus && focus.k > 0.001) {
-      const mx = (fx + focus.x) / 2, mz = (fz + focus.z) / 2;
-      pos.lerp(new THREE.Vector3(mx, fy + c.height * c.focusH, Math.max(fz, focus.z) + c.dist * c.focusD), focus.k);
+      // frame the hero and the animal together from the player's side of the pair
+      const mx = (fx + focus.x) / 2, mz = (fz + focus.z) / 2, sy = Math.sin(lookRot.yaw), cy = Math.cos(lookRot.yaw);
+      const back = c.dist * c.focusD + Math.abs((focus.x - fx) * sy + (focus.z - fz) * cy) / 2;
+      pos.lerp(new THREE.Vector3(mx + sy * back, fy + c.height * c.focusH, mz + cy * back), focus.k);
       look.lerp(new THREE.Vector3(mx, (fy + focus.y) / 2 + 0.6, mz), focus.k);
     }
     if (vf > 0.001 && aim) {
@@ -485,15 +498,30 @@ export function createWorld(canvas, cfg, opts = {}) {
   }
   // swipe-to-look: yaw orbits the follow camera around the hero, el tilts it (radians, 0 = the authored view)
   const lookRot = { yaw: 0, el: 0 };
+  let lastYaw = 0, pull = 1, lift = 0;
+  /** Is this point inside a hill, a rock or a closed ice gate? */
+  function solidAt(x, y, z) {
+    if (y < L.terrainH(cfg, x, z) + 0.7) return true;
+    for (const r of rockS) { const dx = x - r[0], dz = z - r[1]; if (dx * dx + dz * dz < r[2] * r[2] * 1.3 && y < L.terrainH(cfg, r[0], r[1]) + r[2] * 1.1) return true; }
+    for (const l of lanterns) { const dx = x - l[0], dz = z - l[1]; if (dx * dx + dz * dz < 0.36 && y < L.terrainH(cfg, l[0], l[1]) + 3) return true; }
+    for (const g of gates) if (g.mesh.visible && Math.abs(z - g.mesh.position.z) < 1 && Math.abs(x) < 6 && y < g.mesh.position.y + 5.5) return true;
+    return false;
+  }
+  /** How much of the hero-to-camera line (0..1) is clear, sampled from the hero's head out. */
+  function clearFrac(fx, fy, fz, ox, oy, oz) {
+    const n = 12, hy = fy + 1.2;
+    for (let i = 1; i <= n; i++) { const t = i / n; if (solidAt(fx + ox * t, hy + (fy + oy - hy) * t, fz + oz * t)) return Math.max(0, (i - 1.5) / n); }
+    return 1;
+  }
   /** Sets the player's look offset; the follow camera orbits the hero by it. */
   function setLook(yaw, el) { lookRot.yaw = yaw; lookRot.el = el; }
   /** Follow offset [x, y, z] and look-ahead [x, z] after the player's yaw and tilt. */
-  function orbit() {
-    const c = cfg.camera, r = Math.hypot(c.height, c.dist), e = Math.atan2(c.height, c.dist) + lookRot.el;
+  function orbit(up = 0) {
+    const c = cfg.camera, r = Math.hypot(c.height, c.dist), e = Math.min(1.35, Math.atan2(c.height, c.dist) + lookRot.el + up);
     const h = Math.sin(e) * r, d = Math.cos(e) * r, sy = Math.sin(lookRot.yaw), cy = Math.cos(lookRot.yaw);
     return [sy * d, h, cy * d, sy * c.lookAhead, cy * c.lookAhead];
   }
-  function snapCamera(hero) { const [ox, oy, oz, ax, az] = orbit(); camPos.set(hero.x + ox, hero.y + oy, hero.z + oz); camLook.set(hero.x + ax, hero.y + cfg.camera.lookUp, hero.z + az); }
+  function snapCamera(hero) { lastYaw = lookRot.yaw; pull = 1; lift = 0; const [ox, oy, oz, ax, az] = orbit(); camPos.set(hero.x + ox, hero.y + oy, hero.z + oz); camLook.set(hero.x + ax, hero.y + cfg.camera.lookUp, hero.z + az); }
 
   // ---- render
   const sceneInfo = { calls: 0, tris: 0 };
@@ -519,8 +547,9 @@ export function createWorld(canvas, cfg, opts = {}) {
   const rtPh = new THREE.WebGLRenderTarget(pw, ph, { type: hdrType, samples: 0 }), rtPl = new THREE.WebGLRenderTarget(pw, ph);
   const photoCam = new THREE.PerspectiveCamera(40, pw / ph, 0.3, 300);
   const pixels = new Uint8Array(pw * ph * 4);
-  /** Renders the view from `from` looking at `at` with `fov` into a new canvas. */
-  function capture(from, at, fov, studio = null) {
+  /** Renders the view from `from` looking at `at` with `fov` into a new canvas. `focus` ({ p: subject centre, k: 0..1 of the half
+   * height }) keeps that much around the subject sharp and softens the rest like a shallow lens. */
+  function capture(from, at, fov, studio = null, focus = null) {
     photoCam.position.copy(from); photoCam.fov = fov; photoCam.aspect = pw / ph; photoCam.updateProjectionMatrix(); photoCam.lookAt(at);
     const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
     renderer.setRenderTarget(rtPh); renderer.render(studio || scene, photoCam);
@@ -539,6 +568,21 @@ export function createWorld(canvas, cfg, opts = {}) {
       }
     }
     g.putImageData(img, 0, 0);
+    // a shallow lens and a soft flash: the background melts away from the subject and highlights bloom gently.
+    // Phones without canvas filters keep the plain print.
+    const D = cfg.photo.depth;
+    if (!studio && D && typeof g.filter === 'string') {
+      const b = document.createElement('canvas'); b.width = pw; b.height = ph; const bg = b.getContext('2d');
+      if (focus) {
+        bg.filter = `blur(${D.blurPx}px)`; bg.drawImage(cv, 0, 0); bg.filter = 'none';
+        const q = focus.p.clone().project(photoCam), cx = (q.x + 1) / 2 * pw, cy = (1 - q.y) / 2 * ph;
+        const r0 = ph * 0.5 * focus.k, gr = bg.createRadialGradient(cx, cy, r0, cx, cy, r0 + ph * D.featherK);
+        gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); bg.globalCompositeOperation = 'destination-in'; bg.fillStyle = gr; bg.fillRect(0, 0, pw, ph);
+        g.drawImage(b, 0, 0); bg.globalCompositeOperation = 'source-over'; bg.clearRect(0, 0, pw, ph);
+      }
+      bg.filter = `blur(${D.glowPx}px) brightness(${D.glowBright})`; bg.drawImage(cv, 0, 0); bg.filter = 'none';
+      g.globalCompositeOperation = 'screen'; g.globalAlpha = D.glow; g.drawImage(b, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    }
     return cv;
   }
 
@@ -562,9 +606,9 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
-    renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake,
+    renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake, propMat,
     setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, setLook, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
-    get tier() { return tier; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
+    get tier() { return tier; }, get pull() { return pull; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
   };
 }

@@ -62,16 +62,20 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     check(!beatSeen && await heroOnScreen(page), 'the first 5 s keep the hero framed: no rare-visitor cinematic during the tutorial');
     await step(page, 20);
     await shoot(page, '01-first-frame-ftue-walk');
-    // a real tap on the snow walks the hero there
+    // the walk stick waits in the bottom-left corner; a tap elsewhere on the snow does not walk (the rest of the screen looks)
     const z0 = await ev(page, () => __game.hero.z);
-    await page.mouse.click(230, 330);
-    await step(page, 90);
-    const z1 = await ev(page, () => __game.hero.z);
-    check(z1 < z0 - 1, `a tap on the snow walks the hero there (z ${z0.toFixed(1)} -> ${z1.toFixed(1)})`);
-    // walk to the fox: the viewfinder opens and the tutorial points at the shutter
-    await ev(page, () => { const f = __game.animals.find((a) => a.id === 'fox'); __game.walkTo(f.x, f.z + 6); });
+    const stk = await page.locator('#stick').boundingBox();
+    check(!!stk && stk.x < 390 * 0.5 && stk.y > 844 * 0.5, `the walk stick rests in the bottom-left corner (${stk ? stk.x.toFixed(0) + ',' + stk.y.toFixed(0) : 'hidden'})`);
+    check(await ev(page, () => { const h = document.getElementById('hand'), s = document.getElementById('stick').getBoundingClientRect(), b = h.getBoundingClientRect(); return !h.hidden && Math.abs(b.left - s.left) < s.width && Math.abs(b.top - s.top) < s.height; }), 'the tutorial hand shows the walk on the stick itself');
+    await page.mouse.click(230, 330); await step(page, 60);
+    check(Math.abs((await ev(page, () => __game.hero.z)) - z0) < 0.2, 'a tap on the snow does not walk the hero');
+    // walk to the fox with a real drag on the stick: in range while still walking, the tutorial says "Stop to aim"
     let stopHint = false;
-    for (let i = 0; i < 40 && await ev(page, () => __game.vf) < 0.9; i++) { await step(page, 8); if (await ev(page, () => { const c = document.getElementById('coach'); return !c.hidden && /Stop to aim/.test(c.textContent); })) stopHint = true; }
+    await page.mouse.move(90, 760); await page.mouse.down(); await page.mouse.move(90, 700);
+    for (let i = 0; i < 40 && await ev(page, () => __game.hero.z) > 0.6; i++) { await step(page, 4); if (await ev(page, () => { const c = document.getElementById('coach'); return !c.hidden && /Stop to aim/.test(c.textContent); })) stopHint = true; }
+    check((await ev(page, () => __game.hero.z)) < z0 - 1, 'dragging the stick walks the hero');
+    await page.mouse.up();
+    for (let i = 0; i < 40 && await ev(page, () => __game.vf) < 0.9; i++) await step(page, 8);
     await step(page, 20);
     check(await ev(page, () => __game.vf) > 0.9, 'standing near an animal opens the viewfinder');
     check(await ev(page, () => __game.ftue) === 'snap', 'reaching the fox moves the tutorial to "snap"');
@@ -212,15 +216,16 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     await shoot(page, '24-look-hint');
     await ev(page, () => __game.animals.forEach((a) => { a.x = a.x0h; }));
     const h0 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z }));
+    const up2c = async (u) => { await u(); await step(page, 2); };
     const drag = async (x0, y0, dx, dy, n = 8) => { await page.mouse.move(x0, y0); await page.mouse.down(); for (let i = 1; i <= n; i++) { await page.mouse.move(x0 + dx * i / n, y0 + dy * i / n); await step(page, 2); } return async () => page.mouse.up(); };
     const up1 = await drag(300, 420, 90, 20); await up1(); await step(page, 40);
     const lk = await ev(page, () => __game.look());
     check(!(await hint()), 'the first look swipe dismisses the hint');
-    check(lk.yaw < -0.5 && lk.yaw > -1.29 && lk.el > 0, `a right-side swipe turns and tilts the view (yaw ${lk.yaw.toFixed(2)}, tilt ${lk.el.toFixed(2)})`);
+    check(lk.yaw < -0.5 && lk.el > 0, `a swipe outside the stick corner turns and tilts the view (yaw ${lk.yaw.toFixed(2)}, tilt ${lk.el.toFixed(2)})`);
     check(Math.hypot((await ev(page, () => __game.hero.x)) - h0.x, (await ev(page, () => __game.hero.z)) - h0.z) < 0.2, 'a look swipe does not move the hero');
     await shoot(page, '23-swipe-look');
     const p0 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z, yaw: __game.look().yaw }));
-    const up2 = await drag(90, 600, 0, -80); await step(page, 40);
+    const up2 = await drag(90, 760, 0, -80); await step(page, 40);
     const p1 = await ev(page, () => ({ x: __game.hero.x, z: __game.hero.z })); await up2();
     const mvx = p1.x - p0.x, mvz = p1.z - p0.z, ml = Math.hypot(mvx, mvz) || 1, ex = -Math.sin(p0.yaw), ez = -Math.cos(p0.yaw);
     check((mvx * ex + mvz * ez) / ml > 0.8, `stick "up" walks away from the turned camera (dot ${((mvx * ex + mvz * ez) / ml).toFixed(2)})`);
@@ -230,12 +235,12 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
       const two = await ev(page, () => {
         const root = document.getElementById('app'), r = root.getBoundingClientRect(), y0 = __game.look().yaw, h0 = [__game.hero.x, __game.hero.z];
         const pe = (type, id, x, y) => root.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: id === 21 }));
-        pe('pointerdown', 21, 90, 600); pe('pointermove', 21, 90, 540); pe('pointerdown', 22, 300, 400);
-        for (let i = 1; i <= 6; i++) { pe('pointermove', 22, 300 + i * 12, 400); pe('pointermove', 21, 90, 540); __game.step(4); }
-        const walking = !document.getElementById('stick').hidden;
+        pe('pointerdown', 21, 90, 760); pe('pointermove', 21, 90, 700); pe('pointerdown', 22, 300, 400);
+        for (let i = 1; i <= 6; i++) { pe('pointermove', 22, 300 + i * 12, 400); pe('pointermove', 21, 90, 700); __game.step(4); }
+        const walking = !document.getElementById('stick').classList.contains('rest');
         // the game goes to the background mid-walk: every finger lets go
         Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));
-        const released = document.getElementById('stick').hidden;
+        const released = document.getElementById('stick').classList.contains('rest');
         Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));
         const h1 = [__game.hero.x, __game.hero.z]; __game.step(30); const h2 = [__game.hero.x, __game.hero.z];
         return { dyaw: __game.look().yaw - y0, moved: Math.hypot(h1[0] - h0[0], h1[1] - h0[1]), walking, released, after: Math.hypot(h2[0] - h1[0], h2[1] - h1[1]) };
@@ -250,21 +255,30 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
         const pe = (type, id, x, y) => root.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: id === 31 }));
         pe('pointerdown', 31, 300, 400); for (let i = 1; i <= 3; i++) { pe('pointermove', 31, 300 - i * 12, 400); __game.step(2); }
         const y0 = __game.look().yaw;
-        pe('pointerdown', 32, 90, 600); pe('pointermove', 32, 90, 540);
-        for (let i = 4; i <= 11; i++) { pe('pointermove', 31, 300 - i * 12, 400); pe('pointermove', 32, 90, 540); __game.step(4); }
-        const walking = !document.getElementById('stick').hidden, y1 = __game.look().yaw, moved = Math.hypot(__game.hero.x - h0[0], __game.hero.z - h0[1]);
-        pe('pointerup', 32, 90, 540); const h1 = [__game.hero.x, __game.hero.z];
+        pe('pointerdown', 32, 90, 760); pe('pointermove', 32, 90, 700);
+        for (let i = 4; i <= 11; i++) { pe('pointermove', 31, 300 - i * 12, 400); pe('pointermove', 32, 90, 700); __game.step(4); }
+        const walking = !document.getElementById('stick').classList.contains('rest'), y1 = __game.look().yaw, moved = Math.hypot(__game.hero.x - h0[0], __game.hero.z - h0[1]);
+        pe('pointerup', 32, 90, 700); const h1 = [__game.hero.x, __game.hero.z];
         for (let i = 12; i <= 16; i++) { pe('pointermove', 31, 300 - i * 12, 400); __game.step(4); }
         const y2 = __game.look().yaw, after = Math.hypot(__game.hero.x - h1[0], __game.hero.z - h1[1]);
         pe('pointerup', 31, 300 - 16 * 12, 400); __game.step(2);
-        return { walking, moved, turned: Math.abs(y1 - y0), turned2: Math.abs(y2 - y1), after, stuck: !document.getElementById('stick').hidden };
+        return { walking, moved, turned: Math.abs(y1 - y0), turned2: Math.abs(y2 - y1), after, stuck: !document.getElementById('stick').classList.contains('rest') };
       });
       check(rev.walking && rev.moved > 0.5 && rev.turned > 0.05, `look first, then walk with the other thumb (moved ${rev.moved.toFixed(2)} m, turned ${rev.turned.toFixed(2)})`);
       check(rev.turned2 > 0.03 && !rev.stuck, `lifting the walking thumb keeps the look going (turned ${rev.turned2.toFixed(2)})`);
     }
-    await step(page, 60 * 12);
-    const lk2 = await ev(page, () => __game.look());
-    check(Math.abs(lk2.yaw) < 0.08 && Math.abs(lk2.el) < 0.05, `the view drifts back after a quiet spell (yaw ${lk2.yaw.toFixed(3)})`);
+    // the view stays where the player left it, and a full turn keeps the hero in frame
+    { await step(page, 60); const a = await ev(page, () => __game.look().yaw); await step(page, 60 * 12); const b2 = await ev(page, () => __game.look().yaw); check(Math.abs(b2 - a) < 0.01, `the view stays where the player leaves it (yaw ${a.toFixed(2)} -> ${b2.toFixed(2)})`); }
+    { await ev(page, () => { __game.tp(1, -30); __game.animals.forEach((q) => { q.x0h = q.x; q.x += 400; }); }); await step(page, 30); let framed = 0;
+      for (let q = 0; q < 8; q++) { const u2 = await drag(300, 420, -Math.PI / 4 / 0.006 * (await ev(page, () => parseFloat(getComputedStyle(document.getElementById('app')).getPropertyValue('--u')))), 0); await step(page, 20); if (await heroOnScreen(page)) framed++; await up2c(u2); }
+      await ev(page, () => __game.animals.forEach((q) => { q.x = q.x0h; }));
+      check(framed === 8, `a full 360° swipe turn keeps the hero framed at every eighth (${framed}/8)`); }
+    // low and high tilt by the valley's edge and behind a closed ice gate: the hero stays in view
+    { let ok = 0; const spots = [[0, -33], [-14, -6], [12, -20]];
+      for (const [x, z] of spots) { await ev(page, ([x, z]) => { __game.tp(x, z); __game.animals.forEach((q) => { q.x0h = q.x; q.x += 400; }); }, [x, z]);
+        for (const dy of [300, -300]) { const u3 = await drag(250, 420, 0, dy); await step(page, 30); if (await heroOnScreen(page) && await ev(page, () => __game.W.camera.position.distanceTo({ x: __game.hero.x, y: __game.hero.y + 1, z: __game.hero.z }) > 2.6)) ok++; await up2c(u3); }
+        await ev(page, () => __game.animals.forEach((q) => { q.x = q.x0h; })); }
+      check(ok === spots.length * 2, `at the valley edge and by a closed gate, high and low tilts keep the hero in view (${ok}/${spots.length * 2})`); }
     check(errors.length === 0, `swipe-to-look: no page errors (${errors.slice(0, 3).join(' | ')})`);
     await page.close();
   }
