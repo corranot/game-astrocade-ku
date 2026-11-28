@@ -23,7 +23,9 @@ export function createLife(world, Cast, n = 5) {
   }
   // fireflies for the dusk district: a handful of warm points that drift near Buzzy
   const FN = 18, fpos = new Float32Array(FN * 3), fgeo = new THREE.BufferGeometry(); fgeo.setAttribute('position', new THREE.BufferAttribute(fpos, 3));
-  const fire = new THREE.Points(fgeo, new THREE.PointsMaterial({ color: new THREE.Color(1.9, 1.7, 0.7), size: 0.16, sizeAttenuation: true, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false })); fire.frustumCulled = false; fire.visible = false; group.add(fire);
+  const fire = new THREE.Points(fgeo, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: 'void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = 150.0 / -mv.z; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float a = smoothstep(1.0, 0.0, d); gl_FragColor = vec4(vec3(1.0, 0.86, 0.4) * (a * a * 1.4 + step(d, 0.25) * 0.6), 1.0); }' })); fire.frustumCulled = false; fire.visible = false; group.add(fire);
   return {
     /** Fireflies on or off (on in the dusk district). */
     setDusk(on) { fire.visible = on; },

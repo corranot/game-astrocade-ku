@@ -199,7 +199,7 @@ export function dailyRecipe(cfg, ymd) {
   for (let i = 0; i < 2; i++) { const k = pool[Math.floor(R() * pool.length)]; if (!f.includes(k)) f.push(k); }
   f.push('pattern:' + ['long', 'cross', 'diag', 'chequer'][ymd % 4]);
   const hosts = cfg.gardens.filter((x) => !x.daily);
-  return { id: 'daily', daily: true, nb: hosts[ymd % hosts.length].id, w: 16 + Math.floor(R() * 5) * 2, d: 22 + Math.floor(R() * 5) * 2, f, district: ymd % cfg.districts.length };
+  return { id: 'daily', daily: true, nb: hosts[ymd % hosts.length].id, w: 16 + Math.floor(R() * 5) * 2, d: 22 + Math.floor(R() * 5) * 2, f, district: cfg.districts.length - 1 }; // the daily garden has its own festival look
 }
 /** Today's date number from a Date, in local time. */
 export const ymdOf = (date) => date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
