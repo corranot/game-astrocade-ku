@@ -233,7 +233,7 @@ body{display:flex;align-items:center;justify-content:center}
 <script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js", "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.js": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" } }</script>
 <link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" crossorigin>
 <link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" crossorigin>
-<script type="module" data-lib>import * as THREE from 'three'; import { voxelize } from './voxel.js'; window.THREE = voxelize(THREE); window.dispatchEvent(new Event('three-ready'));</script>
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
 <script type="module" src="./game.js"></script>
 </body>
 </html>

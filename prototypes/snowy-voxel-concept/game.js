@@ -5,6 +5,7 @@
 // Progress saves through lib.saveUserGameState. All tuning values are in game_config.json.
 import * as L from './logic.js';
 import { createWorld } from './world.js';
+import { voxelize } from './voxel.js';
 import { buildCritter, animateCritter, critterMaterials, buildHero, animateHero } from './critters.js';
 import { createFx } from './fx.js';
 import { Sound } from './audio.js';
@@ -99,6 +100,7 @@ export function run(mode = 'play') {
     const wait = { destroy() { removeEventListener('three-ready', again); if (window.__ss === wait) window.__ss = null; } };
     window.__ss = wait; return wait;
   }
+  if (!THREE.__vox) { window.THREE = voxelize(THREE); window.THREE.__vox = true; } // voxel preview: blocky primitives
   const cfg = JSON.parse(JSON.stringify(window.gameConfig || {})); // a copy: the host's config is never written
   if (typeof lib !== 'undefined' && lib.showGameParameters) lib.showGameParameters({ name: 'Snowy Snapshot', params: {
     'Walk speed': { key: 'hero.speed', type: 'slider', min: 3, max: 9, step: 0.2 },
