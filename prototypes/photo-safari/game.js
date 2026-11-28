@@ -45,7 +45,7 @@ const ICON = {
 const SPK = '<svg viewBox="0 0 48 48" aria-hidden="true"><path class="spk" d="M9 19h7l10-8v26l-10-8H9z"/><path class="wav" d="M31 17c3 2 4 4.5 4 7s-1 5-4 7M35 12c5 3.5 7 7.5 7 12s-2 8.5-7 12"/><path class="x" d="M31 18l11 12M42 18L31 30"/></svg>';
 
 /** Draws a treat (carrot, fish, berries, yarn) or shop icon on a 2D canvas. */
-function drawIcon(cv, id, color) {
+function drawIcon(cv, id, color, hat) {
   const g = cv.getContext('2d'), w = cv.width; g.clearRect(0, 0, w, w); g.save(); g.scale(w / 100, w / 100); g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = 6; g.strokeStyle = '#1a2147';
   const blob = (x, y, rx, ry, c) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fillStyle = c; g.fill(); g.stroke(); };
   if (id === 'carrot') { g.beginPath(); g.moveTo(30, 32); g.lineTo(74, 30); g.lineTo(48, 88); g.closePath(); g.fillStyle = '#ff8a2e'; g.fill(); g.stroke(); for (const a of [-0.5, 0, 0.5]) { g.beginPath(); g.ellipse(52 + a * 20, 18, 7, 15, a, 0, 7); g.fillStyle = '#4cc070'; g.fill(); g.stroke(); } }
@@ -56,7 +56,9 @@ function drawIcon(cv, id, color) {
   else if (id === 'flash') { blob(50, 50, 38, 38, '#3b2d6e'); g.beginPath(); g.moveTo(56, 14); g.lineTo(30, 56); g.lineTo(50, 56); g.lineTo(42, 86); g.lineTo(72, 42); g.lineTo(52, 42); g.closePath(); g.fillStyle = '#ffcf3a'; g.fill(); g.stroke(); }
   else if (id === 'slow') { blob(50, 50, 38, 38, '#fff6e6'); g.beginPath(); g.moveTo(50, 50); g.lineTo(50, 24); g.moveTo(50, 50); g.lineTo(68, 60); g.stroke(); }
   else if (id === 'owl') { blob(50, 56, 34, 38, '#c8a878'); blob(36, 48, 14, 14, '#fff'); blob(64, 48, 14, 14, '#fff'); blob(36, 49, 6, 7, '#1a2147'); blob(64, 49, 6, 7, '#1a2147'); g.beginPath(); g.moveTo(44, 62); g.lineTo(56, 62); g.lineTo(50, 72); g.closePath(); g.fillStyle = '#ffb347'; g.fill(); g.stroke(); g.beginPath(); g.moveTo(22, 26); g.lineTo(32, 34); g.lineTo(20, 36); g.moveTo(78, 26); g.lineTo(68, 34); g.lineTo(80, 36); g.stroke(); }
-  else { blob(50, 46, 32, 30, color || '#e8513a'); g.beginPath(); g.ellipse(50, 22, 20, 12, 0, Math.PI, 0); g.fillStyle = '#fff6e6'; g.fill(); g.stroke(); blob(50, 10, 9, 9, '#fff6e6'); blob(50, 78, 26, 12, color || '#e8513a'); }
+  // arcTo rounded boxes: canvas roundRect is missing on older phones
+  else if (id === 'camera') { const rr = (x, y, w2, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w2, y, x + w2, y + h, r); g.arcTo(x + w2, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w2, y, r); g.closePath(); }; rr(34, 22, 22, 14, 4); g.fillStyle = '#2b2f38'; g.fill(); g.stroke(); rr(12, 32, 76, 52, 12); g.fillStyle = color || '#7fe0c8'; g.fill(); g.stroke(); blob(50, 58, 19, 19, '#2b2f38'); blob(50, 58, 10, 10, '#6ab8ff'); blob(76, 42, 4, 4, '#fff6e6'); }
+  else { const h = hat || '#fff6e6'; blob(50, 46, 32, 30, color || '#e8513a'); g.beginPath(); g.ellipse(50, 22, 20, 12, 0, Math.PI, 0); g.fillStyle = h; g.fill(); g.stroke(); blob(50, 10, 9, 9, h); blob(50, 78, 26, 12, color || '#e8513a'); }
   g.restore();
 }
 
@@ -287,6 +289,9 @@ export function run(mode = 'play') {
   /** Queues a beat. b = { pri, dur, pos(), look(), fov, slow, bars, sting, start() } */
   function beat(b) { if (!play && !bot) return; beats.q.push(b); beats.q.sort((x, y) => y.pri - x.pri); }
   let timeScale = 1;
+  // players who ask their phone for less motion get no camera shake (the flashes and sounds still land)
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const shake = (t, a) => { if (!calm) { W.shake.t = t; W.shake.a = a; } };
   function stepBeats(rdt) {
     beats.cool -= rdt;
     if (!beats.cur && beats.q.length && beats.cool <= 0 && !bookOpen) { beats.cur = beats.q.shift(); beats.cur.t = 0; beats.cur.k = 0; if (beats.cur.start) beats.cur.start(); if (beats.cur.sting) Sound.sting(beats.cur.sting); $('cine').classList.toggle('on', !!beats.cur.bars); }
@@ -359,8 +364,8 @@ export function run(mode = 'play') {
     for (const it of cfg.economy.shop) {
       const st = L.canBuy(cfg, S, it.id), own = st === 'owned', worn = (it.kind === 'outfit' && S.outfit === it.id) || (it.kind === 'cam' && S.cam === it.id);
       const el = document.createElement('div'); el.className = 'it'; const cv = document.createElement('canvas'); cv.width = 112; cv.height = 112;
-      drawIcon(cv, it.kind === 'outfit' || it.kind === 'cam' ? 'wear' : it.id, it.parka || it.color); el.appendChild(cv);
-      el.insertAdjacentHTML('beforeend', `<b>${T('i_' + (it.kind === 'outfit' ? 'outfit' : it.kind === 'cam' ? 'cam' : it.id))}</b>`);
+      drawIcon(cv, it.kind === 'outfit' ? 'wear' : it.kind === 'cam' ? 'camera' : it.id, it.parka || it.color, it.hat); el.appendChild(cv);
+      el.insertAdjacentHTML('beforeend', `<b>${T('i_' + it.id)}</b>`); // every coat and camera has its own name
       // a treat says who it is for (a name once photographed, "?" before), so buying has a clear reason
       if (it.kind === 'treat') for (const q of cfg.species.filter((sp) => sp.shy === it.id)) {
         // a treat shows who it is for: the animal's portrait (a silhouette until photographed) beside a heart
@@ -425,12 +430,20 @@ export function run(mode = 'play') {
     if (!play || bot || e.target.closest('button') || bookOpen) return;
     gesture();
     if (input.id !== null) {
-      if (!input.look && look2.id === null && e.pointerId !== input.id && inLookZone(e.clientX)) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ } Object.assign(look2, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false }); }
+      if (e.pointerId === input.id || look2.id !== null) return;
+      const side = inLookZone(e.clientX);
+      if (!input.look && side) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ } Object.assign(look2, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false }); }
+      // the first finger looks and this one lands on the walk side: the first keeps looking as the second finger, this one walks
+      else if (input.look && !side) { Object.assign(look2, { id: input.id, x0: input.x0, y0: input.y0, lx: input.lx, ly: input.ly, drag: input.drag }); grab(e, false); }
       return;
     }
+    grab(e, inLookZone(e.clientX));
+  }
+  /** Makes this pointer the main finger: a walk stick or, on the look side, a swipe. */
+  function grab(e, look) {
     try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
     input.id = e.pointerId; input.x0 = input.lx = e.clientX; input.y0 = input.ly = e.clientY; input.t0 = performance.now(); input.dx = input.dy = 0; input.drag = false;
-    input.look = inLookZone(e.clientX);
+    input.look = look;
   }
   function onMove(e) {
     if (e.pointerId === look2.id) {
@@ -459,9 +472,13 @@ export function run(mode = 'play') {
       ray.setFromCamera(ndc, W.camera); plane.constant = -hero.y;
       if (ray.ray.intersectPlane(plane, hit)) { input.target = [hit.x, hit.z]; fx.ring(hit.x, L.terrainH(cfg, hit.x, hit.z), hit.z, 0.9, '#bff7ff', 0.45); }
     }
+    const l = look2.id !== null ? { ...look2 } : null;
     releaseFingers();
+    // the walking thumb lifted while the other still looks: that finger carries on looking as the main one (never a tap)
+    if (l) Object.assign(input, { id: l.id, x0: l.x0, y0: l.y0, lx: l.lx, ly: l.ly, drag: l.drag, look: true, t0: -1e9 });
   }
   function releaseFingers() { input.id = null; input.drag = false; input.look = false; input.dx = input.dy = 0; look2.id = null; look2.drag = false; const st = $('stick'); if (st) st.hidden = true; }
+  root.addEventListener('contextmenu', (e) => e.preventDefault()); // a long press never opens the browser menu
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
   const onKey = (e) => {
     if (!play || bot) return;
@@ -537,7 +554,7 @@ export function run(mode = 'play') {
     $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
     $('iris').classList.remove('go'); void $('iris').offsetWidth; $('iris').classList.add('go');
     $('shutter').classList.remove('bump'); void $('shutter').offsetWidth; $('shutter').classList.add('bump');
-    W.shake.t = 0.12; W.shake.a = 0.04;
+    shake(0.12, 0.04);
     const a = nearest(L.lens(cfg, S).range);
     let res, cv, stars = 1, shot = null;
     if (a) {
@@ -618,7 +635,7 @@ export function run(mode = 'play') {
       look: (t = 0) => V3(gp.x, gp.y + 1.2, gp.z - 7).lerp(V3(gp.x, gp.y + 2.9, gp.z - 18), glide(t)),
       start: () => setTimeout(() => {
         if (!alive) return;
-        W.openGate(i - 1); Sound.crack(); buzz('big'); W.shake.t = 0.4; W.shake.a = 0.12;
+        W.openGate(i - 1); Sound.crack(); buzz('big'); shake(0.4, 0.12);
         fx.debris(gp.x, gp.y + 0.5, gp.z, 6, 3.5, 2.6); /* a few big chunks that drop and settle inside a second */ fx.ring(gp.x, gp.y, gp.z, 7, '#bff7ff', 0.8);
         fx.emit({ pool: 'glow', x: gp.x, y: gp.y + 1.5, z: gp.z, spread: 4, speed: 2.4, up: 2.4, life: 1.2, size: 0.22, color: '#bff7ff', shape: 'flake', grav: -1 }, 6);
         fx.emit({ pool: 'soft', x: gp.x, y: gp.y + 0.3, z: gp.z, spread: 4, speed: 1.5, up: 0.3, life: 1.2, size: 0.8, color: '#dceafb', alpha: 0.35, grav: 0.3, drag: 2, grow: 1 }, 6);
