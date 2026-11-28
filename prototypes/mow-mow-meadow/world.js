@@ -36,6 +36,8 @@ export function createWorld(canvas, cfg, opts = {}) {
     water: new THREE.MeshStandardMaterial({ color: 0x6fc3d8, roughness: 0.25, metalness: 0.0, transparent: true, opacity: 0.86 }),
     glow: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.9, 1.1), toneMapped: false }),
     ground: new THREE.MeshLambertMaterial({ color: 0x6aa64a }),
+    felt: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0.0 }),
+    wing: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.88 }),
   };
   // the meadow outside the fences: soft patches of lighter and darker green and fine speckle, never a flat fill
   M.ground.onBeforeCompile = (sh) => {
@@ -137,7 +139,7 @@ export function createWorld(canvas, cfg, opts = {}) {
 const CREAM = '#f1e6cf', WOOD = '#b98a5e', WOOD_D = '#8a6240', STONE = '#c9c2b4', CORAL = '#e9795b', SUN = '#f6b93b';
 const FLOWERS = ['#f47c5d', '#f6b93b', '#c79ae8', '#f3a0b8', '#f1e6cf', '#7fb7ee'];
 
-function picket(h = 0.72) { return merge([paint(rbox(0.1, h, 0.035, 0.012, 1), CREAM), paint(xf(cyl(0.062, 0.004, 0.09, 4), [0, h - 0.004, 0], [0, Math.PI / 4, 0], [1, 1, 0.34]), CREAM)]); }
+function picket(h = 0.72) { return merge([paint(xf(cyl(0.07, 0.066, h, 4), [0, 0, 0], [0, Math.PI / 4, 0], [1, 1, 0.36]), '#e9dcc0', CREAM), paint(xf(cyl(0.066, 0.004, 0.09, 4), [0, h, 0], [0, Math.PI / 4, 0], [1, 1, 0.36]), CREAM)]); }
 
 /** A run of fence from (x0, z0) to (x1, z1) as painted geometry. */
 function fenceRun(x0, z0, x1, z1) {
@@ -160,9 +162,9 @@ export function treeGeo(R, scale = 1, leaf = ['#3f8f3a', '#86c84e'], apples = tr
 function bushGeo(R, c = ['#3f8f3a', '#86c84e']) { const out = []; for (let i = 0; i < 3; i++) out.push(paint(xf(blob(0.3 + R() * 0.1, 1, 0.8, 1, 1), [(i - 1) * 0.22, 0.24, (R() - 0.5) * 0.2]), c[0], c[1])); return merge(out); }
 function rockGeo(R) { return merge([paint(xf(blob(0.3, 1.1, 0.7, 0.9, 1), [0, 0.14, 0], [0, R() * 6, 0]), '#9d968a', STONE), paint(xf(blob(0.16, 1, 0.7, 1, 1), [0.24, 0.07, 0.1]), '#9d968a', STONE)]); }
 function flowerGeo(color, h = 0.42) {
-  const out = [paint(cyl(0.018, 0.014, h, 5), '#4f9a43'), paint(xf(blob(0.05, 1, 0.5, 1, 1), [0, h, 0]), SUN)];
-  for (let i = 0; i < 6; i++) { const a = i * 1.047; out.push(paint(xf(blob(0.062, 1, 0.34, 0.62, 1), [Math.cos(a) * 0.085, h, Math.sin(a) * 0.085], [0, -a, 0]), color)); }
-  out.push(paint(xf(blob(0.07, 1, 0.25, 0.5, 1), [0.06, h * 0.45, 0], [0, 0, 0.5]), '#5fae4c'));
+  const out = [paint(cyl(0.018, 0.014, h, 4), '#4f9a43'), paint(xf(blob(0.05, 1, 0.5, 1, 0), [0, h, 0]), SUN)];
+  for (let i = 0; i < 5; i++) { const a = i * 1.2566; out.push(paint(xf(blob(0.066, 1, 0.34, 0.66, 0), [Math.cos(a) * 0.085, h, Math.sin(a) * 0.085], [0, -a, 0]), color)); }
+  out.push(paint(xf(blob(0.07, 1, 0.25, 0.5, 0), [0.06, h * 0.45, 0], [0, 0, 0.5]), '#5fae4c'));
   return merge(out);
 }
 /** A cottage front: walls, roof with overhang, door, windows, chimney, step. About 4 m wide. */
@@ -183,7 +185,7 @@ function cottageGeo(wall = CREAM, roof = CORAL) {
  * neighbour's cottage, props, beds, pond, and trees and hedges outside. Returns { group, gate, beds, trees, dispose }.
  */
 export function dressGarden(world, g, ox, oz, cfg, district) {
-  const THREE = window.THREE, M = world.M, R = rng(g.seed * 3 + 7), group = new THREE.Group(), geos = [], leafG = [], D = cfg.districts[district];
+  const THREE = window.THREE, M = world.M, R = rng(g.seed * 3 + 7), group = new THREE.Group(), geos = [], leafG = [], smallG = [], D = cfg.districts[district];
   const leafC = district === 2 ? ['#2f6b4a', '#5fa868'] : district === 1 ? ['#4f8a30', '#a5c850'] : ['#3f8f3a', '#86c84e'];
   const gx = ox + g.w / 2, gh = GATE_HALF_M, x0 = ox, x1 = ox + g.w, z0 = oz, z1 = oz + g.d;
   // fence: four sides, a gap for the gate in the north and for the way in at the south
@@ -192,7 +194,7 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
   // cottage beside the lane, north-west of the gate, facing south; a mailbox and a path stone row to the gate
   geos.push(xf(cottageGeo(CREAM, district === 1 ? '#c98a4e' : district === 2 ? '#7a6fb5' : CORAL), [gx - gh - 4.6, 0, z0 - 3.4]));
   for (let i = 0; i < 5; i++) geos.push(paint(xf(slab(0.34, 0.28, 0.05), [gx - gh - 4.4 + i * 0.75, 0, z0 - 1.2 + Math.sin(i) * 0.15]), STONE, '#ddd6c8'));
-  geos.push(paint(xf(rbox(0.08, 0.8, 0.08, 0.02, 1), [gx + gh + 0.7, 0, z0 - 0.7]), WOOD), paint(xf(rbox(0.3, 0.2, 0.42, 0.08, 2), [gx + gh + 0.7, 0.8, z0 - 0.7]), '#e2533c', '#f08a6c'));
+  geos.push(paint(xf(rbox(0.08, 0.8, 0.08, 0.02, 1), [gx - 3.95, 0, z0 - 0.8]), WOOD), paint(xf(rbox(0.3, 0.2, 0.42, 0.08, 2), [gx - 3.95, 0.8, z0 - 0.8]), '#e2533c', '#f08a6c'));
   // props inside the garden
   const trees = [];
   for (const p of g.props) {
@@ -227,11 +229,12 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
   }
   // wild tufts and flowers on the meadow around the fence and along the lane
   for (let i = 0; i < 150; i++) {
-    const side = R() < 0.5 ? -1 : 1, lane = R() < 0.3, x = lane ? gx + side * (2.1 + R() * 2.5) : (side < 0 ? x0 - 0.5 - R() * 7 : x1 + 0.5 + R() * 7), z = lane ? (R() < 0.5 ? z0 - 0.6 - R() * 9 : z1 + 0.6 + R() * 5) : z0 - 3 + R() * (g.d + 6);
-    if (R() < 0.6) leafG.push(xf(tuftGeo(R, leafC), [x, 0, z], [0, R() * 6, 0], 0.7 + R() * 0.7)); else leafG.push(xf(flowerGeo(FLOWERS[Math.floor(R() * 6)], 0.22 + R() * 0.18), [x, 0, z], [0, R() * 6, 0]));
+    const side = R() < 0.5 ? -1 : 1, lane = R() < 0.3, x = lane ? gx + side * (3.9 + R() * 2.5) : (side < 0 ? x0 - 0.5 - R() * 7 : x1 + 0.5 + R() * 7), z = lane ? (R() < 0.5 ? z0 - 0.6 - R() * 9 : z1 + 0.6 + R() * 5) : z0 - 3 + R() * (g.d + 6);
+    if (R() < 0.6) smallG.push(xf(tuftGeo(R, leafC), [x, 0, z], [0, R() * 6, 0], 0.7 + R() * 0.7)); else smallG.push(xf(flowerGeo(FLOWERS[Math.floor(R() * 6)], 0.22 + R() * 0.18), [x, 0, z], [0, R() * 6, 0]));
   }
   const solid = mesh(merge(geos), M.matte); group.add(solid);
   const leaves = mesh(merge(leafG), M.leaf); group.add(leaves);
+  group.add(mesh(merge(smallG), M.leaf, false));
 
   // the gate: two leaves on hinges at the posts, closed until 90%
   const leafGeo = () => { const out = []; for (let i = 0; i < 7; i++) out.push(xf(picket(0.6 + Math.sin(i / 6 * Math.PI) * 0.22), [0.14 + i * 0.22, 0, 0])); out.push(paint(xf(rbox(1.55, 0.06, 0.05, 0.015, 1), [0.8, 0.22, 0]), '#e4d6ba'), paint(xf(rbox(1.55, 0.06, 0.05, 0.015, 1), [0.8, 0.5, 0]), '#e4d6ba')); return merge(out); };
@@ -244,7 +247,7 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
 /** The lane between two gardens: a soft path from one gate to the next and stepping stones. Returns a mesh. */
 export function lanePiece(world, x, zSouth, zNorth) {
   const geos = [], len = zSouth - zNorth, R = rng(Math.round(zSouth * 31) + 5);
-  geos.push(paint(xf(rbox(3.6, 0.04, len + 1.2, 1.2, 2), [x, -0.01, (zSouth + zNorth) / 2]), '#d9c49a', '#e6d3ab'));
-  for (let i = 0; i < 8; i++) geos.push(paint(xf(slab(0.3 + R() * 0.12, 0.26, 0.05, 10), [x + (R() - 0.5) * 2.6, 0.02, zNorth + R() * len], [0, R() * 6, 0]), STONE, '#ddd6c8'));
+  geos.push(paint(xf(rbox(7.4, 0.04, len + 1.4, 2.2, 3), [x, -0.01, (zSouth + zNorth) / 2]), '#d9c49a', '#e6d3ab'));
+  for (let i = 0; i < 14; i++) geos.push(paint(xf(slab(0.3 + R() * 0.12, 0.26, 0.05, 10), [x + (R() - 0.5) * 6, 0.02, zNorth + 0.6 + R() * (len - 1.2)], [0, R() * 6, 0]), STONE, '#ddd6c8'));
   const m = mesh(merge(geos), world.M.matte, false); world.scene.add(m); return m;
 }

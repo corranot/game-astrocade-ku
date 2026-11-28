@@ -36,10 +36,10 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = (modelMatrix * vec4(position, 1.0)).xz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;' + COMMON).replace('#include <color_fragment>', `
       vec4 m = texture2D(uMask, maskUv(vXZ));
-      float a = m.g * 6.2831853, tone = 0.5 + 0.5 * cos(a);
+      float tone = m.g, ns = abs(tone * 2.0 - 1.0);
       float n = hash21(floor(vXZ * 22.0)) * 0.5 + hash21(floor(vXZ * 61.0)) * 0.5;
-      vec2 dir = vec2(-sin(a), -cos(a)); float streak = hash21(floor(vec2(dot(vXZ, vec2(dir.y, -dir.x)) * 34.0, dot(vXZ, dir) * 3.0)));
-      float fine = hash21(floor(vec2(dot(vXZ, vec2(dir.y, -dir.x)) * 90.0, dot(vXZ, dir) * 9.0)));
+      float streak = mix(hash21(floor(vec2(vXZ.y * 34.0, vXZ.x * 3.0))), hash21(floor(vec2(vXZ.x * 34.0, vXZ.y * 3.0))), ns);
+      float fine = mix(hash21(floor(vec2(vXZ.y * 90.0, vXZ.x * 9.0))), hash21(floor(vec2(vXZ.x * 90.0, vXZ.y * 9.0))), ns);
       vec3 cut = mix(uDark, uLight, smoothstep(0.25, 0.75, tone)) * (0.86 + 0.12 * n + 0.1 * streak + 0.12 * fine);
       vec3 tall = uRoot * (0.62 + 0.2 * n);
       float h = smoothstep(0.05, 0.45, m.r);
@@ -91,9 +91,9 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
       transformed.x += w * uWind.x * hgt * y2; transformed.z += w * uWind.x * 0.5 * hgt * y2;
       vec2 away = base - uKart.xy; float dK = length(away); float push = (1.0 - smoothstep(0.3, uPush, dK)) * uKart.z;
       transformed.xz += normalize(away + 0.0001) * push * 0.55 * hgt * y; transformed.y -= push * 0.3 * hgt * y;
-      float a = m.g * 6.2831853; transformed.xz += vec2(-sin(a), -cos(a)) * isCut * 0.05 * y;
+      transformed.z -= (m.g * 2.0 - 1.0) * isCut * 0.05 * y;
       transformed.xz += (vec2(r2, r1) - 0.5) * 0.3 * hgt * y2;
-      float tone = 0.5 + 0.5 * cos(a);
+      float tone = m.g;
       vec3 cutCol = mix(uDark, uLight, smoothstep(0.25, 0.75, tone)) * (0.92 + 0.2 * r2);
       vec3 tallCol = mix(uRoot * 0.75, uTip * (0.86 + 0.28 * r1), y);
       vCol = mix(tallCol, cutCol, isCut);

@@ -21,15 +21,15 @@ function wheelGeo(r, w) {
  */
 export function buildBuzzy(world, look = {}) {
   const THREE = window.THREE, M = world.M, group = new THREE.Group(), body = new THREE.Group(), tilt = new THREE.Group();
-  group.add(tilt); tilt.add(body);
+  group.add(tilt); tilt.add(body); tilt.position.z = -0.15; // centres the body on the collision circle
   let [c0, c1] = PAINTS[look.paint] || PAINTS.teal;
   // chassis, hood with a friendly face, fenders, seat, tail hopper
   const shell = () => merge([
     paint(xf(rbox(0.84, 0.3, 1.36, 0.16, 3), [0, 0.2, 0.08]), c0, c1),
     paint(xf(blob(0.44, 0.92, 0.62, 1.0, 3), [0, 0.56, -0.36]), c0, c1),
     paint(xf(blob(0.3, 0.62, 0.8, 1.05, 2), [-0.47, 0.4, 0.48]), c0, c1), paint(xf(blob(0.3, 0.62, 0.8, 1.05, 2), [0.47, 0.4, 0.48]), c0, c1),
-    paint(xf(rbox(0.7, 0.34, 0.5, 0.14, 3), [0, 0.3, 0.92]), c0, c1),
   ]);
+  const hopGeo = () => merge([paint(xf(rbox(0.7, 0.34, 0.5, 0.14, 3), [0, -0.17, -0.25]), c0, c1), paint(xf(rbox(0.72, 0.08, 0.08, 0.03, 2), [0, 0.15, -0.05]), CREAM), paint(xf(blob(0.07, 1, 1, 1, 1), [-0.3, -0.03, 0.02]), '#f25c4a'), paint(xf(blob(0.07, 1, 1, 1, 1), [0.3, -0.03, 0.02]), '#f25c4a')]);
   const paintMesh = mesh(shell(), M.enamel); body.add(paintMesh);
   const trim = merge([
     paint(xf(rbox(0.5, 0.14, 0.46, 0.06, 3), [0, 0.5, 0.42]), CREAM, '#fff8e6'), paint(xf(rbox(0.5, 0.5, 0.14, 0.06, 3), [0, 0.52, 0.68], [-0.14, 0, 0]), CREAM, '#fff8e6'),
@@ -38,11 +38,14 @@ export function buildBuzzy(world, look = {}) {
     paint(xf(blob(0.05, 1, 1, 0.6, 1), [-0.19, 0.655, -0.775]), DARK), paint(xf(blob(0.05, 1, 1, 0.6, 1), [0.19, 0.655, -0.775]), DARK),
     paint(xf(blob(0.05, 1.6, 0.5, 0.5, 1), [0, 0.53, -0.79]), DARK),
     paint(xf(cyl(0.035, 0.035, 0.5, 8), [0, 0.6, -0.16], [0.75, 0, 0]), DARK), paint(xf(lathe([[0.15, -0.025], [0.185, 0], [0.15, 0.025], [0.125, 0]], 14), [0, 0.98, 0.18], [0.75 - Math.PI / 2, 0, 0]), DARK, '#5a6072'),
-    paint(xf(cyl(0.05, 0.05, 0.5, 8), [0.5, 0.42, -0.1]), '#8d94a6', '#c9cfdc'), paint(xf(cyl(0.065, 0.065, 0.1, 8), [0.5, 0.9, -0.1]), CORAL),
-    paint(xf(rbox(0.72, 0.08, 0.08, 0.03, 2), [0, 0.62, 1.12]), CREAM), paint(xf(blob(0.07, 1, 1, 1, 1), [-0.3, 0.44, 1.19]), '#f25c4a'), paint(xf(blob(0.07, 1, 1, 1, 1), [0.3, 0.44, 1.19]), '#f25c4a'),
     paint(xf(cyl(0.012, 0.008, 0.7, 5), [-0.36, 0.6, 0.86]), '#8d94a6'),
   ]);
   body.add(mesh(trim, M.matte));
+  const hopper = mesh(hopGeo(), M.enamel); hopper.position.set(0, 0.47, 1.17); body.add(hopper);
+  const chimney = mesh(merge([paint(cyl(0.05, 0.05, 0.5, 8), '#8d94a6', '#c9cfdc'), paint(xf(lathe([[0.05, 0], [0.075, 0.03], [0.07, 0.1], [0.05, 0.1]], 10), [0, 0.46, 0]), CORAL)]), M.matte); chimney.position.set(0.5, 0.42, -0.1); body.add(chimney);
+  const bonnet = new THREE.Group(); bonnet.position.set(0, 0.83, -0.42); body.add(bonnet);
+  // eyelids that droop when Buzzy is idle and blink now and then
+  const lids = [-0.19, 0.19].map((x) => { const l = mesh(paint(blob(0.112, 1, 1, 0.62, 2), c0, c1), M.enamel, false); l.position.set(x, 0.665, -0.722); l.scale.y = 0.01; body.add(l); return l; });
   const ball = mesh(paint(blob(0.07, 1, 1, 1, 1), '#f6b93b', '#ffd97a'), M.matte); ball.position.set(-0.36, 1.33, 0.86); body.add(ball);
   // the cutting deck: one unit wide, scaled on x to the deck width
   const deckGeo = merge([
@@ -59,12 +62,20 @@ export function buildBuzzy(world, look = {}) {
   chibi.group.scale.setScalar(0.72); chibi.group.rotation.y = Math.PI; chibi.group.position.set(0, 0.37, 0.5); body.add(chibi.group);
   chibi.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 
+  let hopBase = 1, popT = 0, blinkT = 3;
   let bob = 0, lean = 0, pitchV = 0, pitch = 0, ballX = 0, ballV = 0, honkT = 0, lastSpeed = 0;
   return {
     group, chibi, deck,
     /** Sets the cutting width in metres. */
     setDeck(w) { deck.scale.x = w; },
-    setPaint(key) { const p = PAINTS[key] || PAINTS.teal; if (c0 === p[0]) return; [c0, c1] = p; paintMesh.geometry.dispose(); paintMesh.geometry = shell(); },
+    setPaint(key) { const p = PAINTS[key] || PAINTS.teal; if (c0 === p[0]) return; [c0, c1] = p; paintMesh.geometry.dispose(); paintMesh.geometry = shell(); hopper.geometry.dispose(); hopper.geometry = hopGeo(); },
+    /** Shows the upgrade levels on the model: a taller chimney for the engine, a bigger hopper for the baler. */
+    setLevels(up) { chimney.scale.set(1 + up.engine * 0.05, 1 + up.engine * 0.07, 1 + up.engine * 0.05); hopBase = 1 + up.baler * 0.035; },
+    popBale() { popT = 0.3; },
+    bonnet,
+    /** World position of the bonnet top (for things that land on it) and of the chimney top (for puffs). */
+    bonnetWorld(v) { return bonnet.getWorldPosition(v); },
+    chimneyWorld(v) { return v.set(0, 0.55, 0).applyMatrix4(chimney.matrixWorld); },
     honk() { honkT = 0.35; },
     update(dt, t, s) {
       const sp = s.speed || 0, acc = (sp - lastSpeed) / Math.max(dt, 0.001); lastSpeed = sp;
@@ -76,6 +87,10 @@ export function buildBuzzy(world, look = {}) {
       tilt.rotation.z = -lean; body.rotation.x = pitch; body.position.y = bob; body.scale.set(hk, 2 - hk, hk);
       deck.position.y = Math.sin(t * 30) * 0.004 * (s.cutting || 0);
       ballV += ((-(s.turn || 0) * 0.5 - acc * 0.0 - ballX) * 60 - ballV * 5) * dt; ballX += ballV * dt; ball.position.x = -0.36 + ballX * 0.12; ball.position.y = 1.33 - Math.abs(ballX) * 0.03;
+      // the hopper swells as it fills and snaps back when the bale pops; a shiver at full Flow; sleepy lids when idle
+      popT = Math.max(0, popT - dt); const sw = hopBase * (0.86 + 0.26 * (s.fill || 0)) * (1 - Math.sin(popT / 0.3 * Math.PI) * 0.25); hopper.scale.set(sw, sw, sw);
+      if ((s.flow || 0) >= 1) body.position.x = Math.sin(t * 47) * 0.004; else body.position.x = 0;
+      blinkT -= dt; if (blinkT < -0.12) blinkT = 2 + Math.random() * 3; const droop = Math.min(0.55, Math.max(0, ((s.idle || 0) - 6) * 0.3)), lid = blinkT < 0 ? 1 : droop; for (const l of lids) l.scale.y = Math.max(0.01, lid);
       animateChibi(chibi, t, dt, { pose: 'drive', poseW: 1, seat: true, wave: s.wave || 0, look: -(s.turn || 0) * 0.6 });
       chibi.bones.spine2.rotation.z += lean * 0.8; chibi.bones.upperArmL.rotation.x += (s.turn || 0) * 0.18; chibi.bones.upperArmR.rotation.x -= (s.turn || 0) * 0.18;
     },

@@ -91,8 +91,9 @@ export function makeGarden(cfg, n, seed, recipe = cfg.gardens[n]) {
   g.type = new Uint8Array(N).fill(T.GRASS); g.mask = new Uint8Array(N * 4); g.edge = new Uint8Array(N); g.wet = new Uint8Array(N);
   const has = (k) => g.f.includes(k);
   for (const k of g.f) if (k.startsWith('pattern:')) g.pattern = k.slice(8);
-  // keep the way from the start to the gate free of big things: a 3 m corridor down the middle
-  const free = (x, z, r) => Math.abs(x - w / 2) > 1.6 + r && z > 1.2 + r && z < d - 1.2 - r && x > 0.6 + r && x < w - 0.6 - r;
+  // keep the way from the start to the gate free of big things (a 3 m corridor down the middle), and leave room
+  // for the mower to pass between a thing and the fence, so no grass hides where the deck cannot reach
+  const pass = cfg.kart.radiusM * 2 + 0.5, free = (x, z, r) => Math.abs(x - w / 2) > 1.6 + r && z > pass + r && z < d - pass - r && x > pass + r && x < w - pass - r;
   const placed = [];
   const spot = (r, tries = 60, mid = false) => {
     for (let i = 0; i < tries; i++) {
@@ -129,6 +130,11 @@ export function makeGarden(cfg, n, seed, recipe = cfg.gardens[n]) {
   for (let i = 0; i < N; i++) if (block[i]) dist[i] = 0;
   for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) { const i = idx(g, c, r); let v = dist[i]; if (c > 0) v = Math.min(v, dist[i - 1] + 1); if (r > 0) v = Math.min(v, dist[i - g.cols] + 1); dist[i] = v; }
   for (let r = g.rows - 1; r >= 0; r--) for (let c = g.cols - 1; c >= 0; c--) { const i = idx(g, c, r); let v = dist[i]; if (c < g.cols - 1) v = Math.min(v, dist[i + 1] + 1); if (r < g.rows - 1) v = Math.min(v, dist[i + g.cols] + 1); dist[i] = v; }
+  // clearance: metres from each cell to the nearest solid or water cell (8-neighbour chamfer), used by collision
+  const clr = g.clear = new Float32Array(N).fill(99), D1 = s, D2 = s * 1.4142;
+  for (let i = 0; i < N; i++) if (block[i]) clr[i] = 0;
+  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) { const i = idx(g, c, r); let v = clr[i]; if (c > 0) v = Math.min(v, clr[i - 1] + D1); if (r > 0) { v = Math.min(v, clr[i - g.cols] + D1); if (c > 0) v = Math.min(v, clr[i - g.cols - 1] + D2); if (c < g.cols - 1) v = Math.min(v, clr[i - g.cols + 1] + D2); } clr[i] = v; }
+  for (let r = g.rows - 1; r >= 0; r--) for (let c = g.cols - 1; c >= 0; c--) { const i = idx(g, c, r); let v = clr[i]; if (c < g.cols - 1) v = Math.min(v, clr[i + 1] + D1); if (r < g.rows - 1) { v = Math.min(v, clr[i + g.cols] + D1); if (c < g.cols - 1) v = Math.min(v, clr[i + g.cols + 1] + D2); if (c > 0) v = Math.min(v, clr[i + g.cols - 1] + D2); } clr[i] = v; }
   for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) { const i = idx(g, c, r); stand[i] = dist[i] > kc * 1.42 && c >= kc && c < g.cols - kc && r >= kc && r < g.rows - kc ? 1 : 0; }
   const reach = new Uint8Array(N), q = new Int32Array(N); let qh = 0, qt = 0;
   const s0 = idx(g, Math.floor(g.start.x / s), Math.floor(g.start.z / s)); reach[s0] = 1; q[qt++] = s0;
@@ -211,7 +217,7 @@ export function cutSweep(cfg, g, x0, z0, x1, z1, ang, width, ahead = 0.45) {
   const hw = width / 2 * fin, hl = L.footLenM / 2 * fin, eh = L.edgeHelpM;
   const fx = -Math.sin(ang), fz = -Math.cos(ang); // forward; heading 0 points north (-z)
   const dist = Math.hypot(x1 - x0, z1 - z0), steps = Math.max(1, Math.ceil(dist / (s * 0.9)));
-  const dirByte = Math.round(((ang % 6.2831853 + 6.2831853) % 6.2831853) / 6.2831853 * 255);
+  const dirByte = Math.round((0.5 + 0.5 * Math.cos(ang)) * 255); // stripe tone: 255 mown northward, 0 southward, 128 across. A tone (not an angle) blends cleanly between cells
   let c0 = 1e9, r0 = 1e9, c1 = -1, r1 = -1;
   for (let k = 1; k <= steps; k++) {
     const t = k / steps, cx = lerp(x0, x1, t) + fx * ahead, cz = lerp(z0, z1, t) + fz * ahead, ext = Math.hypot(hw + eh, hl + eh);
@@ -240,13 +246,12 @@ export function blocked(g, x, z, rad, gateOpen) {
   if (x < rad || x > g.w - rad) return true;
   if (z < rad && !(gateOpen && inGap)) return true;
   if (z > g.d - rad && !inGap) return true;
-  const s = g.cell;
-  for (let k = 0; k < 9; k++) {
-    const a = k * 0.785398, px = k === 8 ? x : x + Math.cos(a) * rad, pz = k === 8 ? z : z + Math.sin(a) * rad;
-    const c = Math.floor(px / s), r = Math.floor(pz / s); if (c < 0 || r < 0 || c >= g.cols || r >= g.rows) continue;
-    const t = g.type[r * g.cols + c]; if (t === T.SOLID || t === T.WATER) return true;
-  }
-  return false;
+  return clearAt(g, x, z) < rad;
+}
+/** Metres from (x, z) to the nearest solid or water (the centre of its cell counts as its edge plus half a cell). */
+export function clearAt(g, x, z) {
+  const c = Math.floor(x / g.cell), r = Math.floor(z / g.cell); if (c < 0 || r < 0 || c >= g.cols || r >= g.rows) return 99;
+  return g.clear[r * g.cols + c] - g.cell * 0.5;
 }
 /** Moves a point by (dx, dz), sliding along whatever blocks it. Returns the new { x, z, hit }. */
 export function slide(g, x, z, dx, dz, rad, gateOpen) {
@@ -279,7 +284,7 @@ export function styleShare(g, pattern) {
   let ok = 0, n = 0; const s = g.cell;
   for (let i = 0; i < g.type.length; i++) {
     if (g.type[i] !== T.GRASS || g.mask[i * 4] !== H.CUT) continue; n++;
-    const a = g.mask[i * 4 + 1] / 255 * 6.2831853, ns = Math.abs(Math.cos(a)), ew = Math.abs(Math.sin(a));
+    const ns = Math.abs(g.mask[i * 4 + 1] / 127.5 - 1), ew = Math.sqrt(Math.max(0, 1 - ns * ns));
     let want = pattern;
     if (pattern === 'chequer') { const cx = Math.floor((i % g.cols) * s / 3), cz = Math.floor(Math.floor(i / g.cols) * s / 3); want = (cx + cz) % 2 ? 'long' : 'cross'; }
     if (want === 'long' ? ns > 0.9 : want === 'cross' ? ew > 0.9 : Math.abs(ns - ew) < 0.35) ok++;
@@ -305,7 +310,7 @@ export function unpackCut(g, str) {
   for (let i = 0; i < g.type.length; i++) {
     if (g.type[i] !== T.GRASS) continue;
     while (left === 0 && k < runs.length - 1) { k++; left = runs[k]; cur ^= 1; }
-    if (cur) { const m = i * 4; if (g.mask[m] !== H.CUT) { g.mask[m] = H.CUT; g.mask[m + 1] = (Math.floor((i % g.cols) * g.cell / 1.3) % 2) ? 0 : 128; g.mask[m + 2] = Math.min(255, Math.floor(255 * done / g.grassCount)); g.cutCount++; done++; } }
+    if (cur) { const m = i * 4; if (g.mask[m] !== H.CUT) { g.mask[m] = H.CUT; g.mask[m + 1] = (Math.floor((i % g.cols) * g.cell / 1.3) % 2) ? 0 : 255; g.mask[m + 2] = Math.min(255, Math.floor(255 * done / g.grassCount)); g.cutCount++; done++; } }
     left--;
   }
   return true;
@@ -315,7 +320,7 @@ export function unpackCut(g, str) {
 export function newSave(cfg) {
   return { v: cfg.save.version, coins: 0, up: { deck: 0, engine: 0, baler: 0 }, cur: 0, gardens: [], cut: null, cutFor: -1,
     friends: [], toys: [], golden: [], gifts: [], neighbours: [], wear: null, ride: [], own: { paint: ['teal'], tint: ['classic'], trail: ['petals'] }, use: { paint: 'teal', tint: 'classic', trail: 'petals' },
-    ftue: 0, ftueDone: false, mute: false, music: true, calm: false, lang: null, daily: { ymd: 0, done: false, stars: 0 }, m2: 0, playS: 0, parties: [] };
+    ftue: 0, ftueDone: false, mute: false, music: true, calm: false, lefty: false, lang: null, daily: { ymd: 0, done: false, stars: 0 }, m2: 0, playS: 0, parties: [] };
 }
 /** Cleans a loaded save: fills fields a newer build added, rounds and clamps every number, drops what it does not know. */
 export function cleanSave(cfg, raw) {
@@ -332,7 +337,7 @@ export function cleanSave(cfg, raw) {
   s.neighbours = list(raw.neighbours, cfg.gardens.map((x) => x.id)); s.ride = list(raw.ride, cfg.friends).slice(0, 3);
   s.wear = typeof raw.wear === 'string' && s.gifts.includes(raw.wear) ? raw.wear : null;
   for (const k of ['paint', 'tint', 'trail']) { const ids = cfg.shop[k].map((x) => x[0]); s.own[k] = [...new Set([ids[0], ...list(raw.own && raw.own[k], ids)])]; s.use[k] = raw.use && s.own[k].includes(raw.use[k]) ? raw.use[k] : ids[0]; }
-  s.ftue = num(raw.ftue, 0, 99); s.ftueDone = !!raw.ftueDone; s.mute = !!raw.mute; s.music = raw.music !== false; s.calm = !!raw.calm;
+  s.ftue = num(raw.ftue, 0, 99); s.ftueDone = !!raw.ftueDone; s.mute = !!raw.mute; s.music = raw.music !== false; s.calm = !!raw.calm; s.lefty = !!raw.lefty;
   s.lang = typeof raw.lang === 'string' && raw.lang.length === 2 ? raw.lang : null;
   s.daily = { ymd: num(raw.daily && raw.daily.ymd, 0, 99991231), done: !!(raw.daily && raw.daily.done), stars: num(raw.daily && raw.daily.stars, 0, 3) };
   s.parties = Array.isArray(raw.parties) ? [...new Set(raw.parties.map((x) => num(x, 0, 9)))] : [];
@@ -352,5 +357,7 @@ export function mergeSave(cfg, a, late) {
   return o;
 }
 
-/** Which district (0-based) garden n belongs to; six gardens each. */
-export const districtOf = (n) => Math.floor(n / 6);
+/** Which district (0-based) garden n belongs to: Clover Lane 1-6, Windmill Hill 7-9, Lantern Lake 10-12 (plan sections 6.3 and 8). */
+export const districtOf = (n) => (n < 6 ? 0 : n < 9 ? 1 : 2);
+/** Gardens whose finale is a garden party (plan section 8). */
+export const PARTY_AFTER = [5, 11];
