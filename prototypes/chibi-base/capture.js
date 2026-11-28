@@ -9,7 +9,7 @@ const server = http.createServer((q, s) => {
   const f = path.join(root, decodeURIComponent(q.url.split('?')[0]));
   fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'content-type': types[path.extname(f)] || 'text/plain' }); s.end(d); });
 }).listen(0);
-const SHOTS = [['turn', 1600, 700], ['pip', 1600, 700], ['compare', 1600, 700], ['looks', 2100, 700], ['anim', 1600, 700], ['phone', 390, 844], ['hands', 1600, 500]];
+const SHOTS = [['turn', 1600, 700], ['pip', 1600, 700], ['compare', 1600, 700], ['looks', 2100, 700], ['anim', 1600, 700], ['phone', 390, 844], ['hands', 1600, 500], ['stress', 2000, 700]];
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   for (const [shot, w, h] of SHOTS) {
@@ -17,7 +17,7 @@ const SHOTS = [['turn', 1600, 700], ['pip', 1600, 700], ['compare', 1600, 700], 
     page.on('pageerror', (e) => console.error(shot, e.message)); page.on('console', (m) => m.type() === 'error' && console.error(shot, m.text()));
     await page.goto(`http://localhost:${server.address().port}/chibi-base/index.html?shot=${shot}`);
     await page.waitForFunction(() => window.__ready, null, { timeout: 60000 });
-    const st = await page.evaluate(() => window.__stats);
+    const st = await page.evaluate(() => ({ ...window.__stats, headClear: window.__clear }));
     await page.screenshot({ path: path.join(out, `${shot}.jpg`), type: 'jpeg', quality: 86 });
     console.log(shot, JSON.stringify(st)); await page.close();
   }

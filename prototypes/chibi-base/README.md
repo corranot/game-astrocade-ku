@@ -25,29 +25,37 @@ inside the mobile budget, with no external assets.
   shoulders (body x0.8, head x1.25, mittens x1.22, scaled on bones). `'tall'` keeps the longer first proportions.
 
 ## Build
-- One skinned body mesh (torso, neck, arms, mitten hands with thumbs, legs, rounded feet) on 12 bones
-  (root, hips, spine, chest, neck, head, 2 arms, 2 hands, 2 legs). Weights blend at the shoulders, hips and along
-  the spine, so joints bend without seams.
+- One skinned body mesh on an anatomical 31-bone skeleton at chibi scale: root, pelvis, spine1-3, neck, head;
+  per side clavicle, upper arm (shoulder), forearm (elbow hinge), forearm twist, hand (wrist), thumb CMC and
+  MCP/IP, finger mass; thigh (hip), shin (knee hinge), foot (ankle), toe (ball). Euler order ZXY so a limb's own
+  twist applies first.
+- `LIMITS` holds each joint's human range of motion (left side; right mirrors). `clampToLimits` runs every frame
+  after animation and poses, so nothing bends past anatomy (elbows and knees bend one way only).
+- Skin weights blend over each joint (shoulder cap to clavicle, soft elbow and knee, ankle, ball of the foot);
+  the forearm twist bone carries half the wrist roll, spread along the forearm, so turning the wrist does not
+  pinch the sleeve. `groundFeet` keeps the lowest foot on the floor in every pose.
+- Mitten: palm and finger mass as one shape, the thumb a lobe sunk into it high on the body side near the wrist,
+  and a soft knit cuff when mitts are worn.
 - Profiles traced from the silhouette and resampled on a smooth curve; clothes are vertex colours with a stitch
-  line at each edge; the coat is the body profile inflated with real stitched quilt channels, a fluffy collar,
-  cuffs and a zip. Head, ears, nose, mouth and blush are one mesh; eyes (iris gradient, two catchlights, lash
-  line) are one glossy mesh that blinks; hair is a shell whose radius dips under the skin outside the style's
-  mask (scalloped fringe, side locks, nape line, glossy ring).
-- Materials: three shared instances, one shader program (`chibi-toy`: soft rim light plus a warm shadow-side
-  fill), reused by every chibi on screen.
+  line at each edge; the coat is the body profile inflated with stitched quilt channels, a fluffy collar, cuffs and
+  a zip. Head, ears, nose, mouth and blush are one mesh; eyes are one glossy mesh that blinks; hair is a shell whose
+  radius dips under the skin outside the style's mask.
+- Materials: three shared instances, one shader program (`chibi-toy`).
 
 ## Findings (measured 28 Nov, headless Chromium, 4x CPU throttle)
 | | Snowy Pip now | chibi base | chibi Pip (coat + beanie) |
 |---|---|---|---|
 | draw calls | 14 | 4 | 7 (+7 for the camera prop as built in the demo) |
-| triangles | 5.5k | 21k | 34k |
-| build time | - | 112 ms | 120 ms |
-| animate per frame | - | 0.015 ms | 0.015 ms |
+| triangles | 5.5k | 24k | 38k |
+| bones | rigid groups | 31 | 31 |
+| build time | - | 132 ms | 173 ms |
+| animate per frame | - | 0.13 ms (incl. limits and foot grounding) | 0.13 ms |
 
-- Fits the 150 calls / 300k tris mobile budget easily for 1 to 3 characters. A crowd needs a lower-segment
-  variant (the sphere and lathe counts are the only knobs).
-- Build cost (~120 ms on a throttled phone) must run after the first frame, or the geometry be built once and
-  cloned for repeat looks, to keep the 2 s first-load rule.
+- Stress poses (`?shot=stress`: wave, arms up, squat, reach, look around) all keep the mittens clear of the head
+  (`headClearance`, printed by `capture.js`: 0.035 to 0.19 m). Straight-up arms are impossible at chibi
+  proportions (the head is wider than the reach), so "arms up" is a cheering V and the wave is beside the cheek.
+- Fits the 150 calls / 300k tris mobile budget for 1 to 3 characters. A crowd needs a lower-segment variant.
+- Build cost must run after the first frame (or build once and clone) to keep the 2 s first-load rule.
 - Evidence: `production/qa/evidence/chibi-base/`.
 
 ## Team verdict on swapping Snowy's Pip

@@ -240,6 +240,13 @@ full plan unless they add a new game mode or rework the game.
   letterbox bars or a vignette, VFX and an audio sting, then eases back. Beats are
   0.6 to 2 s, never block input, and run through a priority queue with a cooldown
   so they never pile up or get annoying in the core loop.
+- **Rigs follow human anatomy.** Every character rig is built on the full set of human
+  joints, scaled to the game's style: pelvis, a multi-bone spine, neck and head, clavicles,
+  shoulders, elbows with forearm twist, wrists, a two-joint thumb and finger bends, hips,
+  knees, ankles and toes. Each joint is clamped to its real range of motion (hinges bend one
+  way only), skin weights blend smoothly at every joint with twist bones against
+  candy-wrapper pinching, and stress poses (arms up, squat, reach, look around, plus the
+  game's own moves) are rendered and checked for self-intersection before a rig ships.
 - **Modular meta-prompts between coordinator and threads.** Every message from
   the coordinator to a thread is a modular meta-prompt with labeled sections:
   ROLE (the AAA expert team), CONTEXT, GOAL, CONSTRAINTS, TASKS, QUALITY BAR,
