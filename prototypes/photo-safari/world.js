@@ -53,7 +53,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   const camera = new THREE.PerspectiveCamera(cfg.camera.fov, 0.5625, 0.3, 600);
   const fog = new THREE.FogExp2(0xd6e8f8, 0.0085); scene.fog = fog;
   const R = L.rng(cfg.seed);
-  const uTime = { value: 0 };
+  const uTime = { value: 0 }, uGust = { value: 0 }, uPush = { value: 0 }; // gust 0..1; push = wind drift integrated over time
   const disposables = [];
   const keep = (o) => { disposables.push(o); return o; };
 
@@ -134,11 +134,11 @@ export function createWorld(canvas, cfg, opts = {}) {
   // hero is never hidden and no tree is left half cut
   const heroU = { value: new THREE.Vector3() }, seeR = { value: cfg.camera.seeThroughM };
   pineMat.onBeforeCompile = (sh) => {
-    sh.uniforms.uTime = uTime; sh.uniforms.uHero = heroU; sh.uniforms.uSeeR = seeR;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform vec3 uHero;\nuniform float uSeeR;\nvarying vec3 vWp;\nvarying float vSee;').replace('#include <begin_vertex>', `#include <begin_vertex>
+    sh.uniforms.uTime = uTime; sh.uniforms.uHero = heroU; sh.uniforms.uSeeR = seeR; sh.uniforms.uGust = uGust;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uGust;\nuniform vec3 uHero;\nuniform float uSeeR;\nvarying vec3 vWp;\nvarying float vSee;').replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
  float ph = instanceMatrix[3].x * 0.31 + instanceMatrix[3].z * 0.17;
- float sw = (sin(uTime * 1.3 + ph) * 0.6 + sin(uTime * 2.7 + ph * 1.7) * 0.25) * 0.035 * max(0.0, position.y - 1.0);
+ float sw = ((sin(uTime * 1.3 + ph) * 0.6 + sin(uTime * 2.7 + ph * 1.7) * 0.25) * (1.0 + uGust * 1.6) + uGust * 0.9) * 0.035 * max(0.0, position.y - 1.0);
  transformed.x += sw; transformed.z += sw * 0.5;
  vWp = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
  { vec3 ip = (modelMatrix * instanceMatrix * vec4(0.0, 2.5, 0.0, 1.0)).xyz, sg = uHero - cameraPosition;
@@ -159,7 +159,7 @@ export function createWorld(canvas, cfg, opts = {}) {
    diffuseColor.rgb *= mix(mix(0.8 + 0.32 * n2, 0.95 + 0.08 * n2, wht), 0.68 + 0.5 * n1, bark); }`);
   };
   const shapes = [pineGeo(4, 1.6, 4.2), pineGeo(5, 2.0, 5.6), pineGeo(3, 1.3, 3.0)].map(keep);
-  const trees = [[], [], []], trunks = [];
+  const trees = [[], [], []], trunks = [], tops = []; // tops: [x, y, z] of each crown, for snow puffs
   const homes = [...cfg.species.map((s) => s.home), ...cfg.rares.map((r) => r.home)];
   const clearOf = (x, z, r) => homes.every((h) => Math.hypot(h[0] - x, h[1] - z) > r) && Math.abs(x - Math.sin(z * 0.045) * 3) > 3.2 && cfg.gates.every((g) => L.gateDist(g, x, z) > 2) && Math.hypot(x - lake[0], z - lake[1]) > lake[2] + 3;
   for (let i = 0; i < 2600 && trees[0].length + trees[1].length + trees[2].length < 420; i++) {
@@ -169,7 +169,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     if (!(inBand || (inside && R() < 0.05))) continue;
     if (!clearOf(x, z, inside ? 5 : 3)) continue;
     const s = 0.8 + R() * 0.7, k = Math.floor(R() * 3), y = L.terrainH(cfg, x, z) - 0.1;
-    trees[k].push(M4(x, y, z, s, s * (0.9 + R() * 0.3), s, 0, R() * 6.28));
+    const sy = s * (0.9 + R() * 0.3); trees[k].push(M4(x, y, z, s, sy, s, 0, R() * 6.28)); tops.push([x, y + sy * [4.2, 5.6, 3.0][k] * 0.7, z, s]);
     if (d < 1) trunks.push([x, z]);
   }
   const forest = shapes.map((g, k) => { const m = new THREE.InstancedMesh(g, pineMat, trees[k].length); trees[k].forEach((t, i) => m.setMatrixAt(i, t)); m.castShadow = true; m.receiveShadow = false; m.computeBoundingSphere(); scene.add(m); return m; });
@@ -360,10 +360,10 @@ export function createWorld(canvas, cfg, opts = {}) {
   } };
 
   // ---- falling snow (three depths, wraps around the hero)
-  const snowU = { uTime, uOrigin: { value: new THREE.Vector3() }, uSize: { value: 1 }, uAlpha: { value: 0.85 } };
+  const snowU = { uTime, uPush, uOrigin: { value: new THREE.Vector3() }, uSize: { value: 1 }, uAlpha: { value: 0.85 } };
   const snowMat = keep(new THREE.ShaderMaterial({ uniforms: snowU, transparent: true, depthWrite: false, fog: false,
-    vertexShader: `uniform float uTime; uniform vec3 uOrigin; uniform float uSize; attribute float aS; varying float vA;
-      void main(){ vec3 box = vec3(44.0, 22.0, 44.0); vec3 p = position + vec3(sin(uTime * 0.3 + position.y) * 1.2 + uTime * 0.6, -uTime * (0.9 + aS * 0.7), 0.0);
+    vertexShader: `uniform float uTime; uniform float uPush; uniform vec3 uOrigin; uniform float uSize; attribute float aS; varying float vA;
+      void main(){ vec3 box = vec3(44.0, 22.0, 44.0); vec3 p = position + vec3(sin(uTime * 0.3 + position.y) * 1.2 + uTime * 0.6 + uPush, -uTime * (0.9 + aS * 0.7), 0.0);
       p = mod(p - uOrigin + box * 0.5, box) - box * 0.5 + uOrigin; p.y += 6.0;
       vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = uSize * (40.0 + aS * 70.0) / -mv.z; vA = smoothstep(60.0, 20.0, -mv.z); }`,
     fragmentShader: 'uniform float uAlpha; varying float vA; void main(){ vec2 d = gl_PointCoord - 0.5; float a = smoothstep(0.5, 0.15, length(d)); gl_FragColor = vec4(vec3(1.0), a * vA * uAlpha); }' }));
@@ -471,10 +471,10 @@ export function createWorld(canvas, cfg, opts = {}) {
     let pos = follow.clone(), fov = c.fov;
     if (focus && focus.k > 0.001) {
       // frame the hero and the animal together from the player's side of the pair
-      const mx = (fx + focus.x) / 2, mz = (fz + focus.z) / 2, sy = Math.sin(lookRot.yaw), cy = Math.cos(lookRot.yaw);
+      const fm = Math.min(c.focusMix, c.focusShiftM / (Math.hypot(focus.x - fx, focus.z - fz) || 1)), mx = fx + (focus.x - fx) * fm, mz = fz + (focus.z - fz) * fm, sy = Math.sin(lookRot.yaw), cy = Math.cos(lookRot.yaw);
       const back = c.dist * c.focusD + Math.abs((focus.x - fx) * sy + (focus.z - fz) * cy) / 2;
       pos.lerp(new THREE.Vector3(mx + sy * back, fy + c.height * c.focusH, mz + cy * back), focus.k);
-      look.lerp(new THREE.Vector3(mx, (fy + focus.y) / 2 + 0.6, mz), focus.k);
+      look.lerp(new THREE.Vector3(mx, fy + (focus.y - fy) * fm + 0.6, mz), focus.k);
     }
     if (vf > 0.001 && aim) {
       const dir = new THREE.Vector3(aim.x - fx, 0, aim.z - fz); const d = dir.length() || 1; dir.divideScalar(d);
@@ -606,7 +606,7 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
-    renderer, scene, camera, uTime, trunks, chimney, lanterns, perch, gates, shake, propMat,
+    renderer, scene, camera, uTime, uGust, uPush, tops, trunks, chimney, lanterns, perch, gates, shake, propMat,
     setTier, resize, endBoot, warm, setTod, updateCamera, snapCamera, setLook, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
     get tier() { return tier; }, get pull() { return pull; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
