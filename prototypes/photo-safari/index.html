@@ -42,7 +42,7 @@ body{display:flex;align-items:center;justify-content:center}
 .bookB em{position:absolute;top:calc(var(--u)*-8px);right:calc(var(--u)*-8px);min-width:calc(var(--u)*32px);height:calc(var(--u)*32px);border-radius:calc(var(--u)*16px);background:var(--red);box-shadow:0 0 0 calc(var(--u)*3px) var(--ink);font-style:normal;font-size:calc(var(--u)*22px);line-height:calc(var(--u)*32px);text-align:center;color:#fff;display:none}
 .bookB.dot em{display:block;animation:pulse 1s ease-in-out infinite}
 .bookB.bump,.shutter.bump{animation:bump .3s ease-out}
-/* the shutter: bottom right on the margin; the treat button bottom left with its centre on the same line */
+/* the shutter: bottom right on the margin; the treat button sits above it in the same column (the walk stick owns the bottom-left) */
 .shutter{position:absolute;right:var(--sr);bottom:var(--sb);width:calc(var(--u)*176px);height:calc(var(--u)*176px);border-radius:50%;
   background:radial-gradient(circle at 50% 45%,#ff7a5c 0 30%,#e8513a 31% 46%,#fff6e6 47% 58%,#cfe6ff 59% 64%,#2c3a72 65%);box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 calc(var(--u)*10px) 0 calc(var(--u)*2px) rgba(26,33,71,.45)}
 .shutter{transform-origin:100% 100%} /* pulse and bump grow inward, so the outer edges stay on the margin */
@@ -50,9 +50,9 @@ body{display:flex;align-items:center;justify-content:center}
 .shutter svg{position:absolute;inset:28%;width:44%;height:44%;fill:#fff}
 .shutter.ready{animation:pulse 1s ease-in-out infinite;box-shadow:0 0 0 calc(var(--u)*4px) var(--ink),0 0 calc(var(--u)*36px) calc(var(--u)*6px) rgba(92,242,199,.8),0 calc(var(--u)*10px) 0 calc(var(--u)*2px) rgba(26,33,71,.45)}
 .shutter:active{transform:scale(.92)}
-.treat{position:absolute;left:var(--sl);bottom:calc(var(--sb) + var(--u)*32px);width:calc(var(--u)*112px);height:calc(var(--u)*112px);border-radius:50%;padding:calc(var(--u)*18px);transition:opacity .2s,transform .2s}
-.treat{transform-origin:0 100%}
-[dir=rtl] .treat{left:auto;right:var(--sr);transform-origin:100% 100%}
+.treat{position:absolute;right:calc(var(--sr) + var(--u)*32px);bottom:calc(var(--sb) + var(--u)*200px);width:calc(var(--u)*112px);height:calc(var(--u)*112px);border-radius:50%;padding:calc(var(--u)*18px);transition:opacity .2s,transform .2s}
+.treat{transform-origin:50% 100%}
+[dir=rtl] .treat{right:auto;left:calc(var(--sl) + var(--u)*32px)}
 .nightb{color:#ffe48a;background:linear-gradient(#3b4a8c,#26306a)!important;animation:nb 1.6s ease-in-out infinite}
 .nightb svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:4}
 @keyframes nb{50%{box-shadow:0 0 calc(var(--u)*28px) #ffe48a}}
@@ -65,6 +65,9 @@ body{display:flex;align-items:center;justify-content:center}
 .stick{position:absolute;width:calc(var(--u)*150px);height:calc(var(--u)*150px);margin:calc(var(--u)*-75px);border-radius:50%;border:calc(var(--u)*5px) solid rgba(255,255,255,.65);background:rgba(26,33,71,.18);box-sizing:border-box}
 .stick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*64px);height:calc(var(--u)*64px);margin:calc(var(--u)*-32px);border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#cfe6ff);box-shadow:0 0 0 calc(var(--u)*3px) var(--ink)}
 .stick[hidden]{display:none}
+/* at rest the stick waits in the walk corner, faint, so a new player sees where to walk */
+.stick.rest{left:calc(var(--sl) + var(--u)*150px);bottom:calc(var(--sb) + var(--u)*150px);opacity:.55;transition:opacity .2s}
+[dir=rtl] .stick.rest{left:auto;right:calc(var(--sr) + var(--u)*150px)}
 /* viewfinder: four corner brackets, the focus ring on the subject and three star dots */
 /* the brackets sit inside the HUD: below the two top rows, a margin in from the sides, above the shutter */
 .vf{position:absolute;top:calc(var(--st) + var(--h) * 2 + var(--g) * 2);left:calc(var(--sl) + var(--g));right:calc(var(--sr) + var(--g));bottom:calc(var(--sb) + var(--u)*176px + var(--g) * 2);opacity:0;transition:opacity .2s}
@@ -161,6 +164,13 @@ body{display:flex;align-items:center;justify-content:center}
 .page h3{margin:0 0 calc(var(--u)*12px);font-size:calc(var(--u)*38px);display:flex;align-items:center;gap:calc(var(--u)*12px)}
 .page h3 small{font-size:calc(var(--u)*28px);color:#8a7a6a}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u)*16px)}
+/* chapter 2 teaser: the last, closed page of the book */
+.ch2c{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:calc(var(--u)*20px);align-items:center;padding:calc(var(--u)*28px) calc(var(--u)*32px);border-radius:calc(var(--u)*28px);color:#fff;background:linear-gradient(135deg,#3b2d6e,#2b6cb8 60%,#5cc8e8);box-shadow:0 calc(var(--u)*8px) 0 rgba(26,33,71,.25);overflow:hidden}
+.ch2c svg{grid-row:1/3;width:calc(var(--u)*88px);height:calc(var(--u)*88px);opacity:.95}
+.ch2c b{font-size:calc(var(--u)*40px)}
+.ch2c em{position:absolute;top:calc(var(--u)*22px);right:calc(var(--u)*24px);font-style:normal;font-size:calc(var(--u)*24px);font-weight:800;padding:calc(var(--u)*6px) calc(var(--u)*16px);border-radius:calc(var(--u)*20px);background:#ffcf3a;color:#1a2147}
+[dir=rtl] .ch2c em{right:auto;left:calc(var(--u)*24px)}
+.ch2c span{font-size:calc(var(--u)*26px);opacity:.92;line-height:1.25}
 .sp{position:relative;border-radius:calc(var(--u)*12px);background:#fff;padding:calc(var(--u)*8px) calc(var(--u)*8px) calc(var(--u)*10px);box-shadow:0 calc(var(--u)*4px) 0 #d8c4a0;rotate:var(--rot,0deg)}
 .sp canvas{display:block;width:100%;aspect-ratio:4/5;border-radius:calc(var(--u)*6px);background:#dfeaf6}
 .sp b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:calc(var(--u)*27px);line-height:1.08;min-height:2.16em;text-align:center;margin-top:calc(var(--u)*6px);overflow:hidden;overflow-wrap:anywhere}

@@ -79,7 +79,7 @@ const HTML = `
   <button id="nightB" class="treat glass nightb" aria-label="night" hidden>${ICON.moon}</button>
   <button id="treat" class="treat glass" aria-label="treat" hidden><canvas width="96" height="96"></canvas><span class="lock"></span></button>
   <button id="shutter" class="shutter" aria-label="snap">${ICON.cam}</button>
-  <div id="stick" class="stick" hidden><i></i></div>
+  <div id="stick" class="stick rest" hidden><i></i></div>
   <div id="logo" class="logo out"></div>
   <div id="toast" class="toast" hidden><b class="out"></b><span class="out"></span><button id="share" class="share out" hidden>${ICON.share}<b></b></button></div>
   <div id="tick" class="tick glass" hidden></div>
@@ -359,6 +359,8 @@ export function run(mode = 'play') {
     });
     const rp = document.createElement('div'); rp.className = 'page'; rp.innerHTML = `<h3>${T('rare')}</h3>`; const rg = document.createElement('div'); rg.className = 'grid';
     for (const r of cfg.rares) rg.appendChild(cardFor(r.id, S.rare[r.id] ? 1 : 0, ICON.star)); rp.appendChild(rg); P.appendChild(rp);
+    // the next chapter waits at the back of the book: a closed page, no date
+    const ch = document.createElement('div'); ch.className = 'page ch2'; ch.innerHTML = `<div class="ch2c">${ICON.book}<b class="out">${T('ch2')}</b><em>${T('soon')}</em><span>${T('ch2Sub')}</span></div>`; P.appendChild(ch);
     // shop
     const SP = root.querySelector('[data-p=shop]'); SP.innerHTML = '<div class="items"></div>'; const items = SP.firstChild;
     for (const it of cfg.economy.shop) {
@@ -410,74 +412,49 @@ export function run(mode = 'play') {
   for (const b of tabs) b.addEventListener('click', () => { bookTab = b.dataset.t; Sound.pop(); buildBook(); });
   $('mute').addEventListener('click', () => { Sound.unlock(); Sound.setMuted(!Sound.muted); muteUI(); soon(); });
 
-  // ---- input: drag anywhere for a floating stick, tap the snow to walk there
-  // a drag that starts on the right side of the screen looks around (swipe-to-look) instead of moving
-  const input = { id: null, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0, drag: false, keys: new Set(), target: null, look: false, lx: 0, ly: 0 };
-  const view = { yaw: 0, el: 0, tYaw: 0, tEl: 0, idle: 0 };
+  // ---- input: the walk stick lives in the bottom-left zone (bottom-right in right-to-left languages); a drag anywhere
+  // else swipes the camera freely around the hero. One thumb walks, the other looks, in either order.
+  const input = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, drag: false, keys: new Set(), target: null };
+  const look = { id: null, x0: 0, y0: 0, lx: 0, ly: 0, drag: false };
+  const view = { yaw: 0, el: 0, tYaw: 0, tEl: 0 };
   let firstGesture = false;
   const gesture = () => { if (!firstGesture) { firstGesture = true; hideLogo(); } Sound.unlock(); };
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
-  // a second finger on the look side while the first one walks turns the view too (two thumbs: walk and look)
-  const look2 = { id: null, x0: 0, y0: 0, lx: 0, ly: 0, drag: false };
-  /** Turns the view by a finger's move since its last position (st carries lx/ly). */
-  function lookBy(st, x, y) {
+  /** Turns the view by the look finger's move since its last position: yaw is free all the way round, tilt is limited. */
+  function lookBy(x, y) {
     const lk = cfg.camera.look, k = lk.radPerPx / unit();
-    view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (x - st.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (y - st.ly) * k));
-    view.idle = 0; st.lx = x; st.ly = y; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; }
+    view.tYaw -= (x - look.lx) * k; view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (y - look.ly) * k));
+    look.lx = x; look.ly = y; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; }
   }
-  const inLookZone = (x) => { const r = rootRect(); return x - r.left > r.width * (1 - cfg.camera.look.zone); };
+  /** Is this point inside the walk zone (bottom-left, mirrored for right-to-left)? */
+  const inWalkZone = (x, y) => { const r = rootRect(), z = cfg.controls.walkZone, fx = (x - r.left) / r.width; return (root.dir === 'rtl' ? 1 - fx : fx) < z.w && (y - r.top) / r.height > 1 - z.h; };
+  /** Shows the stick under the walking finger at (x, y), or back at rest in its corner (placed by the stylesheet). */
+  function placeStick(x, y, on) { const s = $('stick'); s.style.left = on ? x + 'px' : ''; s.style.top = on ? y + 'px' : ''; s.classList.toggle('rest', !on); if (!on) s.firstChild.style.transform = ''; }
   function onDown(e) {
     if (!play || bot || e.target.closest('button') || bookOpen) return;
     gesture();
-    if (input.id !== null) {
-      if (e.pointerId === input.id || look2.id !== null) return;
-      const side = inLookZone(e.clientX);
-      if (!input.look && side) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ } Object.assign(look2, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false }); }
-      // the first finger looks and this one lands on the walk side: the first keeps looking as the second finger, this one walks
-      else if (input.look && !side) { Object.assign(look2, { id: input.id, x0: input.x0, y0: input.y0, lx: input.lx, ly: input.ly, drag: input.drag }); grab(e, false); }
-      return;
+    if (input.id === null && inWalkZone(e.clientX, e.clientY)) {
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
+      Object.assign(input, { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, drag: true, target: null });
+      const r = rootRect(); placeStick(e.clientX - r.left, e.clientY - r.top, true);
+    } else if (look.id === null) {
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
+      Object.assign(look, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false });
     }
-    grab(e, inLookZone(e.clientX));
-  }
-  /** Makes this pointer the main finger: a walk stick or, on the look side, a swipe. */
-  function grab(e, look) {
-    try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
-    input.id = e.pointerId; input.x0 = input.lx = e.clientX; input.y0 = input.ly = e.clientY; input.t0 = performance.now(); input.dx = input.dy = 0; input.drag = false;
-    input.look = look;
   }
   function onMove(e) {
-    if (e.pointerId === look2.id) {
-      if (!look2.drag && Math.hypot(e.clientX - look2.x0, e.clientY - look2.y0) >= cfg.hero.tapMaxPx * unit() * 1.5) { look2.drag = true; look2.lx = e.clientX; look2.ly = e.clientY; }
-      if (look2.drag) lookBy(look2, e.clientX, e.clientY);
-      return;
+    if (e.pointerId === look.id) {
+      if (!look.drag && Math.hypot(e.clientX - look.x0, e.clientY - look.y0) >= cfg.hero.tapMaxPx * unit()) { look.drag = true; look.lx = e.clientX; look.ly = e.clientY; }
+      if (look.drag) lookBy(e.clientX, e.clientY);
+    } else if (e.pointerId === input.id) {
+      input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
+      const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy), k = l > m ? m / l : 1; $('stick').firstChild.style.transform = `translate(${input.dx * k}px,${input.dy * k}px)`;
     }
-    if (e.pointerId !== input.id) return;
-    input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
-    if (input.look) {
-      if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) { input.drag = true; input.lx = e.clientX; input.ly = e.clientY; }
-      if (input.drag) lookBy(input, e.clientX, e.clientY);
-      return;
-    }
-    if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) {
-      input.drag = true; input.target = null; const r = rootRect(), s = $('stick'); s.hidden = false; s.style.left = (input.x0 - r.left) + 'px'; s.style.top = (input.y0 - r.top) + 'px';
-    }
-    if (input.drag) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy), k = l > m ? m / l : 1; $('stick').firstChild.style.transform = `translate(${input.dx * k}px,${input.dy * k}px)`; }
   }
   function onUp(e) {
-    if (e.pointerId === look2.id) { look2.id = null; look2.drag = false; return; }
-    if (e.pointerId !== input.id) return;
-    const kind = L.tapOrDrag(cfg, Math.hypot(input.dx, input.dy) / unit(), performance.now() - input.t0);
-    if (kind === 'tap' && !input.drag) {
-      const r = rootRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      ray.setFromCamera(ndc, W.camera); plane.constant = -hero.y;
-      if (ray.ray.intersectPlane(plane, hit)) { input.target = [hit.x, hit.z]; fx.ring(hit.x, L.terrainH(cfg, hit.x, hit.z), hit.z, 0.9, '#bff7ff', 0.45); }
-    }
-    const l = look2.id !== null ? { ...look2 } : null;
-    releaseFingers();
-    // the walking thumb lifted while the other still looks: that finger carries on looking as the main one (never a tap)
-    if (l) Object.assign(input, { id: l.id, x0: l.x0, y0: l.y0, lx: l.lx, ly: l.ly, drag: l.drag, look: true, t0: -1e9 });
+    if (e.pointerId === look.id) { look.id = null; look.drag = false; }
+    else if (e.pointerId === input.id) { input.id = null; input.drag = false; input.dx = input.dy = 0; placeStick(0, 0, false); }
   }
-  function releaseFingers() { input.id = null; input.drag = false; input.look = false; input.dx = input.dy = 0; look2.id = null; look2.drag = false; const st = $('stick'); if (st) st.hidden = true; }
+  function releaseFingers() { input.id = null; input.drag = false; input.dx = input.dy = 0; look.id = null; look.drag = false; placeStick(0, 0, false); }
   root.addEventListener('contextmenu', (e) => e.preventDefault()); // a long press never opens the browser menu
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
   const onKey = (e) => {
@@ -613,6 +590,8 @@ export function run(mode = 'play') {
     }
     if (res.half >= 0 && res.page < 0) setTimeout(() => { toast(T('half'), '+' + cfg.economy.halfPage); Sound.sting('page'); }, flyAt + 200);
     if (res.page >= 0) setTimeout(() => { toast(T('page'), T('a_' + cfg.areas[res.page].id), 'page'); Sound.sting('page'); confetti(root.clientWidth / 2, root.clientHeight * 0.3); }, flyAt + 200);
+    // the whole book done: tease the next chapter (after the page toast, from the queue)
+    if (res.page >= 0 && S.pages.length >= cfg.areas.length) setTimeout(() => { toast(T('ch2') + ' · ' + T('soon'), T('ch2Sub')); }, flyAt + 400);
     if (res.requests.length) setTimeout(() => tick(`${ICON.star.replace('<svg', '<svg width="40" height="40"')} ✓ +${cfg.economy.request}`), flyAt + 400);
     if (res.opened >= 0) setTimeout(() => openArea(res.opened), flyAt + 600);
   }
@@ -730,7 +709,7 @@ export function run(mode = 'play') {
 
   function updateHero(dt, t) {
     let mx = 0, mz = 0;
-    const stick = input.drag && !input.look;
+    const stick = input.drag;
     if (stick) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy); if (l > 4) { const k = Math.min(1, l / m); mx = input.dx / l * k; mz = input.dy / l * k; } }
     const K = input.keys; const kx = (K.has('d') || K.has('arrowright') ? 1 : 0) - (K.has('a') || K.has('arrowleft') ? 1 : 0), kz = (K.has('s') || K.has('arrowdown') ? 1 : 0) - (K.has('w') || K.has('arrowup') ? 1 : 0);
     if (kx || kz) { const l = Math.hypot(kx, kz); mx = kx / l; mz = kz / l; input.target = null; }
@@ -805,16 +784,16 @@ export function run(mode = 'play') {
   function updateSpot(dt) {
     const on = ftueOn() && !bookOpen && !beats.cur && $('card').hidden;
     ftueT += dt;
-    let tgt = null, hint = '', icon = '', handOn = false, handDrag = false;
+    let tgt = null, hint = '', icon = '', handOn = false, handDrag = false, atStick = false;
     const rr = rootRect(), u = unit();
     const elC = (id) => { const b = $(id).getBoundingClientRect(); return [b.left - rr.left + b.width / 2, b.top - rr.top + b.height / 2, b.width * 0.62]; };
     const world = (x, y, z, r) => { const s = W.toScreen(x, y, z); return s[2] && s[0] > 0.06 && s[0] < 0.94 && s[1] > 0.1 && s[1] < 0.9 ? [s[0] * rr.width, s[1] * rr.height, r * u] : null; };
     if (on) {
       if (ftue === 'walk') { const f = ftueTarget(); tgt = world(hero.x, hero.y + 1, hero.z, 150);
         // the cutout holds both the hero and the first animal, so the opening shows who to walk to
-        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('walk'); icon = ICON.hand; handOn = true; handDrag = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
+        const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
       else if (ftue === 'snap') { if (vf > 0.4) { tgt = elC('shutter'); hint = T('snap'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); handOn = true; } else if (hero.speed >= 0.6 && nearest(L.lens(cfg, S).range)) { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('still'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); } // in range but still walking: aiming needs a stop
-      else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('walk'); icon = ICON.hand; } }
+      else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('move'); icon = ICON.hand; handOn = true; handDrag = true; atStick = true; } }
       else if (ftue === 'book') { if (S.photos >= 1 && $('card').hidden) { tgt = elC('bookB'); hint = T('book'); icon = ICON.book; handOn = true; } }
       else if (ftue === 'treat') { const sh = shyNear(); if (sh && sh.id === 'hare') { tgt = elC('treat'); hint = T('treat'); handOn = true; icon = ''; } else { const f = ftueTarget(); if (f && Math.hypot(f.x - hero.x, f.z - hero.z) < 25) { tgt = world(f.x, f.y + 0.5, f.z, 120); hint = T('walk'); icon = ICON.hand; } } }
       else if (ftue === 'pose') { const f = ftueTarget(); if (f && f.a && Math.hypot(f.x - hero.x, f.z - hero.z) < L.lens(cfg, S).range && (f.a.cue || f.a.pose)) { tgt = world(f.x, f.y + f.a.parts.centerY, f.z, 140); hint = T('pose'); icon = ICON.pose; } }
@@ -833,6 +812,8 @@ export function run(mode = 'play') {
       // the snap hint sits beside the shutter, below the viewfinder brackets, never over the frame
       if (ftue === 'snap' && vf > 0.4) { const rtl = root.dir === 'rtl', side = tgt[2] / 0.62 / 2 + 16 * u + coach.offsetWidth / 2; coach.style.left = (tgt[0] + (rtl ? side : -side)) + 'px'; coach.style.top = (tgt[1] - coach.offsetHeight / 2) + 'px'; }
       hand.hidden = !handOn; hand.classList.toggle('drag', handDrag); if (handOn) { hand.style.left = (handDrag ? tgt[0] : tgt[0]) + 'px'; hand.style.top = (handDrag ? tgt[1] + 60 * u : tgt[1]) + 'px'; }
+      // walking is taught on the stick itself: the hand drags it in its corner and the hint sits just above it
+      if (atStick && !$('stick').hidden) { const st = elC('stick'); hand.style.left = st[0] + 'px'; hand.style.top = st[1] + 'px'; coach.style.left = Math.max(coach.offsetWidth / 2 + 24 * u, Math.min(rr.width - coach.offsetWidth / 2 - 24 * u, st[0])) + 'px'; coach.style.top = (st[1] - 120 * u - coach.offsetHeight) + 'px'; }
     } else if (lookHint(dt)) {
       // one-time swipe-to-look hint after the tutorial: a hand sweeps across the right half, no dimming
       const key = 'look'; if (key !== coachKey) { coachKey = key; coach.innerHTML = ICON.hand + `<b class="out">${T('look')}</b>`; }
@@ -854,6 +835,7 @@ export function run(mode = 'play') {
   const focus = $('focus'), dots = focus.querySelectorAll('s');
   function updateHud(dt) {
     hud();
+    $('stick').hidden = !(play && !bot && loaded && !bookOpen); // the walk stick waits in its corner whenever the valley is in play
     $('vf').classList.toggle('on', vf > 0.5 && $('card').hidden && !beats.cur);
     if (aimA && vf > 0.3 && !beats.cur) { // no focus pill during a cinematic beat
       // the focus pill sits under the animal's feet, never on it
@@ -936,16 +918,15 @@ export function run(mode = 'play') {
     updateBlobs();
     // viewfinder
     const a = nearest(L.lens(cfg, S).range);
-    const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen ? 1 : 0;
+    const wantVf = a && ftue !== 'walk' && hero.speed < 0.6 && hero.still > 0.15 && !bookOpen && !look.drag ? 1 : 0; // a look swipe lowers the lens; it comes back up when the swipe ends
     vf += (wantVf - vf) * Math.min(1, rdt / cfg.camera.vfEase * 2.2); if (vf < 0.01) vf = 0;
     if (a) { aimA = a; aim = V3(a.x, a.y + a.parts.centerY, a.z); vfFov = fovFor(a, Math.hypot(a.x - hero.x, a.z - hero.z)); } else if (vf === 0) { aimA = null; aim = null; }
     // treat moments: a shy animal close by pulls the camera in so both read at a glance
     const shy = vf < 0.05 && !bookOpen ? shyNear() : null;
     focusK += ((shy ? 1 : 0) - focusK) * Math.min(1, rdt * 2.5); if (shy) focusAt = shy;
     W.fogK = 1 - (b && b.clear ? cfg.beats.clearFog * b.k : 0); // the unlock beat looks across the valley: thin the haze
-    { // swipe-to-look: ease toward the target, drift back to the authored view after a quiet spell
-      const lk = cfg.camera.look; view.idle += rdt;
-      if (view.idle > lk.recenterS && !(input.look && input.drag)) { const d = Math.exp(-rdt * lk.recenterRate); view.tYaw *= d; view.tEl *= d; }
+    { // swipe-to-look: ease toward the target; the view stays where the player leaves it
+      const lk = cfg.camera.look;
       const k = 1 - Math.exp(-rdt * lk.ease); view.yaw += (view.tYaw - view.yaw) * k; view.el += (view.tEl - view.el) * k; W.setLook(view.yaw, view.el);
     }
     W.updateCamera(rdt, hero, vf, aim, vfFov, b, focusAt && focusK > 0.001 ? { x: focusAt.x, y: focusAt.y, z: focusAt.z, k: focusK * (1 - vf) } : null);
