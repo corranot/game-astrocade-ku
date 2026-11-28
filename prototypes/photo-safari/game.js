@@ -750,9 +750,21 @@ export function run(mode = 'play') {
     // distant sounds of the place: birds in the meadow, the lake ice creaking, drips in the caves, an owl at night
     amb.sndT -= dt; if (amb.sndT <= 0) { amb.sndT = span(LF.ambEveryS); const ar = L.areaAt(cfg, hero.x, hero.z), night = W.night > 0.5;
       if (play) Sound.amb(night && (ar === 0 || CR() < 0.5) ? 'hoot' : ['chirp', 'creak', 'drip'][ar] || 'chirp', CR() * 1.6 - 0.8); }
-    updateFlock(dt, t);
+    updateFlock(dt, t); pairPlay(dt);
+    // the lake ice: a crack runs with a creak now and then while Pip is on or near the lake
+    amb.crackT = (amb.crackT == null ? span(LF.crackEveryS) : amb.crackT) - dt;
+    if (amb.crackT <= 0) { amb.crackT = span(LF.crackEveryS); const lk = cfg.areas[1].lake, d = Math.hypot(hero.x - lk[0], hero.z - lk[1]); if (d < lk[2] + 10) { const a = CR() * 6.28, r = CR() * lk[2] * 0.8; W.iceCrack(lk[0] + Math.cos(a) * r, lk[1] + Math.sin(a) * r); if (play) Sound.amb('creak', Math.max(-0.8, Math.min(0.8, (lk[0] - hero.x) / 15))); } }
   }
 
+  // now and then two idle neighbours face each other and bounce in place: play that never moves them, so pose and
+  // photo timing stay as they were
+  let pairT = 6;
+  function pairPlay(dt) {
+    pairT -= dt; if (pairT > 0) return; pairT = span(LF.playEveryS);
+    const free = (a) => a.parts.group.visible && !a.pose && !a.cue && !a.idle && a.state === 'idle' && a.hide < 0.3 && a.sp.type !== 'whale' && Math.hypot(a.x - hero.x, a.z - hero.z) < 25;
+    for (const a of animals) { if (!free(a)) continue; for (const b of animals) { if (b === a || !free(b) || Math.hypot(a.x - b.x, a.z - b.z) > 4) continue;
+      a.idle = { k: 'play', p: 0, mate: b }; b.idle = { k: 'play', p: 0.1, mate: a }; if (play && Math.hypot(a.x - hero.x, a.z - hero.z) < 12) Sound.voice(a.sp, ...earOf(a).map((v, i) => (i ? v * 0.6 : v))); return; } }
+  }
   function updateAnimals(dt, t, cw) {
     const night = cw.night > 0.5 || (cw.dusk > 0.6 && L.clockAt(cfg, S.clock).k > 0.8);
     const slowWin = cfg.photo.poseWindowS;
@@ -811,9 +823,10 @@ export function run(mode = 'play') {
       a.parts.group.position.set(a.x, a.y, a.z); a.parts.group.rotation.y = a.yaw;
       // small idles between poses (sniff the snow, shake it off, look around) and a curious tilt when Pip stands close
       if (!a.pose && !a.cue && a.state === 'idle' && a.hide < 0.3 && sp.type !== 'whale') {
-        if (a.idle) { a.idle.p += dt / LF.idleS; if (a.idle.k === 'shake' && !a.idle.puff && a.idle.p > 0.3) { a.idle.puff = 1; fx.emit({ pool: 'soft', x: a.x, y: a.y + a.parts.height * 0.6 * (sp.scale || 1), z: a.z, spread: (a.parts.radius || 0.4) * 1.2, speed: 1.2, up: 0.6, life: 0.7, size: 0.3, color: '#f6faff', alpha: 0.8, grav: -3 }, 10); } if (a.idle.p >= 1) a.idle = null; }
-        else { a.idleT = (a.idleT == null ? span(LF.idleEveryS) : a.idleT) - dt; if (a.idleT <= 0 && dh < 30) { a.idleT = span(LF.idleEveryS); a.idle = { k: ['sniff', 'shake', 'scan'][Math.floor(CR() * 3)], p: 0 }; } }
+        if (a.idle) { if (a.idle.mate) a.yaw += angleDiff(Math.atan2(a.idle.mate.x - a.x, a.idle.mate.z - a.z), a.yaw) * Math.min(1, dt * 5); a.idle.p += dt / (a.idle.k === 'flick' ? LF.flickS : a.idle.k === 'play' ? LF.playS : LF.idleS); if (a.idle.k === 'shake' && !a.idle.puff && a.idle.p > 0.3) { a.idle.puff = 1; fx.emit({ pool: 'soft', x: a.x, y: a.y + a.parts.height * 0.6 * (sp.scale || 1), z: a.z, spread: (a.parts.radius || 0.4) * 1.2, speed: 1.2, up: 0.6, life: 0.7, size: 0.3, color: '#f6faff', alpha: 0.8, grav: -3 }, 10); } if (a.idle.p >= 1) a.idle = null; }
+        else { a.idleT = (a.idleT == null ? span(LF.idleEveryS) : a.idleT) - dt; if (a.idleT <= 0 && dh < 30) { a.idleT = span(LF.idleEveryS); a.idle = { k: ['sniff', 'shake', 'scan', 'flick', 'flick'][Math.floor(CR() * 5)], p: 0 }; } }
       } else a.idle = null;
+      if (a.idle && a.idle.k === 'play' && (a.pose || a.cue)) a.idle = null;
       a.tilt = (a.tilt || 0) + ((dh < 7 && hero.still > 0.6 && !a.pose ? 1 : 0) - (a.tilt || 0)) * Math.min(1, dt * 3);
       animateCritter(a.parts, sp, { t, walk: a.walk, pose: a.pose, p: a.pose ? Math.min(1, a.poseT / slowWin) : 0, blink: a.blink, look: a.look, hide: sp.shy ? a.hide : 0, tilt: a.tilt, idle: a.idle });
       // the rare visitor shimmers

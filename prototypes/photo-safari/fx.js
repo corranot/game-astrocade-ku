@@ -73,14 +73,17 @@ export function createFx(scene, cfg, cap = 500) {
 
   // ---- footprints
   const fpGeo = new THREE.CircleGeometry(0.16, 10); fpGeo.rotateX(-Math.PI / 2); fpGeo.scale(1, 1, 1.5);
-  const fpN = 120, fp = new THREE.InstancedMesh(fpGeo, new THREE.MeshBasicMaterial({ color: 0x8fa8cc, transparent: true, opacity: 0.38, depthWrite: false }), fpN); fp.frustumCulled = false; scene.add(fp);
+  const fpN = 120, fp = new THREE.InstancedMesh(fpGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.38, depthWrite: false }), fpN); fp.frustumCulled = false; scene.add(fp);
+  // a print starts as a blue hollow and slowly fills with snow: its colour drifts to the snow's white, then it shrinks away
+  const fpC0 = new THREE.Color(0x8fa8cc), fpC1 = new THREE.Color(0xf4f8ff), fpCt = new THREE.Color(), fpLife = (cfg.alive && cfg.alive.printS) || 18; let fpTick = 0;
+  for (let i = 0; i < fpN; i++) fp.setColorAt(i, fpC0);
   const fpT = new Float32Array(fpN).fill(-1), fpM = Array.from({ length: fpN }, () => new THREE.Matrix4()); let fpI = 0;
   for (let i = 0; i < fpN; i++) fp.setMatrixAt(i, hide);
   /** Leaves a footprint at (x, z) facing `yaw`, side -1/1. */
   function footprint(x, z, yaw, side) {
     const i = fpI++ % fpN; const ox = Math.cos(yaw) * 0.14 * side, oz = -Math.sin(yaw) * 0.14 * side;
     fpM[i].compose(dv.set(x + ox, L.terrainH(cfg, x + ox, z + oz) + 0.03, z + oz), dq.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
-    fp.setMatrixAt(i, fpM[i]); fpT[i] = 0; fp.instanceMatrix.needsUpdate = true;
+    fp.setMatrixAt(i, fpM[i]); fpT[i] = 0; fp.instanceMatrix.needsUpdate = true; fp.setColorAt(i, fpC0); fp.instanceColor.needsUpdate = true;
   }
 
   // ---- guide trail: glowing paw prints from the hero toward the goal
@@ -134,7 +137,8 @@ export function createFx(scene, cfg, cap = 500) {
     }
     if (anyDeb) deb.instanceMatrix.needsUpdate = true;
     let fpDirty = false;
-    for (let i = 0; i < fpN; i++) { if (fpT[i] < 0) continue; fpT[i] += dt; if (fpT[i] > 18) { fpT[i] = -1; fp.setMatrixAt(i, hide); fpDirty = true; } else if (fpT[i] > 14) { const s = (18 - fpT[i]) / 4; fpM[i].elements[0] = s; fpM[i].elements[10] = s * 1.0; fp.setMatrixAt(i, fpM[i]); fpDirty = true; } }
+    fpTick += dt; const recol = fpTick > 0.25; if (recol) fpTick = 0;
+    for (let i = 0; i < fpN; i++) { if (fpT[i] < 0) continue; fpT[i] += dt; if (recol) { fp.setColorAt(i, fpCt.copy(fpC0).lerp(fpC1, Math.min(1, Math.max(0, fpT[i] - 3) / (fpLife - 3)) * 0.85)); fp.instanceColor.needsUpdate = true; } if (fpT[i] > fpLife) { fpT[i] = -1; fp.setMatrixAt(i, hide); fpDirty = true; } else if (fpT[i] > fpLife - 4) { const s = (fpLife - fpT[i]) / 4; fpM[i].elements[0] = s; fpM[i].elements[10] = s * 1.0; fp.setMatrixAt(i, fpM[i]); fpDirty = true; } }
     if (fpDirty) fp.instanceMatrix.needsUpdate = true;
   }
 
