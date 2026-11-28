@@ -247,3 +247,35 @@ test('guide: at night without the flash a visitor missing only its 3-star photo 
   assert.equal(L.guideTarget(S, { hero: [0, 0], animals, noStar: true }).id, 'fox');
   assert.equal(L.guideTarget(S, { hero: [0, 0], animals, noStar: false }).id, 'ermine');
 });
+
+test('solids: a walker slides around a trunk and a turned box, and never ends inside one', () => {
+  const c = cfg(), r = c.hero.radius;
+  const solids = [[0, -20, 1], { x: 4, z: -20, hx: 1.6, hz: 0.4, yaw: 0.6 }];
+  // walk straight at each solid from many directions: every step ends clear, and the walker gets past
+  for (const s of solids) {
+    const sx = Array.isArray(s) ? s[0] : s.x, sz = Array.isArray(s) ? s[1] : s.z;
+    for (let k = 0; k < 16; k++) {
+      const a = k / 16 * Math.PI * 2, from = [sx - Math.sin(a) * 4, sz - Math.cos(a) * 4], to = [sx + Math.sin(a) * 4 + Math.cos(a) * 0.3, sz + Math.cos(a) * 4 - Math.sin(a) * 0.3]; // a little off dead centre, as a thumb on a stick always is
+      let p = from;
+      for (let i = 0; i < 160; i++) {
+        const dx = to[0] - p[0], dz = to[1] - p[1], d = Math.hypot(dx, dz); if (d < 0.1) break;
+        p = L.slide(c, 1, p[0], p[1], dx / d * 0.09, dz / d * 0.09, solids, r);
+        assert.ok(L.overlapDepth(solids, p[0], p[1], r) < 0.01, `inside a solid at ${p}`);
+      }
+      if (Array.isArray(s)) assert.ok(Math.hypot(to[0] - p[0], to[1] - p[1]) < 3.5, 'slides around a trunk instead of sticking');
+    }
+  }
+});
+
+test('solids: a walk at 45 degrees into a long box face slides along it', () => {
+  const c = cfg(), r = c.hero.radius, box = [{ x: 0, z: -20, hx: 2, hz: 0.4, yaw: 0 }];
+  let p = [-1, -18.5]; for (let i = 0; i < 60; i++) { p = L.slide(c, 1, p[0], p[1], 0.07, -0.07, box, r); assert.ok(L.overlapDepth(box, p[0], p[1], r) < 0.01); }
+  assert.ok(p[0] > 2.4, `slid along the face and past its end: ${p}`);
+});
+
+test('solids: overlapping animals step apart, a fixed one stays put', () => {
+  const b = [{ x: 0, z: 0, r: 0.6 }, { x: 0.3, z: 0, r: 0.6 }, { x: 0.2, z: 0.2, r: 0.5, fixed: true }];
+  for (let i = 0; i < 6; i++) L.separate(b);
+  for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) assert.ok(Math.hypot(b[i].x - b[j].x, b[i].z - b[j].z) >= b[i].r + b[j].r - 0.02);
+  assert.deepEqual([b[2].x, b[2].z], [0.2, 0.2]);
+});

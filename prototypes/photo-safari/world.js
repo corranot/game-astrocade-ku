@@ -162,7 +162,7 @@ export function createWorld(canvas, cfg, opts = {}) {
    diffuseColor.rgb *= mix(mix(0.8 + 0.32 * n2, 0.95 + 0.08 * n2, wht), 0.68 + 0.5 * n1, bark); }`);
   };
   const shapes = [pineGeo(4, 1.6, 4.2), pineGeo(5, 2.0, 5.6), pineGeo(3, 1.3, 3.0)].map(keep);
-  const trees = [[], [], []], trunks = [], tops = []; // tops: [x, y, z] of each crown, for snow puffs
+  const trees = [[], [], []], trunks = [], tops = [], solids = []; // solids: what Pip and the animals walk around (logic.js pushOut); tops: [x, y, z] of each crown, for snow puffs
   const homes = [...cfg.species.map((s) => s.home), ...cfg.rares.map((r) => r.home)];
   const clearOf = (x, z, r) => homes.every((h) => Math.hypot(h[0] - x, h[1] - z) > r) && Math.abs(x - Math.sin(z * 0.045) * 3) > 3.2 && cfg.gates.every((g) => L.gateDist(g, x, z) > 2) && Math.hypot(x - lake[0], z - lake[1]) > lake[2] + 3;
   for (let i = 0; i < 2600 && trees[0].length + trees[1].length + trees[2].length < 420; i++) {
@@ -174,13 +174,14 @@ export function createWorld(canvas, cfg, opts = {}) {
     const s = 0.8 + R() * 0.7, k = Math.floor(R() * 3), y = L.terrainH(cfg, x, z) - 0.1;
     const sy = s * (0.9 + R() * 0.3); trees[k].push(M4(x, y, z, s, sy, s, 0, R() * 6.28)); tops.push([x, y + sy * [4.2, 5.6, 3.0][k] * 0.7, z, s]);
     if (d < 1) trunks.push([x, z]);
+    if (d < 4) { const wr = [1.6, 2.0, 1.3][k] * s; solids.push([x, z, wr * cfg.world.solid.tree, 0]); } // the skirt reaches past the trunk: Pip and the animals stop at its rim
   }
   const forest = shapes.map((g, k) => { const m = new THREE.InstancedMesh(g, pineMat, trees[k].length); trees[k].forEach((t, i) => m.setMatrixAt(i, t)); m.castShadow = true; m.receiveShadow = false; m.computeBoundingSphere(); scene.add(m); return m; });
 
   // ---- rocks (instanced, snow on top)
   const rockGeo = (() => { const g = new THREE.IcosahedronGeometry(1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); v.multiplyScalar(1 + L.noise2(v.x * 3 + 5, v.z * 3 + v.y * 2) * 0.18); p.setXYZ(i, v.x, v.y * 0.7, v.z); } g.computeVertexNormals(); return keep(merge([{ g, m: M4(), col: (n, p) => (n.y > 0.45 ? C('#f2f7ff') : C('#8a94a8').lerp(C('#6c7a96'), 0.5 + 0.5 * Math.sin(p.y * 11 + p.x * 3))).multiplyScalar(0.8 + 0.2 * n.y) }])); })();
   const rockS = []; // [x, z, size] per rock, for the camera's line of sight
-  const rockM = []; for (let i = 0; i < 400 && rockM.length < 70; i++) { const x = (R() - 0.5) * 120, z = 60 - R() * 290; let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z)); if (d < -4 || d > 6 || !clearOf(x, z, 3)) continue; const s = 0.6 + R() * 1.6; rockM.push(M4(x, L.terrainH(cfg, x, z) + s * 0.15, z, s, s, s, 0, R() * 6)); rockS.push([x, z, s]); }
+  const rockM = []; for (let i = 0; i < 400 && rockM.length < 70; i++) { const x = (R() - 0.5) * 120, z = 60 - R() * 290; let d = 1e9; for (const a of cfg.areas) d = Math.min(d, L.areaDist(a, x, z)); if (d < -4 || d > 6 || !clearOf(x, z, 3)) continue; const s = 0.6 + R() * 1.6; rockM.push(M4(x, L.terrainH(cfg, x, z) + s * 0.15, z, s, s, s, 0, R() * 6)); rockS.push([x, z, s]); solids.push([x, z, s * cfg.world.solid.rock]); }
   const rocks = new THREE.InstancedMesh(rockGeo, keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })), rockM.length); rockM.forEach((m, i) => rocks.setMatrixAt(i, m)); rocks.castShadow = true; rocks.receiveShadow = true; scene.add(rocks);
   // a prop right in front of the lens (low look angles, a lamp post under the camera) dithers away instead of filling
   // the frame with a dark shape
@@ -271,8 +272,8 @@ export function createWorld(canvas, cfg, opts = {}) {
     { g: sph(9), m: M4(-1.2, 0.05, 0.35, 0.8, 0.25, 0.6), col: drift }, { g: sph(9), m: M4(1.1, 0.05, -0.35, 0.7, 0.22, 0.5), col: drift },
   ]));
   const dress = (geo, list) => { if (!list.length) return; const m = new THREE.InstancedMesh(geo, rocks.material, list.length); list.forEach((t, i) => m.setMatrixAt(i, t)); m.castShadow = true; m.receiveShadow = true; m.computeBoundingSphere(); scene.add(m); };
-  const shrubAt = ([x, z, s = 1]) => M4(x, L.terrainH(cfg, x, z) - 0.05, z, s, s, s, 0, x * 1.7 + z);
-  const logAt = ([x, z, yaw]) => M4(x, L.terrainH(cfg, x, z) - 0.04, z, 1, 1, 1, 0, yaw);
+  const shrubAt = ([x, z, s = 1]) => (solids.push([x, z, s * cfg.world.solid.shrub]), M4(x, L.terrainH(cfg, x, z) - 0.05, z, s, s, s, 0, x * 1.7 + z));
+  const logAt = ([x, z, yaw]) => (solids.push({ x, z, hx: 1.65, hz: 0.38, yaw }), M4(x, L.terrainH(cfg, x, z) - 0.04, z, 1, 1, 1, 0, yaw));
   dress(shrubGeo, cfg.world.startShrubs.map(shrubAt)); dress(logGeo, cfg.world.startLogs.map(logAt));
   /** Builds after the first frame: shrubs and logs across the fields, and the frozen streams with snowy banks. */
   const dressFields = () => {
@@ -308,8 +309,10 @@ export function createWorld(canvas, cfg, opts = {}) {
     { g: new THREE.TorusGeometry(0.38, 0.09, 8, 18), m: M4(0, 1.78, 0, 1, 1, 0.9, Math.PI / 2), col: C('#e8513a') },
     { g: new THREE.CylinderGeometry(0.03, 0.03, 1.1, 5), m: M4(-0.75, 1.6, 0, 1, 1, 1, 0, 0, 1.0), col: C('#6a4630') }, { g: new THREE.CylinderGeometry(0.03, 0.03, 1.1, 5), m: M4(0.75, 1.6, 0, 1, 1, 1, 0, 0, -1.1), col: C('#6a4630') },
     { g: new THREE.CylinderGeometry(0.28, 0.32, 0.38, 14), m: M4(0, 2.5, 0, 1, 1, 1, 0.1), col: C('#2b3242') }], -7, -1, 0.4);
+  solids.push([-7, -1, 0.75, 2.7]);
   // sled
   place([{ g: new THREE.BoxGeometry(0.9, 0.1, 1.8), m: M4(0, 0.32, 0), col: C('#c8562c') }, { g: new THREE.TorusGeometry(0.9, 0.04, 6, 16, Math.PI * 0.6), m: M4(-0.42, 0.18, 0, 1, 0.3, 1, 0, Math.PI / 2), col: C('#d9b060') }, { g: new THREE.TorusGeometry(0.9, 0.04, 6, 16, Math.PI * 0.6), m: M4(0.42, 0.18, 0, 1, 0.3, 1, 0, Math.PI / 2), col: C('#d9b060') }], 5, 9, -0.6);
+  solids.push({ x: 5, z: 9, hx: 0.5, hz: 0.95, yaw: -0.6 });
   // cabin with a lit window and a chimney
   const log = (y, z, len, rot = 0) => ({ g: new THREE.CylinderGeometry(0.2, 0.2, len, 8), m: M4(0, y, z, 1, 1, 1, 0, rot, Math.PI / 2), col: C('#8a5a36') });
   const cabin = [];
@@ -317,7 +320,7 @@ export function createWorld(canvas, cfg, opts = {}) {
   cabin.push({ g: new THREE.CylinderGeometry(0.01, 2.9, 1.8, 4, 1), m: M4(0, 3.6, 0, 1, 1, 0.82, 0, Math.PI / 4), col: (n) => (n.y > 0.3 ? W : C('#5a3a24')) });
   cabin.push({ g: new THREE.BoxGeometry(0.5, 1.6, 0.5), m: M4(1.2, 3.8, -0.6), col: C('#8a7a72') });
   const cabinGlow = [{ g: new THREE.BoxGeometry(0.9, 0.7, 0.08), m: M4(-0.9, 1.3, 1.82), col: C('#ffb347') }, { g: new THREE.BoxGeometry(0.9, 0.7, 0.08), m: M4(0.9, 1.3, 1.82), col: C('#ffb347') }];
-  place(cabin, -19, 21, 0.35, cabinGlow);
+  place(cabin, -19, 21, 0.35, cabinGlow); solids.push({ x: -19, z: 21, hx: 2.35, hz: 1.85, yaw: 0.35, h: 4.6 });
   const chimney = new THREE.Vector3(-19 + 1.2 * Math.cos(0.35) - 0.6 * Math.sin(0.35), L.terrainH(cfg, -19, 21) + 4.7, 21 - 1.2 * Math.sin(0.35) - 0.6 * Math.cos(0.35));
   // lanterns along the path
   const lanterns = [], lampMeshes = []; // [post, bulb] per lantern: hidden while the camera stands right at one
@@ -326,22 +329,22 @@ export function createWorld(canvas, cfg, opts = {}) {
     if (!L.walkable(cfg, 3, x, z) || cfg.gates.some((g) => Math.abs(g.z - z) < 6)) continue;
     const lm = place([{ g: new THREE.CylinderGeometry(0.06, 0.08, 1.8, 6), m: M4(0, 0.9, 0), col: C('#3a2c22') }, { g: new THREE.ConeGeometry(0.28, 0.25, 6), m: M4(0, 2.05, 0), col: C('#3a2c22') }], x, z, 0,
       [{ g: sph(10), m: M4(0, 1.82, 0, 0.17, 0.2, 0.17), col: C('#ffb347') }]);
-    lanterns.push([x, z]); lampMeshes.push([lm, glows[glows.length - 1]]);
+    lanterns.push([x, z]); solids.push([x, z, cfg.world.solid.lamp]); lampMeshes.push([lm, glows[glows.length - 1]]);
   }
   // stumps and branches the birds sit on, mounds the shy ones hide in
   const perch = {};
   for (const s of [...cfg.species, ...cfg.rares.map((r) => ({ ...L.speciesById(cfg, r.base), ...r }))]) {
-    if (s.perch) { place([{ g: new THREE.CylinderGeometry(0.32, 0.42, s.perch, 10), m: M4(0, s.perch / 2, 0), col: (n) => (n.y > 0.7 ? C('#f4f9ff') : C('#7a5236')) }, { g: sph(10), m: M4(0, s.perch + 0.02, 0, 0.38, 0.1, 0.38), col: W }], s.home[0], s.home[1]); perch[s.id] = s.perch; }
-    if (s.shy) place([{ g: sph(16), m: M4(0, 0, 0, 1.0, 0.55, 0.9), col: (n) => W.clone().multiplyScalar(0.86 + 0.14 * n.y) }, { g: sph(10), m: M4(0, 0.12, 0.72, 0.36, 0.26, 0.2), col: C('#3a4a6a') }], s.home[0], s.home[1] - 0.8);
+    if (s.perch) { place([{ g: new THREE.CylinderGeometry(0.32, 0.42, s.perch, 10), m: M4(0, s.perch / 2, 0), col: (n) => (n.y > 0.7 ? C('#f4f9ff') : C('#7a5236')) }, { g: sph(10), m: M4(0, s.perch + 0.02, 0, 0.38, 0.1, 0.38), col: W }], s.home[0], s.home[1]); perch[s.id] = s.perch; solids.push([s.home[0], s.home[1], 0.45]); }
+    if (s.shy) place([{ g: sph(16), m: M4(0, 0, 0, 1.0, 0.55, 0.9), col: (n) => W.clone().multiplyScalar(0.86 + 0.14 * n.y) }, { g: sph(10), m: M4(0, 0.12, 0.72, 0.36, 0.26, 0.2), col: C('#3a4a6a') }], s.home[0], s.home[1] - 0.8); solids.push([s.home[0], s.home[1] - 0.8, 0.95]); 
   }
   // berry bushes, reeds, a beaver dam, ice floes
-  for (let i = 0; i < 14; i++) { const x = (R() - 0.5) * 50, z = 10 - R() * 190; if (!L.walkable(cfg, 3, x, z) || !clearOf(x, z, 3) || Math.hypot(x - lake[0], z - lake[1]) < lake[2] + 2) continue; place([{ g: sph(10), m: M4(0, 0.45, 0, 0.8, 0.55, 0.7), col: (n) => (n.y > 0.55 ? W : C('#3a6a4a')) }, { g: sph(6), m: M4(0.4, 0.55, 0.45, 0.09, 0.09, 0.09), col: C('#e8384a') }, { g: sph(6), m: M4(-0.3, 0.7, 0.4, 0.09, 0.09, 0.09), col: C('#e8384a') }, { g: sph(6), m: M4(0.1, 0.4, 0.6, 0.09, 0.09, 0.09), col: C('#e8384a') }], x, z, R() * 6); }
-  place([0, 1, 2, 3, 4].map((i) => ({ g: new THREE.CylinderGeometry(0.16, 0.18, 2.4, 7), m: M4(Math.sin(i) * 0.4, 0.2 + i * 0.12, (i - 2) * 0.3, 1, 1, 1, 0, i * 0.5, Math.PI / 2 + 0.2), col: C('#7a5236') })), -18, -87, 0.6);
+  for (let i = 0; i < 14; i++) { const x = (R() - 0.5) * 50, z = 10 - R() * 190; if (!L.walkable(cfg, 3, x, z) || !clearOf(x, z, 3) || Math.hypot(x - lake[0], z - lake[1]) < lake[2] + 2) continue; place([{ g: sph(10), m: M4(0, 0.45, 0, 0.8, 0.55, 0.7), col: (n) => (n.y > 0.55 ? W : C('#3a6a4a')) }, { g: sph(6), m: M4(0.4, 0.55, 0.45, 0.09, 0.09, 0.09), col: C('#e8384a') }, { g: sph(6), m: M4(-0.3, 0.7, 0.4, 0.09, 0.09, 0.09), col: C('#e8384a') }, { g: sph(6), m: M4(0.1, 0.4, 0.6, 0.09, 0.09, 0.09), col: C('#e8384a') }], x, z, R() * 6); solids.push([x, z, 0.8]); }
+  place([0, 1, 2, 3, 4].map((i) => ({ g: new THREE.CylinderGeometry(0.16, 0.18, 2.4, 7), m: M4(Math.sin(i) * 0.4, 0.2 + i * 0.12, (i - 2) * 0.3, 1, 1, 1, 0, i * 0.5, Math.PI / 2 + 0.2), col: C('#7a5236') })), -18, -87, 0.6); solids.push({ x: -18, z: -87, hx: 1.3, hz: 0.8, yaw: 0.6 });
   for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3, r = lake[2] * (0.45 + 0.35 * R()); const fl = new THREE.Mesh(keep(new THREE.CylinderGeometry(1, 1.1, 0.18, 7)), keep(new THREE.MeshStandardMaterial({ color: 0xf2f9ff, roughness: 0.5 }))); fl.position.set(lake[0] + Math.cos(a) * r, -0.02, lake[1] + Math.sin(a) * r); fl.scale.set(0.8 + R(), 1, 0.6 + R() * 0.8); fl.rotation.y = R() * 6; fl.receiveShadow = true; scene.add(fl); props.push(fl); }
   // ice caves: crystal clusters that glow and a frozen waterfall
-  const crystal = (x, z, k) => { const items = []; for (let i = 0; i < 5; i++) { const a = i * 1.3, h = 0.8 + ((i * 7) % 5) * 0.35; items.push({ g: new THREE.OctahedronGeometry(1, 0), m: M4(Math.cos(a) * 0.35, h * 0.5, Math.sin(a) * 0.35, 0.22, h * 0.6, 0.22, Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3), col: C(k ? '#9a7dff' : '#5cd8f2') }); } place([{ g: sph(8), m: M4(0, 0.05, 0, 0.8, 0.2, 0.8), col: C('#c8d6f2') }], x, z, 0, items); };
+  const crystal = (x, z, k) => { const items = []; for (let i = 0; i < 5; i++) { const a = i * 1.3, h = 0.8 + ((i * 7) % 5) * 0.35; items.push({ g: new THREE.OctahedronGeometry(1, 0), m: M4(Math.cos(a) * 0.35, h * 0.5, Math.sin(a) * 0.35, 0.22, h * 0.6, 0.22, Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3), col: C(k ? '#9a7dff' : '#5cd8f2') }); } place([{ g: sph(8), m: M4(0, 0.05, 0, 0.8, 0.2, 0.8), col: C('#c8d6f2') }], x, z, 0, items); solids.push([x, z, 0.62, 2.2]); };
   for (let i = 0; i < 16; i++) { const a = R() * 6.28, r = 12 + R() * 16, x = Math.cos(a) * r * 0.95, z = -154 + Math.sin(a) * r; if (!clearOf(x, z, 3)) continue; crystal(x, z, i % 3 === 0); }
-  place([{ g: new THREE.CylinderGeometry(2.2, 3.2, 9, 14, 1, true, 0, Math.PI), m: M4(0, 4.5, 0), col: C('#bfeaff') }], 0, -186, Math.PI);
+  place([{ g: new THREE.CylinderGeometry(2.2, 3.2, 9, 14, 1, true, 0, Math.PI), m: M4(0, 4.5, 0), col: C('#bfeaff') }], 0, -186, Math.PI); solids.push([0, -186, 3.2, 9]);
   // ice gates: a wall of shards across each corridor, gone when the area opens
   // gate ice: deep blue at the foot, frosted white tips and edges, and a slow glint sweeping across the shards
   const gateMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.9, emissive: 0x2a9ad8, emissiveIntensity: 0.6 }));
@@ -517,6 +520,7 @@ export function createWorld(canvas, cfg, opts = {}) {
     if (y < L.terrainH(cfg, x, z) + 0.7) return true;
     for (const r of rockS) { const dx = x - r[0], dz = z - r[1]; if (dx * dx + dz * dz < r[2] * r[2] * 1.3 && y < L.terrainH(cfg, r[0], r[1]) + r[2] * 1.1) return true; }
     for (const l of lanterns) { const dx = x - l[0], dz = z - l[1]; if (dx * dx + dz * dz < 0.36 && y < L.terrainH(cfg, l[0], l[1]) + 3) return true; }
+    for (const s of solids) if (s.h || s[3]) { const sx = s.x ?? s[0], sz = s.z ?? s[1]; if (Math.abs(x - sx) > 4 || Math.abs(z - sz) > 4 || y > L.terrainH(cfg, sx, sz) + (s.h || s[3])) continue; if (L.solidGap(s, x, z, 0.3)[0] < 0) return true; } // cabin, snowman, crystals, waterfall
     for (const g of gates) if (g.mesh.visible && Math.abs(z - g.mesh.position.z) < 1 && Math.abs(x) < 6 && y < g.mesh.position.y + 5.5) return true;
     return false;
   }
@@ -628,7 +632,7 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   setTod({ day: 1, dusk: 0, night: 0, dawn: 0 });
   return {
-    renderer, scene, camera, uTime, uGust, uPush, tops, iceCrack: (x, z) => crackU.value.set(0.5 + (x - lake[0]) / (2 * lakeR), 0.5 - (z - lake[1]) / (2 * lakeR), uTime.value), trunks, chimney, lanterns, perch, gates, shake, propMat,
+    renderer, scene, camera, uTime, uGust, uPush, tops, iceCrack: (x, z) => crackU.value.set(0.5 + (x - lake[0]) / (2 * lakeR), 0.5 - (z - lake[1]) / (2 * lakeR), uTime.value), trunks, solids, chimney, lanterns, perch, gates, shake, propMat,
     setTier, seeLine, resize, endBoot, warm, setTod, updateCamera, snapCamera, setLook, render, capture, toScreen, openGate, gateShown, stats, dispose, buildGround: () => { buildGround(); dressGates(); dressFields(); },
     get tier() { return tier; }, get pull() { return pull; }, get night() { return night; }, lamp: lampU, set fogK(v) { fogK = v; },
     setGlint(v) { if (terrainMat.userData.sh) terrainMat.userData.sh.uniforms.uGlint.value = v; },
