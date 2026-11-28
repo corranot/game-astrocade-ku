@@ -88,6 +88,10 @@ if (shot === 'turn' || shot === 'pip') {
 } else if (shot === 'anim') {
   const w = W / 4, sts = [{ t: 0 }, { walk: 1, t: 0.17 }, { walk: 1, t: 0.52 }, { wave: 1, t: 1.1 }];
   sts.forEach((s, i) => { const c = chibi(PIP, s, pipCamera); c.blinkOff = 1; cell(i * w, 0, w, H, [[c.group, 0]], orbit(0.5), ['idle', 'walk A', 'walk B', 'wave'][i]); });
+} else if (shot === 'hands') {
+  // close-ups of the left mitten (the character's left, +x): front, 3/4 from the body side, walk and wave
+  const w = W / 4, sts = [[{ t: 0 }, [0.32, 0.55, 1.3], [0.2, 0.5, 0]], [{ t: 0 }, [0.95, 0.55, 0.9], [0.2, 0.5, 0]], [{ walk: 1, t: 0.52 }, [0.5, 0.6, 1.3], [0.2, 0.55, 0]], [{ wave: 1, t: 1.1 }, [-0.4, 1.2, 1.3], [-0.3, 1.05, 0]]];
+  sts.forEach(([s, pos, look], i) => { const c = chibi({ mitts: '#fff4e6', top: { color: '#e8513a', sleeve: 1 } }, s); cell(i * w, 0, w, H, [[c.group, 0]], { pos, look, fov: 30 }, ['front', 'body side', 'walk', 'wave'][i]); });
 } else if (shot === 'phone') {
   const c = chibi(PIP, { wave: 1, t: 1.1 }, pipCamera); c.group.rotation.y = -0.3;
   cell(0, 0, W, H, [[c.group, 0]], { pos: [1.6, 2.6, 5.4], look: [0, 0.95, 0], fov: 30 });
