@@ -10,7 +10,9 @@ const M4 = (x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1, rx = 0, ry = 0, rz = 0)
 const sph = (seg) => new THREE.SphereGeometry(1, seg, Math.round(seg * 0.75));
 const cyl = (seg) => new THREE.CylinderGeometry(1, 1, 1, seg, 1);
 const ARM_REST = 0.27;
+const CAM_Z = 0.275; // chest-bone depth of the camera's centre: its back sits on the quilted parka front (0.2), never inside it
 const lerp = (a, b, k) => a + (b - a) * k;
+const armsUp = (vf) => Math.min(1, vf * 1.7); // the hero hides at vf 0.55, by then the camera is at the eye
 
 /** The chibi look for a shop look { parka, hat, cam }: quilted parka and sleeves in the parka colour, hat and mitts. */
 export function pipLook(l) {
@@ -50,7 +52,7 @@ export function makePip(heightM, P) {
   P.build = (look) => {
     if (P.c) { group.remove(P.c.group); P.c.group.traverse((o) => o.geometry && o.geometry !== camGeo && o.geometry !== strapGeo && o.geometry !== lampGeo && o.geometry !== glowGeo && o.geometry.dispose()); }
     const c = buildChibi(pipLook(look));
-    const cam = new THREE.Group(); cam.position.set(0, 0.02, 0.24);
+    const cam = new THREE.Group(); cam.position.set(0, 0.02, CAM_Z); // rests on the parka front, clear of the quilting
     for (const g of [camGeo, strapGeo]) { const m = new THREE.Mesh(g, g === camGeo ? matCam : matDark); m.castShadow = true; cam.add(m); }
     attach(c, 'spine3', cam);
     const lantern = new THREE.Group(); lantern.position.set(-0.27, -0.06, 0.07); // on the belt, the character's right hip
@@ -75,19 +77,20 @@ POSES.pipHero = (B, w, t) => {
   const P = cur, vf = P.vf, idle = P.idle;
   const sides = [['L', 1], ['R', -1]];
   if (vf > 0) { // raise the camera to the eye: upper arms forward, elbows bent, palms facing the camera's sides
+    const a = armsUp(vf); // the arms lead and the camera rides in the mitts
     for (const [k, m] of sides) {
-      B['upperArm' + k].rotation.x = lerp(B['upperArm' + k].rotation.x, -1.2, vf);
-      B['upperArm' + k].rotation.z = lerp(B['upperArm' + k].rotation.z, m * 0.12, vf);
-      B['forearm' + k].rotation.x = lerp(B['forearm' + k].rotation.x, -1.35, vf);
-      B['hand' + k].rotation.z = lerp(B['hand' + k].rotation.z, m * 0.25, vf); // a little wrist extension
+      B['upperArm' + k].rotation.x = lerp(B['upperArm' + k].rotation.x, -1.45, a);
+      B['upperArm' + k].rotation.z = lerp(B['upperArm' + k].rotation.z, m * 0.05, a);
+      B['forearm' + k].rotation.x = lerp(B['forearm' + k].rotation.x, -1.5, a);
+      B['hand' + k].rotation.z = lerp(B['hand' + k].rotation.z, m * 0.25, a); // a little wrist extension
     }
     B.head.rotation.x -= 0.12 * vf; // eye to the viewfinder
   }
   if (idle && vf < 0.05) {
     const q = idle.p, u = Math.sin(Math.PI * q);
-    if (idle.k === 'warm') { // rub the mitts together in front of the chest
+    if (idle.k === 'warm') { // rub the mitts together in front of the tummy
       const r = Math.sin(q * 40) * 0.12 * u;
-      for (const [k, m] of sides) { B['upperArm' + k].rotation.x = -0.9 * u + m * r; B['upperArm' + k].rotation.z = m * (ARM_REST * (1 - u) - 0.2 * u); B['forearm' + k].rotation.x = -1.5 * u - 0.18 * (1 - u); B['forearmTwist' + k].rotation.y = -0.4 * u * m; }
+      for (const [k, m] of sides) { B['upperArm' + k].rotation.x = -0.5 * u + m * r; B['upperArm' + k].rotation.z = m * (ARM_REST * (1 - u) - 0.12 * u); B['forearm' + k].rotation.x = -1.25 * u - 0.18 * (1 - u); B['forearmTwist' + k].rotation.y = -0.5 * u * m; } // mitts meet under the camera, palms together
       B.head.rotation.x += 0.15 * u;
     } else if (idle.k === 'stamp') { // stamp the boots
       const s = Math.sin(q * Math.PI * 4);
@@ -107,10 +110,10 @@ export function animatePip(P, t, dt, walk, vf, look = 0, idle = null) {
     P.inT = Math.min(1, P.inT + dt / 0.35); const k = P.inT, b = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);
     P.c.group.scale.setScalar(P.scale * Math.max(0.01, b));
   }
-  animateChibi(P.c, t, dt, { walk, look: look * (1 - vf), pose: 'pipHero', poseW: 1 });
+  animateChibi(P.c, t, dt, { walk, wave: P.wave || 0, look: look * (1 - vf), pose: 'pipHero', poseW: 1 });
   // the camera lifts off the chest toward the eye with the arms (and a little for a peek)
   const pk = idle && idle.k === 'peek' && vf < 0.05 ? Math.sin(Math.PI * idle.p) : 0;
-  P.cam.position.set(0, 0.02 + vf * 0.36 + pk * 0.12, 0.24 + vf * 0.16 + pk * 0.1);
+  const up = armsUp(vf); P.cam.position.set(0, 0.02 + up * 0.24 + pk * 0.12, CAM_Z + up * 0.09 + pk * 0.1); // held up at the chin in both mitts (chibi arms are short for the big head)
   P.cam.rotation.x = -0.25 * pk;
   P.lantern.rotation.z = Math.sin(t * 9) * 0.3 * walk;
   P.lantern.rotation.x = Math.sin(t * 2.2) * 0.04;
