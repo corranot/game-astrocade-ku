@@ -46,4 +46,4 @@ clicks it with `force: true`. Real taps and the playtest's mouse clicks are unaf
 
 ## Evidence
 
-Frames in this folder (also in the shared project files under `snowy/final/`): `ctl-*`, `comfort-*`, `life2-*`.
+Frames in this folder (also in the shared project files under `snowy/final/`): `ctl-*`, `ctlar-*` (controls), `cf-*`, `cfar-*` (comfort tour), `life-*` (life details).
