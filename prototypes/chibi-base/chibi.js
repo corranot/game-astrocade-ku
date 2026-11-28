@@ -314,10 +314,10 @@ export function buildChibi(look = {}) {
       const t = -v.y / 0.3, c = top && L.top.sleeve > 0 && t < L.top.sleeve ? seam(t, L.top.sleeve, top) : skin;
       return c.clone().multiplyScalar(ao(n, 0.16));
     }));
-    // mitten hand: a paddle with a thumb on the body side
+    // mitten hand: a paddle, with the thumb high on the body side near the wrist, angled forward like a real mitten
     const hand = mergeRigid([
-      { g: ell(0.07, 0.082, 0.056, 16), m: M4(0, -0.06, 0.005), col: mitt },
-      { g: ell(0.032, 0.044, 0.034, 10), m: M4(-sx * 0.056, -0.04, 0.016, 0, 0, sx * 0.5), col: mitt },
+      { g: ell(0.07, 0.082, 0.056, 16), m: M4(0, -0.065, 0.005), col: mitt },
+      { g: ell(0.027, 0.04, 0.028, 12), m: M4(-sx * 0.05, -0.04, 0.03, 0.55, 0, -sx * 0.5), col: mitt },
     ]);
     hand.deleteAttribute('color');
     parts.push(part(hand, iHand[s], () => [[iHand[s], 1]], (v, n) => mitt.clone().multiplyScalar(ao(n, 0.18))));
@@ -404,7 +404,7 @@ export function animateChibi(c, t, dt, s = {}) {
   // wave: right arm up and out, the hand waggles
   if (wave > 0) {
     B.armR.rotation.z = -(ARM_REST + (2.3 - ARM_REST) * wave) + Math.sin(t * 9) * 0.14 * wave;
-    B.handR.rotation.z = Math.sin(t * 14) * 0.45 * wave; B.armR.rotation.x = 0.45 * wave; // forward, so the hand waves in front of the hair
+    B.handR.rotation.z = Math.sin(t * 14) * 0.45 * wave; B.handR.rotation.y = -0.8 * Math.PI * wave; // roll the palm so the thumb faces the head B.armR.rotation.x = 0.45 * wave; // forward, so the hand waves in front of the hair
   }
   // blink every few seconds
   const bp = (t + (c.blinkOff || 0)) % 3.6;
