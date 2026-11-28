@@ -192,12 +192,12 @@ export function run(mode = 'play') {
     // Hoot's board: three paper notes with red pins
     const [rb, rTop] = board(1.5, 1.05), paper = C3('#fff6e6'), pin = C3('#e8513a');
     [[-0.45, 1.3, 0.08], [0.05, 1.42, -0.06], [0.48, 1.25, 0.1]].forEach(([x, y, r]) => { rb.push(box(0.4, 0.48, 0.02, x, y, 0.07, paper, r)); rb.push(box(0.07, 0.07, 0.05, x, y + 0.18, 0.09, pin)); });
-    add(rb, B.req);
+    add(rb, B.req); W.solids.push({ x: B.req[0], z: B.req[1], hx: 0.85, hz: 0.36, yaw: B.req[2] });
     const owl = speciesOf('owl'); boards.hootSp = { ...owl, id: 'hoot', main: '#c8a878', belly: '#f2e6cc', scale: 0.62, perch: 0 };
     const hp = buildCritter(boards.hootSp, mats); hp.phase = 0; W.scene.add(hp.group);
     boards.hoot = { parts: hp, x: B.req[0], z: B.req[1], y: L.terrainH(cfg, B.req[0], B.req[1]) + rTop, yaw: B.req[2], blink: 0, blinkT: 2 };
     // the friends board: one photo sheet (an atlas canvas) under the roof
-    const [fb, fTop] = board(2.6, 1.7); add(fb, B.friends); void fTop;
+    const [fb, fTop] = board(2.6, 1.7); add(fb, B.friends); void fTop; W.solids.push({ x: B.friends[0], z: B.friends[1], hx: 1.4, hz: 0.36, yaw: B.friends[2] });
     const P = cfg.world.boardPhotos; boards.cv = document.createElement('canvas'); boards.cv.width = P.cols * P.cellW; boards.cv.height = P.rows * P.cellH;
     const g = boards.cv.getContext('2d'); g.fillStyle = '#c9a77a'; g.fillRect(0, 0, boards.cv.width, boards.cv.height);
     boards.tex = new THREE.CanvasTexture(boards.cv); boards.tex.colorSpace = THREE.SRGBColorSpace;
@@ -773,7 +773,18 @@ export function run(mode = 'play') {
     for (const a of animals) { if (!free(a)) continue; for (const b of animals) { if (b === a || !free(b) || Math.hypot(a.x - b.x, a.z - b.z) > 4) continue;
       a.idle = { k: 'play', p: 0, mate: b }; b.idle = { k: 'play', p: 0.1, mate: a }; if (play && Math.hypot(a.x - hero.x, a.z - hero.z) < 12) Sound.voice(a.sp, ...earOf(a).map((v, i) => (i ? v * 0.6 : v))); return; } }
   }
+  /** The solids an animal walks around: none for a bird on its stump, a shy one in its mound or the whale in its hole. */
+  const solidFor = (a) => (a.sp.perch || a.sp.shy || a.sp.type === 'whale' ? null : W.solids);
+  /** Animals never stand inside each other: overlapping pairs step apart (the fixed ones stay put), then off any prop. */
+  const bodies = [];
+  function separateAnimals() {
+    bodies.length = 0;
+    for (const a of animals) if (a.parts.group.visible) bodies.push({ a, x: a.x, z: a.z, r: a.parts.radius, fixed: !solidFor(a) || !!a.pose });
+    L.separate(bodies);
+    for (const b of bodies) { if (b.fixed || (b.x === b.a.x && b.z === b.a.z)) continue; const n = L.slide(cfg, 3, b.a.x, b.a.z, b.x - b.a.x, b.z - b.a.z, W.solids, b.r); b.a.x = n[0]; b.a.z = n[1]; }
+  }
   function updateAnimals(dt, t, cw) {
+    separateAnimals();
     const night = cw.night > 0.5 || (cw.dusk > 0.6 && L.clockAt(cfg, S.clock).k > 0.8);
     const slowWin = cfg.photo.poseWindowS;
     for (const a of animals) {
@@ -795,16 +806,17 @@ export function run(mode = 'play') {
         if (a.state === 'walk') {
           const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), spd = (a.flee > 0 ? 3.2 : 1.1) * (sp.scale || 1);
           if (d < 0.15) { a.state = 'idle'; a.stT = 1.5 + R() * 3; }
-          else { const st = Math.min(d, spd * dt), n = L.slide(cfg, 3, a.x, a.z, dx / d * st, dz / d * st); if (n[0] === a.x && n[1] === a.z) a.state = 'idle'; a.x = n[0]; a.z = n[1]; a.yaw += angleDiff(Math.atan2(dx, dz), a.yaw) * Math.min(1, dt * 6); }
+          else { const st = Math.min(d, spd * dt), n = L.slide(cfg, 3, a.x, a.z, dx / d * st, dz / d * st, solidFor(a), a.parts.radius); if (Math.hypot(n[0] - a.x, n[1] - a.z) < st * 0.3) a.state = 'idle'; /* blocked by a prop: pick another spot */ a.x = n[0]; a.z = n[1]; a.yaw += angleDiff(Math.atan2(dx, dz), a.yaw) * Math.min(1, dt * 6); }
         }
       } else a.state = 'idle';
+      if (solidFor(a)) { const n = L.pushOut(W.solids, a.x, a.z, a.parts.radius); a.x = n[0]; a.z = n[1]; } // never inside a rock, a tree or a prop, even on the lake shore
       // personal space: an animal never walks into the lens (the hero pushes it gently back)
       { const ps = cfg.photo.personalM + a.parts.radius, dx = (a.x - hero.x) || 0.01, dz = a.z - hero.z, d = Math.hypot(dx, dz);
-        if (d < ps && sp.type !== 'whale') { const k = Math.min(ps - d, 2.5 * dt), n = L.slide(cfg, 3, a.x, a.z, dx / d * k, dz / d * k), left = k - Math.hypot(n[0] - a.x, n[1] - a.z); a.x = n[0]; a.z = n[1]; // never pushed off the valley floor, out of the hero's reach
-          if (left > 0.01) { const h = L.slide(cfg, S.open, hero.x, hero.z, -dx / d * left, -dz / d * left); hero.x = h[0]; hero.z = h[1]; } // backed against the edge: the hero steps back instead
+        if (d < ps && sp.type !== 'whale') { const k = Math.min(ps - d, 2.5 * dt), n = L.slide(cfg, 3, a.x, a.z, dx / d * k, dz / d * k, solidFor(a), a.parts.radius), left = k - Math.hypot(n[0] - a.x, n[1] - a.z); a.x = n[0]; a.z = n[1]; // never pushed off the valley floor, out of the hero's reach
+          if (left > 0.01) { const h = L.slide(cfg, S.open, hero.x, hero.z, -dx / d * left, -dz / d * left, W.solids, cfg.hero.radius); hero.x = h[0]; hero.z = h[1]; } // backed against the edge: the hero steps back instead
           if (a.state === 'walk' && ((a.tx - hero.x) * dx + (a.tz - hero.z) * dz) < 0) a.state = 'idle'; }
         // a whale in its ice hole cannot move: the hero stops at the edge instead, so the photo still frames it
-        else if (d < ps && a.present && a.hide < 0.5) { const k = Math.min(ps - d, 4 * dt), n = L.slide(cfg, S.open, hero.x, hero.z, -dx / d * k, -dz / d * k); hero.x = n[0]; hero.z = n[1]; } }
+        else if (d < ps && a.present && a.hide < 0.5) { const k = Math.min(ps - d, 4 * dt), n = L.slide(cfg, S.open, hero.x, hero.z, -dx / d * k, -dz / d * k, W.solids, cfg.hero.radius); hero.x = n[0]; hero.z = n[1]; } }
       a.walk += ((a.state === 'walk' ? 1 : 0) - a.walk) * Math.min(1, dt * 6);
       // look at the hero when near
       const wantLook = dh < 9 && !a.pose ? Math.max(-1, Math.min(1, angleDiff(Math.atan2(hero.x - a.x, hero.z - a.z), a.yaw))) : 0;
@@ -818,7 +830,7 @@ export function run(mode = 'play') {
       } else a.cue = false;
       if (a.pose) {
         a.poseT += dt; const p = a.poseT / slowWin;
-        if (a.pose === 'slide') { a.x += Math.sin(a.yaw) * dt * 3.2; a.z += Math.cos(a.yaw) * dt * 3.2; if (!L.walkable(cfg, 3, a.x, a.z)) { a.x -= Math.sin(a.yaw) * dt * 3.2; a.z -= Math.cos(a.yaw) * dt * 3.2; } if (R() < 0.5) fx.emit({ pool: 'soft', x: a.x, y: a.y + 0.1, z: a.z, spread: 0.3, speed: 0.8, up: 0.8, life: 0.6, size: 0.35, color: '#f4f9ff', alpha: 0.8, grav: -2 }, 1); }
+        if (a.pose === 'slide') { const n = L.slide(cfg, 3, a.x, a.z, Math.sin(a.yaw) * dt * 3.2, Math.cos(a.yaw) * dt * 3.2, solidFor(a), a.parts.radius); a.x = n[0]; a.z = n[1]; if (R() < 0.5) fx.emit({ pool: 'soft', x: a.x, y: a.y + 0.1, z: a.z, spread: 0.3, speed: 0.8, up: 0.8, life: 0.6, size: 0.35, color: '#f4f9ff', alpha: 0.8, grav: -2 }, 1); }
         if (a.pose === 'sneeze' && p > 0.6 && !a.sneezed) { a.sneezed = true; const hx = a.x + Math.sin(a.yaw) * 1.2, hz = a.z + Math.cos(a.yaw) * 1.2; fx.emit({ pool: 'soft', x: hx, y: a.y + a.parts.headY * (sp.scale || 1), z: hz, spread: 0.3, speed: 2.4, life: 0.9, size: 0.6, color: '#f4f9ff', alpha: 0.9, grav: -0.5, grow: 1 }, 14); Sound.hiss && Sound.ok && Sound.hiss(Sound.ctx.currentTime, 0.2, { f: 3000, g: 0.1 }); }
         if ((a.pose === 'hop' || a.pose === 'jump') && p > 0.92 && !a.landed) { a.landed = true; fx.emit({ pool: 'soft', x: a.x, y: a.y + (a.pose === 'jump' ? 0 : 0.05), z: a.z, spread: 0.6, speed: 1.6, up: 0.8, life: 0.7, size: 0.5, color: a.pose === 'jump' ? '#bfeaff' : '#f4f9ff', alpha: 0.85, grav: -3 }, 10); if (a.pose === 'jump') fx.ring(a.x, a.y - 0.1, a.z, 2.6, '#bfeaff', 0.7); }
         if (p >= 1) { a.pose = null; a.poseEnd = clockT; a.landed = false; const want = !a.rare && (((S.slots[a.id] | 0) & 6) !== 6), pe = want && dh < L.lens(cfg, S).range ? cfg.photo.poseEveryNearS : cfg.photo.poseEveryS; a.nextPose = pe[0] + R() * (pe[1] - pe[0]); } // poses come sooner while someone waits for one
@@ -856,7 +868,7 @@ export function run(mode = 'play') {
     // dev:end
     const sp = cfg.hero.speed, tvx = mx * sp, tvz = mz * sp, acc = 1 - Math.exp(-dt * 10);
     hero.vx += (tvx - hero.vx) * acc; hero.vz += (tvz - hero.vz) * acc;
-    const [nx, nz] = L.slide(cfg, S.open, hero.x, hero.z, hero.vx * dt, hero.vz * dt);
+    const [nx, nz] = L.slide(cfg, S.open, hero.x, hero.z, hero.vx * dt, hero.vz * dt, W.solids, cfg.hero.radius); // walls of the valley and every solid prop
     const moved = Math.hypot(nx - hero.x, nz - hero.z); hero.speed = moved / Math.max(dt, 1e-4);
     if (moved < hero.speed * 0) input.target = null;
     hero.x = nx; hero.z = nz; hero.y = L.terrainH(cfg, hero.x, hero.z);
@@ -1122,7 +1134,7 @@ export function run(mode = 'play') {
     // the self-check: frame-time spread of the last 240 frames, the tier now and every change the loop made
     frames() { const n = Math.min(ftN, ftRing.length), a = Array.from(ftRing.slice(0, n)).sort((p, q) => p - q), at = (k) => Math.round(a[Math.min(n - 1, Math.floor(n * k))] * 10) / 10; const js = Array.from(jsRing.slice(0, n)).sort((p, q) => p - q); return { n, p50: at(0.5), p95: at(0.95), max: at(1), js50: Math.round(js[Math.floor(n / 2)] * 10) / 10, fps: Math.round(fpsV), tier: quality.tier, start: tier0, changes: tierLog.slice() }; },
     tp(x, z) { hero.x = x; hero.z = z; hero.vx = hero.vz = 0; input.target = null; W.snapCamera(hero); },
-    walkTo(x, z) { input.target = [x, z]; },
+    walkTo(x, z) { input.target = [x, z]; }, get cfg() { return cfg; },
     get boards() { return boards; }, get amb() { return amb; },
     buy(id) { if (!L.buy(cfg, S, id)) return false; applyLook(); hud(); return true; }, night: () => W.night, get card() { return !$('card').hidden; },
     clock(s) { S.clock = s; }, give(n) { S.flakes += n; },

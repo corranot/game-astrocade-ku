@@ -55,11 +55,61 @@ export function walkable(cfg, open, x, z) {
 }
 
 /** Moves from (x, z) by (dx, dz), sliding along the edge when the full step is blocked. */
-export function slide(cfg, open, x, z, dx, dz) {
-  if (walkable(cfg, open, x + dx, z + dz)) return [x + dx, z + dz];
-  if (walkable(cfg, open, x + dx, z)) return [x + dx, z];
-  if (walkable(cfg, open, x, z + dz)) return [x, z + dz];
+export function slide(cfg, open, x, z, dx, dz, solids = null, r = 0) {
+  let n;
+  if (walkable(cfg, open, x + dx, z + dz)) n = [x + dx, z + dz];
+  else if (walkable(cfg, open, x + dx, z)) n = [x + dx, z];
+  else if (walkable(cfg, open, x, z + dz)) n = [x, z + dz];
+  else return [x, z];
+  if (!solids) return n;
+  const p = pushOut(solids, n[0], n[1], r); // slide around trunks, rocks and props: pushed out along the contact normal
+  return walkable(cfg, open, p[0], p[1]) ? p : [x, z];
+}
+
+// ---- solid props
+// A solid is a circle [x, z, r] or a box { x, z, hx, hz, yaw } (half extents in the prop's own frame, turned by yaw
+// like a three.js rotation.y). Pip and the animals are circles that never overlap a solid or each other.
+
+/** Signed gap between a circle (x, z, r) and one solid; negative is overlap. Returns [gap, nx, nz] (push direction). */
+export function solidGap(s, x, z, r) {
+  if (Array.isArray(s)) { const dx = x - s[0], dz = z - s[1], d = Math.hypot(dx, dz) || 1e-6; return [d - s[2] - r, dx / d, dz / d]; }
+  const c = Math.cos(s.yaw || 0), sn = Math.sin(s.yaw || 0), wx = x - s.x, wz = z - s.z;
+  const lx = wx * c - wz * sn, lz = wx * sn + wz * c; // world to the box's frame
+  const qx = Math.abs(lx) - s.hx, qz = Math.abs(lz) - s.hz;
+  let gx, gz, d;
+  if (qx > 0 || qz > 0) { gx = Math.max(qx, 0) * Math.sign(lx); gz = Math.max(qz, 0) * Math.sign(lz); d = Math.hypot(gx, gz); gx /= d || 1; gz /= d || 1; }
+  else if (qx > qz) { d = qx; gx = Math.sign(lx) || 1; gz = 0; } else { d = qz; gx = 0; gz = Math.sign(lz) || 1; }
+  return [d - r, gx * c + gz * sn, -gx * sn + gz * c]; // back to world
+}
+
+/** Moves a circle of radius r at (x, z) out of every solid it overlaps (a few passes, for corners). */
+export function pushOut(solids, x, z, r) {
+  for (let it = 0; it < 8; it++) {
+    let hit = false;
+    for (const s of solids) {
+      const bx = Array.isArray(s) ? s[0] : s.x, bz = Array.isArray(s) ? s[1] : s.z, br = Array.isArray(s) ? s[2] : Math.hypot(s.hx, s.hz);
+      if (Math.abs(x - bx) > br + r || Math.abs(z - bz) > br + r) continue;
+      const [g, nx, nz] = solidGap(s, x, z, r);
+      if (g < 0) { x -= nx * (g - 1e-4); z -= nz * (g - 1e-4); hit = true; }
+    }
+    if (!hit) break;
+  }
   return [x, z];
+}
+
+/** Deepest overlap (metres, 0 = none) of a circle (x, z, r) with any solid. */
+export function overlapDepth(solids, x, z, r) {
+  let m = 0; for (const s of solids) m = Math.max(m, -solidGap(s, x, z, r)[0]); return m;
+}
+
+/** Pushes overlapping bodies { x, z, r, fixed } apart; a fixed body never moves. */
+export function separate(bodies) {
+  for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) {
+    const a = bodies[i], b = bodies[j]; if (a.fixed && b.fixed) continue;
+    const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 1e-6, o = a.r + b.r - d; if (o <= 0) continue;
+    const ka = a.fixed ? 0 : b.fixed ? 1 : 0.5, kb = 1 - ka, nx = dx / d, nz = dz / d;
+    a.x -= nx * o * ka; a.z -= nz * o * ka; b.x += nx * o * kb; b.z += nz * o * kb;
+  }
 }
 
 // ---- day clock
