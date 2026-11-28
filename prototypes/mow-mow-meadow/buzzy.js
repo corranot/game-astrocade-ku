@@ -21,7 +21,7 @@ function wheelGeo(r, w) {
  */
 export function buildBuzzy(world, look = {}) {
   const THREE = window.THREE, M = world.M, group = new THREE.Group(), body = new THREE.Group(), tilt = new THREE.Group();
-  group.add(tilt); tilt.add(body); tilt.position.z = -0.15; // centres the body on the collision circle
+  group.add(tilt); tilt.add(body); tilt.position.z = -0.12; tilt.scale.setScalar(0.92); // centres the body on the collision circle and keeps the nose inside it
   let [c0, c1] = PAINTS[look.paint] || PAINTS.teal;
   // chassis, hood with a friendly face, fenders, seat, tail hopper
   const shell = () => merge([
@@ -58,16 +58,25 @@ export function buildBuzzy(world, look = {}) {
   const wheels = [];
   for (const [x, z, r, w] of [[-0.5, 0.5, 0.27, 0.2], [0.5, 0.5, 0.27, 0.2], [-0.46, -0.4, 0.18, 0.15], [0.46, -0.4, 0.18, 0.15]]) { const m = mesh(wheelGeo(r, w), M.rubber); m.position.set(x, r, z); m.userData.r = r; tilt.add(m); wheels.push(m); }
   // Nilo on the seat (the chibi faces +z, so it is turned to face the front of the mower)
-  const chibi = buildChibi(Object.assign({ top: { color: '#f6c443', sleeve: 0.4 }, bottom: { color: '#3f6fa8', length: 0.5 }, shoes: '#e2533c', hair: { style: 'short', color: '#6a4028' } }, look.hero || {}));
-  chibi.group.scale.setScalar(0.72); chibi.group.rotation.y = Math.PI; chibi.group.position.set(0, 0.37, 0.5); body.add(chibi.group);
-  chibi.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  let chibi = null, deckW = 1, squash = 1;
+  /** Seats Nilo. With look.lazy the caller does this a frame after the first picture; otherwise it happens at once. */
+  function seat() {
+    if (chibi) return chibi;
+    chibi = buildChibi(Object.assign({ top: { color: '#f6c443', sleeve: 0.4 }, bottom: { color: '#3f6fa8', length: 0.5 }, shoes: '#e2533c', hair: { style: 'short', color: '#6a4028' } }, look.hero || {}));
+    chibi.group.scale.setScalar(0.72); chibi.group.rotation.y = Math.PI; chibi.group.position.set(0, 0.37, 0.5); body.add(chibi.group);
+    chibi.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return chibi;
+  }
+  if (!look.lazy) seat();
 
   let hopBase = 1, popT = 0, blinkT = 3;
   let bob = 0, lean = 0, pitchV = 0, pitch = 0, ballX = 0, ballV = 0, honkT = 0, lastSpeed = 0;
   return {
-    group, chibi, deck,
+    group, seat, get chibi() { return chibi; }, deck,
     /** Sets the cutting width in metres. */
-    setDeck(w) { deck.scale.x = w; },
+    setDeck(w) { deckW = w; deck.scale.x = w * squash; },
+    /** Squeezes the deck's width (1 = full) so its corners spring in beside a fence or a rock instead of passing through. */
+    setSquash(k) { squash = k; deck.scale.x = deckW * k; },
     setPaint(key) { const p = PAINTS[key] || PAINTS.teal; if (c0 === p[0]) return; [c0, c1] = p; paintMesh.geometry.dispose(); paintMesh.geometry = shell(); hopper.geometry.dispose(); hopper.geometry = hopGeo(); },
     /** Shows the upgrade levels on the model: a taller chimney for the engine, a bigger hopper for the baler. */
     setLevels(up) { chimney.scale.set(1 + up.engine * 0.05, 1 + up.engine * 0.07, 1 + up.engine * 0.05); hopBase = 1 + up.baler * 0.035; },
@@ -91,8 +100,8 @@ export function buildBuzzy(world, look = {}) {
       popT = Math.max(0, popT - dt); const sw = hopBase * (0.86 + 0.26 * (s.fill || 0)) * (1 - Math.sin(popT / 0.3 * Math.PI) * 0.25); hopper.scale.set(sw, sw, sw);
       if ((s.flow || 0) >= 1) body.position.x = Math.sin(t * 47) * 0.004; else body.position.x = 0;
       blinkT -= dt; if (blinkT < -0.12) blinkT = 2 + Math.random() * 3; const droop = Math.min(0.55, Math.max(0, ((s.idle || 0) - 6) * 0.3)), lid = blinkT < 0 ? 1 : droop; for (const l of lids) l.scale.y = Math.max(0.01, lid);
-      animateChibi(chibi, t, dt, { pose: 'drive', poseW: 1, seat: true, wave: s.wave || 0, look: -(s.turn || 0) * 0.6 });
-      chibi.bones.spine2.rotation.z += lean * 0.8; chibi.bones.upperArmL.rotation.x += (s.turn || 0) * 0.18; chibi.bones.upperArmR.rotation.x -= (s.turn || 0) * 0.18;
+      if (chibi) animateChibi(chibi, t, dt, { pose: 'drive', poseW: 1, seat: true, wave: s.wave || 0, look: -(s.turn || 0) * 0.6 });
+      if (chibi) { chibi.bones.spine2.rotation.z += lean * 0.8; chibi.bones.upperArmL.rotation.x += (s.turn || 0) * 0.18; chibi.bones.upperArmR.rotation.x -= (s.turn || 0) * 0.18; }
     },
   };
 }

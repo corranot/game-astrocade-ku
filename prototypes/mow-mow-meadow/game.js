@@ -6,10 +6,13 @@ import * as L from './logic.js';
 import { createWorld, dressGarden, lanePiece } from './world.js';
 import { createLawn } from './lawn.js';
 import { buildBuzzy } from './buzzy.js';
+import { createLife } from './life.js';
+import { createToys } from './toys.js';
 import { createFx, createDirector } from './fx.js';
 import { createAudio } from './audio.js';
 import { createUI, ICONS } from './ui.js';
 import * as Cast from './cast.js';
+import * as Kit from './kit.js';
 import { openAlbum, openShop } from './sheets.js';
 
 const LANE_M = 10, LANE_HALF_W = 3.4, PAD_R = 0.95;
@@ -44,7 +47,10 @@ export function run(mode = 'play') {
 
   // ---- state
   const S = { save: L.newSave(cfg), slots: new Map(), cuts: {}, cur: 0, kart: { x: 0, z: 0, ang: 0, vx: 0, vz: 0, speed: 0, turn: 0 }, flow: L.newFlow(), t: 0, stick: { on: false, id: -1, ox: 0, oy: 0, sx: 0, sy: 0, dx: 0, dz: 0, mag: 0, moved: 0, t0: 0 }, keys: {}, cutting: 0, fresh: 0, frames: 0, ms: 16, slow: 0, fast: 0,
-    shown: 0, bale: { m2: 0, fs: 0, wet: 0 }, bales: [], ents: [], riders: [], noProg: 0, guide: null, guideT: 0, m2Note: 0, lastReward: 0, scale: 1, loaded: false, late: false, dirty: false, saveT: 0, moved: 0, puffT: 0, idle: 0, firstBale: false, hat: null, orn: null, touched: false, events: [], milestone: 0, pads: [], sheet: null, clock: { last: 0, kinds: {} } };
+    shown: 0, squash: 1, bootQ: [], bale: { m2: 0, fs: 0, wet: 0 }, bales: [], ents: [], riders: [], noProg: 0, guide: null, guideT: 0, m2Note: 0, lastReward: 0, scale: 1, loaded: false, late: false, dirty: false, saveT: 0, moved: 0, puffT: 0, idle: 0, firstBale: false, hat: null, orn: null, touched: false, events: [], milestone: 0, pads: [], sheet: null, clock: { last: 0, kinds: {} } };
+  // the Garden of the Day is one more garden at the far end of the lane, new each day; the lane map opens it early
+  const today = L.ymdOf(new Date()), DAILY = cfg.gardens.length; cfg.gardens.push(L.dailyRecipe(cfg, today));
+  const dOf = (n) => (cfg.gardens[n].daily ? cfg.gardens[n].district : L.districtOf(n)), nbOf = (n) => cfg.gardens[n].nb || cfg.gardens[n].id;
   const zSouth = []; { let z = 0; for (let n = 0; n < cfg.gardens.length; n++) { zSouth.push(z); z -= cfg.gardens[n].d + LANE_M; } }
   let lang = 'en';
   const T = (k) => (cfg.strings[lang] && cfg.strings[lang][k]) || (cfg.strings.en && cfg.strings.en[k]) || k;
@@ -67,37 +73,48 @@ export function run(mode = 'play') {
   /** Builds (once) garden n: its data, lawn, dressing and neighbour, north of the one before it. */
   function slot(n) {
     if (S.slots.has(n)) return S.slots.get(n);
-    const rec = cfg.gardens[n], g = L.makeGarden(cfg, n, cfg.seed + n * 7919 + (S.replay && S.replay[n] ? S.replay[n] * 31 : 0)), ox = -rec.w / 2, oz = zSouth[n] - rec.d, d = L.districtOf(n), sr = S.save.gardens[n];
+    const rec = cfg.gardens[n], g = L.makeGarden(cfg, n, cfg.seed + n * 7919 + (n === DAILY ? today : 0) + (S.replay && S.replay[n] ? S.replay[n] * 31 : 0)), ox = -rec.w / 2, oz = zSouth[n] - rec.d, d = dOf(n), sr = S.save.gardens[n];
     if (S.cuts[n]) L.unpackCut(g, S.cuts[n]); else if (sr && sr.stars > 0 && !(S.replay && S.replay[n])) L.unpackCut(g, '0.' + g.grassCount.toString(36)); // finished earlier: shown mown
     for (const f of g.finds) if (cellCut(g, f.x, f.z)) f.found = true;
     const tint = TINTS[S.save.use.tint], pal = tint ? [cfg.districts[d].grass[0], cfg.districts[d].grass[1], tint[0], tint[1]] : cfg.districts[d].grass;
     const lawn = createLawn(THREE, g, cfg, ox, oz, pal, world.tier, L.rng(g.seed + 99)); world.scene.add(lawn.group);
     const dress = dressGarden(world, g, ox, oz, cfg, d), lane = lanePiece(world, 0, oz, oz - LANE_M);
-    const nb = Cast.buildNeighbour(world, rec.id); nb.group.position.set(4.05, 0, oz - 1.3); nb.group.rotation.y = -0.35; world.scene.add(nb.group);
+    if (S.frames > 0) dress.finish(); else S.bootQ.push(() => dress.finish()); // the first picture comes first; scenery outside the fence follows a frame later
+    const nb = Cast.buildNeighbour(world, nbOf(n)); nb.group.position.set(4.05, 0, oz - 1.3); nb.group.rotation.y = -0.35; world.scene.add(nb.group);
     const st = L.starsFor(cfg, g), s = { n, g, ox, oz, lawn, dress, lane, nb, nbMode: 'wave', nbT: 0, gateOpen: st > 0, gateT: st > 0 ? 1 : 0, stars: st, grow: 1, bloom: st > 0 && S.cuts[n] ? 1.2 : -1, finale: st > 0 && !!S.cuts[n], pads: [], box: null };
     if (st > 0) dress.gate.set(1);
     if (n < cfg.gardens.length - 1) for (const [i, kind] of ['deck', 'engine', 'baler'].entries()) { const p = Cast.buildPad(world, kind); p.x = i === 1 ? 2.2 : -2.2; p.z = oz - 3 - i * 2; p.group.position.set(p.x, 0, p.z); p.t = 0; p.setFill(0); world.scene.add(p.group); s.pads.push(p); }
+    s.toys = createToys(toyCtx, s);
     S.slots.set(n, s); return s;
   }
   function drop(n) {
     const s = S.slots.get(n); if (!s) return; S.cuts[n] = L.packCut(s.g);
     for (const b of S.bales.filter((q) => q.n === n)) collect(b, true);
-    world.scene.remove(s.lawn.group, s.lane, s.nb.group); s.lawn.dispose(); s.dress.dispose(); s.lane.geometry.dispose(); disposeTree(s.nb.group);
+    if (s.party) { for (const m of s.party.nbs) { world.scene.remove(m.group); disposeTree(m.group); } world.scene.remove(s.party.bunting); s.party.bunting.geometry.dispose(); }
+    s.toys.dispose(); world.scene.remove(s.lawn.group, s.lane, s.nb.group); s.lawn.dispose(); s.dress.dispose(); s.lane.geometry.dispose(); disposeTree(s.nb.group);
     for (const p of s.pads) { world.scene.remove(p.group); disposeTree(p.group); } if (s.box) { world.scene.remove(s.box.group); disposeTree(s.box.group); }
     S.slots.delete(n);
   }
   const disposeTree = (o) => o.traverse((m) => { if (m.geometry) m.geometry.dispose(); if (m.material && m.material.userData.own) m.material.dispose(); });
   const cellCut = (g, x, z) => { const c = clamp(Math.floor(x / g.cell), 0, g.cols - 1), r = clamp(Math.floor(z / g.cell), 0, g.rows - 1); return g.mask[(r * g.cols + c) * 4] === L.H.CUT && g.mask[(r * g.cols + c) * 4 + 3] > 0; };
+  /** Cuts a small round of grass at a garden-local point (a sheep's bite). Returns the cells cut; the grass feeds the bale. */
+  function cutAt(s, lx, lz, w) {
+    const c = L.cutSweep(cfg, s.g, lx, lz, lx, lz, 0, w, 0); if (c.rect) s.lawn.dirty();
+    if (c.cut > 0) { const m2 = c.cut * s.g.cell * s.g.cell; S.save.m2 += m2; S.bale.m2 += m2; if (s === cur()) { const st = L.starsFor(cfg, s.g); for (let k = s.stars + 1; k <= st; k++) { s.stars = k; onStar(s, k); } ui.setProgress(L.coverage(s.g), L.percent(s.g), s.stars); } }
+    return c.cut;
+  }
+  const toyCtx = { world, cfg, L, fx, audio, S, award: (...a) => award(...a), reward: (k) => reward(k), reveal: (s, f) => reveal(s, f), cellCut: (g, x, z) => cellCut(g, x, z), cutAt, reach: () => L.baleReach(cfg, S.save.up.baler) };
   const TRAILS = { petals: ['petal'], daisies: ['petal', '#f1e6cf'], leaves: ['leaf'], bubbles: ['drop', '#c4e8f5'], stars: ['spark'], hearts: ['petal', '#e2533c'] };
   const TINTS = { classic: null, mint: ['#9fd8a8', '#7cc08e'], clover: ['#7fc86a', '#5fae52'], goldtip: ['#b5cc5a', '#8fb04a'], lilac: ['#a8c898', '#8fb0a8'], sunset: ['#c8c070', '#a8a058'] };
 
   const southLane = lanePiece(world, 0, 4.4, 0.6); // the way in to the first garden
-  const buzzy = buildBuzzy(world, { paint: S.save.use.paint }); world.scene.add(buzzy.group);
+  const buzzy = buildBuzzy(world, { paint: S.save.use.paint, lazy: true }); S.bootQ.push(() => { buzzy.seat(); wear(S.save.wear); }); world.scene.add(buzzy.group);
   const deckW = () => L.upValue(cfg, 'deck', S.save.up.deck), topSpeed = () => L.upValue(cfg, 'engine', S.save.up.engine) * (S.flow.v >= 1 ? cfg.flow.speedMul : 1);
   const cur = () => S.slots.get(S.cur), rec = (n) => S.save.gardens[n] || (S.save.gardens[n] = { stars: 0, best: 0, rib: [] });
   function dressBuzzy() { buzzy.setDeck(deckW()); buzzy.setLevels(S.save.up); buzzy.setPaint(S.save.use.paint); wear(S.save.wear); }
   /** Puts a hat on Nilo (or an ornament on the bonnet); null puts the straw sun hat back. */
   function wear(id) {
+    if (!buzzy.chibi) return; // Nilo sits down a frame after the first picture, and dresses then
     const hatId = id && !Cast.isOrnament(id) ? id : 'straw', ornId = id && Cast.isOrnament(id) ? id : null;
     if (!S.hat || S.hat.userData.id !== hatId) { if (S.hat) { S.hat.parent.remove(S.hat); S.hat.geometry.dispose(); } S.hat = Cast.buildGift(world, hatId); S.hat.userData.id = hatId; buzzy.chibi.bones.head.add(S.hat); }
     if ((S.orn ? S.orn.userData.id : null) !== ornId) { if (S.orn) { S.orn.parent.remove(S.orn); S.orn.geometry.dispose(); S.orn = null; } if (ornId) { S.orn = Cast.buildGift(world, ornId); S.orn.userData.id = ornId; S.orn.position.set(0, 0, -0.3); S.orn.scale.setScalar(0.8); buzzy.bonnet.add(S.orn); } }
@@ -105,8 +122,8 @@ export function run(mode = 'play') {
   function enter(n, atStart) {
     const first = S.cur !== n || atStart; S.cur = n; const s = slot(n);
     if (atStart) { S.kart.x = s.ox + s.g.start.x; S.kart.z = s.oz + s.g.start.z; S.kart.ang = 0; S.kart.vx = S.kart.vz = 0; }
-    if (n > S.save.cur && rec(n - 1).stars > 0) S.save.cur = n;
-    world.setDistrict(L.districtOf(n), 1); audio.setDistrict(L.districtOf(n)); buzzy.setDeck(deckW());
+    if (n > S.save.cur && n !== DAILY && rec(n - 1).stars > 0) S.save.cur = n;
+    world.setDistrict(dOf(n), 1); audio.setDistrict(dOf(n)); buzzy.setDeck(deckW());
     for (const k of [...S.slots.keys()]) if (k < n - 1 || k > n + 1) drop(k);
     if (first) { S.flow.ribbon = false; S.touched = false; S.milestone = Math.floor(L.coverage(s.g) * 4); s.nbMode = s.stars > 0 ? 'dance' : 'wave'; if (play && S.loaded && s.stars === 0 && n > 0) greet(s); }
     refreshHud();
@@ -114,7 +131,7 @@ export function run(mode = 'play') {
   /** The neighbour's request chip at the start of a garden: the face, the name and the pattern asked for, if any. */
   function greet(s) { const c = ui.chip(`<span></span>`, 3); c.prepend(face(s.n)); c.querySelector('span').textContent = T('g_' + s.g.id) + (s.g.pattern ? '  ' + ({ long: '║', cross: '═', diag: '⟋', chequer: '▦' }[s.g.pattern]) : ''); }
   const faces = {};
-  function face(n) { const id = cfg.gardens[n].id; if (!faces[id]) { const m = Cast.buildNeighbour(world, id); m.update(0, 0, 'idle'); faces[id] = Cast.portrait(world, m.head, 128, { yaw: 0.25, pitch: 0.1 }); disposeTree(m.group); } const c = document.createElement('canvas'); c.width = c.height = 128; c.getContext('2d').drawImage(faces[id], 0, 0, 128, 128); return c; }
+  function face(n) { const id = nbOf(n); if (!faces[id]) { const m = Cast.buildNeighbour(world, id); m.update(0, 0, 'idle'); faces[id] = Cast.portrait(world, m.head, 128, { yaw: 0.25, pitch: 0.1 }); disposeTree(m.group); } const c = document.createElement('canvas'); c.width = c.height = 128; c.getContext('2d').drawImage(faces[id], 0, 0, 128, 128); return c; }
   function refreshHud() { const s = cur(); ui.setProgress(L.coverage(s.g), L.percent(s.g), s.stars); ui.showButtons(S.save.friends.length + S.save.toys.length + S.save.gifts.length > 0, S.save.cur > 0 || S.save.up.deck + S.save.up.engine + S.save.up.baler > 0); ui.setMute(S.save.mute); }
 
   // ---- stage and projection
@@ -127,11 +144,16 @@ export function run(mode = 'play') {
   let lastWrite = window.__mmWrite || Promise.resolve();
   function snapshot() { const s = cur(), o = JSON.parse(JSON.stringify(S.save)); o.cut = L.packCut(s.g); o.cutFor = S.cur; o.cur = S.cur <= S.save.cur ? S.cur : S.save.cur; for (const b of S.bales) o.coins += b.coins; return o; }
   function persist() { if (!play || !hasLib || !lib.saveUserGameState) return; if (!S.loaded) { S.dirty = true; return; } S.dirty = false; const snap = snapshot(); lastWrite = window.__mmWrite = lastWrite.then(() => lib.saveUserGameState(snap)).catch(() => { S.dirty = true; }); }
+  /** A new day brings a new Garden of the Day: yesterday's stars and lawn are cleared. */
+  function newDay() {
+    if (S.save.daily.ymd === today) return; S.save.daily = { ymd: today, done: false, stars: 0 };
+    if (S.save.gardens[DAILY]) S.save.gardens[DAILY] = { stars: 0, best: 0, rib: [] }; if (S.save.cutFor === DAILY) { S.save.cut = null; S.save.cutFor = -1; }
+  }
   function applySave(raw, late) {
-    S.save = late ? L.mergeSave(cfg, S.save, raw) : L.cleanSave(cfg, raw); S.shown = S.save.coins;
-    if (!late) { // the first read, before the player has moved: rebuild the lane at the saved garden with its saved lawn
-      for (const k of [...S.slots.keys()]) dropQuiet(k); S.cuts = {};
-      const at = S.save.cut && S.save.cutFor >= 0 ? S.save.cutFor : S.save.cur; if (S.save.cut && S.save.cutFor >= 0) S.cuts[at] = S.save.cut;
+    S.save = late ? L.mergeSave(cfg, S.save, raw) : L.cleanSave(cfg, raw); S.shown = S.save.coins; newDay();
+    const at = S.save.cut && S.save.cutFor >= 0 ? S.save.cutFor : S.save.cur, hasCut = !!(S.save.cut && S.save.cutFor >= 0), done = S.save.gardens[at] && S.save.gardens[at].stars > 0;
+    if (!late && (at !== S.cur || hasCut || done)) { // the first read, before the player has moved: rebuild the lane at the saved garden with its saved lawn (a new player keeps the lane already built)
+      for (const k of [...S.slots.keys()]) dropQuiet(k); S.cuts = {}; if (hasCut) S.cuts[at] = S.save.cut;
       enter(at, true); world.follow(S.kart.x, S.kart.z, 0, 0, camDist(), 0, true);
     }
     audio.setMute(S.save.mute); audio.setMusic(S.save.music); setLang(); ui.setLefty(S.save.lefty); dressBuzzy(); ui.setCoins(S.shown); refreshHud(); syncRiders();
@@ -222,7 +244,7 @@ export function run(mode = 'play') {
       S.ents.push({ t: 0, step(dt) { this.t += dt; const t = this.t;
         if (t < 0.35) { const k = t / 0.35; box.group.scale.setScalar(k * (1 + Math.sin(k * Math.PI) * 0.3)); }
         else if (t < 0.8) { const k = (t - 0.35) / 0.45; box.lid.position.set(k * 0.7, 0.36 + Math.sin(k * Math.PI) * 0.9, 0); box.lid.rotation.z = -k * 2.4; if (!hat.visible) { hat.visible = true; audio.sfx('chime'); fx.burst('spark', wx, 0.8, wz, 12); fx.burst('confetti', wx, 0.6, wz, 14); } hat.position.set(wx, 0.3 + k * 1.3, wz); hat.rotation.y = k * 6; hat.scale.setScalar(0.3 + k * 0.5); }
-        else if (t < 1.5) { const k = ease((t - 0.8) / 0.7), hp = buzzy.chibi.bones.head.getWorldPosition(v3); hat.position.set(lerp(wx, hp.x, k), lerp(1.6, hp.y - 0.1, k) + Math.sin(k * Math.PI) * 0.6, lerp(wz, hp.z, k)); hat.rotation.y += dt * 8; box.group.scale.setScalar(Math.max(0.01, 1 - k)); }
+        else if (t < 1.5) { const k = ease((t - 0.8) / 0.7), hp = buzzy.chibi ? buzzy.chibi.bones.head.getWorldPosition(v3) : v3.set(kt.x, 1.4, kt.z); hat.position.set(lerp(wx, hp.x, k), lerp(1.6, hp.y - 0.1, k) + Math.sin(k * Math.PI) * 0.6, lerp(wz, hp.z, k)); hat.rotation.y += dt * 8; box.group.scale.setScalar(Math.max(0.01, 1 - k)); }
         else { world.scene.remove(hat, box.group); hat.geometry.dispose(); disposeTree(box.group); S.save.wear = f.id; wear(f.id); S.wave = 1.2; fx.burst('spark', kt.x, 1.6, kt.z, 8); audio.sfx('ribbon'); persist(); return false; }
         return true; } });
     }
@@ -246,8 +268,35 @@ export function run(mode = 'play') {
       director.play({ id: 'gate', pri: 3, len: 1.2, at: () => ({ x: gx, z: gz + 1.5 }), dist: camDist() * 0.82, bars: true });
       if (s.n < cfg.gardens.length - 1) { const nx = slot(s.n + 1); if (nx.stars === 0 && !S.cuts[s.n + 1]) { nx.grow = 0; nx.lawn.setGrow(0); } }
     }
+    if (s.n === DAILY) { S.save.daily.stars = Math.max(S.save.daily.stars, k); if (k === 3 && !S.save.daily.done) { S.save.daily.done = true; later(() => { award(cfg.economy.dailyCoins, S.kart.x, 1.2, S.kart.z); audio.sfx('rare'); reward('daily'); }, 1400); } }
     if (k === 3) { fx.burst('confetti', S.kart.x, 1, S.kart.z, 30); director.play({ id: 'stars3', pri: 4, len: 1.8, at: () => ({ x: s.ox + g.w / 2, z: s.oz + g.d / 2 }), dist: Math.max(camDist(), g.d * 1.25, g.w * 2.3), pitch: 1.2, slow: [0.5, 0.4], bars: true, force: true }); if (!s.finale) finale(s, false); else if (s.n > 0) slip(s); }
     persist();
+  }
+  /**
+   * The district's garden party: every neighbour of the district gathers on the lane past the gate and dances, bunting
+   * goes up, and confetti fireworks pop for a while. The first time it also pays the district's party gift.
+   */
+  function party(s) {
+    if (s.party) return; const d = dOf(s.n), first = !S.save.parties.includes(d), THREE_ = THREE;
+    const ids = cfg.gardens.map((q, i) => (!q.daily && L.districtOf(i) === d && i !== s.n ? q.id : null)).filter(Boolean), nbs = [];
+    ids.forEach((id, i) => { const m = Cast.buildNeighbour(world, id), a = (i + 0.5) / ids.length * Math.PI; m.group.position.set(Math.cos(a) * 3.1, 0, s.oz - 6.4 - Math.sin(a) * 2.4); m.group.rotation.y = Math.atan2(-m.group.position.x * 0.3, 1); m.group.scale.setScalar(0.01); world.scene.add(m.group); nbs.push(m); });
+    const flags = [], cols = ['#e9795b', '#f6c443', '#8fc6d8', '#f1b9c8', '#7cc25a'];
+    for (const [z, x0, x1] of [[s.oz - 0.05, -L.GATE_HALF_M, L.GATE_HALF_M], [s.oz - 4.6, -3.6, 3.6], [s.oz - 9.2, -3.6, 3.6]]) {
+      const n = Math.round((x1 - x0) / 0.42); for (let i = 0; i < n; i++) { const k = (i + 0.5) / n, x = lerp(x0, x1, k) + s.ox + s.g.w / 2, y = 2.25 - Math.sin(k * Math.PI) * 0.45; flags.push(Kit.paint(Kit.xf(new THREE_.ConeGeometry(0.16, 0.34, 3), [x, y - 0.17, z], [Math.PI, 0, 0], [1, 1, 0.12]), cols[i % 5])); }
+      for (const x of [x0, x1]) flags.push(Kit.paint(Kit.xf(Kit.cyl(0.04, 0.03, 2.3, 5), [x + s.ox + s.g.w / 2, 0, z]), '#f6f1e4'));
+    }
+    const bunting = Kit.mesh(Kit.merge(flags), world.M.leaf, false); world.scene.add(bunting);
+    s.party = { nbs, bunting, t: 0, pops: first ? 16 : 8, next: 0.4 };
+    audio.sfx('party'); reward('party');
+    director.play({ id: 'party', pri: 5, len: 2.0, at: () => ({ x: s.ox + s.g.w / 2, z: s.oz - 5 }), dist: camDist() * 1.1, pitch: 0.95, bars: true, force: true });
+    if (first) { S.save.parties.push(d); later(() => { award(cfg.economy.partyCoins[Math.min(d, cfg.economy.partyCoins.length - 1)], s.ox + s.g.w / 2, 1.5, s.oz - 5); ui.chip(`${ICONS.star}${ICONS.star}${ICONS.star}`, 3); }, 1200); persist(); }
+  }
+  /** Runs a party: the guests pop in and dance, the fireworks pop one by one. */
+  function stepParty(s, dt) {
+    const p = s.party; p.t += dt;
+    p.nbs.forEach((m, i) => { const k = clamp((p.t - 0.2 - i * 0.15) / 0.4, 0, 1); m.group.scale.setScalar(Math.max(0.01, k * (1 + Math.sin(k * Math.PI) * 0.25))); m.update(dt, S.t + i * 0.37, 'dance'); });
+    if (p.pops > 0) { p.next -= dt; if (p.next <= 0) { p.next = 0.35 + Math.random() * 0.4; p.pops--; const x = s.ox + s.g.w / 2 + (Math.random() - 0.5) * 7, z = s.oz - 2 - Math.random() * 7, y = 2.6 + Math.random() * 1.8;
+      fx.burst('confetti', x, y, z, calm() ? 10 : 22, { spread: 0.3, up: 2.5 }); fx.burst('spark', x, y, z, 8, { spread: 0.2 }); audio.sfx('pop'); } }
   }
   /** The flowers bloom across the lawn in the order it was mown; from garden 2 the receipt slips in. */
   function finale(s, cam = true) {
@@ -258,6 +307,7 @@ export function run(mode = 'play') {
     if (g.pattern && L.styleShare(g, g.pattern) >= 0.8 && !r.rib.includes('style')) r.rib.push('style');
     if (cam) director.play({ id: 'finale', pri: 3, len: 1.6, at: () => ({ x: s.ox + g.w / 2, z: s.oz + g.d * 0.45 }), dist: Math.max(camDist() * 1.15, g.d * 1.05), pitch: 1.05, force: true });
     if (s.n > 0) slip(s);
+    if (L.PARTY_AFTER.includes(s.n)) party(s);
     if (hasLib && lib.addPlayerScoreToLeaderboard && play) { try { Promise.resolve(lib.addPlayerScoreToLeaderboard(Math.floor(S.save.m2))).catch(() => {}); } catch (e) { /* guests cannot post */ } }
     persist();
   }
@@ -352,6 +402,7 @@ export function run(mode = 'play') {
     let dx = S.stick.dx * S.stick.mag, dz = S.stick.dz * S.stick.mag; const k = S.keys;
     const kx = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0), kz = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0);
     if (kx || kz) { const l = Math.hypot(kx, kz); dx = kx / l; dz = kz / l; }
+    { const c = Math.cos(world.yaw), sn = Math.sin(world.yaw), x = dx * c + dz * sn, z = dz * c - dx * sn; dx = x; dz = z; } // the stick is read on the screen: up is away from the camera
     if (S.auto) { dx = S.auto.dx; dz = S.auto.dz; }
     return [dx, dz];
   }
@@ -360,7 +411,7 @@ export function run(mode = 'play') {
   function blockedAt(s, lx, lz) {
     const g = s.g, rad = K.radiusM, off = Math.abs(lx - g.w / 2), inGap = off < L.GATE_HALF_M - rad * 0.6, last = s.n === cfg.gardens.length - 1;
     if (lz < -rad) return off > LANE_HALF_W - rad || lz < (last ? -LANE_M / 2 : -LANE_M - 1);
-    if (lz > g.d + rad) return off > LANE_HALF_W - rad || lz > g.d + (s.n === 0 ? 3 : LANE_M + 1);
+    if (lz > g.d + rad) return off > LANE_HALF_W - rad || lz > g.d + (s.n === 0 || (s.n === DAILY && S.save.cur < DAILY - 1) ? 3 : LANE_M + 1);
     if (lz < rad) return !(inGap && s.gateOpen);
     if (lz > g.d - rad) return !inGap;
     return L.blocked(g, lx, lz, rad, s.gateOpen);
@@ -405,7 +456,7 @@ export function run(mode = 'play') {
         const n = Math.min(6, 1 + c.cut / 14), hw = deckW() / 2;
         for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, px = kt.x + fxn * 0.9 + fzn * sd * hw * Math.random(), pz = kt.z + fzn * 0.9 - fxn * sd * hw * Math.random(); fx.burst('clip', px, 0.25, pz, n / 2, { dx: -fxn * 1.5 + kt.vx * 0.4, dz: -fzn * 1.5 + kt.vz * 0.4 }); }
         if (Math.random() < 0.35) fx.burst('mist', kt.x + fxn * 1.0, 0.2, kt.z + fzn * 1.0, 1, { spread: hw });
-        if (L.districtOf(S.cur) === 2 && Math.random() < 0.08) fx.burst('fly', kt.x + fxn, 0.3, kt.z + fzn, 1, { spread: hw });
+        if (dOf(S.cur) === 2 && Math.random() < 0.08) fx.burst('fly', kt.x + fxn, 0.3, kt.z + fzn, 1, { spread: hw });
         audio.sfx('cut');
         for (const f of g.finds) if (!f.found && cellCut(g, f.x, f.z)) reveal(s, f);
         const size = L.upValue(cfg, 'baler', S.save.up.baler); if (S.bale.m2 >= size || (!S.firstBale && S.save.ftue <= 2 && S.cur === 0 && S.bale.m2 >= cfg.finds.firstBaleM2)) popBale();
@@ -426,12 +477,13 @@ export function run(mode = 'play') {
     // gate, grow wave, finale at the gate
     if (s.gateOpen && s.gateT < 1) { s.gateT = Math.min(1, s.gateT + dt / 0.8); const e = s.gateT; s.dress.gate.set(1 - Math.pow(1 - e, 3) + Math.sin(e * Math.PI) * 0.12); }
     for (const q of S.slots.values()) { if (q.grow < 1) { q.grow = Math.min(1, q.grow + dt / 1.4); q.lawn.setGrow(ease(q.grow)); } if (q.bloom >= 0 && q.bloom < 1.2) { q.bloom = Math.min(1.2, q.bloom + dt / 1.6 * 1.2); q.lawn.setBloom(q.bloom); } }
-    if (s.gateOpen && !s.finale && lz < 2.2 && Math.abs(lx - g.w / 2) < 2.5) finale(s);
+    if (s.gateOpen && !s.finale && lz < 0.6 && Math.abs(lx - g.w / 2) < L.GATE_HALF_M) finale(s);
     if (S.save.ftue === 4 && S.cur === 0 && lz < -0.5) ftueNext(5);
     if (ui.receiptOpen() && S.t - S.slipAt > 0.8 && wm > 0.3) ui.receipt(null);
     // into the next garden (or back into the one before) once past the middle of the lane
     const lastG = S.cur === cfg.gardens.length - 1;
-    if (!lastG && lz < -LANE_M / 2) enter(S.cur + 1, false); else if (S.cur > 0 && lz > g.d + LANE_M / 2) enter(S.cur - 1, false);
+    if (!lastG && lz < -LANE_M / 2) enter(S.cur + 1, false); else if (S.cur > 0 && lz > g.d + LANE_M / 2 && !(S.cur === DAILY && S.save.cur < DAILY - 1)) enter(S.cur - 1, false);
+    for (const q of S.slots.values()) q.toys.update(dt, S.t, q === s);
     stepBales(dt); stepPads(dt);
     for (let i = S.ents.length - 1; i >= 0; i--) if (!S.ents[i].step(dt)) S.ents.splice(i, 1);
     S.honkT = Math.max(0, (S.honkT || 0) - dt); S.jump = Math.max(0, (S.jump || 0) - dt); S.wave = Math.max(0, (S.wave || 0) - dt);
@@ -464,6 +516,11 @@ export function run(mode = 'play') {
     // dev:end
     step(dt);
     const kt = S.kart; buzzy.group.position.set(kt.x, 0, kt.z); buzzy.group.rotation.y = kt.ang;
+    { // the deck springs narrower when a corner would poke through a fence or a rock
+      const s = cur(), gg = s.g, lx = kt.x - s.ox, lz = kt.z - s.oz, fxn = -Math.sin(kt.ang), fzn = -Math.cos(kt.ang), hw = deckW() / 2; let k = 1;
+      if (lz > -0.5 && lz < gg.d + 0.5) for (k of K.squashSteps) { let ok = true; for (const sd of [-1, 1]) { const cx = lx + fxn * 0.95 + fzn * sd * hw * k, cz = lz + fzn * 0.95 - fxn * sd * hw * k, gap = Math.abs(cx - gg.w / 2) < L.GATE_HALF_M; if (cx < 0.1 || cx > gg.w - 0.1 || ((cz < 0.1 || cz > gg.d - 0.1) && !gap) || L.clearAt(gg, cx, cz) < 0.05) ok = false; } if (ok) break; }
+      S.squash += (k - S.squash) * Math.min(1, real * 14); buzzy.setSquash(S.squash);
+    }
     buzzy.update(dt, S.t, { speed: kt.speed, turn: kt.turn, cutting: S.cutting, flow: S.flow.v, wave: S.wave > 0 ? Math.min(1, S.wave * 3) : 0, fill: clamp(S.bale.m2 / L.upValue(cfg, 'baler', S.save.up.baler), 0, 1), idle: S.idle });
     for (const r of S.riders) { r.f.update(S.t + r.k * 1.7 || S.t); if (r.f.fly) { const a = S.t * 1.1 + r.k * 2.1; r.f.group.position.set(Math.cos(a) * 1.0, 1.5 + Math.sin(a * 1.7) * 0.2, Math.sin(a) * 1.0); r.f.group.rotation.y = -a; } else r.f.group.position.y = S.jump > 0 ? Math.sin((0.5 - S.jump) / 0.5 * Math.PI) * 0.25 : 0; }
     for (const s of S.slots.values()) {
@@ -471,45 +528,50 @@ export function run(mode = 'play') {
       s.nbT += dt; if (s.nbMode === 'cheer' && s.nbT > 2) { s.nbMode = s.finale ? 'run' : 'wave'; s.nbT = 0; }
       if (s.nbMode === 'run') { const tx = s.ox + s.g.w / 2 + 1.2, tz = s.oz + Math.min(4, s.g.d * 0.4), p = s.nb.group.position, d = Math.hypot(tx - p.x, tz - p.z); if (d < 0.2) { s.nbMode = 'dance'; } else { const sp = Math.min(d, 3.2 * dt); p.x += (tx - p.x) / d * sp; p.z += (tz - p.z) / d * sp; s.nb.group.rotation.y = Math.atan2(tx - p.x, tz - p.z); } }
       else if (s.nbMode !== 'dance') s.nb.group.rotation.y = Math.atan2(kt.x - s.nb.group.position.x, kt.z - s.nb.group.position.z) * 0.6;
-      s.nb.update(dt, S.t, s.nbMode);
+      s.nb.update(dt, S.t, s.nbMode); if (s.party) stepParty(s, dt);
     }
-    if (L.districtOf(S.cur) === 2) cur().lawn.setLamp(kt.x - Math.sin(kt.ang) * 2.2, kt.z - Math.cos(kt.ang) * 2.2, 4.2, 1);
+    if (dOf(S.cur) === 2) cur().lawn.setLamp(kt.x - Math.sin(kt.ang) * 2.2, kt.z - Math.cos(kt.ang) * 2.2, 4.2, 1);
     const top = topSpeed();
     // dev:start
     if (S.camHold) { const c = S.camHold; world.placeCamera(c.x, c.z, c.dist, c.pitch, c.yaw || 0, c.lift || 0); } else
     // dev:end
     {
-      // keep the garden in the frame: near a side fence the camera stops sliding and Buzzy drifts off-centre instead
-      const cs = cur(), halfW = camDist() * Math.tan(cfg.camera.fov * Math.PI / 360) * world.camera.aspect, lo = cs.ox + halfW - cfg.camera.sideM, hi = cs.ox + cs.g.w - halfW + cfg.camera.sideM;
-      const inG = kt.z > cs.oz - 1 && kt.z < cs.oz + cs.g.d + 1, cx = !inG ? kt.x : lo > hi ? cs.ox + cs.g.w / 2 : clamp(kt.x, lo, hi), fx = clamp(cx, kt.x - halfW * 0.55, kt.x + halfW * 0.55);
-      world.follow(fx, kt.z, kt.vx / top, kt.vz / top, camDist() * (1 + cfg.camera.flowPull * (S.flow.v >= 1 && !calm() ? 1 : 0)), real, S.frames < 2);
-      if (beat && beat.w > 0.001) { const c = world.cam, k = beat.w; world.placeCamera(lerp(c.x, beat.x, k), lerp(c.z, beat.z, k), lerp(c.dist, beat.dist || c.dist, k), lerp(world.pitch, beat.pitch || world.pitch, k), (beat.yaw || 0) * k, 0); }
+      world.follow(kt.x, kt.z, kt.vx / top, kt.vz / top, camDist() * (1 + cfg.camera.flowPull * (S.flow.v >= 1 && !calm() ? 1 : 0)), real, S.frames < 2);
+      if (beat && beat.w > 0.001) { const c = world.cam, k = beat.w; world.placeCamera(lerp(c.x, beat.x, k), lerp(c.z, beat.z, k), lerp(c.dist, beat.dist || c.dist, k), lerp(world.pitch, beat.pitch || world.pitch, k), world.yaw + (beat.yaw || 0) * k, 0); }
     }
     ui.bars(beat ? beat.bars : 0);
+    if (S.life) S.life.update(dt, S.t, S.kart.x, S.kart.z);
     fx.update(dt); world.render(real);
     audio.tick(real, kt.speed / top, S.flow.v, S.cutting);
     if (play) {
       const st = S.stick; ui.stick(st.on && !S.sheet, st.ox, st.oy, st.dx * st.mag, st.dz * st.mag);
       const ft = ftueTarget(); ui.spot(ft && (ft.on !== false) ? ft : null); ui.showSkip(!S.save.ftueDone && S.save.ftue > 0 && S.save.ftue < 7); stepGuide(dt, ft);
       // price labels over the pads in view
-      let li = 0; if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 30) * ui.unit() || underButtons(q)) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`; el.classList.toggle('no', !p.can); } el.style.display = 'flex'; el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
+      // price labels never sit under the two HUD rows, the button column or off the side
+      let li = 0; if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 110 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 110 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.classList.toggle('no', !p.can); } el.style.display = 'flex'; el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
       for (; li < padLabels.length; li++) padLabels[li].style.display = 'none';
     }
     // adaptive quality: step down after a slow stretch, up after a long smooth one
     S.ms += (raw * 1000 - S.ms) * 0.05; S.frames++; world.smoothFrame(raw < 0.03);
     const Q = cfg.quality, bud = Q.budgetMs[world.tier];
+    if (S.frames >= 1 && S.bootQ.length) S.bootQ.shift()();
+    if (S.frames === Q.bootFrames && !S.fixTier) setTier(Q.start);
     if (S.frames > 20 && !S.fixTier) { if (S.ms > bud) { S.slow += raw; S.fast = 0; } else { S.fast += raw; S.slow = Math.max(0, S.slow - raw); } }
     if (S.slow > Q.downAfterS && world.tier > 0) { setTier(world.tier - 1); S.slow = 0; } else if (S.fast > Q.upAfterS && world.tier < 2 && S.ms < Q.budgetMs[world.tier + 1] * 0.7 && !S.noUp) { setTier(world.tier + 1); S.fast = 0; }
-    if (S.frames === 2) { root.classList.add('live'); S.firstFrameMs = performance.now(); if (window.__load && window.__load.done) window.__load.done(); }
+    if (S.frames === 1) { root.classList.add('live'); S.firstFrameMs = performance.now(); if (window.__load && window.__load.done) window.__load.done(); }
   }
   function setTier(k) { if (k < world.tier) S.noUp = (S.downs = (S.downs || 0) + 1) > 1; world.setTier(k); fx.setTier(k); for (const s of S.slots.values()) s.lawn.setTier(k); }
 
-  const G = { S, cfg, world, L, ui, fx, audio, T, Cast, buzzy, face, buy, wear, persist, setLang, dressBuzzy, syncRiders, later, award, LANGS,
+  const G = { DAILY, S, cfg, world, L, ui, fx, audio, T, Cast, buzzy, face, buy, wear, persist, setLang, dressBuzzy, syncRiders, later, award, LANGS,
     /** Rebuilds the gardens in view (after a stripe tint change), keeping every lawn as it is. */
     retint() { const x = S.kart.x, z = S.kart.z; for (const k of [...S.slots.keys()]) drop(k); enter(S.cur, false); S.kart.x = x; S.kart.z = z; },
     /** Drives Buzzy to garden n through a leaf wipe (the lane map). */
     travel(n, replay) { ui.closeSheet(); audio.sfx('whoosh'); ui.wipe(() => { for (const k of [...S.slots.keys()]) drop(k); if (replay) { S.replay = S.replay || {}; S.replay[n] = (S.replay[n] || 0) + 1; delete S.cuts[n]; } for (const b of [...S.bales]) collect(b, true); enter(n, true); world.follow(S.kart.x, S.kart.z, 0, 0, camDist(), 0, true); persist(); }); },
   };
+  // a fast first picture: boot on the lightest tier (no shadow pass, no post targets, fewer blades), then step up
+  if (!qs.has('tier')) world.setTier(0);
+  newDay();
+  S.bootQ.push(() => { S.life = createLife(world, Cast, cfg.quality.butterflies); });
   enter(S.save.cur, true); dressBuzzy(); fx.setTier(world.tier);
   ui.resize(root.clientWidth || 360, root.clientHeight || 640); ui.setCoins(0); refreshHud();
   world.follow(S.kart.x, S.kart.z, 0, 0, camDist(), 0, true);
@@ -523,11 +585,11 @@ export function run(mode = 'play') {
       for (const k of [...S.slots.keys()]) drop(k); for (const b of S.bales) { world.scene.remove(b.m); b.m.geometry.dispose(); }
       world.scene.remove(southLane); southLane.geometry.dispose();
       for (const m of dots) world.scene.remove(m); dotGeo.dispose(); dotMat.dispose();
-      fx.dispose(); audio.destroy(); ui.destroy(); world.destroy(); if (window.__mm === api) window.__mm = null;
+      if (S.life) S.life.dispose(); fx.dispose(); audio.destroy(); ui.destroy(); world.destroy(); if (window.__mm === api) window.__mm = null;
     },
   };
   // dev:start
-  window.__game = Object.assign(G, { step, setTier, slot: cur, director, toScreen, popBale, reveal, onStar, blockedAt, enter, ftueTarget, snapshot });
+  window.__game = Object.assign(G, { step, setTier, slot: cur, director, toScreen, popBale, reveal, onStar, blockedAt, enter, ftueTarget, snapshot, cutAt });
   if (qs.has('tier')) { S.fixTier = true; setTier(+qs.get('tier')); }
   // dev:end
   window.__mm = api;

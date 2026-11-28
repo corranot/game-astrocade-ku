@@ -95,10 +95,11 @@ export function makeGarden(cfg, n, seed, recipe = cfg.gardens[n]) {
   // for the mower to pass between a thing and the fence, so no grass hides where the deck cannot reach
   const pass = cfg.kart.radiusM * 2 + 0.5, free = (x, z, r) => Math.abs(x - w / 2) > 1.6 + r && z > pass + r && z < d - pass - r && x > pass + r && x < w - pass - r;
   const placed = [];
-  const spot = (r, tries = 60, mid = false) => {
+  const soft = (x, z, r) => Math.abs(x - w / 2) > 1.6 + r && z > 1.2 + r && z < d - 1.2 - r && x > 0.6 + r && x < w - 0.6 - r; // for things the mower drives over (flower beds)
+  const spot = (r, tries = 60, mid = false, drive = false) => {
     for (let i = 0; i < tries; i++) {
       const x = lerp(r + 0.5, w - r - 0.5, R()), z = lerp(r + 1.4, d - r - 2.4, R());
-      if (!mid && !free(x, z, r)) continue;
+      if (!mid && !(drive ? soft(x, z, r) : free(x, z, r))) continue;
       if (mid && (z < 2 + r || z > d - 3 - r)) continue;
       if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + r + 2.3)) continue;
       placed.push({ x, z, r }); return { x, z };
@@ -106,7 +107,8 @@ export function makeGarden(cfg, n, seed, recipe = cfg.gardens[n]) {
     return null;
   };
   if (has('fountain')) { const p = { x: w / 2, z: d * 0.45 }; placed.push({ ...p, r: 1.6 }); fillEllipse(g, p.x, p.z, 1.5, 1.5, T.SOLID); g.props.push({ kind: 'fountain', ...p, r: 1.5 }); }
-  if (has('pond')) { const rx = lerp(1.6, 2.6, R()) * Math.min(1.4, w / 12), rz = rx * lerp(0.6, 0.85, R()), p = spot(rx + 0.2); if (p) { fillEllipse(g, p.x, p.z, rx, rz, T.WATER); g.pond = { ...p, rx, rz }; } }
+  if (has('pond')) { const rx = lerp(1.6, 2.6, R()) * Math.min(1.4, w / 12), rz = rx * lerp(0.6, 0.85, R()), p = { x: lerp(pass + rx, w - pass - rx, R()), z: lerp(pass + rz + 1.5, d - pass - rz - 1.5, R()) }; // the pond may sit in the middle: there is a mower-width of lawn all round it
+    placed.push({ ...p, r: rx }); fillEllipse(g, p.x, p.z, rx, rz, T.WATER); g.pond = { ...p, rx, rz }; }
   if (has('terraces')) for (const fz of [0.36, 0.68]) { // low walls across the garden, each with two gaps
     const z = d * fz, gaps = [w * lerp(0.2, 0.32, R()), w * lerp(0.68, 0.8, R())];
     let x = 0; for (const gx of [...gaps, w + 9]) { const x1 = Math.min(w, gx - 1.7); if (x1 - x > 0.6) { fillRect(g, x, z - 0.2, x1, z + 0.2, T.SOLID); g.props.push({ kind: 'wall', x: (x + x1) / 2, z, len: x1 - x }); } x = gx + 1.7; }
@@ -114,7 +116,7 @@ export function makeGarden(cfg, n, seed, recipe = cfg.gardens[n]) {
   }
   if (has('orchard')) for (let i = 0, k = Math.round(w * d / 70); i < k; i++) { const p = spot(0.45); if (p) { fillEllipse(g, p.x, p.z, 0.4, 0.4, T.SOLID); g.props.push({ kind: 'tree', ...p, r: 0.4, apples: 3 }); } }
   if (has('beds')) for (let i = 0, k = clamp(Math.round(w * d / 60), 1, 6); i < k; i++) {
-    const bw = lerp(1.2, 2.4, R()), bd = lerp(0.9, 1.6, R()), p = spot(Math.max(bw, bd) / 2); if (!p) continue;
+    const bw = lerp(1.2, 2.4, R()), bd = lerp(0.9, 1.6, R()), p = spot(Math.max(bw, bd) / 2, 60, false, true); if (!p) continue;
     fillRect(g, p.x - bw / 2, p.z - bd / 2, p.x + bw / 2, p.z + bd / 2, T.BED, 0.4); g.beds.push({ x: p.x, z: p.z, w: bw, d: bd, kind: Math.floor(R() * 6) });
   }
   for (let i = 0, k = Math.round(w * d / 90); i < k; i++) { const p = spot(0.3, 20); if (p) { fillEllipse(g, p.x, p.z, 0.28, 0.28, T.SOLID); g.props.push({ kind: R() < 0.5 ? 'rock' : 'bush', ...p, r: 0.28 }); } }
@@ -194,7 +196,8 @@ export function dailyRecipe(cfg, ymd) {
   const R = rng(ymd * 7 + 13), pool = ['beds', 'pond', 'orchard', 'molehills', 'sprinklers', 'mushrooms'], f = ['beds'];
   for (let i = 0; i < 2; i++) { const k = pool[Math.floor(R() * pool.length)]; if (!f.includes(k)) f.push(k); }
   f.push('pattern:' + ['long', 'cross', 'diag', 'chequer'][ymd % 4]);
-  return { id: 'daily', w: 16 + Math.floor(R() * 5) * 2, d: 22 + Math.floor(R() * 5) * 2, f, district: ymd % cfg.districts.length };
+  const hosts = cfg.gardens.filter((x) => !x.daily);
+  return { id: 'daily', daily: true, nb: hosts[ymd % hosts.length].id, w: 16 + Math.floor(R() * 5) * 2, d: 22 + Math.floor(R() * 5) * 2, f, district: ymd % cfg.districts.length };
 }
 /** Today's date number from a Date, in local time. */
 export const ymdOf = (date) => date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
@@ -208,7 +211,8 @@ export function percent(g) { return g.cutCount >= g.grassCount ? 100 : Math.min(
 
 /**
  * Cuts the grass under the deck as the mower moves from (x0, z0) to (x1, z1) with heading `ang` (radians, 0 = north).
- * The footprint is `width` wide and cfg.lawn.footLenM long, centred `ahead` metres in front of the mower.
+ * The footprint is `width` wide; it runs from cfg.lawn.underM behind the mower's centre to `ahead` + half of
+ * cfg.lawn.footLenM in front of it.
  * Returns { cut, met, cells, wet, rect } : cells newly cut, tall cells met, cells looked at, wet cells cut, dirty rect.
  */
 export function cutSweep(cfg, g, x0, z0, x1, z1, ang, width, ahead = 0.45) {
@@ -220,14 +224,14 @@ export function cutSweep(cfg, g, x0, z0, x1, z1, ang, width, ahead = 0.45) {
   const dirByte = Math.round((0.5 + 0.5 * Math.cos(ang)) * 255); // stripe tone: 255 mown northward, 0 southward, 128 across. A tone (not an angle) blends cleanly between cells
   let c0 = 1e9, r0 = 1e9, c1 = -1, r1 = -1;
   for (let k = 1; k <= steps; k++) {
-    const t = k / steps, cx = lerp(x0, x1, t) + fx * ahead, cz = lerp(z0, z1, t) + fz * ahead, ext = Math.hypot(hw + eh, hl + eh);
+    const t = k / steps, cx = lerp(x0, x1, t) + fx * ahead, cz = lerp(z0, z1, t) + fz * ahead, back = ahead + L.underM, ext = Math.hypot(hw + eh, back + hl + eh);
     const ca = Math.max(0, Math.floor((cx - ext) / s)), cb = Math.min(g.cols - 1, Math.floor((cx + ext) / s));
     const ra = Math.max(0, Math.floor((cz - ext) / s)), rb = Math.min(g.rows - 1, Math.floor((cz + ext) / s));
     const last = k === steps;
     for (let r = ra; r <= rb; r++) for (let c = ca; c <= cb; c++) {
       const i = r * g.cols + c; if (g.type[i] !== T.GRASS) continue;
       const dx = (c + 0.5) * s - cx, dz = (r + 0.5) * s - cz, along = dx * fx + dz * fz, side = dx * fz - dz * fx, e = g.edge[i] ? eh : 0;
-      if (Math.abs(along) > hl + e || Math.abs(side) > hw + e) continue;
+      if (along > hl + e || along < -back - e || Math.abs(side) > hw + e) continue; // the blades reach back under the body, so no tuft is left where the mower stands
       const m = i * 4;
       if (last) out.cells++;
       if (g.mask[m] === H.CUT) { g.mask[m + 1] = dirByte; if (c < c0) c0 = c; if (c > c1) c1 = c; if (r < r0) r0 = r; if (r > r1) r1 = r; continue; }
@@ -331,10 +335,10 @@ export function cleanSave(cfg, raw) {
   for (const k of ['deck', 'engine', 'baler']) s.up[k] = num(raw.up && raw.up[k], 0, cfg.upgrades.levels);
   s.cur = num(raw.cur, 0, cfg.gardens.length - 1);
   if (Array.isArray(raw.gardens)) s.gardens = raw.gardens.slice(0, cfg.gardens.length).map((x) => ({ stars: num(x && x.stars, 0, 3), best: num(x && x.best, 0, 100), rib: list(x && x.rib, ['gentle', 'style', 'flow']) }));
-  s.cur = Math.min(s.cur, s.gardens.filter((x) => x.stars > 0).length);
+  s.cur = Math.min(s.cur, s.gardens.filter((x, i) => x.stars > 0 && !cfg.gardens[i].daily).length); // the Garden of the Day never unlocks the lane
   if (typeof raw.cut === 'string' && raw.cut.length < 60000) { s.cut = raw.cut; s.cutFor = num(raw.cutFor, -1, cfg.gardens.length - 1); }
   s.friends = list(raw.friends, cfg.friends); s.toys = list(raw.toys, cfg.toys); s.golden = list(raw.golden, cfg.toys); s.gifts = list(raw.gifts, cfg.gifts);
-  s.neighbours = list(raw.neighbours, cfg.gardens.map((x) => x.id)); s.ride = list(raw.ride, cfg.friends).slice(0, 3);
+  s.neighbours = list(raw.neighbours, cfg.gardens.filter((x) => !x.daily).map((x) => x.id)); s.ride = list(raw.ride, cfg.friends).slice(0, 3);
   s.wear = typeof raw.wear === 'string' && s.gifts.includes(raw.wear) ? raw.wear : null;
   for (const k of ['paint', 'tint', 'trail']) { const ids = cfg.shop[k].map((x) => x[0]); s.own[k] = [...new Set([ids[0], ...list(raw.own && raw.own[k], ids)])]; s.use[k] = raw.use && s.own[k].includes(raw.use[k]) ? raw.use[k] : ids[0]; }
   s.ftue = num(raw.ftue, 0, 99); s.ftueDone = !!raw.ftueDone; s.mute = !!raw.mute; s.music = raw.music !== false; s.calm = !!raw.calm; s.lefty = !!raw.lefty;

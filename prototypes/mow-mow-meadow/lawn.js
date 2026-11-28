@@ -4,7 +4,7 @@
 import { H } from './logic.js';
 
 const COMMON = `
-uniform sampler2D uMask; uniform vec4 uRect; uniform float uTime; uniform vec3 uKart; uniform vec3 uRoot; uniform vec3 uTip; uniform vec3 uLight; uniform vec3 uDark; uniform float uGrow; uniform vec4 uLamp;
+uniform sampler2D uMask; uniform vec4 uRect; uniform float uTime; uniform vec3 uKart; uniform vec3 uRoot; uniform vec3 uTip; uniform vec3 uLight; uniform vec3 uDark; uniform float uGrow; uniform vec4 uLamp; uniform float uBloom;
 vec2 maskUv(vec2 xz) { return (xz - uRect.xy) / uRect.zw; }
 float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 `;
@@ -36,11 +36,13 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = (modelMatrix * vec4(position, 1.0)).xz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vXZ;' + COMMON).replace('#include <color_fragment>', `
       vec4 m = texture2D(uMask, maskUv(vXZ));
-      float tone = m.g, ns = abs(tone * 2.0 - 1.0);
+      float groom = clamp((uBloom - m.b) * 6.0, 0.0, 1.0) * 0.85; // the finale wave combs the lawn into tidy stripes
+      float tone = mix(m.g, smoothstep(0.42, 0.58, abs(fract(vXZ.x / 2.6) - 0.5) * 2.0), groom), ns = abs(tone * 2.0 - 1.0);
       float n = hash21(floor(vXZ * 22.0)) * 0.5 + hash21(floor(vXZ * 61.0)) * 0.5;
       float streak = mix(hash21(floor(vec2(vXZ.y * 34.0, vXZ.x * 3.0))), hash21(floor(vec2(vXZ.x * 34.0, vXZ.y * 3.0))), ns);
       float fine = mix(hash21(floor(vec2(vXZ.y * 90.0, vXZ.x * 9.0))), hash21(floor(vec2(vXZ.x * 90.0, vXZ.y * 9.0))), ns);
-      vec3 cut = mix(uDark, uLight, smoothstep(0.25, 0.75, tone)) * (0.86 + 0.12 * n + 0.1 * streak + 0.12 * fine);
+      float sheen = 0.5 + 0.5 * sin(vXZ.x * 0.7 + vXZ.y * 1.1 + uTime * 0.25);
+      vec3 cut = mix(uDark, uLight, smoothstep(0.2, 0.8, tone)) * (0.9 + 0.08 * n + 0.07 * streak + 0.08 * fine) * (1.0 + 0.05 * sheen + 0.06 * groom);
       vec3 tall = uRoot * (0.62 + 0.2 * n);
       float h = smoothstep(0.05, 0.45, m.r);
       vec3 col = mix(cut, tall, h);
@@ -70,7 +72,7 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
     const geo = new THREE.InstancedBufferGeometry(); geo.index = blade.index; geo.setAttribute('position', blade.getAttribute('position')); geo.setAttribute('normal', blade.getAttribute('normal'));
     geo.setAttribute('aI', new THREE.InstancedBufferAttribute(inst.subarray(0, n * 4), 4));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(ox + x0 + w / 2, 0.5, oz + z0 + d / 2), Math.hypot(w, d) / 2 + 1.5);
-    tiles.push({ geo, n, share: n / want });
+    tiles.push({ geo, n, share: n / want, cx: ox + x0 + w / 2, cz: oz + z0 + d / 2 });
   }
   const allSphere = new THREE.Sphere(new THREE.Vector3(ox + g.w / 2, 0.5, oz + g.d / 2), Math.hypot(g.w, g.d) / 2 + 2);
   const bladeMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
@@ -93,8 +95,9 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
       transformed.xz += normalize(away + 0.0001) * push * 0.55 * hgt * y; transformed.y -= push * 0.3 * hgt * y;
       transformed.z -= (m.g * 2.0 - 1.0) * isCut * 0.05 * y;
       transformed.xz += (vec2(r2, r1) - 0.5) * 0.3 * hgt * y2;
-      float tone = m.g;
-      vec3 cutCol = mix(uDark, uLight, smoothstep(0.25, 0.75, tone)) * (0.92 + 0.2 * r2);
+      float groom = clamp((uBloom - m.b) * 6.0, 0.0, 1.0) * 0.85;
+      float tone = mix(m.g, smoothstep(0.42, 0.58, abs(fract(base.x / 2.6) - 0.5) * 2.0), groom);
+      vec3 cutCol = mix(uDark, uLight, smoothstep(0.2, 0.8, tone)) * (0.94 + 0.16 * r2) * (1.0 + 0.06 * groom);
       vec3 tallCol = mix(uRoot * 0.75, uTip * (0.86 + 0.28 * r1), y);
       vCol = mix(tallCol, cutCol, isCut);
       float lamp = uLamp.w * smoothstep(uLamp.z, 0.0, distance(base, uLamp.xy)); vCol *= 1.0 + 0.9 * lamp;`);
@@ -105,28 +108,28 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
   for (const t of tiles) { const m = new THREE.Mesh(t.geo, bladeMat); m.receiveShadow = true; blades.add(m); }
 
   // ---- finale blooms: small flowers that open where the lawn was cut, in the order it was cut
-  const bn = Math.min(1400, Math.round(g.areaM2 * 2.2)), bi = new Float32Array(bn * 4); let bk = 0;
+  const bn = Math.min(1200, Math.round(g.areaM2 * 1.5)), bi = new Float32Array(bn * 4); let bk = 0;
   for (let t = 0; t < bn * 3 && bk < bn; t++) {
     const x = R() * g.w, z = R() * g.d; if (g.mask[(Math.floor(z / g.cell) * g.cols + Math.floor(x / g.cell)) * 4 + 3] === 0) continue;
     bi[bk * 4] = ox + x; bi[bk * 4 + 1] = oz + z; bi[bk * 4 + 2] = R(); bi[bk * 4 + 3] = R(); bk++;
   }
-  const petal = new THREE.CircleGeometry(0.5, 6); petal.rotateX(-Math.PI / 2);
+  const petal = new THREE.PlaneGeometry(1, 1); petal.rotateX(-Math.PI / 2); // one quad; the five petals are drawn in the fragment shader
   const bgeo = new THREE.InstancedBufferGeometry(); bgeo.index = petal.index; bgeo.setAttribute('position', petal.getAttribute('position')); bgeo.setAttribute('normal', petal.getAttribute('normal'));
   bgeo.setAttribute('aI', new THREE.InstancedBufferAttribute(bi.subarray(0, bk * 4), 4)); bgeo.boundingSphere = allSphere;
   const bloomMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   bloomMat.onBeforeCompile = (sh) => {
     share(sh);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aI; varying vec3 vCol; varying vec2 vP; uniform float uBloom;' + COMMON)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aI; varying vec3 vCol; varying vec3 vP;' + COMMON)
       .replace('#include <begin_vertex>', `
       vec4 m = texture2D(uMask, maskUv(aI.xy));
       float open = clamp((uBloom - m.b) * 6.0, 0.0, 1.0) * step(m.r, 0.1) * step(0.5, m.a);
       float pop = open * (1.0 + 0.35 * sin(min(open, 1.0) * 3.14159));
-      float sz = (0.16 + 0.12 * aI.w) * pop;
+      float sz = (0.2 + 0.13 * aI.w) * pop;
       vec3 transformed = vec3(aI.x + position.x * sz, 0.1 + 0.03 * aI.z + 0.02 * sin(uTime * 2.0 + aI.z * 20.0), aI.y + position.z * sz);
-      vP = position.xz;
+      vP = vec3(position.xz, aI.z * 6.2831853);
       float k = fract(aI.z * 7.0);
       vCol = k < 0.25 ? vec3(1.0, 0.95, 0.86) : k < 0.5 ? vec3(0.96, 0.49, 0.36) : k < 0.75 ? vec3(0.96, 0.73, 0.23) : vec3(0.78, 0.62, 0.92);`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vCol; varying vec2 vP;').replace('#include <color_fragment>', 'float rr = length(vP); diffuseColor.rgb = mix(vec3(0.98, 0.78, 0.25), vCol, smoothstep(0.14, 0.2, rr)); if (rr > 0.5) discard;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vCol; varying vec3 vP;').replace('#include <color_fragment>', 'float rr = length(vP.xy), th = atan(vP.y, vP.x) + vP.z, lobe = 0.5 + 0.5 * cos(th * 5.0); if (rr > 0.5 * (0.56 + 0.44 * lobe)) discard; diffuseColor.rgb = mix(vec3(1.0, 0.8, 0.26), vCol * (0.84 + 0.16 * lobe + 0.25 * rr), smoothstep(0.1, 0.15, rr));');
   };
   const blooms = new THREE.Mesh(bgeo, bloomMat); blooms.visible = false; group.add(blooms);
 
@@ -135,8 +138,13 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R) {
     group, g, ox, oz, uniforms: U, blades,
     /** Marks the mask changed; it is uploaded once on the next update. */
     dirty() { dirtyFlag = true; },
-    update(t, kx, kz, moving) { U.uTime.value = t; U.uKart.value.set(kx, kz, moving); if (dirtyFlag) { tex.needsUpdate = true; dirtyFlag = false; } },
-    setTier(k) { if (k === curTier) return; curTier = k; for (const t of tiles) t.geo.instanceCount = Math.max(1, Math.round(t.n * L.bladesPerM2[k] / per)); },
+    update(t, kx, kz, moving) {
+      U.uTime.value = t; U.uKart.value.set(kx, kz, moving); if (dirtyFlag) { tex.needsUpdate = true; dirtyFlag = false; }
+      // fewer blades far from Buzzy: a far tile is small on a phone screen, and this keeps big gardens inside the triangle budget
+      const base = L.bladesPerM2[curTier] / per;
+      for (const tl of tiles) { const d = Math.hypot(tl.cx - kx, tl.cz - kz), share = Math.min(1, Math.max(L.farShare, L.lodK - d / L.lodM)); tl.geo.instanceCount = Math.max(1, Math.round(tl.n * base * share)); }
+    },
+    setTier(k) { curTier = k; },
     /** 0 = flat, 1 = full height: the wave that raises a garden's grass as it comes into view. */
     setGrow(v) { U.uGrow.value = v; },
     /** Opens the finale flowers up to cut-order share v (0 to 1.2); below 0 hides them. */

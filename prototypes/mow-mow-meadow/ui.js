@@ -87,6 +87,8 @@ const CSS = `
 /* price labels above the upgrade pads */
 .padl{position:absolute;left:0;top:0;height:calc(var(--u)*56);border-radius:calc(var(--u)*28);padding:0 calc(var(--u)*16) 0 calc(var(--u)*8);display:none;align-items:center;gap:calc(var(--u)*6);transform:translate(-50%,-50%);border-width:calc(var(--u)*3)}
 .padl svg{width:calc(var(--u)*36);height:calc(var(--u)*36)}
+.padl .kind{display:flex;align-items:center;justify-content:center;width:calc(var(--u)*44);height:calc(var(--u)*44);border-radius:50%;background:var(--ink,#3d4a3a);color:#fff8e6}
+.padl .kind svg{width:calc(var(--u)*30);height:calc(var(--u)*30)}
 .padl .num{font-size:calc(var(--u)*30)}
 .padl.no{opacity:.75;filter:saturate(.4)}
 .arrow{position:absolute;left:0;top:0;width:calc(var(--u)*64);height:calc(var(--u)*64);margin:calc(var(--u)*-32);display:none}
@@ -141,6 +143,7 @@ const CSS = `
 .badge{position:relative;border-radius:calc(var(--u)*28);background:#f3e7c8;padding:calc(var(--u)*12) calc(var(--u)*8);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*4);min-height:calc(var(--u)*176);box-sizing:border-box}
 .badge canvas{width:calc(var(--u)*96);height:calc(var(--u)*96)}
 .badge.no{opacity:.5}
+.badge.day{background:#ffe9a8;box-shadow:inset 0 0 0 calc(var(--u)*4) var(--gold)}
 .badge.cur{box-shadow:inset 0 0 0 calc(var(--u)*6) var(--coral)}
 .badge .st{display:flex;gap:calc(var(--u)*2)}
 .badge .st svg{width:calc(var(--u)*28);height:calc(var(--u)*28);fill:#fff6e3;stroke:#b9c59a}
