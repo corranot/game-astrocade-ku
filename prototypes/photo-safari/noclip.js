@@ -18,8 +18,8 @@ const srv=http.createServer((q,s)=>{const u=q.url.split('?')[0],f=path.join(dir,
   await p.evaluate(async()=>{const G=__game;G.pause();G.skipFtue();G.buildAll();G.W.buildGround&&0;G.S.open=3;for(let i=0;i<3;i++)G.openArea&&G.openArea(i);G.step(30);window.L=await import('/logic.js');});
   let spots=spotsF&&fs.existsSync(spotsF)?JSON.parse(fs.readFileSync(spotsF)):null;
   const R={};
-  const SELF=!!process.env.SELF;
-  if(!before&&!SELF){
+  const SELF=!!process.env.SELF,ONLYSPOTS=!!process.env.SPOTS;
+  if(!before&&!SELF&&!ONLYSPOTS){
     // 1) hero sweep
     R.hero=await p.evaluate(async()=>{const G=__game,L=window.L,cfg=G.S&&null,hr=0.5,sol=G.W.solids;const res=[];let worst=0,tested=0,frames=0;
       const walk=(x,z)=>L.walkable(G.__cfg||window.__cfgc,3,x,z);
@@ -44,7 +44,7 @@ const srv=http.createServer((q,s)=>{const u=q.url.split('?')[0],f=path.join(dir,
     console.log('animals',JSON.stringify(R.animals));
   }
   // 3) Pip self-intersection per animation
-  if(SELF)await p.evaluate(()=>{window.__NS=8;});
+  if(SELF||ONLYSPOTS)await p.evaluate(()=>{window.__NS=8;});
   R.self=await p.evaluate(async()=>{const G=__game,H=G.H,c=H.c,CH=await import('/chibi.js');let PIP=null;try{PIP=await import('/pip.js');}catch(e){}
     const V=(x,y,z)=>new THREE.Vector3(x,y,z),COAT=[[0,0.52],[0.225,0.525],[0.245,0.57],[0.24,0.65],[0.228,0.75],[0.214,0.85],[0.206,0.94],[0.205,1.0],[0.192,1.045],[0.16,1.085],[0.115,1.115],[0,1.125]];
     const coatR=(y)=>{for(let i=0;i<COAT.length-1;i++)if(y>=COAT[i][1]&&y<=COAT[i+1][1])return COAT[i][0]+(COAT[i+1][0]-COAT[i][0])*(y-COAT[i][1])/(COAT[i+1][1]-COAT[i][1]);return 0;};
@@ -82,7 +82,7 @@ const srv=http.createServer((q,s)=>{const u=q.url.split('?')[0],f=path.join(dir,
   // 4) showcase frames
   if(SELF)spots=[];
   if(!spots&&!before){spots=await p.evaluate(()=>{const G=__game,L=window.L,sol=G.W.solids,hr=0.5;const want=[];const pick=(test,label)=>{for(const s of sol){if(!test(s))continue;const sx=Array.isArray(s)?s[0]:s.x,sz=Array.isArray(s)?s[1]:s.z,br=Array.isArray(s)?s[2]:Math.hypot(s.hx,s.hz);
-      for(let k=0;k<8;k++){const a=k/8*Math.PI*2,d0=br+hr+3,fx=sx-Math.sin(a)*d0,fz=sz-Math.cos(a)*d0;if(!L.walkable(G.__c||{areas:[]},3,fx,fz)&&false)continue;G.tp(fx,fz);if(L.overlapDepth(sol,fx,fz,hr)>0||Math.hypot(G.hero.x-fx,G.hero.z-fz)>0.01)continue;want.push({label,from:[fx,fz],to:[sx+Math.sin(a)*1,sz+Math.cos(a)*1],c:[sx,sz]});return;}}};
+      for(let k0=0;k0<8;k0++){const k=(k0+4)%8,a=k/8*Math.PI*2,d0=br+hr+3,fx=sx-Math.sin(a)*d0,fz=sz-Math.cos(a)*d0;if(!L.walkable(G.cfg,3,fx,fz))continue;G.tp(fx,fz);if(L.overlapDepth(sol,fx,fz,hr)>0||Math.hypot(G.hero.x-fx,G.hero.z-fz)>0.01)continue;want.push({label,from:[fx,fz],to:[sx+Math.sin(a)*1,sz+Math.cos(a)*1],c:[sx,sz]});return;}}};
       pick(s=>Array.isArray(s)&&Math.abs(s[2]-0.3)<0.01,'lantern');pick(s=>Array.isArray(s)&&s[2]===0.75,'snowman');pick(s=>!Array.isArray(s)&&s.h,'cabin');pick(s=>Array.isArray(s)&&s[2]>1.2&&s[3]===0,'pine');pick(s=>Array.isArray(s)&&s[2]===0.8&&s[3]===undefined,'bush');pick(s=>!Array.isArray(s)&&Math.abs(s.hx-0.85)<0.01,'board');return want;});
     if(spotsF)fs.writeFileSync(spotsF,JSON.stringify(spots));}
   for(const s of spots||[]){await p.evaluate((s)=>{const G=__game;G.tp(...s.from);G.walkTo(...s.to);G.step(150);G.walkTo(...s.to);G.step(2);},s);await p.waitForTimeout(100);
