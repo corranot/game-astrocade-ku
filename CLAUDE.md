@@ -240,6 +240,14 @@ full plan unless they add a new game mode or rework the game.
   letterbox bars or a vignette, VFX and an audio sting, then eases back. Beats are
   0.6 to 2 s, never block input, and run through a priority queue with a cooldown
   so they never pile up or get annoying in the core loop.
+- **Everything has a text label.** Every icon, button, goal, pickup, guidance and
+  tutorial step in every game must have a short readable text label or instruction;
+  nothing is communicated by icon or visuals alone (Larisha, 28 Nov). Labels are 1 to 3
+  words, hints and tutorial steps one short sentence, and one goal line always says
+  what to do now. Every string is localized in each language the game supports
+  (right-to-left included) and fits at 360x640 without clipping. This wins over
+  "icon-first" wording elsewhere: the icon stays, the words are added. Labels sit on
+  the HUD grid and never clutter or cover play.
 - **Rigs follow human anatomy.** Every character rig is built on the full set of human
   joints, scaled to the game's style: pelvis, a multi-bone spine, neck and head, clavicles,
   shoulders, elbows with forearm twist, wrists, a two-joint thumb and finger bends, hips,

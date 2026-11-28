@@ -55,7 +55,9 @@ export function run(mode = 'play') {
   let lang = 'en';
   const T = (k) => (cfg.strings[lang] && cfg.strings[lang][k]) || (cfg.strings.en && cfg.strings.en[k]) || k;
   function detectLang() { if (S.save.lang && LANGS.includes(S.save.lang)) return S.save.lang; for (const l of navigator.languages || [navigator.language || 'en']) { const c = String(l).slice(0, 2).toLowerCase(); if (LANGS.includes(c)) return c; } return 'en'; }
-  function setLang() { lang = detectLang(); ui.setDir(lang === 'ar'); }
+  function setLang() { lang = detectLang(); ui.setDir(lang === 'ar'); ui.setText(T); }
+  /** A short message chip under the top row: an icon (or a picture) and one line of words. */
+  const say = (icon, text, secs = 2.6) => { const c = ui.chip(`${icon}<span></span>`, secs); c.querySelector('span').textContent = text; return c; };
 
   const fx = createFx(world, cfg), audio = createAudio(cfg);
   const director = createDirector(cfg, { calm, sting() {} });
@@ -138,7 +140,7 @@ export function run(mode = 'play') {
     refreshHud();
   }
   /** The neighbour's request chip at the start of a garden: the face, the name and the pattern asked for, if any. */
-  function greet(s) { const c = ui.chip(`<span></span>`, 3); c.prepend(face(s.n)); c.querySelector('span').textContent = T('g_' + s.g.id) + (s.g.pattern ? '  ' + ({ long: '║', cross: '═', diag: '⟋', chequer: '▦' }[s.g.pattern]) : ''); }
+  function greet(s) { const c = ui.chip(`<span><b></b><br><small></small></span>`, 3.4), d = dOf(s.n); c.prepend(face(s.n)); c.querySelector('b').textContent = T('g_' + s.g.id); c.querySelector('small').textContent = d < 3 ? T('d_' + d) : ''; }
   const faces = {};
   function face(n) { const id = nbOf(n); if (!faces[id]) { const m = Cast.buildNeighbour(world, id); m.update(0, 0, 'idle'); faces[id] = Cast.portrait(world, m.head, 128, { yaw: 0.25, pitch: 0.1 }); disposeTree(m.group); } const c = document.createElement('canvas'); c.width = c.height = 128; c.getContext('2d').drawImage(faces[id], 0, 0, 128, 128); return c; }
   function refreshHud() { const s = cur(); ui.setProgress(L.coverage(s.g), L.percent(s.g), s.stars); ui.showButtons(S.save.friends.length + S.save.toys.length + S.save.gifts.length > 0, S.save.cur > 0 || S.save.up.deck + S.save.up.engine + S.save.up.baler > 0); ui.setMute(S.save.mute); }
@@ -232,7 +234,7 @@ export function run(mode = 'play') {
     if (f.kind === 'coins') { fx.burst('spark', wx, 0.5, wz, 6); award(L.findCoins(cfg, s.n + 1), wx, 0.5, wz); audio.sfx('pop'); return; }
     if (f.kind === 'friend') {
       const isNew = !S.save.friends.includes(f.id); if (isNew) { S.save.friends.push(f.id); S.save.ride = [...S.save.ride.filter((x) => x !== f.id), f.id].slice(-3); noteAlbum(); }
-      const fr = Cast.buildFriend(world, f.id); fr.group.position.set(wx, 0.2, wz); world.scene.add(fr.group); audio.sfx('friend'); fx.burst('spark', wx, 0.6, wz, 10); reward('friend');
+      const fr = Cast.buildFriend(world, f.id); fr.group.position.set(wx, 0.2, wz); world.scene.add(fr.group); audio.sfx('friend'); say(ICONS.paw, T('n_friend').replace('{x}', T('f_' + f.id))); fx.burst('spark', wx, 0.6, wz, 10); reward('friend');
       director.play({ id: 'friend', pri: 2, len: 0.9, at: () => ({ x: fr.group.position.x, z: fr.group.position.z }), dist: camDist() * 0.7 });
       S.ents.push({ t: 0, step(dt) { this.t += dt; const t = this.t; if (t < 0.7) { const k = t / 0.7; fr.group.position.y = 0.2 + Math.sin(k * Math.PI) * 1.3; fr.group.rotation.y = k * 12.56; fr.group.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.8); } else { const k = ease(Math.min(1, (t - 0.7) / 0.5)); fr.group.position.set(lerp(wx, kt.x, k), 0.2 + k * 0.9, lerp(wz, kt.z, k)); } fr.update(S.t); if (t > 1.2) { world.scene.remove(fr.group); disposeTree(fr.group); syncRiders(); if (S.save.ftue === 3) ftueNext(4); persist(); return false; } return true; } });
       return;
@@ -241,7 +243,7 @@ export function run(mode = 'play') {
       const isNew = !S.save.toys.includes(f.id); if (isNew) { S.save.toys.push(f.id); noteAlbum(); } if (f.golden && !S.save.golden.includes(f.id)) { S.save.golden.push(f.id); noteAlbum(); }
       const m = Cast.buildToy(world, f.id, f.golden); m.position.set(wx, 0.1, wz); world.scene.add(m); audio.sfx(f.golden ? 'rare' : 'toy'); reward(f.golden ? 'rare' : 'toy'); fx.burst('dust', wx, 0.2, wz, 6);
       if (f.golden) { director.play({ id: 'rare', pri: 4, len: 1.4, at: () => ({ x: kt.x, z: kt.z }), dist: camDist() * 0.75, yaw: 0.7, orbit: true }); fx.ring(wx, wz, '#f6c95a', 0.4, 4.5, 0.9, 0.6); }
-      const c = ui.chip(`${ICONS.toy}<span class="num">${S.save.toys.length}/${cfg.toys.length}</span>`, 2); void c;
+      say(ICONS.toy, T(f.golden ? 'n_gold' : 'n_toy').replace('{x}', T('t_' + f.id)) + `  ${S.save.toys.length}/${cfg.toys.length}`);
       S.ents.push({ t: 0, step(dt) { this.t += dt; const t = this.t; if (f.golden && Math.random() < 0.5) fx.burst('gold', m.position.x, m.position.y, m.position.z, 1, { spread: 0.25 });
         if (t < 0.6) { const k = t / 0.6; m.position.y = 0.1 + Math.sin(k * Math.PI) * 1.5 + k * 0.9; m.rotation.x = k * 9; m.rotation.y = k * 5; m.scale.setScalar(1 + k * 0.5); }
         else if (t < 1.0) { const k = ease((t - 0.6) / 0.4), bp = buzzy.bonnetWorld(v3); m.position.set(lerp(wx, bp.x, k), lerp(1.0, bp.y + 0.05, k), lerp(wz, bp.z, k)); m.rotation.x *= 0.8; }
@@ -252,7 +254,7 @@ export function run(mode = 'play') {
     }
     if (f.kind === 'gift') {
       const isNew = !S.save.gifts.includes(f.id), box = Cast.buildGiftBox(world), hat = Cast.buildGift(world, f.id); box.group.position.set(wx, 0, wz); box.group.scale.setScalar(0.01); world.scene.add(box.group); hat.visible = false; world.scene.add(hat);
-      if (isNew) { S.save.gifts.push(f.id); noteAlbum(); } audio.sfx('toy'); reward('gift');
+      if (isNew) { S.save.gifts.push(f.id); noteAlbum(); } audio.sfx('toy'); reward('gift'); say(ICONS.hat, T('n_hat').replace('{x}', T('hat_' + f.id)), 3.2);
       director.play({ id: 'gift', pri: 3, len: 1.5, at: () => ({ x: lerp(wx, kt.x, 0.5), z: lerp(wz, kt.z, 0.5) }), dist: camDist() * 0.66, bars: true });
       S.ents.push({ t: 0, step(dt) { this.t += dt; const t = this.t;
         if (t < 0.35) { const k = t / 0.35; box.group.scale.setScalar(k * (1 + Math.sin(k * Math.PI) * 0.3)); }
@@ -276,12 +278,13 @@ export function run(mode = 'play') {
     const r = rec(s.n), g = s.g, paid = r.stars < k; r.stars = Math.max(r.stars, k); r.best = Math.max(r.best, L.percent(g)); reward('star');
     const gx = s.dress.gate.x, gz = s.dress.gate.z; audio.sfx('star'); if (paid) later(() => award(L.tip(cfg, g, k), s.nb.group.position.x, 1, s.nb.group.position.z), 500);
     if (k === 1) {
-      s.gateOpen = true; audio.sfx('gate'); fx.burst('spark', gx, 1, gz, 12); fx.burst('petal', gx, 1.2, gz, 16, { dz: 2 }); s.nbMode = 'cheer'; s.nbT = 0;
+      s.gateOpen = true; audio.sfx('gate'); say(ICONS.check, T('gate_open'), 3); fx.burst('spark', gx, 1, gz, 12); fx.burst('petal', gx, 1.2, gz, 16, { dz: 2 }); s.nbMode = 'cheer'; s.nbT = 0;
       if (!S.save.neighbours.includes(g.id)) { S.save.neighbours.push(g.id); noteAlbum(); }
       director.play({ id: 'gate', pri: 3, len: 1.2, at: () => ({ x: gx, z: gz + 1.5 }), dist: camDist() * 0.82, bars: true });
       if (s.n < cfg.gardens.length - 1) { const nx = slot(s.n + 1); if (nx.stars === 0 && !S.cuts[s.n + 1]) { nx.grow = 0; nx.lawn.setGrow(0); } }
     }
-    if (s.n === DAILY) { S.save.daily.stars = Math.max(S.save.daily.stars, k); if (k === 3 && !S.save.daily.done) { S.save.daily.done = true; later(() => { award(cfg.economy.dailyCoins, S.kart.x, 1.2, S.kart.z); audio.sfx('rare'); reward('daily'); }, 1400); } }
+    if (k === 2) say(ICONS.star, T('stars_n').replace('{n}', 2));
+    if (s.n === DAILY) { S.save.daily.stars = Math.max(S.save.daily.stars, k); if (k === 3 && !S.save.daily.done) { S.save.daily.done = true; later(() => { award(cfg.economy.dailyCoins, S.kart.x, 1.2, S.kart.z); audio.sfx('rare'); reward('daily'); say(ICONS.sun, T('daily_gift'), 3); }, 1400); } }
     if (k === 3) { fx.burst('confetti', S.kart.x, 1, S.kart.z, 30); director.play({ id: 'stars3', pri: 4, len: 1.8, at: () => ({ x: s.ox + g.w / 2, z: s.oz + g.d / 2 }), dist: Math.max(camDist(), g.d * 1.25, g.w * 2.3), pitch: 1.2, slow: [0.5, 0.4], bars: true, force: true }); if (!s.finale) finale(s, false); else if (s.n > 0) slip(s); }
     persist();
   }
@@ -303,8 +306,8 @@ export function run(mode = 'play') {
     s.party = { nbs, bunting, t: 0, pops: first ? 16 : 8, next: 0.4 };
     audio.sfx('party'); reward('party');
     director.play({ id: 'party', pri: 5, len: 2.0, at: () => ({ x: s.ox + s.g.w / 2, z: s.oz - 5 }), dist: camDist() * 1.1, pitch: 0.95, bars: true, force: true });
-    if (canShare) later(() => { const c = ui.chip(ICONS.share, 6); c.style.pointerEvents = 'auto'; c.addEventListener('pointerdown', (e) => { e.stopPropagation(); shareIt(T('share').replace('{g}', T('g_' + s.g.id))); }, { once: true }); }, 2600);
-    if (first) { S.save.parties.push(d); later(() => { award(cfg.economy.partyCoins[Math.min(d, cfg.economy.partyCoins.length - 1)], s.ox + s.g.w / 2, 1.5, s.oz - 5); ui.chip(`${ICONS.star}${ICONS.star}${ICONS.star}`, 3); }, 1200); persist(); }
+    if (canShare) later(() => { const c = say(ICONS.share, T('share_b'), 6); c.style.pointerEvents = 'auto'; c.addEventListener('pointerdown', (e) => { e.stopPropagation(); shareIt(T('share').replace('{g}', T('g_' + s.g.id))); }, { once: true }); }, 2600);
+    if (first) { S.save.parties.push(d); later(() => { award(cfg.economy.partyCoins[Math.min(d, cfg.economy.partyCoins.length - 1)], s.ox + s.g.w / 2, 1.5, s.oz - 5); say(ICONS.star, T('party'), 3); }, 1200); persist(); }
   }
   /** Runs a party: the guests pop in and dance, the fireworks pop one by one. */
   function stepParty(s, dt) {
@@ -333,7 +336,7 @@ export function run(mode = 'play') {
   function slip(s) {
     board();
     const r = rec(s.n), pct = L.percent(s.g), tip = [1, 2, 3].filter((k) => k <= s.stars).reduce((a, k) => a + L.tip(cfg, s.g, k), 0);
-    ui.receipt({ face: face(s.n), name: T('g_' + s.g.id), pct, stars: s.stars, ribbons: r.rib, tip, onStar: () => audio.sfx('star'), share: canShare && s.stars === 3 ? () => { audio.sfx('click'); Promise.resolve().then(() => lib.share({ title: T('title'), text: T('share').replace('{g}', T('g_' + s.g.id)) })).catch(() => {}); } : null }, 3.2);
+    ui.receipt({ face: face(s.n), name: T('g_' + s.g.id), pct, stars: s.stars, ribbons: r.rib, tip, tipLabel: T('tip'), shareLabel: T('share_b'), ribLabel: T('stickers'), onStar: () => audio.sfx('star'), share: canShare && s.stars === 3 ? () => { audio.sfx('click'); Promise.resolve().then(() => lib.share({ title: T('title'), text: T('share').replace('{g}', T('g_' + s.g.id)) })).catch(() => {}); } : null }, 3.2);
     S.slipAt = S.t; audio.sfx('rustle');
   }
 
@@ -341,7 +344,7 @@ export function run(mode = 'play') {
   /** Buys the next level of an upgrade if the coins are there. Returns true when bought. */
   function buy(kind, fromPad) {
     const lv = S.save.up[kind], price = L.upPrice(cfg, kind, lv); if (!(S.save.coins >= price)) return false;
-    S.save.coins -= price; S.shown = S.save.coins; ui.setCoins(S.shown, true); S.save.up[kind] = lv + 1; const kt = S.kart; reward('upgrade');
+    S.save.coins -= price; S.shown = S.save.coins; ui.setCoins(S.shown, true); S.save.up[kind] = lv + 1; const kt = S.kart; reward('upgrade'); say(ICONS[kind], T('up_lv').replace('{x}', T('up_' + kind)).replace('{n}', lv + 1));
     audio.sfx('upgrade'); fx.burst('cloud', kt.x, 0.8, kt.z, 22, { spread: 0.7 }); fx.ring(kt.x, kt.z, '#fff1d6', 0.5, 3.2, 0.6); later(() => { dressBuzzy(); buzzy.honk(); fx.burst('spark', S.kart.x, 1.2, S.kart.z, 12); }, 380);
     const firstKind = lv === 0, big = lv + 1 === 5 || lv + 1 === 9;
     if (fromPad && (firstKind || big)) director.play({ id: 'upgrade', pri: 3, len: 1.2, at: () => ({ x: S.kart.x, z: S.kart.z }), dist: camDist() * 0.6, pitch: 0.62, bars: true });
@@ -361,6 +364,17 @@ export function run(mode = 'play') {
 
   // ---- FTUE: an interactive spotlight; each step ends when the player does the real thing
   function ftueNext(n) { if (S.save.ftue < n) { S.save.ftue = n; audio.sfx('ribbon'); if (n >= 7) { S.save.ftueDone = true; ui.showSkip(false); } } }
+  /** The goal line: one short sentence for what to do now, from the tutorial step or the garden's state. */
+  function goalText() {
+    if (!play || S.sheet) return ''; const s = cur(), kt = S.kart, f = S.save.ftueDone ? 9 : S.save.ftue, st = cfg.stars, pc = (k) => Math.round(st[Math.min(k, 2)] * 100), last = S.cur >= cfg.gardens.length - 1;
+    if (f === 0) return T('h_drag'); if (f === 1) return T('h_grass');
+    if (f === 2 && S.bales.some((q) => q.state === 'rest')) return T('h_bale');
+    if (f === 6 && S.newAlbum) return T('h_album');
+    if (!s.gateOpen) return f === 3 && L.coverage(s.g) >= 0.3 && s.g.finds.some((q) => q.kind === 'friend' && !q.found) ? T('h_friend') : T('h_mow1').replace('{p}', pc(0));
+    if (kt.z > s.oz) return s.stars < 3 && S.noProg <= 8 ? T('h_mow').replace('{p}', pc(s.stars)).replace('{n}', s.stars + 1) : T(last ? 'h_done' : 'h_gate');
+    for (const q of S.slots.values()) for (const p of q.pads) if (p.can && Math.hypot(p.x - kt.x, p.z - kt.z) < 12) return T('h_pad');
+    return T(last ? 'h_done' : 'h_next');
+  }
   function ftueTarget() {
     if (!play || S.save.ftueDone || S.sheet) return null; const s = cur(), kt = S.kart, f = S.save.ftue, u = ui.unit();
     if (f === 0) { const p = toScreen(kt.x, 0.6, kt.z - 1); return { x: p.x, y: p.y, r: 250 * u, hint: S.stick.on ? null : 'thumb', hx: p.x, hy: p.y + 330 * u, dim: cfg.ftue.dimFirst, world: null }; }
@@ -389,7 +403,7 @@ export function run(mode = 'play') {
     if (goal) {
       const dx = goal.x - kt.x, dz = goal.z - kt.z, d = Math.hypot(dx, dz), n = Math.min(dots.length, Math.floor((d - 1.4) / 0.75));
       for (let i = 0; i < n; i++) { const k = 1.2 + (i + (S.t * 1.6) % 1) * 0.75, m = dots[i]; if (k > d - 0.3) continue; m.position.set(kt.x + dx / d * k, 0.16, kt.z + dz / d * k); m.scale.setScalar(0.7 + 0.3 * Math.sin((i / n) * Math.PI)); m.visible = true; shown = Math.max(shown, i + 1); }
-      const p = toScreen(goal.x, 0.3, goal.z), top = (32 + 80 + 16) * ui.unit();
+      const p = toScreen(goal.x, 0.3, goal.z), top = (32 + 80 + 24 + 16) * ui.unit();
       if (!p.on || p.y < top) { const h = toScreen(kt.x, 0.8, kt.z), a = Math.atan2(p.x - h.x, -(p.y - h.y)), rr = 130 * ui.unit(); ui.arrow(true, h.x + Math.sin(a) * rr, Math.max(top + 40 * ui.unit(), h.y - Math.cos(a) * rr), a); } else ui.arrow(false);
     } else ui.arrow(false);
     for (let i = 0; i < dots.length; i++) if (i >= shown || !goal) dots[i].visible = false;
@@ -489,7 +503,7 @@ export function run(mode = 'play') {
     S.cutting += ((S.fresh > 0 ? 1 : 0) - S.cutting) * Math.min(1, dt * 8);
     const wasFull = S.flow.v >= 1, hadRibbon = S.flow.ribbon; L.flowStep(cfg, S.flow, share, dt);
     if (!wasFull && S.flow.v >= 1) { audio.sfx('ribbon'); fx.ring(kt.x, kt.z, '#f3a0b8', 0.5, 2.2, 0.5, 0.5); reward('flow'); }
-    if (!hadRibbon && S.flow.ribbon) { ui.chip(`${ICONS.ribbon}`, 2); audio.sfx('chime'); reward('ribbon'); }
+    if (!hadRibbon && S.flow.ribbon) { say(ICONS.ribbon, T('n_rib').replace('{x}', T('rib_flow'))); audio.sfx('chime'); reward('ribbon'); }
     if (S.flow.v >= 1 && kt.speed > 1 && Math.random() < dt * 14) { const tr = TRAILS[S.save.use.trail] || TRAILS.petals; fx.burst(tr[0], kt.x + Math.sin(kt.ang) * 0.7, 0.3, kt.z + Math.cos(kt.ang) * 0.7, 1, { spread: 0.4, up: 0.5, col: tr[1] }); }
     // flower beds bow when driven through
     for (const b of s.dress.beds) { const inx = Math.abs(kt.x - b.x) < b.w / 2 + 0.3 && Math.abs(kt.z - b.z) < b.d / 2 + 0.3; if (inx && b.bow < 0.2) { if (!S.touched) audio.sfx('oops'); S.touched = true; fx.burst('petal', b.x, 0.4, b.z, 6, { spread: 0.5 }); } b.bow = inx ? 1 : Math.max(0, b.bow - dt / 2); b.mesh.scale.y = 1 - 0.6 * ease(b.bow); }
@@ -520,7 +534,7 @@ export function run(mode = 'play') {
   /** True when a world label would sit under the HUD's button column (labels never go under the HUD). */
   let colBox = null, colAt = -99;
   function underButtons(q) {
-    if (S.frames - colAt > 30) { colAt = S.frames; const a = ui.E.mute.getBoundingClientRect(), b = ui.E.shop.getBoundingClientRect(), rr = root.getBoundingClientRect(), pad = 48 * ui.unit(); colBox = { x0: a.left - rr.left - pad, x1: a.right - rr.left + pad, y1: (b.height ? b.bottom : a.bottom + 2 * (a.height + 16 * ui.unit())) - rr.top + pad * 0.6 }; }
+    if (S.frames - colAt > 30) { colAt = S.frames; const a = ui.E.mute.getBoundingClientRect(), b = ui.E.shop.getBoundingClientRect(), rr = root.getBoundingClientRect(), pad = 48 * ui.unit(); colBox = { x0: a.left - rr.left - pad, x1: a.right - rr.left + pad, y1: (b.height ? b.bottom : a.bottom + 2 * (a.height + 40 * ui.unit())) - rr.top + pad * 0.6 }; }
     return q.x > colBox.x0 && q.x < colBox.x1 && q.y < colBox.y1;
   }
   function frame(now) {
@@ -566,11 +580,11 @@ export function run(mode = 'play') {
     audio.tick(real, kt.speed / top, S.flow.v, S.cutting);
     if (play) {
       const st = S.stick; ui.stick(st.on && !S.sheet, st.ox, st.oy, st.dx * st.mag, st.dz * st.mag);
-      const ft = ftueTarget(); ui.spot(ft && (ft.on !== false) ? ft : null); ui.showSkip(!S.save.ftueDone && S.save.ftue > 0 && S.save.ftue < 7); stepGuide(dt, ft);
+      const ft = ftueTarget(); ui.spot(ft && (ft.on !== false) ? ft : null); if (S.frames % 6 === 0) ui.goal(goalText()); ui.showSkip(!S.save.ftueDone && S.save.ftue > 0 && S.save.ftue < 7); stepGuide(dt, ft);
       // price labels over the pads in view
       // price labels never sit under the two HUD rows, the button column or off the side
       // each price chip sits above its own pad; it lifts above Nilo when the hero stands there and keeps a gap from the other chips
-      let li = 0; const placed = [], hero = toScreen(kt.x, 0.9, kt.z), cw = 104 * ui.unit(), ch = 44 * ui.unit(), heroTop = toScreen(kt.x, 2.3, kt.z).y, heroBot = toScreen(kt.x, 0, kt.z).y, heroW = Math.abs(heroBot - heroTop) * 0.75; if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 110 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 110 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0); if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.classList.toggle('no', !p.can); } el.style.display = 'flex'; if (Math.abs(q.x - hero.x) < cw * 0.5 + heroW && q.y > heroTop - ch && q.y < heroBot + ch) q.y = heroTop - ch; for (let pass = 0; pass < 3; pass++) for (const o of placed) if (Math.abs(q.x - o.x) < cw + 8 && Math.abs(q.y - o.y) < ch + 8) q.y = o.y - ch - 8; placed.push({ x: q.x, y: q.y }); el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
+      let li = 0; const placed = [], hero = toScreen(kt.x, 0.9, kt.z), cw0 = 104 * ui.unit(), ch = 44 * ui.unit(), heroTop = toScreen(kt.x, 2.3, kt.z).y, heroBot = toScreen(kt.x, 0, kt.z).y, heroW = Math.abs(heroBot - heroTop) * 0.75; if (S.padSlot) for (const p of S.padSlot.pads) { const q = toScreen(p.x, 1.25, p.z); if (!q.on || q.y < (32 + 80 + 24 + 16 + 80 + 16 + 34) * ui.unit() || underButtons(q) || q.x < 150 * ui.unit() + ui.el.offsetLeft || q.x > ui.el.offsetLeft + ui.el.clientWidth - 150 * ui.unit()) continue; let el = padLabels[li]; if (!el) { el = padLabels[li] = document.createElement('div'); el.className = 'padl paper'; ui.el.insertBefore(el, ui.el.firstChild); } li++; const key = p.kind + S.save.up[p.kind] + (p.can ? 1 : 0) + lang; if (el.dataset.k !== key) { el.dataset.k = key; el.innerHTML = `<span class="kind">${ICONS[p.kind]}</span><span class="pn"></span>` + (p.price === Infinity ? ICONS.check : `${ICONS.coin}<span class="num">${p.price}</span>`); el.querySelector('.pn').textContent = T('up_' + p.kind); el.classList.toggle('no', !p.can); el.style.display = 'flex'; el._w = el.offsetWidth; } el.style.display = 'flex'; const cw = el._w || cw0; q.x = clamp(q.x, ui.el.offsetLeft + cw / 2 + 16 * ui.unit(), ui.el.offsetLeft + ui.el.clientWidth - cw / 2 - 16 * ui.unit()); if (Math.abs(q.x - hero.x) < cw * 0.5 + heroW && q.y > heroTop - ch && q.y < heroBot + ch) q.y = heroTop - ch; for (let pass = 0; pass < 3; pass++) for (const o of placed) if (Math.abs(q.x - o.x) < (cw + o.w) / 2 + 8 && Math.abs(q.y - o.y) < ch + 8) q.y = o.y - ch - 8; placed.push({ x: q.x, y: q.y, w: cw }); el.style.translate = `${Math.round(q.x)}px ${Math.round(q.y)}px`; }
       for (; li < padLabels.length; li++) padLabels[li].style.display = 'none';
     }
     // adaptive quality: step down after a slow stretch, up after a long smooth one

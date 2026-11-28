@@ -14,41 +14,45 @@ function pic(G, key, make, opt) {
 function lazy(G, jobs) { let i = 0; const run = () => { for (let k = 0; k < 5 && i < jobs.length; k++, i++) { const [cell, fn] = jobs[i]; if (cell.isConnected) cell.prepend(fn()); } if (i < jobs.length) G.later(run, 16); }; run(); }
 const el = (tag, cls, html) => { const d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
 const head = (body, icon, text, count) => { const h = el('h3', '', `${ICONS[icon] ? `<i style="width:1.2em;height:1.2em;display:inline-block">${ICONS[icon]}</i>` : ''}<b></b>${count ? `<span>${count}</span>` : ''}`); h.querySelector('b').textContent = text; body.appendChild(h); return h; };
+/** A name under a cell's picture; a thing not found yet shows as "?". */
+const name = (cell, text) => { const n = el('small'); n.textContent = text; n.dir = 'auto'; cell.appendChild(n); };
+const note = (body, text) => { const n = el('p', 'note'); n.textContent = text; body.appendChild(n); };
 const tap = (node, fn) => node.addEventListener('click', (e) => { e.stopPropagation(); fn(e); });
 
 /** Opens the album sheet. */
 export function openAlbum(G, first) {
   const { S, cfg, T, Cast, world, ui } = G, sv = S.save;
-  ui.sheet('album', [{ id: 'friends', icon: 'paw' }, { id: 'toys', icon: 'toy' }, { id: 'hats', icon: 'hat' }, { id: 'stickers', icon: 'ribbon' }, { id: 'map', icon: 'map' }], (body, tab, redraw) => {
+  ui.sheet('album', [{ id: 'friends', icon: 'paw', label: T('friends') }, { id: 'toys', icon: 'toy', label: T('tab_toys') }, { id: 'hats', icon: 'hat', label: T('hats') }, { id: 'stickers', icon: 'ribbon', label: T('stickers') }, { id: 'map', icon: 'map', label: T('tab_map') }], (body, tab, redraw) => {
     const jobs = [];
     if (tab === 'friends') {
       head(body, 'paw', T('friends'), `${sv.neighbours.length + sv.friends.length}/${cfg.gardens.length - 1 + cfg.friends.length}`);
-      const grid = el('div', 'grid'); body.appendChild(grid);
-      for (const g of cfg.gardens.filter((x) => !x.daily)) { const has = sv.neighbours.includes(g.id), c = el('div', 'cell' + (has ? '' : ' no')); grid.appendChild(c); jobs.push([c, () => pic(G, 'n_' + g.id, () => Cast.buildNeighbour(world, g.id), { yaw: 0.3, pitch: 0.12 })]); }
+      note(body, T('s_ride')); const grid = el('div', 'grid'); body.appendChild(grid);
+      for (const g of cfg.gardens.filter((x) => !x.daily)) { const has = sv.neighbours.includes(g.id), c = el('div', 'cell' + (has ? '' : ' no')); grid.appendChild(c); name(c, has ? T('a_' + g.id) : '?'); jobs.push([c, () => pic(G, 'n_' + g.id, () => Cast.buildNeighbour(world, g.id), { yaw: 0.3, pitch: 0.12 })]); }
       for (const id of cfg.friends) {
-        const has = sv.friends.includes(id), c = el('button', 'cell' + (has ? '' : ' no') + (sv.ride.includes(id) ? ' use' : '')); grid.appendChild(c); jobs.push([c, () => pic(G, 'f_' + id, () => Cast.buildFriend(world, id), { yaw: 0.6, pitch: 0.5 })]);
+        const has = sv.friends.includes(id), c = el('button', 'cell' + (has ? '' : ' no') + (sv.ride.includes(id) ? ' use' : '')); grid.appendChild(c); name(c, has ? T('f_' + id) : '?'); jobs.push([c, () => pic(G, 'f_' + id, () => Cast.buildFriend(world, id), { yaw: 0.6, pitch: 0.5 })]);
         if (has) tap(c, () => { sv.ride = sv.ride.includes(id) ? sv.ride.filter((x) => x !== id) : [...sv.ride, id].slice(-3); G.syncRiders(); G.audio.sfx('pop'); G.persist(); redraw(); });
       }
     } else if (tab === 'toys') {
       head(body, 'toy', T('toys'), `${sv.toys.length}/${cfg.toys.length}`);
       const grid = el('div', 'grid'); body.appendChild(grid);
-      for (const id of cfg.toys) { const has = sv.toys.includes(id), gold = sv.golden.includes(id), c = el('div', 'cell' + (has ? '' : ' no') + (gold ? ' gold' : '')); grid.appendChild(c); jobs.push([c, () => pic(G, 't_' + id + (gold ? 'g' : ''), () => Cast.buildToy(world, id, gold), { yaw: 0.6, pitch: 0.45 })]); }
+      for (const id of cfg.toys) { const has = sv.toys.includes(id), gold = sv.golden.includes(id), c = el('div', 'cell' + (has ? '' : ' no') + (gold ? ' gold' : '')); grid.appendChild(c); name(c, has ? T('t_' + id) : '?'); jobs.push([c, () => pic(G, 't_' + id + (gold ? 'g' : ''), () => Cast.buildToy(world, id, gold), { yaw: 0.6, pitch: 0.45 })]); }
     } else if (tab === 'hats') {
       head(body, 'hat', T('hats'), `${sv.gifts.length}/${cfg.gifts.length}`);
-      const grid = el('div', 'grid'); body.appendChild(grid);
+      note(body, T('s_wear')); const grid = el('div', 'grid'); body.appendChild(grid);
       for (const id of ['straw', ...cfg.gifts]) {
-        const has = id === 'straw' || sv.gifts.includes(id), on = id === 'straw' ? !sv.wear : sv.wear === id, c = el('button', 'cell' + (has ? '' : ' no') + (on ? ' use' : '')); grid.appendChild(c);
+        const has = id === 'straw' || sv.gifts.includes(id), on = id === 'straw' ? !sv.wear : sv.wear === id, c = el('button', 'cell' + (has ? '' : ' no') + (on ? ' use' : '')); grid.appendChild(c); name(c, has ? T('hat_' + id) : '?');
         jobs.push([c, () => pic(G, 'h_' + id, () => Cast.buildGift(world, id), { yaw: 0.4, pitch: 0.3 })]);
         if (has) tap(c, () => { sv.wear = id === 'straw' ? null : id; G.wear(sv.wear); G.audio.sfx('pop'); G.persist(); redraw(); });
       }
     } else if (tab === 'stickers') {
       head(body, 'ribbon', T('stickers'), `${sv.gardens.reduce((a, g) => a + (g ? g.rib.length : 0), 0)}`);
       for (const [n, g] of cfg.gardens.entries()) {
-        const r = sv.gardens[n] || { stars: 0, rib: [] }, open = n <= sv.cur, c = el('div', 'card' + (open ? '' : ' no'), `<div class="mid"><div class="nm"></div><div class="pips" style="gap:calc(var(--u)*12);color:var(--coral)">${['gentle', 'style', 'flow'].map((k) => `<i style="width:calc(var(--u)*44);height:calc(var(--u)*44);background:none;opacity:${r.rib.includes(k) ? 1 : 0.2}">${ICONS.ribbon}</i>`).join('')}</div></div>`);
+        const r = sv.gardens[n] || { stars: 0, rib: [] }, open = n <= sv.cur, c = el('div', 'card' + (open ? '' : ' no'), `<div class="mid"><div class="nm"></div><div class="rbn">${['gentle', 'style', 'flow'].map((k) => `<span style="opacity:${r.rib.includes(k) ? 1 : 0.3}">${ICONS.ribbon}<b data-r="${k}"></b></span>`).join('')}</div></div>`);
+        for (const b of c.querySelectorAll('[data-r]')) b.textContent = T('rib_' + b.dataset.r);
         c.style.opacity = open ? 1 : 0.5; c.querySelector('.nm').textContent = T('g_' + g.id); body.appendChild(c); jobs.push([c, () => { const f = G.face(n); f.style.cssText = 'width:calc(var(--u)*88);height:calc(var(--u)*88);border-radius:50%;flex:none;background:var(--paper)'; return f; }]);
       }
     } else {
-      head(body, 'map', T('map'));
+      head(body, 'map', T('map')); note(body, T('s_go'));
       const lane = el('div', 'lane'); body.appendChild(lane);
       for (const [n, g] of cfg.gardens.entries()) {
         const r = sv.gardens[n] || { stars: 0 }, open = g.daily ? sv.cur >= cfg.economy.dailyFromGarden : n <= sv.cur, b = el('button', 'badge' + (open ? '' : ' no') + (n === S.cur ? ' cur' : '') + (g.daily ? ' day' : ''), `<div class="st">${[0, 1, 2].map((i) => ICONS.star.replace('<svg', `<svg class="${i < r.stars ? 'on' : ''}"`)).join('')}</div><small></small>`);
@@ -63,12 +67,12 @@ export function openAlbum(G, first) {
 /** Opens the workshop sheet. */
 export function openShop(G, first) {
   const { S, cfg, T, L, ui } = G, sv = S.save;
-  ui.sheet('shop', [{ id: 'up', icon: 'tool' }, { id: 'look', icon: 'brush' }, { id: 'set', icon: 'gear' }], (body, tab, redraw) => {
+  ui.sheet('shop', [{ id: 'up', icon: 'tool', label: T('tab_up') }, { id: 'look', icon: 'brush', label: T('tab_look') }, { id: 'set', icon: 'gear', label: T('tab_set') }], (body, tab, redraw) => {
     if (tab === 'up') {
       for (const kind of ['deck', 'engine', 'baler']) {
         const lv = sv.up[kind], price = L.upPrice(cfg, kind, lv), max = price === Infinity, can = sv.coins >= price;
-        const c = el('div', 'card', `<div class="ic">${ICONS[kind]}</div><div class="mid"><div class="nm"></div><div class="pips">${Array.from({ length: cfg.upgrades.levels }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div></div><button class="buy ${max ? 'done' : can ? '' : 'no'}">${max ? ICONS.check : `${ICONS.coin}<span class="num">${price}</span>`}</button>`);
-        c.querySelector('.nm').textContent = T('up_' + kind); body.appendChild(c);
+        const c = el('div', 'card', `<div class="ic">${ICONS[kind]}</div><div class="mid"><div class="nm"></div><div class="fx"></div><div class="pips">${Array.from({ length: cfg.upgrades.levels }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div></div><button class="buy ${max ? 'done' : can ? '' : 'no'}"><small></small>${max ? ICONS.check : `${ICONS.coin}<span class="num">${price}</span>`}</button>`);
+        c.querySelector('.nm').textContent = T('up_' + kind); c.querySelector('.fx').textContent = T('fx_' + kind) + ' · ' + T('lv').replace('{n}', lv); c.querySelector('.buy small').textContent = T(max ? 'max' : 'buy'); body.appendChild(c);
         tap(c.querySelector('button'), () => { if (G.buy(kind, false)) redraw(); else G.audio.sfx('oops'); });
       }
     } else if (tab === 'look') {
@@ -76,10 +80,10 @@ export function openShop(G, first) {
         tint: { classic: ['#8ac564', '#69aa4e'], mint: ['#9fd8a8', '#7cc08e'], clover: ['#7fc86a', '#5fae52'], goldtip: ['#b5cc5a', '#8fb04a'], lilac: ['#a8c898', '#8fb0a8'], sunset: ['#c8c070', '#a8a058'] },
         trail: { petals: ['#f3a0b8', '#fbd0dc'], daisies: ['#f1e6cf', '#f6b93b'], leaves: ['#86c85a', '#c9b245'], bubbles: ['#9fd8ee', '#e6f6fb'], stars: ['#f6b93b', '#fbe07a'], hearts: ['#e2533c', '#f3a0b8'] } };
       for (const [kind, from] of [['paint', 2], ['tint', 4], ['trail', 6]]) {
-        const locked = sv.cur < from; head(body, locked ? 'lock' : null, T(kind));
+        const locked = sv.cur < from; head(body, locked ? 'lock' : null, T(kind)); if (locked) note(body, T('opens').replace('{n}', from + 1));
         const g = el('div', 'sw'); g.style.opacity = locked ? 0.45 : 1; body.appendChild(g);
         for (const [id, price] of cfg.shop[kind]) {
-          const own = sv.own[kind].includes(id), use = sv.use[kind] === id, c = SW[kind][id], b = el('button', use ? 'use' : '', `<small>${own ? (use ? ICONS.check : '') : `${ICONS.coin}${price}`}</small>`);
+          const own = sv.own[kind].includes(id), use = sv.use[kind] === id, c = SW[kind][id], b = el('button', use ? 'use' : '', `<small>${own ? (use ? ICONS.check + '<b></b>' : '') : `${ICONS.coin}${price}`}</small>`); if (own && use) b.querySelector('b').textContent = T('on');
           b.style.background = kind === 'tint' ? `repeating-linear-gradient(90deg,${c[0]} 0 25%,${c[1]} 25% 50%)` : `linear-gradient(135deg,${c[0]} 0 55%,${c[1]} 55%)`; if (own && !use) b.querySelector('small').style.display = 'none';
           g.appendChild(b);
           tap(b, () => {
@@ -90,13 +94,13 @@ export function openShop(G, first) {
         }
       }
     } else {
-      const row = el('div', 'set'); body.appendChild(el('h3', '', '&nbsp;')); body.appendChild(row);
-      const tog = (icon, on, fn, label) => { const b = el('button', 'tab on' + (on ? '' : ' off'), ICONS[icon]); b.setAttribute('aria-label', label); row.appendChild(b); tap(b, () => { fn(); G.audio.sfx('click'); G.persist(); redraw(); }); };
+      const row = el('div', 'set'); head(body, 'gear', T('tab_set')); body.appendChild(row);
+      const tog = (icon, on, fn, label) => { const b = el('button', on ? '' : 'off', ICONS[icon] + '<span></span>'); b.lastChild.textContent = on === null ? label : label + ': ' + T(on ? 'on' : 'off'); row.appendChild(b); tap(b, () => { fn(); G.audio.sfx('click'); G.persist(); redraw(); }); };
       tog('snd', !sv.mute, () => { sv.mute = !sv.mute; G.audio.setMute(sv.mute); ui.setMute(sv.mute); }, T('sound'));
       tog('music', sv.music, () => { sv.music = !sv.music; G.audio.setMusic(sv.music); }, T('music'));
       tog('calm', sv.calm, () => { sv.calm = !sv.calm; }, T('calm'));
       tog('flip', sv.lefty, () => { sv.lefty = !sv.lefty; ui.setLefty(sv.lefty); }, T('lefty'));
-      tog('redo', true, () => { sv.ftue = 0; sv.ftueDone = false; }, T('redo'));
+      tog('redo', null, () => { sv.ftue = 0; sv.ftueDone = false; }, T('redo'));
       head(body, 'globe', T('lang'));
       const lg = el('div', 'langs'); body.appendChild(lg);
       const names = { en: 'English', ar: 'العربية', es: 'Español', vi: 'Tiếng Việt', hi: 'हिन्दी', bn: 'বাংলা', id: 'Indonesia' };

@@ -31,7 +31,7 @@ Prove the game works the way a player meets it, then hand a shippable build to `
 2. `node tools/astrocade-bundle-test.js prototypes/<game> shot.png`: starts, no errors, tap reaches the host, `feed.gpu` against the mobile budget, `feed.pixels` against the scorecard thresholds.
 3. `node tools/feed-card-test.js prototypes/<game>`: what the feed card shows before play.
 4. `node tools/load-time.js prototypes/<game>`: first frame about 2 s on 4G.
-5. Phone-portrait screenshots of active play at 360x640, 390x844, 430x932, 768x1024, plus FTUE steps.
+5. Phone-portrait screenshots of active play at 360x640, 390x844, 430x932, 768x1024, plus FTUE steps. On each, check the text-label rule in `CLAUDE.md`: every icon, button, goal, pickup, guide and tutorial step carries words, and no text is clipped in any shipped language.
 6. For animation, camera or signature VFX changes: frames at anticipation, impact and aftermath, and with the hero moved to far corners and after a cinematic.
 
 The full bot playtest (`references/playtest-bot.md` pattern, the game's own `playtest.js`) runs only before a publish or when pacing changes.

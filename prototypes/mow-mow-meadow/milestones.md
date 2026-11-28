@@ -264,3 +264,43 @@ Sheets: `production/qa/evidence/mow-mow-meadow/m5-sheet-*.jpg` and `/mnt/project
 
 Still open: phone FPS (to be read from the hidden readout on a real phone), the glow pass on real hardware, a child
 playtest.
+
+## M6 (28 Nov 2026): words on everything
+
+The owner tried the private draft and found everything without text confusing. Every element now carries words,
+in all seven languages (125 new strings each). Draft version `01M8H1VYAZKR6X5PGFS43JKZ8H`.
+
+| Element | Before | Text added |
+|---|---|---|
+| Coin pill, progress pill | icon and number only | captions "Coins" and "Mown" |
+| Sound, album, shop, skip buttons | icon only | captions "Sound", "Album", "Shop", "Skip" |
+| What to do now | nothing | a goal line under the top row, always on |
+| The three goals (90, 97, 100%) | three stars on the bar | goal line: "Mow 90% to open the gate", then "Mow 97% for 2 stars", "Mow 100% for 3 stars" |
+| Gate | opens with a camera beat | "Gate open!" chip, then "Drive through the gate" |
+| Tutorial steps | hand, ring and spotlight only | one sentence per step ("Drag to drive", "Drive over the tall grass", "Grab the bale for coins", "Find the hidden friend", "Drive through the gate", "Stop on the pad to upgrade", "Open your album") |
+| Upgrade pads | icon and price | name and price ("Wide deck 150"); the goal line says "Stop on the pad to upgrade" |
+| Upgrade bought | effects only | "Wide deck: level 3" chip |
+| Friend, toy, hat found | toy count only | "New friend: Firefly", "Toy found: Duckie 8/36", "Golden toy: ...", "New hat: ..." |
+| Flow ribbon, party, daily gift, share | icons | "Ribbon: Flow", "Garden party!", "Daily gift!", "Share" |
+| Garden greeting | face and garden name | plus the district name (Clover Lane, Windmill Hill, Lantern Lake) |
+| Receipt | icons, numbers | "Tip", "Ribbons", "Share" |
+| Album and shop tabs | icons | a word under every tab |
+| Album cells | pictures | a name under each friend, neighbour, toy and hat ("?" until found), and one line that says what a tap does |
+| Ribbon cards | three ribbon icons | "Gentle", "Stripes", "Flow" |
+| Upgrade cards | name, pips, price | effect and level ("Cuts wider · Level 2"), "Buy" or "Max" |
+| Looks | swatches, a lock | "Opens at garden N", "On" on the one in use |
+| Settings | five round icons | labelled switches ("Sound: On", "Calm mode: Off", "Tutorial") |
+
+Left as pictures on purpose: colour swatches (their section has a name and a price), and the garden toys in the
+world (sprinklers, sheep), which only react to play.
+
+Layout: captions sit in a 24-unit band under the 80-unit pills and buttons, the button column keeps a 16-unit gap
+below each caption, and the goal line shares the row of the second button. A text-fit report over every screen at
+360x640 in all seven languages finds no clipped or overflowing text.
+
+Checks: 14 unit tests pass; lint and CI checks pass; build pulled back from the draft is byte-identical (17 files);
+bundle 315 KB (was 308), `fail []`; 4G load 1.85 to 2.30 s to playable over three runs (was 1.70 to 1.94).
+
+Scorecard (10 categories, 360x640): HUD play 8.5, tutorial 8.5, pads 8, receipt 8, album 8.5, shop 8.5, Arabic 8.
+
+Sheets: `production/qa/evidence/mow-mow-meadow/m6-text-*.jpg`, `/mnt/project-files/mow-mow-meadow/text-labels/`.
