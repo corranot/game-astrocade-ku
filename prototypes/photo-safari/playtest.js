@@ -243,6 +243,25 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
       check(two.walking && two.moved > 0.5 && Math.abs(two.dyaw) > 0.1, `walk and look at once with two thumbs (moved ${two.moved.toFixed(2)} m, turned ${two.dyaw.toFixed(2)})`);
       check(two.released && two.after < 0.3, `going to the background lets go of the stick (drift after ${two.after.toFixed(2)} m)`);
     }
+    // the other order: the right thumb is already looking when the left one lands; it walks, and lifting it keeps the look going
+    {
+      const rev = await ev(page, () => {
+        __game.step(60 * 8); const root = document.getElementById('app'), r = root.getBoundingClientRect(), h0 = [__game.hero.x, __game.hero.z];
+        const pe = (type, id, x, y) => root.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: id === 31 }));
+        pe('pointerdown', 31, 300, 400); for (let i = 1; i <= 3; i++) { pe('pointermove', 31, 300 - i * 12, 400); __game.step(2); }
+        const y0 = __game.look().yaw;
+        pe('pointerdown', 32, 90, 600); pe('pointermove', 32, 90, 540);
+        for (let i = 4; i <= 11; i++) { pe('pointermove', 31, 300 - i * 12, 400); pe('pointermove', 32, 90, 540); __game.step(4); }
+        const walking = !document.getElementById('stick').hidden, y1 = __game.look().yaw, moved = Math.hypot(__game.hero.x - h0[0], __game.hero.z - h0[1]);
+        pe('pointerup', 32, 90, 540); const h1 = [__game.hero.x, __game.hero.z];
+        for (let i = 12; i <= 16; i++) { pe('pointermove', 31, 300 - i * 12, 400); __game.step(4); }
+        const y2 = __game.look().yaw, after = Math.hypot(__game.hero.x - h1[0], __game.hero.z - h1[1]);
+        pe('pointerup', 31, 300 - 16 * 12, 400); __game.step(2);
+        return { walking, moved, turned: Math.abs(y1 - y0), turned2: Math.abs(y2 - y1), after, stuck: !document.getElementById('stick').hidden };
+      });
+      check(rev.walking && rev.moved > 0.5 && rev.turned > 0.05, `look first, then walk with the other thumb (moved ${rev.moved.toFixed(2)} m, turned ${rev.turned.toFixed(2)})`);
+      check(rev.turned2 > 0.03 && !rev.stuck, `lifting the walking thumb keeps the look going (turned ${rev.turned2.toFixed(2)})`);
+    }
     await step(page, 60 * 12);
     const lk2 = await ev(page, () => __game.look());
     check(Math.abs(lk2.yaw) < 0.08 && Math.abs(lk2.el) < 0.05, `the view drifts back after a quiet spell (yaw ${lk2.yaw.toFixed(3)})`);
