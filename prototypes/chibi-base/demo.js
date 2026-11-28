@@ -1,7 +1,7 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Viewer for the chibi base: renders turnarounds, look variants, animation frames and the Pip comparison into one
 // canvas with a viewport per cell. ?shot=turn|pip|compare|looks|anim|phone  (&t=seconds for animation time)
-import { buildChibi, animateChibi, attach, DEFAULT_LOOK } from './chibi.js';
+import { buildChibi, animateChibi, attach, headClearance, DEFAULT_LOOK } from './chibi.js';
 import { buildHero, animateHero, critterMaterials } from '../photo-safari/critters.js';
 
 const q = new URLSearchParams(location.search), shot = q.get('shot') || 'turn', T0 = +(q.get('t') || 1.3);
@@ -44,7 +44,7 @@ function pipCamera(c) {
   const btn = new THREE.Mesh(rbox(0.06, 0.03, 0.05, 0.01), m(0xe8513a)); btn.position.set(-0.09, 0.11, 0); g.add(btn);
   const flash = new THREE.Mesh(rbox(0.06, 0.035, 0.01, 0.005), m(0xfff8ef, 0.2)); flash.position.set(0.09, 0.06, 0.066); g.add(flash);
   for (const sx of [-1, 1]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), m(0x3a2c22, 0.8)); st.position.set(sx * 0.12, 0.15, -0.04); st.rotation.set(-0.5, 0, sx * 0.35); g.add(st); } // strap up to the collar
-  g.position.set(0, -0.02, 0.24); attach(c, 'chest', g); return g;
+  g.position.set(0, 0.02, 0.24); attach(c, 'spine3', g); return g;
 }
 
 const LOOKS = [
@@ -92,6 +92,9 @@ if (shot === 'turn' || shot === 'pip') {
   // close-ups of the left mitten (the character's left, +x): front, 3/4 from the body side, walk and wave
   const w = W / 4, sts = [[{ t: 0 }, [0.32, 0.55, 1.3], [0.2, 0.5, 0]], [{ t: 0 }, [0.95, 0.55, 0.9], [0.2, 0.5, 0]], [{ walk: 1, t: 0.52 }, [0.5, 0.6, 1.3], [0.2, 0.55, 0]], [{ wave: 1, t: 1.1 }, [-0.4, 1.2, 1.3], [-0.3, 1.05, 0]]];
   sts.forEach(([s, pos, look], i) => { const c = chibi({ mitts: '#fff4e6', top: { color: '#e8513a', sleeve: 1 } }, s); cell(i * w, 0, w, H, [[c.group, 0]], { pos, look, fov: 30 }, ['front', 'body side', 'walk', 'wave'][i]); });
+} else if (shot === 'stress') {
+  const w = W / 5, ps = [['wave', { wave: 1, t: 1.1 }], ['armsUp', { pose: 'armsUp', t: 0 }], ['squat', { pose: 'squat', t: 0 }], ['reach', { pose: 'reach', t: 0 }], ['lookAround', { pose: 'lookAround', t: 0 }]];
+  ps.forEach(([n, st], i) => { const c = chibi(PIP, st, pipCamera); c.blinkOff = 1; cell(i * w, 0, w, H, [[c.group, 0]], orbit(0.45, 5.2, 1.0, 0.85), n); });
 } else if (shot === 'phone') {
   const c = chibi(PIP, { wave: 1, t: 1.1 }, pipCamera); c.group.rotation.y = -0.3;
   cell(0, 0, W, H, [[c.group, 0]], { pos: [1.6, 2.6, 5.4], look: [0, 0.95, 0], fov: 30 });
@@ -108,4 +111,6 @@ function frame(now) {
 for (let i = 0; i < 30; i++) for (const [c, s] of anims) animateChibi(c, s.t ?? T0, 0.016, s);
 frame(performance.now());
 window.__stats = anims[0] ? anims[0][0].stats : null;
+// head-collision check: the gap (m) between each mitten and the head surface, per animated chibi (must stay > 0)
+window.__clear = anims.map(([c]) => headClearance(c).toFixed(3));
 window.__ready = true;
