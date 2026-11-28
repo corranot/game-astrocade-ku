@@ -5,7 +5,7 @@
 // Progress saves through lib.saveUserGameState. All tuning values are in game_config.json.
 import * as L from './logic.js';
 import { createWorld } from './world.js';
-import { buildCritter, animateCritter, critterMaterials, buildHero, animateHero, merge } from './critters.js';
+import { buildCritter, animateCritter, critterMaterials, merge } from './critters.js';
 import { createFx } from './fx.js';
 import { Sound } from './audio.js';
 
@@ -149,10 +149,14 @@ export function run(mode = 'play') {
   const lookOf = () => { const o = S.outfit && L.item(cfg, S.outfit), c = S.cam && L.item(cfg, S.cam); return { parka: o ? o.parka : cfg.economy.outfit0.parka, hat: o ? o.hat : cfg.economy.outfit0.hat, cam: c ? c.color : cfg.economy.cam0 }; };
 
   // ---- hero
-  const H = buildHero(lookOf(), mats); W.scene.add(H.group);
+  // the hero shell; pip.js (the rigged chibi) loads and builds right after the first frame, so it never delays it
+  const H = { group: new THREE.Group(), ready: false, mats: { cam: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35 }), lamp: new THREE.MeshBasicMaterial({ color: 0x8a6a40 }) } };
+  W.scene.add(H.group); H.mats.cam.color.set(lookOf().cam); let animatePip = null;
   const hero = { x: 0, z: 3, y: 0, vx: 0, vz: 0, yaw: Math.PI, speed: 0, stepD: 0, side: 1, still: 0, breathT: 1, walked: 0 };
   hero.y = L.terrainH(cfg, hero.x, hero.z);
-  const applyLook = () => { const l = lookOf(); H.mats.parka.color.set(l.parka); H.mats.hat.color.set(l.hat); H.mats.cam.color.set(l.cam); };
+  let heroPose = null, pipKey = '', pipMod = null, pipAt = 0; // pip.js is fetched at the first frame and built a few frames later, off the first-frame path
+  const startPip = () => pipMod.then((m) => { if (!alive) return; m.makePip(cfg.hero.pipHeightM, H); animatePip = m.animatePip; buildPip(); const g = H.c.group, r = W.renderer, add = () => { if (!alive) return; H.group.add(g); H.inT = 0; fx.emit({ pool: 'soft', x: hero.x, y: hero.y + 0.2, z: hero.z, spread: 0.5, speed: 1.4, up: 1.2, life: 0.7, size: 0.5, color: '#f4f8ff', alpha: 0.8, grav: 1.5, drag: 1.2, grow: 1.5 }, 12); }; H.group.remove(g); (r.compileAsync ? r.compileAsync(g, W.camera, W.scene) : Promise.resolve()).then(add, add); }); const applyLook = () => { const l = lookOf(); H.mats.cam.color.set(l.cam); const k = l.parka + l.hat; if (H.ready && k !== pipKey) { pipKey = k; H.build(l); } }; // a new outfit re-dresses the rig (vertex colours)
+  const buildPip = () => { const l = lookOf(); pipKey = l.parka + l.hat; H.build(l); };
 
   // ---- animals (area 1 now, the rest a little after the first frame)
   const R = L.rng(cfg.seed + 7);
@@ -873,7 +877,7 @@ export function run(mode = 'play') {
       const want = best < 10 && Math.abs(ang) < 1.6 ? Math.max(-0.8, Math.min(0.8, ang)) : 0; hero.look = (hero.look || 0) + (want - (hero.look || 0)) * Math.min(1, dt * 4);
       if (hero.still > LF.heroIdleAfterS && !bot) { if (hero.idle) { hero.idle.p += dt / LF.idleS; if (hero.idle.p >= 1) { hero.idle = null; hero.idleT = span(LF.heroIdleEveryS); } } else { hero.idleT = (hero.idleT || 0) - dt; if (hero.idleT <= 0) hero.idle = { k: ['warm', 'stamp', 'peek'][Math.floor(CR() * 3)], p: 0 }; } }
       else { hero.idle = null; hero.idleT = 0; } }
-    animateHero(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), vf, hero.look, hero.idle);
+    if (animatePip) animatePip(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), heroPose ? heroPose.vf : vf, hero.look, heroPose ? heroPose.idle : hero.idle);
     // walking into a newly opened area
     const ar = L.areaAt(cfg, hero.x, hero.z);
     if (ar >= S.entered) { S.entered = ar + 1; ftueDid('gate'); toast(T('a_' + cfg.areas[ar].id)); Sound.sting('area'); soon(); }
@@ -1077,6 +1081,7 @@ export function run(mode = 'play') {
     fx.update(dt);
     // deferred builds, one per frame
     if (buildQueue.length && booted) buildQueue.shift()();
+    if (pipAt > 0 && --pipAt === 0) startPip();
     // HUD
     const goal = play || bot ? guide() : null; updateGuide(t, goal);
     if (play) { updateHud(rdt); updateSpot(rdt); }
@@ -1095,7 +1100,7 @@ export function run(mode = 'play') {
     if (!qs.has('tier') && realT > 5 && L.qualityStep(cfg, quality, fpsV, realDt)) { W.setTier(quality.tier); tierLog.push([Math.round(realT * 10) / 10, quality.tier, Math.round(fpsV)]); }
     if (draw) W.render();
     if (!manual) jsRing[(ftN + jsRing.length - 1) % jsRing.length] = performance.now() - now;
-    if (first) { first = false; setTimeout(() => { if (alive) { W.endBoot(); booted = true; } }, cfg.quality.bootS * 1000); root.classList.add('live'); if (play) setTimeout(() => { if (alive) hideLogo(); }, logoT * 1000); if (window.__load) window.__load.done(); }
+    if (first) { first = false; pipMod = import('./pip.js'); pipAt = cfg.hero.pipAfterFrames; setTimeout(() => { if (alive) { W.endBoot(); booted = true; } }, cfg.quality.bootS * 1000); root.classList.add('live'); if (play) setTimeout(() => { if (alive) hideLogo(); }, logoT * 1000); if (window.__load) window.__load.done(); }
   }
   // compile every shader against the target it draws into, in parallel where the driver can (capped)
   const start = () => { if (alive && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
@@ -1111,6 +1116,7 @@ export function run(mode = 'play') {
   };
   // dev:start
   api.debug = {
+    get H() { return H; }, pose(p) { heroPose = p; }, // test hook: hold a hero pose { vf, idle } for close-ups
     get S() { return S; }, get hero() { return hero; }, get animals() { return animals; }, get ftue() { return ftue; }, get vf() { return vf; }, get beat() { return beats.cur; }, get loaded() { return loaded; },
     W, fx, snap, toss, openBook, closeBook, saveNow, hideLogo, openArea, guide, stats: () => W.stats(), fps: () => fpsV, tier: () => quality.tier,
     // the self-check: frame-time spread of the last 240 frames, the tier now and every change the loop made
