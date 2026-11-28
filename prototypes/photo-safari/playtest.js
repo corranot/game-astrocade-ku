@@ -72,7 +72,7 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     // walk to the fox with a real drag on the stick: in range while still walking, the tutorial says "Stop to aim"
     let stopHint = false;
     await page.mouse.move(90, 760); await page.mouse.down(); await page.mouse.move(90, 700);
-    for (let i = 0; i < 40 && await ev(page, () => __game.hero.z) > 0.6; i++) { await step(page, 4); if (await ev(page, () => { const c = document.getElementById('coach'); return !c.hidden && /Stop to aim/.test(c.textContent); })) stopHint = true; }
+    for (let i = 0; i < 40 && await ev(page, () => __game.hero.z) > 0.2; i++) { await step(page, 4); if (await ev(page, () => { const c = document.getElementById('coach'); return !c.hidden && /Stop to aim/.test(c.textContent); })) stopHint = true; }
     check((await ev(page, () => __game.hero.z)) < z0 - 1, 'dragging the stick walks the hero');
     await page.mouse.up();
     for (let i = 0; i < 40 && await ev(page, () => __game.vf) < 0.9; i++) await step(page, 8);
