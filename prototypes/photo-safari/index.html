@@ -163,7 +163,7 @@ body{display:flex;align-items:center;justify-content:center}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u)*16px)}
 .sp{position:relative;border-radius:calc(var(--u)*12px);background:#fff;padding:calc(var(--u)*8px) calc(var(--u)*8px) calc(var(--u)*10px);box-shadow:0 calc(var(--u)*4px) 0 #d8c4a0;rotate:var(--rot,0deg)}
 .sp canvas{display:block;width:100%;aspect-ratio:4/5;border-radius:calc(var(--u)*6px);background:#dfeaf6}
-.sp b{display:block;font-size:calc(var(--u)*22px);line-height:1.1;text-align:center;margin-top:calc(var(--u)*6px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:calc(var(--u)*27px);line-height:1.08;min-height:2.16em;text-align:center;margin-top:calc(var(--u)*6px);overflow:hidden;overflow-wrap:anywhere}
 .sp .sl{display:flex;justify-content:center;gap:calc(var(--u)*6px);margin-top:calc(var(--u)*6px)}
 .sp .sl i{width:calc(var(--u)*24px);height:calc(var(--u)*24px);border-radius:50%;background:#e9dcc4}
 .sp .sl i.on{background:var(--mint);box-shadow:0 0 0 calc(var(--u)*2px) var(--ink)}
@@ -176,6 +176,10 @@ body{display:flex;align-items:center;justify-content:center}
 .items{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*16px)}
 .it{border-radius:calc(var(--u)*18px);background:#fff;padding:calc(var(--u)*12px);box-shadow:0 calc(var(--u)*4px) 0 #d8c4a0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*8px)}
 .it canvas{width:calc(var(--u)*112px);height:calc(var(--u)*112px)}
+.it small{display:flex;align-items:center;gap:calc(var(--u)*4px);margin-top:calc(var(--u)*-6px);font-size:calc(var(--u)*22px);color:#8a5a6a;text-align:center;line-height:1.1}
+.it small svg{width:calc(var(--u)*22px);height:calc(var(--u)*22px);flex:none;fill:#e86a8a}
+.it small canvas{width:calc(var(--u)*40px);height:calc(var(--u)*50px);border-radius:calc(var(--u)*6px);background:#dfeaf6}
+.it small i{font-style:normal;max-width:calc(var(--u)*90px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .it b{font-size:calc(var(--u)*26px);text-align:center;line-height:1.1;min-height:calc(var(--u)*56px);display:flex;align-items:center}
 .it button{width:100%;height:calc(var(--u)*64px);border-radius:calc(var(--u)*32px);font-size:calc(var(--u)*28px);color:#fff;background:linear-gradient(#3fd8b0,#25a888);box-shadow:0 calc(var(--u)*4px) 0 #1a7a64;display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*6px)}
 .it button.poor{background:#c8bca8;box-shadow:0 calc(var(--u)*4px) 0 #a89c88}
@@ -209,6 +213,8 @@ body{display:flex;align-items:center;justify-content:center}
 @keyframes sheetIn{from{transform:translateY(60%)}}
 /* today's list is short: the sheet hugs its rows instead of leaving half a page empty */
 .sheet.fit{height:auto;max-height:84%;padding-bottom:calc(var(--sb) + var(--u)*32px)}
+/* landscape screens: the book stays a portrait-width sheet, so cards and buttons keep their proportions */
+@media (min-aspect-ratio:1/1){.sheet{max-width:calc(var(--u)*1000px)}}
 @media (prefers-reduced-motion: reduce){#app::before,.shutter.ready,.bookB.dot em,.treat.glow,.edge i,.hand,.toast,.tick,.coach,.bub,.sheet,.card.shake{animation:none}}
 </style>
 </head>

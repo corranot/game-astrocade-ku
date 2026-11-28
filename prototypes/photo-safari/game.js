@@ -265,7 +265,11 @@ export function run(mode = 'play') {
     }).catch(() => { if (alive) setTimeout(() => readSave(tries + 1), Math.min(8000, 600 * (tries + 1))); });
   }
   if (canSave) readSave();
-  const onHide = () => { if (document.hidden) { saveNow(); input.keys.clear(); } };
+  // in the background: save, let go of every finger (no stuck stick on return) and pause the sound; back: resume
+  const onHide = () => {
+    if (document.hidden) { saveNow(); input.keys.clear(); releaseFingers(); try { if (Sound.ctx && Sound.ctx.state === 'running') Sound.ctx.suspend(); } catch (e) { /* no audio */ } }
+    else { try { if (Sound.ctx && Sound.ctx.state === 'suspended') Sound.ctx.resume(); } catch (e) { /* no audio */ } }
+  };
   document.addEventListener('visibilitychange', onHide);
 
   // ---- share (no image: the host card shows the game's live thumbnail)
@@ -357,6 +361,13 @@ export function run(mode = 'play') {
       const el = document.createElement('div'); el.className = 'it'; const cv = document.createElement('canvas'); cv.width = 112; cv.height = 112;
       drawIcon(cv, it.kind === 'outfit' || it.kind === 'cam' ? 'wear' : it.id, it.parka || it.color); el.appendChild(cv);
       el.insertAdjacentHTML('beforeend', `<b>${T('i_' + (it.kind === 'outfit' ? 'outfit' : it.kind === 'cam' ? 'cam' : it.id))}</b>`);
+      // a treat says who it is for (a name once photographed, "?" before), so buying has a clear reason
+      if (it.kind === 'treat') for (const q of cfg.species.filter((sp) => sp.shy === it.id)) {
+        // a treat shows who it is for: the animal's portrait (a silhouette until photographed) beside a heart
+        const seen = !!S.slots[q.id], w = document.createElement('small'); w.innerHTML = ICON.heart;
+        const pc = document.createElement('canvas'); pc.width = 48; pc.height = 60; pc.getContext('2d').drawImage(portrait(q.id, seen), 0, 0, 48, 60); w.appendChild(pc);
+        if (seen) w.insertAdjacentHTML('beforeend', `<i>${name(q.id)}</i>`); el.appendChild(w);
+      }
       const btn = document.createElement('button');
       if (own) { btn.className = 'own'; btn.textContent = (it.kind === 'outfit' || it.kind === 'cam') ? (worn ? T('owned') : T('wear')) : T('owned'); }
       else if (st === 'needs') { btn.className = 'poor'; btn.innerHTML = ICON.lock; }
@@ -401,19 +412,37 @@ export function run(mode = 'play') {
   let firstGesture = false;
   const gesture = () => { if (!firstGesture) { firstGesture = true; hideLogo(); } Sound.unlock(); };
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
+  // a second finger on the look side while the first one walks turns the view too (two thumbs: walk and look)
+  const look2 = { id: null, x0: 0, y0: 0, lx: 0, ly: 0, drag: false };
+  /** Turns the view by a finger's move since its last position (st carries lx/ly). */
+  function lookBy(st, x, y) {
+    const lk = cfg.camera.look, k = lk.radPerPx / unit();
+    view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (x - st.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (y - st.ly) * k));
+    view.idle = 0; st.lx = x; st.ly = y; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; }
+  }
+  const inLookZone = (x) => { const r = rootRect(); return x - r.left > r.width * (1 - cfg.camera.look.zone); };
   function onDown(e) {
     if (!play || bot || e.target.closest('button') || bookOpen) return;
-    gesture(); if (input.id !== null) return;
+    gesture();
+    if (input.id !== null) {
+      if (!input.look && look2.id === null && e.pointerId !== input.id && inLookZone(e.clientX)) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ } Object.assign(look2, { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, drag: false }); }
+      return;
+    }
     try { root.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ }
     input.id = e.pointerId; input.x0 = input.lx = e.clientX; input.y0 = input.ly = e.clientY; input.t0 = performance.now(); input.dx = input.dy = 0; input.drag = false;
-    const r = rootRect(); input.look = e.clientX - r.left > r.width * (1 - cfg.camera.look.zone);
+    input.look = inLookZone(e.clientX);
   }
   function onMove(e) {
+    if (e.pointerId === look2.id) {
+      if (!look2.drag && Math.hypot(e.clientX - look2.x0, e.clientY - look2.y0) >= cfg.hero.tapMaxPx * unit() * 1.5) { look2.drag = true; look2.lx = e.clientX; look2.ly = e.clientY; }
+      if (look2.drag) lookBy(look2, e.clientX, e.clientY);
+      return;
+    }
     if (e.pointerId !== input.id) return;
     input.dx = e.clientX - input.x0; input.dy = e.clientY - input.y0;
     if (input.look) {
       if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) { input.drag = true; input.lx = e.clientX; input.ly = e.clientY; }
-      if (input.drag) { const lk = cfg.camera.look, k = lk.radPerPx / unit(); view.tYaw = Math.max(-lk.yawMax, Math.min(lk.yawMax, view.tYaw - (e.clientX - input.lx) * k)); view.tEl = Math.max(-lk.elDown, Math.min(lk.elUp, view.tEl + (e.clientY - input.ly) * k)); view.idle = 0; input.lx = e.clientX; input.ly = e.clientY; if (!(S.hints & 4)) { S.hints |= 4; dirty = true; } }
+      if (input.drag) lookBy(input, e.clientX, e.clientY);
       return;
     }
     if (!input.drag && Math.hypot(input.dx, input.dy) >= cfg.hero.tapMaxPx * unit() * 1.5) {
@@ -422,6 +451,7 @@ export function run(mode = 'play') {
     if (input.drag) { const m = cfg.hero.stickMaxPx * unit(), l = Math.hypot(input.dx, input.dy), k = l > m ? m / l : 1; $('stick').firstChild.style.transform = `translate(${input.dx * k}px,${input.dy * k}px)`; }
   }
   function onUp(e) {
+    if (e.pointerId === look2.id) { look2.id = null; look2.drag = false; return; }
     if (e.pointerId !== input.id) return;
     const kind = L.tapOrDrag(cfg, Math.hypot(input.dx, input.dy) / unit(), performance.now() - input.t0);
     if (kind === 'tap' && !input.drag) {
@@ -429,8 +459,9 @@ export function run(mode = 'play') {
       ray.setFromCamera(ndc, W.camera); plane.constant = -hero.y;
       if (ray.ray.intersectPlane(plane, hit)) { input.target = [hit.x, hit.z]; fx.ring(hit.x, L.terrainH(cfg, hit.x, hit.z), hit.z, 0.9, '#bff7ff', 0.45); }
     }
-    input.id = null; input.drag = false; input.look = false; input.dx = input.dy = 0; $('stick').hidden = true;
+    releaseFingers();
   }
+  function releaseFingers() { input.id = null; input.drag = false; input.look = false; input.dx = input.dy = 0; look2.id = null; look2.drag = false; const st = $('stick'); if (st) st.hidden = true; }
   root.addEventListener('pointerdown', onDown); root.addEventListener('pointermove', onMove); root.addEventListener('pointerup', onUp); root.addEventListener('pointercancel', onUp);
   const onKey = (e) => {
     if (!play || bot) return;
@@ -458,7 +489,7 @@ export function run(mode = 'play') {
     const dayLeft = animals.some((a) => !a.rare && !a.sp.night && a.sp.area < S.open && ((S.slots[a.id] | 0) & 7) !== 7 && (!a.sp.shy || L.treatOwned(S, a.sp.shy)));
     return !dayLeft && cfg.species.some((s) => s.night && s.area < S.open && ((S.slots[s.id] | 0) & 7) !== 7);
   }
-  var logoT = 4; // var: toast() may hide the logo before this line runs
+  var logoT = cfg.feel.logoS; // var: toast() may hide the logo before this line runs; short, so it never sits over the first hint
   function hideLogo() { const l = $("logo"); if (l) l.classList.add("gone"); logoT = 0; }
 
   // ---- the viewfinder target: the nearest present animal in range
@@ -709,7 +740,7 @@ export function run(mode = 'play') {
     hero.shakeT = (hero.shakeT || 0) - dt;
     if (hero.shakeT <= 0 && hero.stepD > 0.3) for (const t of W.trunks) { const dx = t[0] - hero.x, dz = t[1] - hero.z; if (dx * dx + dz * dz < 6.5) { hero.shakeT = 2.5; const y = L.terrainH(cfg, t[0], t[1]); fx.emit({ pool: 'soft', x: t[0], y: y + 2.6, z: t[1], spread: 0.9, speed: 0.4, up: 0, life: 1.2, size: 0.45, color: '#f4f9ff', alpha: 0.85, grav: -5, drag: 0.6 }, 9); fx.emit({ pool: 'glow', x: t[0], y: y + 2.4, z: t[1], spread: 1.2, speed: 0.3, life: 1.6, size: 0.12, color: '#ffffff', shape: 'flake', grav: -0.8, drag: 1 }, 6); Sound.hiss && Sound.ok && Sound.hiss(Sound.ctx.currentTime, 0.35, { f: 2200, g: 0.05 }); break; } }
     hero.breathT -= dt; if (hero.breathT <= 0) { hero.breathT = 2.4; fx.emit({ pool: 'soft', x: hero.x + Math.sin(hero.yaw) * 0.35, y: hero.y + 1.45, z: hero.z + Math.cos(hero.yaw) * 0.35, spread: 0.05, speed: 0.15, vx: Math.sin(hero.yaw) * 0.4, vz: Math.cos(hero.yaw) * 0.4, life: 1.1, size: 0.3, color: '#ffffff', alpha: 0.45, grav: 0.15, drag: 1, grow: 1.6 }, 1); }
-    H.group.position.set(hero.x, hero.y, hero.z); H.group.rotation.y = hero.yaw; H.group.visible = vf < 0.55;
+    H.group.position.set(hero.x, hero.y, hero.z); H.group.rotation.y = hero.yaw; { const cp = W.camera.position; H.group.visible = vf < 0.55 && Math.hypot(cp.x - hero.x, cp.y - hero.y - 1, cp.z - hero.z) > cfg.camera.heroHideM; } // the lens never passes through Pip while the viewfinder eases in or out
     animateHero(H, t, dt, Math.min(1, hero.speed / cfg.hero.speed), vf);
     // walking into a newly opened area
     const ar = L.areaAt(cfg, hero.x, hero.z);
@@ -765,7 +796,8 @@ export function run(mode = 'play') {
       if (ftue === 'walk') { const f = ftueTarget(); tgt = world(hero.x, hero.y + 1, hero.z, 150);
         // the cutout holds both the hero and the first animal, so the opening shows who to walk to
         const fs = f && world(f.x, f.y + 0.6, f.z, 0); if (tgt && fs) { const d = Math.hypot(fs[0] - tgt[0], fs[1] - tgt[1]); tgt = [(tgt[0] + fs[0]) / 2, (tgt[1] + fs[1]) / 2, d / 2 + 110 * u]; } hint = T('walk'); icon = ICON.hand; handOn = true; handDrag = true; if (f && f.a && hero.walked > cfg.hero.ftueWalkM && nearest(L.lens(cfg, S).range) === f.a) ftueDid('walk'); }
-      else if (ftue === 'snap') { if (vf > 0.4) { tgt = elC('shutter'); hint = T('snap'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); handOn = true; } else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('walk'); icon = ICON.hand; } }
+      else if (ftue === 'snap') { if (vf > 0.4) { tgt = elC('shutter'); hint = T('snap'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); handOn = true; } else if (hero.speed >= 0.6 && nearest(L.lens(cfg, S).range)) { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('still'); icon = ICON.cam.replace('<svg', '<svg fill="#fff"'); } // in range but still walking: aiming needs a stop
+      else { tgt = world(hero.x, hero.y + 1, hero.z, 150); hint = T('walk'); icon = ICON.hand; } }
       else if (ftue === 'book') { if (S.photos >= 1 && $('card').hidden) { tgt = elC('bookB'); hint = T('book'); icon = ICON.book; handOn = true; } }
       else if (ftue === 'treat') { const sh = shyNear(); if (sh && sh.id === 'hare') { tgt = elC('treat'); hint = T('treat'); handOn = true; icon = ''; } else { const f = ftueTarget(); if (f && Math.hypot(f.x - hero.x, f.z - hero.z) < 25) { tgt = world(f.x, f.y + 0.5, f.z, 120); hint = T('walk'); icon = ICON.hand; } } }
       else if (ftue === 'pose') { const f = ftueTarget(); if (f && f.a && Math.hypot(f.x - hero.x, f.z - hero.z) < L.lens(cfg, S).range && (f.a.cue || f.a.pose)) { tgt = world(f.x, f.y + f.a.parts.centerY, f.z, 140); hint = T('pose'); icon = ICON.pose; } }
@@ -902,7 +934,8 @@ export function run(mode = 'play') {
     W.updateCamera(rdt, hero, vf, aim, vfFov, b, focusAt && focusK > 0.001 ? { x: focusAt.x, y: focusAt.y, z: focusAt.z, k: focusK * (1 - vf) } : null);
     // the rare visitor's first sighting
     const rare = animals.find((q) => q.rare);
-    if (rare && !sawRare && play && rare.parts.group.visible && Math.hypot(rare.x - hero.x, rare.z - hero.z) < 20 && S.rareDay !== S.day) { sawRare = true; beat(beatAt(rare, { pri: 4, dur: 1.6, sting: 'rare' })); Sound.shimmer(); }
+    // never in the opening seconds or the tutorial: the player first gets the hero and the valley, then the rare, facing them
+    if (rare && !sawRare && play && loaded && !ftueOn() && realT > cfg.feel.rareBeatAfterS && rare.parts.group.visible && Math.hypot(rare.x - hero.x, rare.z - hero.z) < 20 && S.rareDay !== S.day) { sawRare = true; rare.yaw = Math.atan2(hero.x - rare.x, hero.z - rare.z); rare.state = 'idle'; rare.stT = Math.max(rare.stT || 0, 2); beat(beatAt(rare, { pri: 4, dur: 1.6, sting: 'rare' })); Sound.shimmer(); }
     // chimney smoke and world details
     if (Math.hypot(W.chimney.x - hero.x, W.chimney.z - hero.z) < 45 && R() < 0.12) fx.emit({ pool: 'soft', x: W.chimney.x, y: W.chimney.y, z: W.chimney.z, spread: 0.2, speed: 0.2, up: 0.9, life: 3, size: 0.8, color: '#e6ecf4', alpha: 0.55, grav: 0.1, drag: 0.6, grow: 2 }, 1);
     fx.update(dt);

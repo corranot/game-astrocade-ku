@@ -56,6 +56,10 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     const { page, errors } = await open(390, 844, '&tod=day');
     check(await ev(page, () => __game.ftue) === 'walk', 'a new game starts the tutorial at "walk"');
     { const k = await ev(page, () => { const a = document.getElementById('skip').getBoundingClientRect(), b = document.getElementById('logo').getBoundingClientRect(); return [a.bottom, b.top]; }); check(k[0] <= k[1], `the title sits below the skip button (${k[0].toFixed(0)} <= ${k[1].toFixed(0)})`); }
+    // the opening: even when today's rare visitor stands at the start, no cinematic takes the camera from the hero
+    await ev(page, () => { const r = __game.animals.find((a) => a.rare); if (r) { r.x = 2.5; r.z = -1; r.home = [2.5, -1]; } });
+    let beatSeen = false; for (let i = 0; i < 10; i++) { await step(page, 30); if (await ev(page, () => !!__game.beat)) beatSeen = true; }
+    check(!beatSeen && await heroOnScreen(page), 'the first 5 s keep the hero framed: no rare-visitor cinematic during the tutorial');
     await step(page, 20);
     await shoot(page, '01-first-frame-ftue-walk');
     // a real tap on the snow walks the hero there
@@ -66,10 +70,12 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     check(z1 < z0 - 1, `a tap on the snow walks the hero there (z ${z0.toFixed(1)} -> ${z1.toFixed(1)})`);
     // walk to the fox: the viewfinder opens and the tutorial points at the shutter
     await ev(page, () => { const f = __game.animals.find((a) => a.id === 'fox'); __game.walkTo(f.x, f.z + 6); });
-    for (let i = 0; i < 12 && await ev(page, () => __game.vf) < 0.9; i++) await step(page, 30);
+    let stopHint = false;
+    for (let i = 0; i < 40 && await ev(page, () => __game.vf) < 0.9; i++) { await step(page, 8); if (await ev(page, () => { const c = document.getElementById('coach'); return !c.hidden && /Stop to aim/.test(c.textContent); })) stopHint = true; }
     await step(page, 20);
     check(await ev(page, () => __game.vf) > 0.9, 'standing near an animal opens the viewfinder');
     check(await ev(page, () => __game.ftue) === 'snap', 'reaching the fox moves the tutorial to "snap"');
+    check(stopHint, 'walking in range of the fox, the tutorial says "Stop to aim"');
     await shoot(page, '02-ftue-snap-viewfinder');
     const sb = await page.locator('#shutter').boundingBox();
     await page.mouse.click(sb.x + sb.width / 2, sb.y + sb.height / 2);
@@ -219,6 +225,24 @@ const GLARE_MAX = 0.03; // share of near-white pixels a shot may have
     const mvx = p1.x - p0.x, mvz = p1.z - p0.z, ml = Math.hypot(mvx, mvz) || 1, ex = -Math.sin(p0.yaw), ez = -Math.cos(p0.yaw);
     check((mvx * ex + mvz * ez) / ml > 0.8, `stick "up" walks away from the turned camera (dot ${((mvx * ex + mvz * ez) / ml).toFixed(2)})`);
     check(await heroOnScreen(page), 'the hero stays framed in the turned view');
+    // two thumbs: the left one walks while a second finger on the right turns the view
+    {
+      const two = await ev(page, () => {
+        const root = document.getElementById('app'), r = root.getBoundingClientRect(), y0 = __game.look().yaw, h0 = [__game.hero.x, __game.hero.z];
+        const pe = (type, id, x, y) => root.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: r.left + x, clientY: r.top + y, bubbles: true, isPrimary: id === 21 }));
+        pe('pointerdown', 21, 90, 600); pe('pointermove', 21, 90, 540); pe('pointerdown', 22, 300, 400);
+        for (let i = 1; i <= 6; i++) { pe('pointermove', 22, 300 + i * 12, 400); pe('pointermove', 21, 90, 540); __game.step(4); }
+        const walking = !document.getElementById('stick').hidden;
+        // the game goes to the background mid-walk: every finger lets go
+        Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));
+        const released = document.getElementById('stick').hidden;
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));
+        const h1 = [__game.hero.x, __game.hero.z]; __game.step(30); const h2 = [__game.hero.x, __game.hero.z];
+        return { dyaw: __game.look().yaw - y0, moved: Math.hypot(h1[0] - h0[0], h1[1] - h0[1]), walking, released, after: Math.hypot(h2[0] - h1[0], h2[1] - h1[1]) };
+      });
+      check(two.walking && two.moved > 0.5 && Math.abs(two.dyaw) > 0.1, `walk and look at once with two thumbs (moved ${two.moved.toFixed(2)} m, turned ${two.dyaw.toFixed(2)})`);
+      check(two.released && two.after < 0.3, `going to the background lets go of the stick (drift after ${two.after.toFixed(2)} m)`);
+    }
     await step(page, 60 * 12);
     const lk2 = await ev(page, () => __game.look());
     check(Math.abs(lk2.yaw) < 0.08 && Math.abs(lk2.el) < 0.05, `the view drifts back after a quiet spell (yaw ${lk2.yaw.toFixed(3)})`);

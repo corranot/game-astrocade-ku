@@ -14,7 +14,8 @@ three small photo requests. When only night animals are left to find, tap the mo
 
 ## Controls
 
-- Touch: drag to walk, or tap the snow to walk there. Tap the camera button to take a photo, the carrot button to toss
+- Touch: drag to walk, or tap the snow to walk there. Swipe the right side to look around; walk and look with
+  two thumbs at once. Stand still to aim. Tap the camera button to take a photo, the carrot button to toss
   a treat, the book button to open the photo book.
 - Keyboard: WASD or arrows to walk, Space takes a photo, T tosses a treat, B opens the book.
 
