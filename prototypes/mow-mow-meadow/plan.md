@@ -1,6 +1,6 @@
 # Mow Mow Meadow: game plan (GDD as a modular meta-prompt)
 
-Status: **PLAN, waiting for approval. No game code is written until it is approved.**
+Status: **APPROVED by the owner on 2026-11-28 07:24 UTC (title Mow Mow Meadow, all three districts in one release, Nilo as planned; main goal Players' Choice). Build in progress.**
 Date: 2026-11-28. Requested by Larisha (project thread, 28 Nov 06:59 UTC).
 Research behind it: `production/market/2026-11-28T0710-new-sim-dig/report.md`.
 One-page summary: `prototypes/mow-mow-meadow/summary.md`. Pacing model: `prototypes/mow-mow-meadow/pace-model.py`.

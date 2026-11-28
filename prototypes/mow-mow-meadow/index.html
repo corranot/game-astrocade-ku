@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Mow Mow Meadow</title>
+<style>
+html,body{margin:0;height:100%;background:#2c5a3a;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none;background:#8fc56a}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* while the garden loads: morning sky, a striped lawn and a small mower shape (gone with the first frame) */
+#app:not(.live){background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 12.5%,transparent 12.5% 25%),linear-gradient(#bfe6f5 0%,#dff3ee 30%,#8fd05a 31%,#6db647 100%)}
+#app:not(.live)::before{content:"";position:absolute;left:50%;top:58%;width:18vmin;height:18vmin;margin:-9vmin;border-radius:38% 38% 30% 30%;background:radial-gradient(circle at 34% 36%,#fffdf2 0 9%,transparent 10%),radial-gradient(circle at 66% 36%,#fffdf2 0 9%,transparent 10%),linear-gradient(#49c7b8,#1f9c96);box-shadow:0 1.4vmin 0 #1a4a3c55;animation:ld 1s ease-in-out infinite}
+@keyframes ld{50%{transform:translateY(-1.2vmin) scale(1.04,.97)}}
+.retry{position:absolute;left:50%;top:50%;width:30vmin;height:30vmin;margin:-15vmin;border-radius:50%;border:0;background:#fff6e6;color:#1f5a4a;font:800 14vmin/1 system-ui;box-shadow:0 1.2vmin 0 #1a4a3c66}
+.retry small{display:block;font-size:3vmin;opacity:.6}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// never a dead end: no picture after a script error (4 s), after 12 s waiting for the 3D library (code LIB), or when
+// WebGL fails (code GL, from game.js), a retry button with the reason code takes the screen
+(function () {
+  var shown = false;
+  function fail(code) {
+    if (shown || (code !== 'GL' && document.querySelector('#app.live'))) return; shown = true;
+    var app = document.getElementById('app');
+    app.innerHTML = '<button class="retry" aria-label="Retry">↻<small>' + code + '</small></button>';
+    app.querySelector('button').onclick = function () { location.reload(); };
+  }
+  window.__load = { fail: fail };
+  addEventListener('error', function () { setTimeout(function () { fail('ERR'); }, 4000); });
+  setTimeout(function () { fail('LIB'); }, 12000);
+})();
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js", "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.js": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" } }</script>
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js" crossorigin>
+<link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" crossorigin>
+<link rel="modulepreload" href="./logic.js"><link rel="modulepreload" href="./world.js"><link rel="modulepreload" href="./lawn.js"><link rel="modulepreload" href="./kit.js"><link rel="modulepreload" href="./buzzy.js"><link rel="modulepreload" href="./chibi.js">
+<script type="module" data-lib>import * as THREE from 'three'; window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>

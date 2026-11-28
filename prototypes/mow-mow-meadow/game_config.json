@@ -1,0 +1,54 @@
+{
+  "seed": 20261128,
+  "save": { "version": 1, "everyS": 10 },
+  "lawn": { "cellM": 0.125, "tallM": 0.5, "extraTallM": 0.8, "cutM": 0.07, "bladeW": 0.075, "edgeHelpM": 0.2, "finishHelpAt": 0.97, "finishHelpMul": 1.5, "footLenM": 0.6, "bladesPerM2": [50, 90, 140], "windAmp": 0.09, "windSpeed": 1.3, "pushM": 1.1 },
+  "kart": { "radiusM": 0.62, "accelS": 0.25, "stopS": 0.3, "turnRate": 9, "leanDeg": 8, "stickFullPx": 48, "stickDeadPx": 6, "stickDriftPx": 96, "honkCooldownS": 0.5 },
+  "upgrades": {
+    "levels": 9,
+    "deck": { "from": 1.2, "to": 2.4, "base": 50 },
+    "engine": { "from": 3.0, "to": 4.8, "base": 40 },
+    "baler": { "sizes": [30, 40, 52, 66, 82, 100, 120, 142, 166, 192], "reachFrom": 1.5, "reachTo": 4, "base": 30 },
+    "growth": 1.72, "padStayS": 0.6
+  },
+  "flow": { "riseS": 0.25, "fallS": 0.5, "graceS": 1.2, "freshShare": 0.6, "speedMul": 1.15, "baleMul": 1.5, "ribbonS": 20 },
+  "economy": { "perM2": 1, "tipK": 0.25, "starFactor": [1, 1.5, 2], "findBase": 6, "findPerGarden": 2, "wetMul": 1.25, "appleCoins": 3 },
+  "stars": [0.9, 0.97, 1.0],
+  "finds": { "perM2": 0.0715, "min": 5, "spacingM": 1.6, "startClearM": 2, "goldenOneIn": 12, "firstBaleM2": 15, "firstFriendAt": 0.4 },
+  "guide": { "missAfterS": 4, "missFrom": 0.85 },
+  "camera": { "fov": 46, "pitchDeg": 52, "dist": [15, 20], "aheadM": 1.5, "aheadEaseS": 0.4, "heroY": 0.58, "flowPull": 0.1, "ease": 5, "shakeMaxPx": 6 },
+  "cine": { "cooldownS": 20, "cancelDragPx": 24 },
+  "comfort": { "exposure": 0.92, "vignette": 0.1, "bloom": 0.35, "nearWhiteMax": 0.015, "brightMax": 0.12, "meanMax": 165 },
+  "quality": { "start": 1, "dpr": [1.25, 1.5, 2], "shadow": [0, 512, 1024], "particles": [180, 350, 600], "downAfterS": 2, "upAfterS": 10, "budgetMs": [24, 19, 17] },
+  "audio": { "master": 0.8, "music": 0.5, "bpm": [92, 100, 84], "maxPerS": 6 },
+  "ftue": { "driveM": 2, "cutAt": 0.1, "dim": 0.55 },
+  "reward": { "maxGapS": 6, "maxNoveltyGapS": 25, "firstCardAfterS": 60 },
+  "districts": [
+    { "id": "clover", "sun": [35, 40], "sky": ["#8fd0f5", "#dff3ff"], "sunCol": "#fff1d2", "hemi": ["#cfeaff", "#7fb35a"], "fog": "#d8f0ec", "grade": [1.0, 1.0, 1.0], "grass": ["#2f7437", "#79b655", "#8ac564", "#69aa4e"] },
+    { "id": "windmill", "sun": [22, 62], "sky": ["#f6c98a", "#ffe9c7"], "sunCol": "#ffd9a0", "hemi": ["#ffe6c4", "#8aa850"], "fog": "#f4dfc0", "grade": [1.04, 1.0, 0.94], "grass": ["#3d7d2c", "#93bf45", "#a5cc55", "#7fae40"] },
+    { "id": "lantern", "sun": [12, 300], "sky": ["#3b3f7a", "#f0a37c"], "sunCol": "#ffb48a", "hemi": ["#7f86c9", "#3f6a4c"], "fog": "#565c94", "grade": [0.96, 0.98, 1.06], "grass": ["#24603a", "#4f9a55", "#62ab62", "#478f52"] }
+  ],
+  "gardens": [
+    { "id": "hedgehog", "w": 8, "d": 8.5, "f": [] },
+    { "id": "rabbit", "w": 10, "d": 12, "f": ["beds"] },
+    { "id": "duck", "w": 12, "d": 15.5, "f": ["beds", "pond"] },
+    { "id": "mole", "w": 14, "d": 18.5, "f": ["beds", "molehills"] },
+    { "id": "squirrel", "w": 16, "d": 22, "f": ["beds", "orchard"] },
+    { "id": "fox", "w": 18, "d": 24, "f": ["maze", "beds"] },
+    { "id": "sheep", "w": 20, "d": 26, "f": ["beds", "pattern:long", "sheep"] },
+    { "id": "goat", "w": 21, "d": 29, "f": ["terraces", "beds", "pattern:cross"] },
+    { "id": "frog", "w": 22, "d": 31.5, "f": ["sprinklers", "pond", "beds"] },
+    { "id": "owl", "w": 24, "d": 33, "f": ["beds", "orchard", "pattern:diag"] },
+    { "id": "fawn", "w": 26, "d": 35.5, "f": ["mushrooms", "pond", "beds"] },
+    { "id": "badger", "w": 28, "d": 38, "f": ["fountain", "beds", "orchard", "pattern:chequer"] }
+  ],
+  "friends": ["ladybird", "snail", "butterfly", "frog", "mouse", "cricket", "bee", "dragonfly", "caterpillar", "moth", "firefly", "bluefly"],
+  "toys": ["ball", "kite", "boat", "top", "teacup", "boot", "can", "marbles", "crown", "duckie", "block", "bell", "yoyo", "spoon", "key", "shell", "robot", "drum", "whistle", "button", "acorn", "ring", "car", "dice", "plane", "bucket", "comb", "medal", "horn", "lamp", "star", "rocket", "dino", "bear", "heart", "gem"],
+  "gifts": ["flowercrown", "beecap", "raincoat", "bandana", "bearhood", "crown", "ornament-duck", "cap", "scarf", "ornament-star", "wizard", "goldhat"],
+  "shop": {
+    "paint": [["teal", 0], ["coral", 150], ["sunflower", 250], ["lilac", 350], ["mint", 450], ["sky", 600], ["berry", 750], ["gold", 900]],
+    "tint": [["classic", 0], ["mint", 200], ["clover", 320], ["goldtip", 450], ["lilac", 600], ["sunset", 800]],
+    "trail": [["petals", 0], ["daisies", 200], ["leaves", 320], ["bubbles", 450], ["stars", 600], ["hearts", 800]]
+  },
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } },
+  "strings": {}
+}
