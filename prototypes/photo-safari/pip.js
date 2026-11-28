@@ -75,7 +75,7 @@ export function makePip(heightM, P) {
 }
 
 const LUG = [0.135, 0.09, -0.045], SHOULDER = [0.22, 0.13, -0.03], SAG = [0.1, -0.1, 0]; // spine3 space; LUG is on the camera
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+let _a, _b, _m, _up; // made on first use: THREE is not read at import
 /** Strap points per side [lug, sag, shoulder] in spine3 space, for the current camera position. */
 export function strapPoints(P) {
   const c = P.cam.position, r = P.cam.rotation.x;
@@ -86,6 +86,12 @@ export function strapPoints(P) {
   });
 }
 function layStrap(P) {
+  if (!_a) { _a = new THREE.Vector3(); _b = new THREE.Vector3(); _m = new THREE.Vector3(); _up = new THREE.Vector3(0, 1, 0); }
+  // the strap hangs from the camera on the chest; once the camera leaves the chest (raise, peek) a straight cord would
+  // stand stiff in the air, so it tucks away until the camera is back
+  const off = P.cam.position.y > 0.025 || P.cam.position.z > CAM_Z + 0.005;
+  for (const m of P.strap) m.visible = !off;
+  if (off) return;
   strapPoints(P).forEach((pts, k) => { for (let i = 0; i < 2; i++) {
     const m = P.strap[k * 2 + i]; _a.fromArray(pts[i]); _b.fromArray(pts[i + 1]);
     m.position.copy(_m.addVectors(_a, _b).multiplyScalar(0.5)); const d = _b.sub(_a), len = d.length();

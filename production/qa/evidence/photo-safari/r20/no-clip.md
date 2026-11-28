@@ -1,7 +1,14 @@
 # Snowy Snapshot, round 20: nothing passes through anything (28 Nov)
 
-Base: r19 draft 01M8G418N2QJNYFKK2AF20VAK5. **New draft 01M8GCF8RMRX1ZSRT4ZAZEARPT** (sync token
-9c26f60f8a0002609e28ccabe01ebd8f). All 12 files were pulled back and matched byte for byte. Not published.
+Base: r19 draft 01M8G418N2QJNYFKK2AF20VAK5. First no-clip draft 01M8GCF8RMRX1ZSRT4ZAZEARPT. After the review below, the
+**final draft is 01M8GDCEFY0A6TJTGBQPCRHZFW** (sync token 97b6386728916a4b449fb61f2dcc7e69). All 12 files were pulled
+back and matched byte for byte. Not published.
+
+## Review fix (same round)
+
+The strap stood out stiffly in the air in the camera raise and the peek. It now shows only while the camera rests on the
+chest; once the camera leaves the chest it tucks away. The 768 and Arabic (360 and 768) comfort and controls tours were
+re-run: 0 errors.
 
 ## Audit (what clipped in r19)
 
@@ -41,7 +48,7 @@ Base: r19 draft 01M8G418N2QJNYFKK2AF20VAK5. **New draft 01M8GCF8RMRX1ZSRT4ZAZEAR
 | Unit tests | 32/32 (3 new: slide around a trunk and a turned box, slide along a face, animals step apart) |
 | Full playtest | all passed. The first run caught the camera pulling in at the west meadow corner (a pine-cone camera test), which was removed; pines keep their fade |
 | Feed bundle test (upload set) | errors: [] |
-| Comfort 360, controls 360 | 0 errors |
+| Comfort and controls: 360 and 768, plus Arabic 360 and 768 | 0 errors |
 | no-clip sweep (above) | Pip 14 mm max, animals 0, self 0 fails |
 | 4G first frame, 3 runs interleaved (machine busy with the sweep) | r19 2.93 / 2.71 / 2.64 s, r20 2.73 / 2.94 / 2.86 s: same within noise, 2 kB more |
 
