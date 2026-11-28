@@ -50,7 +50,8 @@ export function createWorld(canvas, cfg, opts = {}) {
 
   // far layers: a wide meadow under everything and soft hill bands behind, so the top of a portrait frame is composed
   const far = new THREE.Group(); scene.add(far);
-  const meadow = new THREE.Mesh(new THREE.PlaneGeometry(400, 600), M.ground); meadow.rotation.x = -Math.PI / 2; meadow.position.y = -0.02; meadow.receiveShadow = true; far.add(meadow);
+  // the meadow is long enough for all twelve gardens and the daily one
+  const meadow = new THREE.Mesh(new THREE.PlaneGeometry(400, 1400), M.ground); meadow.rotation.x = -Math.PI / 2; meadow.position.set(0, -0.02, -350); meadow.receiveShadow = true; far.add(meadow);
 
   // ---- post chain
   const hdr = THREE.HalfFloatType, quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)), quadScene = new THREE.Scene(), quadCam = new THREE.Camera(); quadScene.add(quad); quad.frustumCulled = false;
@@ -186,8 +187,8 @@ function cottageGeo(wall = CREAM, roof = CORAL) {
  * neighbour's cottage, props, beds, pond, and trees and hedges outside. Returns { group, gate, beds, trees, dispose }.
  */
 export function dressGarden(world, g, ox, oz, cfg, district) {
-  const THREE = window.THREE, M = world.M, R = rng(g.seed * 3 + 7), group = new THREE.Group(), geos = [], leafG = [], smallG = [], D = cfg.districts[district];
-  const leafC = district === 2 ? ['#2f6b4a', '#5fa868'] : district === 1 ? ['#4f8a30', '#a5c850'] : ['#3f8f3a', '#86c84e'];
+  const THREE = window.THREE, M = world.M, R = rng(g.seed * 3 + 7), group = new THREE.Group(), geos = [], leafG = [], smallG = [], spin = [], D = cfg.districts[district];
+  const leafC = district === 2 ? ['#4a9a5a', '#8fd07a'] : district === 1 ? ['#4f8a30', '#a5c850'] : ['#3f8f3a', '#86c84e'];
   const gx = ox + g.w / 2, gh = GATE_HALF_M, x0 = ox, x1 = ox + g.w, z0 = oz, z1 = oz + g.d;
   // fence: four sides, a gap for the gate in the north and for the way in at the south
   geos.push(...fenceRun(x0, z0, gx - gh, z0), ...fenceRun(gx + gh, z0, x1, z0), ...fenceRun(x0, z1, gx - gh, z1), ...fenceRun(gx + gh, z1, x1, z1), ...fenceRun(x0, z0, x0, z1), ...fenceRun(x1, z0, x1, z1));
@@ -249,6 +250,18 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
     { const lx = gx - gh - 7.6, lz = z0 - 1.5, cloth = ['#f6f1e4', '#e9795b', '#8fc6d8', '#f6c443', '#f1b9c8'];
       geos.push(paint(xf(cyl(0.035, 0.03, 1.7, 5), [lx, 0, lz]), WOOD), paint(xf(cyl(0.035, 0.03, 1.7, 5), [lx + 2.6, 0, lz]), WOOD), paint(xf(rbox(2.6, 0.015, 0.015, 0.005, 1), [lx + 1.3, 1.62, lz]), '#f6f1e4'));
       for (let i = 0; i < 5; i++) leafG.push(paint(xf(rbox(0.34 + (i % 2) * 0.1, 0.5 - (i % 3) * 0.1, 0.02, 0.008, 1), [lx + 0.35 + i * 0.48, 1.62 - (0.5 - (i % 3) * 0.1), lz]), cloth[i], '#ffffff')); } // on the leaf material, so the washing moves in the breeze
+    if (district === 1) { // Windmill Hill: a mill beside the lane, sails turning
+      const mx = gx - gh - 4.4, mz = z0 - 7.8;
+      geos.push(paint(xf(cyl(1.05, 0.62, 4.2, 12), [mx, 0, mz]), '#f3e6cf', CREAM), paint(xf(cyl(0.8, 0.04, 1.0, 12), [mx, 4.2, mz]), '#b5653a', '#d9a05a'), paint(xf(rbox(0.5, 0.95, 0.08, 0.04, 1), [mx, 0, mz + 0.98]), '#8a5a3a'), paint(xf(cyl(0.09, 0.09, 0.5, 8), [mx, 3.7, mz + 0.55], [Math.PI / 2, 0, 0]), WOOD));
+      const sg = []; for (let k = 0; k < 4; k++) sg.push(xf(merge([paint(xf(rbox(0.07, 2.3, 0.05, 0.01, 1), [0, 0.1, 0]), WOOD), paint(xf(rbox(0.55, 1.7, 0.03, 0.01, 1), [0.24, 0.6, 0]), '#fbf4e2', '#e9dcc0')]), [0, 0, 0], [0, 0, k * Math.PI / 2]));
+      const sails = mesh(merge(sg), M.matte); sails.position.set(mx, 3.7, mz + 1.08); group.add(sails); spin.push(sails);
+    }
+    if (district === 2) { // Lantern Lake: warm lanterns on posts along the lane and on the fence
+      const glow = [];
+      const lamp = (x, z, h) => { geos.push(paint(xf(cyl(0.05, 0.04, h, 6), [x, 0, z]), '#6a5a8a')); geos.push(paint(xf(cyl(0.16, 0.02, 0.14, 8), [x, h + 0.22, z]), '#6a5a8a')); glow.push(xf(blob(0.15, 1, 1.15, 1, 1), [x, h + 0.06, z])); };
+      for (const side of [-1, 1]) { for (const dz of [1.6, 5, 8.4]) lamp(gx + side * 4.3, z0 - dz, 1.9); for (let z = z0 + 4; z < z1 - 1; z += 5.5) lamp((side < 0 ? x0 : x1) + side * 0.5, z, 1.5); }
+      group.add(mesh(merge(glow), M.glow, false));
+    }
     group.add(mesh(merge(geos), M.matte), mesh(merge(leafG), M.leaf), mesh(merge(smallG), M.leaf, false));
   }
 
@@ -257,7 +270,7 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
   const gl = mesh(leafGeo(), M.matte), gr = mesh(leafGeo(), M.matte); gl.position.set(gx - gh + 0.1, 0, z0); gr.position.set(gx + gh - 0.1, 0, z0); gr.scale.x = -1; group.add(gl, gr);
   const gate = { l: gl, r: gr, t: 0, x: gx, z: z0, set(t) { this.t = t; gl.rotation.y = t * 1.75; gr.rotation.y = -t * 1.75; } };
   world.scene.add(group);
-  return { group, gate, beds, trees, pond, D, finish, dispose() { world.scene.remove(group); group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); } };
+  return { group, gate, beds, trees, pond, D, finish, /** Turns the mill sails. */ tick(t) { for (const m of spin) m.rotation.z = t * 0.5; }, dispose() { world.scene.remove(group); group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); } };
 }
 
 /** The lane between two gardens: a soft path from one gate to the next and stepping stones. Returns a mesh. */

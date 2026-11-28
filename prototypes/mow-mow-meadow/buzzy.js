@@ -48,12 +48,13 @@ export function buildBuzzy(world, look = {}) {
   const lids = [-0.19, 0.19].map((x) => { const l = mesh(paint(blob(0.112, 1, 1, 0.62, 2), c0, c1), M.enamel, false); l.position.set(x, 0.665, -0.722); l.scale.y = 0.01; body.add(l); return l; });
   const ball = mesh(paint(blob(0.07, 1, 1, 1, 1), '#f6b93b', '#ffd97a'), M.matte); ball.position.set(-0.36, 1.33, 0.86); body.add(ball);
   // the cutting deck: one unit wide, scaled on x to the deck width
+  const DECK_Z = -0.78; // the deck's centre ahead of the body; its front corners sit kart.deckFrontM ahead of the mower's centre
   const deckGeo = merge([
     paint(xf(rbox(1, 0.2, 0.62, 0.1, 3), [0, 0.03, 0]), c0, c1),
     paint(xf(rbox(1.02, 0.07, 0.1, 0.03, 2), [0, 0.09, -0.3]), CREAM),
     paint(xf(blob(0.1, 1, 0.5, 1, 1), [-0.3, 0.22, 0]), '#f6b93b'), paint(xf(blob(0.1, 1, 0.5, 1, 1), [0.3, 0.22, 0]), '#f6b93b'),
   ]);
-  const deck = mesh(deckGeo, M.enamel); deck.position.set(0, 0, -0.95); tilt.add(deck);
+  const deck = mesh(deckGeo, M.enamel); deck.position.set(0, 0, DECK_Z); tilt.add(deck);
   // wheels: big at the back, small in front
   const wheels = [];
   for (const [x, z, r, w] of [[-0.5, 0.5, 0.27, 0.2], [0.5, 0.5, 0.27, 0.2], [-0.46, -0.4, 0.18, 0.15], [0.46, -0.4, 0.18, 0.15]]) { const m = mesh(wheelGeo(r, w), M.rubber); m.position.set(x, r, z); m.userData.r = r; tilt.add(m); wheels.push(m); }
@@ -75,8 +76,8 @@ export function buildBuzzy(world, look = {}) {
     group, seat, get chibi() { return chibi; }, deck,
     /** Sets the cutting width in metres. */
     setDeck(w) { deckW = w; deck.scale.x = w * squash; },
-    /** Squeezes the deck's width (1 = full) so its corners spring in beside a fence or a rock instead of passing through. */
-    setSquash(k) { squash = k; deck.scale.x = deckW * k; },
+    /** Squeezes the deck's width (1 = full) and slides it back `pull` metres under the body, so its corners spring in beside a fence or a rock instead of passing through. */
+    setSquash(k, pull = 0) { squash = k; deck.scale.x = deckW * k; deck.position.z = DECK_Z + pull / 0.92; },
     setPaint(key) { const p = PAINTS[key] || PAINTS.teal; if (c0 === p[0]) return; [c0, c1] = p; paintMesh.geometry.dispose(); paintMesh.geometry = shell(); hopper.geometry.dispose(); hopper.geometry = hopGeo(); },
     /** Shows the upgrade levels on the model: a taller chimney for the engine, a bigger hopper for the baler. */
     setLevels(up) { chimney.scale.set(1 + up.engine * 0.05, 1 + up.engine * 0.07, 1 + up.engine * 0.05); hopBase = 1 + up.baler * 0.035; },

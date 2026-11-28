@@ -137,7 +137,7 @@ export function createToys(c, s) {
       if (!active) return;
       for (const [i, f] of flock.entries()) {
         follow(f, E.sheepGapM * (i + 2), dt, t, 4.2);
-        f.munch -= dt; if (f.munch <= 0 && !s.finale) { f.munch = 0.3; const n = c.cutAt(s, f.m.position.x - s.ox, f.m.position.z - s.oz, E.sheepBiteM); if (n > 0) { fx.burst('clip', f.m.position.x, 0.2, f.m.position.z, 2); if (Math.random() < 0.15) audio.sfx('rustle'); } }
+        f.munch -= dt; if (f.munch <= 0 && !s.finale) { f.munch = 0.1; const bx = f.m.position.x - s.ox, bz = f.m.position.z - s.oz, n = c.cutAt(s, bx, bz, E.sheepBiteM, f.bx === undefined ? bx : f.bx, f.bz === undefined ? bz : f.bz); f.bx = bx; f.bz = bz; if (n > 0) { fx.burst('clip', f.m.position.x, 0.2, f.m.position.z, 1); if (Math.random() < 0.05) audio.sfx('rustle'); } }
       }
     });
   }

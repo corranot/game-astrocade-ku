@@ -106,3 +106,55 @@ Scorecard (0 to 10 per frame, from the retained frames):
 
 Open, carried to M3 and M4: Windmill and Lantern art pass (below 8 today), selective bloom on flowers (no post
 pass yet), the three-star pull-back triangle spike, real-device FPS.
+
+## M3 (28 Nov 2026): M2 review fixes, districts 2 and 3, share and leaderboard
+
+Evidence: `production/qa/evidence/mow-mow-meadow/m3-*.jpg` (three contact sheets and 11 frames).
+
+M2 review fixes:
+
+- First frame: a new player's Buzzy has already cut a 3 m stripe and turned to face the camera; the first
+  spotlight dims the scene by 0.1 instead of 0.4. Bright from the first picture, both faces readable.
+- Camera: follow yaw 38, pitch 42, so normal driving shows Buzzy and Nilo from the three-quarter side.
+- Sheep tiles: sheep now munch a continuous strip with the same stripe tone and sheen as the mower's cut.
+- Light: Lantern Lake grass, foliage and fog brightened to the warm look of the finished-garden frame. Found on
+  the way: the meadow ground plane ended at z = -300, so gardens 11, 12 and the daily garden stood on bare fog
+  colour; it now runs under all of them.
+- No-clip sweep (`logic.test.mjs`): in every garden the mower is pushed 6,000 steps into fences, rocks, bushes,
+  trees and the pond with the widest deck. 72,000 poses: body never closer than 0.25 m to a solid (0 clips),
+  deck corners outside in 0 poses. To get there: the collider is 1.0 m, the gate gap fits the 0.75 m body, the
+  deck sits closer to the body, springs narrower and slides back under the body near obstacles
+  (`L.deckFit`). Neighbours step out of Buzzy's way and party guests stand beside the lane, outside where it
+  can drive. Flower beds are driven over on purpose (the flowers bow). Houses, the mill and lamp posts stand
+  outside the lane walls.
+
+New in M3:
+
+- Windmill Hill: a mill with turning sails beside the lane. Lantern Lake: lamp posts along the lane and the
+  fence, fireflies around Buzzy.
+- Share chip at the district party (only when the host offers sharing; title and text, no image).
+- Leaderboard: lifetime square metres, sent quietly at each receipt.
+
+| Check | Result |
+|---|---|
+| `node --test logic.test.mjs` | 14 pass |
+| lint, `ci-checks.sh`, bundle test | pass; 301 KB, no failures |
+| `node tools/load-time.js` (4G) | first frame 1.55 and 1.64 s |
+
+Scorecard (0 to 10 per frame):
+
+| Frame | Score | Note |
+|---|---|---|
+| First frame, 360x640 | 8.5 | bright, faces, stripe, cottage |
+| Clover play (ducklings) | 8.5 | |
+| Finished garden, party | 8.5 | guests beside the lane, share chip |
+| Windmill play (sheep strip) | 8 | |
+| Windmill lane | 8 | mill is at the frame edge; pads and faces read well |
+| Lantern play | 8 | bright; fireflies are small square points |
+| Lantern overview | 7.5 | lanterns are small at this distance |
+| Daily garden | 8 | |
+| HUD at four sizes and Arabic, album, shop | 8.5 | |
+
+Open for M4: glow pass evidence (the bloom pass waits for 30 smooth frames and never switches on in software
+GL), round fireflies, larger lanterns, the three-star pull-back triangle spike, a measured mid-phone FPS number,
+the full 10-minute bot run.

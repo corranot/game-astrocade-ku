@@ -21,8 +21,14 @@ export function createLife(world, Cast, n = 5) {
     const g = new THREE.Group(), l = mesh(wingGeo(), world.M.matte, false), r = mesh(wingGeo(), world.M.matte, false); r.scale.x = -1;
     g.add(mesh(birdGeo(), world.M.matte, false), l, r); g.visible = false; group.add(g); birds.push({ g, l, r, t: 3 + i * 6, x: 0, z: 0, vx: 0, vz: 0, life: 0 });
   }
+  // fireflies for the dusk district: a handful of warm points that drift near Buzzy
+  const FN = 18, fpos = new Float32Array(FN * 3), fgeo = new THREE.BufferGeometry(); fgeo.setAttribute('position', new THREE.BufferAttribute(fpos, 3));
+  const fire = new THREE.Points(fgeo, new THREE.PointsMaterial({ color: new THREE.Color(1.9, 1.7, 0.7), size: 0.16, sizeAttenuation: true, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false })); fire.frustumCulled = false; fire.visible = false; group.add(fire);
   return {
+    /** Fireflies on or off (on in the dusk district). */
+    setDusk(on) { fire.visible = on; },
     update(dt, t, x, z) {
+      if (fire.visible) { for (let i = 0; i < FN; i++) { const a = i * 2.399, r = 2.5 + (i % 6) * 1.3; fpos[i * 3] = x + Math.cos(a + t * 0.11 * (1 + i % 3)) * r; fpos[i * 3 + 1] = 0.7 + (i % 4) * 0.35 + Math.sin(t * 0.9 + i) * 0.25; fpos[i * 3 + 2] = z - 1 + Math.sin(a * 1.7 + t * 0.09 * (1 + i % 2)) * r; } fgeo.attributes.position.needsUpdate = true; }
       for (const b of flies) {
         if (!b.on) continue;
         b.cx += (x - b.cx) * Math.min(1, dt * 0.25); b.cz += (z - b.cz) * Math.min(1, dt * 0.25); b.a += dt * b.sp;

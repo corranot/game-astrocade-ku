@@ -164,3 +164,24 @@ test('every language has every string, and Arabic is among them', () => {
   assert.ok(en.length > 20);
   for (const [lang, t] of Object.entries(c.strings)) assert.deepEqual(Object.keys(t).sort(), en, 'strings for ' + lang);
 });
+
+test('no-clip sweep: pushed against everything in every garden, the body never enters a fence, rock or pond and the deck never pokes out', () => {
+  const c = cfg(), K = c.kart, report = [];
+  for (let n = 0; n < c.gardens.length; n++) {
+    const g = garden(c, n), R = L.rng(900 + n), hw = L.upValue(c, 'deck', c.upgrades.levels) / 2; // widest deck
+    let x = g.start.x, z = g.start.z, ang = 0, poses = 0, minBody = 9, maxPoke = 0, pokes = 0, hits = 0, dx = 0, dz = -1;
+    for (let i = 0; i < 6000; i++) {
+      if (i % 45 === 0) { const a = R() * Math.PI * 2; dx = Math.sin(a); dz = Math.cos(a); } // a new push direction: mostly straight into whatever is there
+      const m = L.slide(g, x, z, dx * 0.08, dz * 0.08, K.radiusM, true); if (m.hit) hits++;
+      x = Math.min(g.w, Math.max(0, m.x)); z = Math.min(g.d - 0.01, Math.max(0.01, m.z)); ang = Math.atan2(-dx, -dz); poses++; // stays inside the garden: the lane has its own walls
+      const inGate = Math.abs(x - g.w / 2) < L.GATE_HALF_M - L.BODY_M;
+      const body = Math.min(x, g.w - x, inGate ? 9 : z, inGate ? 9 : g.d - z, L.clearAt(g, x, z)) - L.BODY_M; if (body < minBody) minBody = body;
+      const f = L.deckFit(g, x, z, ang, hw, K.squashSteps, K.deckFrontM, K.squashPulls); if (f.poke > 0.02) { pokes++; if (f.poke > maxPoke) maxPoke = f.poke; }
+    }
+    report.push({ n, poses, hits, minBodyGapM: +minBody.toFixed(2), deckPokes: pokes, maxPokeM: +maxPoke.toFixed(2) });
+    assert.ok(hits > 100, `garden ${n}: the sweep really pushed against things (${hits})`);
+    assert.ok(minBody >= 0, `garden ${n}: body ${minBody.toFixed(2)} m inside a fence, rock or pond`);
+    assert.equal(pokes, 0, `garden ${n}: deck pokes out ${maxPoke.toFixed(2)} m in ${pokes} poses`);
+  }
+  if (process.env.NOCLIP) console.log(JSON.stringify(report));
+});
