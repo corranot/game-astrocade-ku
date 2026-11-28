@@ -1,0 +1,9 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION: chibi base viewer and turnaround renderer (?shot=turn|compare|looks|anim|phone) -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chibi base</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#dfeaf6;font:600 14px system-ui,sans-serif;color:#3a4a6a}canvas{display:block}#lab{position:fixed;inset:auto 0 10px 0;display:flex;justify-content:space-around;pointer-events:none}</style>
+<script type="importmap">{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.module.min.js", "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.js": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.187.0/three.core.min.js" } }</script>
+</head><body><div id="lab"></div>
+<script type="module">import * as THREE from 'three'; window.THREE = THREE; import('./demo.js');</script>
+</body></html>
