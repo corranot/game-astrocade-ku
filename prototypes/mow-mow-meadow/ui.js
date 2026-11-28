@@ -91,9 +91,10 @@ const CSS = `
 .padl .kind svg{width:calc(var(--u)*30);height:calc(var(--u)*30)}
 .padl .num{font-size:calc(var(--u)*30)}
 .padl.no{opacity:.75;filter:saturate(.4)}
-.arrow{position:absolute;left:0;top:0;width:calc(var(--u)*64);height:calc(var(--u)*64);margin:calc(var(--u)*-32);display:none}
+.arrow{position:absolute;left:0;top:0;width:calc(var(--u)*88);height:calc(var(--u)*88);margin:calc(var(--u)*-44);display:none}
 .arrow.on{display:block}
-.arrow svg{width:100%;height:100%;filter:drop-shadow(0 calc(var(--u)*4) 0 rgba(31,79,74,.35))}
+.arrow svg{width:100%;height:100%;filter:drop-shadow(0 calc(var(--u)*5) 0 rgba(31,79,74,.4));animation:arrowgo .7s ease-in-out infinite alternate}
+@keyframes arrowgo{from{transform:translateY(calc(var(--u)*10))}to{transform:translateY(calc(var(--u)*-10))}}
 .dimmer{position:absolute;inset:0;background:rgba(18,44,40,.2);opacity:0;transition:opacity .2s;pointer-events:none}
 .dimmer.on{opacity:1;pointer-events:auto}
 .sheet{position:absolute;left:50%;bottom:0;width:min(100%,calc(var(--u)*720));max-height:70%;transform:translate(-50%,105%);transition:transform .22s cubic-bezier(.3,1.25,.5,1);border-radius:calc(var(--u)*40) calc(var(--u)*40) 0 0;border-bottom:0;display:flex;flex-direction:column;pointer-events:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -195,7 +196,7 @@ export function createUI(root, cfg, on) {
   const hud = document.createElement('div'); hud.className = 'hud'; root.appendChild(hud);
   hud.innerHTML = `
   <div class="spot"></div><div class="barsT"></div><div class="barsB"></div>
-  <div class="stick"><i></i></div><div class="pulse"></div><div class="arrow"><svg viewBox="0 0 64 64"><path d="M32 6l22 30H40v20H24V36H10z" fill="#fff6e3" stroke="#1f4f4a" stroke-width="5" stroke-linejoin="round"/></svg></div><div class="hint">${I.hand}</div>
+  <div class="stick"><i></i></div><div class="pulse"></div><div class="arrow"><svg viewBox="0 0 64 64"><path d="M32 5l23 27H42v14a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8V32H9z" fill="#e9795b" stroke="#fff6e3" stroke-width="6" stroke-linejoin="round"/></svg></div><div class="hint">${I.hand}</div>
   <div class="row">
     <div class="pill paper coins">${I.coin}<span class="num">0</span></div>
     <div class="pill paper prog"><div class="bar"><b></b><i style="left:50%">${I.star}</i><i style="left:75%">${I.star}</i><i style="left:100%">${I.star}</i></div><span class="num pct">0%</span></div>

@@ -4,7 +4,7 @@
 // little pitch variation, rate-limited, under a limiter. The graph is created on the first gesture.
 
 const PENTA = [0, 2, 4, 7, 9];
-const KEYS = [60, 62, 57]; // district keys: C, D, A (major pentatonic)
+const KEYS = [60, 62, 57, 65]; // district keys: C, D, A, and F for the daily garden (major pentatonic)
 const CHORDS = [[0, 4, 7], [9, 0, 4], [5, 9, 0], [7, 11, 2]]; // I vi IV V, as semitones above the key
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -114,7 +114,7 @@ export function createAudio(cfg, rnd = Math.random) {
         else { if (Math.random() < 0.5) tone(170, t, 0.22, 'square', 0.02, { to: 120, lp: 600 }); else tone(mtof(degToMidi(Math.floor(Math.random() * 5)) + 24), t, 1.4, 'sine', 0.02); }
       }
     },
-    setDistrict(d) { if (d === district) return; district = d; melody = makeMelody(d); mi = 0; },
+    setDistrict(d) { d = Math.max(0, Math.min(KEYS.length - 1, Math.min(A.bpm.length - 1, d | 0))); if (d === district) return; district = d; melody = makeMelody(d); mi = 0; },
     setMute(m) { mute = m; if (ctx) master.gain.setTargetAtTime(m ? 0 : A.master, ctx.currentTime, 0.05); },
     setMusic(m) { music = m; },
     get ready() { return !!ctx; },

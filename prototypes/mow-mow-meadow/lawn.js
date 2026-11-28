@@ -32,7 +32,9 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R, bladeH = 1) {
   const tex = new THREE.DataTexture(g.mask, g.cols, g.rows, THREE.RGBAFormat, THREE.UnsignedByteType);
   tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
   const U = uniforms(THREE, tex, g, ox, oz, pal);
-  U.uCut.value = L.cutM; U.uTall.value = (L.extraTallM - L.cutM) * bladeH; // each district's grass stands a little taller or shorter U.uWind.value.set(L.windAmp, L.windSpeed); U.uPush.value = L.pushM; U.uStripe.value.set(L.stripeLaneM, L.stripeK);
+  U.uCut.value = L.cutM; U.uTall.value = (L.extraTallM - L.cutM) * bladeH;
+  // each district's grass stands a little taller or shorter
+  U.uWind.value.set(L.windAmp, L.windSpeed); U.uPush.value = L.pushM; U.uStripe.value.set(L.stripeLaneM, L.stripeK);
   const share = (sh) => { for (const k in U) sh.uniforms[k] = U[k]; };
 
   // ---- ground: stripes from the cut direction, a dark root colour under tall grass, a darker band at the cut edge
@@ -76,7 +78,7 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R, bladeH = 1) {
     }
     if (!n) continue;
     const geo = new THREE.InstancedBufferGeometry(); geo.index = blade.index; geo.setAttribute('position', blade.getAttribute('position')); geo.setAttribute('normal', blade.getAttribute('normal'));
-    geo.setAttribute('aI', new THREE.InstancedBufferAttribute(inst.subarray(0, n * 4), 4));
+    geo.setAttribute('aInst', new THREE.InstancedBufferAttribute(inst.subarray(0, n * 4), 4));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(ox + x0 + w / 2, 0.5, oz + z0 + d / 2), Math.hypot(w, d) / 2 + 1.5);
     tiles.push({ geo, n, share: n / want, cx: ox + x0 + w / 2, cz: oz + z0 + d / 2 });
   }
@@ -84,11 +86,11 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R, bladeH = 1) {
   const bladeMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
   bladeMat.onBeforeCompile = (sh) => {
     share(sh);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aI; varying vec3 vCol; uniform float uTall; uniform float uCut; uniform vec2 uWind; uniform float uPush; uniform float uBladeW;' + COMMON)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aInst; varying vec3 vCol; uniform float uTall; uniform float uCut; uniform vec2 uWind; uniform float uPush; uniform float uBladeW;' + COMMON)
       .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
       .replace('#include <begin_vertex>', `
-      vec2 base = aI.xy; vec4 m = texture2D(uMask, maskUv(base));
-      float r1 = aI.z, r2 = aI.w, y = position.y;
+      vec2 base = aInst.xy; vec4 m = texture2D(uMask, maskUv(base));
+      float r1 = aInst.z, r2 = aInst.w, y = position.y;
       float tall = m.r * uGrow, isCut = 1.0 - smoothstep(0.02, 0.3, m.r);
       float hgt = (uCut + tall * uTall) * (0.72 + 0.56 * r1) * step(0.5, m.a);
       float wdt = uBladeW * (0.7 + 0.6 * r2) * mix(1.0, 0.55, isCut);
@@ -121,19 +123,19 @@ export function createLawn(THREE, g, cfg, ox, oz, pal, tier, R, bladeH = 1) {
   }
   const petal = new THREE.PlaneGeometry(1, 1); petal.rotateX(-Math.PI / 2); // one quad; the five petals are drawn in the fragment shader
   const bgeo = new THREE.InstancedBufferGeometry(); bgeo.index = petal.index; bgeo.setAttribute('position', petal.getAttribute('position')); bgeo.setAttribute('normal', petal.getAttribute('normal'));
-  bgeo.setAttribute('aI', new THREE.InstancedBufferAttribute(bi.subarray(0, bk * 4), 4)); bgeo.boundingSphere = allSphere;
+  bgeo.setAttribute('aInst', new THREE.InstancedBufferAttribute(bi.subarray(0, bk * 4), 4)); bgeo.boundingSphere = allSphere;
   const bloomMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   bloomMat.onBeforeCompile = (sh) => {
     share(sh);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aI; varying vec3 vCol; varying vec3 vP;' + COMMON)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aInst; varying vec3 vCol; varying vec3 vP;' + COMMON)
       .replace('#include <begin_vertex>', `
-      vec4 m = texture2D(uMask, maskUv(aI.xy));
+      vec4 m = texture2D(uMask, maskUv(aInst.xy));
       float open = clamp((uBloom - m.b) * 6.0, 0.0, 1.0) * step(m.r, 0.1) * step(0.5, m.a);
       float pop = open * (1.0 + 0.35 * sin(min(open, 1.0) * 3.14159));
-      float sz = (0.2 + 0.13 * aI.w) * pop;
-      vec3 transformed = vec3(aI.x + position.x * sz, 0.1 + 0.03 * aI.z + 0.02 * sin(uTime * 2.0 + aI.z * 20.0), aI.y + position.z * sz);
-      vP = vec3(position.xz, aI.z * 6.2831853);
-      float k = fract(aI.z * 7.0);
+      float sz = (0.2 + 0.13 * aInst.w) * pop;
+      vec3 transformed = vec3(aInst.x + position.x * sz, 0.1 + 0.03 * aInst.z + 0.02 * sin(uTime * 2.0 + aInst.z * 20.0), aInst.y + position.z * sz);
+      vP = vec3(position.xz, aInst.z * 6.2831853);
+      float k = fract(aInst.z * 7.0);
       vCol = k < 0.25 ? vec3(1.0, 0.95, 0.86) : k < 0.5 ? vec3(0.96, 0.49, 0.36) : k < 0.75 ? vec3(0.96, 0.73, 0.23) : vec3(0.78, 0.62, 0.92);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vCol; varying vec3 vP;').replace('#include <color_fragment>', 'float rr = length(vP.xy), th = atan(vP.y, vP.x) + vP.z, lobe = 0.5 + 0.5 * cos(th * 5.0); if (rr > 0.5 * (0.56 + 0.44 * lobe)) discard; diffuseColor.rgb = mix(vec3(1.0, 0.8, 0.26), vCol * (0.84 + 0.16 * lobe + 0.25 * rr), smoothstep(0.1, 0.15, rr));');
   };

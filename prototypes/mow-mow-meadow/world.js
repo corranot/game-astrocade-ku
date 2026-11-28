@@ -269,7 +269,7 @@ export function dressGarden(world, g, ox, oz, cfg, district) {
     if (district === 2) { // Lantern Lake: big warm lanterns along the lane and the fence, each with a pool of light on the grass
       const glow = [], pools = [];
       const lamp = (x, z, h) => { geos.push(paint(xf(cyl(0.07, 0.05, h, 6), [x, 0, z]), '#5d4f7c'), paint(xf(cyl(0.3, 0.03, 0.2, 8), [x, h + 0.42, z]), '#5d4f7c')); glow.push(xf(blob(0.27, 1, 1.15, 1, 2), [x, h + 0.14, z])); { const q = new THREE.PlaneGeometry(7, 7), uv = q.getAttribute('uv'), col = new Float32Array(uv.count * 3); for (let i = 0; i < uv.count; i++) { col[i * 3] = uv.getX(i); col[i * 3 + 1] = uv.getY(i); } q.setAttribute('color', new THREE.BufferAttribute(col, 3)); pools.push(xf(q, [x, 0.95, z], [-Math.PI / 2, 0, 0])); } };
-      for (const side of [-1, 1]) { for (const dz of [1.6, 5, 8.4]) lamp(gx + side * 4.3, z0 - dz, 2.3); for (let z = z0 + 3.5; z < z1 - 1; z += 5) lamp((side < 0 ? x0 : x1) + side * 0.5, z, 1.8); }
+      for (const side of [-1, 1]) { for (const dz of side < 0 ? [7, 9.3] : [1.6, 5, 8.4]) lamp(gx + side * 5, z0 - dz, 2.3); for (let z = z0 + 3.5; z < z1 - 1; z += 5) lamp((side < 0 ? x0 : x1) + side * 0.5, z, 1.8); }
       group.add(mesh(merge(glow), M.lamp, false)); const pm = mesh(merge(pools), M.pool, false); pm.renderOrder = 3; group.add(pm);
     }
     if (district === 3) { // the daily garden is a little festival: bunting along the fence
